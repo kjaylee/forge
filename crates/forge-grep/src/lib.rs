@@ -1,11 +1,11 @@
-use grep::searcher::{SearcherBuilder};
 use grep::regex::RegexMatcher;
 use grep::searcher::sinks::UTF8;
-use std::path::Path;
-use walkdir::WalkDir;
-use std::io::{self, BufRead};
+use grep::searcher::SearcherBuilder;
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
+use walkdir::WalkDir;
 
 /// Represents a single search result
 #[derive(Debug)]
@@ -121,7 +121,7 @@ fn format_results(results: &[SearchResult], cwd: &Path) -> String {
 
         grouped_results
             .entry(relative_path.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(result);
     }
 
@@ -148,20 +148,19 @@ fn format_results(results: &[SearchResult], cwd: &Path) -> String {
     output
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::fs::File;
     use std::io::Write;
+    use tempfile::tempdir;
 
     /// Helper to create files in a directory
     fn create_temp_file(dir: &std::path::Path, name: &str, content: &str) {
         let file_path = dir.join(name);
         let mut file = File::create(file_path).expect("Failed to create temp file");
-        file.write_all(content.as_bytes()).expect("Failed to write to temp file");
+        file.write_all(content.as_bytes())
+            .expect("Failed to write to temp file");
     }
 
     #[test]
@@ -170,7 +169,10 @@ mod tests {
         let cwd = temp_dir.path();
 
         let result = regex_search_files(cwd, temp_dir.path(), "TODO:", None).unwrap();
-        assert!(result.contains("Found 0 results"), "Expected no results in an empty directory.");
+        assert!(
+            result.contains("Found 0 results"),
+            "Expected no results in an empty directory."
+        );
     }
 
     #[test]
@@ -179,31 +181,51 @@ mod tests {
         create_temp_file(temp_dir.path(), "test.rs", "This file has no TODOs");
 
         let result = regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", None).unwrap();
-        assert!(result.contains("Found 0 results"), "Expected no results for files without matches.");
+        assert!(
+            result.contains("Found 0 results"),
+            "Expected no results for files without matches."
+        );
     }
 
     #[test]
     fn test_single_match() {
         let temp_dir = tempdir().unwrap();
-        create_temp_file(temp_dir.path(), "test.rs", "This is a line.\nTODO: Fix this issue\nAnother line.");
+        create_temp_file(
+            temp_dir.path(),
+            "test.rs",
+            "This is a line.\nTODO: Fix this issue\nAnother line.",
+        );
 
         let result = regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", None).unwrap();
-        assert!(result.contains("TODO: Fix this issue"), "Expected to find a single TODO match.");
+        assert!(
+            result.contains("TODO: Fix this issue"),
+            "Expected to find a single TODO match."
+        );
     }
 
     #[test]
     fn test_multiple_matches_with_context() {
         let temp_dir = tempdir().unwrap();
-        create_temp_file(temp_dir.path(), "test.rs", "\
+        create_temp_file(
+            temp_dir.path(),
+            "test.rs",
+            "\
             Line 1\n\
             TODO: First match\n\
             Line 2\n\
             TODO: Second match\n\
-            Line 3");
+            Line 3",
+        );
 
         let result = regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", None).unwrap();
-        assert!(result.contains("TODO: First match"), "Expected first match.");
-        assert!(result.contains("TODO: Second match"), "Expected second match.");
+        assert!(
+            result.contains("TODO: First match"),
+            "Expected first match."
+        );
+        assert!(
+            result.contains("TODO: Second match"),
+            "Expected second match."
+        );
     }
 
     #[test]
@@ -212,10 +234,17 @@ mod tests {
         create_temp_file(temp_dir.path(), "test.rs", "TODO: Match in RS file");
         create_temp_file(temp_dir.path(), "test.txt", "TODO: Match in TXT file");
 
-        let result = regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", Some(".rs")).unwrap();
+        let result =
+            regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", Some(".rs")).unwrap();
 
-        assert!(result.contains("TODO: Match in RS file"), "Expected match in .rs file.");
-        assert!(!result.contains("TODO: Match in TXT file"), "Did not expect match in .txt file.");
+        assert!(
+            result.contains("TODO: Match in RS file"),
+            "Expected match in .rs file."
+        );
+        assert!(
+            !result.contains("TODO: Match in TXT file"),
+            "Did not expect match in .txt file."
+        );
     }
 
     #[test]
@@ -228,19 +257,26 @@ mod tests {
 
         let result = regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", None).unwrap();
 
-        assert!(result.contains(&format!("Showing first {} of {}+", MAX_RESULTS, MAX_RESULTS)),
-                "Expected results to be limited to MAX_RESULTS.");
+        assert!(
+            result.contains(&format!(
+                "Showing first {} of {}+",
+                MAX_RESULTS, MAX_RESULTS
+            )),
+            "Expected results to be limited to MAX_RESULTS."
+        );
     }
 
     #[test]
-fn test_invalid_file_path() {
-    let temp_dir = tempdir().unwrap();
-    let invalid_path = temp_dir.path().join("nonexistent");
+    fn test_invalid_file_path() {
+        let temp_dir = tempdir().unwrap();
+        let invalid_path = temp_dir.path().join("nonexistent");
 
-    let result = regex_search_files(temp_dir.path(), &invalid_path, "TODO:", None);
-    assert!(result.is_ok(), "Expected the function to skip non-existent files.");
-}
-
+        let result = regex_search_files(temp_dir.path(), &invalid_path, "TODO:", None);
+        assert!(
+            result.is_ok(),
+            "Expected the function to skip non-existent files."
+        );
+    }
 
     #[test]
     fn test_non_utf8_file_handling() {
@@ -252,6 +288,9 @@ fn test_invalid_file_path() {
         file.write_all(&[0x80, 0x81, 0x82, 0xFF]).unwrap();
 
         let result = regex_search_files(temp_dir.path(), temp_dir.path(), "TODO:", None);
-        assert!(result.is_err(), "Expected an error when reading non-UTF8 files.");
+        assert!(
+            result.is_err(),
+            "Expected an error when reading non-UTF8 files."
+        );
     }
 }
