@@ -1,0 +1,11 @@
+[package]
+name = "forge-grep"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+grep = {version = "0.2", features = ["pcre2"]}
+walkdir = "2.4"
+
+[dev-dependencies]
+tempfile = "3.3"
