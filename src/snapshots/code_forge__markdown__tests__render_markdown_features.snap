@@ -1,0 +1,15 @@
+---
+source: src/markdown.rs
+description: Test rendering all markdown features (ANSI codes stripped)
+---
+# Heading 1
+
+## Heading 2
+This is a paragraph with *italic* and **bold** text.> This is a blockquote- List item 1List item 21. Ordered item 1Ordered item 2────────────────────────────────────────────────────────────────────────────────
+1 │ fn example() {
+2 │     println!("Code block");
+3 │ }
+────────────────────────────────────────────────────────────────────────────────
+Horizontal rule below:
+---
+[Link text](https://example.com)

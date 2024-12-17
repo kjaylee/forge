@@ -1,0 +1,9 @@
+---
+source: src/markdown.rs
+description: Test rendering code blocks with syntax highlighting (ANSI codes stripped)
+---
+────────────────────────────────────────────────────────────────────────────────
+1 │ fn main() {
+2 │     println!("Hello");
+3 │ }
+────────────────────────────────────────────────────────────────────────────────

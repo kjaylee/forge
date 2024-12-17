@@ -1,6 +1,7 @@
 #![allow(dead_code)]
+use std::io::Write;
+
 use pulldown_cmark::{Event, Parser, Tag};
-use std::io::{self, Write};
 use syntect::highlighting::{Style, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use termimad::{rgb, MadSkin};
@@ -36,7 +37,7 @@ impl MarkdownRenderer {
         Self::default()
     }
 
-    pub fn render_chunk(&mut self, chunk: &str, end_md: bool) -> io::Result<()> {
+    pub fn render_chunk(&mut self, chunk: &str, end_md: bool) -> std::io::Result<()> {
         self.buffer.push_str(chunk);
 
         let should_render = if end_md {
@@ -54,31 +55,34 @@ impl MarkdownRenderer {
         };
 
         if should_render {
-            self.render(&self.buffer)?;
+            let rendered = self.render(&self.buffer)?;
+            //TODO: move this writer logic to separate module, create runtime that can support this op.
+            let stdout = std::io::stdout();
+            let mut writer = stdout.lock();
+            writer.write(rendered.as_bytes())?;
             self.buffer.clear();
         }
 
         Ok(())
     }
 
-    pub fn render(&self, markdown: &str) -> io::Result<()> {
+    fn render(&self, markdown: &str) -> std::io::Result<String> {
         let parser = Parser::new(markdown);
         let mut in_code_block = false;
         let mut code_buffer = String::new();
         let mut text_buffer = String::new();
+        let mut output = String::new();
         let theme = &self.theme_set.themes["base16-ocean.dark"];
-        let stdout = io::stdout();
-        let mut writer = stdout.lock();
 
         for event in parser {
             match event {
                 Event::Start(Tag::CodeBlock(_)) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                     in_code_block = true;
-                    writeln!(writer, "\x1b[38;5;244m{}\x1b[0m", "─".repeat(80))?;
+                    output.push_str(&format!("\x1b[38;5;244m{}\x1b[0m\n", "─".repeat(80)));
                 }
                 Event::End(Tag::CodeBlock(_)) => {
                     in_code_block = false;
@@ -88,21 +92,20 @@ impl MarkdownRenderer {
                         let num_width = lines.len().to_string().len();
 
                         for (i, line) in lines.iter().enumerate() {
-                            write!(
-                                writer,
+                            output.push_str(&format!(
                                 "\x1b[38;5;244m{:>width$} │ \x1b[0m",
                                 i + 1,
                                 width = num_width
-                            )?;
+                            ));
                             let ranges: Vec<(Style, &str)> =
                                 highlighter.highlight_line(line, &self.syntax_set).unwrap();
                             let escaped =
                                 syntect::util::as_24_bit_terminal_escaped(&ranges[..], false);
-                            write!(writer, "{}", escaped)?;
-                            writeln!(writer)?;
+                            output.push_str(&escaped);
+                            output.push('\n');
                         }
-                        writeln!(writer, "\x1b[38;5;244m{}\x1b[0m", "─".repeat(80))?;
-                        write!(writer, "\x1b[0m")?;
+                        output.push_str(&format!("\x1b[38;5;244m{}\x1b[0m\n", "─".repeat(80)));
+                        output.push_str("\x1b[0m");
                     }
                     code_buffer.clear();
                 }
@@ -115,19 +118,19 @@ impl MarkdownRenderer {
                 }
                 Event::Start(Tag::Paragraph) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                 }
                 Event::End(Tag::Paragraph) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                 }
                 Event::Start(Tag::Heading(level, ..)) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                     text_buffer.push('\n');
@@ -136,52 +139,53 @@ impl MarkdownRenderer {
                 }
                 Event::End(Tag::Heading(..)) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
+                    output.push('\n');
                 }
                 Event::Start(Tag::BlockQuote) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                     text_buffer.push_str("> ");
                 }
                 Event::End(Tag::BlockQuote) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                 }
                 Event::Start(Tag::List(Some(num))) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                     text_buffer.push_str(&format!("{}. ", num));
                 }
                 Event::Start(Tag::List(None)) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                     text_buffer.push_str("- ");
                 }
                 Event::End(Tag::List(_)) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                 }
                 Event::Start(Tag::Item) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                 }
                 Event::End(Tag::Item) => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
                 }
@@ -234,10 +238,10 @@ impl MarkdownRenderer {
                 }
                 Event::Rule => {
                     if !text_buffer.is_empty() {
-                        self.skin.print_text(&text_buffer);
+                        output.push_str(&text_buffer);
                         text_buffer.clear();
                     }
-                    text_buffer.push_str("\n---\n");
+                    output.push_str("\n---\n");
                 }
                 _ => {}
             }
@@ -245,24 +249,104 @@ impl MarkdownRenderer {
 
         // Render any remaining text
         if !text_buffer.is_empty() {
-            self.skin.print_text(&text_buffer);
+            output.push_str(&text_buffer);
         }
 
-        writer.flush()
+        Ok(output)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use regex::Regex;
+
+    fn setup() -> MarkdownRenderer {
+        MarkdownRenderer::new()
     }
 
-    pub fn set_skin_colors(
-        &mut self,
-        header: (u8, u8, u8),
-        bold: (u8, u8, u8),
-        italic: (u8, u8, u8),
-        paragraph: (u8, u8, u8),
-    ) {
-        self.skin.set_headers_fg(rgb(header.0, header.1, header.2));
-        self.skin.bold.set_fg(rgb(bold.0, bold.1, bold.2));
-        self.skin.italic.set_fg(rgb(italic.0, italic.1, italic.2));
-        self.skin
-            .paragraph
-            .set_fg(rgb(paragraph.0, paragraph.1, paragraph.2));
+    /// Strips ANSI escape codes from a string
+    fn strip_ansi_codes(s: &str) -> String {
+        let re = Regex::new(r"\x1b\[[^m]*m").unwrap();
+        re.replace_all(s, "").to_string()
     }
+
+    #[test]
+    fn test_render_plain_text() -> std::io::Result<()> {
+        let renderer = setup();
+        let result = renderer.render("Hello, world!")?;
+        let clean_result = strip_ansi_codes(&result);
+        
+        insta::with_settings!({
+            description => "Test rendering plain text without formatting",
+            omit_expression => true
+        }, {
+            assert_snapshot!(clean_result);
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn test_render_code_block() -> std::io::Result<()> {
+        let renderer = setup();
+        let markdown = r#"```rust
+fn main() {
+    println!("Hello");
+}
+```"#;
+        let result = renderer.render(markdown)?;
+        let clean_result = strip_ansi_codes(&result);
+        
+        insta::with_settings!({
+            description => "Test rendering code blocks with syntax highlighting (ANSI codes stripped)",
+            omit_expression => true
+        }, {
+            assert_snapshot!(clean_result);
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn test_render_markdown_features() -> std::io::Result<()> {
+        let renderer = setup();
+        let markdown = r#"
+# Heading 1
+## Heading 2
+
+
+This is a paragraph with *italic* and **bold** text.
+
+> This is a blockquote
+
+- List item 1
+- List item 2
+
+1. Ordered item 1
+2. Ordered item 2
+
+```rust
+fn example() {
+    println!("Code block");
+}
+```
+
+Horizontal rule below:
+
+---
+
+[Link text](https://example.com)"#;
+        
+        let result = renderer.render(markdown)?;
+        let clean_result = strip_ansi_codes(&result);
+        
+        insta::with_settings!({
+            description => "Test rendering all markdown features (ANSI codes stripped)",
+            omit_expression => true
+        }, {
+            assert_snapshot!(clean_result);
+        });
+        Ok(())
+    }
+
 }

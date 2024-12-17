@@ -1,0 +1,5 @@
+---
+source: src/markdown.rs
+description: Test rendering plain text without formatting
+---
+Hello, world!
