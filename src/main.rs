@@ -1,5 +1,6 @@
 mod core;
 mod error;
+mod markdown;
 mod ui;
 use clap::{Parser, ValueEnum};
 use core::Provider;
@@ -75,6 +76,7 @@ async fn main() -> Result<()> {
     provider.test().await?;
 
     let mut current_mode = Mode::default();
+    let mut renderer = markdown::MarkdownRenderer::new();
 
     loop {
         let prompt = inquire::Text::new(format!("{} ❯", current_mode).as_str()).prompt()?;
@@ -94,10 +96,11 @@ async fn main() -> Result<()> {
         let mut output = provider.prompt(prompt).await?;
 
         while let Some(text) = output.next().await {
-            print!("{}", text?);
+            let chunk = text?;
+            renderer.render_chunk(&chunk, false)?;
         }
 
-        print!("\n");
+        renderer.render_chunk("\n", true)?;
 
         std::io::stdout().flush().unwrap();
     }

@@ -18,8 +18,9 @@ tracing-subscriber = "0.3"
 inquire = "0.7.5"
 strum = "0.25"
 strum_macros = "0.25"
-
-
+termimad = "0.20"
+syntect = "5.1"
+pulldown-cmark = "0.9"
 
 [dev-dependencies]
 indoc = "2.0.5"

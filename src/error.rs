@@ -9,6 +9,7 @@ use crate::core::error::ProviderError;
 pub enum Error {
     Engine(crate::core::error::Error),
     Inquire(InquireError),
+    Io(std::io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -67,6 +68,7 @@ impl From<&Error> for Errata {
                 }
             },
             Error::Inquire(e) => Errata::new(format!("{}", e)),
+            Error::Io(e) => Errata::new(format!("{}", e)),
         }
     }
 }
