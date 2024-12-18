@@ -6,12 +6,12 @@ use tree_sitter::{Language, Parser, Query, QueryCursor};
 mod error;
 use error::{Error, Result};
 
-fn load_language_parser(language_name: &str) -> Language {
+fn load_language_parser(language_name: &str) -> Result<Language> {
     match language_name {
-        "rust" => tree_sitter_rust::language(),
-        "javascript" => tree_sitter_javascript::language(),
-        "python" => tree_sitter_python::language(),
-        _ => panic!("Unsupported language: {}", language_name),
+        "rust" => Ok(tree_sitter_rust::language()),
+        "javascript" => Ok(tree_sitter_javascript::language()),
+        "python" => Ok(tree_sitter_python::language()),
+        x => Err(Error::LanguageError(format!( "Unsupported language: {}", x)))
     }
 }
 
@@ -220,7 +220,7 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
         if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
             if let Some(&lang_name) = extensions_to_languages.get(ext.to_lowercase().as_str()) {
                 if !parsers.contains_key(lang_name) {
-                    let language = load_language_parser(lang_name);
+                    let language = load_language_parser(lang_name)?;
                     let mut parser = Parser::new();
                     parser
                         .set_language(language)
@@ -259,6 +259,7 @@ mod tests {
     use std::fs::{self, File};
     use std::io::Write;
     use tempfile::TempDir;
+    use insta::assert_snapshot;
 
     #[test]
     fn test_invalid_directory() {
@@ -270,7 +271,7 @@ mod tests {
     fn test_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        assert_eq!(result, "No source code definitions found.");
+        assert_snapshot!(result);
     }
 
     #[test]
@@ -280,7 +281,7 @@ mod tests {
         fs::write(file_path, "Some content").unwrap();
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        assert_eq!(result, "No source code definitions found.");
+        assert_snapshot!(result);
     }
 
     #[test]
@@ -306,9 +307,7 @@ mod tests {
         fs::write(&file_path, rust_content).unwrap();
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        println!("{}", result);
-        let expected_output = "test.rs\n│struct User {\n|----\n│fn calculate_age(birth_year: u32) -> u32 {\n|----\n│fn new(name: String, age: u32) -> Self {\n";
-        assert_eq!(result, expected_output);
+        assert_snapshot!(result);
     }
 
     #[test]
@@ -327,10 +326,7 @@ mod tests {
         fs::write(&file_path, js_content).unwrap();
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        println!("{}", result);
-        let expected_output =
-            "test.js\n│function calculateTotal(items) {\n|----\n│function formatPrice(price) {\n";
-        assert_eq!(result, expected_output);
+        assert_snapshot!(result);
     }
 
     #[test]
@@ -351,10 +347,7 @@ mod tests {
         fs::write(temp_dir.path().join("test.txt"), "plain text").unwrap();
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        println!("{}", result);
-        let expected_output =
-            "test.rs\n│fn test_function() {}\n|----\ntest.js\n│function jsFunction() {}\n";
-        assert_eq!(result, expected_output);
+        assert_snapshot!(result);
     }
 
     #[test]
@@ -376,8 +369,7 @@ mod tests {
             fs::set_permissions(&file_path, perms).unwrap();
         }
 
-        // The function should still work, just skip the unreadable file
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        assert_eq!(result, "No source code definitions found.");
+        assert_snapshot!(result);
     }
 }
