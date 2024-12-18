@@ -110,7 +110,7 @@ fn load_queries() -> HashMap<&'static str, &'static str> {
 fn parse_file(file: &Path, parser: &mut Parser, query: &Query) -> Option<String> {
     let content = fs::read_to_string(file).ok()?;
     let tree = parser.parse(&content, None)?;
-    
+
     let mut cursor = QueryCursor::new();
     let mut captures: Vec<_> = cursor
         .matches(query, tree.root_node(), content.as_bytes())
@@ -166,12 +166,8 @@ fn parse_file(file: &Path, parser: &mut Parser, query: &Query) -> Option<String>
 
 fn separate_files(all_files: Vec<PathBuf>) -> (Vec<PathBuf>, Vec<PathBuf>) {
     let extensions = [
-        "js", "jsx", "ts", "tsx", "py",
-        "rs", "go",
-        "c", "h",
-        "cpp", "hpp",
-        "cs",
-        "rb", "java", "php", "swift",
+        "js", "jsx", "ts", "tsx", "py", "rs", "go", "c", "h", "cpp", "hpp", "cs", "rb", "java",
+        "php", "swift",
     ];
 
     let mut files_to_parse = Vec::new();
@@ -191,7 +187,7 @@ fn separate_files(all_files: Vec<PathBuf>) -> (Vec<PathBuf>, Vec<PathBuf>) {
 
     // Limit to 50 files max
     files_to_parse.truncate(50);
-    
+
     (files_to_parse, remaining_files)
 }
 
@@ -203,11 +199,8 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
         ));
     }
 
-    let extensions_to_languages = HashMap::from([
-        ("rs", "rust"),
-        ("js", "javascript"),
-        ("py", "python"),
-    ]);
+    let extensions_to_languages =
+        HashMap::from([("rs", "rust"), ("js", "javascript"), ("py", "python")]);
 
     let queries = load_queries();
 
@@ -242,7 +235,10 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
                         if !result.is_empty() {
                             result.push_str("|----\n");
                         }
-                        result.push_str(&format!("{}\n", file.strip_prefix(dir_path).unwrap().display()));
+                        result.push_str(&format!(
+                            "{}\n",
+                            file.strip_prefix(dir_path).unwrap().display()
+                        ));
                         result.push_str(&file_output);
                     }
                 }
@@ -282,7 +278,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
         fs::write(file_path, "Some content").unwrap();
-        
+
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
         assert_eq!(result, "No source code definitions found.");
     }
@@ -332,30 +328,32 @@ mod tests {
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
         println!("{}", result);
-        let expected_output = "test.js\n│function calculateTotal(items) {\n|----\n│function formatPrice(price) {\n";
+        let expected_output =
+            "test.js\n│function calculateTotal(items) {\n|----\n│function formatPrice(price) {\n";
         assert_eq!(result, expected_output);
     }
 
     #[test]
     fn test_multiple_file_types() {
         let temp_dir = TempDir::new().unwrap();
-        
+
         // Create Rust file
         let rust_content = "fn test_function() {}";
         let rust_path = temp_dir.path().join("test.rs");
         fs::write(&rust_path, rust_content).unwrap();
-        
+
         // Create JavaScript file
         let js_content = "function jsFunction() {}";
         let js_path = temp_dir.path().join("test.js");
         fs::write(&js_path, js_content).unwrap();
-        
+
         // Create unsupported file
         fs::write(temp_dir.path().join("test.txt"), "plain text").unwrap();
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
         println!("{}", result);
-        let expected_output = "test.rs\n│fn test_function() {}\n|----\ntest.js\n│function jsFunction() {}\n";
+        let expected_output =
+            "test.rs\n│fn test_function() {}\n|----\ntest.js\n│function jsFunction() {}\n";
         assert_eq!(result, expected_output);
     }
 
@@ -363,13 +361,13 @@ mod tests {
     fn test_unreadable_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
-        
+
         // Create a file with no read permissions
         {
             let mut file = File::create(&file_path).unwrap();
             file.write_all(b"fn test() {}").unwrap();
         }
-        
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
