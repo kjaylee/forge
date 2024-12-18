@@ -1,7 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tree_sitter::{Language, Parser, Query, QueryCursor};
+
+mod error;
+use error::{Error, Result};
 
 fn load_language_parser(language_name: &str) -> Language {
     match language_name {
@@ -104,10 +107,100 @@ fn load_queries() -> HashMap<&'static str, &'static str> {
     queries
 }
 
+fn parse_file(file: &Path, parser: &mut Parser, query: &Query) -> Option<String> {
+    let content = fs::read_to_string(file).ok()?;
+    let tree = parser.parse(&content, None)?;
+    
+    let mut cursor = QueryCursor::new();
+    let mut captures: Vec<_> = cursor
+        .matches(query, tree.root_node(), content.as_bytes())
+        .flat_map(|m| m.captures)
+        .filter_map(|capture| {
+            let capture_name = &query.capture_names()[capture.index as usize];
+            if !capture_name.contains("name") {
+                return None;
+            }
+            let node = capture.node;
+            let parent = node.parent()?;
+            // Skip impl blocks and other non-definition nodes
+            if parent.kind() == "impl_item" {
+                return None;
+            }
+            Some((node.start_position().row, parent))
+        })
+        .collect();
+
+    // Sort captures by their start position
+    captures.sort_by_key(|&(row, _)| row);
+
+    let lines: Vec<&str> = content.lines().collect();
+    let mut formatted_output = String::new();
+    let mut last_line = -1;
+    let mut seen_lines = HashSet::new();
+
+    for (start_line, _) in captures {
+        // Skip if we've already processed this line
+        if !seen_lines.insert(start_line) {
+            continue;
+        }
+
+        // Add separator if there's a gap between captures
+        if last_line != -1 && start_line as i32 > last_line + 1 {
+            formatted_output.push_str("|----\n");
+        }
+
+        // Only add the first line of the definition
+        if let Some(line) = lines.get(start_line) {
+            formatted_output.push_str(&format!("│{}\n", line.trim()));
+        }
+
+        last_line = start_line as i32;
+    }
+
+    if formatted_output.is_empty() {
+        None
+    } else {
+        Some(formatted_output)
+    }
+}
+
+fn separate_files(all_files: Vec<PathBuf>) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let extensions = [
+        "js", "jsx", "ts", "tsx", "py",
+        "rs", "go",
+        "c", "h",
+        "cpp", "hpp",
+        "cs",
+        "rb", "java", "php", "swift",
+    ];
+
+    let mut files_to_parse = Vec::new();
+    let mut remaining_files = Vec::new();
+
+    for file in all_files {
+        if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
+            if extensions.contains(&ext.to_lowercase().as_str()) {
+                files_to_parse.push(file);
+            } else {
+                remaining_files.push(file);
+            }
+        } else {
+            remaining_files.push(file);
+        }
+    }
+
+    // Limit to 50 files max
+    files_to_parse.truncate(50);
+    
+    (files_to_parse, remaining_files)
+}
+
 /// Load and parse source code files in the directory
-pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String, String> {
+pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
     if !dir_path.exists() {
-        return Err("This directory does not exist or you do not have permission to access it.".into());
+        return Err(Error::DirectoryAccess(
+            "This directory does not exist or you do not have permission to access it.".into(),
+        ));
     }
 
     let extensions_to_languages = HashMap::from([
@@ -116,73 +209,52 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String, Stri
         ("py", "python"),
     ]);
 
-    let mut result = String::new();
     let queries = load_queries();
 
-    let files_to_parse: Vec<PathBuf> = fs::read_dir(dir_path)
-        .map_err(|_| "Failed to read directory.")?
-        .filter_map(|entry| {
-            let path = entry.ok()?.path();
-            let ext = path.extension()?.to_str()?.to_lowercase();
-            if extensions_to_languages.contains_key(ext.as_str()) {
-                Some(path)
-            } else {
-                None
-            }
-        })
+    // Get all files at top level
+    let all_files: Vec<PathBuf> = fs::read_dir(dir_path)
+        .map_err(Error::DirectoryRead)?
+        .filter_map(|entry| entry.ok().map(|e| e.path()))
         .collect();
 
+    // Separate files to parse and remaining files
+    let (files_to_parse, _remaining_files) = separate_files(all_files);
+
     let mut parsers: HashMap<&str, (Parser, Query)> = HashMap::new();
+    let mut result = String::new();
 
     for file in files_to_parse {
         if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
-            if let Some(&lang_name) = extensions_to_languages.get(ext) {
+            if let Some(&lang_name) = extensions_to_languages.get(ext.to_lowercase().as_str()) {
                 if !parsers.contains_key(lang_name) {
                     let language = load_language_parser(lang_name);
                     let mut parser = Parser::new();
-                    parser.set_language(language).expect("Failed to set language.");
-                    let query = Query::new(language, queries[lang_name]).expect("Failed to load query.");
+                    parser
+                        .set_language(language)
+                        .map_err(|e| Error::LanguageError(e.to_string()))?;
+                    let query = Query::new(language, queries[lang_name])
+                        .map_err(|e| Error::QueryError(e.to_string()))?;
                     parsers.insert(lang_name, (parser, query));
                 }
 
                 if let Some((parser, query)) = parsers.get_mut(lang_name) {
-                    match fs::read_to_string(&file) {
-                        Ok(content) => {
-                            if let Some(tree) = parser.parse(&content, None) {
-                                let mut cursor = QueryCursor::new();
-                                let captures = cursor.matches(query, tree.root_node(), content.as_bytes());
-                                let mut formatted_output = String::new();
-                                for m in captures {
-                                    for c in m.captures {
-                                        let node = c.node;
-                                        formatted_output.push_str(&format!(
-                                            "│ {}: {}\n",
-                                            node.start_position().row + 1,
-                                            node.utf8_text(content.as_bytes()).unwrap_or("")
-                                        ));
-                                    }
-                                }
-                                if !formatted_output.is_empty() {
-                                    result.push_str(&format!(
-                                        "|----\nFile: {}\n{}\n|----\n",
-                                        file.display(),
-                                        formatted_output
-                                    ));
-                                }
-                            }
+                    if let Some(file_output) = parse_file(&file, parser, query) {
+                        if !result.is_empty() {
+                            result.push_str("|----\n");
                         }
-                        Err(_) => eprintln!("Failed to read file: {}", file.display()),
+                        result.push_str(&format!("{}\n", file.strip_prefix(dir_path).unwrap().display()));
+                        result.push_str(&file_output);
                     }
                 }
             }
         }
     }
 
-    Ok(if result.is_empty() {
-        "No source code definitions found.".into()
+    if result.is_empty() {
+        Ok("No source code definitions found.".into())
     } else {
-        result
-    })
+        Ok(result)
+    }
 }
 
 #[cfg(test)]
@@ -195,11 +267,7 @@ mod tests {
     #[test]
     fn test_invalid_directory() {
         let result = parse_source_code_for_definitions(Path::new("/nonexistent/path"));
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err(),
-            "This directory does not exist or you do not have permission to access it."
-        );
+        assert!(matches!(result, Err(Error::DirectoryAccess(_))));
     }
 
     #[test]
@@ -243,10 +311,8 @@ impl User {
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
         println!("{}", result);
-        // Check for expected definitions
-        assert!(result.contains("User"));
-        assert!(result.contains("calculate_age"));
-        assert!(result.contains("new"));
+        let expected_output = "test.rs\n│struct User {\n|----\n│fn calculate_age(birth_year: u32) -> u32 {\n|----\n│fn new(name: String, age: u32) -> Self {\n";
+        assert_eq!(result, expected_output);
     }
 
     #[test]
@@ -266,10 +332,8 @@ function formatPrice(price) {
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
         println!("{}", result);
-        
-        // Check for expected definitions
-        assert!(result.contains("calculateTotal"));
-        assert!(result.contains("formatPrice"));
+        let expected_output = "test.js\n│function calculateTotal(items) {\n|----\n│function formatPrice(price) {\n";
+        assert_eq!(result, expected_output);
     }
 
     #[test]
@@ -278,20 +342,21 @@ function formatPrice(price) {
         
         // Create Rust file
         let rust_content = "fn test_function() {}";
-        fs::write(temp_dir.path().join("test.rs"), rust_content).unwrap();
+        let rust_path = temp_dir.path().join("test.rs");
+        fs::write(&rust_path, rust_content).unwrap();
         
         // Create JavaScript file
         let js_content = "function jsFunction() {}";
-        fs::write(temp_dir.path().join("test.js"), js_content).unwrap();
+        let js_path = temp_dir.path().join("test.js");
+        fs::write(&js_path, js_content).unwrap();
         
         // Create unsupported file
         fs::write(temp_dir.path().join("test.txt"), "plain text").unwrap();
 
         let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        
-        // Check for expected definitions
-        assert!(result.contains("test_function"));
-        assert!(result.contains("jsFunction"));
+        println!("{}", result);
+        let expected_output = "test.rs\n│fn test_function() {}\n|----\ntest.js\n│function jsFunction() {}\n";
+        assert_eq!(result, expected_output);
     }
 
     #[test]
