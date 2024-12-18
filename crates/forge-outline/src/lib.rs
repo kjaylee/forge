@@ -20,87 +20,87 @@ fn load_queries() -> HashMap<&'static str, &'static str> {
     queries.insert(
         "rust",
         r#"
-        (struct_item
-            name: (type_identifier) @name.definition.class) @definition.class
+            (struct_item
+                name: (type_identifier) @name.definition.class) @definition.class
 
-        (declaration_list
+            (declaration_list
+                (function_item
+                    name: (identifier) @name.definition.method)) @definition.method
+
             (function_item
-                name: (identifier) @name.definition.method)) @definition.method
-
-        (function_item
-            name: (identifier) @name.definition.function) @definition.function
+                name: (identifier) @name.definition.function) @definition.function
         "#,
     );
     queries.insert(
         "javascript",
         r#"
-        (
-            (comment)* @doc
-            .
-            (method_definition
-                name: (property_identifier) @name) @definition.method
-            (#not-eq? @name "constructor")
-            (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-            (#select-adjacent! @doc @definition.method)
+            (
+                (comment)* @doc
+                .
+                (method_definition
+                    name: (property_identifier) @name) @definition.method
+                (#not-eq? @name "constructor")
+                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
+                (#select-adjacent! @doc @definition.method)
             )
 
             (
-            (comment)* @doc
-            .
-            [
-                (class
-                name: (_) @name)
-                (class_declaration
-                name: (_) @name)
-            ] @definition.class
-            (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-            (#select-adjacent! @doc @definition.class)
+                (comment)* @doc
+                .
+                [
+                    (class
+                        name: (_) @name)
+                    (class_declaration
+                        name: (_) @name)
+                ] @definition.class
+                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
+                (#select-adjacent! @doc @definition.class)
             )
 
             (
-            (comment)* @doc
-            .
-            [
-                (function_declaration
-                name: (identifier) @name)
-                (generator_function_declaration
-                name: (identifier) @name)
-            ] @definition.function
-            (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-            (#select-adjacent! @doc @definition.function)
+                (comment)* @doc
+                .
+                [
+                    (function_declaration
+                        name: (identifier) @name)
+                    (generator_function_declaration
+                        name: (identifier) @name)
+                ] @definition.function
+                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
+                (#select-adjacent! @doc @definition.function)
             )
 
             (
-            (comment)* @doc
-            .
-            (lexical_declaration
-                (variable_declarator
-                name: (identifier) @name
-                value: [(arrow_function) (function_expression)]) @definition.function)
-            (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-            (#select-adjacent! @doc @definition.function)
+                (comment)* @doc
+                .
+                (lexical_declaration
+                    (variable_declarator
+                        name: (identifier) @name
+                        value: [(arrow_function) (function_expression)]) @definition.function)
+                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
+                (#select-adjacent! @doc @definition.function)
             )
 
             (
-            (comment)* @doc
-            .
-            (variable_declaration
-                (variable_declarator
-                name: (identifier) @name
-                value: [(arrow_function) (function_expression)]) @definition.function)
-            (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-            (#select-adjacent! @doc @definition.function)
-        )
+                (comment)* @doc
+                .
+                (variable_declaration
+                    (variable_declarator
+                        name: (identifier) @name
+                        value: [(arrow_function) (function_expression)]) @definition.function)
+                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
+                (#select-adjacent! @doc @definition.function)
+            )
         "#,
     );
     queries.insert(
         "python",
         r#"
-        (class_definition
-            name: (identifier) @name.definition.class) @definition.class
+            (class_definition
+                name: (identifier) @name.definition.class) @definition.class
 
-        (function_definition
-            name: (identifier) @name.definition.function) @definition.function
+            (function_definition
+                name: (identifier) @name.definition.function) @definition.function
         "#,
     );
     // Add more queries for other languages
@@ -291,21 +291,21 @@ mod tests {
     fn test_rust_definitions() {
         let temp_dir = TempDir::new().unwrap();
         let rust_content = r#"
-struct User {
-    name: String,
-    age: u32,
-}
+                                    struct User {
+                                        name: String,
+                                        age: u32,
+                                    }
 
-fn calculate_age(birth_year: u32) -> u32 {
-    2024 - birth_year
-}
+                                    fn calculate_age(birth_year: u32) -> u32 {
+                                        2024 - birth_year
+                                    }
 
-impl User {
-    fn new(name: String, age: u32) -> Self {
-        User { name, age }
-    }
-}
-"#;
+                                    impl User {
+                                        fn new(name: String, age: u32) -> Self {
+                                            User { name, age }
+                                        }
+                                    }
+                                    "#;
         let file_path = temp_dir.path().join("test.rs");
         fs::write(&file_path, rust_content).unwrap();
 
@@ -319,14 +319,14 @@ impl User {
     fn test_javascript_definitions() {
         let temp_dir = TempDir::new().unwrap();
         let js_content = r#"
-function calculateTotal(items) {
-    return items.reduce((sum, item) => sum + item.price, 0);
-}
+            function calculateTotal(items) {
+                return items.reduce((sum, item) => sum + item.price, 0);
+            }
 
-function formatPrice(price) {
-    return `$${price.toFixed(2)}`;
-}
-"#;
+            function formatPrice(price) {
+                return `$${price.toFixed(2)}`;
+            }
+            "#;
         let file_path = temp_dir.path().join("test.js");
         fs::write(&file_path, js_content).unwrap();
 
