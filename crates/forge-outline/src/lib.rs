@@ -11,7 +11,7 @@ fn load_language_parser(language_name: &str) -> Result<Language> {
         "rust" => Ok(tree_sitter_rust::language()),
         "javascript" => Ok(tree_sitter_javascript::language()),
         "python" => Ok(tree_sitter_python::language()),
-        x => Err(Error::LanguageError(format!( "Unsupported language: {}", x)))
+        x => Err(Error::LanguageError(format!("Unsupported language: {}", x))),
     }
 }
 
@@ -256,10 +256,10 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use insta::assert_snapshot;
     use std::fs::{self, File};
     use std::io::Write;
     use tempfile::TempDir;
-    use insta::assert_snapshot;
 
     #[test]
     fn test_invalid_directory() {
