@@ -103,7 +103,7 @@ impl SequentialThinkingServer {
         {
             self.branches
                 .entry(branch_id.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(thought_data.clone());
         }
 
