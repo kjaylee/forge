@@ -1,4 +1,4 @@
-use model::{CallToolRequest, CallToolResponse};
+use model::{CallToolRequest, CallToolResponse, ToolsListResponse};
 
 pub mod fs;
 pub mod model;
@@ -8,5 +8,5 @@ pub mod think;
 pub trait Tool {
     fn name(&self) -> &'static str;
     async fn tools_call(&self, input: CallToolRequest) -> Result<CallToolResponse, String>;
-    fn tools_list(&self) -> Vec<&'static str>;
+    fn tools_list(&self) -> Result<ToolsListResponse, String>;
 }
