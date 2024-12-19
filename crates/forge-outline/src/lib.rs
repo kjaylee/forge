@@ -1,9 +1,12 @@
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tree_sitter::{Language, Parser, Query, QueryCursor};
 
 mod error;
+mod queries;
+
 use error::{Error, Result};
+use queries::{javascript, python, rust};
 
 fn load_language_parser(language_name: &str) -> Result<Language> {
     match language_name {
@@ -16,97 +19,13 @@ fn load_language_parser(language_name: &str) -> Result<Language> {
 
 fn load_queries() -> HashMap<&'static str, &'static str> {
     let mut queries = HashMap::new();
-    queries.insert(
-        "rust",
-        r#"
-            (struct_item
-                name: (type_identifier) @name.definition.class) @definition.class
-
-            (declaration_list
-                (function_item
-                    name: (identifier) @name.definition.method)) @definition.method
-
-            (function_item
-                name: (identifier) @name.definition.function) @definition.function
-        "#,
-    );
-    queries.insert(
-        "javascript",
-        r#"
-            (
-                (comment)* @doc
-                .
-                (method_definition
-                    name: (property_identifier) @name) @definition.method
-                (#not-eq? @name "constructor")
-                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-                (#select-adjacent! @doc @definition.method)
-            )
-
-            (
-                (comment)* @doc
-                .
-                [
-                    (class
-                        name: (_) @name)
-                    (class_declaration
-                        name: (_) @name)
-                ] @definition.class
-                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-                (#select-adjacent! @doc @definition.class)
-            )
-
-            (
-                (comment)* @doc
-                .
-                [
-                    (function_declaration
-                        name: (identifier) @name)
-                    (generator_function_declaration
-                        name: (identifier) @name)
-                ] @definition.function
-                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-                (#select-adjacent! @doc @definition.function)
-            )
-
-            (
-                (comment)* @doc
-                .
-                (lexical_declaration
-                    (variable_declarator
-                        name: (identifier) @name
-                        value: [(arrow_function) (function_expression)]) @definition.function)
-                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-                (#select-adjacent! @doc @definition.function)
-            )
-
-            (
-                (comment)* @doc
-                .
-                (variable_declaration
-                    (variable_declarator
-                        name: (identifier) @name
-                        value: [(arrow_function) (function_expression)]) @definition.function)
-                (#strip! @doc "^[\\s\\*/]+|^[\\s\\*/]$")
-                (#select-adjacent! @doc @definition.function)
-            )
-        "#,
-    );
-    queries.insert(
-        "python",
-        r#"
-            (class_definition
-                name: (identifier) @name.definition.class) @definition.class
-
-            (function_definition
-                name: (identifier) @name.definition.function) @definition.function
-        "#,
-    );
-    // Add more queries for other languages
+    queries.insert("rust", rust::QUERY);
+    queries.insert("javascript", javascript::QUERY);
+    queries.insert("python", python::QUERY);
     queries
 }
 
-fn parse_file(content: &str, parser: &mut Parser, query: &Query) -> Option<String> {
+fn parse_file(_file: &Path, content: &str, parser: &mut Parser, query: &Query) -> Option<String> {
     let tree = parser.parse(content, None)?;
 
     let mut cursor = QueryCursor::new();
@@ -162,6 +81,7 @@ fn parse_file(content: &str, parser: &mut Parser, query: &Query) -> Option<Strin
     }
 }
 
+/// Parse source code files provided as a vector of tuples containing file paths and their contents
 pub fn parse_source_code_for_definitions(files: Vec<(PathBuf, String)>) -> Result<String> {
     let extensions_to_languages =
         HashMap::from([("rs", "rust"), ("js", "javascript"), ("py", "python")]);
@@ -185,7 +105,7 @@ pub fn parse_source_code_for_definitions(files: Vec<(PathBuf, String)>) -> Resul
                 }
 
                 if let Some((parser, query)) = parsers.get_mut(lang_name) {
-                    if let Some(file_output) = parse_file(&content, parser, query) {
+                    if let Some(file_output) = parse_file(&file, &content, parser, query) {
                         if !result.is_empty() {
                             result.push_str("|----\n");
                         }
