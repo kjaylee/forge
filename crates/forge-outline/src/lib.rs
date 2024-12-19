@@ -189,7 +189,10 @@ pub fn parse_source_code_for_definitions(files: Vec<(PathBuf, String)>) -> Resul
                         if !result.is_empty() {
                             result.push_str("|----\n");
                         }
-                        result.push_str(&format!("{}\n", file.file_name().unwrap().to_string_lossy()));
+                        result.push_str(&format!(
+                            "{}\n",
+                            file.file_name().unwrap().to_string_lossy()
+                        ));
                         result.push_str(&file_output);
                     }
                 }
@@ -268,8 +271,14 @@ mod tests {
     #[test]
     fn test_multiple_file_types() {
         let mut files = Vec::new();
-        files.push((PathBuf::from("test.rs"), "fn test_function() {}".to_string()));
-        files.push((PathBuf::from("test.js"), "function jsFunction() {}".to_string()));
+        files.push((
+            PathBuf::from("test.rs"),
+            "fn test_function() {}".to_string(),
+        ));
+        files.push((
+            PathBuf::from("test.js"),
+            "function jsFunction() {}".to_string(),
+        ));
         files.push((PathBuf::from("test.txt"), "plain text".to_string()));
 
         let result = parse_source_code_for_definitions(files).unwrap();
