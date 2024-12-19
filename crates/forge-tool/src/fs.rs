@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use crate::model::{
-    CallToolRequest, CallToolResponse, ToolResponseContent, ToolsListResponse,
-};
+use crate::model::{CallToolRequest, CallToolResponse, ToolResponseContent, ToolsListResponse};
 use crate::Tool;
 use anyhow::Result;
 use serde_json::json;
