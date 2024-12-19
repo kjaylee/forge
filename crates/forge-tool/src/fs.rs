@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::model::{
-    CallToolRequest, CallToolResponse, ListRequest, ToolResponseContent, ToolsListResponse,
+    CallToolRequest, CallToolResponse, ToolResponseContent, ToolsListResponse,
 };
 use crate::Tool;
 use anyhow::Result;
