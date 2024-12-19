@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tree_sitter::{Language, Parser, Query, QueryCursor};
 
 mod error;
@@ -107,9 +106,8 @@ fn load_queries() -> HashMap<&'static str, &'static str> {
     queries
 }
 
-fn parse_file(file: &Path, parser: &mut Parser, query: &Query) -> Option<String> {
-    let content = fs::read_to_string(file).ok()?;
-    let tree = parser.parse(&content, None)?;
+fn parse_file(content: &str, parser: &mut Parser, query: &Query) -> Option<String> {
+    let tree = parser.parse(content, None)?;
 
     let mut cursor = QueryCursor::new();
     let mut captures: Vec<_> = cursor
@@ -164,59 +162,15 @@ fn parse_file(file: &Path, parser: &mut Parser, query: &Query) -> Option<String>
     }
 }
 
-fn separate_files(all_files: Vec<PathBuf>) -> (Vec<PathBuf>, Vec<PathBuf>) {
-    let extensions = [
-        "js", "jsx", "ts", "tsx", "py", "rs", "go", "c", "h", "cpp", "hpp", "cs", "rb", "java",
-        "php", "swift",
-    ];
-
-    let mut files_to_parse = Vec::new();
-    let mut remaining_files = Vec::new();
-
-    for file in all_files {
-        if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
-            if extensions.contains(&ext.to_lowercase().as_str()) {
-                files_to_parse.push(file);
-            } else {
-                remaining_files.push(file);
-            }
-        } else {
-            remaining_files.push(file);
-        }
-    }
-
-    // Limit to 50 files max
-    files_to_parse.truncate(50);
-
-    (files_to_parse, remaining_files)
-}
-
-/// Load and parse source code files in the directory
-pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
-    if !dir_path.exists() {
-        return Err(Error::DirectoryAccess(
-            "This directory does not exist or you do not have permission to access it.".into(),
-        ));
-    }
-
+pub fn parse_source_code_for_definitions(files: Vec<(PathBuf, String)>) -> Result<String> {
     let extensions_to_languages =
         HashMap::from([("rs", "rust"), ("js", "javascript"), ("py", "python")]);
 
     let queries = load_queries();
-
-    // Get all files at top level
-    let all_files: Vec<PathBuf> = fs::read_dir(dir_path)
-        .map_err(Error::DirectoryRead)?
-        .filter_map(|entry| entry.ok().map(|e| e.path()))
-        .collect();
-
-    // Separate files to parse and remaining files
-    let (files_to_parse, _remaining_files) = separate_files(all_files);
-
     let mut parsers: HashMap<&str, (Parser, Query)> = HashMap::new();
     let mut result = String::new();
 
-    for file in files_to_parse {
+    for (file, content) in files {
         if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
             if let Some(&lang_name) = extensions_to_languages.get(ext.to_lowercase().as_str()) {
                 if !parsers.contains_key(lang_name) {
@@ -231,14 +185,11 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
                 }
 
                 if let Some((parser, query)) = parsers.get_mut(lang_name) {
-                    if let Some(file_output) = parse_file(&file, parser, query) {
+                    if let Some(file_output) = parse_file(&content, parser, query) {
                         if !result.is_empty() {
                             result.push_str("|----\n");
                         }
-                        result.push_str(&format!(
-                            "{}\n",
-                            file.strip_prefix(dir_path).unwrap().display()
-                        ));
+                        result.push_str(&format!("{}\n", file.file_name().unwrap().to_string_lossy()));
                         result.push_str(&file_output);
                     }
                 }
@@ -257,36 +208,25 @@ pub fn parse_source_code_for_definitions(dir_path: &Path) -> Result<String> {
 mod tests {
     use super::*;
     use insta::assert_snapshot;
-    use std::fs::{self, File};
-    use std::io::Write;
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_invalid_directory() {
-        let result = parse_source_code_for_definitions(Path::new("/nonexistent/path"));
-        assert!(matches!(result, Err(Error::DirectoryAccess(_))));
-    }
 
     #[test]
     fn test_empty_directory() {
-        let temp_dir = TempDir::new().unwrap();
-        let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
+        let files = Vec::new();
+        let result = parse_source_code_for_definitions(files).unwrap();
         assert_snapshot!(result);
     }
 
     #[test]
     fn test_unsupported_files() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-        fs::write(file_path, "Some content").unwrap();
-
-        let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
+        let mut files = Vec::new();
+        files.push((PathBuf::from("test.txt"), "Some content".to_string()));
+        let result = parse_source_code_for_definitions(files).unwrap();
         assert_snapshot!(result);
     }
 
     #[test]
     fn test_rust_definitions() {
-        let temp_dir = TempDir::new().unwrap();
+        let mut files = Vec::new();
         let rust_content = r#"
                                     struct User {
                                         name: String,
@@ -303,16 +243,14 @@ mod tests {
                                         }
                                     }
                                     "#;
-        let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, rust_content).unwrap();
-
-        let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
+        files.push((PathBuf::from("test.rs"), rust_content.to_string()));
+        let result = parse_source_code_for_definitions(files).unwrap();
         assert_snapshot!(result);
     }
 
     #[test]
     fn test_javascript_definitions() {
-        let temp_dir = TempDir::new().unwrap();
+        let mut files = Vec::new();
         let js_content = r#"
             function calculateTotal(items) {
                 return items.reduce((sum, item) => sum + item.price, 0);
@@ -322,54 +260,19 @@ mod tests {
                 return `$${price.toFixed(2)}`;
             }
             "#;
-        let file_path = temp_dir.path().join("test.js");
-        fs::write(&file_path, js_content).unwrap();
-
-        let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
+        files.push((PathBuf::from("test.js"), js_content.to_string()));
+        let result = parse_source_code_for_definitions(files).unwrap();
         assert_snapshot!(result);
     }
 
     #[test]
     fn test_multiple_file_types() {
-        let temp_dir = TempDir::new().unwrap();
+        let mut files = Vec::new();
+        files.push((PathBuf::from("test.rs"), "fn test_function() {}".to_string()));
+        files.push((PathBuf::from("test.js"), "function jsFunction() {}".to_string()));
+        files.push((PathBuf::from("test.txt"), "plain text".to_string()));
 
-        // Create Rust file
-        let rust_content = "fn test_function() {}";
-        let rust_path = temp_dir.path().join("test.rs");
-        fs::write(&rust_path, rust_content).unwrap();
-
-        // Create JavaScript file
-        let js_content = "function jsFunction() {}";
-        let js_path = temp_dir.path().join("test.js");
-        fs::write(&js_path, js_content).unwrap();
-
-        // Create unsupported file
-        fs::write(temp_dir.path().join("test.txt"), "plain text").unwrap();
-
-        let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
-        assert_snapshot!(result);
-    }
-
-    #[test]
-    fn test_unreadable_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-
-        // Create a file with no read permissions
-        {
-            let mut file = File::create(&file_path).unwrap();
-            file.write_all(b"fn test() {}").unwrap();
-        }
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(&file_path).unwrap().permissions();
-            perms.set_mode(0o000);
-            fs::set_permissions(&file_path, perms).unwrap();
-        }
-
-        let result = parse_source_code_for_definitions(temp_dir.path()).unwrap();
+        let result = parse_source_code_for_definitions(files).unwrap();
         assert_snapshot!(result);
     }
 }
