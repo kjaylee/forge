@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use nom::{
     branch::alt,
     bytes::complete::take_while1,
@@ -8,6 +7,7 @@ use nom::{
     sequence::{pair, preceded},
     IResult,
 };
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -35,10 +35,7 @@ impl PromptParser {
 
     fn parse_file_path(input: &str) -> IResult<&str, Token> {
         map(
-            preceded(
-                char('@'),
-                take_while1(|c: char| !c.is_whitespace()),
-            ),
+            preceded(char('@'), take_while1(|c: char| !c.is_whitespace())),
             |path: &str| Token::FilePath(PathBuf::from(path)),
         )(input)
     }
@@ -69,7 +66,6 @@ mod tests {
             ]
         );
     }
-
 
     #[test]
     fn test_multiple_file_paths() {

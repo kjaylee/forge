@@ -21,7 +21,7 @@ pub struct Prompt {
     files: Vec<File>,
 }
 
-#[derive(Setters, Clone,Debug)]
+#[derive(Setters, Clone, Debug)]
 pub struct File {
     name: String,
     content: String,
