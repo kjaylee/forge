@@ -1,8 +1,10 @@
 use crate::model::{Context, Message, State};
+use crate::parser::{PromptParser, Token};
 use crate::{error::Result, model::Event};
 use derive_setters::Setters;
 use forge_provider::{Provider, Stream};
 use forge_tool::Tool;
+use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use tokio_stream::StreamExt;
@@ -13,24 +15,52 @@ pub struct CodeForge {
     provider: Provider,
 }
 
-#[derive(Setters, Clone)]
+#[derive(Setters, Clone, Debug)]
 pub struct Prompt {
     message: String,
     files: Vec<File>,
 }
 
-#[derive(Setters, Clone)]
+#[derive(Setters, Clone,Debug)]
 pub struct File {
     name: String,
     content: String,
 }
 
+impl File {
+    fn new(name: String, content: String) -> Self {
+        Self { name, content }
+    }
+
+    fn read(path: impl Into<PathBuf>) -> std::io::Result<Self> {
+        let path = path.into();
+        let content = std::fs::read_to_string(&path)?;
+        let name = path.display().to_string();
+        Ok(Self::new(name, content))
+    }
+}
+
 impl Prompt {
     pub fn new(message: String) -> Self {
-        Prompt {
-            message,
+        let mut prompt = Self {
+            message: message.clone(),
             files: Vec::new(),
+        };
+
+        // Parse message to extract file paths
+        let tokens = PromptParser::parse(message);
+        for token in tokens {
+            if let Token::FilePath(path) = token {
+                if let Ok(file) = File::read(path.clone()) {
+                    prompt.add_file(file);
+                } else {
+                    // TODO: raise error here.
+                    eprintln!("Failed to read file: {}", path.display());
+                }
+            }
         }
+
+        prompt
     }
 
     pub fn add_file(&mut self, file: File) {

@@ -622,6 +622,7 @@ dependencies = [
  "derive_setters",
  "forge-provider",
  "forge-tool",
+ "nom",
  "serde",
  "serde_json",
  "thiserror 2.0.8",
