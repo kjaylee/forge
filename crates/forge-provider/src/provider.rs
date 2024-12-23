@@ -1,4 +1,3 @@
-
 use super::error::Result;
 use crate::model::{Request, Response};
 use crate::ResultStream;

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use futures::stream::BoxStream;
-use futures::StreamExt;
 
 use forge_tool::{Tool, ToolId};
+use futures::stream::BoxStream;
+use futures::StreamExt;
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use http::{HeaderMap, HeaderValue};
 use reqwest_middleware::reqwest::Client;
@@ -452,16 +452,14 @@ impl InnerProvider for OpenRouter {
 
         let processed_stream: BoxStream<_> = response_stream
             .map(|chunk| {
-                chunk
-                    .map_err(crate::error::Error::from)
-                    .and_then(|bytes| {
-                        let response = serde_json::from_slice::<Response>(&bytes)
-                            .map_err(crate::error::Error::from);
-                        match response {
-                            Ok(response) => Ok(crate::model::Response::try_from(response)?),
-                            Err(err) => Err(err),
-                        }
-                    })
+                chunk.map_err(crate::error::Error::from).and_then(|bytes| {
+                    let response = serde_json::from_slice::<Response>(&bytes)
+                        .map_err(crate::error::Error::from);
+                    match response {
+                        Ok(response) => Ok(crate::model::Response::try_from(response)?),
+                        Err(err) => Err(err),
+                    }
+                })
             })
             .boxed();
 
@@ -548,5 +546,4 @@ mod test {
             }
         }
     }
-
 }

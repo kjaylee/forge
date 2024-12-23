@@ -1,4 +1,5 @@
 use std::pin::Pin;
+
 use async_openai::error::OpenAIError;
 use derive_more::derive::Display;
 
