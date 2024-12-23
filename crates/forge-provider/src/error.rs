@@ -1,3 +1,4 @@
+use std::pin::Pin;
 use async_openai::error::OpenAIError;
 use derive_more::derive::Display;
 
@@ -34,7 +35,7 @@ pub enum ProviderError {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-pub type ResultStream<T> = Box<dyn futures::Stream<Item = Result<T>>>;
+pub type ResultStream<T> = Pin<Box<dyn futures::Stream<Item = Result<T>>>>;
 
 impl From<OpenAIError> for Error {
     fn from(error: OpenAIError) -> Self {

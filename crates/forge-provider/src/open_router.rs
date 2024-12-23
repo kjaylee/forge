@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::pin::Pin;
+use futures::stream::BoxStream;
+use futures::StreamExt;
 
 use forge_tool::{Tool, ToolId};
 use http::header::{AUTHORIZATION, CONTENT_TYPE};
@@ -430,9 +431,41 @@ impl OpenRouter {
 impl InnerProvider for OpenRouter {
     async fn chat(
         &self,
-        _request: crate::model::Request,
-    ) -> Result<Pin<ResultStream<crate::model::Response>>> {
-        todo!()
+        request: crate::model::Request,
+    ) -> Result<ResultStream<crate::model::Response>> {
+        let mut new_request = Request::from(request);
+
+        new_request.model = self.model.clone();
+
+        let body = serde_json::to_string(&new_request)?;
+
+        tracing::debug!("Request Body: {}", body);
+
+        let response_stream = self
+            .http_client
+            .post(self.config.url("/chat/completions"))
+            .headers(self.config.headers())
+            .body(body)
+            .send()
+            .await?
+            .bytes_stream();
+
+        let processed_stream: BoxStream<_> = response_stream
+            .map(|chunk| {
+                chunk
+                    .map_err(crate::error::Error::from)
+                    .and_then(|bytes| {
+                        let response = serde_json::from_slice::<Response>(&bytes)
+                            .map_err(crate::error::Error::from);
+                        match response {
+                            Ok(response) => Ok(crate::model::Response::try_from(response)?),
+                            Err(err) => Err(err),
+                        }
+                    })
+            })
+            .boxed();
+
+        Ok(Box::pin(Box::new(processed_stream)))
     }
 
     async fn models(&self) -> Result<Vec<String>> {
@@ -480,4 +513,40 @@ mod test {
 
         let _: Response = serde_json::from_str(response).unwrap();
     }
+    #[tokio::test]
+    async fn test_chat() {
+        let provider = Provider::new(OpenRouter::new(
+            std::env::var("OPEN_ROUTER_API_KEY").unwrap(),
+            None,
+            None,
+        ));
+
+        let result_stream = provider
+            .chat(crate::model::Request {
+                context: vec![AnyMessage::User(crate::model::Message {
+                    role: User,
+                    content: "Hello!".to_string(),
+                })],
+                tools: vec![],
+                tool_result: vec![],
+            })
+            .await
+            .unwrap();
+
+        let mut stream = result_stream;
+
+        println!("Streaming response:");
+
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(response) => {
+                    println!("{:#?}", response);
+                }
+                Err(err) => {
+                    eprintln!("Error: {:#?}", err);
+                }
+            }
+        }
+    }
+
 }
