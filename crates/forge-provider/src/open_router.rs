@@ -511,20 +511,27 @@ mod test {
 
         let _: Response = serde_json::from_str(response).unwrap();
     }
+
     #[tokio::test]
     async fn test_chat() {
         let provider = Provider::new(OpenRouter::new(
-            std::env::var("OPEN_ROUTER_API_KEY").unwrap(),
+            "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".to_string(),
             None,
             None,
         ));
 
         let result_stream = provider
             .chat(crate::model::Request {
-                context: vec![AnyMessage::User(crate::model::Message {
-                    role: User,
-                    content: "Hello!".to_string(),
-                })],
+                context: vec![
+                    AnyMessage::User(crate::model::Message {
+                        role: User,
+                        content: "Hello!".to_string(),
+                    }),
+                    AnyMessage::System(crate::model::Message {
+                        role: System,
+                        content: "If someone says Hello!, always Reply with single word Alo!".to_string(),
+                    })
+                ],
                 tools: vec![],
                 tool_result: vec![],
             })
@@ -533,16 +540,12 @@ mod test {
 
         let mut stream = result_stream;
 
-        println!("Streaming response:");
-
         while let Some(result) = stream.next().await {
             match result {
                 Ok(response) => {
-                    println!("{:#?}", response);
+                    assert_eq!(response.message.content.trim(), "Alo!");
                 }
-                Err(err) => {
-                    eprintln!("Error: {:#?}", err);
-                }
+                Err(_) => (),
             }
         }
     }
