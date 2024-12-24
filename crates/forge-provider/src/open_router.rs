@@ -529,8 +529,9 @@ mod test {
                     }),
                     AnyMessage::System(crate::model::Message {
                         role: System,
-                        content: "If someone says Hello!, always Reply with single word Alo!".to_string(),
-                    })
+                        content: "If someone says Hello!, always Reply with single word Alo!"
+                            .to_string(),
+                    }),
                 ],
                 tools: vec![],
                 tool_result: vec![],
@@ -541,11 +542,8 @@ mod test {
         let mut stream = result_stream;
 
         while let Some(result) = stream.next().await {
-            match result {
-                Ok(response) => {
-                    assert_eq!(response.message.content.trim(), "Alo!");
-                }
-                Err(_) => (),
+            if let Ok(response) = result {
+                assert_eq!(response.message.content.trim(), "Alo!");
             }
         }
     }
