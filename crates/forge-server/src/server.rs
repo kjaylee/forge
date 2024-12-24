@@ -14,12 +14,12 @@ use crate::completion::{Completion, File};
 use crate::Result;
 
 pub struct Server {
-    state: Arc<App<String>>,
+    state: Arc<App>,
 }
 
 impl Default for Server {
     fn default() -> Self {
-        Self { state: Arc::new(App::<String>::default()) }
+        Self { state: Arc::new(App::new(".")) }
     }
 }
 
@@ -61,7 +61,7 @@ async fn completions_handler() -> axum::Json<Vec<File>> {
 }
 
 async fn conversation_handler(
-    State(state): State<Arc<App<String>>>,
+    State(state): State<Arc<App>>,
 ) -> Sse<impl Stream<Item = std::result::Result<Event, Infallible>>> {
     Sse::new(state.as_stream().await)
 }
