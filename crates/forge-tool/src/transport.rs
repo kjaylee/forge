@@ -6,37 +6,37 @@ pub trait Message: Serialize + DeserializeOwned + Send {
     fn get_id(&self) -> String;
 }
 
-/// A generic transport that can send requests and receive responses
-pub struct Transport<Req, Resp>
-where
-    Req: Message,
-    Resp: Message,
-{
-    sender: mpsc::UnboundedSender<Req>,
-    receiver: mpsc::UnboundedReceiver<Resp>,
+impl Message for serde_json::Value {
+    fn get_id(&self) -> String {
+        self["request_id"].as_str().unwrap().to_string()
+    }
 }
 
-impl<Req, Resp> Transport<Req, Resp>
-where
-    Req: Message,
-    Resp: Message,
-{
+/// A generic transport that can send requests and receive responses
+pub struct Transport {
+    sender: mpsc::UnboundedSender<serde_json::Value>,
+    receiver: mpsc::UnboundedReceiver<serde_json::Value>,
+}
+
+impl Transport {
     /// Creates a new transport instance
     pub fn new(
-        sender: mpsc::UnboundedSender<Req>,
-        receiver: mpsc::UnboundedReceiver<Resp>,
+        sender: mpsc::UnboundedSender<serde_json::Value>,
+        receiver: mpsc::UnboundedReceiver<serde_json::Value>,
     ) -> Self {
         Self { sender, receiver }
     }
 
     /// Sends a request and waits for a matching response
-    pub async fn send_and_receive(&mut self, request: Req) -> Result<Resp, String> {
+    pub async fn send_and_receive(
+        &mut self,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
         let request_id = request.get_id();
         // Send the request
         self.sender
             .send(request)
             .map_err(|e| format!("Failed to send: {}", e))?;
-
 
         // Wait for matching response
         while let Some(response) = self.receiver.recv().await {
@@ -44,7 +44,7 @@ where
                 return Ok(response);
             }
         }
-        
+
         Err("Channel closed".to_string())
     }
 }

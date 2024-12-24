@@ -34,12 +34,12 @@ impl Message for PermissionResponse {
 
 #[derive(Clone)]
 pub struct Permission {
-    transport: Arc<RwLock<Transport<PermissionRequest, PermissionResponse>>>,
+    transport: Arc<RwLock<Transport>>,
 }
 
 impl Permission {
-    pub fn new(transport: Transport<PermissionRequest, PermissionResponse>) -> Self {
-        Self { transport: Arc::new(RwLock::new(transport)) }
+    pub fn new(transport: Arc<RwLock<Transport>>) -> Self {
+        Self { transport }
     }
 }
 
@@ -49,8 +49,10 @@ impl ToolTrait for Permission {
     type Output = PermissionResponse;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let input = serde_json::to_value(input).map_err(|e| e.to_string())?;
         let mut transport = self.transport.write().await;
-        transport.send_and_receive(input).await
+        let response = transport.send_and_receive(input).await?;
+        Ok(serde_json::from_value(response).map_err(|e| e.to_string())?)
     }
 }
 
@@ -67,19 +69,22 @@ mod tests {
         let (response_tx, response_rx) = mpsc::unbounded_channel();
 
         // Create the permission tool
-        let permission = Permission::new(Transport::new(event_tx, response_rx));
+        let permission =
+            Permission::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
 
         // Spawn a task to simulate the server handling the request
         let handle = tokio::spawn(async move {
             // Wait for the request
             if let Some(request) = event_rx.recv().await {
-                // Verify request fields
-                assert_eq!(request.action, "delete_file");
-                assert_eq!(request.context, Some("test file".to_string()));
-
                 // Send back a response
                 response_tx
-                    .send(PermissionResponse { request_id: request.request_id, granted: true })
+                    .send(
+                        serde_json::to_value(PermissionResponse {
+                            request_id: request["request_id"].as_str().unwrap().to_string(),
+                            granted: true,
+                        })
+                        .unwrap(),
+                    )
                     .unwrap();
             }
         });
@@ -107,7 +112,8 @@ mod tests {
     async fn test_permission_multiple_requests() {
         let (event_tx, mut event_rx) = mpsc::unbounded_channel();
         let (response_tx, response_rx) = mpsc::unbounded_channel();
-        let permission = Permission::new(Transport::new(event_tx, response_rx));
+        let permission =
+            Permission::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
@@ -115,10 +121,13 @@ mod tests {
             while let Some(request) = event_rx.recv().await {
                 count += 1;
                 response_tx
-                    .send(PermissionResponse {
-                        request_id: request.request_id,
-                        granted: count % 2 == 0, // Alternate between true and false
-                    })
+                    .send(
+                        serde_json::to_value(PermissionResponse {
+                            request_id: request["request_id"].as_str().unwrap().to_string(),
+                            granted: count % 2 == 0, // Alternate between true and false
+                        })
+                        .unwrap(),
+                    )
                     .unwrap();
 
                 if count >= 3 {

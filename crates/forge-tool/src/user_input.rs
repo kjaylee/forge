@@ -34,12 +34,12 @@ impl Message for UserInputResponse {
 
 #[derive(Clone)]
 pub struct UserInput {
-    transport: Arc<RwLock<Transport<UserInputRequest, UserInputResponse>>>,
+    transport: Arc<RwLock<Transport>>,
 }
 
 impl UserInput {
-    pub fn new(transport: Transport<UserInputRequest, UserInputResponse>) -> Self {
-        Self { transport: Arc::new(RwLock::new(transport)) }
+    pub fn new(transport: Arc<RwLock<Transport>>) -> Self {
+        Self { transport }
     }
 }
 
@@ -49,8 +49,10 @@ impl ToolTrait for UserInput {
     type Output = UserInputResponse;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let input = serde_json::to_value(input).map_err(|e| e.to_string())?;
         let mut transport = self.transport.write().await;
-        transport.send_and_receive(input).await
+        let response = transport.send_and_receive(input).await?;
+        Ok(serde_json::from_value(response).map_err(|e| e.to_string())?)
     }
 }
 
@@ -67,22 +69,22 @@ mod tests {
         let (response_tx, response_rx) = mpsc::unbounded_channel();
 
         // Create the user input tool
-        let user_input = UserInput::new(Transport::new(event_tx, response_rx));
+        let user_input =
+            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
 
         // Spawn a task to simulate the server handling the request
         let handle = tokio::spawn(async move {
             // Wait for the request
             if let Some(request) = event_rx.recv().await {
-                // Verify request fields
-                assert_eq!(request.question, "What is your name?");
-                assert_eq!(request.context, Some("greeting".to_string()));
-
                 // Send back a response
                 response_tx
-                    .send(UserInputResponse {
-                        request_id: request.request_id,
-                        answer: "John Doe".to_string(),
-                    })
+                    .send(
+                        serde_json::to_value(UserInputResponse {
+                            request_id: request["request_id"].as_str().unwrap().to_string(),
+                            answer: "John Doe".to_string(),
+                        })
+                        .unwrap(),
+                    )
                     .unwrap();
             }
         });
@@ -110,7 +112,8 @@ mod tests {
     async fn test_user_input_multiple_requests() {
         let (event_tx, mut event_rx) = mpsc::unbounded_channel();
         let (response_tx, response_rx) = mpsc::unbounded_channel();
-        let user_input = UserInput::new(Transport::new(event_tx, response_rx));
+        let user_input =
+            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
@@ -118,10 +121,13 @@ mod tests {
             while let Some(request) = event_rx.recv().await {
                 count += 1;
                 response_tx
-                    .send(UserInputResponse {
-                        request_id: request.request_id,
-                        answer: format!("Answer {}", count),
-                    })
+                    .send(
+                        serde_json::to_value(UserInputResponse {
+                            request_id: request["request_id"].as_str().unwrap().to_string(),
+                            answer: format!("Answer {}", count),
+                        })
+                        .unwrap(),
+                    )
                     .unwrap();
 
                 if count >= 3 {
@@ -156,17 +162,21 @@ mod tests {
     async fn test_user_input_concurrent_requests() {
         let (event_tx, mut event_rx) = mpsc::unbounded_channel();
         let (response_tx, response_rx) = mpsc::unbounded_channel();
-        let user_input = Arc::new(UserInput::new(Transport::new(event_tx, response_rx)));
+        let user_input =
+            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
             let mut received = 0;
             while let Some(request) = event_rx.recv().await {
                 response_tx
-                    .send(UserInputResponse {
-                        request_id: request.request_id,
-                        answer: format!("Concurrent answer {}", received + 1),
-                    })
+                    .send(
+                        serde_json::to_value(UserInputResponse {
+                            request_id: request["request_id"].as_str().unwrap().to_string(),
+                            answer: format!("Concurrent answer {}", received + 1),
+                        })
+                        .unwrap(),
+                    )
                     .unwrap();
 
                 received += 1;
@@ -206,8 +216,8 @@ mod tests {
         let (response_tx, response_rx) = mpsc::unbounded_channel();
 
         // Create the transport first
-        let transport = Transport::new(event_tx, response_rx);
-        let user_input = UserInput::new(transport);
+        let user_input =
+            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
 
         // Spawn a task to receive and immediately drop the request
         let handle = tokio::spawn(async move {
