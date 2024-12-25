@@ -1,5 +1,5 @@
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
+use serde_json::Value;
 use tokio::sync::broadcast::Sender;
 
 /// Trait for messages that can be sent through a transport
@@ -8,7 +8,7 @@ pub trait Message: Serialize + DeserializeOwned + Send {
 }
 
 // TODO: remove this once we have typesafe events.
-impl Message for serde_json::Value {
+impl Message for Value {
     fn get_id(&self) -> String {
         self["request_id"].as_str().unwrap().to_string()
     }
@@ -17,24 +17,18 @@ impl Message for serde_json::Value {
 #[derive(Clone)]
 /// A generic transport that can send requests and receive responses
 pub struct Transport {
-    pub event_sender: Sender<serde_json::Value>,
-    pub event_response_sender: Sender<serde_json::Value>,
+    pub event_sender: Sender<Value>,
+    pub event_response_sender: Sender<Value>,
 }
 
 impl Transport {
     /// Creates a new transport instance
-    pub fn new(
-        sender: Sender<serde_json::Value>,
-        event_response_sender: Sender<serde_json::Value>,
-    ) -> Self {
+    pub fn new(sender: Sender<Value>, event_response_sender: Sender<Value>) -> Self {
         Self { event_sender: sender, event_response_sender }
     }
 
     /// Sends a request and waits for a matching response
-    pub async fn send_and_receive(
-        &mut self,
-        request: serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
+    pub async fn send_and_receive(&self, request: Value) -> Result<Value, String> {
         let request_id = request.get_id();
         // Send the request
         self.event_sender

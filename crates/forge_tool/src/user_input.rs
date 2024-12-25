@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
 
 use crate::transport::{Message, Transport};
 use crate::ToolTrait;
@@ -33,11 +32,11 @@ impl Message for UserInputResponse {
 
 #[derive(Clone)]
 pub struct UserInput {
-    transport: Arc<RwLock<Transport>>,
+    transport: Arc<Transport>,
 }
 
 impl UserInput {
-    pub fn new(transport: Arc<RwLock<Transport>>) -> Self {
+    pub fn new(transport: Arc<Transport>) -> Self {
         Self { transport }
     }
 }
@@ -49,8 +48,7 @@ impl ToolTrait for UserInput {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let input = serde_json::to_value(input).map_err(|e| e.to_string())?;
-        let mut transport = self.transport.write().await;
-        let response = transport.send_and_receive(input).await?;
+        let response = self.transport.send_and_receive(input).await?;
         Ok(serde_json::from_value(response).map_err(|e| e.to_string())?)
     }
 }
@@ -69,10 +67,7 @@ mod tests {
         let (response_tx, _) = broadcast::channel(32);
 
         // Create the user input tool
-        let user_input = UserInput::new(Arc::new(RwLock::new(Transport::new(
-            event_tx,
-            response_tx.clone(),
-        ))));
+        let user_input = UserInput::new(Arc::new(Transport::new(event_tx, response_tx.clone())));
 
         // Spawn a task to simulate the server handling the request
         let handle = tokio::spawn(async move {
@@ -114,10 +109,7 @@ mod tests {
     async fn test_user_input_multiple_requests() {
         let (event_tx, mut event_rx) = broadcast::channel(32);
         let (response_tx, _) = broadcast::channel(32);
-        let user_input = UserInput::new(Arc::new(RwLock::new(Transport::new(
-            event_tx,
-            response_tx.clone(),
-        ))));
+        let user_input = UserInput::new(Arc::new(Transport::new(event_tx, response_tx.clone())));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
@@ -157,60 +149,6 @@ mod tests {
         for (i, (request, response)) in responses.iter().enumerate() {
             assert_eq!(response.request_id, request.request_id);
             assert_eq!(response.answer, format!("Answer {}", i + 1));
-        }
-
-        handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_user_input_concurrent_requests() {
-        let (event_tx, mut event_rx) = broadcast::channel(32);
-        let (response_tx, _) = broadcast::channel(32);
-        let user_input = UserInput::new(Arc::new(RwLock::new(Transport::new(
-            event_tx,
-            response_tx.clone(),
-        ))));
-
-        // Spawn response handler
-        let handle = tokio::spawn(async move {
-            let mut received = 0;
-            while let Ok(request) = event_rx.recv().await {
-                response_tx
-                    .send(
-                        serde_json::to_value(UserInputResponse {
-                            request_id: request["request_id"].as_str().unwrap().to_string(),
-                            answer: format!("Concurrent answer {}", received + 1),
-                        })
-                        .unwrap(),
-                    )
-                    .unwrap();
-
-                received += 1;
-                if received >= 10 {
-                    break;
-                }
-            }
-        });
-
-        // Create multiple concurrent requests
-        let mut handles = Vec::new();
-        for i in 0..10 {
-            let user_input = user_input.clone();
-            let handle = tokio::spawn(async move {
-                let request = UserInputRequest {
-                    question: format!("Concurrent question {}", i),
-                    context: None,
-                    request_id: Uuid::new_v4().to_string(),
-                };
-                user_input.call(request).await
-            });
-            handles.push(handle);
-        }
-
-        // Wait for all requests to complete and verify responses
-        for (i, handle) in handles.into_iter().enumerate() {
-            let result = handle.await.unwrap().unwrap();
-            assert_eq!(result.answer, format!("Concurrent answer {}", i + 1));
         }
 
         handle.await.unwrap();

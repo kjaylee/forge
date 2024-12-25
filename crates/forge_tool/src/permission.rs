@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
 
 use crate::transport::{Message, Transport};
 use crate::ToolTrait;
@@ -33,11 +32,11 @@ impl Message for PermissionResponse {
 
 #[derive(Clone)]
 pub struct Permission {
-    transport: Arc<RwLock<Transport>>,
+    transport: Arc<Transport>,
 }
 
 impl Permission {
-    pub fn new(transport: Arc<RwLock<Transport>>) -> Self {
+    pub fn new(transport: Arc<Transport>) -> Self {
         Self { transport }
     }
 }
@@ -49,8 +48,7 @@ impl ToolTrait for Permission {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let input = serde_json::to_value(input).map_err(|e| e.to_string())?;
-        let mut transport = self.transport.write().await;
-        let response = transport.send_and_receive(input).await?;
+        let response = self.transport.send_and_receive(input).await?;
         Ok(serde_json::from_value(response).map_err(|e| e.to_string())?)
     }
 }
@@ -69,10 +67,10 @@ mod tests {
         let (response_tx, _) = broadcast::channel(32);
 
         // Create the permission tool
-        let permission = Permission::new(Arc::new(RwLock::new(Transport::new(
+        let permission = Permission::new(Arc::new(Transport::new(
             event_tx,
             response_tx.clone(),
-        ))));
+        )));
 
         // Spawn a task to simulate the server handling the request
         let handle = tokio::spawn(async move {
@@ -114,10 +112,10 @@ mod tests {
     async fn test_permission_multiple_requests() {
         let (event_tx, mut event_rx) = broadcast::channel(32);
         let (response_tx, _) = broadcast::channel(32);
-        let permission = Permission::new(Arc::new(RwLock::new(Transport::new(
+        let permission = Permission::new(Arc::new(Transport::new(
             event_tx,
             response_tx.clone(),
-        ))));
+        )));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
