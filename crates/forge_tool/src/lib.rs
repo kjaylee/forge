@@ -4,10 +4,10 @@ mod ask;
 #[allow(unused)]
 mod mcp;
 mod outline;
+pub mod permission;
 mod router;
 mod shell;
 mod think;
-pub mod permission;
 pub mod transport;
 mod user_input;
 

@@ -1,4 +1,5 @@
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use tokio::sync::broadcast::Sender;
 
 /// Trait for messages that can be sent through a transport

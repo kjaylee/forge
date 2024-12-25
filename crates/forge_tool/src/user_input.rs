@@ -1,11 +1,10 @@
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::{
-    transport::{Message, Transport},
-    ToolTrait,
-};
-use serde::{Deserialize, Serialize};
+use crate::transport::{Message, Transport};
+use crate::ToolTrait;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserInputRequest {
@@ -58,9 +57,10 @@ impl ToolTrait for UserInput {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tokio::sync::broadcast;
     use uuid::Uuid;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_user_input_request_response() {
@@ -114,8 +114,10 @@ mod tests {
     async fn test_user_input_multiple_requests() {
         let (event_tx, mut event_rx) = broadcast::channel(32);
         let (response_tx, _) = broadcast::channel(32);
-        let user_input =
-            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_tx.clone()))));
+        let user_input = UserInput::new(Arc::new(RwLock::new(Transport::new(
+            event_tx,
+            response_tx.clone(),
+        ))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
@@ -164,8 +166,10 @@ mod tests {
     async fn test_user_input_concurrent_requests() {
         let (event_tx, mut event_rx) = broadcast::channel(32);
         let (response_tx, _) = broadcast::channel(32);
-        let user_input =
-            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_tx.clone()))));
+        let user_input = UserInput::new(Arc::new(RwLock::new(Transport::new(
+            event_tx,
+            response_tx.clone(),
+        ))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {

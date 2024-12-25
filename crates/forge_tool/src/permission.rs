@@ -1,11 +1,10 @@
 use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::{
-    transport::{Message, Transport},
-    ToolTrait,
-};
-use serde::{Deserialize, Serialize};
+use crate::transport::{Message, Transport};
+use crate::ToolTrait;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PermissionRequest {
@@ -58,9 +57,10 @@ impl ToolTrait for Permission {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tokio::sync::broadcast;
     use uuid::Uuid;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_permission_request_response() {
