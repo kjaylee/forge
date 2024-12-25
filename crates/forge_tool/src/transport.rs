@@ -6,6 +6,7 @@ pub trait Message: Serialize + DeserializeOwned + Send {
     fn get_id(&self) -> String;
 }
 
+// TODO: remove this once we have typesafe events.
 impl Message for serde_json::Value {
     fn get_id(&self) -> String {
         self["request_id"].as_str().unwrap().to_string()
@@ -41,7 +42,6 @@ impl Transport {
 
         // Wait for matching response
         while let Ok(response) = self.event_response_sender.subscribe().recv().await {
-            println!("[Finder]: at transport.rs body: {:#?} ", response);
             if response.get_id() == request_id {
                 return Ok(response);
             }
