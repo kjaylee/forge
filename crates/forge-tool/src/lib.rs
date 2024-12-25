@@ -7,8 +7,8 @@ mod outline;
 mod router;
 mod shell;
 mod think;
-mod permission;
-mod transport;
+pub mod permission;
+pub mod transport;
 mod user_input;
 
 pub use ask::*;

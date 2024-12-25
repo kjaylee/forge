@@ -743,6 +743,7 @@ dependencies = [
  "serde_json",
  "tailcall-valid",
  "tokio",
+ "tokio-stream",
  "tower-http",
  "tracing",
  "tracing-subscriber",
@@ -2742,6 +2743,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

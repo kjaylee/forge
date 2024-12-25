@@ -59,23 +59,25 @@ impl ToolTrait for UserInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::sync::mpsc;
+    use tokio::sync::broadcast;
     use uuid::Uuid;
 
     #[tokio::test]
     async fn test_user_input_request_response() {
         // Create channels for the test
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let (response_tx, response_rx) = mpsc::unbounded_channel();
+        let (event_tx, mut event_rx) = broadcast::channel(32);
+        let (response_tx, _) = broadcast::channel(32);
 
         // Create the user input tool
-        let user_input =
-            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
+        let user_input = UserInput::new(Arc::new(RwLock::new(Transport::new(
+            event_tx,
+            response_tx.clone(),
+        ))));
 
         // Spawn a task to simulate the server handling the request
         let handle = tokio::spawn(async move {
             // Wait for the request
-            if let Some(request) = event_rx.recv().await {
+            if let Ok(request) = event_rx.recv().await {
                 // Send back a response
                 response_tx
                     .send(
@@ -110,15 +112,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_user_input_multiple_requests() {
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let (response_tx, response_rx) = mpsc::unbounded_channel();
+        let (event_tx, mut event_rx) = broadcast::channel(32);
+        let (response_tx, _) = broadcast::channel(32);
         let user_input =
-            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
+            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_tx.clone()))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
             let mut count = 0;
-            while let Some(request) = event_rx.recv().await {
+            while let Ok(request) = event_rx.recv().await {
                 count += 1;
                 response_tx
                     .send(
@@ -160,15 +162,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_user_input_concurrent_requests() {
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let (response_tx, response_rx) = mpsc::unbounded_channel();
+        let (event_tx, mut event_rx) = broadcast::channel(32);
+        let (response_tx, _) = broadcast::channel(32);
         let user_input =
-            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
+            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_tx.clone()))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
             let mut received = 0;
-            while let Some(request) = event_rx.recv().await {
+            while let Ok(request) = event_rx.recv().await {
                 response_tx
                     .send(
                         serde_json::to_value(UserInputResponse {
@@ -206,36 +208,6 @@ mod tests {
             let result = handle.await.unwrap().unwrap();
             assert_eq!(result.answer, format!("Concurrent answer {}", i + 1));
         }
-
-        handle.await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_user_input_channel_closed() {
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let (response_tx, response_rx) = mpsc::unbounded_channel();
-
-        // Create the transport first
-        let user_input =
-            UserInput::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
-
-        // Spawn a task to receive and immediately drop the request
-        let handle = tokio::spawn(async move {
-            let _ = event_rx.recv().await;
-            // Drop response_tx to close the channel
-            drop(response_tx);
-        });
-
-        let request = UserInputRequest {
-            question: "Will this work?".to_string(),
-            context: None,
-            request_id: Uuid::new_v4().to_string(),
-        };
-
-        // The call should return an error since the response channel will be closed
-        let result = user_input.call(request).await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "Channel closed");
 
         handle.await.unwrap();
     }

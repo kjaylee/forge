@@ -59,23 +59,25 @@ impl ToolTrait for Permission {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::sync::mpsc;
+    use tokio::sync::broadcast;
     use uuid::Uuid;
 
     #[tokio::test]
     async fn test_permission_request_response() {
         // Create channels for the test
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let (response_tx, response_rx) = mpsc::unbounded_channel();
+        let (event_tx, mut event_rx) = broadcast::channel(32);
+        let (response_tx, _) = broadcast::channel(32);
 
         // Create the permission tool
-        let permission =
-            Permission::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
+        let permission = Permission::new(Arc::new(RwLock::new(Transport::new(
+            event_tx,
+            response_tx.clone(),
+        ))));
 
         // Spawn a task to simulate the server handling the request
         let handle = tokio::spawn(async move {
             // Wait for the request
-            if let Some(request) = event_rx.recv().await {
+            if let Ok(request) = event_rx.recv().await {
                 // Send back a response
                 response_tx
                     .send(
@@ -110,15 +112,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_permission_multiple_requests() {
-        let (event_tx, mut event_rx) = mpsc::unbounded_channel();
-        let (response_tx, response_rx) = mpsc::unbounded_channel();
-        let permission =
-            Permission::new(Arc::new(RwLock::new(Transport::new(event_tx, response_rx))));
+        let (event_tx, mut event_rx) = broadcast::channel(32);
+        let (response_tx, _) = broadcast::channel(32);
+        let permission = Permission::new(Arc::new(RwLock::new(Transport::new(
+            event_tx,
+            response_tx.clone(),
+        ))));
 
         // Spawn response handler
         let handle = tokio::spawn(async move {
             let mut count = 0;
-            while let Some(request) = event_rx.recv().await {
+            while let Ok(request) = event_rx.recv().await {
                 count += 1;
                 response_tx
                     .send(

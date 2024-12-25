@@ -1,5 +1,5 @@
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::sync::mpsc;
+use tokio::sync::broadcast::Sender;
 
 /// Trait for messages that can be sent through a transport
 pub trait Message: Serialize + DeserializeOwned + Send {
@@ -12,19 +12,20 @@ impl Message for serde_json::Value {
     }
 }
 
+#[derive(Clone)]
 /// A generic transport that can send requests and receive responses
 pub struct Transport {
-    sender: mpsc::UnboundedSender<serde_json::Value>,
-    receiver: mpsc::UnboundedReceiver<serde_json::Value>,
+    pub event_sender: Sender<serde_json::Value>,
+    pub event_response_sender: Sender<serde_json::Value>,
 }
 
 impl Transport {
     /// Creates a new transport instance
     pub fn new(
-        sender: mpsc::UnboundedSender<serde_json::Value>,
-        receiver: mpsc::UnboundedReceiver<serde_json::Value>,
+        sender: Sender<serde_json::Value>,
+        event_response_sender: Sender<serde_json::Value>,
     ) -> Self {
-        Self { sender, receiver }
+        Self { event_sender: sender, event_response_sender }
     }
 
     /// Sends a request and waits for a matching response
@@ -34,12 +35,13 @@ impl Transport {
     ) -> Result<serde_json::Value, String> {
         let request_id = request.get_id();
         // Send the request
-        self.sender
+        self.event_sender
             .send(request)
             .map_err(|e| format!("Failed to send: {}", e))?;
 
         // Wait for matching response
-        while let Some(response) = self.receiver.recv().await {
+        while let Ok(response) = self.event_response_sender.subscribe().recv().await {
+            println!("[Finder]: at transport.rs body: {:#?} ", response);
             if response.get_id() == request_id {
                 return Ok(response);
             }
