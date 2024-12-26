@@ -342,8 +342,9 @@ mod tests {
         };
 
         let action = Action::AgentChatResponse(response);
-        let (_app, command) = app.update(action).unwrap();
+        let (app, command) = app.update(action).unwrap();
 
+        assert!(app.tool_raw_arguments.is_empty());
         match command {
             Command::Combine(left, right) => {
                 assert_eq!(
@@ -384,7 +385,8 @@ mod tests {
         };
 
         let action = Action::AgentChatResponse(response);
-        let (_app, command) = app.update(action).unwrap();
+        let (app, command) = app.update(action).unwrap();
+        assert!(!app.tool_raw_arguments.is_empty());
         match command {
             Command::Combine(left, right) => {
                 assert_eq!(
