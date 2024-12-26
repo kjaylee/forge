@@ -51,9 +51,7 @@ mod tests {
 
     #[test]
     fn test_render_with_custom_context() {
-        let result = test_env()
-            .render("OS: {{os}}, CWD: {{cwd}}")
-            .unwrap();
+        let result = test_env().render("OS: {{os}}, CWD: {{cwd}}").unwrap();
         assert_eq!(result, "OS: TestOS, CWD: /Users/test");
     }
 }
