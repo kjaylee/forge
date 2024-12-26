@@ -327,4 +327,73 @@ mod tests {
             _ => panic!("Expected Command::Combine"),
         }
     }
+
+    #[test]
+    fn test_use_tool_when_finish_reason_present() {
+        let app = App::default();
+        let response = Response {
+            message: Message::assistant("Tool response"),
+            tool_use: vec![forge_provider::ToolUse {
+                tool_use_id: None,
+                tool_name: Some(ToolName::from("fs_list")),
+                input: r#"{"path": "."}"#.to_string(),
+            }],
+            finish_reason: Some(FinishReason::ToolUse),
+        };
+
+        let action = Action::AgentChatResponse(response);
+        let (_app, command) = app.update(action).unwrap();
+
+        match command {
+            Command::Combine(left, right) => {
+                assert_eq!(
+                    *left,
+                    Command::DispatchUserMessage("Tool response".to_string())
+                );
+                match *right {
+                    Command::Combine(_, right_inner) => {
+                        let expected_tool_name = ToolName::from("fs_list");
+                        let expected_tool_args: Value =
+                            serde_json::from_str(r#"{"path": "."}"#).unwrap();
+                        assert_eq!(
+                            *right_inner,
+                            Command::DispatchToolUse {
+                                tool_name: expected_tool_name,
+                                arguments: expected_tool_args
+                            }
+                        );
+                    }
+                    _ => panic!("Expected nested Combine command"),
+                }
+            }
+            _ => panic!("Expected Command::Combine"),
+        }
+    }
+
+    #[test]
+    fn test_should_not_use_tool_when_finish_reason_not_present() {
+        let app = App::default();
+        let response = Response {
+            message: Message::assistant("Tool response"),
+            tool_use: vec![forge_provider::ToolUse {
+                tool_use_id: None,
+                tool_name: Some(ToolName::from("fs_list")),
+                input: r#"{"path": "."}"#.to_string(),
+            }],
+            finish_reason: None,
+        };
+
+        let action = Action::AgentChatResponse(response);
+        let (_app, command) = app.update(action).unwrap();
+        match command {
+            Command::Combine(left, right) => {
+                assert_eq!(
+                    *left,
+                    Command::DispatchUserMessage("Tool response".to_string())
+                );
+                assert_eq!(*right, Command::Empty);
+            }
+            _ => panic!("Expected Command::Combine"),
+        }
+    }
 }
