@@ -68,10 +68,17 @@ impl Server {
         let runtime = self.runtime.clone();
         let message = format!("##Task\n{}", chat.message);
 
+        // If the chat does not have an ID, generate a new one
+        let conversation_id = chat.id.clone().unwrap_or(uuid::Uuid::new_v4().to_string());
+
         tokio::spawn(async move {
             runtime
                 .clone()
-                .execute(Action::UserChatMessage(chat.message(message)), &executor)
+                .execute(
+                    Action::UserChatMessage(chat.message(message)),
+                    &executor,
+                    &conversation_id,
+                )
                 .await
         });
 

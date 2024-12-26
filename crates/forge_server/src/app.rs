@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
-use forge_provider::{FinishReason, Message, ModelId, Request, Response, ToolResult};
+use forge_provider::{AnyMessage, FinishReason, Message, ModelId, Request, Response, ToolResult};
 use forge_tool::ToolName;
 use serde::Serialize;
 use serde_json::Value;
@@ -28,6 +30,7 @@ pub struct FileResponse {
 pub struct ChatRequest {
     pub message: String,
     pub model: ModelId,
+    pub id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -85,6 +88,7 @@ pub struct App {
 
     // Keep context at the end so that debugging the Serialized format is easier
     pub context: Request,
+    pub conversation_history: HashMap<String, Vec<AnyMessage>>,
 }
 
 impl App {
@@ -97,6 +101,7 @@ impl App {
             tool_name: None,
             assistant_buffer: "".to_string(),
             files: Vec::new(),
+            conversation_history: Default::default(),
         }
     }
 }
@@ -106,7 +111,7 @@ impl Application for App {
     type Error = crate::Error;
     type Command = Command;
 
-    fn update(mut self, action: Action) -> Result<(Self, Command)> {
+    fn update(mut self, action: Action, id: &str) -> Result<(Self, Command)> {
         let cmd: Command = match action {
             Action::UserChatMessage(chat) => {
                 let prompt = Prompt::parse(chat.message.clone())
@@ -116,7 +121,13 @@ impl Application for App {
                 self.user_message = Some(MessageTemplate::task(prompt.to_string()));
 
                 if prompt.files().is_empty() {
-                    self.context = self.context.add_message(Message::user(chat.message));
+                    self.context = self
+                        .context
+                        .add_message(Message::user(chat.message.clone()));
+                    self.conversation_history
+                        .entry(id.to_string())
+                        .or_default()
+                        .push(AnyMessage::User(Message::user(chat.message)));
                     Command::DispatchAgentMessage(self.context.clone())
                 } else {
                     Command::LoadPromptFiles(prompt.files())
@@ -144,6 +155,12 @@ impl Application for App {
                     self.context = self
                         .context
                         .add_message(Message::assistant(self.assistant_buffer.clone()));
+                    self.conversation_history
+                        .entry(id.to_string())
+                        .or_default()
+                        .push(AnyMessage::Assistant(Message::assistant(
+                            self.assistant_buffer.clone(),
+                        )));
                     self.assistant_buffer.clear();
                 }
 
@@ -203,10 +220,11 @@ mod tests {
         let chat_request = ChatRequest {
             message: "Hello, world!".to_string(),
             model: ModelId::default(),
+            id: Some("1".into()),
         };
 
         let action = Action::UserChatMessage(chat_request.clone());
-        let (updated_app, command) = app.update(action).unwrap();
+        let (updated_app, command) = app.update(action, "1").unwrap();
 
         assert_eq!(&updated_app.context.model, &ModelId::default());
         assert_eq!(
@@ -228,7 +246,7 @@ mod tests {
         }];
 
         let action = Action::PromptFileLoaded(files.clone());
-        let (updated_app, command) = app.update(action).unwrap();
+        let (updated_app, command) = app.update(action, "1").unwrap();
 
         assert_eq!(
             command,
@@ -258,7 +276,7 @@ mod tests {
         };
 
         let action = Action::AgentChatResponse(response);
-        let (_, command) = app.update(action).unwrap();
+        let (_, command) = app.update(action, "1").unwrap();
 
         match command {
             Command::Combine(left, right) => {
@@ -303,7 +321,7 @@ mod tests {
             is_error: false,
         });
 
-        let (updated_app, command) = app.update(action).unwrap();
+        let (updated_app, command) = app.update(action, "1").unwrap();
 
         assert_eq!(
             command,
@@ -350,7 +368,7 @@ mod tests {
         };
 
         let action = Action::AgentChatResponse(response);
-        let (app, command) = app.update(action).unwrap();
+        let (app, command) = app.update(action, "1").unwrap();
 
         assert!(app.tool_raw_arguments.is_empty());
         match command {
@@ -393,7 +411,7 @@ mod tests {
         };
 
         let action = Action::AgentChatResponse(response);
-        let (app, command) = app.update(action).unwrap();
+        let (app, command) = app.update(action, "1").unwrap();
         assert!(!app.tool_raw_arguments.is_empty());
         match command {
             Command::Combine(left, right) => {

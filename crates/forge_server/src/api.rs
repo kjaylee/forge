@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 const SERVER_PORT: u16 = 8080;
 
-use axum::extract::{Json, State};
+use axum::extract::{Json, Path, State};
 use axum::response::sse::{Event, Sse};
 use axum::routing::{get, post};
 use axum::Router;
-use forge_provider::Model;
+use forge_provider::{AnyMessage, Model};
 use forge_tool::Tool;
 use serde::Serialize;
 use tokio_stream::{Stream, StreamExt};
@@ -41,7 +41,9 @@ impl API {
 
         // Setup HTTP server
         let app = Router::new()
+            .route("/conversations", get(list_conversations_handler))
             .route("/conversation", post(conversation_handler))
+            .route("/conversations/:id", get(conversation_history_handler))
             .route("/completions", get(completions_handler))
             .route("/health", get(health_handler))
             .route("/tools", get(tools_handler))
@@ -124,6 +126,33 @@ async fn context_handler(State(state): State<Arc<Server>>) -> Json<AppResponse> 
     Json(AppResponse { app })
 }
 
+async fn conversation_history_handler(
+    State(state): State<Arc<Server>>,
+    Path(id): Path<String>,
+) -> Json<ConversationResponse> {
+    let app = state.context().await;
+    let messages = app
+        .conversation_history
+        .get(&id)
+        .cloned()
+        .unwrap_or_default();
+
+    Json(ConversationResponse { messages })
+}
+
+async fn list_conversations_handler(
+    State(state): State<Arc<Server>>,
+) -> Json<ConversationsResponse> {
+    let app = state.context().await;
+    let conversations = app
+        .conversation_history
+        .iter()
+        .map(|(id, messages)| ConversationInfo { id: id.clone(), messages: messages.clone() })
+        .collect();
+
+    Json(ConversationsResponse { conversations })
+}
+
 #[derive(Serialize)]
 pub struct AppResponse {
     app: App,
@@ -137,4 +166,20 @@ pub struct ModelResponse {
 #[derive(Serialize)]
 pub struct ToolResponse {
     tools: Vec<Tool>,
+}
+
+#[derive(Serialize)]
+pub struct ConversationResponse {
+    messages: Vec<AnyMessage>,
+}
+
+#[derive(Serialize)]
+pub struct ConversationInfo {
+    id: String,
+    messages: Vec<AnyMessage>,
+}
+
+#[derive(Serialize)]
+pub struct ConversationsResponse {
+    conversations: Vec<ConversationInfo>,
 }
