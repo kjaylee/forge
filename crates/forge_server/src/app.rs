@@ -153,13 +153,13 @@ impl Application for App {
                         self.tool_name = Some(tool)
                     }
                     self.tool_raw_arguments.push_str(tool.input.as_str());
+                }
 
-                    if let Some(FinishReason::ToolUse) = response.finish_reason {
-                        self.tool_use = false;
-                        let arguments = serde_json::from_str(&self.tool_raw_arguments)?;
-                        if let Some(tool_name) = self.tool_name.clone() {
-                            commands.push(Command::DispatchToolUse { tool_name, arguments });
-                        }
+                if let Some(FinishReason::ToolUse) = response.finish_reason {
+                    self.tool_use = false;
+                    let arguments = serde_json::from_str(&self.tool_raw_arguments)?;
+                    if let Some(tool_name) = self.tool_name.clone() {
+                        commands.push(Command::DispatchToolUse { tool_name, arguments });
                     }
                 }
 
