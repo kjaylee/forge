@@ -5,7 +5,7 @@ use serde::Serialize;
 pub struct Environment {
     pub os: Option<String>,
     pub cwd: Option<String>,
-    pub default_shell: Option<String>,
+    pub shell: Option<String>,
     pub home: Option<String>,
 }
 
@@ -16,7 +16,7 @@ impl Environment {
             cwd: std::env::current_dir()
                 .ok()
                 .map(|p| p.display().to_string()),
-            default_shell: if cfg!(windows) {
+            shell: if cfg!(windows) {
                 std::env::var("COMSPEC").ok().map(String::from)
             } else {
                 std::env::var("SHELL").ok().or(Some("/bin/sh".to_string()))
@@ -44,7 +44,7 @@ mod tests {
         Environment {
             cwd: Some("/Users/test".into()),
             os: Some("TestOS".into()),
-            default_shell: Some("ZSH".into()),
+            shell: Some("ZSH".into()),
             home: Some("/Users".into()),
         }
     }
@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn test_render_with_custom_context() {
         let result = test_env()
-            .render("OS: {{operating_system}}, CWD: {{current_working_directory}}")
+            .render("OS: {{os}}, CWD: {{cwd}}")
             .unwrap();
         assert_eq!(result, "OS: TestOS, CWD: /Users/test");
     }

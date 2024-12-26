@@ -10,7 +10,7 @@ use crate::{Description, ToolTrait};
 #[derive(Deserialize, JsonSchema)]
 pub struct FSSearchInput {
     #[schemars(
-        description = "The path of the directory to search in (relative to the current working directory {{current_working_directory}}). This directory will be recursively searched."
+        description = "The path of the directory to search in (relative to the current working directory {{cwd}}). This directory will be recursively searched."
     )]
     pub path: String,
     #[schemars(
@@ -28,7 +28,7 @@ pub struct FSSearchInput {
 /// content across multiple files, displaying each match with encapsulating
 /// context. Parameters:
 /// - path: (required) The path of the directory to search in (relative to the
-///   current working directory {{current_working_directory}}). This directory
+///   current working directory {{cwd}}). This directory
 ///   will be recursively searched.
 /// - regex: (required) The regular expression pattern to search for. Uses Rust
 ///   regex syntax.

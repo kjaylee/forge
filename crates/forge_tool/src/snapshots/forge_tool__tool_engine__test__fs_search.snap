@@ -1,10 +1,11 @@
 ---
 source: crates/forge_tool/src/tool_engine.rs
 expression: tool_str
+snapshot_kind: text
 ---
 {
   "name": "fs_search",
-  "description": "Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context. Parameters: - path: (required) The path of the directory to search in (relative to the current working directory /Users/test). This directory will be recursively searched. - regex: (required) The regular expression pattern to search for. Uses Rust regex syntax. - file_pattern: (optional) Glob pattern to filter files (e.g., \\'*.ts\\' for TypeScript files). If not provided, it will search all files (*). Usage: <fs_search> <path>Directory path here</path> <regex>Your regex pattern here</regex> <file_pattern>file pattern here (optional)</file_pattern> </fs_search>",
+  "description": "Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context. Parameters: - path: (required) The path of the directory to search in (relative to the   current working directory /Users/test). This directory   will be recursively searched. - regex: (required) The regular expression pattern to search for. Uses Rust   regex syntax. - file_pattern: (optional) Glob pattern to filter files (e.g., \\'*.ts\\' for   TypeScript files). If not provided, it will search all files (*).",
   "input_schema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "FSSearchInput",

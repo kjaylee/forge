@@ -185,7 +185,7 @@ mod test {
         ToolImporter::new(Environment {
             cwd: Some("/Users/test".into()),
             os: Some("TestOS".into()),
-            default_shell: Some("ZSH".into()),
+            shell: Some("ZSH".into()),
             home: Some("/Users".into()),
         })
     }

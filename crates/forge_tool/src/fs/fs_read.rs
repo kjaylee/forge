@@ -7,7 +7,7 @@ use crate::{Description, ToolTrait};
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReadInput {
     #[schemars(
-        description = "The path of the file to read (relative to the current working directory {{current_working_directory}})"
+        description = "The path of the file to read (relative to the current working directory {{cwd}})"
     )]
     pub path: String,
 }
@@ -19,7 +19,7 @@ pub struct FSReadInput {
 /// PDF and DOCX files. May not be suitable for other types of binary files, as
 /// it returns the raw content as a string. Parameters:
 /// - path: (required) The path of the file to read (relative to the current
-///   working directory {{current_working_directory}})
+///   working directory {{cwd}})
 #[derive(DescriptionDerive)]
 pub struct FSRead;
 
