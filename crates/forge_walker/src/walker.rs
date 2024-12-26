@@ -40,7 +40,7 @@ impl Walker {
 
     pub async fn get(&self) -> Result<Vec<File>> {
         let cwd = self.cwd.clone();
-        let max_depth = self.max_depth.clone();
+        let max_depth = self.max_depth;
         match spawn_blocking(move || Self::get_blocking(cwd, max_depth)).await {
             Ok(result) => result,
             Err(e) => Err(Error::JoinError(e)),
