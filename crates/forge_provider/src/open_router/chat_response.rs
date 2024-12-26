@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 
-use crate::error::Error;
+use crate::error::{Error, ProviderError};
 use crate::model::{Response as ModelResponse, ToolUse};
 use crate::UseId;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChatResponse {
     pub id: String,
-    pub provider: String,
+    pub provider: Option<String>,
     pub model: String,
     pub choices: Vec<Choice>,
     pub created: u64,
@@ -81,6 +81,23 @@ impl TryFrom<ChatResponse> for ModelResponse {
 
     fn try_from(res: ChatResponse) -> Result<Self, Self::Error> {
         if let Some(choice) = res.choices.first() {
+            // Check for error response first
+            match choice {
+                Choice::NonChat { error: Some(e), .. } |
+                Choice::NonStreaming { error: Some(e), .. } |
+                Choice::Streaming { error: Some(e), .. } => {
+                    return Err(Error::Provider {
+                        provider: "Open Router".to_string(),
+                        error: ProviderError::UpstreamError(serde_json::json!({
+                            "code": e.code,
+                            "message": e.message,
+                            "metadata": e.metadata
+                        }))
+                    });
+                }
+                _ => {}
+            }
+
             let response = match choice {
                 Choice::NonChat { text, .. } => ModelResponse::new(text.clone()),
                 Choice::NonStreaming { message, .. } => {

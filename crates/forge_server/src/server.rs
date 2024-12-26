@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use forge_prompt::Prompt;
 use forge_provider::{Message, Model, ModelId, Provider, Request, Response, ToolResult, ToolUse};
@@ -7,6 +8,7 @@ use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::{Stream, StreamExt};
+use tracing::info;
 
 use crate::completion::{Completion, File};
 use crate::template::PromptTemplate;
@@ -56,7 +58,10 @@ pub struct Server {
     tools: Arc<ToolEngine>,
     context: Context<Request>,
     completions: Arc<Completion>,
+    models_cache: Arc<Mutex<Option<(Vec<Model>, Instant)>>>,
 }
+
+const MODELS_CACHE_DURATION: Duration = Duration::from_secs(10000); // Cache for 1 hour
 
 impl Server {
     pub async fn completions(&self) -> Result<Vec<File>> {
@@ -74,6 +79,7 @@ impl Server {
             tools: Arc::new(tools),
             context: Context::new(request),
             completions: Arc::new(Completion::new(cwd)),
+            models_cache: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -86,7 +92,20 @@ impl Server {
     }
 
     pub async fn models(&self) -> Result<Vec<Model>> {
-        Ok(self.provider.models().await?)
+        // Check cache first
+        if let Some((cached_models, cache_time)) = self.models_cache.lock().unwrap().as_ref() {
+            if cache_time.elapsed() < MODELS_CACHE_DURATION {
+                return Ok(cached_models.clone());
+            }
+        }
+
+        // Cache miss or expired, fetch new models
+        let models = self.provider.models().await?;
+        
+        // Update cache
+        *self.models_cache.lock().unwrap() = Some((models.clone(), Instant::now()));
+        
+        Ok(models)
     }
 
     pub async fn chat(&self, chat: ChatRequest) -> Result<impl Stream<Item = ChatEvent> + Send> {
@@ -151,23 +170,28 @@ impl Server {
     }
 
     async fn use_tool(&self, tool: ToolUse, tx: &mpsc::Sender<ChatEvent>) -> Result<ToolResult> {
-        if let Some(tool) = tool.tool_name {
-            tx.send(ChatEvent::ToolUseStart(tool)).await?;
-        }
+        let content = if let Some(tool_name) = tool.tool_name {
+            info!(tool.input);
+            tx.send(ChatEvent::ToolUseStart(tool_name.clone())).await?;
+            let content = self
+                .tools
+                .call(&tool_name, serde_json::from_str(&tool.input).unwrap())
+                .await?;
 
-        // let content = self
-        //     .tools
-        //     .call(&tool.tool_id, tool.input.clone())
-        //     .await?;
+            tx.send(ChatEvent::ToolUseEnd(
+                tool_name.into_string(),
+                content.clone(),
+            ))
+            .await?;
+            
+            content
+        } else {
+            Value::default()
+        };
 
-        // tx.send(ChatEvent::ToolUseEnd(
-        //     tool.tool_name.into_string(),
-        //     content.clone(),
-        // ))
-        // .await?;
-
-        let result = ToolResult { tool_use_id: tool.tool_use_id, content: Value::default() };
-
-        Ok(result)
+        Ok(ToolResult {
+            tool_use_id: tool.tool_use_id,
+            content,
+        })
     }
 }

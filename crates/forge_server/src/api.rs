@@ -122,9 +122,9 @@ async fn health_handler() -> axum::response::Response {
         .unwrap()
 }
 
-async fn models_handler(State(state): State<Arc<Server>>) -> Json<ModelsResponse> {
-    let models = state.models().await.unwrap_or_default();
-    Json(ModelsResponse { models })
+async fn models_handler(State(state): State<Arc<Server>>) -> Json<Vec<Model>> {
+    let models = state.models().await.unwrap();
+    Json(models)
 }
 
 async fn context_handler(State(state): State<Arc<Server>>) -> Json<Request> {

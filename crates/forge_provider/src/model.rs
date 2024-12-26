@@ -184,7 +184,7 @@ pub struct Model {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
-pub struct ModelId(String);
+pub struct ModelId(pub(crate) String);
 
 impl Default for ModelId {
     fn default() -> Self {

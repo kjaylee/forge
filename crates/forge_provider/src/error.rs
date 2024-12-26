@@ -1,19 +1,46 @@
 use std::pin::Pin;
 
-use derive_more::derive::Display;
+use std::fmt;
 use serde_json::Value;
 
-#[derive(Debug, Display, derive_more::From)]
+#[derive(Debug)]
 pub enum Error {
-    // Custom display message for provider error
-    #[display("{}", error)]
     Provider {
         provider: String,
         error: ProviderError,
     },
-    Reqwest(#[from] reqwest::Error),
-    SerdeJson(#[from] serde_json::Error),
-    EventSource(#[from] reqwest_eventsource::Error),
+    Reqwest(reqwest::Error),
+    SerdeJson(serde_json::Error),
+    EventSource(reqwest_eventsource::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::Provider { error, .. } => write!(f, "{}", error),
+            Error::Reqwest(e) => write!(f, "{}", e),
+            Error::SerdeJson(e) => write!(f, "{}", e),
+            Error::EventSource(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::Reqwest(err)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::SerdeJson(err)
+    }
+}
+
+impl From<reqwest_eventsource::Error> for Error {
+    fn from(err: reqwest_eventsource::Error) -> Self {
+        Error::EventSource(err)
+    }
 }
 
 impl Error {
@@ -25,15 +52,23 @@ impl Error {
     }
 }
 
-#[derive(Debug, Display)]
+#[derive(Debug)]
 pub enum ProviderError {
-    // Custom display message for OpenAI error
-    // OpenAI(OpenAIError),
-
-    // Custom display message for EmptyResponse
     EmptyContent,
     ToolUseEmptyName,
     UpstreamError(Value),
+    AuthenticationError,
+}
+
+impl fmt::Display for ProviderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ProviderError::EmptyContent => write!(f, "Empty response from provider"),
+            ProviderError::ToolUseEmptyName => write!(f, "Tool use missing name"),
+            ProviderError::UpstreamError(v) => write!(f, "Upstream error: {}", v),
+            ProviderError::AuthenticationError => write!(f, "Authentication failed - please check your API key"),
+        }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
