@@ -161,6 +161,8 @@ impl Application for App {
                     if let Some(tool_name) = self.tool_name.clone() {
                         commands.push(Command::DispatchToolUse { tool_name, arguments });
                     }
+                    // since tools is used, clear the tool_raw_arguments.
+                    self.tool_raw_arguments.clear();
                 }
 
                 Command::DispatchUserMessage(response.message.content).and_then(commands.into())
