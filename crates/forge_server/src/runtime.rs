@@ -11,7 +11,7 @@ pub trait Application: Send + Sync + Sized + Clone {
     fn update(
         self,
         action: Self::Action,
-        id: &str,
+        conversation_id: &str,
     ) -> std::result::Result<(Self, Self::Command), Self::Error>;
 }
 
@@ -35,7 +35,7 @@ impl<A: Application> ApplicationRuntime<A> {
         &self,
         action: A::Action,
         executor: &impl Executor<Command = A::Command, Action = A::Action, Error = A::Error>,
-        id: &String,
+        conversation_id: &String,
     ) -> std::result::Result<(), A::Error> {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
@@ -46,7 +46,7 @@ impl<A: Application> ApplicationRuntime<A> {
         let mut stream = executor.execute(&command).await?;
 
         while let Some(result) = stream.next().await {
-            self.execute(result?, executor, id).await?;
+            self.execute(result?, executor, conversation_id).await?;
         }
 
         Ok(())

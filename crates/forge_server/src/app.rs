@@ -111,7 +111,7 @@ impl Application for App {
     type Error = crate::Error;
     type Command = Command;
 
-    fn update(mut self, action: Action, id: &str) -> Result<(Self, Command)> {
+    fn update(mut self, action: Action, conversation_id: &str) -> Result<(Self, Command)> {
         let cmd: Command = match action {
             Action::UserChatMessage(chat) => {
                 let prompt = Prompt::parse(chat.message.clone())
@@ -125,7 +125,7 @@ impl Application for App {
                         .context
                         .add_message(Message::user(chat.message.clone()));
                     self.conversation_history
-                        .entry(id.to_string())
+                        .entry(conversation_id.to_string())
                         .or_default()
                         .push(AnyMessage::User(Message::user(chat.message)));
                     Command::DispatchAgentMessage(self.context.clone())
@@ -156,7 +156,7 @@ impl Application for App {
                         .context
                         .add_message(Message::assistant(self.assistant_buffer.clone()));
                     self.conversation_history
-                        .entry(id.to_string())
+                        .entry(conversation_id.to_string())
                         .or_default()
                         .push(AnyMessage::Assistant(Message::assistant(
                             self.assistant_buffer.clone(),
