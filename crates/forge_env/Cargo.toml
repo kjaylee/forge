@@ -7,3 +7,4 @@ edition = "2021"
 derive_more = { version = "1.0.0", features = ["from", "display"] }
 handlebars = "6.2.0"
 serde = "1.0.216"
+dirs = "5.0.1"
