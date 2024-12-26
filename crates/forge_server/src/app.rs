@@ -24,7 +24,7 @@ pub struct FileResponse {
     pub content: String,
 }
 
-#[derive(Debug, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Deserialize, Clone, Setters)]
 pub struct ChatRequest {
     pub message: String,
     pub model: ModelId,
@@ -81,6 +81,7 @@ pub struct App {
     pub tool_use: bool,
     pub tool_raw_arguments: String,
     pub tool_name: Option<ToolName>,
+    pub files: Vec<String>,
 
     // Keep context at the end so that debugging the Serialized format is easier
     pub context: Request,
@@ -95,6 +96,7 @@ impl App {
             tool_raw_arguments: "".to_string(),
             tool_name: None,
             assistant_buffer: "".to_string(),
+            files: Vec::new(),
         }
     }
 }
