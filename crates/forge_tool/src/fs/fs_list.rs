@@ -65,7 +65,6 @@ impl ToolTrait for FSList {
 mod test {
     use tempfile::TempDir;
     use tokio::fs;
-    use schemars::schema_for;
 
     use super::*;
 
