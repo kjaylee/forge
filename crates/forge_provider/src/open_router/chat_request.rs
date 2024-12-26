@@ -26,16 +26,40 @@ pub struct ImageUrl {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum ContentPart {
-    Text(TextContent),
-    Image(ImageContentPart),
+pub struct Message {
+    pub role: String,
+    pub content: MessageContent,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct Message {
-    pub role: String,
-    pub content: String,
-    pub name: Option<String>,
+#[serde(untagged)]
+pub enum MessageContent {
+    Text(String),
+    Parts(Vec<ContentPart>),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentPart {
+    Text { 
+        text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControl>,
+    },
+    ImageUrl { image_url: ImageUrl },
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CacheControl {
+    #[serde(rename = "type")]
+    pub type_: CacheControlType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheControlType {
+    Ephemeral,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -146,16 +170,33 @@ impl From<AnyMessage> for Message {
         match value {
             AnyMessage::Assistant(assistant) => Message {
                 role: Assistant::name(),
-                content: assistant.content,
+                content: parse_message_content(&assistant.content),
                 name: None,
             },
-            AnyMessage::System(sys) => {
-                Message { role: System::name(), content: sys.content, name: None }
-            }
-            AnyMessage::User(usr) => {
-                Message { role: User::name(), content: usr.content, name: None }
-            }
+            AnyMessage::System(sys) => Message {
+                role: System::name(),
+                content: MessageContent::Parts(vec![ContentPart::Text {
+                    text: sys.content,
+                    cache_control: Some(CacheControl {
+                        type_: CacheControlType::Ephemeral,
+                    }),
+                }]),
+                name: None,
+            },
+            AnyMessage::User(usr) => Message {
+                role: User::name(),
+                content: parse_message_content(&usr.content),
+                name: None,
+            },
         }
+    }
+}
+
+fn parse_message_content(content: &str) -> MessageContent {
+    if let Ok(parts) = serde_json::from_str::<Vec<ContentPart>>(content) {
+        MessageContent::Parts(parts)
+    } else {
+        MessageContent::Text(content.to_string())
     }
 }
 
@@ -169,18 +210,18 @@ impl From<crate::model::Request> for ChatRequest {
                     .map(|tool_result| {
                         let value = tool_result.content;
 
-                        let mut content = HashMap::new();
+                    let mut content = HashMap::new();
                         content.insert("content", value.to_string());
-                        content.insert("role", "tool".to_string());
-                        if let Some(id) = tool_result.tool_use_id {
-                            content.insert("tool_use_id", id.0);
-                        }
+                    content.insert("role", "tool".to_string());
+                    if let Some(id) = tool_result.tool_use_id {
+                        content.insert("tool_use_id", id.0);
+                    }
 
-                        Message {
-                            role: User::name(),
-                            content: serde_json::to_string(&content).unwrap(),
-                            name: None,
-                        }
+                    Message {
+                        role: User::name(),
+                        content: MessageContent::Text(serde_json::to_string(&content).unwrap()),
+                        name: None,
+                    }
                     })
                     .collect::<Vec<_>>();
 
@@ -191,8 +232,8 @@ impl From<crate::model::Request> for ChatRequest {
                     .collect::<Vec<_>>();
 
                 messages.extend(result);
-
-                Some(messages)
+                
+                    Some(messages)
             },
             tools: {
                 let tools = value
