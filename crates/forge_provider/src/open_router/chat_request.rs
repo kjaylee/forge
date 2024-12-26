@@ -42,12 +42,14 @@ pub enum MessageContent {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentPart {
-    Text { 
+    Text {
         text: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
-    ImageUrl { image_url: ImageUrl },
+    ImageUrl {
+        image_url: ImageUrl,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -177,9 +179,7 @@ impl From<AnyMessage> for Message {
                 role: System::name(),
                 content: MessageContent::Parts(vec![ContentPart::Text {
                     text: sys.content,
-                    cache_control: Some(CacheControl {
-                        type_: CacheControlType::Ephemeral,
-                    }),
+                    cache_control: Some(CacheControl { type_: CacheControlType::Ephemeral }),
                 }]),
                 name: None,
             },
@@ -210,18 +210,18 @@ impl From<crate::model::Request> for ChatRequest {
                     .map(|tool_result| {
                         let value = tool_result.content;
 
-                    let mut content = HashMap::new();
+                        let mut content = HashMap::new();
                         content.insert("content", value.to_string());
-                    content.insert("role", "tool".to_string());
-                    if let Some(id) = tool_result.tool_use_id {
-                        content.insert("tool_use_id", id.0);
-                    }
+                        content.insert("role", "tool".to_string());
+                        if let Some(id) = tool_result.tool_use_id {
+                            content.insert("tool_use_id", id.0);
+                        }
 
-                    Message {
-                        role: User::name(),
-                        content: MessageContent::Text(serde_json::to_string(&content).unwrap()),
-                        name: None,
-                    }
+                        Message {
+                            role: User::name(),
+                            content: MessageContent::Text(serde_json::to_string(&content).unwrap()),
+                            name: None,
+                        }
                     })
                     .collect::<Vec<_>>();
 
@@ -232,8 +232,8 @@ impl From<crate::model::Request> for ChatRequest {
                     .collect::<Vec<_>>();
 
                 messages.extend(result);
-                
-                    Some(messages)
+
+                Some(messages)
             },
             tools: {
                 let tools = value
