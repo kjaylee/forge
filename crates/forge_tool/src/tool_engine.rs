@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use forge_env::Environment;
 use inflector::Inflector;
-use schemars::schema::RootSchema;
+use schemars::schema::{RootSchema, Schema, SchemaObject, SingleOrVec};
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -48,6 +48,82 @@ pub struct Tool {
     pub description: String,
     pub input_schema: RootSchema,
     pub output_schema: Option<RootSchema>,
+}
+
+impl Tool {
+    pub fn generate_description(&self) -> String {
+        let mut description = format!(
+            "Tool: {}\nDescription: {}\n",
+            self.name.as_str(),
+            self.description
+        );
+
+        // Add input parameters
+        description.push_str("Input Parameters:\n");
+        let object = &self.input_schema.schema;
+        description.push_str(&Self::extract_parameters(object));
+
+        // Add output parameters
+        description.push_str("Output Parameters:\n");
+        if let Some(output_schema) = &self.output_schema {
+            description.push_str(&Self::extract_parameters(&output_schema.schema));
+        }
+
+        description
+    }
+
+    fn extract_parameters(schema: &SchemaObject) -> String {
+        let mut params_description = String::new();
+        if let Some(object) = &schema.object {
+            for (key, value) in object.properties.iter() {
+                if let Schema::Object(o) = value {
+                    let param_description = format!(
+                        "- {}: {}\n",
+                        key,
+                        o.metadata
+                            .as_ref()
+                            .and_then(|v| v.description.as_ref())
+                            .map(|v| v.as_str())
+                            .as_ref()
+                            .unwrap_or(&"No description")
+                    );
+                    params_description.push_str(&param_description);
+                }
+            }
+        }
+        if let Some(arr) = &schema.array {
+            if let Some(items) = arr.items.as_ref() {
+                match items {
+                    SingleOrVec::Single(s) => {
+                        if let Schema::Object(o) = s.as_ref() {
+                            let param_description =
+                                format!("- array: {}\n", Self::extract_parameters(o));
+                            params_description.push_str(&param_description);
+                        }
+                    }
+                    SingleOrVec::Vec(vec) => {
+                        if let Some(Schema::Object(o)) = vec.first() {
+                            let param_description =
+                                format!("- array: {}\n", Self::extract_parameters(o));
+                            params_description.push_str(&param_description);
+                        }
+                    }
+                }
+            }
+        }
+
+        if schema.string.is_some() {
+            let param_description = "- string\n".to_string();
+            params_description.push_str(&param_description);
+        }
+
+        if schema.number.is_some() {
+            let param_description = "- number\n".to_string();
+            params_description.push_str(&param_description);
+        }
+
+        params_description
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -176,7 +252,6 @@ impl Default for ToolEngine {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
     use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
@@ -234,6 +309,19 @@ mod test {
         for tool in tool_engine.list() {
             let tool_str = serde_json::to_string_pretty(&tool).unwrap();
             insta::assert_snapshot!(tool.name.as_str(), tool_str);
+        }
+    }
+
+    #[test]
+    fn test_generated_description() {
+        let tool_engine = ToolEngine::build(new_importer());
+
+        for tool in tool_engine.list() {
+            let tool_str = tool.generate_description();
+            insta::assert_snapshot!(
+                format!("test_generated_description_{}", tool.name.as_str()),
+                tool_str
+            );
         }
     }
 }
