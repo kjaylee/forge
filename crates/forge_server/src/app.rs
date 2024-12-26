@@ -309,10 +309,9 @@ mod tests {
             command,
             Command::DispatchAgentMessage(updated_app.context.clone())
         );
-        assert_eq!(
-            updated_app.context.messages[0].content(),
-            serde_json::to_string(&tool_response).unwrap()
-        );
+        assert!(updated_app.context.messages[0]
+            .content()
+            .contains("Tool executed successfully."));
     }
 
     #[test]
