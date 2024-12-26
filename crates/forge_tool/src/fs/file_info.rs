@@ -35,7 +35,6 @@ impl ToolTrait for FSFileInfo {
 
 #[cfg(test)]
 mod test {
-    use schemars::schema_for;
     use tempfile::TempDir;
     use tokio::fs;
 
