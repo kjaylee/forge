@@ -10,20 +10,6 @@ pub struct File {
     pub is_dir: bool,
 }
 
-impl File {
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    pub fn is_valid(&self) -> bool {
-        !self.path.is_empty()
-    }
-
-    pub fn is_dir(&self) -> bool {
-        self.is_dir
-    }
-}
-
 pub struct Walker {
     cwd: PathBuf,
     max_depth: Option<usize>,

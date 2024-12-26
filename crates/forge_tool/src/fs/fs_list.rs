@@ -43,13 +43,13 @@ impl ToolTrait for FSList {
 
         for entry in files {
             // Skip the root directory itself
-            if entry.path() == dir.to_string_lossy() {
+            if entry.path == dir.to_string_lossy() {
                 continue;
             }
 
-            if entry.is_valid() {
-                let prefix = if entry.is_dir() { "[DIR]" } else { "[FILE]" };
-                paths.push(format!("{} {}", prefix, entry.path()));
+            if !entry.path.is_empty() {
+                let prefix = if entry.is_dir { "[DIR]" } else { "[FILE]" };
+                paths.push(format!("{} {}", prefix, entry.path));
             }
         }
 
