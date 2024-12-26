@@ -22,12 +22,6 @@ pub struct FSSearchInput {
 /// - path: (required) The path of the directory to search in (relative to the current working directory {{current_working_directory}}). This directory will be recursively searched.
 /// - regex: (required) The regular expression pattern to search for. Uses Rust regex syntax.
 /// - file_pattern: (optional) Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not provided, it will search all files (*).
-/// Usage:
-/// <fs_search>
-/// <path>Directory path here</path>
-/// <regex>Your regex pattern here</regex>
-/// <file_pattern>file pattern here (optional)</file_pattern>
-/// </fs_search>
 #[derive(DescriptionDerive)]
 pub struct FSSearch;
 

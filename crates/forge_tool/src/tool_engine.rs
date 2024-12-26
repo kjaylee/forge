@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use forge_env::{Environment, EnvironmentValue};
+use forge_env::Environment;
 use inflector::Inflector;
 use schemars::schema::RootSchema;
 use schemars::{schema_for, JsonSchema};
@@ -117,21 +117,23 @@ impl<'a, C: Serialize> ToolImporter<'a, C> {
             .to_snake_case();
         let executable = Box::new(JsonTool(tool));
 
+        let env = Environment::from_env();
         let input: RootSchema = schema_for!(T::Input);
-        let input: RootSchema = serde_json::from_str(
-            &Environment::render(&serde_json::to_string(&input).unwrap(), self.ctx).unwrap(),
-        )
-        .unwrap();
+        let input: RootSchema =
+            serde_json::from_str(&env.render(&serde_json::to_string(&input).unwrap()).unwrap())
+                .unwrap();
 
         let output: RootSchema = schema_for!(T::Output);
         let output: RootSchema = serde_json::from_str(
-            &Environment::render(&serde_json::to_string(&output).unwrap(), self.ctx).unwrap(),
+            &env.render(&serde_json::to_string(&output).unwrap())
+                .unwrap(),
         )
         .unwrap();
 
         let tool = Tool {
             name: ToolName(name.clone()),
-            description: Environment::render(T::description(), self.ctx)
+            description: env
+                .render(T::description())
                 .unwrap_or_else(|_| panic!("Unable to render description for tool {}", name)),
             input_schema: input,
             output_schema: Some(output),
@@ -143,7 +145,7 @@ impl<'a, C: Serialize> ToolImporter<'a, C> {
 
 impl Default for ToolEngine {
     fn default() -> Self {
-        let ctx = EnvironmentValue::build();
+        let ctx = Environment::from_env();
         let importer = ToolImporter::new(&ctx);
 
         let tools: HashMap<ToolName, ToolDefinition> = HashMap::from([
@@ -169,7 +171,7 @@ mod test {
     use super::*;
     use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
-    use forge_env::default_ctx;
+    use forge_env::test_env;
 
     impl ToolEngine {
         fn build<C: Serialize>(importer: ToolImporter<C>) -> Self {
@@ -187,7 +189,7 @@ mod test {
 
     #[test]
     fn test_id() {
-        let env_ctx = default_ctx();
+        let env_ctx = test_env();
         let importer = ToolImporter::new(&env_ctx);
 
         assert!(importer.import(FSRead).0.into_string().ends_with("fs_read"));
@@ -211,7 +213,7 @@ mod test {
 
     #[test]
     fn test_description() {
-        let tool_engine = ToolEngine::build(ToolImporter::new(&default_ctx()));
+        let tool_engine = ToolEngine::build(ToolImporter::new(&test_env()));
 
         for tool in tool_engine.list() {
             let tool_str = serde_json::to_string_pretty(&tool).unwrap();

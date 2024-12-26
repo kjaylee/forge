@@ -19,11 +19,6 @@ pub struct FSListInput {
 /// Parameters:
 /// - path: (required) The path of the directory to list contents for (relative to the current working directory {{current_working_directory}})
 /// - recursive: (optional) Whether to list files recursively. Use true for recursive listing, false or omit for top-level only.
-/// Usage:
-/// <fs_list>
-/// <path>Directory path here</path>
-/// <recursive>true or false (optional)</recursive>
-/// </fs_list>
 #[derive(DescriptionDerive)]
 pub struct FSList;
 
