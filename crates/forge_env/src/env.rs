@@ -19,7 +19,7 @@ impl Environment {
             default_shell: if cfg!(windows) {
                 std::env::var("COMSPEC").ok().map(String::from)
             } else {
-                std::env::var("SHELL").ok().map(String::from)
+                std::env::var("SHELL").ok().or(Some("/bin/sh".to_string()))
             },
             home: dirs::home_dir().map(|a| a.display().to_string()),
         }
@@ -34,10 +34,12 @@ impl Environment {
     }
 }
 
-pub mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
 
     // use crate::default_ctx for unit test in the project.
+
     fn test_env() -> Environment {
         Environment {
             cwd: Some("/Users/test".into()),

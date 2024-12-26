@@ -35,7 +35,7 @@ pub struct FSList;
 #[async_trait::async_trait]
 impl ToolTrait for FSList {
     type Input = FSListInput;
-    type Output = String;
+    type Output = Vec<String>;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let dir = Path::new(&input.path);
@@ -62,7 +62,7 @@ impl ToolTrait for FSList {
             }
         }
 
-        Ok(paths.join("\n"))
+        Ok(paths)
     }
 }
 
