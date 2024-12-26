@@ -109,7 +109,7 @@ impl ToolEngine {
         let tool = Tool {
             name: ToolName(name.clone()),
             description: Environment::render(T::description())
-                .unwrap_or_else(|_| panic!("Unable to render description for tool {}", name)),
+                .unwrap_or_else(|err| panic!("Unable to render description for tool {}, err: {:?}", name, err)),
             input_schema: schema_for!(T::Input),
             output_schema: Some(schema_for!(T::Output)),
         };
