@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_env::Environment;
+use forge_env::{Environment, EnvironmentValue};
 use forge_provider::{Message, Model, ModelId, Provider, Request, Response};
 use forge_tool::{Tool, ToolEngine};
 use tokio::sync::mpsc;
@@ -27,7 +27,8 @@ impl Server {
     pub fn new(cwd: impl Into<String>, api_key: impl Into<String>) -> Server {
         let tools = ToolEngine::default();
 
-        let system_prompt = Environment::render(include_str!("./prompts/system.md"))
+        let env_ctx = EnvironmentValue::build();
+        let system_prompt = Environment::render(include_str!("./prompts/system.md"), &env_ctx)
             .expect("Failed to render system prompt");
 
         let request = Request::new(ModelId::default())
