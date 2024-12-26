@@ -1,5 +1,5 @@
 use async_openai::{
-    config::{Config, OpenAIConfig},
+    config::OpenAIConfig,
     error::OpenAIError,
     types::{
         ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
@@ -7,7 +7,7 @@ use async_openai::{
         ChatCompletionRequestUserMessageContent, CreateChatCompletionRequest,
         ChatCompletionTool, ChatCompletionToolType, FunctionObject, 
         ChatCompletionToolChoiceOption, ChatCompletionNamedToolChoice,
-        FunctionName, ResponseFormat, Stop,
+        FunctionName, ResponseFormat, Stop, FinishReason,
     },
     Client,
 };
@@ -15,11 +15,14 @@ use tokio_stream::StreamExt;
 use tracing::info;
 
 use super::chat_request::{ChatRequest, ToolChoice};
-use super::chat_response::ChatResponse;
-use super::model_response::{Architecture, ListModelResponse, Model, Pricing, TopProvider};
+use super::chat_response::{
+    ChatResponse, Choice, ResponseMessage, ToolCall, FunctionCall,
+};
+use super::model_response::{ListModelResponse, Model};
 use crate::error::Result;
 use crate::provider::{InnerProvider, Provider};
-use crate::{Error, ProviderError, Request, Response, ResultStream};
+use crate::{Error, ProviderError, Request, Response, ResultStream, UseId};
+use forge_tool::ToolName;
 
 const PROVIDER_NAME: &str = "Open Router";
 
@@ -58,8 +61,6 @@ impl OpenRouter {
             .unwrap();
 
         let base_url = base_url.unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
-        // OpenRouter expects the full URL for chat completions
-        // let chat_url = format!("{}/chat/completions", base_url);
         let config = OpenAIConfig::new()
             .with_api_base(&base_url)
             .with_api_key(api_key.clone());
@@ -133,7 +134,7 @@ impl TryFrom<ChatRequest> for CreateChatCompletionRequest {
             });
         }
         
-        if let Some(response_format) = req.response_format {
+        if req.response_format.is_some() {
             request.response_format = Some(ResponseFormat::JsonObject);
         }
         
@@ -199,37 +200,107 @@ impl InnerProvider for OpenRouter {
         
         let mut stream = self.client.chat().create_stream(chat_request).await?;
 
+        // Create a stream that handles function calls properly
         let stream = Box::pin(async_stream::stream! {
+            let mut fn_name = String::new();
+            let mut fn_args = String::new();
+            let mut tool_call_id = String::new();
+
             while let Some(result) = stream.next().await {
                 match result {
                     Ok(response) => {
-                        match serde_json::to_string(&response) {
-                            Ok(json_str) => {
-                                match serde_json::from_str::<ChatResponse>(&json_str) {
-                                    Ok(chat_response) => {
-                                        match crate::Response::try_from(chat_response) {
-                                            Ok(response) => yield Ok(response),
-                                            Err(e) => yield Err(e),
-                                        }
-                                    }
-                                    Err(e) => yield Err(Error::Provider {
-                                        provider: PROVIDER_NAME.to_string(),
-                                        error: ProviderError::UpstreamError(serde_json::json!({
-                                            "error": format!("Failed to parse chat response: {}", e),
-                                            "response": json_str
-                                        })),
-                                    }),
+                        
+                        let choices = response.choices.clone();
+                        
+                        for chat_choice in choices {
+                            // Handle regular content and tool calls
+                            if let Some(content) = chat_choice.delta.content {
+                                let chat_response = ChatResponse {
+                                    id: response.id.clone(),
+                                    object: "chat.completion.chunk".to_string(),
+                                    created: response.created as u64,
+                                    model: response.model.clone(),
+                                    system_fingerprint: response.system_fingerprint.clone(),
+                                    provider: None,
+                                    usage: None,
+                                    choices: vec![Choice::Streaming {
+                                        delta: ResponseMessage {
+                                            role: Some("assistant".to_string()),
+                                            content: Some(content),
+                                            tool_calls: None,
+                                            refusal: None,
+                                        },
+                                        finish_reason: None,
+                                        error: None,
+                                    }],
+                                };
+
+                                if let Ok(response) = crate::Response::try_from(chat_response) {
+                                    yield Ok(response);
                                 }
                             }
-                            Err(e) => yield Err(Error::Provider {
-                                provider: PROVIDER_NAME.to_string(),
-                                error: ProviderError::UpstreamError(serde_json::json!({
-                                    "error": format!("Failed to serialize response: {}", e)
-                                })),
-                            }),
+
+                            // Handle tool calls
+                            if let Some(tool_calls) = chat_choice.delta.tool_calls {
+                                for tool_call in tool_calls {
+                                    if let Some(id) = tool_call.id {
+                                        tool_call_id = id;
+                                    }
+                                    if let Some(function) = tool_call.function {
+                                        if let Some(name) = function.name {
+                                            fn_name = name;
+                                        }
+                                        if let Some(args) = function.arguments {
+                                            fn_args.push_str(&args);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Handle finish reason
+                            if let Some(finish_reason) = chat_choice.finish_reason {
+                                if matches!(finish_reason, FinishReason::ToolCalls) && !fn_name.is_empty() {
+                                    let chat_response = ChatResponse {
+                                        id: response.id.clone(),
+                                        object: "chat.completion.chunk".to_string(),
+                                        created: response.created as u64,
+                                        model: response.model.clone(),
+                                        system_fingerprint: response.system_fingerprint.clone(),
+                                        provider: None,
+                                        usage: None,
+                                        choices: vec![Choice::Streaming {
+                                            delta: ResponseMessage {
+                                                role: Some("assistant".to_string()),
+                                                content: None,
+                                                tool_calls: Some(vec![ToolCall {
+                                                id: Some(UseId(tool_call_id.clone())),
+                                                r#type: "function".to_string(),
+                                                function: FunctionCall {
+                                                    name: Some(ToolName(fn_name.clone())),
+                                                    arguments: fn_args.clone(),
+                                                    },
+                                                }]),
+                                                refusal: None,
+                                            },
+                                            finish_reason: Some("tool_calls".to_string()),
+                                            error: None,
+                                        }],
+                                    };
+
+                                    if let Ok(response) = crate::Response::try_from(chat_response) {
+                                        yield Ok(response);
+                                    }
+
+                                    // Reset state
+                                    fn_name.clear();
+                                    fn_args.clear();
+                                    tool_call_id.clear();
+                                }
+                            }
                         }
                     }
                     Err(err) => {
+                        info!("Stream error: {}", err);
                         yield Err(Error::from(err));
                     }
                 }

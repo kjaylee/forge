@@ -53,7 +53,7 @@ pub struct Tool {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct ToolName(String);
+pub struct ToolName(pub String);
 
 impl ToolName {
     pub fn into_string(self) -> String {
