@@ -57,159 +57,159 @@ impl ToolTrait for FSList {
     }
 }
 
-// #[cfg(test)]
-// mod test {
-//     use tempfile::TempDir;
-//     use tokio::fs;
+#[cfg(test)]
+mod test {
+    use tempfile::TempDir;
+    use tokio::fs;
 
-//     use super::*;
+    use super::*;
 
-//     #[tokio::test]
-//     async fn test_fs_list_empty_directory() {
-//         let temp_dir = TempDir::new().unwrap();
+    #[tokio::test]
+    async fn test_fs_list_empty_directory() {
+        let temp_dir = TempDir::new().unwrap();
 
-//         let fs_list = FSList;
-//         let result = fs_list
-//             .call(FSListInput {
-//                 path: temp_dir.path().to_string_lossy().to_string(),
-//                 recursive: None,
-//             })
-//             .await
-//             .unwrap();
+        let fs_list = FSList;
+        let result = fs_list
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: None,
+            })
+            .await
+            .unwrap();
 
-//         assert!(result.is_empty());
-//     }
+        assert!(result.is_empty());
+    }
 
-//     #[tokio::test]
-//     async fn test_fs_list_with_files_and_dirs() {
-//         let temp_dir = TempDir::new().unwrap();
+    #[tokio::test]
+    async fn test_fs_list_with_files_and_dirs() {
+        let temp_dir = TempDir::new().unwrap();
 
-//         fs::write(temp_dir.path().join("file1.txt"), "content1")
-//             .await
-//             .unwrap();
-//         fs::write(temp_dir.path().join("file2.txt"), "content2")
-//             .await
-//             .unwrap();
-//         fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
-//         fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
+        fs::write(temp_dir.path().join("file1.txt"), "content1")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("file2.txt"), "content2")
+            .await
+            .unwrap();
+        fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
+        fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
 
-//         let fs_list = FSList;
-//         let result = fs_list
-//             .call(FSListInput {
-//                 path: temp_dir.path().to_string_lossy().to_string(),
-//                 recursive: None,
-//             })
-//             .await
-//             .unwrap();
+        let fs_list = FSList;
+        let result = fs_list
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: None,
+            })
+            .await
+            .unwrap();
 
-//         assert_eq!(result.len(), 4);
+        assert_eq!(result.len(), 4);
 
-//         let files: Vec<_> = result.iter().filter(|p| p.starts_with("[FILE]")).collect();
-//         let dirs: Vec<_> = result.iter().filter(|p| p.starts_with("[DIR]")).collect();
+        let files: Vec<_> = result.iter().filter(|p| p.starts_with("[FILE]")).collect();
+        let dirs: Vec<_> = result.iter().filter(|p| p.starts_with("[DIR]")).collect();
 
-//         assert_eq!(files.len(), 2);
-//         assert_eq!(dirs.len(), 2);
+        assert_eq!(files.len(), 2);
+        assert_eq!(dirs.len(), 2);
 
-//         assert!(result.iter().any(|p| p.contains("file1.txt")));
-//         assert!(result.iter().any(|p| p.contains("file2.txt")));
-//         assert!(result.iter().any(|p| p.contains("dir1")));
-//         assert!(result.iter().any(|p| p.contains("dir2")));
-//     }
+        assert!(result.iter().any(|p| p.contains("file1.txt")));
+        assert!(result.iter().any(|p| p.contains("file2.txt")));
+        assert!(result.iter().any(|p| p.contains("dir1")));
+        assert!(result.iter().any(|p| p.contains("dir2")));
+    }
 
-//     #[tokio::test]
-//     async fn test_fs_list_nonexistent_directory() {
-//         let temp_dir = TempDir::new().unwrap();
-//         let nonexistent_dir = temp_dir.path().join("nonexistent");
+    #[tokio::test]
+    async fn test_fs_list_nonexistent_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let nonexistent_dir = temp_dir.path().join("nonexistent");
 
-//         let fs_list = FSList;
-//         let result = fs_list
-//             .call(FSListInput {
-//                 path: nonexistent_dir.to_string_lossy().to_string(),
-//                 recursive: None,
-//             })
-//             .await;
+        let fs_list = FSList;
+        let result = fs_list
+            .call(FSListInput {
+                path: nonexistent_dir.to_string_lossy().to_string(),
+                recursive: None,
+            })
+            .await;
 
-//         assert!(result.is_err());
-//     }
+        assert!(result.is_err());
+    }
 
-//     #[tokio::test]
-//     async fn test_fs_list_with_hidden_files() {
-//         let temp_dir = TempDir::new().unwrap();
+    #[tokio::test]
+    async fn test_fs_list_with_hidden_files() {
+        let temp_dir = TempDir::new().unwrap();
 
-//         fs::write(temp_dir.path().join("regular.txt"), "content")
-//             .await
-//             .unwrap();
-//         fs::write(temp_dir.path().join(".hidden"), "content")
-//             .await
-//             .unwrap();
-//         fs::create_dir(temp_dir.path().join(".hidden_dir"))
-//             .await
-//             .unwrap();
+        fs::write(temp_dir.path().join("regular.txt"), "content")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join(".hidden"), "content")
+            .await
+            .unwrap();
+        fs::create_dir(temp_dir.path().join(".hidden_dir"))
+            .await
+            .unwrap();
 
-//         let fs_list = FSList;
-//         let result = fs_list
-//             .call(FSListInput {
-//                 path: temp_dir.path().to_string_lossy().to_string(),
-//                 recursive: None,
-//             })
-//             .await
-//             .unwrap();
+        let fs_list = FSList;
+        let result = fs_list
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: None,
+            })
+            .await
+            .unwrap();
 
-//         assert_eq!(result.len(), 1);
-//         assert!(result.iter().any(|p| p.contains("regular.txt")));
-//     }
+        assert_eq!(result.len(), 1);
+        assert!(result.iter().any(|p| p.contains("regular.txt")));
+    }
 
-//     #[tokio::test]
-//     async fn test_fs_list_recursive() {
-//         let temp_dir = TempDir::new().unwrap();
+    #[tokio::test]
+    async fn test_fs_list_recursive() {
+        let temp_dir = TempDir::new().unwrap();
 
-//         // Create nested directory structure
-//         fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
-//         fs::write(temp_dir.path().join("dir1/file1.txt"), "content1")
-//             .await
-//             .unwrap();
-//         fs::create_dir(temp_dir.path().join("dir1/subdir"))
-//             .await
-//             .unwrap();
-//         fs::write(temp_dir.path().join("dir1/subdir/file2.txt"), "content2")
-//             .await
-//             .unwrap();
-//         fs::write(temp_dir.path().join("root.txt"), "content3")
-//             .await
-//             .unwrap();
+        // Create nested directory structure
+        fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
+        fs::write(temp_dir.path().join("dir1/file1.txt"), "content1")
+            .await
+            .unwrap();
+        fs::create_dir(temp_dir.path().join("dir1/subdir"))
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("dir1/subdir/file2.txt"), "content2")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("root.txt"), "content3")
+            .await
+            .unwrap();
 
-//         let fs_list = FSList;
+        let fs_list = FSList;
 
-//         // Test recursive listing
-//         let result = fs_list
-//             .call(FSListInput {
-//                 path: temp_dir.path().to_string_lossy().to_string(),
-//                 recursive: Some(true),
-//             })
-//             .await
-//             .unwrap();
+        // Test recursive listing
+        let result = fs_list
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(true),
+            })
+            .await
+            .unwrap();
 
-//         assert_eq!(result.len(), 5); // root.txt, dir1, file1.txt, subdir, file2.txt
-//         assert!(result.iter().any(|p| p.contains("root.txt")));
-//         assert!(result.iter().any(|p| p.contains("dir1")));
-//         assert!(result.iter().any(|p| p.contains("file1.txt")));
-//         assert!(result.iter().any(|p| p.contains("subdir")));
-//         assert!(result.iter().any(|p| p.contains("file2.txt")));
+        assert_eq!(result.len(), 5); // root.txt, dir1, file1.txt, subdir, file2.txt
+        assert!(result.iter().any(|p| p.contains("root.txt")));
+        assert!(result.iter().any(|p| p.contains("dir1")));
+        assert!(result.iter().any(|p| p.contains("file1.txt")));
+        assert!(result.iter().any(|p| p.contains("subdir")));
+        assert!(result.iter().any(|p| p.contains("file2.txt")));
 
-//         // Test non-recursive listing of same structure
-//         let result = fs_list
-//             .call(FSListInput {
-//                 path: temp_dir.path().to_string_lossy().to_string(),
-//                 recursive: Some(false),
-//             })
-//             .await
-//             .unwrap();
+        // Test non-recursive listing of same structure
+        let result = fs_list
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(false),
+            })
+            .await
+            .unwrap();
 
-//         assert_eq!(result.len(), 2); // Only root.txt and dir1
-//         assert!(result.iter().any(|p| p.contains("root.txt")));
-//         assert!(result.iter().any(|p| p.contains("dir1")));
-//         assert!(!result.iter().any(|p| p.contains("file1.txt")));
-//         assert!(!result.iter().any(|p| p.contains("subdir")));
-//         assert!(!result.iter().any(|p| p.contains("file2.txt")));
-//     }
-// }
+        assert_eq!(result.len(), 2); // Only root.txt and dir1
+        assert!(result.iter().any(|p| p.contains("root.txt")));
+        assert!(result.iter().any(|p| p.contains("dir1")));
+        assert!(!result.iter().any(|p| p.contains("file1.txt")));
+        assert!(!result.iter().any(|p| p.contains("subdir")));
+        assert!(!result.iter().any(|p| p.contains("file2.txt")));
+    }
+}
