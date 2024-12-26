@@ -41,7 +41,7 @@ pub mod tests {
     #[test]
     fn test_render_with_custom_context() {
         let result = Environment::render(
-            "OS: {{operating_system}}, CWD: {{current_working_dir}}",
+            "OS: {{operating_system}}, CWD: {{current_working_directory}}",
             &default_ctx(),
         )
         .unwrap();
