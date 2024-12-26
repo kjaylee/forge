@@ -39,7 +39,7 @@ impl<A: Application> ApplicationRuntime<A> {
     ) -> std::result::Result<(), A::Error> {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
-        let (app, command) = app.update(action, id)?;
+        let (app, command) = app.update(action, conversation_id)?;
         *guard = app;
         drop(guard);
 
