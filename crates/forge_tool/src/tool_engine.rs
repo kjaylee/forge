@@ -168,10 +168,11 @@ impl Default for ToolEngine {
 
 #[cfg(test)]
 mod test {
+    use forge_env::test_env;
+
     use super::*;
     use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
-    use forge_env::test_env;
 
     impl ToolEngine {
         fn build<C: Serialize>(importer: ToolImporter<C>) -> Self {
