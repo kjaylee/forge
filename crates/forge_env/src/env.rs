@@ -3,17 +3,17 @@ use serde::Serialize;
 
 use crate::Result;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct EnvironmentValue {
     operating_system: String,
-    current_working_dir: String,
+    current_working_directory: String,
 }
 
 impl EnvironmentValue {
     pub fn build() -> Self {
         EnvironmentValue {
             operating_system: std::env::consts::OS.to_string(),
-            current_working_dir: format!("{}", std::env::current_dir().unwrap().display()),
+            current_working_directory: format!("{}", std::env::current_dir().unwrap().display()),
         }
     }
 }
@@ -27,21 +27,24 @@ impl Environment {
     }
 }
 
-#[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+
+    // use crate::default_ctx for unit test in the project.
+    pub fn default_ctx() -> EnvironmentValue {
+        EnvironmentValue {
+            current_working_directory: "/Users/test".into(),
+            operating_system: "TestOS".into(),
+        }
+    }
 
     #[test]
     fn test_render_with_custom_context() {
-        let context = EnvironmentValue {
-            operating_system: "test-os".into(),
-            current_working_dir: "test-dir".into(),
-        };
         let result = Environment::render(
             "OS: {{operating_system}}, CWD: {{current_working_dir}}",
-            &context,
+            &default_ctx(),
         )
         .unwrap();
-        assert_eq!(result, "OS: test-os, CWD: test-dir");
+        assert_eq!(result, "OS: TestOS, CWD: /Users/test");
     }
 }

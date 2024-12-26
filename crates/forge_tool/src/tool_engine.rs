@@ -166,18 +166,10 @@ impl Default for ToolEngine {
 
 #[cfg(test)]
 mod test {
-    use serde_json::json;
-
     use super::*;
     use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
-
-    fn env_ctx() -> Value {
-        json!({
-            "current_working_directory": "./test-dir",
-            "operating_system": "test-os"
-        })
-    }
+    use forge_env::default_ctx;
 
     impl ToolEngine {
         fn build<C: Serialize>(importer: ToolImporter<C>) -> Self {
@@ -195,7 +187,7 @@ mod test {
 
     #[test]
     fn test_id() {
-        let env_ctx = env_ctx();
+        let env_ctx = default_ctx();
         let importer = ToolImporter::new(&env_ctx);
 
         assert!(importer.import(FSRead).0.into_string().ends_with("fs_read"));
@@ -219,8 +211,7 @@ mod test {
 
     #[test]
     fn test_description() {
-        let env_ctx = env_ctx();
-        let tool_engine = ToolEngine::build(ToolImporter::new(&env_ctx));
+        let tool_engine = ToolEngine::build(ToolImporter::new(&default_ctx()));
 
         for tool in tool_engine.list() {
             let tool_str = serde_json::to_string_pretty(&tool).unwrap();
