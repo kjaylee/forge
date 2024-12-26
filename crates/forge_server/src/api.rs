@@ -3,7 +3,9 @@ use std::sync::Arc;
 const SERVER_PORT: u16 = 8080;
 
 use axum::extract::{Json, Path, State};
+use axum::http::StatusCode;
 use axum::response::sse::{Event, Sse};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
 use forge_provider::{AnyMessage, Model};
@@ -129,15 +131,16 @@ async fn context_handler(State(state): State<Arc<Server>>) -> Json<AppResponse> 
 async fn conversation_history_handler(
     State(state): State<Arc<Server>>,
     Path(id): Path<String>,
-) -> Json<ConversationResponse> {
+) -> Response {
     let app = state.context().await;
-    let messages = app
-        .conversation_history
-        .get(&id)
-        .cloned()
-        .unwrap_or_default();
-
-    Json(ConversationResponse { messages })
+    match app.conversation_history.get(&id) {
+        Some(messages) => Json(ConversationResponse { messages: messages.clone() }).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse { error: format!("Conversation with id '{}' not found", id) }),
+        )
+            .into_response(),
+    }
 }
 
 async fn list_conversations_handler(
@@ -182,4 +185,9 @@ pub struct ConversationInfo {
 #[derive(Serialize)]
 pub struct ConversationsResponse {
     conversations: Vec<ConversationInfo>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ErrorResponse {
+    error: String,
 }
