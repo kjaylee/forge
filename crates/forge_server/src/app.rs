@@ -170,6 +170,17 @@ impl Application for App {
                     .add_message(Message::user(message))
                     .add_tool_result(tool_result.clone());
 
+                // Special handling for think tool
+                if tool_result.tool_name.as_str() == "think" {
+                    if let Ok(result) = serde_json::from_value::<serde_json::Value>(tool_result.content.clone()) {
+                        if result.get("continueThinking").and_then(|v| v.as_bool()).unwrap_or(false) {
+                            // Continue the conversation to generate next thought
+                            commands.push(Command::AssistantMessage(self.context.clone()));
+                            return Ok((self, commands));
+                        }
+                    }
+                }
+
                 commands.push(Command::AssistantMessage(self.context.clone()));
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
             }
@@ -412,5 +423,58 @@ mod tests {
             let other: Self::Item = other.into();
             self.contains(&other)
         }
+    }
+
+    #[test]
+    fn test_think_tool_conversation_flow() {
+        let app = App::default();
+
+        // Test when continueThinking is true
+        let think_result_continue = ToolResult {
+            tool_use_id: None,
+            tool_name: ToolName::from("think"),
+            content: json!({
+                "thoughtNumber": 1,
+                "totalThoughts": 3,
+                "nextThoughtNeeded": true,
+                "continueThinking": true,
+                "branches": [],
+                "thoughtHistoryLength": 1
+            }),
+            is_error: false,
+        };
+
+        let action = Action::ToolResponse(think_result_continue);
+        let (app, commands) = app.update(action).unwrap();
+
+        // Should only push AssistantMessage to continue conversation
+        assert_eq!(commands.len(), 1);
+        assert!(matches!(commands[0], Command::AssistantMessage(_)));
+
+        // Test when continueThinking is false
+        let think_result_end = ToolResult {
+            tool_use_id: None,
+            tool_name: ToolName::from("think"),
+            content: json!({
+                "thoughtNumber": 3,
+                "totalThoughts": 3,
+                "nextThoughtNeeded": false,
+                "continueThinking": false,
+                "branches": [],
+                "thoughtHistoryLength": 3
+            }),
+            is_error: false,
+        };
+
+        let action = Action::ToolResponse(think_result_end.clone());
+        let (_, commands) = app.update(action).unwrap();
+
+        // Should push both AssistantMessage and ToolUseEnd
+        assert_eq!(commands.len(), 2);
+        assert!(matches!(commands[0], Command::AssistantMessage(_)));
+        assert!(matches!(
+            commands[1],
+            Command::UserMessage(ChatResponse::ToolUseEnd(_))
+        ));
     }
 }
