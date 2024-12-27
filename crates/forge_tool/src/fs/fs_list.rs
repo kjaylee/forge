@@ -2,6 +2,7 @@ use std::path::Path;
 
 use forge_tool_macros::Description as DescriptionDerive;
 use forge_walker::Walker;
+use glob::Pattern;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -17,6 +18,10 @@ pub struct FSListInput {
         description = "Whether to list files recursively. Use true for recursive listing, false or omit for top-level only."
     )]
     pub recursive: Option<bool>,
+    #[schemars(
+        description = "A glob pattern to filter the results. Use patterns like '*.rs' for Rust files, '**/*.txt' for all text files recursively, or 'src/*.js' for JavaScript files in src directory."
+    )]
+    pub pattern: Option<String>,
 }
 
 /// Request to list files and directories within the specified directory. If
@@ -29,6 +34,7 @@ pub struct FSListInput {
 ///   to the current working directory {{cwd}})
 /// - recursive: (optional) Whether to list files recursively. Use true for
 ///   recursive listing, false or omit for top-level only.
+/// - pattern: (optional) A glob pattern to filter the results. Use patterns like '*.rs' for Rust files, '**/*.txt' for all text files recursively, or 'src/*.js' for JavaScript files in src directory.
 #[derive(DescriptionDerive)]
 pub struct FSList;
 
@@ -43,26 +49,31 @@ impl ToolTrait for FSList {
             return Err("Directory does not exist".to_string());
         }
 
-        let mut paths = Vec::new();
+        let pattern = input
+            .pattern
+            .map(|p| Pattern::new(&p).map_err(|e| e.to_string()))
+            .transpose()?;
+
         let recursive = input.recursive.unwrap_or(false);
         let max_depth = if recursive { usize::MAX } else { 1 };
         let walker = Walker::new(dir.to_path_buf()).with_max_depth(max_depth);
 
         let files = walker.get().await.map_err(|e| e.to_string())?;
 
-        for entry in files {
-            // Skip the root directory itself
-            if entry.path == dir.to_string_lossy() {
-                continue;
-            }
-
-            if !entry.path.is_empty() {
-                let prefix = if entry.is_dir { "[DIR]" } else { "[FILE]" };
-                paths.push(format!("{} {}", prefix, entry.path));
-            }
-        }
-
-        Ok(paths)
+        Ok(files
+            .into_iter()
+            .filter(|f| f.path != dir.to_string_lossy() && !f.path.is_empty())
+            .filter(|f| {
+                if let Some(ref pattern) = pattern {
+                    return pattern.matches(&f.path);
+                }
+                return true;
+            })
+            .map(|f| {
+                let prefix = if f.is_dir { "[DIR]" } else { "[FILE]" };
+                format!("{} {}", prefix, f.path)
+            })
+            .collect())
     }
 }
 
@@ -82,6 +93,7 @@ mod test {
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
                 recursive: None,
+                pattern: None,
             })
             .await
             .unwrap();
@@ -107,6 +119,7 @@ mod test {
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
                 recursive: None,
+                pattern: None,
             })
             .await
             .unwrap();
@@ -135,6 +148,7 @@ mod test {
             .call(FSListInput {
                 path: nonexistent_dir.to_string_lossy().to_string(),
                 recursive: None,
+                pattern: None,
             })
             .await;
 
@@ -160,6 +174,7 @@ mod test {
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
                 recursive: None,
+                pattern: None,
             })
             .await
             .unwrap();
@@ -194,6 +209,7 @@ mod test {
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
                 recursive: Some(true),
+                pattern: None,
             })
             .await
             .unwrap();
@@ -210,6 +226,7 @@ mod test {
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
                 recursive: Some(false),
+                pattern: None,
             })
             .await
             .unwrap();
@@ -220,5 +237,65 @@ mod test {
         assert!(!result.iter().any(|p| p.contains("file1.txt")));
         assert!(!result.iter().any(|p| p.contains("subdir")));
         assert!(!result.iter().any(|p| p.contains("file2.txt")));
+    }
+
+    #[tokio::test]
+    async fn test_fs_list_with_pattern() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create test files
+        std::fs::write(temp_dir.path().join("test.txt"), "test content").unwrap();
+        std::fs::write(temp_dir.path().join("test.rs"), "rust content").unwrap();
+        std::fs::write(temp_dir.path().join("TEST.RS"), "uppercase content").unwrap();
+        std::fs::create_dir(temp_dir.path().join("src")).unwrap();
+        std::fs::write(temp_dir.path().join("src").join("main.rs"), "main content").unwrap();
+
+        // Test exact file pattern
+        let result = FSList
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(true),
+                pattern: Some("test.txt".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].contains("test.txt"));
+
+        // Test wildcard pattern for Rust files
+        let result = FSList
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(true),
+                pattern: Some("*.rs".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 2); // Should match test.rs and src/main.rs
+        assert!(result.iter().any(|p| p.contains("test.rs")));
+        assert!(result.iter().any(|p| p.contains("main.rs")));
+
+        // Test directory-specific pattern
+        let result = FSList
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(true),
+                pattern: Some("src/*.rs".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 1);
+        assert!(result[0].contains("main.rs"));
+
+        // Test non-matching pattern
+        let result = FSList
+            .call(FSListInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                recursive: Some(true),
+                pattern: Some("*.go".to_string()),
+            })
+            .await
+            .unwrap();
+        assert_eq!(result.len(), 0);
     }
 }
