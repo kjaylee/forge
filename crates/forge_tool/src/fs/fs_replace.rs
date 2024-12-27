@@ -20,15 +20,9 @@ pub struct FSReplaceInput {
 /// Parameters:
 ///     - path: (required) The path of the file to modify (relative to the
 ///       current working directory {{cwd}})
-///     - diff: (required) One or more SEARCH/REPLACE blocks following this format:
-///       ```
-///       <<<<<<< SEARCH
-///       [exact content to find]
-///       =======
-///       [new content to replace with]
-///       >>>>>>> REPLACE
-///       ```
-///       Critical rules:
+///     - diff: (required) One or more SEARCH/REPLACE blocks following this
+///       format: ``` <<<<<<< SEARCH [exact content to find] ======= [new
+///       content to replace with] >>>>>>> REPLACE ``` Critical rules:
 ///       1. SEARCH content must match the associated file section to find
 ///          EXACTLY:
 ///          * Match character-for-character including whitespace, indentation,
