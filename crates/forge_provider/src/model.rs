@@ -216,6 +216,12 @@ impl Response {
 #[serde(transparent)]
 pub struct UseId(pub(crate) String);
 
+impl<A: ToString> From<A> for UseId {
+    fn from(value: A) -> Self {
+        UseId(value.to_string())
+    }
+}
+
 /// Contains a part message for using a tool. This is received as a part of the
 /// response from the model only when streaming is enabled.
 #[derive(Setters, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

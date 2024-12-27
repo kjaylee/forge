@@ -34,16 +34,6 @@ impl Executor for ChatCommandExecutor {
     type Error = Error;
     async fn execute(&self, command: &Self::Command) -> ResultStream<Self::Action, Self::Error> {
         match command {
-            Command::Empty => {
-                let stream: BoxStream<Action, Error> = Box::pin(tokio_stream::empty());
-                Ok(stream)
-            }
-            Command::Combine(a, b) => {
-                let merged: BoxStream<Action, Error> =
-                    Box::pin(self.execute(a).await?.merge(self.execute(b).await?));
-
-                Ok(merged)
-            }
             Command::DispatchFileRead(files) => {
                 let mut responses = vec![];
                 for file in files {
@@ -83,7 +73,7 @@ impl Executor for ChatCommandExecutor {
                         Ok(content) => content,
                         Err(e) => serde_json::Value::from(e),
                     },
-                    tool_use_id: None,
+                    tool_use_id: tool_use.use_id.clone(),
                     tool_name: tool_use.name.clone(),
                     is_error,
                 });

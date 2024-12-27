@@ -30,14 +30,8 @@ pub struct ChatRequest {
     pub model: ModelId,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, derive_more::From)]
+#[derive(Debug, Clone, PartialEq, derive_more::From)]
 pub enum Command {
-    #[default]
-    #[from(ignore)]
-    Empty,
-    #[from(ignore)]
-    Combine(Box<Command>, Box<Command>),
-
     #[from(ignore)]
     DispatchFileRead(Vec<String>),
     DispatchAssistantMessage(#[from] Request),
@@ -53,23 +47,6 @@ pub enum ChatResponse {
     ToolUseEnd(ToolResult),
     Complete,
     Fail(String),
-}
-
-impl FromIterator<Command> for Command {
-    fn from_iter<T: IntoIterator<Item = Command>>(value: T) -> Self {
-        let mut command = Command::default();
-        for cmd in value.into_iter() {
-            command = command.and_then(cmd);
-        }
-
-        command
-    }
-}
-
-impl Command {
-    fn and_then(self, second: Command) -> Self {
-        Self::Combine(Box::new(self), Box::new(second))
-    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Setters)]
@@ -102,8 +79,9 @@ impl Application for App {
     type Error = crate::Error;
     type Command = Command;
 
-    fn update(mut self, action: Action) -> Result<(Self, Command)> {
-        let cmd: Command = match action {
+    fn update(mut self, action: Action) -> Result<(Self, Vec<Command>)> {
+        let mut commands = Vec::new();
+        match action {
             Action::UserMessage(chat) => {
                 let prompt = Prompt::parse(chat.message.clone())
                     .unwrap_or(Prompt::new(chat.message.clone()));
@@ -113,9 +91,9 @@ impl Application for App {
 
                 if prompt.files().is_empty() {
                     self.context = self.context.add_message(Message::user(chat.message));
-                    Command::DispatchAssistantMessage(self.context.clone())
+                    commands.push(Command::DispatchAssistantMessage(self.context.clone()))
                 } else {
-                    Command::DispatchFileRead(prompt.files())
+                    commands.push(Command::DispatchFileRead(prompt.files()))
                 }
             }
             Action::FileReadResponse(files) => {
@@ -128,9 +106,7 @@ impl Application for App {
                         );
                     }
 
-                    Command::DispatchAssistantMessage(self.context.clone())
-                } else {
-                    Command::Empty
+                    commands.push(Command::DispatchAssistantMessage(self.context.clone()))
                 }
             }
             Action::AssistantResponse(response) => {
@@ -144,8 +120,15 @@ impl Application for App {
                     self.assistant_buffer.clear();
                 }
 
+                if !response.tool_use.is_empty() && self.tool_use_part.is_empty() {
+                    if let Some(tool_use_part) = response.tool_use.first() {
+                        commands.push(Command::DispatchUserMessage(ChatResponse::ToolUseStart(
+                            tool_use_part.clone(),
+                        )))
+                    }
+                }
+
                 self.tool_use_part.extend(response.tool_use);
-                let mut commands = Vec::new();
 
                 if let Some(FinishReason::ToolUse) = response.finish_reason {
                     let tool_use = ToolUse::try_from_parts(self.tool_use_part.clone())?;
@@ -155,8 +138,9 @@ impl Application for App {
                     commands.push(Command::DispatchToolUse(tool_use));
                 }
 
-                Command::DispatchUserMessage(ChatResponse::Text(response.message.content))
-                    .and_then(commands.into_iter().collect())
+                commands.push(Command::DispatchUserMessage(ChatResponse::Text(
+                    response.message.content,
+                )));
             }
             Action::ToolResponse(tool_result) => {
                 let message = if tool_result.is_error {
@@ -166,7 +150,7 @@ impl Application for App {
                     )
                 } else {
                     format!(
-                        "TOOL Result for {} \n {}",
+                        "TOOL Result for {}\n{}",
                         tool_result.tool_name.as_str(),
                         tool_result.content
                     )
@@ -177,18 +161,19 @@ impl Application for App {
                     .add_message(Message::user(message))
                     .add_tool_result(tool_result.clone());
 
-                Command::DispatchAssistantMessage(self.context.clone()).and_then(
-                    Command::DispatchUserMessage(ChatResponse::ToolUseEnd(tool_result)),
-                )
+                commands.push(Command::DispatchAssistantMessage(self.context.clone()));
+                commands.push(Command::DispatchUserMessage(ChatResponse::ToolUseEnd(
+                    tool_result,
+                )));
             }
         };
-        Ok((self, cmd))
+        Ok((self, commands))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use forge_provider::Message;
+    use forge_provider::{Message, UseId};
     use forge_tool::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -206,13 +191,10 @@ mod tests {
         };
 
         let action = Action::UserMessage(chat_request.clone());
-        let (updated_app, command) = app.update(action).unwrap();
+        let (app, command) = app.update(action).unwrap();
 
-        assert_eq!(&updated_app.context.model, &ModelId::default());
-        assert_eq!(
-            command,
-            Command::DispatchAssistantMessage(updated_app.context.clone())
-        );
+        assert_eq!(&app.context.model, &ModelId::default());
+        assert!(command.contains(&Command::DispatchAssistantMessage(app.context.clone())));
     }
 
     #[test]
@@ -230,17 +212,16 @@ mod tests {
         let action = Action::FileReadResponse(files.clone());
         let (updated_app, command) = app.update(action).unwrap();
 
-        assert_eq!(
-            command,
-            Command::DispatchAssistantMessage(updated_app.context.clone())
-        );
-
         assert!(updated_app.context.messages[0]
             .content()
             .contains(&files[0].path));
         assert!(updated_app.context.messages[0]
             .content()
             .contains(&files[0].content));
+
+        assert!(command.contains(&Command::DispatchAssistantMessage(
+            updated_app.context.clone()
+        )));
     }
 
     #[test]
@@ -260,28 +241,19 @@ mod tests {
         let action = Action::AssistantResponse(response);
         let (_, command) = app.update(action).unwrap();
 
-        match command {
-            Command::Combine(left, right) => {
-                assert_eq!(
-                    *left,
-                    ChatResponse::Text("Tool response".to_string()).into()
-                );
-                match *right {
-                    Command::Combine(_, right_inner) => {
-                        assert_eq!(
-                            *right_inner,
-                            Command::DispatchToolUse(forge_provider::ToolUse {
-                                use_id: None,
-                                name: ToolName::from("test_tool"),
-                                arguments: json!({"key": "value"}),
-                            })
-                        );
-                    }
-                    _ => panic!("Expected nested DispatchSequence command"),
-                }
-            }
-            _ => panic!("Expected Command::DispatchSequence"),
-        }
+        assert!(
+            command.contains(&Command::DispatchUserMessage(ChatResponse::Text(
+                "Tool response".to_string()
+            )))
+        );
+
+        assert!(
+            command.contains(&Command::DispatchToolUse(forge_provider::ToolUse {
+                use_id: None,
+                name: ToolName::from("test_tool"),
+                arguments: json!({"key": "value"}),
+            }))
+        );
     }
 
     #[test]
@@ -302,38 +274,22 @@ mod tests {
         };
         let action = Action::ToolResponse(tool_result.clone());
 
-        let (updated_app, command) = app.update(action).unwrap();
+        let (app, command) = app.update(action).unwrap();
 
-        let expected_command = Command::DispatchAssistantMessage(updated_app.context.clone()).and_then(
-            Command::DispatchUserMessage(ChatResponse::ToolUseEnd(tool_result)),
+        assert_eq!(
+            app.context.messages[0].content(),
+            format!(
+                "{}\n{}",
+                "TOOL Result for test_tool", r#"{"key":"value","nested":{"key":"value"}}"#
+            )
         );
 
-        assert_eq!(command, expected_command);
-        assert!(updated_app.context.messages[0]
-            .content()
-            .contains("TOOL Result for test_tool"));
-    }
-
-    #[test]
-    fn test_combine_commands() {
-        let cmd1 = Command::from(ChatResponse::Text("First command".to_string()));
-        let cmd2 = Command::from(ChatResponse::Text("Second command".to_string()));
-
-        let combined = cmd1.and_then(cmd2);
-
-        match combined {
-            Command::Combine(left, right) => {
-                assert_eq!(
-                    *left,
-                    ChatResponse::Text("First command".to_string()).into()
-                );
-                assert_eq!(
-                    *right,
-                    ChatResponse::Text("Second command".to_string()).into()
-                );
-            }
-            _ => panic!("Expected Command::DispatchSequence"),
-        }
+        assert!(command.contains(&Command::DispatchAssistantMessage(app.context.clone())));
+        assert!(
+            command.contains(&Command::DispatchUserMessage(ChatResponse::ToolUseEnd(
+                tool_result,
+            )))
+        );
     }
 
     #[test]
@@ -342,7 +298,7 @@ mod tests {
         let response = Response {
             message: Message::assistant("Tool response"),
             tool_use: vec![forge_provider::ToolUsePart {
-                use_id: None,
+                use_id: Some(UseId::from("test_use_id")),
                 name: Some(ToolName::from("fs_list")),
                 argument_part: r#"{"path": "."}"#.to_string(),
             }],
@@ -353,34 +309,26 @@ mod tests {
         let (app, command) = app.update(action).unwrap();
 
         assert!(app.tool_use_part.is_empty());
-        match command {
-            Command::Combine(left, right) => {
-                assert_eq!(
-                    *left,
-                    ChatResponse::Text("Tool response".to_string()).into()
-                );
-                match *right {
-                    Command::Combine(_, right_inner) => {
-                        assert_eq!(
-                            *right_inner,
-                            Command::DispatchToolUse(forge_provider::ToolUse {
-                                use_id: None,
-                                name: ToolName::from("fs_list"),
-                                arguments: json!({"path": "."}),
-                            })
-                        );
-                    }
-                    _ => panic!("Expected nested DispatchSequence command"),
-                }
-            }
-            _ => panic!("Expected Command::DispatchSequence"),
-        }
+
+        assert!(
+            command.contains(&Command::DispatchToolUse(forge_provider::ToolUse {
+                use_id: Some(UseId::from("test_use_id")),
+                name: ToolName::from("fs_list"),
+                arguments: json!({"path": "."}),
+            }))
+        );
+
+        assert!(
+            command.contains(&Command::DispatchUserMessage(ChatResponse::Text(
+                "Tool response".to_string()
+            )))
+        );
     }
 
     #[test]
     fn test_should_not_use_tool_when_finish_reason_not_present() {
         let app = App::default();
-        let response = Response {
+        let action = Action::AssistantResponse(Response {
             message: Message::assistant("Tool response"),
             tool_use: vec![forge_provider::ToolUsePart {
                 use_id: None,
@@ -388,20 +336,14 @@ mod tests {
                 argument_part: r#"{"path": "."}"#.to_string(),
             }],
             finish_reason: None,
-        };
-
-        let action = Action::AssistantResponse(response);
+        });
         let (app, command) = app.update(action).unwrap();
+
         assert!(!app.tool_use_part.is_empty());
-        match command {
-            Command::Combine(left, right) => {
-                assert_eq!(
-                    *left,
-                    ChatResponse::Text("Tool response".to_string()).into()
-                );
-                assert_eq!(*right, Command::Empty);
-            }
-            _ => panic!("Expected Command::DispatchSequence"),
-        }
+        assert!(
+            command.contains(&Command::DispatchUserMessage(ChatResponse::Text(
+                "Tool response".to_string()
+            )))
+        );
     }
 }
