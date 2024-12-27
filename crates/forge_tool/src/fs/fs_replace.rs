@@ -2,6 +2,7 @@ use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
 
+use dissimilar::Chunk;
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -141,8 +142,8 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
         let replace = &diff[separator_end..replace_end];
 
         blocks.push(Block {
-            search: search.to_string(),   // Keep original newlines
-            replace: replace.to_string(), // Keep original newlines
+            search: search.to_string(),
+            replace: replace.to_string(),
         });
 
         pos = replace_end + ">>>>>>> REPLACE".len();
@@ -208,8 +209,34 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
 
     // Apply each block sequentially
     for block in blocks {
-        // Use the exact search string to find and replace
+        // For exact matching, first try to find the exact string
         if let Some(start_idx) = result.find(&block.search) {
+            let end_idx = start_idx + block.search.len();
+            result.replace_range(start_idx..end_idx, &block.replace);
+            continue;
+        }
+
+        // If exact match fails, use dissimilar for fuzzy matching
+        let chunks = dissimilar::diff(&result, &block.search);
+        let mut start_idx = 0;
+        let mut found = false;
+        
+        for chunk in chunks {
+            match chunk {
+                Chunk::Equal(text) => {
+                    if text == block.search {
+                        found = true;
+                        break;
+                    }
+                    start_idx += text.len();
+                }
+                Chunk::Delete(text) | Chunk::Insert(text) => {
+                    start_idx += text.len();
+                }
+            }
+        }
+        
+        if found {
             let end_idx = start_idx + block.search.len();
             result.replace_range(start_idx..end_idx, &block.replace);
         }
