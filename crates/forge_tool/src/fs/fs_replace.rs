@@ -20,15 +20,9 @@ pub struct FSReplaceInput {
 /// Parameters:
 ///     - path: (required) The path of the file to modify (relative to the
 ///       current working directory {{current_working_dir}})
-///     - diff: (required) One or more SEARCH/REPLACE blocks following this format:
-///       ```
-///       <<<<<<< SEARCH
-///       [exact content to find]
-///       =======
-///       [new content to replace with]
-///       >>>>>>> REPLACE
-///       ```
-///       Critical rules:
+///     - diff: (required) One or more SEARCH/REPLACE blocks following this
+///       format: ``` <<<<<<< SEARCH [exact content to find] ======= [new
+///       content to replace with] >>>>>>> REPLACE ``` Critical rules:
 ///       1. SEARCH content must match the associated file section to find
 ///          EXACTLY:
 ///          * Match character-for-character including whitespace, indentation,
@@ -70,7 +64,10 @@ fn parse_block(input: &str) -> IResult<&str, (&str, &str)> {
 
 fn parse_diff(input: &str) -> Result<Vec<(&str, &str)>, String> {
     // Validate basic format first
-    if !input.contains("<<<<<<< SEARCH") || !input.contains("=======") || !input.contains(">>>>>>> REPLACE") {
+    if !input.contains("<<<<<<< SEARCH")
+        || !input.contains("=======")
+        || !input.contains(">>>>>>> REPLACE")
+    {
         return Err("Invalid diff format: Missing required markers".to_string());
     }
 
@@ -100,7 +97,7 @@ fn detect_line_ending(content: &str) -> &'static str {
 fn normalize_line_endings(content: &str, target_ending: &str) -> String {
     let mut result = String::with_capacity(content.len());
     let mut chars = content.chars().peekable();
-    
+
     while let Some(c) = chars.next() {
         if c == '\r' && chars.peek() == Some(&'\n') {
             chars.next(); // consume \n
@@ -111,7 +108,7 @@ fn normalize_line_endings(content: &str, target_ending: &str) -> String {
             result.push(c);
         }
     }
-    
+
     result
 }
 
@@ -128,12 +125,12 @@ fn find_match(content: &str, search: &str, last_processed_index: usize) -> Optio
     let line_ending = detect_line_ending(content_from_index);
     let normalized_search = normalize_line_endings(search, line_ending);
     let normalized_content = normalize_line_endings(content_from_index, line_ending);
-    
+
     // Try exact match first (with normalized line endings)
     if let Some(idx) = normalized_content.find(&normalized_search) {
         let start = last_processed_index + idx;
         let mut end = start;
-        
+
         // Calculate end position using original content to preserve line endings
         let mut search_lines = search.lines().count();
         let mut pos = start;
@@ -149,14 +146,14 @@ fn find_match(content: &str, search: &str, last_processed_index: usize) -> Optio
             }
         }
         end = pos;
-        
+
         return Some((start, end));
     }
 
     // Try line-by-line comparison with proper line ending handling
     let content_lines: Vec<&str> = content_from_index.lines().collect();
     let search_lines: Vec<&str> = search.lines().collect();
-    
+
     if search_lines.is_empty() {
         return None;
     }
@@ -218,11 +215,11 @@ impl ToolTrait for FSReplace {
 
             // Add content between last match and this match
             result.push_str(&content[last_processed_index..start]);
-            
+
             // Add replacement content with proper line ending handling
             if !replace.is_empty() {
                 let replace_lines: Vec<&str> = replace.lines().collect();
-                
+
                 // Add lines with proper line ending preservation
                 for (i, line) in replace_lines.iter().enumerate() {
                     if i > 0 {
@@ -234,7 +231,7 @@ impl ToolTrait for FSReplace {
                 // Count trailing newlines in original replacement
                 let mut trailing_newlines = 0;
                 let mut chars = replace.chars().rev().peekable();
-                
+
                 while let Some(c) = chars.next() {
                     if c == '\n' {
                         trailing_newlines += 1;
@@ -296,7 +293,8 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await
             .unwrap();
@@ -304,7 +302,10 @@ mod test {
         assert!(result.contains("Successfully replaced"));
 
         let new_content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(new_content, "Hi World\n  Test Line  \n   Goodbye World   \n");
+        assert_eq!(
+            new_content,
+            "Hi World\n  Test Line  \n   Goodbye World   \n"
+        );
     }
 
     #[tokio::test]
@@ -334,7 +335,7 @@ mod test {
     async fn test_empty_search_new_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         // Create empty file
         fs::write(&file_path, "").await.unwrap();
 
@@ -365,7 +366,8 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n=======\nCompletely new content\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\n=======\nCompletely new content\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await
             .unwrap();
@@ -396,7 +398,10 @@ mod test {
         assert!(result.contains("Successfully replaced"));
 
         let new_content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(new_content, "    indented line\n    new  spaced  line    \nno-spaces\n");
+        assert_eq!(
+            new_content,
+            "    indented line\n    new  spaced  line    \nno-spaces\n"
+        );
     }
 
     #[tokio::test]
@@ -411,7 +416,8 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await
             .unwrap();
@@ -424,7 +430,8 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nGoodbye World\n=======\nBye World\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nGoodbye World\n=======\nBye World\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await
             .unwrap();
@@ -469,12 +476,15 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nNo Match\n=======\nReplacement\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nNo Match\n=======\nReplacement\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Could not find match for search block"));
+        assert!(result
+            .unwrap_err()
+            .contains("Could not find match for search block"));
 
         let new_content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(new_content, content);
@@ -484,12 +494,12 @@ mod test {
     async fn test_newline_preservation() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "line1\nline2\nline3\n";  // Note trailing newline
+        let content = "line1\nline2\nline3\n"; // Note trailing newline
 
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test replacing content with trailing newline
         let result = fs_replace
             .call(FSReplaceInput {
@@ -528,7 +538,7 @@ mod test {
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test non-existent file
         let result = fs_replace
             .call(FSReplaceInput {
@@ -554,12 +564,15 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nnonexistent line\n=======\nnew line\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nnonexistent line\n=======\nnew line\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Could not find match for search block"));
+        assert!(result
+            .unwrap_err()
+            .contains("Could not find match for search block"));
     }
 
     #[tokio::test]
@@ -571,7 +584,7 @@ mod test {
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test matching and replacing the last line
         let result = fs_replace
             .call(FSReplaceInput {
@@ -605,12 +618,12 @@ mod test {
     async fn test_empty_lines() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "line1\n\nline3\n";  // Note empty line
+        let content = "line1\n\nline3\n"; // Note empty line
 
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test matching content with empty lines
         let result = fs_replace
             .call(FSReplaceInput {
@@ -630,12 +643,12 @@ mod test {
     async fn test_carriage_returns() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "line1\r\nline2\r\nline3\r\n";  // Windows-style line endings
+        let content = "line1\r\nline2\r\nline3\r\n"; // Windows-style line endings
 
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test matching content with Windows line endings
         let result = fs_replace
             .call(FSReplaceInput {
@@ -660,12 +673,13 @@ mod test {
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test replacing with content containing empty lines
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nline2\n=======\nnew line\n\nother line\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nline2\n=======\nnew line\n\nother line\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await
             .unwrap();
@@ -685,7 +699,7 @@ mod test {
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test block anchor matching with empty lines
         let result = fs_replace
             .call(FSReplaceInput {
@@ -710,12 +724,13 @@ mod test {
         fs::write(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test exact matching with empty lines
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nSecond\n\n=======\nNew Second\n\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\nSecond\n\n=======\nNew Second\n\n>>>>>>> REPLACE\n"
+                    .to_string(),
             })
             .await
             .unwrap();

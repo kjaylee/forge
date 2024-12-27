@@ -173,9 +173,16 @@ impl Application for App {
             }
             Action::ToolResponse(response) => {
                 let message = if response.is_error {
-                   format!("An error occurred while processing the tool, {}", response.tool_name.as_str())
+                    format!(
+                        "An error occurred while processing the tool, {}",
+                        response.tool_name.as_str()
+                    )
                 } else {
-                    format!("TOOL Result for {} \n {}", response.tool_name.as_str(), response.content.to_string())
+                    format!(
+                        "TOOL Result for {} \n {}",
+                        response.tool_name.as_str(),
+                        response.content
+                    )
                 };
 
                 self.context = self
