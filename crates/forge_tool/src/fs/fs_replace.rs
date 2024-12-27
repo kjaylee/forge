@@ -141,10 +141,7 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
         let search = &diff[search_start..separator];
         let replace = &diff[separator_end..replace_end];
 
-        blocks.push(Block {
-            search: search.to_string(),
-            replace: replace.to_string(),
-        });
+        blocks.push(Block { search: search.to_string(), replace: replace.to_string() });
 
         pos = replace_end + ">>>>>>> REPLACE".len();
         // Move past the newline after REPLACE if it exists
@@ -210,7 +207,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
         // If exact match fails, try fuzzy matching
         let normalized_search = block.search.replace("\r\n", "\n").replace('\r', "\n");
         let normalized_result = result.replace("\r\n", "\n").replace('\r', "\n");
-        
+
         if let Some(start_idx) = normalized_result.find(&normalized_search) {
             result.replace_range(start_idx..start_idx + block.search.len(), &block.replace);
             continue;
@@ -223,15 +220,12 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
         let mut current_pos = 0;
 
         for chunk in chunks.iter() {
-            match chunk {
-                Chunk::Equal(text) => {
-                    let score = text.len() as f64 / block.search.len() as f64;
-                    if score > best_score {
-                        best_score = score;
-                        best_match = Some((current_pos, text.len()));
-                    }
+            if let Chunk::Equal(text) = chunk {
+                let score = text.len() as f64 / block.search.len() as f64;
+                if score > best_score {
+                    best_score = score;
+                    best_match = Some((current_pos, text.len()));
                 }
-                _ => {}
             }
             match chunk {
                 Chunk::Equal(text) | Chunk::Delete(text) | Chunk::Insert(text) => {
@@ -241,7 +235,8 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
         }
 
         if let Some((start_idx, len)) = best_match {
-            if best_score > 0.7 { // Threshold for fuzzy matching
+            if best_score > 0.7 {
+                // Threshold for fuzzy matching
                 result.replace_range(start_idx..start_idx + len, &block.replace);
             }
         }
@@ -250,7 +245,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
     // Write the modified content
     write!(temp_file, "{}", result).map_err(|e| e.to_string())?;
     persist_changes(temp_file, path, backup_path)?;
-    
+
     Ok(result)
 }
 
@@ -275,7 +270,9 @@ impl ToolTrait for FSReplace {
 #[cfg(test)]
 mod test {
     use std::fs::File;
+
     use tempfile::TempDir;
+
     use super::*;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
