@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use forge_env::Environment;
 use inflector::Inflector;
-use schemars::schema::{RootSchema, Schema, SchemaObject, SingleOrVec};
+use schemars::schema::{RootSchema, Schema, SchemaObject};
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -59,14 +59,20 @@ impl Tool {
         );
 
         // Add input parameters
-        description.push_str("Input Parameters:\n");
         let object = &self.input_schema.schema;
-        description.push_str(&Self::extract_parameters(object));
+        let input = Self::extract_parameters(object);
+        if !input.is_empty() {
+            description.push_str("Input Parameters:\n");
+            description.push_str(&input);
+        }
 
         // Add output parameters
-        description.push_str("Output Parameters:\n");
         if let Some(output_schema) = &self.output_schema {
-            description.push_str(&Self::extract_parameters(&output_schema.schema));
+            let output = Self::extract_parameters(&output_schema.schema);
+            if !output.is_empty() {
+                description.push_str("Output Parameters:\n");
+                description.push_str(&output);
+            }
         }
 
         description
@@ -76,6 +82,9 @@ impl Tool {
         let mut params_description = String::new();
         if let Some(object) = &schema.object {
             for (key, value) in object.properties.iter() {
+                if !object.required.contains(key) {
+                    continue;
+                }
                 if let Schema::Object(o) = value {
                     let param_description = format!(
                         "- {}: {}\n",
@@ -90,36 +99,6 @@ impl Tool {
                     params_description.push_str(&param_description);
                 }
             }
-        }
-        if let Some(arr) = &schema.array {
-            if let Some(items) = arr.items.as_ref() {
-                match items {
-                    SingleOrVec::Single(s) => {
-                        if let Schema::Object(o) = s.as_ref() {
-                            let param_description =
-                                format!("- array: {}\n", Self::extract_parameters(o));
-                            params_description.push_str(&param_description);
-                        }
-                    }
-                    SingleOrVec::Vec(vec) => {
-                        if let Some(Schema::Object(o)) = vec.first() {
-                            let param_description =
-                                format!("- array: {}\n", Self::extract_parameters(o));
-                            params_description.push_str(&param_description);
-                        }
-                    }
-                }
-            }
-        }
-
-        if schema.string.is_some() {
-            let param_description = "- string\n".to_string();
-            params_description.push_str(&param_description);
-        }
-
-        if schema.number.is_some() {
-            let param_description = "- number\n".to_string();
-            params_description.push_str(&param_description);
         }
 
         params_description
