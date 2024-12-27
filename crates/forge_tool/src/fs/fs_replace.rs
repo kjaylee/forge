@@ -460,4 +460,171 @@ mod test {
             "\n\n\n// New header\n\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n\n\n// Updated footer\n\n"
         );
     }
+    #[tokio::test]
+    async fn test_fuzzy_search_replace() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Test file with typos and variations
+        let content = r#"function calculateTotal(items) {
+  let total = 0;
+  for (const itm of items) {
+    total += itm.price;
+  }
+  return total;
+}
+"#;
+        write_test_file(&file_path, content).await.unwrap();
+
+        let fs_replace = FSReplace;
+        // Search with different casing, spacing, and variable names
+        let result = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: r#"<<<<<<< SEARCH
+  for (const itm of items) {
+    total += itm.price;
+=======
+  for (const item of items) {
+    total += item.price * item.quantity;
+>>>>>>> REPLACE
+"#
+                .to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.contains("Successfully replaced"));
+
+        let new_content = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            new_content,
+            r#"function calculateTotal(items) {
+  let total = 0;
+  for (const item of items) {
+    total += item.price * item.quantity;
+  }
+  return total;
+}
+"#
+        );
+
+        // Test fuzzy matching with more variations
+        let result2 = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: r#"<<<<<<< SEARCH
+function calculateTotal(items) {
+  let total = 0;
+=======
+function computeTotal(items, tax = 0) {
+  let total = 0.0;
+>>>>>>> REPLACE
+"#
+                .to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result2.contains("Successfully replaced"));
+
+        let final_content = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            final_content,
+            r#"function computeTotal(items, tax = 0) {
+  let total = 0.0;
+  for (const item of items) {
+    total += item.price * item.quantity;
+  }
+  return total;
+}
+"#
+        );
+    }
+
+    #[tokio::test]
+    async fn test_fuzzy_search_advanced() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Test file with more complex variations
+        let content = r#"class UserManager {
+  async getUserById(userId) {
+    const user = await db.findOne({ id: userId });
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+}
+"#;
+        write_test_file(&file_path, content).await.unwrap();
+
+        let fs_replace = FSReplace;
+        // Search with structural similarities but different variable names and spacing
+        let result = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: r#"<<<<<<< SEARCH
+  async getUserById(userId) {
+    const user = await db.findOne({ id: userId });
+=======
+  async findUser(id, options = {}) {
+    const user = await this.db.findOne({ userId: id, ...options });
+>>>>>>> REPLACE
+"#
+                .to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.contains("Successfully replaced"));
+
+        let new_content = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            new_content,
+            r#"class UserManager {
+  async findUser(id, options = {}) {
+    const user = await this.db.findOne({ userId: id, ...options });
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+}
+"#
+        );
+
+        // Test fuzzy matching with error handling changes
+        let result2 = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: r#"<<<<<<< SEARCH
+    if (!user) throw new Error('User not found');
+    return user;
+=======
+    if (!user) {
+      throw new UserNotFoundError(id);
+    }
+    return this.sanitizeUser(user);
+>>>>>>> REPLACE
+"#
+                .to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result2.contains("Successfully replaced"));
+
+        let final_content = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            final_content,
+            r#"class UserManager {
+  async findUser(id, options = {}) {
+    const user = await this.db.findOne({ userId: id, ...options });
+    if (!user) {
+      throw new UserNotFoundError(id);
+    }
+    return this.sanitizeUser(user);
+  }
+}
+"#
+        );
+    }
 }
