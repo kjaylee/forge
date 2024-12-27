@@ -1,15 +1,20 @@
+use std::fs::{self, File};
+use std::io::{BufReader, Read, Write};
+use std::path::Path;
+
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Read, Write};
-use std::path::Path;
 use tempfile::NamedTempFile;
 use tracing::{debug, error};
 
 use crate::{Description, ToolTrait};
 
-fn persist_changes<P: AsRef<Path>>(temp_file: NamedTempFile, path: P, backup_path: impl AsRef<Path>) -> Result<(), String> {
+fn persist_changes<P: AsRef<Path>>(
+    temp_file: NamedTempFile,
+    path: P,
+    backup_path: impl AsRef<Path>,
+) -> Result<(), String> {
     // Persist changes atomically
     match temp_file.persist(&path) {
         Ok(_) => {
@@ -85,7 +90,7 @@ fn normalize_line_endings(text: &str) -> String {
     // Only normalize CRLF to LF while preserving the original line endings
     let mut result = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
-    
+
     while let Some(c) = chars.next() {
         if c == '\r' && chars.peek() == Some(&'\n') {
             chars.next(); // Skip the \n since we'll add it below
@@ -106,38 +111,40 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
 
     while let Some(search_start) = diff[pos..].find("<<<<<<< SEARCH") {
         let search_start = pos + search_start + "<<<<<<< SEARCH".len();
-        
+
         // Include the newline after SEARCH marker in the position
         let search_start = match diff[search_start..].find('\n') {
             Some(nl) => search_start + nl + 1,
-            None => return Err("Invalid diff format: Missing newline after SEARCH marker".to_string()),
+            None => {
+                return Err("Invalid diff format: Missing newline after SEARCH marker".to_string())
+            }
         };
-        
+
         let Some(separator) = diff[search_start..].find("=======") else {
             return Err("Invalid diff format: Missing separator".to_string());
         };
         let separator = search_start + separator;
-        
+
         // Include the newline after separator in the position
         let separator_end = separator + "=======".len();
         let separator_end = match diff[separator_end..].find('\n') {
             Some(nl) => separator_end + nl + 1,
             None => return Err("Invalid diff format: Missing newline after separator".to_string()),
         };
-        
+
         let Some(replace_end) = diff[separator_end..].find(">>>>>>> REPLACE") else {
             return Err("Invalid diff format: Missing end marker".to_string());
         };
         let replace_end = separator_end + replace_end;
-        
+
         let search = &diff[search_start..separator];
         let replace = &diff[separator_end..replace_end];
-        
+
         blocks.push(Block {
-            search: search.to_string(), // Keep original newlines
+            search: search.to_string(),   // Keep original newlines
             replace: replace.to_string(), // Keep original newlines
         });
-        
+
         pos = replace_end + ">>>>>>> REPLACE".len();
         // Move past the newline after REPLACE if it exists
         if let Some(nl) = diff[pos..].find('\n') {
@@ -154,7 +161,7 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
 
 fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), String> {
     debug!("Starting file replacement for {:?}", path.as_ref());
-    
+
     // Create backup of original file
     let backup_path = path.as_ref().with_extension("bak");
     if path.as_ref().exists() {
@@ -169,21 +176,22 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
         error!("Failed to open source file: {}", e);
         e.to_string()
     })?;
-    
+
     // Read the entire file content to preserve original line endings
     let mut content = String::new();
-    BufReader::new(file).read_to_string(&mut content).map_err(|e| {
-        error!("Failed to read file content: {}", e);
-        e.to_string()
-    })?;
-    
+    BufReader::new(file)
+        .read_to_string(&mut content)
+        .map_err(|e| {
+            error!("Failed to read file content: {}", e);
+            e.to_string()
+        })?;
+
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
-    
+
     // Handle empty search case (new file)
     if blocks[0].search.is_empty() {
         if !blocks[0].replace.is_empty() {
-            write!(temp_file, "{}", blocks[0].replace)
-                .map_err(|e| e.to_string())?;
+            write!(temp_file, "{}", blocks[0].replace).map_err(|e| e.to_string())?;
             // Only add newline if it doesn't end with one
             if !blocks[0].replace.ends_with('\n') {
                 writeln!(temp_file).map_err(|e| e.to_string())?;
@@ -193,7 +201,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
     }
 
     let mut result = content.clone();
-    
+
     // Apply each block sequentially
     for block in blocks {
         // Use the exact search string to find and replace
@@ -202,10 +210,10 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
             result.replace_range(start_idx..end_idx, &block.replace);
         }
     }
-    
+
     // Write the modified content
     write!(temp_file, "{}", result).map_err(|e| e.to_string())?;
-    
+
     persist_changes(temp_file, path, backup_path)
 }
 
@@ -218,10 +226,10 @@ impl ToolTrait for FSReplace {
         debug!("FSReplace called for path: {}", input.path);
         let blocks = parse_blocks(&input.diff)?;
         debug!("Parsed {} replacement blocks", blocks.len());
-        
+
         apply_changes(&input.path, blocks)?;
         debug!("Changes applied successfully");
-        
+
         Ok(format!("Successfully replaced content in {}", input.path))
     }
 }
@@ -229,20 +237,23 @@ impl ToolTrait for FSReplace {
 #[cfg(test)]
 mod test {
     use std::fs::File;
+
     use tempfile::TempDir;
 
     use super::*;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
         let mut file = File::create(path).map_err(|e| e.to_string())?;
-        file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes())
+            .map_err(|e| e.to_string())?;
         Ok(())
     }
 
     async fn read_test_file(path: impl AsRef<Path>) -> Result<String, String> {
         let mut file = File::open(path).map_err(|e| e.to_string())?;
         let mut content = String::new();
-        file.read_to_string(&mut content).map_err(|e| e.to_string())?;
+        file.read_to_string(&mut content)
+            .map_err(|e| e.to_string())?;
         Ok(content)
     }
 
@@ -307,17 +318,17 @@ mod test {
         let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
 
         let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff,
-            })
+            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
             .await
             .unwrap();
 
         assert!(result.contains("Successfully replaced"));
 
         let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(new_content, "    New First    \n  Middle Line  \n    New Last    \n");
+        assert_eq!(
+            new_content,
+            "    New First    \n  Middle Line  \n    New Last    \n"
+        );
     }
 
     #[tokio::test]
@@ -347,13 +358,13 @@ mod test {
     async fn test_complex_newline_preservation() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         // Test file with various newline patterns
         let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        
+
         // Test 1: Replace content while preserving surrounding newlines
         let result1 = fs_replace
             .call(FSReplaceInput {
