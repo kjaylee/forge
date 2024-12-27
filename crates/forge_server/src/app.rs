@@ -1,8 +1,9 @@
 use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
-use forge_provider::{FinishReason, Message, ModelId, Request, Response, ToolResult, ToolUse};
-use forge_tool::ToolName;
+use forge_provider::{
+    FinishReason, Message, ModelId, Request, Response, ToolResult, ToolUse, ToolUsePart,
+};
 use serde::Serialize;
 
 use crate::runtime::Application;
@@ -48,7 +49,7 @@ pub enum Command {
 #[serde(rename_all = "camelCase")]
 pub enum ChatResponse {
     Text(String),
-    ToolUseStart(ToolUse),
+    ToolUseStart(ToolUsePart),
     ToolUseEnd(ToolResult),
     Complete,
     Fail(String),
@@ -77,9 +78,7 @@ impl Command {
 pub struct App {
     pub user_message: Option<MessageTemplate>,
     pub assistant_buffer: String,
-    pub tool_use: bool,
-    pub tool_raw_arguments: String,
-    pub tool_name: Option<ToolName>,
+    pub tool_use_part: Vec<ToolUsePart>,
     pub files: Vec<String>,
 
     // Keep context at the end so that debugging the Serialized format is easier
@@ -91,9 +90,7 @@ impl App {
         Self {
             context,
             user_message: None,
-            tool_use: false,
-            tool_raw_arguments: "".to_string(),
-            tool_name: None,
+            tool_use_part: Vec::new(),
             assistant_buffer: "".to_string(),
             files: Vec::new(),
         }
@@ -139,6 +136,7 @@ impl Application for App {
             Action::AssistantResponse(response) => {
                 self.assistant_buffer
                     .push_str(response.message.content.as_str());
+
                 if response.finish_reason.is_some() {
                     self.context = self
                         .context
@@ -146,51 +144,42 @@ impl Application for App {
                     self.assistant_buffer.clear();
                 }
 
-                self.tool_use = true;
+                self.tool_use_part.extend(response.tool_use);
                 let mut commands = Vec::new();
-                for tool in response.tool_use.into_iter() {
-                    if let Some(tool) = tool.tool_name {
-                        self.tool_name = Some(tool)
-                    }
-                    self.tool_raw_arguments.push_str(tool.input.as_str());
-                }
 
                 if let Some(FinishReason::ToolUse) = response.finish_reason {
-                    self.tool_use = false;
-                    if let Some(tool_name) = self.tool_name.clone() {
-                        commands.push(Command::DispatchToolUse(forge_provider::ToolUse {
-                            tool_use_id: None,
-                            tool_name: Some(tool_name),
-                            input: self.tool_raw_arguments.clone(),
-                        }));
-                    }
+                    let tool_use = ToolUse::try_from_parts(self.tool_use_part.clone())?;
+                    self.tool_use_part.clear();
+
                     // since tools is used, clear the tool_raw_arguments.
-                    self.tool_raw_arguments.clear();
+                    commands.push(Command::DispatchToolUse(tool_use));
                 }
 
                 Command::DispatchUserMessage(ChatResponse::Text(response.message.content))
                     .and_then(commands.into_iter().collect())
             }
-            Action::ToolResponse(response) => {
-                let message = if response.is_error {
+            Action::ToolResponse(tool_result) => {
+                let message = if tool_result.is_error {
                     format!(
                         "An error occurred while processing the tool, {}",
-                        response.tool_name.as_str()
+                        tool_result.tool_name.as_str()
                     )
                 } else {
                     format!(
                         "TOOL Result for {} \n {}",
-                        response.tool_name.as_str(),
-                        response.content
+                        tool_result.tool_name.as_str(),
+                        tool_result.content
                     )
                 };
 
                 self.context = self
                     .context
                     .add_message(Message::user(message))
-                    .add_tool_result(response);
+                    .add_tool_result(tool_result.clone());
 
-                Command::DispatchAssistantMessage(self.context.clone())
+                Command::DispatchAssistantMessage(self.context.clone()).and_then(
+                    Command::DispatchUserMessage(ChatResponse::ToolUseEnd(tool_result)),
+                )
             }
         };
         Ok((self, cmd))
@@ -200,6 +189,7 @@ impl Application for App {
 #[cfg(test)]
 mod tests {
     use forge_provider::Message;
+    use forge_tool::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
@@ -259,10 +249,10 @@ mod tests {
 
         let response = Response {
             message: Message::assistant("Tool response"),
-            tool_use: vec![forge_provider::ToolUse {
-                tool_use_id: None,
-                tool_name: Some(ToolName::from("test_tool")),
-                input: r#"{"key": "value"}"#.to_string(),
+            tool_use: vec![forge_provider::ToolUsePart {
+                use_id: None,
+                name: Some(ToolName::from("test_tool")),
+                argument_part: r#"{"key": "value"}"#.to_string(),
             }],
             finish_reason: Some(FinishReason::ToolUse),
         };
@@ -281,9 +271,9 @@ mod tests {
                         assert_eq!(
                             *right_inner,
                             Command::DispatchToolUse(forge_provider::ToolUse {
-                                tool_use_id: None,
-                                tool_name: Some(ToolName::from("test_tool")),
-                                input: r#"{"key": "value"}"#.to_string(),
+                                use_id: None,
+                                name: ToolName::from("test_tool"),
+                                arguments: json!({"key": "value"}),
                             })
                         );
                     }
@@ -349,10 +339,10 @@ mod tests {
         let app = App::default();
         let response = Response {
             message: Message::assistant("Tool response"),
-            tool_use: vec![forge_provider::ToolUse {
-                tool_use_id: None,
-                tool_name: Some(ToolName::from("fs_list")),
-                input: r#"{"path": "."}"#.to_string(),
+            tool_use: vec![forge_provider::ToolUsePart {
+                use_id: None,
+                name: Some(ToolName::from("fs_list")),
+                argument_part: r#"{"path": "."}"#.to_string(),
             }],
             finish_reason: Some(FinishReason::ToolUse),
         };
@@ -360,7 +350,7 @@ mod tests {
         let action = Action::AssistantResponse(response);
         let (app, command) = app.update(action).unwrap();
 
-        assert!(app.tool_raw_arguments.is_empty());
+        assert!(app.tool_use_part.is_empty());
         match command {
             Command::Combine(left, right) => {
                 assert_eq!(
@@ -372,9 +362,9 @@ mod tests {
                         assert_eq!(
                             *right_inner,
                             Command::DispatchToolUse(forge_provider::ToolUse {
-                                tool_use_id: None,
-                                tool_name: Some(ToolName::from("fs_list")),
-                                input: r#"{"path": "."}"#.to_string(),
+                                use_id: None,
+                                name: ToolName::from("fs_list"),
+                                arguments: json!({"path": "."}),
                             })
                         );
                     }
@@ -390,17 +380,17 @@ mod tests {
         let app = App::default();
         let response = Response {
             message: Message::assistant("Tool response"),
-            tool_use: vec![forge_provider::ToolUse {
-                tool_use_id: None,
-                tool_name: Some(ToolName::from("fs_list")),
-                input: r#"{"path": "."}"#.to_string(),
+            tool_use: vec![forge_provider::ToolUsePart {
+                use_id: None,
+                name: Some(ToolName::from("fs_list")),
+                argument_part: r#"{"path": "."}"#.to_string(),
             }],
             finish_reason: None,
         };
 
         let action = Action::AssistantResponse(response);
         let (app, command) = app.update(action).unwrap();
-        assert!(!app.tool_raw_arguments.is_empty());
+        assert!(!app.tool_use_part.is_empty());
         match command {
             Command::Combine(left, right) => {
                 assert_eq!(
