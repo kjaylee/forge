@@ -556,12 +556,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dissimilar"
-version = "1.0.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59f8e79d1fbf76bdfbde321e902714bf6c49df88a7dda6fc682fc2979226962d"
-
-[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -729,7 +723,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "colorize",
- "dissimilar",
  "forge_env",
  "forge_tool_macros",
  "forge_walker",
@@ -737,6 +730,7 @@ dependencies = [
  "insta",
  "nom 8.0.0-beta.1",
  "regex",
+ "replace_with",
  "schemars",
  "serde",
  "serde_json",
@@ -1920,6 +1914,12 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "replace_with"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3a8614ee435691de62bcffcf4a66d91b3594bf1428a5722e79103249a095690"
 
 [[package]]
 name = "reqwest"

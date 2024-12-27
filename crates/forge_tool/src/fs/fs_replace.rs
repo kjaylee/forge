@@ -1,6 +1,10 @@
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::Deserialize;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read, Write};
+use std::path::Path;
+use tempfile::NamedTempFile;
 
 use crate::{Description, ToolTrait};
 
@@ -45,12 +49,17 @@ pub struct FSReplaceInput {
 #[derive(DescriptionDerive)]
 pub struct FSReplace;
 
-fn parse_and_apply(content: &str, diff: &str) -> Result<String, String> {
-    let mut result = content.to_string();
-    let mut current_pos = 0;
+struct Block {
+    search: String,
+    replace: String,
+}
 
-    while let Some(search_start) = diff[current_pos..].find("<<<<<<< SEARCH") {
-        let search_start = current_pos + search_start + "<<<<<<< SEARCH".len();
+fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
+    let mut blocks = Vec::new();
+    let mut pos = 0;
+
+    while let Some(search_start) = diff[pos..].find("<<<<<<< SEARCH") {
+        let search_start = pos + search_start + "<<<<<<< SEARCH".len();
         
         let Some(separator) = diff[search_start..].find("=======") else {
             return Err("Invalid diff format: Missing separator".to_string());
@@ -62,79 +71,94 @@ fn parse_and_apply(content: &str, diff: &str) -> Result<String, String> {
         };
         let replace_end = separator + replace_end;
         
-        // Extract search and replace content, handling newlines around markers
-        let search = diff[search_start..separator]
-            .trim_start_matches('\n')
-            .trim_end_matches('\n');
-        let replace = diff[separator + "=======".len()..replace_end]
-            .trim_start_matches('\n')
-            .trim_end_matches('\n');
+        blocks.push(Block {
+            search: diff[search_start..separator].trim().to_string(),
+            replace: diff[separator + "=======".len()..replace_end].trim().to_string(),
+        });
         
-        // Handle empty search case (new file)
-        if search.trim().is_empty() {
-            result = if replace.trim().is_empty() {
-                String::new()
-            } else {
-                format!("{}\n", replace.trim())
-            };
-            current_pos = replace_end + ">>>>>>> REPLACE".len();
+        pos = replace_end + ">>>>>>> REPLACE".len();
+    }
+
+    if blocks.is_empty() {
+        return Err("Invalid diff format: No valid blocks found".to_string());
+    }
+
+    Ok(blocks)
+}
+
+fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), String> {
+    let file = File::open(&path).map_err(|e| e.to_string())?;
+    let reader = BufReader::new(file);
+    let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
+    let mut current_block = 0;
+    let mut buffer = String::new();
+    let mut lines = reader.lines();
+
+    // Handle empty search case (new file)
+    if blocks[0].search.is_empty() {
+        if !blocks[0].replace.is_empty() {
+            writeln!(temp_file, "{}", blocks[0].replace)
+                .map_err(|e| e.to_string())?;
+        }
+        temp_file.persist(path).map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // Process each line
+    while let Some(Ok(line)) = lines.next() {
+        if current_block >= blocks.len() {
+            writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
             continue;
         }
 
-        // Find and replace content
-        let search_lines: Vec<&str> = search.lines().collect();
-        let result_lines: Vec<&str> = result.lines().collect();
-        let mut found = false;
+        buffer.push_str(&line);
+        buffer.push('\n');
 
-        'outer: for i in 0..result_lines.len() {
-            if i + search_lines.len() > result_lines.len() {
-                break;
-            }
+        // Check if we have enough lines to match the search pattern
+        let search_lines = blocks[current_block].search.lines().count();
+        let buffer_lines: Vec<&str> = buffer.lines().collect();
 
-            for (j, search_line) in search_lines.iter().enumerate() {
-                if result_lines[i + j].trim() != search_line.trim() {
-                    continue 'outer;
+        if buffer_lines.len() >= search_lines {
+            let window = &buffer_lines[buffer_lines.len() - search_lines..];
+            let window_text = window.join("\n");
+
+            if window_text.trim() == blocks[current_block].search.trim() {
+                // Found a match, write lines before the match
+                for line in &buffer_lines[..buffer_lines.len() - search_lines] {
+                    writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
                 }
-            }
 
-            // Found a match, perform replacement
-            let mut new_content = String::new();
-
-            // Add lines before match
-            for line in &result_lines[..i] {
-                new_content.push_str(line);
-                new_content.push('\n');
-            }
-
-            // Add replacement
-            if !replace.is_empty() {
-                new_content.push_str(replace);
-                if !replace.ends_with('\n') {
-                    new_content.push('\n');
+                // Write replacement and handle line endings
+                if !blocks[current_block].replace.is_empty() {
+                    write!(temp_file, "{}", blocks[current_block].replace)
+                        .map_err(|e| e.to_string())?;
+                    if !blocks[current_block].replace.ends_with('\n') {
+                        writeln!(temp_file).map_err(|e| e.to_string())?;
+                    }
                 }
+
+                buffer.clear();
+                current_block += 1;
+                continue;
             }
 
-            // Add remaining lines
-            if i + search_lines.len() < result_lines.len() {
-                for line in &result_lines[i + search_lines.len()..] {
-                    new_content.push_str(line);
-                    new_content.push('\n');
-                }
+            // No match, write the oldest line and remove it from buffer
+            let first_line = buffer_lines[0];
+            write!(temp_file, "{}", first_line).map_err(|e| e.to_string())?;
+            if !first_line.ends_with('\n') {
+                writeln!(temp_file).map_err(|e| e.to_string())?;
             }
-
-            result = new_content;
-            found = true;
-            break;
+            buffer = buffer_lines[1..].join("\n");
         }
-
-        if !found {
-            return Err(format!("Could not find match for search block:\n{}", search));
-        }
-
-        current_pos = replace_end + "\n>>>>>>> REPLACE".len();
     }
 
-    Ok(result)
+    // Write any remaining buffered lines
+    if !buffer.is_empty() {
+        write!(temp_file, "{}", buffer).map_err(|e| e.to_string())?;
+    }
+
+    temp_file.persist(path).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[async_trait::async_trait]
@@ -143,26 +167,31 @@ impl ToolTrait for FSReplace {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let content = tokio::fs::read_to_string(&input.path)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let result = parse_and_apply(&content, &input.diff)?;
-
-        tokio::fs::write(&input.path, result)
-            .await
-            .map_err(|e| e.to_string())?;
-
+        let blocks = parse_blocks(&input.diff)?;
+        apply_changes(&input.path, blocks)?;
         Ok(format!("Successfully replaced content in {}", input.path))
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::fs::File;
     use tempfile::TempDir;
-    use tokio::fs;
 
     use super::*;
+
+    async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
+        let mut file = File::create(path).map_err(|e| e.to_string())?;
+        file.write_all(content.as_bytes()).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    async fn read_test_file(path: impl AsRef<Path>) -> Result<String, String> {
+        let mut file = File::open(path).map_err(|e| e.to_string())?;
+        let mut content = String::new();
+        file.read_to_string(&mut content).map_err(|e| e.to_string())?;
+        Ok(content)
+    }
 
     #[tokio::test]
     async fn test_line_trimmed_match() {
@@ -170,7 +199,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
         let content = "    Hello World    \n  Test Line  \n   Goodbye World   \n";
 
-        fs::write(&file_path, content).await.unwrap();
+        write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -184,7 +213,7 @@ mod test {
 
         assert!(result.contains("Successfully replaced"));
 
-        let new_content = fs::read_to_string(&file_path).await.unwrap();
+        let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
             new_content,
             "Hi World\n  Test Line  \n   Goodbye World   \n"
@@ -196,7 +225,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
 
-        fs::write(&file_path, "").await.unwrap();
+        write_test_file(&file_path, "").await.unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -209,7 +238,7 @@ mod test {
 
         assert!(result.contains("Successfully replaced"));
 
-        let new_content = fs::read_to_string(&file_path).await.unwrap();
+        let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(new_content, "New content\n");
     }
 
@@ -219,7 +248,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
         let content = "Hello World\nTest Line\nGoodbye World\n";
 
-        fs::write(&file_path, content).await.unwrap();
+        write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
         let diff = "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nGoodbye World\n=======\nBye World\n>>>>>>> REPLACE\n".to_string();
@@ -234,7 +263,7 @@ mod test {
 
         assert!(result.contains("Successfully replaced"));
 
-        let new_content = fs::read_to_string(&file_path).await.unwrap();
+        let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(new_content, "Hi World\nTest Line\nBye World\n");
     }
 
@@ -244,7 +273,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
         let content = "Hello World\nTest Line\nGoodbye World\n";
 
-        fs::write(&file_path, content).await.unwrap();
+        write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -257,7 +286,7 @@ mod test {
 
         assert!(result.contains("Successfully replaced"));
 
-        let new_content = fs::read_to_string(&file_path).await.unwrap();
+        let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(new_content, "Hello World\nGoodbye World\n");
     }
 }
