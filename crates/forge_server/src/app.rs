@@ -294,19 +294,21 @@ mod tests {
                 "key": "value"
             }
         });
-        let action = Action::ToolResponse(ToolResult {
+        let tool_result = ToolResult {
             tool_use_id: None,
             tool_name: ToolName::from("test_tool"),
             content: tool_response.clone(),
             is_error: false,
-        });
+        };
+        let action = Action::ToolResponse(tool_result.clone());
 
         let (updated_app, command) = app.update(action).unwrap();
 
-        assert_eq!(
-            command,
-            Command::DispatchAssistantMessage(updated_app.context.clone())
+        let expected_command = Command::DispatchAssistantMessage(updated_app.context.clone()).and_then(
+            Command::DispatchUserMessage(ChatResponse::ToolUseEnd(tool_result)),
         );
+
+        assert_eq!(command, expected_command);
         assert!(updated_app.context.messages[0]
             .content()
             .contains("TOOL Result for test_tool"));
