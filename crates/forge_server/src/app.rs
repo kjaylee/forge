@@ -33,10 +33,10 @@ pub struct ChatRequest {
 #[derive(Debug, Clone, PartialEq, derive_more::From)]
 pub enum Command {
     #[from(ignore)]
-    DispatchFileRead(Vec<String>),
-    DispatchAssistantMessage(#[from] Request),
-    DispatchUserMessage(#[from] ChatResponse),
-    DispatchToolUse(#[from] ToolUse),
+    FileRead(Vec<String>),
+    AssistantMessage(#[from] Request),
+    UserMessage(#[from] ChatResponse),
+    ToolUse(#[from] ToolUse),
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -91,9 +91,9 @@ impl Application for App {
 
                 if prompt.files().is_empty() {
                     self.context = self.context.add_message(Message::user(chat.message));
-                    commands.push(Command::DispatchAssistantMessage(self.context.clone()))
+                    commands.push(Command::AssistantMessage(self.context.clone()))
                 } else {
-                    commands.push(Command::DispatchFileRead(prompt.files()))
+                    commands.push(Command::FileRead(prompt.files()))
                 }
             }
             Action::FileReadResponse(files) => {
@@ -106,7 +106,7 @@ impl Application for App {
                         );
                     }
 
-                    commands.push(Command::DispatchAssistantMessage(self.context.clone()))
+                    commands.push(Command::AssistantMessage(self.context.clone()))
                 }
             }
             Action::AssistantResponse(response) => {
@@ -122,7 +122,7 @@ impl Application for App {
 
                 if !response.tool_use.is_empty() && self.tool_use_part.is_empty() {
                     if let Some(tool_use_part) = response.tool_use.first() {
-                        commands.push(Command::DispatchUserMessage(ChatResponse::ToolUseStart(
+                        commands.push(Command::UserMessage(ChatResponse::ToolUseStart(
                             tool_use_part.clone(),
                         )))
                     }
@@ -135,10 +135,10 @@ impl Application for App {
                     self.tool_use_part.clear();
 
                     // since tools is used, clear the tool_raw_arguments.
-                    commands.push(Command::DispatchToolUse(tool_use));
+                    commands.push(Command::ToolUse(tool_use));
                 }
 
-                commands.push(Command::DispatchUserMessage(ChatResponse::Text(
+                commands.push(Command::UserMessage(ChatResponse::Text(
                     response.message.content,
                 )));
             }
@@ -161,10 +161,8 @@ impl Application for App {
                     .add_message(Message::user(message))
                     .add_tool_result(tool_result.clone());
 
-                commands.push(Command::DispatchAssistantMessage(self.context.clone()));
-                commands.push(Command::DispatchUserMessage(ChatResponse::ToolUseEnd(
-                    tool_result,
-                )));
+                commands.push(Command::AssistantMessage(self.context.clone()));
+                commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
             }
         };
         Ok((self, commands))
@@ -194,7 +192,7 @@ mod tests {
         let (app, command) = app.update(action).unwrap();
 
         assert_eq!(&app.context.model, &ModelId::default());
-        assert!(command.contains(&Command::DispatchAssistantMessage(app.context.clone())));
+        assert!(command.contains(&Command::AssistantMessage(app.context.clone())));
     }
 
     #[test]
@@ -219,9 +217,7 @@ mod tests {
             .content()
             .contains(&files[0].content));
 
-        assert!(command.contains(&Command::DispatchAssistantMessage(
-            updated_app.context.clone()
-        )));
+        assert!(command.contains(&Command::AssistantMessage(updated_app.context.clone())));
     }
 
     #[test]
@@ -241,19 +237,15 @@ mod tests {
         let action = Action::AssistantResponse(response);
         let (_, command) = app.update(action).unwrap();
 
-        assert!(
-            command.contains(&Command::DispatchUserMessage(ChatResponse::Text(
-                "Tool response".to_string()
-            )))
-        );
+        assert!(command.contains(&Command::UserMessage(ChatResponse::Text(
+            "Tool response".to_string()
+        ))));
 
-        assert!(
-            command.contains(&Command::DispatchToolUse(forge_provider::ToolUse {
-                use_id: None,
-                name: ToolName::from("test_tool"),
-                arguments: json!({"key": "value"}),
-            }))
-        );
+        assert!(command.contains(&Command::ToolUse(forge_provider::ToolUse {
+            use_id: None,
+            name: ToolName::from("test_tool"),
+            arguments: json!({"key": "value"}),
+        })));
     }
 
     #[test]
@@ -284,12 +276,10 @@ mod tests {
             )
         );
 
-        assert!(command.contains(&Command::DispatchAssistantMessage(app.context.clone())));
-        assert!(
-            command.contains(&Command::DispatchUserMessage(ChatResponse::ToolUseEnd(
-                tool_result,
-            )))
-        );
+        assert!(command.contains(&Command::AssistantMessage(app.context.clone())));
+        assert!(command.contains(&Command::UserMessage(
+            ChatResponse::ToolUseEnd(tool_result,)
+        )));
     }
 
     #[test]
@@ -310,19 +300,15 @@ mod tests {
 
         assert!(app.tool_use_part.is_empty());
 
-        assert!(
-            command.contains(&Command::DispatchToolUse(forge_provider::ToolUse {
-                use_id: Some(UseId::from("test_use_id")),
-                name: ToolName::from("fs_list"),
-                arguments: json!({"path": "."}),
-            }))
-        );
+        assert!(command.contains(&Command::ToolUse(forge_provider::ToolUse {
+            use_id: Some(UseId::from("test_use_id")),
+            name: ToolName::from("fs_list"),
+            arguments: json!({"path": "."}),
+        })));
 
-        assert!(
-            command.contains(&Command::DispatchUserMessage(ChatResponse::Text(
-                "Tool response".to_string()
-            )))
-        );
+        assert!(command.contains(&Command::UserMessage(ChatResponse::Text(
+            "Tool response".to_string()
+        ))));
     }
 
     #[test]
@@ -340,10 +326,8 @@ mod tests {
         let (app, command) = app.update(action).unwrap();
 
         assert!(!app.tool_use_part.is_empty());
-        assert!(
-            command.contains(&Command::DispatchUserMessage(ChatResponse::Text(
-                "Tool response".to_string()
-            )))
-        );
+        assert!(command.contains(&Command::UserMessage(ChatResponse::Text(
+            "Tool response".to_string()
+        ))));
     }
 }

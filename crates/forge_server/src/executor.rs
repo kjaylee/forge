@@ -34,7 +34,7 @@ impl Executor for ChatCommandExecutor {
     type Error = Error;
     async fn execute(&self, command: &Self::Command) -> ResultStream<Self::Action, Self::Error> {
         match command {
-            Command::DispatchFileRead(files) => {
+            Command::FileRead(files) => {
                 let mut responses = vec![];
                 for file in files {
                     let content = tokio::fs::read_to_string(file.clone()).await?;
@@ -46,7 +46,7 @@ impl Executor for ChatCommandExecutor {
 
                 Ok(stream)
             }
-            Command::DispatchAssistantMessage(a) => {
+            Command::AssistantMessage(a) => {
                 let actions =
                     self.provider.chat(a.clone()).await?.map(|response| {
                         response.map(Action::AssistantResponse).map_err(Error::from)
@@ -56,13 +56,13 @@ impl Executor for ChatCommandExecutor {
 
                 Ok(msg)
             }
-            Command::DispatchUserMessage(message) => {
+            Command::UserMessage(message) => {
                 self.tx.send(message.clone()).await?;
 
                 let stream: BoxStream<Action, Error> = Box::pin(tokio_stream::empty());
                 Ok(stream)
             }
-            Command::DispatchToolUse(tool_use) => {
+            Command::ToolUse(tool_use) => {
                 let tool_result = self
                     .tools
                     .call(&tool_use.name, tool_use.arguments.clone())
