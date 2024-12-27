@@ -285,14 +285,6 @@ mod test {
         Ok(())
     }
 
-    async fn read_test_file(path: impl AsRef<Path>) -> Result<String, String> {
-        let mut file = File::open(path).map_err(|e| e.to_string())?;
-        let mut content = String::new();
-        file.read_to_string(&mut content)
-            .map_err(|e| e.to_string())?;
-        Ok(content)
-    }
-
     #[tokio::test]
     async fn test_whitespace_preservation() {
         let temp_dir = TempDir::new().unwrap();
