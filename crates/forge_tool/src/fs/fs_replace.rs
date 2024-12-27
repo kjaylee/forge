@@ -1,12 +1,39 @@
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::Path;
 use tempfile::NamedTempFile;
+use tracing::{debug, error};
 
 use crate::{Description, ToolTrait};
+
+fn persist_changes<P: AsRef<Path>>(temp_file: NamedTempFile, path: P, backup_path: impl AsRef<Path>) -> Result<(), String> {
+    // Persist changes atomically
+    match temp_file.persist(&path) {
+        Ok(_) => {
+            debug!("Successfully persisted changes to {:?}", path.as_ref());
+            // Remove backup file on success
+            if backup_path.as_ref().exists() {
+                if let Err(e) = fs::remove_file(&backup_path) {
+                    error!("Failed to remove backup file: {}", e);
+                }
+            }
+            Ok(())
+        }
+        Err(e) => {
+            error!("Failed to persist changes: {}", e);
+            // Restore from backup if persist failed
+            if backup_path.as_ref().exists() {
+                if let Err(e) = fs::rename(&backup_path, &path) {
+                    error!("Failed to restore from backup: {}", e);
+                }
+            }
+            Err(e.to_string())
+        }
+    }
+}
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReplaceInput {
@@ -87,7 +114,22 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
 }
 
 fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), String> {
-    let file = File::open(&path).map_err(|e| e.to_string())?;
+    debug!("Starting file replacement for {:?}", path.as_ref());
+    
+    // Create backup of original file
+    let backup_path = path.as_ref().with_extension("bak");
+    if path.as_ref().exists() {
+        fs::copy(&path, &backup_path).map_err(|e| {
+            error!("Failed to create backup: {}", e);
+            e.to_string()
+        })?;
+        debug!("Created backup at {:?}", backup_path);
+    }
+
+    let file = File::open(&path).map_err(|e| {
+        error!("Failed to open source file: {}", e);
+        e.to_string()
+    })?;
     let reader = BufReader::new(file);
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
     let mut current_block = 0;
@@ -100,8 +142,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
             writeln!(temp_file, "{}", blocks[0].replace)
                 .map_err(|e| e.to_string())?;
         }
-        temp_file.persist(path).map_err(|e| e.to_string())?;
-        return Ok(());
+        return persist_changes(temp_file, path, backup_path);
     }
 
     // Process each line
@@ -157,8 +198,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
         write!(temp_file, "{}", buffer).map_err(|e| e.to_string())?;
     }
 
-    temp_file.persist(path).map_err(|e| e.to_string())?;
-    Ok(())
+    persist_changes(temp_file, path, backup_path)
 }
 
 #[async_trait::async_trait]
@@ -167,8 +207,13 @@ impl ToolTrait for FSReplace {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        debug!("FSReplace called for path: {}", input.path);
         let blocks = parse_blocks(&input.diff)?;
+        debug!("Parsed {} replacement blocks", blocks.len());
+        
         apply_changes(&input.path, blocks)?;
+        debug!("Changes applied successfully");
+        
         Ok(format!("Successfully replaced content in {}", input.path))
     }
 }
