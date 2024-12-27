@@ -38,10 +38,7 @@ impl ToolTrait for FSWrite {
         tokio::fs::write(&input.path, &input.content)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(FSWriteOutput {
-            path: input.path,
-            content: input.content,
-        })
+        Ok(FSWriteOutput { path: input.path, content: input.content })
     }
 }
 
@@ -73,7 +70,7 @@ mod test {
             .unwrap();
         assert_eq!(output.path, file_path.to_string_lossy().to_string());
         assert_eq!(output.content, "Hello, World!");
-        
+
         // Verify file was actually written
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "Hello, World!")

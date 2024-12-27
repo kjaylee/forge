@@ -234,10 +234,7 @@ impl ToolTrait for FSReplace {
         let content = apply_changes(&input.path, blocks)?;
         debug!("Changes applied successfully");
 
-        Ok(FSReplaceOutput {
-            path: input.path,
-            content,
-        })
+        Ok(FSReplaceOutput { path: input.path, content })
     }
 }
 
