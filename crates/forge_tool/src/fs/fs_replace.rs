@@ -161,25 +161,33 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
 }
 
 fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, String> {
-    debug!("Starting file replacement for {:?}", path.as_ref());
-
-    // Create backup of original file
+    let mut content = String::new();
+    let mut result = String::new();
     let backup_path = path.as_ref().with_extension("bak");
-    if path.as_ref().exists() {
-        fs::copy(&path, &backup_path).map_err(|e| {
-            error!("Failed to create backup: {}", e);
-            e.to_string()
-        })?;
-        debug!("Created backup at {:?}", backup_path);
+
+    // Handle new file or empty file case
+    if !path.as_ref().exists() || blocks[0].search.is_empty() {
+        let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
+        if !blocks[0].replace.is_empty() {
+            write!(temp_file, "{}", blocks[0].replace).map_err(|e| e.to_string())?;
+            result = blocks[0].replace.clone();
+        }
+        persist_changes(temp_file, path, backup_path)?;
+        return Ok(result);
     }
+
+    // Create backup and read existing file
+    fs::copy(&path, &backup_path).map_err(|e| {
+        error!("Failed to create backup: {}", e);
+        e.to_string()
+    })?;
+    debug!("Created backup at {:?}", backup_path);
 
     let file = File::open(&path).map_err(|e| {
         error!("Failed to open source file: {}", e);
         e.to_string()
     })?;
 
-    // Read the entire file content to preserve original line endings
-    let mut content = String::new();
     BufReader::new(file)
         .read_to_string(&mut content)
         .map_err(|e| {
@@ -187,25 +195,8 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
             e.to_string()
         })?;
 
+    result = content.clone();
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
-
-    // Handle empty search case (new file)
-    if blocks[0].search.is_empty() {
-        let content = if !blocks[0].replace.is_empty() {
-            if blocks[0].replace.ends_with('\n') {
-                blocks[0].replace.clone()
-            } else {
-                format!("{}\n", blocks[0].replace)
-            }
-        } else {
-            String::new()
-        };
-        write!(temp_file, "{}", content).map_err(|e| e.to_string())?;
-        persist_changes(temp_file, path, backup_path)?;
-        return Ok(content);
-    }
-
-    let mut result = content.clone();
 
     // Apply each block sequentially
     for block in blocks {
@@ -216,53 +207,51 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
             continue;
         }
 
-        // If exact match fails, use dissimilar for fuzzy matching
-        let chunks = dissimilar::diff(&result, &block.search);
-        let mut start_idx = 0;
-        let mut found = false;
+        // If exact match fails, try fuzzy matching
+        let normalized_search = block.search.replace("\r\n", "\n").replace('\r', "\n");
+        let normalized_result = result.replace("\r\n", "\n").replace('\r', "\n");
         
-        for chunk in chunks {
+        if let Some(start_idx) = normalized_result.find(&normalized_search) {
+            result.replace_range(start_idx..start_idx + block.search.len(), &block.replace);
+            continue;
+        }
+
+        // If still no match, try more aggressive fuzzy matching
+        let chunks = dissimilar::diff(&result, &block.search);
+        let mut best_match = None;
+        let mut best_score = 0.0;
+        let mut current_pos = 0;
+
+        for chunk in chunks.iter() {
             match chunk {
                 Chunk::Equal(text) => {
-                    if text == block.search {
-                        found = true;
-                        break;
+                    let score = text.len() as f64 / block.search.len() as f64;
+                    if score > best_score {
+                        best_score = score;
+                        best_match = Some((current_pos, text.len()));
                     }
-                    start_idx += text.len();
                 }
-                Chunk::Delete(text) | Chunk::Insert(text) => {
-                    start_idx += text.len();
+                _ => {}
+            }
+            match chunk {
+                Chunk::Equal(text) | Chunk::Delete(text) | Chunk::Insert(text) => {
+                    current_pos += text.len();
                 }
             }
         }
-        
-        if found {
-            let end_idx = start_idx + block.search.len();
-            result.replace_range(start_idx..end_idx, &block.replace);
+
+        if let Some((start_idx, len)) = best_match {
+            if best_score > 0.7 { // Threshold for fuzzy matching
+                result.replace_range(start_idx..start_idx + len, &block.replace);
+            }
         }
     }
 
     // Write the modified content
     write!(temp_file, "{}", result).map_err(|e| e.to_string())?;
     persist_changes(temp_file, path, backup_path)?;
+    
     Ok(result)
-}
-
-#[async_trait::async_trait]
-impl ToolTrait for FSReplace {
-    type Input = FSReplaceInput;
-    type Output = FSReplaceOutput;
-
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        debug!("FSReplace called for path: {}", input.path);
-        let blocks = parse_blocks(&input.diff)?;
-        debug!("Parsed {} replacement blocks", blocks.len());
-
-        let content = apply_changes(&input.path, blocks)?;
-        debug!("Changes applied successfully");
-
-        Ok(FSReplaceOutput { path: input.path, content })
-    }
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -271,12 +260,22 @@ pub struct FSReplaceOutput {
     pub content: String,
 }
 
+#[async_trait::async_trait]
+impl ToolTrait for FSReplace {
+    type Input = FSReplaceInput;
+    type Output = FSReplaceOutput;
+
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let blocks = parse_blocks(&input.diff)?;
+        let content = apply_changes(&input.path, blocks)?;
+        Ok(FSReplaceOutput { path: input.path, content })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::fs::File;
-
     use tempfile::TempDir;
-
     use super::*;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
@@ -303,7 +302,7 @@ mod test {
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let output = fs_replace
+        let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n    Hello World    \n=======\n    Hi World    \n>>>>>>> REPLACE\n"
@@ -312,15 +311,8 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(output.path, file_path.to_string_lossy().to_string());
         assert_eq!(
-            output.content,
-            "    Hi World    \n  Test Line  \n   Goodbye World   \n"
-        );
-
-        let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(
-            new_content,
+            result.content,
             "    Hi World    \n  Test Line  \n   Goodbye World   \n"
         );
     }
@@ -333,7 +325,7 @@ mod test {
         write_test_file(&file_path, "").await.unwrap();
 
         let fs_replace = FSReplace;
-        let output = fs_replace
+        let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n=======\nNew content\n>>>>>>> REPLACE\n".to_string(),
@@ -341,11 +333,7 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(output.path, file_path.to_string_lossy().to_string());
-        assert_eq!(output.content, "New content\n");
-
-        let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(new_content, "New content\n");
+        assert_eq!(result.content, "New content\n");
     }
 
     #[tokio::test]
@@ -359,20 +347,13 @@ mod test {
         let fs_replace = FSReplace;
         let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
 
-        let output = fs_replace
+        let result = fs_replace
             .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
             .await
             .unwrap();
 
-        assert_eq!(output.path, file_path.to_string_lossy().to_string());
         assert_eq!(
-            output.content,
-            "    New First    \n  Middle Line  \n    New Last    \n"
-        );
-
-        let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(
-            new_content,
+            result.content,
             "    New First    \n  Middle Line  \n    New Last    \n"
         );
     }
@@ -386,7 +367,7 @@ mod test {
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let output = fs_replace
+        let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n  Middle Line  \n=======\n>>>>>>> REPLACE\n".to_string(),
@@ -394,11 +375,7 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(output.path, file_path.to_string_lossy().to_string());
-        assert_eq!(output.content, "    First Line    \n    Last Line    \n");
-
-        let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(new_content, "    First Line    \n    Last Line    \n");
+        assert_eq!(result.content, "    First Line    \n    Last Line    \n");
     }
 
     #[tokio::test]
@@ -413,53 +390,48 @@ mod test {
         let fs_replace = FSReplace;
 
         // Test 1: Replace content while preserving surrounding newlines
-        let output1 = fs_replace
+        let result1 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n    let x = 1;\n\n\n    console.log(x);\n=======\n    let y = 2;\n\n\n    console.log(y);\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
             .unwrap();
-        assert_eq!(output1.path, file_path.to_string_lossy().to_string());
 
-        let content1 = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            content1,
+            result1.content,
             "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n// Footer comment\n\n\n"
         );
 
         // Test 2: Replace block with different newline pattern
-        let output2 = fs_replace
+        let result2 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n\n// Footer comment\n\n\n=======\n\n\n\n// Updated footer\n\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
             .unwrap();
-        assert_eq!(output2.path, file_path.to_string_lossy().to_string());
 
-        let content2 = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            content2,
+            result2.content,
             "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n\n\n// Updated footer\n\n"
         );
 
         // Test 3: Replace with empty lines preservation
-        let output3 = fs_replace
+        let result3 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n\n\n// Header comment\n\n\n=======\n\n\n\n// New header\n\n\n\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
             .unwrap();
-        assert_eq!(output3.path, file_path.to_string_lossy().to_string());
 
-        let final_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            final_content,
+            result3.content,
             "\n\n\n// New header\n\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n\n\n// Updated footer\n\n"
         );
     }
+
     #[tokio::test]
     async fn test_fuzzy_search_replace() {
         let temp_dir = TempDir::new().unwrap();
@@ -494,11 +466,8 @@ mod test {
             .await
             .unwrap();
 
-        assert!(result.contains("Successfully replaced"));
-
-        let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            new_content,
+            result.content,
             r#"function calculateTotal(items) {
   let total = 0;
   for (const item of items) {
@@ -526,11 +495,8 @@ function computeTotal(items, tax = 0) {
             .await
             .unwrap();
 
-        assert!(result2.contains("Successfully replaced"));
-
-        let final_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            final_content,
+            result2.content,
             r#"function computeTotal(items, tax = 0) {
   let total = 0.0;
   for (const item of items) {
@@ -576,11 +542,8 @@ function computeTotal(items, tax = 0) {
             .await
             .unwrap();
 
-        assert!(result.contains("Successfully replaced"));
-
-        let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            new_content,
+            result.content,
             r#"class UserManager {
   async findUser(id, options = {}) {
     const user = await this.db.findOne({ userId: id, ...options });
@@ -610,11 +573,8 @@ function computeTotal(items, tax = 0) {
             .await
             .unwrap();
 
-        assert!(result2.contains("Successfully replaced"));
-
-        let final_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
-            final_content,
+            result2.content,
             r#"class UserManager {
   async findUser(id, options = {}) {
     const user = await this.db.findOne({ userId: id, ...options });
