@@ -34,7 +34,9 @@ pub struct FSListInput {
 ///   to the current working directory {{cwd}})
 /// - recursive: (optional) Whether to list files recursively. Use true for
 ///   recursive listing, false or omit for top-level only.
-/// - pattern: (optional) A glob pattern to filter the results. Use patterns like '*.rs' for Rust files, '**/*.txt' for all text files recursively, or 'src/*.js' for JavaScript files in src directory.
+/// - pattern: (optional) A glob pattern to filter the results. Use patterns
+///   like '*.rs' for Rust files, '**/*.txt' for all text files recursively, or
+///   'src/*.js' for JavaScript files in src directory.
 #[derive(DescriptionDerive)]
 pub struct FSList;
 
@@ -67,7 +69,7 @@ impl ToolTrait for FSList {
                 if let Some(ref pattern) = pattern {
                     return pattern.matches(&f.path);
                 }
-                return true;
+                true
             })
             .map(|f| {
                 let prefix = if f.is_dir { "[DIR]" } else { "[FILE]" };
