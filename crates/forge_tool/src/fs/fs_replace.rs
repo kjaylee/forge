@@ -81,8 +81,8 @@ struct Block {
     replace: String,
 }
 
-fn normalize_text(text: &str) -> String {
-    text.replace("\r\n", "\n").trim_end().to_string()
+fn normalize_line_endings(text: &str) -> String {
+    text.replace("\r\n", "\n")
 }
 
 fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
@@ -111,8 +111,8 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
         let replace = &diff[separator_end..replace_end];
         
         blocks.push(Block {
-            search: normalize_text(search),
-            replace: normalize_text(replace),
+            search: normalize_line_endings(search),
+            replace: normalize_line_endings(replace),
         });
         
         pos = replace_end + ">>>>>>> REPLACE".len();
@@ -181,9 +181,10 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
             let window = &buffer_lines[buffer_lines.len() - search_lines..];
             let window_text = window.join("\n");
 
-            // Compare text with normalized line endings
-            let normalized_window = normalize_text(&window_text);
-            if normalized_window == blocks[current_block].search {
+            // Compare text with normalized line endings only
+            let normalized_window = normalize_line_endings(&window_text);
+            let normalized_search = normalize_line_endings(&blocks[current_block].search);
+            if normalized_window.trim() == normalized_search.trim() {
                 // Found a match, write lines before the match
                 for line in &buffer_lines[..buffer_lines.len() - search_lines] {
                     writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
@@ -191,9 +192,18 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
 
                 // Write replacement and handle line endings
                 if !blocks[current_block].replace.is_empty() {
-                    write!(temp_file, "{}", blocks[current_block].replace)
+                    let replacement = if blocks[current_block].replace.starts_with(' ') {
+                        blocks[current_block].replace.to_string()
+                    } else {
+                        // Preserve indentation from search pattern
+                        let indent = blocks[current_block].search.chars()
+                            .take_while(|c| c.is_whitespace())
+                            .collect::<String>();
+                        format!("{}{}", indent, blocks[current_block].replace)
+                    };
+                    write!(temp_file, "{}", replacement)
                         .map_err(|e| e.to_string())?;
-                    if !blocks[current_block].replace.ends_with('\n') {
+                    if !replacement.ends_with('\n') {
                         writeln!(temp_file).map_err(|e| e.to_string())?;
                     }
                 }
@@ -259,7 +269,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_line_trimmed_match() {
+    async fn test_whitespace_preservation() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
         let content = "    Hello World    \n  Test Line  \n   Goodbye World   \n";
@@ -270,7 +280,7 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n    Hello World    \n=======\nHi World\n>>>>>>> REPLACE\n"
+                diff: "<<<<<<< SEARCH\n    Hello World    \n=======\n    Hi World    \n>>>>>>> REPLACE\n"
                     .to_string(),
             })
             .await
@@ -281,7 +291,7 @@ mod test {
         let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(
             new_content,
-            "Hi World\n  Test Line  \n   Goodbye World   \n"
+            "    Hi World    \n  Test Line  \n   Goodbye World   \n"
         );
     }
 
@@ -311,12 +321,12 @@ mod test {
     async fn test_multiple_blocks() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "Hello World\nTest Line\nGoodbye World\n";
+        let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
 
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let diff = "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n<<<<<<< SEARCH\nGoodbye World\n=======\nBye World\n>>>>>>> REPLACE\n".to_string();
+        let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
 
         let result = fs_replace
             .call(FSReplaceInput {
@@ -329,14 +339,14 @@ mod test {
         assert!(result.contains("Successfully replaced"));
 
         let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(new_content, "Hi World\nTest Line\nBye World\n");
+        assert_eq!(new_content, "    New First    \n  Middle Line  \n    New Last    \n");
     }
 
     #[tokio::test]
     async fn test_empty_block() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "Hello World\nTest Line\nGoodbye World\n";
+        let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
 
         write_test_file(&file_path, content).await.unwrap();
 
@@ -344,7 +354,7 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nTest Line\n=======\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\n  Middle Line  \n=======\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
             .unwrap();
@@ -352,6 +362,6 @@ mod test {
         assert!(result.contains("Successfully replaced"));
 
         let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(new_content, "Hello World\nGoodbye World\n");
+        assert_eq!(new_content, "    First Line    \n    Last Line    \n");
     }
 }
