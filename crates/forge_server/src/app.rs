@@ -173,7 +173,7 @@ impl Application for App {
                 // Special handling for think tool
                 if tool_result.tool_name.as_str() == "think" {
                     if let Ok(result) = serde_json::from_value::<serde_json::Value>(tool_result.content.clone()) {
-                        if result.get("continueThinking").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        if result.get("nextThoughtNeeded").and_then(|v| v.as_bool()).unwrap_or(false) {
                             // Continue the conversation to generate next thought
                             commands.push(Command::AssistantMessage(self.context.clone()));
                             return Ok((self, commands));
@@ -429,7 +429,7 @@ mod tests {
     fn test_think_tool_conversation_flow() {
         let app = App::default();
 
-        // Test when continueThinking is true
+        // Test when next thought is needed
         let think_result_continue = ToolResult {
             tool_use_id: None,
             tool_name: ToolName::from("think"),
@@ -437,7 +437,6 @@ mod tests {
                 "thoughtNumber": 1,
                 "totalThoughts": 3,
                 "nextThoughtNeeded": true,
-                "continueThinking": true,
                 "branches": [],
                 "thoughtHistoryLength": 1
             }),
@@ -451,7 +450,7 @@ mod tests {
         assert_eq!(commands.len(), 1);
         assert!(matches!(commands[0], Command::AssistantMessage(_)));
 
-        // Test when continueThinking is false
+        // Test when thinking is complete
         let think_result_end = ToolResult {
             tool_use_id: None,
             tool_name: ToolName::from("think"),
@@ -459,7 +458,6 @@ mod tests {
                 "thoughtNumber": 3,
                 "totalThoughts": 3,
                 "nextThoughtNeeded": false,
-                "continueThinking": false,
                 "branches": [],
                 "thoughtHistoryLength": 3
             }),

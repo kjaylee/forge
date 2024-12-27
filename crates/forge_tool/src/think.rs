@@ -176,8 +176,7 @@ impl Think {
             "totalThoughts": thought_data.total_thoughts,
             "nextThoughtNeeded": thought_data.next_thought_needed,
             "branches": self.branches.keys().collect::<Vec<_>>(),
-            "thoughtHistoryLength": self.thought_history.len(),
-            "continueThinking": thought_data.next_thought_needed
+            "thoughtHistoryLength": self.thought_history.len()
         });
 
         Ok(result)
