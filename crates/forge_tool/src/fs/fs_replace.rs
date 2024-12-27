@@ -1,7 +1,6 @@
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::collections::VecDeque;
 
 use crate::{Description, ToolTrait};
 
@@ -46,151 +45,81 @@ pub struct FSReplaceInput {
 #[derive(DescriptionDerive)]
 pub struct FSReplace;
 
-#[derive(Debug)]
-struct Block {
-    search: String,
-    replace: String,
-}
-
-fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
-    if !diff.contains("<<<<<<< SEARCH") || !diff.contains("=======") || !diff.contains(">>>>>>> REPLACE") {
-        return Err("Invalid diff format: Missing required markers".to_string());
-    }
-
-    let mut blocks = Vec::new();
-    let mut lines = diff.lines().collect::<VecDeque<_>>();
-
-    while !lines.is_empty() {
-        let mut line = lines.pop_front().unwrap_or_default();
-        
-        // Skip empty lines and find start of block
-        while !lines.is_empty() && !line.contains("<<<<<<< SEARCH") {
-            line = lines.pop_front().unwrap_or_default();
-        }
-        if lines.is_empty() {
-            break;
-        }
-
-        // Parse search content
-        let mut search = Vec::new();
-        line = lines.pop_front().unwrap_or_default();
-        while !lines.is_empty() && !line.contains("=======") {
-            search.push(line);
-            line = lines.pop_front().unwrap_or_default();
-        }
-
-        // Parse replace content
-        let mut replace = Vec::new();
-        line = lines.pop_front().unwrap_or_default();
-        while !lines.is_empty() && !line.contains(">>>>>>> REPLACE") {
-            replace.push(line);
-            line = lines.pop_front().unwrap_or_default();
-        }
-
-        blocks.push(Block {
-            search: search.join("\n"),
-            replace: replace.join("\n"),
-        });
-    }
-
-    if blocks.is_empty() {
-        return Err("Invalid diff format: No valid blocks found".to_string());
-    }
-
-    Ok(blocks)
-}
-
-fn apply_changes(content: &str, blocks: Vec<Block>) -> Result<String, String> {
+fn parse_and_apply(content: &str, diff: &str) -> Result<String, String> {
     let mut result = content.to_string();
+    let mut current_pos = 0;
 
-    for Block { search, replace } in blocks {
-        // Handle empty search case
-        if search.is_empty() {
-            result = if replace.is_empty() {
-                replace
-            } else if replace.ends_with('\n') {
-                replace
+    while let Some(search_start) = diff[current_pos..].find("<<<<<<< SEARCH") {
+        let search_start = current_pos + search_start + "<<<<<<< SEARCH".len();
+        
+        let Some(separator) = diff[search_start..].find("=======") else {
+            return Err("Invalid diff format: Missing separator".to_string());
+        };
+        let separator = search_start + separator;
+        
+        let Some(replace_end) = diff[separator..].find(">>>>>>> REPLACE") else {
+            return Err("Invalid diff format: Missing end marker".to_string());
+        };
+        let replace_end = separator + replace_end;
+        
+        // Extract search and replace content, handling newlines around markers
+        let search = diff[search_start..separator]
+            .trim_start_matches('\n')
+            .trim_end_matches('\n');
+        let replace = diff[separator + "=======".len()..replace_end]
+            .trim_start_matches('\n')
+            .trim_end_matches('\n');
+        
+        // Handle empty search case (new file)
+        if search.trim().is_empty() {
+            result = if replace.trim().is_empty() {
+                String::new()
             } else {
-                replace + "\n"
+                format!("{}\n", replace.trim())
             };
+            current_pos = replace_end + ">>>>>>> REPLACE".len();
             continue;
         }
 
-        // Split content into lines while preserving line endings
-        let mut lines: Vec<String> = Vec::new();
-        let mut current_line = String::new();
-        let mut chars = result.chars().peekable();
-        
-        while let Some(c) = chars.next() {
-            current_line.push(c);
-            if c == '\n' || (c == '\r' && chars.peek() == Some(&'\n')) {
-                if c == '\r' {
-                    current_line.push(chars.next().unwrap());
-                }
-                lines.push(current_line);
-                current_line = String::new();
-            }
-        }
-        if !current_line.is_empty() {
-            lines.push(current_line);
-        }
-
-        // Use similar for fuzzy matching
-        let mut found = false;
+        // Find and replace content
         let search_lines: Vec<&str> = search.lines().collect();
-        
-        'outer: for i in 0..lines.len() {
-            if i + search_lines.len() > lines.len() {
+        let result_lines: Vec<&str> = result.lines().collect();
+        let mut found = false;
+
+        'outer: for i in 0..result_lines.len() {
+            if i + search_lines.len() > result_lines.len() {
                 break;
             }
 
-            // Compare each line with whitespace trimmed
             for (j, search_line) in search_lines.iter().enumerate() {
-                let content_line = lines[i + j].trim_end_matches(|c| c == '\n' || c == '\r');
-                if content_line.trim() != search_line.trim() {
+                if result_lines[i + j].trim() != search_line.trim() {
                     continue 'outer;
                 }
             }
 
             // Found a match, perform replacement
             let mut new_content = String::new();
-            
+
             // Add lines before match
-            for line in &lines[..i] {
+            for line in &result_lines[..i] {
                 new_content.push_str(line);
+                new_content.push('\n');
             }
 
-            // Add replacement with proper line endings
+            // Add replacement
             if !replace.is_empty() {
-                let mut replace_lines = replace.lines().peekable();
-                while let Some(line) = replace_lines.next() {
-                    new_content.push_str(line);
-                    if replace_lines.peek().is_some() {
-                        // Use the same line ending as the first matched line
-                        if lines[i].ends_with("\r\n") {
-                            new_content.push_str("\r\n");
-                        } else {
-                            new_content.push('\n');
-                        }
-                    }
-                }
-
-                // Add final line ending if original had one
-                let original_line = &lines[i + search_lines.len() - 1];
-                let needs_ending = original_line.ends_with('\n') || original_line.ends_with("\r\n");
-
-                if needs_ending {
-                    if original_line.ends_with("\r\n") {
-                        new_content.push_str("\r\n");
-                    } else {
-                        new_content.push('\n');
-                    }
+                new_content.push_str(replace);
+                if !replace.ends_with('\n') {
+                    new_content.push('\n');
                 }
             }
 
             // Add remaining lines
-            for line in &lines[i + search_lines.len()..] {
-                new_content.push_str(line);
+            if i + search_lines.len() < result_lines.len() {
+                for line in &result_lines[i + search_lines.len()..] {
+                    new_content.push_str(line);
+                    new_content.push('\n');
+                }
             }
 
             result = new_content;
@@ -201,6 +130,8 @@ fn apply_changes(content: &str, blocks: Vec<Block>) -> Result<String, String> {
         if !found {
             return Err(format!("Could not find match for search block:\n{}", search));
         }
+
+        current_pos = replace_end + "\n>>>>>>> REPLACE".len();
     }
 
     Ok(result)
@@ -216,8 +147,7 @@ impl ToolTrait for FSReplace {
             .await
             .map_err(|e| e.to_string())?;
 
-        let blocks = parse_blocks(&input.diff)?;
-        let result = apply_changes(&content, blocks)?;
+        let result = parse_and_apply(&content, &input.diff)?;
 
         tokio::fs::write(&input.path, result)
             .await

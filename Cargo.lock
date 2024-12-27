@@ -556,6 +556,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "dissimilar"
+version = "1.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59f8e79d1fbf76bdfbde321e902714bf6c49df88a7dda6fc682fc2979226962d"
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -723,6 +729,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "colorize",
+ "dissimilar",
  "forge_env",
  "forge_tool_macros",
  "forge_walker",
@@ -733,7 +740,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "similar",
  "tempfile",
  "tokio",
  "tracing",
@@ -2982,7 +2988,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
