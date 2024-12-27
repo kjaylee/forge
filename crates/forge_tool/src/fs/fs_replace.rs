@@ -81,29 +81,44 @@ struct Block {
     replace: String,
 }
 
+fn normalize_text(text: &str) -> String {
+    text.replace("\r\n", "\n").trim_end().to_string()
+}
+
 fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
     let mut blocks = Vec::new();
     let mut pos = 0;
 
+    // Normalize line endings in the diff string
+    let diff = diff.replace("\\n", "\n");
+
     while let Some(search_start) = diff[pos..].find("<<<<<<< SEARCH") {
         let search_start = pos + search_start + "<<<<<<< SEARCH".len();
+        let search_start = search_start + diff[search_start..].find('\n').unwrap_or(0) + 1;
         
         let Some(separator) = diff[search_start..].find("=======") else {
             return Err("Invalid diff format: Missing separator".to_string());
         };
         let separator = search_start + separator;
+        let separator_end = separator + "=======".len() + diff[separator + "=======".len()..].find('\n').unwrap_or(0) + 1;
         
-        let Some(replace_end) = diff[separator..].find(">>>>>>> REPLACE") else {
+        let Some(replace_end) = diff[separator_end..].find(">>>>>>> REPLACE") else {
             return Err("Invalid diff format: Missing end marker".to_string());
         };
-        let replace_end = separator + replace_end;
+        let replace_end = separator_end + replace_end;
+        
+        let search = &diff[search_start..separator];
+        let replace = &diff[separator_end..replace_end];
         
         blocks.push(Block {
-            search: diff[search_start..separator].trim().to_string(),
-            replace: diff[separator + "=======".len()..replace_end].trim().to_string(),
+            search: normalize_text(search),
+            replace: normalize_text(replace),
         });
         
         pos = replace_end + ">>>>>>> REPLACE".len();
+        if let Some(nl) = diff[pos..].find('\n') {
+            pos += nl + 1;
+        }
     }
 
     if blocks.is_empty() {
@@ -139,8 +154,11 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
     // Handle empty search case (new file)
     if blocks[0].search.is_empty() {
         if !blocks[0].replace.is_empty() {
-            writeln!(temp_file, "{}", blocks[0].replace)
+            write!(temp_file, "{}", blocks[0].replace)
                 .map_err(|e| e.to_string())?;
+            if !blocks[0].replace.ends_with('\n') {
+                writeln!(temp_file).map_err(|e| e.to_string())?;
+            }
         }
         return persist_changes(temp_file, path, backup_path);
     }
@@ -163,7 +181,9 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
             let window = &buffer_lines[buffer_lines.len() - search_lines..];
             let window_text = window.join("\n");
 
-            if window_text.trim() == blocks[current_block].search.trim() {
+            // Compare text with normalized line endings
+            let normalized_window = normalize_text(&window_text);
+            if normalized_window == blocks[current_block].search {
                 // Found a match, write lines before the match
                 for line in &buffer_lines[..buffer_lines.len() - search_lines] {
                     writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
@@ -250,7 +270,7 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nHello World\n=======\nHi World\n>>>>>>> REPLACE\n"
+                diff: "<<<<<<< SEARCH\n    Hello World    \n=======\nHi World\n>>>>>>> REPLACE\n"
                     .to_string(),
             })
             .await
