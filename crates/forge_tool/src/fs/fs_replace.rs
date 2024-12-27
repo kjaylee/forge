@@ -344,25 +344,62 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_newline_preservation() {
+    async fn test_complex_newline_preservation() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "First Line\n\nSecond Line\n\n\nThird Line\n";
-
+        
+        // Test file with various newline patterns
+        let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let result = fs_replace
+        
+        // Test 1: Replace content while preserving surrounding newlines
+        let result1 = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\nSecond Line\n\n\n=======\nReplaced Line\n\n\n>>>>>>> REPLACE\n".to_string(),
+                diff: "<<<<<<< SEARCH\n    let x = 1;\n\n\n    console.log(x);\n=======\n    let y = 2;\n\n\n    console.log(y);\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
             .unwrap();
+        assert!(result1.contains("Successfully replaced"));
 
-        assert!(result.contains("Successfully replaced"));
+        let content1 = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            content1,
+            "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n// Footer comment\n\n\n"
+        );
 
-        let new_content = read_test_file(&file_path).await.unwrap();
-        assert_eq!(new_content, "First Line\n\nReplaced Line\n\n\nThird Line\n");
+        // Test 2: Replace block with different newline pattern
+        let result2 = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: "<<<<<<< SEARCH\n\n// Footer comment\n\n\n=======\n\n\n\n// Updated footer\n\n>>>>>>> REPLACE\n".to_string(),
+            })
+            .await
+            .unwrap();
+        assert!(result2.contains("Successfully replaced"));
+
+        let content2 = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            content2,
+            "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n\n\n// Updated footer\n\n"
+        );
+
+        // Test 3: Replace with empty lines preservation
+        let result3 = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: "<<<<<<< SEARCH\n\n\n// Header comment\n\n\n=======\n\n\n\n// New header\n\n\n\n>>>>>>> REPLACE\n".to_string(),
+            })
+            .await
+            .unwrap();
+        assert!(result3.contains("Successfully replaced"));
+
+        let final_content = read_test_file(&file_path).await.unwrap();
+        assert_eq!(
+            final_content,
+            "\n\n\n// New header\n\n\n\nfunction test() {\n    // Inside comment\n\n    let y = 2;\n\n\n    console.log(y);\n}\n\n\n\n// Updated footer\n\n"
+        );
     }
 }
