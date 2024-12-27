@@ -82,25 +82,48 @@ struct Block {
 }
 
 fn normalize_line_endings(text: &str) -> String {
-    text.replace("\r\n", "\n")
+    // Only normalize CRLF to LF while preserving the original line endings
+    let mut result = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    
+    while let Some(c) = chars.next() {
+        if c == '\r' && chars.peek() == Some(&'\n') {
+            chars.next(); // Skip the \n since we'll add it below
+            result.push('\n');
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
     let mut blocks = Vec::new();
     let mut pos = 0;
 
-    // Normalize line endings in the diff string
-    let diff = diff.replace("\\n", "\n");
+    // Normalize line endings in the diff string while preserving original newlines
+    let diff = normalize_line_endings(diff);
 
     while let Some(search_start) = diff[pos..].find("<<<<<<< SEARCH") {
         let search_start = pos + search_start + "<<<<<<< SEARCH".len();
-        let search_start = search_start + diff[search_start..].find('\n').unwrap_or(0) + 1;
+        
+        // Include the newline after SEARCH marker in the position
+        let search_start = match diff[search_start..].find('\n') {
+            Some(nl) => search_start + nl + 1,
+            None => return Err("Invalid diff format: Missing newline after SEARCH marker".to_string()),
+        };
         
         let Some(separator) = diff[search_start..].find("=======") else {
             return Err("Invalid diff format: Missing separator".to_string());
         };
         let separator = search_start + separator;
-        let separator_end = separator + "=======".len() + diff[separator + "=======".len()..].find('\n').unwrap_or(0) + 1;
+        
+        // Include the newline after separator in the position
+        let separator_end = separator + "=======".len();
+        let separator_end = match diff[separator_end..].find('\n') {
+            Some(nl) => separator_end + nl + 1,
+            None => return Err("Invalid diff format: Missing newline after separator".to_string()),
+        };
         
         let Some(replace_end) = diff[separator_end..].find(">>>>>>> REPLACE") else {
             return Err("Invalid diff format: Missing end marker".to_string());
@@ -111,11 +134,12 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
         let replace = &diff[separator_end..replace_end];
         
         blocks.push(Block {
-            search: normalize_line_endings(search),
-            replace: normalize_line_endings(replace),
+            search: search.to_string(), // Keep original newlines
+            replace: replace.to_string(), // Keep original newlines
         });
         
         pos = replace_end + ">>>>>>> REPLACE".len();
+        // Move past the newline after REPLACE if it exists
         if let Some(nl) = diff[pos..].find('\n') {
             pos += nl + 1;
         }
@@ -145,17 +169,22 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
         error!("Failed to open source file: {}", e);
         e.to_string()
     })?;
-    let reader = BufReader::new(file);
+    
+    // Read the entire file content to preserve original line endings
+    let mut content = String::new();
+    BufReader::new(file).read_to_string(&mut content).map_err(|e| {
+        error!("Failed to read file content: {}", e);
+        e.to_string()
+    })?;
+    
     let mut temp_file = NamedTempFile::new().map_err(|e| e.to_string())?;
-    let mut current_block = 0;
-    let mut buffer = String::new();
-    let mut lines = reader.lines();
-
+    
     // Handle empty search case (new file)
     if blocks[0].search.is_empty() {
         if !blocks[0].replace.is_empty() {
             write!(temp_file, "{}", blocks[0].replace)
                 .map_err(|e| e.to_string())?;
+            // Only add newline if it doesn't end with one
             if !blocks[0].replace.ends_with('\n') {
                 writeln!(temp_file).map_err(|e| e.to_string())?;
             }
@@ -163,71 +192,20 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<(), Stri
         return persist_changes(temp_file, path, backup_path);
     }
 
-    // Process each line
-    while let Some(Ok(line)) = lines.next() {
-        if current_block >= blocks.len() {
-            writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
-            continue;
-        }
-
-        buffer.push_str(&line);
-        buffer.push('\n');
-
-        // Check if we have enough lines to match the search pattern
-        let search_lines = blocks[current_block].search.lines().count();
-        let buffer_lines: Vec<&str> = buffer.lines().collect();
-
-        if buffer_lines.len() >= search_lines {
-            let window = &buffer_lines[buffer_lines.len() - search_lines..];
-            let window_text = window.join("\n");
-
-            // Compare text with normalized line endings only
-            let normalized_window = normalize_line_endings(&window_text);
-            let normalized_search = normalize_line_endings(&blocks[current_block].search);
-            if normalized_window.trim() == normalized_search.trim() {
-                // Found a match, write lines before the match
-                for line in &buffer_lines[..buffer_lines.len() - search_lines] {
-                    writeln!(temp_file, "{}", line).map_err(|e| e.to_string())?;
-                }
-
-                // Write replacement and handle line endings
-                if !blocks[current_block].replace.is_empty() {
-                    let replacement = if blocks[current_block].replace.starts_with(' ') {
-                        blocks[current_block].replace.to_string()
-                    } else {
-                        // Preserve indentation from search pattern
-                        let indent = blocks[current_block].search.chars()
-                            .take_while(|c| c.is_whitespace())
-                            .collect::<String>();
-                        format!("{}{}", indent, blocks[current_block].replace)
-                    };
-                    write!(temp_file, "{}", replacement)
-                        .map_err(|e| e.to_string())?;
-                    if !replacement.ends_with('\n') {
-                        writeln!(temp_file).map_err(|e| e.to_string())?;
-                    }
-                }
-
-                buffer.clear();
-                current_block += 1;
-                continue;
-            }
-
-            // No match, write the oldest line and remove it from buffer
-            let first_line = buffer_lines[0];
-            write!(temp_file, "{}", first_line).map_err(|e| e.to_string())?;
-            if !first_line.ends_with('\n') {
-                writeln!(temp_file).map_err(|e| e.to_string())?;
-            }
-            buffer = buffer_lines[1..].join("\n");
+    let mut result = content.clone();
+    
+    // Apply each block sequentially
+    for block in blocks {
+        // Use the exact search string to find and replace
+        if let Some(start_idx) = result.find(&block.search) {
+            let end_idx = start_idx + block.search.len();
+            result.replace_range(start_idx..end_idx, &block.replace);
         }
     }
-
-    // Write any remaining buffered lines
-    if !buffer.is_empty() {
-        write!(temp_file, "{}", buffer).map_err(|e| e.to_string())?;
-    }
-
+    
+    // Write the modified content
+    write!(temp_file, "{}", result).map_err(|e| e.to_string())?;
+    
     persist_changes(temp_file, path, backup_path)
 }
 
@@ -363,5 +341,28 @@ mod test {
 
         let new_content = read_test_file(&file_path).await.unwrap();
         assert_eq!(new_content, "    First Line    \n    Last Line    \n");
+    }
+
+    #[tokio::test]
+    async fn test_newline_preservation() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        let content = "First Line\n\nSecond Line\n\n\nThird Line\n";
+
+        write_test_file(&file_path, content).await.unwrap();
+
+        let fs_replace = FSReplace;
+        let result = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: "<<<<<<< SEARCH\nSecond Line\n\n\n=======\nReplaced Line\n\n\n>>>>>>> REPLACE\n".to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.contains("Successfully replaced"));
+
+        let new_content = read_test_file(&file_path).await.unwrap();
+        assert_eq!(new_content, "First Line\n\nReplaced Line\n\n\nThird Line\n");
     }
 }
