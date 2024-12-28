@@ -3,9 +3,9 @@ use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
 use tokio_stream::StreamExt;
 
-use super::chat_request::OpenRouterRequest;
-use super::chat_response::OpenRouterResponse;
-use super::model_response::{ListModelResponse, Model};
+use super::model::{ListModelResponse, Model};
+use super::request::OpenRouterRequest;
+use super::response::OpenRouterResponse;
 use crate::error::Result;
 use crate::provider::{InnerProvider, Provider};
 use crate::{Error, ProviderError, Request, Response, ResultStream};
