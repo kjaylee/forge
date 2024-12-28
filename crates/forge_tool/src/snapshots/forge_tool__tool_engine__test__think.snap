@@ -51,6 +51,13 @@ expression: tool_str
         ],
         "format": "int32"
       },
+      "solution_confidence": {
+        "type": [
+          "number",
+          "null"
+        ],
+        "format": "float"
+      },
       "thought": {
         "type": "string"
       },
@@ -66,6 +73,47 @@ expression: tool_str
   },
   "output_schema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "AnyValue"
+    "title": "ThoughtResult",
+    "type": "object",
+    "required": [
+      "branches",
+      "next_thought_needed",
+      "solution_confidence",
+      "solution_reached",
+      "thought_history_length",
+      "thought_number",
+      "total_thoughts"
+    ],
+    "properties": {
+      "branches": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "next_thought_needed": {
+        "type": "boolean"
+      },
+      "solution_confidence": {
+        "type": "number",
+        "format": "float"
+      },
+      "solution_reached": {
+        "type": "boolean"
+      },
+      "thought_history_length": {
+        "type": "integer",
+        "format": "uint",
+        "minimum": 0.0
+      },
+      "thought_number": {
+        "type": "integer",
+        "format": "int32"
+      },
+      "total_thoughts": {
+        "type": "integer",
+        "format": "int32"
+      }
+    }
   }
 }
