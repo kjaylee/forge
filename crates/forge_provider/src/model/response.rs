@@ -2,6 +2,8 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
 use super::{ResponseMessage, ToolUsePart};
+
+/// NOTE: This is produced by the LLM
 #[derive(Clone, Debug, Setters)]
 #[setters(into, strip_option)]
 pub struct Response {

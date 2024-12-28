@@ -37,6 +37,18 @@ pub enum MessageContent {
     Parts(Vec<ContentPart>),
 }
 
+impl MessageContent {
+    pub fn cached(self) -> Self {
+        match self {
+            MessageContent::Text(text) => MessageContent::Parts(vec![ContentPart::Text {
+                text,
+                cache_control: Some(CacheControl { type_: CacheControlType::Ephemeral }),
+            }]),
+            _ => self,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentPart {
@@ -169,28 +181,13 @@ impl From<Request> for OpenRouterRequest {
     fn from(request: Request) -> Self {
         OpenRouterRequest {
             messages: {
-                let result = request
-                    .tool_result
-                    .into_iter()
-                    .map(|tool_result| OpenRouterMessage {
-                        role: Role::Tool,
-                        content: MessageContent::Text(
-                            serde_json::to_string(&tool_result.content).unwrap(),
-                        ),
-                        name: Some(tool_result.tool_name.clone()),
-                        tool_use_id: tool_result.tool_use_id.clone(),
-                    })
-                    .collect::<Vec<_>>();
-
-                let mut messages = request
+                let messages = request
                     .messages
                     .into_iter()
                     .map(OpenRouterMessage::from)
                     .collect::<Vec<_>>();
 
-                messages.extend(result);
-
-                Some(messages)
+                Some(insert_cache(messages))
             },
             tools: {
                 let tools = request
@@ -233,11 +230,31 @@ impl From<Request> for OpenRouterRequest {
 
 impl From<RequestMessage> for OpenRouterMessage {
     fn from(value: RequestMessage) -> Self {
-        OpenRouterMessage {
-            role: value.role.into(),
-            content: MessageContent::Text(value.content),
-            name: None,
-            tool_use_id: None,
+        match value {
+            RequestMessage::Chat(chat_message) => OpenRouterMessage {
+                role: Role::User,
+                content: MessageContent::Text(chat_message.content),
+                name: None,
+                tool_use_id: None,
+            },
+            RequestMessage::ToolResult(tool_result) => OpenRouterMessage {
+                role: Role::Tool,
+                content: MessageContent::Text(serde_json::to_string(&tool_result.content).unwrap()),
+                name: Some(tool_result.tool_name),
+                tool_use_id: tool_result.tool_use_id,
+            },
         }
     }
+}
+
+/// Inserts cache control information into system messages
+/// NOTE: We need to add more caching as the context grows larger
+fn insert_cache(mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
+    for message in message.iter_mut() {
+        if message.role == Role::System {
+            message.content = message.content.clone().cached();
+        }
+    }
+
+    message
 }

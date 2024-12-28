@@ -168,7 +168,7 @@ impl Application for App {
                 self.context = self
                     .context
                     .add_message(RequestMessage::user(message))
-                    .add_tool_result(tool_result.clone());
+                    .add_message(tool_result.clone());
 
                 commands.push(Command::AssistantMessage(self.context.clone()));
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
@@ -213,8 +213,10 @@ mod tests {
 
         let (app, command) = app.update(files.clone()).unwrap();
 
-        assert!(app.context.messages[0].content.contains(&files[0].path));
-        assert!(app.context.messages[0].content.contains(&files[0].content));
+        assert!(app.context.messages[0].content().contains(&files[0].path));
+        assert!(app.context.messages[0]
+            .content()
+            .contains(&files[0].content));
 
         assert!(command.has(app.context.clone()));
     }
@@ -257,7 +259,7 @@ mod tests {
         let (app, command) = app.update(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.context.messages[0].content,
+            app.context.messages[0].content(),
             format!(
                 "{}\n{}",
                 "TOOL Result for test_tool", r#"{"key":"value","nested":{"key":"value"}}"#
@@ -350,10 +352,14 @@ mod tests {
 
         let (app, command) = app.update(files.clone()).unwrap();
 
-        assert!(app.context.messages[0].content.contains(&files[0].path));
-        assert!(app.context.messages[0].content.contains(&files[0].content));
-        assert!(app.context.messages[1].content.contains(&files[1].path));
-        assert!(app.context.messages[1].content.contains(&files[1].content));
+        assert!(app.context.messages[0].content().contains(&files[0].path));
+        assert!(app.context.messages[0]
+            .content()
+            .contains(&files[0].content));
+        assert!(app.context.messages[1].content().contains(&files[1].path));
+        assert!(app.context.messages[1]
+            .content()
+            .contains(&files[1].content));
 
         assert!(command.has(app.context.clone()));
     }
@@ -384,7 +390,7 @@ mod tests {
         let (app, command) = app.update(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.context.messages[0].content,
+            app.context.messages[0].content(),
             "An error occurred while processing the tool, test_tool"
         );
 
