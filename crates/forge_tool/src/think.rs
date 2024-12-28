@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolTrait};
 
-/// A flexible thinking tool that helps analyze problems through an adaptive process.
+/// A flexible thinking tool that helps analyze problems through an adaptive
+/// process.
 ///
 /// This tool allows for multi-step problem solving with the ability to:
 /// - Break down complex problems
@@ -64,9 +65,8 @@ impl Think {
 
         // If no confidence is provided, calculate it based on progress
         if input.solution_confidence.is_none() {
-            input.solution_confidence = Some(
-                input.thought_number as f32 / input.total_thoughts as f32
-            );
+            input.solution_confidence =
+                Some(input.thought_number as f32 / input.total_thoughts as f32);
         }
 
         Ok(input)
@@ -95,9 +95,9 @@ impl Think {
 
         let header = format!(
             "{} {}/{}{} (Confidence: {:.2}%)",
-            prefix, 
-            thought_data.thought_number, 
-            thought_data.total_thoughts, 
+            prefix,
+            thought_data.thought_number,
+            thought_data.total_thoughts,
             context,
             thought_data.solution_confidence.unwrap_or(0.0) * 100.0
         );
