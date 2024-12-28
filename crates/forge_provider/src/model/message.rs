@@ -84,6 +84,7 @@ impl From<ChatRole> for Role {
 }
 
 #[derive(Debug, Deserialize, Display, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     System,
     User,
