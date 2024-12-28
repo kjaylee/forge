@@ -42,6 +42,17 @@ pub struct ThoughtData {
     pub solution_confidence: Option<f32>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct ThoughtResult {
+    pub thought_number: i32,
+    pub total_thoughts: i32,
+    pub next_thought_needed: bool,
+    pub solution_reached: bool,
+    pub solution_confidence: f32,
+    pub branches: Vec<String>,
+    pub thought_history_length: usize,
+}
+
 impl Think {
     fn validate_thought_data(&self, mut input: ThoughtData) -> Result<ThoughtData> {
         if input.thought_number <= 0 {
@@ -101,7 +112,7 @@ impl Think {
         )
     }
 
-    fn process_thought(&mut self, input: ThoughtData) -> Result<serde_json::Value> {
+    fn process_thought(&mut self, input: ThoughtData) -> Result<ThoughtResult> {
         let mut thought_data = self.validate_thought_data(input)?;
 
         // Adjust total thoughts if needed
@@ -141,24 +152,22 @@ impl Think {
 
         eprintln!("{}", self.format_thought(&thought_data));
 
-        let result = serde_json::json!({
-            "thoughtNumber": thought_data.thought_number,
-            "totalThoughts": thought_data.total_thoughts,
-            "nextThoughtNeeded": thought_data.next_thought_needed,
-            "solutionReached": self.solution_reached,
-            "solutionConfidence": thought_data.solution_confidence.unwrap_or(0.0),
-            "branches": self.branches.keys().collect::<Vec<_>>(),
-            "thoughtHistoryLength": self.thought_history.len()
-        });
-
-        Ok(result)
+        Ok(ThoughtResult {
+            thought_number: thought_data.thought_number,
+            total_thoughts: thought_data.total_thoughts,
+            next_thought_needed: thought_data.next_thought_needed,
+            solution_reached: self.solution_reached,
+            solution_confidence: thought_data.solution_confidence.unwrap_or(0.0),
+            branches: self.branches.keys().cloned().collect(),
+            thought_history_length: self.thought_history.len(),
+        })
     }
 }
 
 #[async_trait::async_trait]
 impl ToolTrait for Think {
     type Input = ThoughtData;
-    type Output = serde_json::Value;
+    type Output = ThoughtResult;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let mut thinker = self.clone();
