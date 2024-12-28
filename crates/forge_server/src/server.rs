@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_env::Environment;
-use forge_provider::{Message, Model, ModelId, Provider, Request, Response};
+use forge_provider::{Model, ModelId, Provider, Request, RequestMessage, Response};
 use forge_tool::{ToolDefinition, ToolEngine};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -33,7 +33,7 @@ impl Server {
             .expect("Failed to render system prompt");
 
         let request = Request::new(ModelId::default())
-            .add_message(Message::system(system_prompt))
+            .add_message(RequestMessage::system(system_prompt))
             .tools(tools.list());
 
         let cwd: String = env.cwd.clone();

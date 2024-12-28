@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use forge_provider::Request;
+use forge_provider::{Request, Role};
 use pulldown_cmark::{html, Options, Parser};
 
 pub struct ContextEngine {
@@ -16,8 +16,8 @@ impl ContextEngine {
         // Convert context to markdown format
         let mut markdown = String::new();
         for msg in &self.context.messages {
-            let role = msg.role();
-            markdown.push_str(&format!("# [:{}]\n{}\n", role, msg.content()));
+            let role = Role::from(msg.role.clone());
+            markdown.push_str(&format!("# [:{}]\n{}\n", role, msg.content));
         }
 
         // Convert markdown to HTML with basic styling

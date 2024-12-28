@@ -8,7 +8,7 @@ use crate::model::{Response as ModelResponse, ToolUsePart};
 use crate::{FinishReason, ToolUseId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ChatResponse {
+pub struct OpenRouterResponse {
     pub id: String,
     pub provider: String,
     pub model: String,
@@ -76,17 +76,20 @@ pub struct FunctionCall {
     pub arguments: String,
 }
 
-impl TryFrom<ChatResponse> for ModelResponse {
+impl TryFrom<OpenRouterResponse> for ModelResponse {
     type Error = Error;
 
-    fn try_from(res: ChatResponse) -> Result<Self, Self::Error> {
+    fn try_from(res: OpenRouterResponse) -> Result<Self, Self::Error> {
         if let Some(choice) = res.choices.first() {
             let response = match choice {
-                Choice::NonChat { text, finish_reason, .. } => ModelResponse::new(text.clone())
-                    .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse)),
+                Choice::NonChat { text, finish_reason, .. } => {
+                    ModelResponse::assistant(text.clone())
+                        .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse))
+                }
                 Choice::NonStreaming { message, finish_reason, .. } => {
-                    let mut resp = ModelResponse::new(message.content.clone().unwrap_or_default())
-                        .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
+                    let mut resp =
+                        ModelResponse::assistant(message.content.clone().unwrap_or_default())
+                            .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
                     if let Some(tool_calls) = &message.tool_calls {
                         for tool_call in tool_calls {
                             resp = resp.add_call(ToolUsePart {
@@ -99,8 +102,9 @@ impl TryFrom<ChatResponse> for ModelResponse {
                     resp
                 }
                 Choice::Streaming { delta, finish_reason, .. } => {
-                    let mut resp = ModelResponse::new(delta.content.clone().unwrap_or_default())
-                        .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
+                    let mut resp =
+                        ModelResponse::assistant(delta.content.clone().unwrap_or_default())
+                            .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
                     if let Some(tool_calls) = &delta.tool_calls {
                         for tool_call in tool_calls {
                             resp = resp.add_call(ToolUsePart {

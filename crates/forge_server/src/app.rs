@@ -2,7 +2,7 @@ use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
 use forge_provider::{
-    FinishReason, Message, ModelId, Request, Response, ToolResult, ToolUse, ToolUsePart,
+    FinishReason, ModelId, Request, RequestMessage, Response, ToolResult, ToolUse, ToolUsePart,
 };
 use serde::Serialize;
 
@@ -99,7 +99,7 @@ impl Application for App {
                 }
 
                 if prompt.files().is_empty() {
-                    self.context = self.context.add_message(Message::user(chat.message));
+                    self.context = self.context.add_message(RequestMessage::user(chat.message));
                     commands.push(Command::AssistantMessage(self.context.clone()))
                 } else {
                     commands.push(Command::FileRead(prompt.files()))
@@ -125,7 +125,7 @@ impl Application for App {
                 if response.finish_reason.is_some() {
                     self.context = self
                         .context
-                        .add_message(Message::assistant(self.assistant_buffer.clone()));
+                        .add_message(RequestMessage::assistant(self.assistant_buffer.clone()));
                     self.assistant_buffer.clear();
                 }
 
@@ -148,7 +148,7 @@ impl Application for App {
                 }
 
                 commands.push(Command::UserMessage(ChatResponse::Text(
-                    response.message.content,
+                    response.message.content.to_string(),
                 )));
             }
             Action::ToolResponse(tool_result) => {
@@ -167,7 +167,7 @@ impl Application for App {
 
                 self.context = self
                     .context
-                    .add_message(Message::user(message))
+                    .add_message(RequestMessage::user(message))
                     .add_tool_result(tool_result.clone());
 
                 commands.push(Command::AssistantMessage(self.context.clone()));
@@ -180,7 +180,7 @@ impl Application for App {
 
 #[cfg(test)]
 mod tests {
-    use forge_provider::{Message, ToolUseId};
+    use forge_provider::{ResponseMessage, ToolUseId};
     use forge_tool::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -213,10 +213,8 @@ mod tests {
 
         let (app, command) = app.update(files.clone()).unwrap();
 
-        assert!(app.context.messages[0].content().contains(&files[0].path));
-        assert!(app.context.messages[0]
-            .content()
-            .contains(&files[0].content));
+        assert!(app.context.messages[0].content.contains(&files[0].path));
+        assert!(app.context.messages[0].content.contains(&files[0].content));
 
         assert!(command.has(app.context.clone()));
     }
@@ -225,8 +223,7 @@ mod tests {
     fn test_assistant_response_action_with_tool_use() {
         let app = App::default();
 
-        let response = Response::default()
-            .message(Message::assistant("Tool response"))
+        let response = Response::new(ResponseMessage::assistant("Tool response"))
             .tool_use(vec![ToolUsePart::default()
                 .name(ToolName::from("test_tool"))
                 .argument_part(r#"{"key": "value"}"#)])
@@ -260,7 +257,7 @@ mod tests {
         let (app, command) = app.update(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.context.messages[0].content(),
+            app.context.messages[0].content,
             format!(
                 "{}\n{}",
                 "TOOL Result for test_tool", r#"{"key":"value","nested":{"key":"value"}}"#
@@ -274,8 +271,7 @@ mod tests {
     #[test]
     fn test_use_tool_when_finish_reason_present() {
         let app = App::default();
-        let response = Response::default()
-            .message(Message::assistant("Tool response"))
+        let response = Response::new(ResponseMessage::assistant("Tool response"))
             .tool_use(vec![ToolUsePart::default()
                 .use_id(ToolUseId::from("test_use_id"))
                 .name(ToolName::from("fs_list"))
@@ -299,11 +295,11 @@ mod tests {
     #[test]
     fn test_should_not_use_tool_when_finish_reason_not_present() {
         let app = App::default();
-        let resp = Response::default()
-            .message(Message::assistant("Tool response"))
-            .tool_use(vec![ToolUsePart::default()
+        let resp = Response::new(ResponseMessage::assistant("Tool response")).tool_use(vec![
+            ToolUsePart::default()
                 .name(ToolName::from("fs_list"))
-                .argument_part(r#"{"path": "."}"#)]);
+                .argument_part(r#"{"path": "."}"#),
+        ]);
 
         let (app, command) = app.update(resp).unwrap();
 
@@ -354,14 +350,10 @@ mod tests {
 
         let (app, command) = app.update(files.clone()).unwrap();
 
-        assert!(app.context.messages[0].content().contains(&files[0].path));
-        assert!(app.context.messages[0]
-            .content()
-            .contains(&files[0].content));
-        assert!(app.context.messages[1].content().contains(&files[1].path));
-        assert!(app.context.messages[1]
-            .content()
-            .contains(&files[1].content));
+        assert!(app.context.messages[0].content.contains(&files[0].path));
+        assert!(app.context.messages[0].content.contains(&files[0].content));
+        assert!(app.context.messages[1].content.contains(&files[1].path));
+        assert!(app.context.messages[1].content.contains(&files[1].content));
 
         assert!(command.has(app.context.clone()));
     }
@@ -370,8 +362,7 @@ mod tests {
     fn test_should_handle_assistant_response_with_no_tool_use() {
         let app = App::default();
 
-        let response = Response::default()
-            .message(Message::assistant("Assistant response"))
+        let response = Response::new(ResponseMessage::assistant("Assistant response"))
             .tool_use(vec![])
             .finish_reason(FinishReason::EndTurn);
 
@@ -393,7 +384,7 @@ mod tests {
         let (app, command) = app.update(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.context.messages[0].content(),
+            app.context.messages[0].content,
             "An error occurred while processing the tool, test_tool"
         );
 

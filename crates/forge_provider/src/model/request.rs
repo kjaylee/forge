@@ -2,11 +2,11 @@ use derive_setters::Setters;
 use forge_tool::ToolDefinition;
 use serde::{Deserialize, Serialize};
 
-use super::{AnyMessage, ToolResult};
+use super::{RequestMessage, ToolResult};
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
-    pub messages: Vec<AnyMessage>,
+    pub messages: Vec<RequestMessage>,
     pub tools: Vec<ToolDefinition>,
     pub tool_result: Vec<ToolResult>,
     pub model: ModelId,
@@ -32,7 +32,7 @@ impl Request {
         self
     }
 
-    pub fn add_message(mut self, message: impl Into<AnyMessage>) -> Self {
+    pub fn add_message(mut self, message: impl Into<RequestMessage>) -> Self {
         self.add_message_mut(message);
         self
     }
@@ -47,7 +47,7 @@ impl Request {
         self
     }
 
-    pub fn extend_messages(mut self, messages: Vec<impl Into<AnyMessage>>) -> Self {
+    pub fn extend_messages(mut self, messages: Vec<impl Into<RequestMessage>>) -> Self {
         self.extend_messages_mut(messages);
         self
     }
@@ -61,7 +61,7 @@ impl Request {
         self.tool_result.push(tool_result.into());
     }
 
-    pub fn add_message_mut(&mut self, message: impl Into<AnyMessage>) {
+    pub fn add_message_mut(&mut self, message: impl Into<RequestMessage>) {
         self.messages.push(message.into());
     }
 
@@ -74,7 +74,7 @@ impl Request {
             .extend(tool_results.into_iter().map(Into::into));
     }
 
-    pub fn extend_messages_mut(&mut self, messages: Vec<impl Into<AnyMessage>>) {
+    pub fn extend_messages_mut(&mut self, messages: Vec<impl Into<RequestMessage>>) {
         self.messages.extend(messages.into_iter().map(Into::into));
     }
 }

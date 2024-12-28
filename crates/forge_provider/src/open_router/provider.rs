@@ -3,8 +3,8 @@ use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
 use tokio_stream::StreamExt;
 
-use super::chat_request::ChatRequest;
-use super::chat_response::ChatResponse;
+use super::chat_request::OpenRouterRequest;
+use super::chat_response::OpenRouterResponse;
 use super::model_response::{ListModelResponse, Model};
 use crate::error::Result;
 use crate::provider::{InnerProvider, Provider};
@@ -63,7 +63,7 @@ impl InnerProvider for OpenRouter {
     type Error = Error;
 
     async fn chat(&self, request: Self::Request) -> ResultStream<Self::Response, Self::Error> {
-        let mut request = ChatRequest::from(request);
+        let mut request = OpenRouterRequest::from(request);
         request.stream = Some(true);
         let request = serde_json::to_string(&request)?;
 
@@ -87,17 +87,19 @@ impl InnerProvider for OpenRouter {
                             return None;
                         }
 
-                        Some(match serde_json::from_str::<ChatResponse>(&event.data) {
-                            Ok(response) => crate::Response::try_from(response),
-                            Err(_) => {
-                                let value: serde_json::Value =
-                                    serde_json::from_str(&event.data).unwrap();
-                                Err(Error::Provider {
-                                    provider: PROVIDER_NAME.to_string(),
-                                    error: ProviderError::UpstreamError(value),
-                                })
-                            }
-                        })
+                        Some(
+                            match serde_json::from_str::<OpenRouterResponse>(&event.data) {
+                                Ok(response) => crate::Response::try_from(response),
+                                Err(_) => {
+                                    let value: serde_json::Value =
+                                        serde_json::from_str(&event.data).unwrap();
+                                    Err(Error::Provider {
+                                        provider: PROVIDER_NAME.to_string(),
+                                        error: ProviderError::UpstreamError(value),
+                                    })
+                                }
+                            },
+                        )
                     }
                 },
                 Err(err) => Some(Err(err.into())),

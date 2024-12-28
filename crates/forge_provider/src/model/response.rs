@@ -1,20 +1,13 @@
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use super::{Assistant, Message, ToolUsePart};
-#[derive(Clone, Debug, Default, Setters)]
+use super::{ResponseMessage, ToolUsePart};
+#[derive(Clone, Debug, Setters)]
 #[setters(into, strip_option)]
 pub struct Response {
-    pub message: Message<Assistant>,
+    pub message: ResponseMessage,
     pub tool_use: Vec<ToolUsePart>,
     pub finish_reason: Option<FinishReason>,
-}
-
-impl Response {
-    pub fn finish_reason_opt(mut self, reason: Option<FinishReason>) -> Self {
-        self.finish_reason = reason;
-        self
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -35,12 +28,12 @@ impl FinishReason {
 }
 
 impl Response {
-    pub fn new(message: String) -> Response {
-        Response {
-            message: Message::assistant(message),
-            tool_use: vec![],
-            finish_reason: None,
-        }
+    pub fn assistant(content: String) -> Response {
+        Response::new(ResponseMessage { content })
+    }
+
+    pub fn new(message: ResponseMessage) -> Response {
+        Response { message, tool_use: vec![], finish_reason: None }
     }
 
     pub fn add_call(mut self, call_tool: impl Into<ToolUsePart>) -> Self {
@@ -51,5 +44,16 @@ impl Response {
     pub fn extend_calls(mut self, calls: Vec<impl Into<ToolUsePart>>) -> Self {
         self.tool_use.extend(calls.into_iter().map(Into::into));
         self
+    }
+
+    pub fn finish_reason_opt(mut self, reason: Option<FinishReason>) -> Self {
+        self.finish_reason = reason;
+        self
+    }
+}
+
+impl From<ResponseMessage> for Response {
+    fn from(message: ResponseMessage) -> Self {
+        Response::new(message)
     }
 }
