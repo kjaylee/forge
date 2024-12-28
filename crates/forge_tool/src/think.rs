@@ -43,7 +43,7 @@ pub struct ThoughtData {
 }
 
 impl Think {
-    fn validate_thought_data(&self, input: ThoughtData) -> Result<ThoughtData> {
+    fn validate_thought_data(&self, mut input: ThoughtData) -> Result<ThoughtData> {
         if input.thought_number <= 0 {
             return Err(anyhow::anyhow!("Invalid thoughtNumber: must be positive"));
         }
@@ -51,18 +51,14 @@ impl Think {
             return Err(anyhow::anyhow!("Invalid totalThoughts: must be positive"));
         }
 
-        Ok(ThoughtData {
-            thought: input.thought,
-            thought_number: input.thought_number,
-            total_thoughts: input.total_thoughts,
-            next_thought_needed: input.next_thought_needed,
-            is_revision: input.is_revision,
-            revises_thought: input.revises_thought,
-            branch_from_thought: input.branch_from_thought,
-            branch_id: input.branch_id,
-            needs_more_thoughts: input.needs_more_thoughts,
-            solution_confidence: input.solution_confidence.or(Some(0.0)),
-        })
+        // If no confidence is provided, calculate it based on progress
+        if input.solution_confidence.is_none() {
+            input.solution_confidence = Some(
+                input.thought_number as f32 / input.total_thoughts as f32
+            );
+        }
+
+        Ok(input)
     }
 
     fn format_thought(&self, thought_data: &ThoughtData) -> String {
@@ -150,6 +146,7 @@ impl Think {
             "totalThoughts": thought_data.total_thoughts,
             "nextThoughtNeeded": thought_data.next_thought_needed,
             "solutionReached": self.solution_reached,
+            "solutionConfidence": thought_data.solution_confidence.unwrap_or(0.0),
             "branches": self.branches.keys().collect::<Vec<_>>(),
             "thoughtHistoryLength": self.thought_history.len()
         });
