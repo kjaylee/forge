@@ -65,7 +65,8 @@ impl InnerProvider for OpenRouter {
     async fn chat(&self, request: Self::Request) -> ResultStream<Self::Response, Self::Error> {
         let mut request = OpenRouterRequest::from(request);
         request.stream = Some(true);
-        let request = serde_json::to_string(&request)?;
+        let request = serde_json::to_string_pretty(&request)?;
+        println!("{}", request);
 
         let rb = self
             .client

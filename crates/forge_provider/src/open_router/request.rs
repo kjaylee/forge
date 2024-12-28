@@ -19,6 +19,7 @@ pub struct ImageContentPart {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ImageUrl {
     pub url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }
 
@@ -26,7 +27,9 @@ pub struct ImageUrl {
 pub struct OpenRouterMessage {
     pub role: Role,
     pub content: MessageContent,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<ToolName>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_use_id: Option<ToolUseId>,
 }
 
@@ -232,7 +235,7 @@ impl From<RequestMessage> for OpenRouterMessage {
     fn from(value: RequestMessage) -> Self {
         match value {
             RequestMessage::Chat(chat_message) => OpenRouterMessage {
-                role: Role::User,
+                role: chat_message.role.into(),
                 content: MessageContent::Text(chat_message.content),
                 name: None,
                 tool_use_id: None,

@@ -152,23 +152,7 @@ impl Application for App {
                 )));
             }
             Action::ToolResponse(tool_result) => {
-                let message = if tool_result.is_error {
-                    format!(
-                        "An error occurred while processing the tool, {}",
-                        tool_result.tool_name.as_str()
-                    )
-                } else {
-                    format!(
-                        "TOOL Result for {}\n{}",
-                        tool_result.tool_name.as_str(),
-                        tool_result.content
-                    )
-                };
-
-                self.context = self
-                    .context
-                    .add_message(RequestMessage::user(message))
-                    .add_message(tool_result.clone());
+                self.context = self.context.add_message(tool_result.clone());
 
                 commands.push(Command::AssistantMessage(self.context.clone()));
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
