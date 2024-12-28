@@ -30,7 +30,7 @@ pub struct OpenRouterMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<ToolName>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_use_id: Option<ToolUseId>,
+    pub tool_call_id: Option<ToolUseId>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -238,13 +238,13 @@ impl From<RequestMessage> for OpenRouterMessage {
                 role: chat_message.role.into(),
                 content: MessageContent::Text(chat_message.content),
                 name: None,
-                tool_use_id: None,
+                tool_call_id: None,
             },
             RequestMessage::ToolResult(tool_result) => OpenRouterMessage {
                 role: Role::Tool,
                 content: MessageContent::Text(serde_json::to_string(&tool_result.content).unwrap()),
                 name: Some(tool_result.tool_name),
-                tool_use_id: tool_result.tool_use_id,
+                tool_call_id: tool_result.tool_use_id,
             },
         }
     }
