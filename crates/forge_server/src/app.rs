@@ -180,7 +180,7 @@ impl Application for App {
 
 #[cfg(test)]
 mod tests {
-    use forge_provider::{Message, UseId};
+    use forge_provider::{Message, ToolUseId};
     use forge_tool::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -277,7 +277,7 @@ mod tests {
         let response = Response::default()
             .message(Message::assistant("Tool response"))
             .tool_use(vec![ToolUsePart::default()
-                .use_id(UseId::from("test_use_id"))
+                .use_id(ToolUseId::from("test_use_id"))
                 .name(ToolName::from("fs_list"))
                 .argument_part(r#"{"path": "."}"#)])
             .finish_reason(FinishReason::ToolUse);
@@ -288,7 +288,7 @@ mod tests {
 
         assert!(command.has(
             ToolUse::default()
-                .use_id(UseId::from("test_use_id"))
+                .use_id(ToolUseId::from("test_use_id"))
                 .name(ToolName::from("fs_list"))
                 .arguments(json!({"path": "."}))
         ));

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 use crate::model::{Response as ModelResponse, ToolUsePart};
-use crate::{FinishReason, UseId};
+use crate::{FinishReason, ToolUseId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChatResponse {
@@ -65,7 +65,7 @@ pub struct ResponseMessage {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToolCall {
-    pub id: Option<UseId>,
+    pub id: Option<ToolUseId>,
     pub r#type: String,
     pub function: FunctionCall,
 }

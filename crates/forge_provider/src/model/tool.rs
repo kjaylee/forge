@@ -8,11 +8,11 @@ use crate::{Error, Result};
 /// Unique identifier for a using a tool
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
-pub struct UseId(pub(crate) String);
+pub struct ToolUseId(pub(crate) String);
 
-impl<A: ToString> From<A> for UseId {
+impl<A: ToString> From<A> for ToolUseId {
     fn from(value: A) -> Self {
-        UseId(value.to_string())
+        ToolUseId(value.to_string())
     }
 }
 
@@ -23,7 +23,7 @@ impl<A: ToString> From<A> for UseId {
 pub struct ToolUsePart {
     /// Optional unique identifier that represents a single call to the tool
     /// use. NOTE: Not all models support a call ID for using a tool
-    pub use_id: Option<UseId>,
+    pub use_id: Option<ToolUseId>,
     pub name: Option<ToolName>,
 
     /// Arguments that need to be passed to the tool. NOTE: Not all tools
@@ -37,7 +37,7 @@ pub struct ToolUsePart {
 #[setters(strip_option, into)]
 pub struct ToolUse {
     pub name: ToolName,
-    pub use_id: Option<UseId>,
+    pub use_id: Option<ToolUseId>,
     pub arguments: Value,
 }
 
@@ -74,7 +74,7 @@ impl ToolUse {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
 pub struct ToolResult {
     pub tool_name: ToolName,
-    pub tool_use_id: Option<UseId>,
+    pub tool_use_id: Option<ToolUseId>,
     pub content: Value,
     pub is_error: bool,
 }
