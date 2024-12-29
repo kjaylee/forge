@@ -9,7 +9,7 @@ pub trait Application: Send + Sync + Sized + Clone {
     type Action: Send;
     type Error: Send;
     type Command: Send;
-    fn update(
+    fn run(
         self,
         action: impl Into<Self::Action>,
     ) -> std::result::Result<(Self, Vec<Self::Command>), Self::Error>;
@@ -26,7 +26,7 @@ pub struct Fold<A: Application> {
 
 impl<A: Application> Fold<A> {
     pub fn update(self, action: impl Into<A::Action>) -> Result<Self, A::Error> {
-        let (state, mut commands) = self.state.update(action)?;
+        let (state, mut commands) = self.state.run(action)?;
         commands.extend(self.commands);
         Ok(Self { state, commands })
     }
@@ -62,7 +62,7 @@ impl<A: Application + 'static> ApplicationRuntime<A> {
     ) -> std::result::Result<(), A::Error> {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
-        let (app, commands) = app.update(action)?;
+        let (app, commands) = app.run(action)?;
         *guard = app;
         drop(guard);
 

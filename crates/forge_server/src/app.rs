@@ -84,7 +84,7 @@ impl Application for App {
     type Error = crate::Error;
     type Command = Command;
 
-    fn update(mut self, action: impl Into<Action>) -> Result<(Self, Vec<Command>)> {
+    fn run(mut self, action: impl Into<Action>) -> Result<(Self, Vec<Command>)> {
         let action = action.into();
         let mut commands = Vec::new();
         match action {
@@ -178,7 +178,7 @@ mod tests {
 
         let chat_request = ChatRequest::default().message("Hello, world!");
 
-        let (app, command) = app.update(chat_request.clone()).unwrap();
+        let (app, command) = app.run(chat_request.clone()).unwrap();
 
         assert_eq!(&app.request.model, &ModelId::default());
         assert!(command.has(app.request.clone()));
@@ -195,7 +195,7 @@ mod tests {
             .path("test_path.txt")
             .content("Test content")];
 
-        let (app, command) = app.update(files.clone()).unwrap();
+        let (app, command) = app.run(files.clone()).unwrap();
 
         assert!(app.request.messages[0].content().contains(&files[0].path));
         assert!(app.request.messages[0]
@@ -215,7 +215,7 @@ mod tests {
                 .argument_part(r#"{"key": "value"}"#)])
             .finish_reason(FinishReason::ToolUse);
 
-        let (_, command) = app.update(response).unwrap();
+        let (_, command) = app.run(response).unwrap();
 
         assert!(command.has(ChatResponse::Text("Tool response".to_string())));
 
@@ -240,7 +240,7 @@ mod tests {
             .tool_name(ToolName::from("test_tool"))
             .content(tool_response.clone());
 
-        let (app, command) = app.update(tool_result.clone()).unwrap();
+        let (app, command) = app.run(tool_result.clone()).unwrap();
 
         assert_eq!(
             app.request.messages[0].content(),
@@ -264,7 +264,7 @@ mod tests {
                 .argument_part(r#"{"path": "."}"#)])
             .finish_reason(FinishReason::ToolUse);
 
-        let (app, command) = app.update(response).unwrap();
+        let (app, command) = app.run(response).unwrap();
 
         assert!(app.tool_use_part.is_empty());
 
@@ -287,7 +287,7 @@ mod tests {
                 .argument_part(r#"{"path": "."}"#),
         ]);
 
-        let (app, command) = app.update(resp).unwrap();
+        let (app, command) = app.run(resp).unwrap();
 
         assert!(!app.tool_use_part.is_empty());
         assert!(command.has(ChatResponse::Text("Tool response".to_string())));
@@ -299,8 +299,8 @@ mod tests {
         let request_0 = ChatRequest::default().message("Hello");
         let request_1 = ChatRequest::default().message("World");
 
-        let (app, _) = app.update(request_0).unwrap();
-        let (app, _) = app.update(request_1).unwrap();
+        let (app, _) = app.run(request_0).unwrap();
+        let (app, _) = app.run(request_1).unwrap();
 
         assert_eq!(app.user_objective, Some(MessageTemplate::task("Hello")));
     }
@@ -310,7 +310,7 @@ mod tests {
         let app = App::default().user_objective(MessageTemplate::task("Initial Objective"));
         let request = ChatRequest::default().message("New Objective");
 
-        let (app, _) = app.update(request).unwrap();
+        let (app, _) = app.run(request).unwrap();
 
         assert_eq!(
             app.user_objective,
@@ -334,7 +334,7 @@ mod tests {
                 .content("Content 2"),
         ];
 
-        let (app, command) = app.update(files.clone()).unwrap();
+        let (app, command) = app.run(files.clone()).unwrap();
 
         assert!(app.request.messages[0].content().contains(&files[0].path));
         assert!(app.request.messages[0]
@@ -356,7 +356,7 @@ mod tests {
             .tool_use(vec![])
             .finish_reason(FinishReason::EndTurn);
 
-        let (app, command) = app.update(response).unwrap();
+        let (app, command) = app.run(response).unwrap();
 
         assert!(app.tool_use_part.is_empty());
         assert!(command.has(ChatResponse::Text("Assistant response".to_string())));
@@ -371,7 +371,7 @@ mod tests {
             .content(json!({"error": "Something went wrong"}))
             .is_error(true);
 
-        let (app, command) = app.update(tool_result.clone()).unwrap();
+        let (app, command) = app.run(tool_result.clone()).unwrap();
 
         assert_eq!(
             app.request.messages[0].content(),
