@@ -31,32 +31,32 @@ where
     }
 }
 
-struct ToolDefinition {
+struct Executor {
     executable: Box<dyn ToolTrait<Input = Value, Output = Value> + Send + Sync + 'static>,
-    tool: Tool,
+    tool: ToolDefinition,
 }
 
 pub struct ToolEngine {
-    tools: HashMap<ToolName, ToolDefinition>,
+    tools: HashMap<ToolName, Executor>,
 }
 
 ///
 /// Refer to the specification over here:
 /// https://glama.ai/blog/2024-11-25-model-context-protocol-quickstart#server
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Tool {
+pub struct ToolDefinition {
     pub name: ToolName,
     pub description: String,
     pub input_schema: RootSchema,
     pub output_schema: Option<RootSchema>,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ToolName(String);
 
-impl<A: ToString> From<A> for ToolName {
-    fn from(value: A) -> Self {
+impl ToolName {
+    pub fn new(value: impl ToString) -> Self {
         ToolName(value.to_string())
     }
 }
@@ -81,7 +81,7 @@ impl ToolEngine {
         output
     }
 
-    pub fn list(&self) -> Vec<Tool> {
+    pub fn list(&self) -> Vec<ToolDefinition> {
         self.tools.values().map(|tool| tool.tool.clone()).collect()
     }
 }
@@ -95,7 +95,7 @@ impl ToolImporter {
         Self { env }
     }
 
-    fn import<T>(&self, tool: T) -> (ToolName, ToolDefinition)
+    fn import<T>(&self, tool: T) -> (ToolName, Executor)
     where
         T: ToolTrait + Description + Send + Sync + 'static,
         T::Input: serde::de::DeserializeOwned + JsonSchema,
@@ -126,19 +126,27 @@ impl ToolImporter {
         )
         .unwrap();
 
-        let tool = Tool {
+        let description = self.env.render(T::description()).unwrap_or_else(|err| {
+            panic!(
+                "Unable to render description for tool {}, err: {:?}",
+                name, err
+            )
+        });
+
+        assert!(
+            description.len() < 1024,
+            "Description for tool {} is longer than 1024",
+            name
+        );
+
+        let tool = ToolDefinition {
             name: ToolName(name.clone()),
-            description: self.env.render(T::description()).unwrap_or_else(|err| {
-                panic!(
-                    "Unable to render description for tool {}, err: {:?}",
-                    name, err
-                )
-            }),
+            description,
             input_schema: input,
             output_schema: Some(output),
         };
 
-        (ToolName(name), ToolDefinition { executable, tool })
+        (ToolName(name), Executor { executable, tool })
     }
 }
 
@@ -146,7 +154,7 @@ impl ToolEngine {
     pub fn new(env: Environment) -> Self {
         let importer = ToolImporter::new(env);
 
-        let tools: HashMap<ToolName, ToolDefinition> = HashMap::from([
+        let tools: HashMap<ToolName, Executor> = HashMap::from([
             importer.import(FSRead),
             importer.import(FSWrite),
             importer.import(FSList),
@@ -168,7 +176,6 @@ impl ToolEngine {
 mod test {
 
     use super::*;
-    use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
 
     fn test_importer() -> ToolImporter {
@@ -201,11 +208,6 @@ mod test {
             .0
             .into_string()
             .ends_with("file_info"));
-        assert!(importer
-            .import(Think::default())
-            .0
-            .into_string()
-            .ends_with("think"));
     }
 
     #[test]
