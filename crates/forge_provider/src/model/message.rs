@@ -1,7 +1,8 @@
 use derive_more::derive::{Display, From};
+use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use super::ToolResult;
+use super::{ToolResult, ToolUse};
 
 #[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
 pub enum Message {
@@ -34,15 +35,30 @@ pub enum RequestMessage {
 
 impl RequestMessage {
     pub fn user(message: impl ToString) -> Self {
-        ChatMessage { role: ChatRole::User, content: message.to_string() }.into()
+        ChatMessage {
+            role: ChatRole::User,
+            content: message.to_string(),
+            tool_use: None,
+        }
+        .into()
     }
 
     pub fn system(message: impl ToString) -> Self {
-        ChatMessage { role: ChatRole::System, content: message.to_string() }.into()
+        ChatMessage {
+            role: ChatRole::System,
+            content: message.to_string(),
+            tool_use: None,
+        }
+        .into()
     }
 
     pub fn assistant(message: impl ToString) -> Self {
-        ChatMessage { role: ChatRole::Assistant, content: message.to_string() }.into()
+        ChatMessage {
+            role: ChatRole::Assistant,
+            content: message.to_string(),
+            tool_use: None,
+        }
+        .into()
     }
 
     pub fn content(&self) -> String {
@@ -60,10 +76,12 @@ impl RequestMessage {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Setters)]
+#[setters(strip_option, into)]
 pub struct ChatMessage {
     pub role: ChatRole,
     pub content: String,
+    pub tool_use: Option<ToolUse>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
