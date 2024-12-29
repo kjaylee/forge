@@ -125,14 +125,22 @@ impl ToolImporter {
         )
         .unwrap();
 
+        let description = self.env.render(T::description()).unwrap_or_else(|err| {
+            panic!(
+                "Unable to render description for tool {}, err: {:?}",
+                name, err
+            )
+        });
+
+        assert!(
+            description.len() < 1024,
+            "Description for tool {} is longer than 1024",
+            name
+        );
+
         let tool = ToolDefinition {
             name: ToolName(name.clone()),
-            description: self.env.render(T::description()).unwrap_or_else(|err| {
-                panic!(
-                    "Unable to render description for tool {}, err: {:?}",
-                    name, err
-                )
-            }),
+            description,
             input_schema: input,
             output_schema: Some(output),
         };
