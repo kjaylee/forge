@@ -1,6 +1,7 @@
 use forge_tool::{ToolDefinition, ToolName};
 use serde::{Deserialize, Serialize};
 
+use super::response::{FunctionCall, OpenRouterToolCall};
 use crate::{ModelId, Request, RequestMessage, Role, ToolUseId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -26,11 +27,14 @@ pub struct ImageUrl {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterMessage {
     pub role: Role,
-    pub content: MessageContent,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<MessageContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<ToolName>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<ToolUseId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<OpenRouterToolCall>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -236,15 +240,35 @@ impl From<RequestMessage> for OpenRouterMessage {
         match value {
             RequestMessage::Chat(chat_message) => OpenRouterMessage {
                 role: chat_message.role.into(),
-                content: MessageContent::Text(chat_message.content),
+                content: if chat_message.tool_use.is_some() {
+                    None
+                } else {
+                    Some(MessageContent::Text(chat_message.content))
+                },
                 name: None,
                 tool_call_id: None,
+                tool_calls: chat_message.tool_use.map(|tool_use| {
+                    // FIXME: All the tool_calls should be added, instead of just one of them
+                    vec![OpenRouterToolCall {
+                        id: tool_use.use_id,
+                        r#type: "function".to_string(),
+                        function: FunctionCall {
+                            name: Some(tool_use.name),
+
+                            // FIXME: Actual arguments should be supplied
+                            arguments: "".to_string(),
+                        },
+                    }]
+                }),
             },
             RequestMessage::ToolResult(tool_result) => OpenRouterMessage {
                 role: Role::Tool,
-                content: MessageContent::Text(serde_json::to_string(&tool_result.content).unwrap()),
+                content: Some(MessageContent::Text(
+                    serde_json::to_string(&tool_result.content).unwrap(),
+                )),
                 name: Some(tool_result.name),
                 tool_call_id: tool_result.use_id,
+                tool_calls: None,
             },
         }
     }
@@ -255,7 +279,7 @@ impl From<RequestMessage> for OpenRouterMessage {
 fn insert_cache(mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
     for message in message.iter_mut() {
         if message.role == Role::System {
-            message.content = message.content.clone().cached();
+            message.content = message.content.clone().map(|a| a.cached());
         }
     }
 

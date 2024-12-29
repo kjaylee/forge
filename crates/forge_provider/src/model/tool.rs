@@ -83,9 +83,9 @@ pub struct ToolResult {
 }
 
 impl ToolResult {
-    pub fn new(tool_name: ToolName) -> ToolResult {
+    pub fn new(name: ToolName) -> ToolResult {
         Self {
-            name: tool_name,
+            name,
             use_id: None,
             content: Value::default(),
             is_error: false,
