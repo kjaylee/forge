@@ -47,7 +47,8 @@ pub struct FSReplaceInput {
     pub diff: String,
 }
 
-/// Replace sections in a file using SEARCH/REPLACE blocks for precise modifications.
+/// Replace sections in a file using SEARCH/REPLACE blocks for precise
+/// modifications.
 ///
 /// ## Parameters
 /// - `path`: File path relative to {{cwd}}
