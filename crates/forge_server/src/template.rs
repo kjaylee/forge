@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use derive_setters::Setters;
-use forge_provider::RequestMessage;
+use forge_provider::CompletionMessage;
 use serde::Serialize;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Setters)]
@@ -82,8 +82,8 @@ impl Display for MessageTemplate {
     }
 }
 
-impl From<MessageTemplate> for RequestMessage {
+impl From<MessageTemplate> for CompletionMessage {
     fn from(value: MessageTemplate) -> Self {
-        RequestMessage::user(value.to_string())
+        CompletionMessage::user(value.to_string())
     }
 }

@@ -2,12 +2,12 @@ use derive_setters::Setters;
 use forge_tool::ToolDefinition;
 use serde::{Deserialize, Serialize};
 
-use super::RequestMessage;
+use super::CompletionMessage;
 
 /// Represents a request being made to the LLM provider
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
-    pub messages: Vec<RequestMessage>,
+    pub messages: Vec<CompletionMessage>,
     pub model: ModelId,    
     pub tools: Vec<ToolDefinition>,
 }
@@ -22,8 +22,8 @@ impl Request {
         self
     }
 
-    pub fn add_message(mut self, message: impl Into<RequestMessage>) -> Self {
-        self.add_message_mut(message);
+    pub fn add_message(mut self, content: impl Into<CompletionMessage>) -> Self {
+        self.add_message_mut(content);
         self
     }
 
@@ -32,7 +32,7 @@ impl Request {
         self
     }
 
-    pub fn extend_messages(mut self, messages: Vec<impl Into<RequestMessage>>) -> Self {
+    pub fn extend_messages(mut self, messages: Vec<impl Into<CompletionMessage>>) -> Self {
         self.extend_messages_mut(messages);
         self
     }
@@ -42,15 +42,15 @@ impl Request {
         self.tools.push(tool);
     }
 
-    pub fn add_message_mut(&mut self, message: impl Into<RequestMessage>) {
-        self.messages.push(message.into());
+    pub fn add_message_mut(&mut self, content: impl Into<CompletionMessage>) {
+        self.messages.push(content.into());
     }
 
     pub fn extend_tools_mut(&mut self, tools: Vec<impl Into<ToolDefinition>>) {
         self.tools.extend(tools.into_iter().map(Into::into));
     }
 
-    pub fn extend_messages_mut(&mut self, messages: Vec<impl Into<RequestMessage>>) {
+    pub fn extend_messages_mut(&mut self, messages: Vec<impl Into<CompletionMessage>>) {
         self.messages.extend(messages.into_iter().map(Into::into));
     }
 }

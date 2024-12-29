@@ -9,7 +9,7 @@ use super::ToolCallPart;
 #[derive(Clone, Debug, Setters)]
 #[setters(into, strip_option)]
 pub struct Response {
-    pub message: String,
+    pub content: String,
     pub tool_call: Vec<ToolCallPart>,
     pub finish_reason: Option<FinishReason>,
 }
@@ -36,9 +36,9 @@ impl Response {
         Response::new(content)
     }
 
-    pub fn new(message: impl ToString) -> Response {
+    pub fn new(content: impl ToString) -> Response {
         Response {
-            message: message.to_string(),
+            content: content.to_string(),
             tool_call: vec![],
             finish_reason: None,
         }

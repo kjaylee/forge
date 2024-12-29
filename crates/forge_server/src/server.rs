@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_env::Environment;
-use forge_provider::{Model, ModelId, Provider, Request, RequestMessage, Response};
+use forge_provider::{Model, ModelId, Provider, Request, CompletionMessage, Response};
 use forge_tool::{ToolDefinition, ToolEngine};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -33,7 +33,7 @@ impl Server {
             .expect("Failed to render system prompt");
 
         let request = Request::new(ModelId::default())
-            .add_message(RequestMessage::system(system_prompt))
+            .add_message(CompletionMessage::system(system_prompt))
             .tools(tools.list());
 
         let cwd: String = env.cwd.clone();
@@ -69,13 +69,13 @@ impl Server {
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
-        let message = format!("##Task\n{}", chat.message);
+        let message = format!("##Task\n{}", chat.content);
 
         tokio::spawn(async move {
             runtime
                 .clone()
                 .execute(
-                    Action::UserMessage(chat.message(message)),
+                    Action::UserMessage(chat.content(message)),
                     Arc::new(executor),
                 )
                 .await

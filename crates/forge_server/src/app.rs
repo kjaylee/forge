@@ -2,7 +2,7 @@ use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
 use forge_provider::{
-    ChatMessage, FinishReason, ModelId, Request, RequestMessage, Response, ToolResult, ToolCall,
+    ContentMessage, FinishReason, ModelId, Request, CompletionMessage, Response, ToolResult, ToolCall,
     ToolCallPart,
 };
 use serde::Serialize;
@@ -29,7 +29,7 @@ pub struct FileResponse {
 #[derive(Default, Debug, serde::Deserialize, Clone, Setters)]
 #[setters(into)]
 pub struct ChatRequest {
-    pub message: String,
+    pub content: String,
     pub model: ModelId,
 }
 
@@ -90,8 +90,8 @@ impl Application for App {
         let mut commands = Vec::new();
         match action {
             Action::UserMessage(chat) => {
-                let prompt = Prompt::parse(chat.message.clone())
-                    .unwrap_or(Prompt::new(chat.message.clone()));
+                let prompt = Prompt::parse(chat.content.clone())
+                    .unwrap_or(Prompt::new(chat.content.clone()));
 
                 self.request = self.request.model(chat.model.clone());
 
@@ -100,7 +100,7 @@ impl Application for App {
                 }
 
                 if prompt.files().is_empty() {
-                    self.request = self.request.add_message(RequestMessage::user(chat.message));
+                    self.request = self.request.add_message(CompletionMessage::user(chat.content));
                     commands.push(Command::AssistantMessage(self.request.clone()))
                 } else {
                     commands.push(Command::FileRead(prompt.files()))
@@ -122,7 +122,7 @@ impl Application for App {
             Action::AssistantResponse(response) => {
                 let mut too_call_message: Option<ToolCall> = None;
                 self.assistant_buffer
-                    .push_str(response.message.as_str());
+                    .push_str(response.content.as_str());
 
                 if !response.tool_call.is_empty() && self.tool_call_part.is_empty() {
                     if let Some(too_call_part) = response.tool_call.first() {
@@ -145,7 +145,7 @@ impl Application for App {
                 }
 
                 if response.finish_reason.is_some() {
-                    let mut message = ChatMessage::assistant(self.assistant_buffer.clone());
+                    let mut message = ContentMessage::assistant(self.assistant_buffer.clone());
                     if let Some(tool_call) = too_call_message {
                         message = message.tool_call(tool_call);
                     }
@@ -154,7 +154,7 @@ impl Application for App {
                 }
 
                 commands.push(Command::UserMessage(ChatResponse::Text(
-                    response.message.to_string(),
+                    response.content.to_string(),
                 )));
             }
             Action::ToolResponse(tool_result) => {
@@ -170,7 +170,7 @@ impl Application for App {
 
 #[cfg(test)]
 mod tests {
-    use forge_provider::{ChatMessage, ToolCallId};
+    use forge_provider::{ContentMessage, ToolCallId};
     use forge_tool::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -182,7 +182,7 @@ mod tests {
     fn test_user_message_action() {
         let app = App::default();
 
-        let chat_request = ChatRequest::default().message("Hello, world!");
+        let chat_request = ChatRequest::default().content("Hello, world!");
 
         let (app, command) = app.run(chat_request.clone()).unwrap();
 
@@ -268,8 +268,8 @@ mod tests {
     #[test]
     fn test_should_set_user_objective_only_once() {
         let app = App::default();
-        let request_0 = ChatRequest::default().message("Hello");
-        let request_1 = ChatRequest::default().message("World");
+        let request_0 = ChatRequest::default().content("Hello");
+        let request_1 = ChatRequest::default().content("World");
 
         let (app, _) = app.run(request_0).unwrap();
         let (app, _) = app.run(request_1).unwrap();
@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn test_should_not_set_user_objective_if_already_set() {
         let app = App::default().user_objective(MessageTemplate::task("Initial Objective"));
-        let request = ChatRequest::default().message("New Objective");
+        let request = ChatRequest::default().content("New Objective");
 
         let (app, _) = app.run(request).unwrap();
 
@@ -363,7 +363,7 @@ mod tests {
 
         assert_eq!(
             app.request.messages[0],
-            ChatMessage::assistant("Let's use foo tool")
+            ContentMessage::assistant("Let's use foo tool")
                 .tool_call(
                     ToolCall::new(ToolName::new("foo"))
                         .arguments(json!({"foo": 1, "bar": 2}))
@@ -397,14 +397,14 @@ mod tests {
         assert_eq!(
             app.request.messages,
             vec![
-                ChatMessage::assistant("Let's use foo tool")
+                ContentMessage::assistant("Let's use foo tool")
                     .tool_call(
                         ToolCall::new(ToolName::new("foo"))
                             .arguments(json!({"foo": 1, "bar": 2}))
                             .call_id(ToolCallId::new("too_call_001"))
                     )
                     .into(),
-                RequestMessage::from(tool_result)
+                CompletionMessage::from(tool_result)
             ],
         );
     }

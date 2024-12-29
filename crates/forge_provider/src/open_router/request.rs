@@ -1,8 +1,9 @@
+use derive_more::derive::Display;
 use forge_tool::{ToolDefinition, ToolName};
 use serde::{Deserialize, Serialize};
 
 use super::response::{FunctionCall, OpenRouterToolCall};
-use crate::{ModelId, Request, RequestMessage, Role, ToolCallId};
+use crate::{CompletionMessage, ModelId, Request, Role, ToolCallId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -26,7 +27,7 @@ pub struct ImageUrl {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterMessage {
-    pub role: Role,
+    pub role: OpenRouterRole,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<MessageContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -235,10 +236,10 @@ impl From<Request> for OpenRouterRequest {
     }
 }
 
-impl From<RequestMessage> for OpenRouterMessage {
-    fn from(value: RequestMessage) -> Self {
+impl From<CompletionMessage> for OpenRouterMessage {
+    fn from(value: CompletionMessage) -> Self {
         match value {
-            RequestMessage::Chat(chat_message) => OpenRouterMessage {
+            CompletionMessage::ContentMessage(chat_message) => OpenRouterMessage {
                 role: chat_message.role.into(),
                 content: if chat_message.tool_call.is_some() {
                     None
@@ -259,8 +260,8 @@ impl From<RequestMessage> for OpenRouterMessage {
                     }]
                 }),
             },
-            RequestMessage::ToolResult(tool_result) => OpenRouterMessage {
-                role: Role::Tool,
+            CompletionMessage::ToolMessage(tool_result) => OpenRouterMessage {
+                role: OpenRouterRole::Tool,
                 content: Some(MessageContent::Text(
                     serde_json::to_string(&tool_result.content).unwrap(),
                 )),
@@ -276,10 +277,29 @@ impl From<RequestMessage> for OpenRouterMessage {
 /// NOTE: We need to add more caching as the context grows larger
 fn insert_cache(mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
     for message in message.iter_mut() {
-        if message.role == Role::System {
+        if message.role == OpenRouterRole::System {
             message.content = message.content.clone().map(|a| a.cached());
         }
     }
 
     message
+}
+
+impl From<Role> for OpenRouterRole {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::System => OpenRouterRole::System,
+            Role::User => OpenRouterRole::User,
+            Role::Assistant => OpenRouterRole::Assistant,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Display, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OpenRouterRole {
+    System,
+    User,
+    Assistant,
+    Tool,
 }
