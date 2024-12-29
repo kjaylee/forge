@@ -10,7 +10,7 @@ use crate::runtime::Application;
 use crate::template::MessageTemplate;
 use crate::Result;
 
-#[derive(Debug, From)]
+#[derive(Clone, Debug, From)]
 pub enum Action {
     UserMessage(ChatRequest),
     FileReadResponse(Vec<FileResponse>),
@@ -65,13 +65,13 @@ pub struct App {
     pub tool_use_part: Vec<ToolUsePart>,
 
     // Keep context at the end so that debugging the Serialized format is easier
-    pub request: Request,
+    pub context: Request,
 }
 
 impl App {
     pub fn new(context: Request) -> Self {
         Self {
-            request: context,
+            context,
             user_objective: None,
             tool_use_part: Vec::new(),
             assistant_buffer: "".to_string(),
@@ -79,56 +79,85 @@ impl App {
     }
 }
 
-impl Application for App {
-    type Action = Action;
-    type Error = crate::Error;
-    type Command = Command;
-
-    fn run(mut self, action: impl Into<Action>) -> Result<(Self, Vec<Command>)> {
-        let action = action.into();
-        let mut commands = Vec::new();
+impl App {
+    fn update(mut self, action: Action) -> Result<Self> {
         match action {
             Action::UserMessage(chat) => {
                 let prompt = Prompt::parse(chat.message.clone())
                     .unwrap_or(Prompt::new(chat.message.clone()));
 
-                self.request = self.request.model(chat.model.clone());
+                self.context = self.context.model(chat.model.clone());
 
                 if self.user_objective.is_none() {
                     self.user_objective = Some(MessageTemplate::task(prompt.clone()));
                 }
 
                 if prompt.files().is_empty() {
-                    self.request = self.request.add_message(RequestMessage::user(chat.message));
-                    commands.push(Command::AssistantMessage(self.request.clone()))
-                } else {
-                    commands.push(Command::FileRead(prompt.files()))
+                    self.context = self.context.add_message(RequestMessage::user(chat.message));
                 }
+
+                Ok(self)
             }
             Action::FileReadResponse(files) => {
                 if let Some(message) = self.user_objective.clone() {
                     for fr in files.into_iter() {
-                        self.request = self.request.add_message(
+                        self.context = self.context.add_message(
                             message
                                 .clone()
                                 .append(MessageTemplate::file(fr.path, fr.content)),
                         );
                     }
-
-                    commands.push(Command::AssistantMessage(self.request.clone()))
                 }
+
+                Ok(self)
             }
             Action::AssistantResponse(response) => {
                 self.assistant_buffer
                     .push_str(response.message.content.as_str());
 
                 if response.finish_reason.is_some() {
-                    self.request = self
-                        .request
+                    self.context = self
+                        .context
                         .add_message(RequestMessage::assistant(self.assistant_buffer.clone()));
                     self.assistant_buffer.clear();
                 }
 
+                self.tool_use_part.extend(response.tool_use);
+
+                if let Some(FinishReason::ToolUse) = response.finish_reason {
+                    self.tool_use_part.clear();
+                }
+
+                Ok(self)
+            }
+            Action::ToolResponse(tool_result) => {
+                self.context = self.context.add_message(tool_result.clone());
+                Ok(self)
+            }
+        }
+    }
+}
+
+impl App {
+    fn command(&self, action: Action) -> Result<Vec<Command>> {
+        let mut commands = Vec::new();
+        match action {
+            Action::UserMessage(chat) => {
+                let prompt = Prompt::parse(chat.message.clone())
+                    .unwrap_or(Prompt::new(chat.message.clone()));
+
+                if prompt.files().is_empty() {
+                    commands.push(Command::AssistantMessage(self.context.clone()))
+                } else {
+                    commands.push(Command::FileRead(prompt.files()))
+                }
+            }
+            Action::FileReadResponse(_) => {
+                if self.user_objective.clone().is_some() {
+                    commands.push(Command::AssistantMessage(self.context.clone()))
+                }
+            }
+            Action::AssistantResponse(response) => {
                 if !response.tool_use.is_empty() && self.tool_use_part.is_empty() {
                     if let Some(tool_use_part) = response.tool_use.first() {
                         commands.push(Command::UserMessage(ChatResponse::ToolUseStart(
@@ -137,11 +166,8 @@ impl Application for App {
                     }
                 }
 
-                self.tool_use_part.extend(response.tool_use);
-
                 if let Some(FinishReason::ToolUse) = response.finish_reason {
                     let tool_use = ToolUse::try_from_parts(self.tool_use_part.clone())?;
-                    self.tool_use_part.clear();
 
                     // since tools is used, clear the tool_raw_arguments.
                     commands.push(Command::ToolUse(tool_use));
@@ -152,13 +178,25 @@ impl Application for App {
                 )));
             }
             Action::ToolResponse(tool_result) => {
-                self.request = self.request.add_message(tool_result.clone());
-
-                commands.push(Command::AssistantMessage(self.request.clone()));
+                commands.push(Command::AssistantMessage(self.context.clone()));
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
             }
         };
-        Ok((self, commands))
+        Ok(commands)
+    }
+}
+
+impl Application for App {
+    type Action = Action;
+    type Error = crate::Error;
+    type Command = Command;
+
+    fn run(self, action: impl Into<Action>) -> Result<(Self, Vec<Command>)> {
+        let action: Action = action.into();
+        let commands = self.command(action.clone())?;
+        let app = self.update(action)?;
+
+        Ok((app, commands))
     }
 }
 
@@ -180,8 +218,8 @@ mod tests {
 
         let (app, command) = app.run(chat_request.clone()).unwrap();
 
-        assert_eq!(&app.request.model, &ModelId::default());
-        assert!(command.has(app.request.clone()));
+        assert_eq!(&app.context.model, &ModelId::default());
+        assert!(command.has(app.context.clone()));
     }
 
     #[test]
@@ -197,12 +235,12 @@ mod tests {
 
         let (app, command) = app.run(files.clone()).unwrap();
 
-        assert!(app.request.messages[0].content().contains(&files[0].path));
-        assert!(app.request.messages[0]
+        assert!(app.context.messages[0].content().contains(&files[0].path));
+        assert!(app.context.messages[0]
             .content()
             .contains(&files[0].content));
 
-        assert!(command.has(app.request.clone()));
+        assert!(command.has(app.context.clone()));
     }
 
     #[test]
@@ -243,14 +281,14 @@ mod tests {
         let (app, command) = app.run(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.request.messages[0].content(),
+            app.context.messages[0].content(),
             format!(
                 "{}\n{}",
                 "TOOL Result for test_tool", r#"{"key":"value","nested":{"key":"value"}}"#
             )
         );
 
-        assert!(command.has(app.request.clone()));
+        assert!(command.has(app.context.clone()));
         assert!(command.has(ChatResponse::ToolUseEnd(tool_result,)));
     }
 
@@ -336,16 +374,16 @@ mod tests {
 
         let (app, command) = app.run(files.clone()).unwrap();
 
-        assert!(app.request.messages[0].content().contains(&files[0].path));
-        assert!(app.request.messages[0]
+        assert!(app.context.messages[0].content().contains(&files[0].path));
+        assert!(app.context.messages[0]
             .content()
             .contains(&files[0].content));
-        assert!(app.request.messages[1].content().contains(&files[1].path));
-        assert!(app.request.messages[1]
+        assert!(app.context.messages[1].content().contains(&files[1].path));
+        assert!(app.context.messages[1]
             .content()
             .contains(&files[1].content));
 
-        assert!(command.has(app.request.clone()));
+        assert!(command.has(app.context.clone()));
     }
 
     #[test]
@@ -374,11 +412,11 @@ mod tests {
         let (app, command) = app.run(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.request.messages[0].content(),
+            app.context.messages[0].content(),
             "An error occurred while processing the tool, test_tool"
         );
 
-        assert!(command.has(app.request.clone()));
+        assert!(command.has(app.context.clone()));
         assert!(command.has(ChatResponse::ToolUseEnd(tool_result)));
     }
 

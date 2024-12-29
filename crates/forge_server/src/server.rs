@@ -58,7 +58,7 @@ impl Server {
     }
 
     pub async fn context(&self) -> Request {
-        self.runtime.state().await.request
+        self.runtime.state().await.context
     }
 
     pub async fn models(&self) -> Result<Vec<Model>> {

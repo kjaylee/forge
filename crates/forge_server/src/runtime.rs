@@ -13,27 +13,6 @@ pub trait Application: Send + Sync + Sized + Clone {
         self,
         action: impl Into<Self::Action>,
     ) -> std::result::Result<(Self, Vec<Self::Command>), Self::Error>;
-
-    fn fold(self) -> Result<Fold<Self>, Self::Error> {
-        Ok(Fold { state: self, commands: vec![] })
-    }
-}
-
-pub struct Fold<A: Application> {
-    state: A,
-    commands: Vec<A::Command>,
-}
-
-impl<A: Application> Fold<A> {
-    pub fn update(self, action: impl Into<A::Action>) -> Result<Self, A::Error> {
-        let (state, mut commands) = self.state.run(action)?;
-        commands.extend(self.commands);
-        Ok(Self { state, commands })
-    }
-
-    pub fn finish(self) -> (A, Vec<A::Command>) {
-        (self.state, self.commands)
-    }
 }
 
 #[derive(Clone)]
