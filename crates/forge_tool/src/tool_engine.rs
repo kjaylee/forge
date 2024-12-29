@@ -175,7 +175,6 @@ impl ToolEngine {
 mod test {
 
     use super::*;
-    use crate::think::Think;
     use crate::{FSFileInfo, FSSearch};
 
     fn test_importer() -> ToolImporter {
@@ -208,11 +207,6 @@ mod test {
             .0
             .into_string()
             .ends_with("file_info"));
-        assert!(importer
-            .import(Think::default())
-            .0
-            .into_string()
-            .ends_with("think"));
     }
 
     #[test]
