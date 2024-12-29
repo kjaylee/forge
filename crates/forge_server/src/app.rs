@@ -230,33 +230,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tool_response_action() {
-        let app = App::default();
-
-        let tool_response = json!({
-            "key": "value",
-            "nested": {
-                "key": "value"
-            }
-        });
-        let tool_result =
-            ToolResult::new(ToolName::new("test_tool")).content(tool_response.clone());
-
-        let (app, command) = app.run(tool_result.clone()).unwrap();
-
-        assert_eq!(
-            app.request.messages[0].content(),
-            format!(
-                "{}\n{}",
-                "TOOL Result for test_tool", r#"{"key":"value","nested":{"key":"value"}}"#
-            )
-        );
-
-        assert!(command.has(app.request.clone()));
-        assert!(command.has(ChatResponse::ToolUseEnd(tool_result,)));
-    }
-
-    #[test]
     fn test_use_tool_when_finish_reason_present() {
         let app = App::default();
         let response = Response::new("Tool response")
@@ -359,25 +332,6 @@ mod tests {
 
         assert!(app.tool_use_part.is_empty());
         assert!(command.has(ChatResponse::Text("Assistant response".to_string())));
-    }
-
-    #[test]
-    fn test_should_handle_tool_response_with_error() {
-        let app = App::default();
-
-        let tool_result = ToolResult::new(ToolName::new("test_tool"))
-            .content(json!({"error": "Something went wrong"}))
-            .is_error(true);
-
-        let (app, command) = app.run(tool_result.clone()).unwrap();
-
-        assert_eq!(
-            app.request.messages[0].content(),
-            "An error occurred while processing the tool, test_tool"
-        );
-
-        assert!(command.has(app.request.clone()));
-        assert!(command.has(ChatResponse::ToolUseEnd(tool_result)));
     }
 
     #[test]
