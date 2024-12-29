@@ -2,8 +2,8 @@ use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
 use forge_provider::{
-    ContentMessage, FinishReason, ModelId, Request, CompletionMessage, Response, ToolResult, ToolCall,
-    ToolCallPart,
+    CompletionMessage, ContentMessage, FinishReason, ModelId, Request, Response, ToolCall,
+    ToolCallPart, ToolResult,
 };
 use serde::Serialize;
 
@@ -100,7 +100,9 @@ impl Application for App {
                 }
 
                 if prompt.files().is_empty() {
-                    self.request = self.request.add_message(CompletionMessage::user(chat.content));
+                    self.request = self
+                        .request
+                        .add_message(CompletionMessage::user(chat.content));
                     commands.push(Command::AssistantMessage(self.request.clone()))
                 } else {
                     commands.push(Command::FileRead(prompt.files()))
@@ -121,8 +123,7 @@ impl Application for App {
             }
             Action::AssistantResponse(response) => {
                 let mut too_call_message: Option<ToolCall> = None;
-                self.assistant_buffer
-                    .push_str(response.content.as_str());
+                self.assistant_buffer.push_str(response.content.as_str());
 
                 if !response.tool_call.is_empty() && self.tool_call_part.is_empty() {
                     if let Some(too_call_part) = response.tool_call.first() {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_env::Environment;
-use forge_provider::{Model, ModelId, Provider, Request, CompletionMessage, Response};
+use forge_provider::{CompletionMessage, Model, ModelId, Provider, Request, Response};
 use forge_tool::{ToolDefinition, ToolEngine};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;

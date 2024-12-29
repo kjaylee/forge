@@ -8,7 +8,7 @@ use super::CompletionMessage;
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
     pub messages: Vec<CompletionMessage>,
-    pub model: ModelId,    
+    pub model: ModelId,
     pub tools: Vec<ToolDefinition>,
 }
 
