@@ -253,10 +253,8 @@ impl From<RequestMessage> for OpenRouterMessage {
                         id: tool_use.use_id,
                         r#type: "function".to_string(),
                         function: FunctionCall {
+                            arguments: serde_json::to_string(&tool_use.arguments).unwrap(),
                             name: Some(tool_use.name),
-
-                            // FIXME: Actual arguments should be supplied
-                            arguments: "".to_string(),
                         },
                     }]
                 }),
