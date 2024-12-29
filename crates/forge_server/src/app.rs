@@ -170,23 +170,6 @@ impl Application for App {
                     .add_message(Message::user(message))
                     .add_tool_result(tool_result.clone());
 
-                // Special handling for think tool
-                if tool_result.tool_name.as_str() == "think" {
-                    if let Ok(result) =
-                        serde_json::from_value::<serde_json::Value>(tool_result.content.clone())
-                    {
-                        if result
-                            .get("nextThoughtNeeded")
-                            .and_then(|v| v.as_bool())
-                            .unwrap_or(false)
-                        {
-                            // Continue the conversation to generate next thought
-                            commands.push(Command::AssistantMessage(self.context.clone()));
-                            return Ok((self, commands));
-                        }
-                    }
-                }
-
                 commands.push(Command::AssistantMessage(self.context.clone()));
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
             }
