@@ -122,7 +122,7 @@ impl Application for App {
             Action::AssistantResponse(response) => {
                 let mut tool_use_message: Option<ToolUse> = None;
                 self.assistant_buffer
-                    .push_str(response.message.content.as_str());
+                    .push_str(response.message.as_str());
 
                 if !response.tool_use.is_empty() && self.tool_use_part.is_empty() {
                     if let Some(tool_use_part) = response.tool_use.first() {
@@ -154,7 +154,7 @@ impl Application for App {
                 }
 
                 commands.push(Command::UserMessage(ChatResponse::Text(
-                    response.message.content.to_string(),
+                    response.message.to_string(),
                 )));
             }
             Action::ToolResponse(tool_result) => {

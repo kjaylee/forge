@@ -4,26 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{ToolResult, ToolUse};
 
-#[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
-pub enum Message {
-    Response(ResponseMessage),
-    Request(ChatMessage),
-}
-
-/// Represents a message that was received from the LLM provider
-/// NOTE: ToolUse messages are part of the larger Response object and not part
-/// of the message.
-#[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
-pub struct ResponseMessage {
-    pub content: String,
-}
-
-impl ResponseMessage {
-    pub fn assistant(message: impl ToString) -> Self {
-        ResponseMessage { content: message.to_string() }
-    }
-}
-
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
 /// of the message.

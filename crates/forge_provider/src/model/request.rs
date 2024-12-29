@@ -8,8 +8,8 @@ use super::RequestMessage;
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
     pub messages: Vec<RequestMessage>,
+    pub model: ModelId,    
     pub tools: Vec<ToolDefinition>,
-    pub model: ModelId,
 }
 
 impl Request {

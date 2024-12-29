@@ -1,13 +1,15 @@
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use super::{ResponseMessage, ToolUsePart};
+use super::ToolUsePart;
 
-/// NOTE: This is produced by the LLM
+/// Represents a message that was received from the LLM provider
+/// NOTE: ToolUse messages are part of the larger Response object and not part
+/// of the message.
 #[derive(Clone, Debug, Setters)]
 #[setters(into, strip_option)]
 pub struct Response {
-    pub message: ResponseMessage,
+    pub message: String,
     pub tool_use: Vec<ToolUsePart>,
     pub finish_reason: Option<FinishReason>,
 }
@@ -36,7 +38,7 @@ impl Response {
 
     pub fn new(message: impl ToString) -> Response {
         Response {
-            message: ResponseMessage { content: message.to_string() },
+            message: message.to_string(),
             tool_use: vec![],
             finish_reason: None,
         }
@@ -55,15 +57,5 @@ impl Response {
     pub fn finish_reason_opt(mut self, reason: Option<FinishReason>) -> Self {
         self.finish_reason = reason;
         self
-    }
-}
-
-impl From<ResponseMessage> for Response {
-    fn from(message: ResponseMessage) -> Self {
-        Response {
-            message,
-            tool_use: Default::default(),
-            finish_reason: Default::default(),
-        }
     }
 }
