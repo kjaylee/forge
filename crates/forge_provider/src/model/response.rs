@@ -30,15 +30,19 @@ impl FinishReason {
 }
 
 impl Response {
-    pub fn assistant(content: String) -> Response {
-        Response::new(ResponseMessage { content })
+    pub fn assistant(content: impl ToString) -> Response {
+        Response::new(content)
     }
 
-    pub fn new(message: ResponseMessage) -> Response {
-        Response { message, tool_use: vec![], finish_reason: None }
+    pub fn new(message: impl ToString) -> Response {
+        Response {
+            message: ResponseMessage { content: message.to_string() },
+            tool_use: vec![],
+            finish_reason: None,
+        }
     }
 
-    pub fn add_call(mut self, call_tool: impl Into<ToolUsePart>) -> Self {
+    pub fn add_tool_use(mut self, call_tool: impl Into<ToolUsePart>) -> Self {
         self.tool_use.push(call_tool.into());
         self
     }
@@ -56,6 +60,10 @@ impl Response {
 
 impl From<ResponseMessage> for Response {
     fn from(message: ResponseMessage) -> Self {
-        Response::new(message)
+        Response {
+            message,
+            tool_use: Default::default(),
+            finish_reason: Default::default(),
+        }
     }
 }

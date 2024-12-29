@@ -54,8 +54,8 @@ pub struct ToolDefinition {
 #[serde(transparent)]
 pub struct ToolName(String);
 
-impl<A: ToString> From<A> for ToolName {
-    fn from(value: A) -> Self {
+impl ToolName {
+    pub fn new(value: impl ToString) -> Self {
         ToolName(value.to_string())
     }
 }

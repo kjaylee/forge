@@ -92,7 +92,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                             .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
                     if let Some(tool_calls) = &message.tool_calls {
                         for tool_call in tool_calls {
-                            resp = resp.add_call(ToolUsePart {
+                            resp = resp.add_tool_use(ToolUsePart {
                                 use_id: tool_call.id.clone(),
                                 name: tool_call.function.name.clone(),
                                 argument_part: serde_json::from_str(&tool_call.function.arguments)?,
@@ -107,7 +107,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                             .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
                     if let Some(tool_calls) = &delta.tool_calls {
                         for tool_call in tool_calls {
-                            resp = resp.add_call(ToolUsePart {
+                            resp = resp.add_tool_use(ToolUsePart {
                                 use_id: tool_call.id.clone(),
                                 name: tool_call.function.name.clone(),
                                 argument_part: tool_call.function.arguments.clone(),
