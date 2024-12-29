@@ -59,12 +59,12 @@ pub struct ErrorResponse {
 pub struct ResponseMessage {
     pub content: Option<String>,
     pub role: Option<String>,
-    pub tool_calls: Option<Vec<ToolCall>>,
+    pub tool_calls: Option<Vec<OpenRouterToolCall>>,
     pub refusal: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ToolCall {
+pub struct OpenRouterToolCall {
     pub id: Option<ToolUseId>,
     pub r#type: String,
     pub function: FunctionCall,
