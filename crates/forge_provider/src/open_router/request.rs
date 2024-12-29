@@ -2,7 +2,7 @@ use forge_tool::{ToolDefinition, ToolName};
 use serde::{Deserialize, Serialize};
 
 use super::response::{FunctionCall, OpenRouterToolCall};
-use crate::{ModelId, Request, RequestMessage, Role, ToolUseId};
+use crate::{ModelId, Request, RequestMessage, Role, ToolCallId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -32,7 +32,7 @@ pub struct OpenRouterMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<ToolName>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_call_id: Option<ToolUseId>,
+    pub tool_call_id: Option<ToolCallId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<OpenRouterToolCall>>,
 }
@@ -240,21 +240,21 @@ impl From<RequestMessage> for OpenRouterMessage {
         match value {
             RequestMessage::Chat(chat_message) => OpenRouterMessage {
                 role: chat_message.role.into(),
-                content: if chat_message.tool_use.is_some() {
+                content: if chat_message.tool_call.is_some() {
                     None
                 } else {
                     Some(MessageContent::Text(chat_message.content))
                 },
                 name: None,
                 tool_call_id: None,
-                tool_calls: chat_message.tool_use.map(|tool_use| {
+                tool_calls: chat_message.tool_call.map(|tool_call| {
                     // FIXME: All the tool_calls should be added, instead of just one of them
                     vec![OpenRouterToolCall {
-                        id: tool_use.use_id,
+                        id: tool_call.call_id,
                         r#type: "function".to_string(),
                         function: FunctionCall {
-                            arguments: serde_json::to_string(&tool_use.arguments).unwrap(),
-                            name: Some(tool_use.name),
+                            arguments: serde_json::to_string(&tool_call.arguments).unwrap(),
+                            name: Some(tool_call.name),
                         },
                     }]
                 }),

@@ -8,11 +8,11 @@ use crate::{Error, Result};
 /// Unique identifier for a using a tool
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(transparent)]
-pub struct ToolUseId(pub(crate) String);
+pub struct ToolCallId(pub(crate) String);
 
-impl ToolUseId {
+impl ToolCallId {
     pub fn new(value: impl ToString) -> Self {
-        ToolUseId(value.to_string())
+        ToolCallId(value.to_string())
     }
 }
 
@@ -20,10 +20,10 @@ impl ToolUseId {
 /// response from the model only when streaming is enabled.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
-pub struct ToolUsePart {
+pub struct ToolCallPart {
     /// Optional unique identifier that represents a single call to the tool
     /// use. NOTE: Not all models support a call ID for using a tool
-    pub use_id: Option<ToolUseId>,
+    pub call_id: Option<ToolCallId>,
     pub name: Option<ToolName>,
 
     /// Arguments that need to be passed to the tool. NOTE: Not all tools
@@ -35,19 +35,19 @@ pub struct ToolUsePart {
 /// of the response from the model when streaming is disabled.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
-pub struct ToolUse {
+pub struct ToolCall {
     pub name: ToolName,
-    pub use_id: Option<ToolUseId>,
+    pub call_id: Option<ToolCallId>,
     pub arguments: Value,
 }
 
-impl ToolUse {
+impl ToolCall {
     pub fn new(tool_name: ToolName) -> Self {
-        Self { name: tool_name, use_id: None, arguments: Value::default() }
+        Self { name: tool_name, call_id: None, arguments: Value::default() }
     }
-    pub fn try_from_parts(parts: Vec<ToolUsePart>) -> Result<Self> {
+    pub fn try_from_parts(parts: Vec<ToolCallPart>) -> Result<Self> {
         let mut tool_name = None;
-        let mut tool_use_id = None;
+        let mut tool_call_id = None;
 
         let mut input = String::new();
         for part in parts {
@@ -55,17 +55,17 @@ impl ToolUse {
                 tool_name = Some(value);
             }
 
-            if let Some(value) = part.use_id {
-                tool_use_id = Some(value);
+            if let Some(value) = part.call_id {
+                tool_call_id = Some(value);
             }
 
             input.push_str(&part.arguments_part);
         }
 
         if let Some(tool_name) = tool_name {
-            Ok(ToolUse {
+            Ok(ToolCall {
                 name: tool_name,
-                use_id: tool_use_id,
+                call_id: tool_call_id,
                 arguments: serde_json::from_str(&input)?,
             })
         } else {
@@ -77,7 +77,7 @@ impl ToolUse {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 pub struct ToolResult {
     pub name: ToolName,
-    pub use_id: Option<ToolUseId>,
+    pub use_id: Option<ToolCallId>,
     pub content: Value,
     pub is_error: bool,
 }

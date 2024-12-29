@@ -1,7 +1,7 @@
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use super::ToolUsePart;
+use super::ToolCallPart;
 
 /// Represents a message that was received from the LLM provider
 /// NOTE: ToolUse messages are part of the larger Response object and not part
@@ -10,21 +10,21 @@ use super::ToolUsePart;
 #[setters(into, strip_option)]
 pub struct Response {
     pub message: String,
-    pub tool_use: Vec<ToolUsePart>,
+    pub tool_call: Vec<ToolCallPart>,
     pub finish_reason: Option<FinishReason>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum FinishReason {
-    ToolUse,
+    ToolCall,
     EndTurn,
 }
 
 impl FinishReason {
     pub fn parse(reason: String) -> Option<Self> {
         match reason.as_str() {
-            "tool_use" => Some(FinishReason::ToolUse),
-            "tool_calls" => Some(FinishReason::ToolUse),
+            "tool_use" => Some(FinishReason::ToolCall),
+            "tool_calls" => Some(FinishReason::ToolCall),
             "end_turn" => Some(FinishReason::EndTurn),
             _ => None,
         }
@@ -39,18 +39,18 @@ impl Response {
     pub fn new(message: impl ToString) -> Response {
         Response {
             message: message.to_string(),
-            tool_use: vec![],
+            tool_call: vec![],
             finish_reason: None,
         }
     }
 
-    pub fn add_tool_use(mut self, call_tool: impl Into<ToolUsePart>) -> Self {
-        self.tool_use.push(call_tool.into());
+    pub fn add_tool_call(mut self, call_tool: impl Into<ToolCallPart>) -> Self {
+        self.tool_call.push(call_tool.into());
         self
     }
 
-    pub fn extend_calls(mut self, calls: Vec<impl Into<ToolUsePart>>) -> Self {
-        self.tool_use.extend(calls.into_iter().map(Into::into));
+    pub fn extend_calls(mut self, calls: Vec<impl Into<ToolCallPart>>) -> Self {
+        self.tool_call.extend(calls.into_iter().map(Into::into));
         self
     }
 

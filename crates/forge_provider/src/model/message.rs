@@ -2,7 +2,7 @@ use derive_more::derive::{Display, From};
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use super::{ToolResult, ToolUse};
+use super::{ToolResult, ToolCall};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -18,7 +18,7 @@ impl RequestMessage {
         ChatMessage {
             role: ChatRole::User,
             content: message.to_string(),
-            tool_use: None,
+            tool_call: None,
         }
         .into()
     }
@@ -27,7 +27,7 @@ impl RequestMessage {
         ChatMessage {
             role: ChatRole::System,
             content: message.to_string(),
-            tool_use: None,
+            tool_call: None,
         }
         .into()
     }
@@ -36,7 +36,7 @@ impl RequestMessage {
         ChatMessage {
             role: ChatRole::Assistant,
             content: message.to_string(),
-            tool_use: None,
+            tool_call: None,
         }
         .into()
     }
@@ -61,7 +61,9 @@ impl RequestMessage {
 pub struct ChatMessage {
     pub role: ChatRole,
     pub content: String,
-    pub tool_use: Option<ToolUse>,
+
+    // FIXME: Message could contain multiple tool calls
+    pub tool_call: Option<ToolCall>,
 }
 
 impl ChatMessage {
@@ -69,7 +71,7 @@ impl ChatMessage {
         Self {
             role: ChatRole::Assistant,
             content: content.to_string(),
-            tool_use: None,
+            tool_call: None,
         }
     }
 }

@@ -4,8 +4,8 @@ use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
-use crate::model::{Response as ModelResponse, ToolUsePart};
-use crate::{FinishReason, ToolUseId};
+use crate::model::{Response as ModelResponse, ToolCallPart};
+use crate::{FinishReason, ToolCallId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterResponse {
@@ -65,7 +65,7 @@ pub struct ResponseMessage {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterToolCall {
-    pub id: Option<ToolUseId>,
+    pub id: Option<ToolCallId>,
     pub r#type: String,
     pub function: FunctionCall,
 }
@@ -92,8 +92,8 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                             .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
                     if let Some(tool_calls) = &message.tool_calls {
                         for tool_call in tool_calls {
-                            resp = resp.add_tool_use(ToolUsePart {
-                                use_id: tool_call.id.clone(),
+                            resp = resp.add_tool_call(ToolCallPart {
+                                call_id: tool_call.id.clone(),
                                 name: tool_call.function.name.clone(),
                                 arguments_part: serde_json::from_str(
                                     &tool_call.function.arguments,
@@ -109,8 +109,8 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                             .finish_reason_opt(finish_reason.clone().and_then(FinishReason::parse));
                     if let Some(tool_calls) = &delta.tool_calls {
                         for tool_call in tool_calls {
-                            resp = resp.add_tool_use(ToolUsePart {
-                                use_id: tool_call.id.clone(),
+                            resp = resp.add_tool_call(ToolCallPart {
+                                call_id: tool_call.id.clone(),
                                 name: tool_call.function.name.clone(),
                                 arguments_part: tool_call.function.arguments.clone(),
                             });

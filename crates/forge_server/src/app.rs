@@ -2,8 +2,8 @@ use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
 use forge_provider::{
-    ChatMessage, FinishReason, ModelId, Request, RequestMessage, Response, ToolResult, ToolUse,
-    ToolUsePart,
+    ChatMessage, FinishReason, ModelId, Request, RequestMessage, Response, ToolResult, ToolCall,
+    ToolCallPart,
 };
 use serde::Serialize;
 
@@ -39,14 +39,14 @@ pub enum Command {
     FileRead(Vec<String>),
     AssistantMessage(#[from] Request),
     UserMessage(#[from] ChatResponse),
-    ToolUse(#[from] ToolUse),
+    ToolUse(#[from] ToolCall),
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ChatResponse {
     Text(String),
-    ToolUseStart(ToolUsePart),
+    ToolUseStart(ToolCallPart),
     ToolUseEnd(ToolResult),
     Complete,
     Fail(String),
@@ -63,7 +63,7 @@ pub struct App {
     pub assistant_buffer: String,
 
     // A temp buffer used to store the tool use parts (streaming mode only)
-    pub tool_use_part: Vec<ToolUsePart>,
+    pub tool_call_part: Vec<ToolCallPart>,
 
     // Keep context at the end so that debugging the Serialized format is easier
     pub request: Request,
@@ -74,7 +74,7 @@ impl App {
         Self {
             request: context,
             user_objective: None,
-            tool_use_part: Vec::new(),
+            tool_call_part: Vec::new(),
             assistant_buffer: "".to_string(),
         }
     }
@@ -120,34 +120,34 @@ impl Application for App {
                 }
             }
             Action::AssistantResponse(response) => {
-                let mut tool_use_message: Option<ToolUse> = None;
+                let mut too_call_message: Option<ToolCall> = None;
                 self.assistant_buffer
                     .push_str(response.message.as_str());
 
-                if !response.tool_use.is_empty() && self.tool_use_part.is_empty() {
-                    if let Some(tool_use_part) = response.tool_use.first() {
-                        let tool_use_start =
-                            Command::UserMessage(ChatResponse::ToolUseStart(tool_use_part.clone()));
-                        commands.push(tool_use_start)
+                if !response.tool_call.is_empty() && self.tool_call_part.is_empty() {
+                    if let Some(too_call_part) = response.tool_call.first() {
+                        let too_call_start =
+                            Command::UserMessage(ChatResponse::ToolUseStart(too_call_part.clone()));
+                        commands.push(too_call_start)
                     }
                 }
 
-                self.tool_use_part.extend(response.tool_use);
+                self.tool_call_part.extend(response.tool_call);
 
-                if let Some(FinishReason::ToolUse) = response.finish_reason {
-                    let tool_use = ToolUse::try_from_parts(self.tool_use_part.clone())?;
+                if let Some(FinishReason::ToolCall) = response.finish_reason {
+                    let tool_call = ToolCall::try_from_parts(self.tool_call_part.clone())?;
 
                     // since tools is used, clear the tool_raw_arguments.
-                    self.tool_use_part.clear();
+                    self.tool_call_part.clear();
 
-                    tool_use_message = Some(tool_use.clone());
-                    commands.push(Command::ToolUse(tool_use));
+                    too_call_message = Some(tool_call.clone());
+                    commands.push(Command::ToolUse(tool_call));
                 }
 
                 if response.finish_reason.is_some() {
                     let mut message = ChatMessage::assistant(self.assistant_buffer.clone());
-                    if let Some(tool_use) = tool_use_message {
-                        message = message.tool_use(tool_use);
+                    if let Some(tool_call) = too_call_message {
+                        message = message.tool_call(tool_call);
                     }
                     self.request = self.request.add_message(message);
                     self.assistant_buffer.clear();
@@ -170,7 +170,7 @@ impl Application for App {
 
 #[cfg(test)]
 mod tests {
-    use forge_provider::{ChatMessage, ToolUseId};
+    use forge_provider::{ChatMessage, ToolCallId};
     use forge_tool::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -212,40 +212,40 @@ mod tests {
     }
 
     #[test]
-    fn test_assistant_response_action_with_tool_use() {
+    fn test_assistant_response_action_with_tool_call() {
         let app = App::default();
 
         let response = Response::new("Tool response")
-            .tool_use(vec![ToolUsePart::default()
+            .tool_call(vec![ToolCallPart::default()
                 .name(ToolName::new("test_tool"))
                 .arguments_part(r#"{"key": "value"}"#)])
-            .finish_reason(FinishReason::ToolUse);
+            .finish_reason(FinishReason::ToolCall);
 
         let (_, command) = app.run(response).unwrap();
 
         assert!(command.has(ChatResponse::Text("Tool response".to_string())));
 
         assert!(command
-            .has(ToolUse::new(ToolName::new("test_tool")).arguments(json!({"key": "value"}))));
+            .has(ToolCall::new(ToolName::new("test_tool")).arguments(json!({"key": "value"}))));
     }
 
     #[test]
     fn test_use_tool_when_finish_reason_present() {
         let app = App::default();
         let response = Response::new("Tool response")
-            .tool_use(vec![ToolUsePart::default()
-                .use_id(ToolUseId::new("test_use_id"))
+            .tool_call(vec![ToolCallPart::default()
+                .call_id(ToolCallId::new("test_call_id"))
                 .name(ToolName::new("fs_list"))
                 .arguments_part(r#"{"path": "."}"#)])
-            .finish_reason(FinishReason::ToolUse);
+            .finish_reason(FinishReason::ToolCall);
 
         let (app, command) = app.run(response).unwrap();
 
-        assert!(app.tool_use_part.is_empty());
+        assert!(app.tool_call_part.is_empty());
 
         assert!(command.has(
-            ToolUse::new(ToolName::new("fs_list"))
-                .use_id(ToolUseId::new("test_use_id"))
+            ToolCall::new(ToolName::new("fs_list"))
+                .call_id(ToolCallId::new("test_call_id"))
                 .arguments(json!({"path": "."}))
         ));
 
@@ -255,13 +255,13 @@ mod tests {
     #[test]
     fn test_should_not_use_tool_when_finish_reason_not_present() {
         let app = App::default();
-        let resp = Response::new("Tool response").tool_use(vec![ToolUsePart::default()
+        let resp = Response::new("Tool response").tool_call(vec![ToolCallPart::default()
             .name(ToolName::new("fs_list"))
             .arguments_part(r#"{"path": "."}"#)]);
 
         let (app, command) = app.run(resp).unwrap();
 
-        assert!(!app.tool_use_part.is_empty());
+        assert!(!app.tool_call_part.is_empty());
         assert!(command.has(ChatResponse::Text("Tool response".to_string())));
     }
 
@@ -321,53 +321,53 @@ mod tests {
     }
 
     #[test]
-    fn test_should_handle_assistant_response_with_no_tool_use() {
+    fn test_should_handle_assistant_response_with_no_tool_call() {
         let app = App::default();
 
         let response = Response::new("Assistant response")
-            .tool_use(vec![])
+            .tool_call(vec![])
             .finish_reason(FinishReason::EndTurn);
 
         let (app, command) = app.run(response).unwrap();
 
-        assert!(app.tool_use_part.is_empty());
+        assert!(app.tool_call_part.is_empty());
         assert!(command.has(ChatResponse::Text("Assistant response".to_string())));
     }
 
     #[test]
 
-    fn test_tool_use_seq() {
+    fn test_too_call_seq() {
         let app = App::default();
 
         let message_1 = Action::AssistantResponse(
-            Response::new("Let's use foo tool").add_tool_use(
-                ToolUsePart::default()
+            Response::new("Let's use foo tool").add_tool_call(
+                ToolCallPart::default()
                     .name(ToolName::new("foo"))
                     .arguments_part(r#"{"foo": 1,"#)
-                    .use_id(ToolUseId::new("tool_use_001")),
+                    .call_id(ToolCallId::new("too_call_001")),
             ),
         );
 
         let message_2 = Action::AssistantResponse(
             Response::new("")
-                .add_tool_use(ToolUsePart::default().arguments_part(r#""bar": 2}"#))
-                .finish_reason(FinishReason::ToolUse),
+                .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#))
+                .finish_reason(FinishReason::ToolCall),
         );
 
         let message_3 = Action::ToolResponse(
             ToolResult::new(ToolName::new("foo")).content(json!({"a": 100, "b": 200})),
         );
 
-        // LLM made a tool_use request
+        // LLM made a tool_call request
         let (app, _) = app.run_seq(vec![message_1, message_2, message_3]).unwrap();
 
         assert_eq!(
             app.request.messages[0],
             ChatMessage::assistant("Let's use foo tool")
-                .tool_use(
-                    ToolUse::new(ToolName::new("foo"))
+                .tool_call(
+                    ToolCall::new(ToolName::new("foo"))
                         .arguments(json!({"foo": 1, "bar": 2}))
-                        .use_id(ToolUseId::new("tool_use_001"))
+                        .call_id(ToolCallId::new("too_call_001"))
                 )
                 .into()
         );
@@ -379,13 +379,13 @@ mod tests {
 
         let message_1 = Action::AssistantResponse(
             Response::new("Let's use foo tool")
-                .add_tool_use(
-                    ToolUsePart::default()
+                .add_tool_call(
+                    ToolCallPart::default()
                         .name(ToolName::new("foo"))
                         .arguments_part(r#"{"foo": 1, "bar": 2}"#)
-                        .use_id(ToolUseId::new("tool_use_001")),
+                        .call_id(ToolCallId::new("too_call_001")),
                 )
-                .finish_reason(FinishReason::ToolUse),
+                .finish_reason(FinishReason::ToolCall),
         );
 
         let tool_result =
@@ -398,10 +398,10 @@ mod tests {
             app.request.messages,
             vec![
                 ChatMessage::assistant("Let's use foo tool")
-                    .tool_use(
-                        ToolUse::new(ToolName::new("foo"))
+                    .tool_call(
+                        ToolCall::new(ToolName::new("foo"))
                             .arguments(json!({"foo": 1, "bar": 2}))
-                            .use_id(ToolUseId::new("tool_use_001"))
+                            .call_id(ToolCallId::new("too_call_001"))
                     )
                     .into(),
                 RequestMessage::from(tool_result)

@@ -1,3 +1,6 @@
+//! The model is built on top of Open AI's API specification
+//! Specification: https://platform.openai.com/docs/api-reference/chat/create
+
 mod message;
 mod request;
 mod response;
