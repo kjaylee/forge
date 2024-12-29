@@ -241,11 +241,7 @@ impl From<CompletionMessage> for OpenRouterMessage {
         match value {
             CompletionMessage::ContentMessage(chat_message) => OpenRouterMessage {
                 role: chat_message.role.into(),
-                content: if chat_message.tool_call.is_some() {
-                    None
-                } else {
-                    Some(MessageContent::Text(chat_message.content))
-                },
+                content: Some(MessageContent::Text(chat_message.content)),
                 name: None,
                 tool_call_id: None,
                 tool_calls: chat_message.tool_call.map(|tool_call| {
