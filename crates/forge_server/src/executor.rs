@@ -78,8 +78,8 @@ impl Executor for ChatCommandExecutor {
                         Ok(content) => content,
                         Err(e) => serde_json::Value::from(e),
                     },
-                    tool_use_id: tool_use.use_id.clone(),
-                    tool_name: tool_use.name.clone(),
+                    use_id: tool_use.use_id.clone(),
+                    name: tool_use.name.clone(),
                     is_error,
                 });
 

@@ -243,8 +243,8 @@ impl From<RequestMessage> for OpenRouterMessage {
             RequestMessage::ToolResult(tool_result) => OpenRouterMessage {
                 role: Role::Tool,
                 content: MessageContent::Text(serde_json::to_string(&tool_result.content).unwrap()),
-                name: Some(tool_result.tool_name),
-                tool_call_id: tool_result.tool_use_id,
+                name: Some(tool_result.name),
+                tool_call_id: tool_result.use_id,
             },
         }
     }

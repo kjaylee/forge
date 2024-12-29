@@ -257,11 +257,8 @@ mod tests {
 
         assert!(command.has(ChatResponse::Text("Tool response".to_string())));
 
-        assert!(command.has(
-            ToolUse::default()
-                .name(ToolName::from("test_tool"))
-                .arguments(json!({"key": "value"}))
-        ));
+        assert!(command
+            .has(ToolUse::new(ToolName::from("test_tool")).arguments(json!({"key": "value"}))));
     }
 
     #[test]
@@ -274,9 +271,8 @@ mod tests {
                 "key": "value"
             }
         });
-        let tool_result = ToolResult::default()
-            .tool_name(ToolName::from("test_tool"))
-            .content(tool_response.clone());
+        let tool_result =
+            ToolResult::new(ToolName::from("test_tool")).content(tool_response.clone());
 
         let (app, command) = app.run(tool_result.clone()).unwrap();
 
@@ -307,9 +303,8 @@ mod tests {
         assert!(app.tool_use_part.is_empty());
 
         assert!(command.has(
-            ToolUse::default()
+            ToolUse::new(ToolName::from("fs_list"))
                 .use_id(ToolUseId::from("test_use_id"))
-                .name(ToolName::from("fs_list"))
                 .arguments(json!({"path": "."}))
         ));
 
@@ -404,8 +399,7 @@ mod tests {
     fn test_should_handle_tool_response_with_error() {
         let app = App::default();
 
-        let tool_result = ToolResult::default()
-            .tool_name(ToolName::from("test_tool"))
+        let tool_result = ToolResult::new(ToolName::from("test_tool"))
             .content(json!({"error": "Something went wrong"}))
             .is_error(true);
 

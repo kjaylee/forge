@@ -42,6 +42,9 @@ pub struct ToolUse {
 }
 
 impl ToolUse {
+    pub fn new(tool_name: ToolName) -> Self {
+        Self { name: tool_name, use_id: None, arguments: Value::default() }
+    }
     pub fn try_from_parts(parts: Vec<ToolUsePart>) -> Result<Self> {
         let mut tool_name = None;
         let mut tool_use_id = None;
@@ -73,8 +76,8 @@ impl ToolUse {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 pub struct ToolResult {
-    pub tool_name: ToolName,
-    pub tool_use_id: Option<ToolUseId>,
+    pub name: ToolName,
+    pub use_id: Option<ToolUseId>,
     pub content: Value,
     pub is_error: bool,
 }
@@ -82,8 +85,8 @@ pub struct ToolResult {
 impl ToolResult {
     pub fn new(tool_name: ToolName) -> ToolResult {
         Self {
-            tool_name,
-            tool_use_id: None,
+            name: tool_name,
+            use_id: None,
             content: Value::default(),
             is_error: false,
         }
