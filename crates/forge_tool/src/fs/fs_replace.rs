@@ -77,7 +77,6 @@ pub struct FSReplaceInput {
 /// def new_function(x, y=0):
 ///     return x + y
 /// >>>>>>> REPLACE
-///
 #[derive(DescriptionDerive)]
 pub struct FSReplace;
 
