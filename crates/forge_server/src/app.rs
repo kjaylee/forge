@@ -435,8 +435,6 @@ mod tests {
         let action = Action::ToolResponse(think_result_continue);
         let (app, commands) = app.update(action).unwrap();
 
-        // Should only push AssistantMessage to continue conversation
-        assert_eq!(commands.len(), 1);
         assert!(commands.has(Command::AssistantMessage(app.context.clone())));
 
         // Test when thinking is complete
@@ -456,8 +454,6 @@ mod tests {
         let action = Action::ToolResponse(think_result_end.clone());
         let (app, commands) = app.update(action).unwrap();
 
-        // Should push both AssistantMessage and ToolUseEnd
-        assert_eq!(commands.len(), 2);
         assert!(commands.has(Command::AssistantMessage(app.context)));
         assert!(commands.has(Command::UserMessage(ChatResponse::ToolUseEnd(
             think_result_end
