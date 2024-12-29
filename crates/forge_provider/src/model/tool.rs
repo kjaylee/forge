@@ -33,7 +33,7 @@ pub struct ToolUsePart {
 
 /// Contains the full information about using a tool. This is received as a part
 /// of the response from the model when streaming is disabled.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
 pub struct ToolUse {
     pub name: ToolName,
@@ -71,10 +71,21 @@ impl ToolUse {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 pub struct ToolResult {
     pub tool_name: ToolName,
     pub tool_use_id: Option<ToolUseId>,
     pub content: Value,
     pub is_error: bool,
+}
+
+impl ToolResult {
+    pub fn new(tool_name: ToolName) -> ToolResult {
+        Self {
+            tool_name,
+            tool_use_id: None,
+            content: Value::default(),
+            is_error: false,
+        }
+    }
 }
