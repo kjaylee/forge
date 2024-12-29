@@ -10,8 +10,8 @@ use crate::{Error, Result};
 #[serde(transparent)]
 pub struct ToolUseId(pub(crate) String);
 
-impl<A: ToString> From<A> for ToolUseId {
-    fn from(value: A) -> Self {
+impl ToolUseId {
+    pub fn new(value: impl ToString) -> Self {
         ToolUseId(value.to_string())
     }
 }
@@ -28,7 +28,7 @@ pub struct ToolUsePart {
 
     /// Arguments that need to be passed to the tool. NOTE: Not all tools
     /// require input
-    pub argument_part: String,
+    pub arguments_part: String,
 }
 
 /// Contains the full information about using a tool. This is received as a part
@@ -59,7 +59,7 @@ impl ToolUse {
                 tool_use_id = Some(value);
             }
 
-            input.push_str(&part.argument_part);
+            input.push_str(&part.arguments_part);
         }
 
         if let Some(tool_name) = tool_name {
@@ -69,7 +69,7 @@ impl ToolUse {
                 arguments: serde_json::from_str(&input)?,
             })
         } else {
-            Err(Error::ToolUserMissingName)
+            Err(Error::ToolUseMissingName)
         }
     }
 }

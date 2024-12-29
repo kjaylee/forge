@@ -14,6 +14,7 @@ pub trait Application: Send + Sync + Sized + Clone {
         action: impl Into<Self::Action>,
     ) -> std::result::Result<(Self, Vec<Self::Command>), Self::Error>;
 
+    #[allow(unused)]
     fn run_seq(self, actions: Vec<Self::Action>) -> Result<(Self, Vec<Self::Command>), Self::Error>
     where
         Self::Action: Clone,

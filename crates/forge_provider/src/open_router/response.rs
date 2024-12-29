@@ -95,7 +95,9 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                             resp = resp.add_tool_use(ToolUsePart {
                                 use_id: tool_call.id.clone(),
                                 name: tool_call.function.name.clone(),
-                                argument_part: serde_json::from_str(&tool_call.function.arguments)?,
+                                arguments_part: serde_json::from_str(
+                                    &tool_call.function.arguments,
+                                )?,
                             });
                         }
                     }
@@ -110,7 +112,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                             resp = resp.add_tool_use(ToolUsePart {
                                 use_id: tool_call.id.clone(),
                                 name: tool_call.function.name.clone(),
-                                argument_part: tool_call.function.arguments.clone(),
+                                arguments_part: tool_call.function.arguments.clone(),
                             });
                         }
                     }
