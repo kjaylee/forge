@@ -84,6 +84,16 @@ pub struct ChatMessage {
     pub tool_use: Option<ToolUse>,
 }
 
+impl ChatMessage {
+    pub fn assistant(content: impl ToString) -> Self {
+        Self {
+            role: ChatRole::Assistant,
+            content: content.to_string(),
+            tool_use: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub enum ChatRole {
     System,
