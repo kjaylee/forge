@@ -65,13 +65,13 @@ pub struct App {
     pub tool_use_part: Vec<ToolUsePart>,
 
     // Keep context at the end so that debugging the Serialized format is easier
-    pub context: Request,
+    pub request: Request,
 }
 
 impl App {
     pub fn new(context: Request) -> Self {
         Self {
-            context,
+            request: context,
             user_objective: None,
             tool_use_part: Vec::new(),
             assistant_buffer: "".to_string(),
@@ -92,15 +92,15 @@ impl Application for App {
                 let prompt = Prompt::parse(chat.message.clone())
                     .unwrap_or(Prompt::new(chat.message.clone()));
 
-                self.context = self.context.model(chat.model.clone());
+                self.request = self.request.model(chat.model.clone());
 
                 if self.user_objective.is_none() {
                     self.user_objective = Some(MessageTemplate::task(prompt.clone()));
                 }
 
                 if prompt.files().is_empty() {
-                    self.context = self.context.add_message(RequestMessage::user(chat.message));
-                    commands.push(Command::AssistantMessage(self.context.clone()))
+                    self.request = self.request.add_message(RequestMessage::user(chat.message));
+                    commands.push(Command::AssistantMessage(self.request.clone()))
                 } else {
                     commands.push(Command::FileRead(prompt.files()))
                 }
@@ -108,14 +108,14 @@ impl Application for App {
             Action::FileReadResponse(files) => {
                 if let Some(message) = self.user_objective.clone() {
                     for fr in files.into_iter() {
-                        self.context = self.context.add_message(
+                        self.request = self.request.add_message(
                             message
                                 .clone()
                                 .append(MessageTemplate::file(fr.path, fr.content)),
                         );
                     }
 
-                    commands.push(Command::AssistantMessage(self.context.clone()))
+                    commands.push(Command::AssistantMessage(self.request.clone()))
                 }
             }
             Action::AssistantResponse(response) => {
@@ -123,8 +123,8 @@ impl Application for App {
                     .push_str(response.message.content.as_str());
 
                 if response.finish_reason.is_some() {
-                    self.context = self
-                        .context
+                    self.request = self
+                        .request
                         .add_message(RequestMessage::assistant(self.assistant_buffer.clone()));
                     self.assistant_buffer.clear();
                 }
@@ -152,9 +152,9 @@ impl Application for App {
                 )));
             }
             Action::ToolResponse(tool_result) => {
-                self.context = self.context.add_message(tool_result.clone());
+                self.request = self.request.add_message(tool_result.clone());
 
-                commands.push(Command::AssistantMessage(self.context.clone()));
+                commands.push(Command::AssistantMessage(self.request.clone()));
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
             }
         };
@@ -180,8 +180,8 @@ mod tests {
 
         let (app, command) = app.update(chat_request.clone()).unwrap();
 
-        assert_eq!(&app.context.model, &ModelId::default());
-        assert!(command.has(app.context.clone()));
+        assert_eq!(&app.request.model, &ModelId::default());
+        assert!(command.has(app.request.clone()));
     }
 
     #[test]
@@ -197,12 +197,12 @@ mod tests {
 
         let (app, command) = app.update(files.clone()).unwrap();
 
-        assert!(app.context.messages[0].content().contains(&files[0].path));
-        assert!(app.context.messages[0]
+        assert!(app.request.messages[0].content().contains(&files[0].path));
+        assert!(app.request.messages[0]
             .content()
             .contains(&files[0].content));
 
-        assert!(command.has(app.context.clone()));
+        assert!(command.has(app.request.clone()));
     }
 
     #[test]
@@ -243,14 +243,14 @@ mod tests {
         let (app, command) = app.update(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.context.messages[0].content(),
+            app.request.messages[0].content(),
             format!(
                 "{}\n{}",
                 "TOOL Result for test_tool", r#"{"key":"value","nested":{"key":"value"}}"#
             )
         );
 
-        assert!(command.has(app.context.clone()));
+        assert!(command.has(app.request.clone()));
         assert!(command.has(ChatResponse::ToolUseEnd(tool_result,)));
     }
 
@@ -336,16 +336,16 @@ mod tests {
 
         let (app, command) = app.update(files.clone()).unwrap();
 
-        assert!(app.context.messages[0].content().contains(&files[0].path));
-        assert!(app.context.messages[0]
+        assert!(app.request.messages[0].content().contains(&files[0].path));
+        assert!(app.request.messages[0]
             .content()
             .contains(&files[0].content));
-        assert!(app.context.messages[1].content().contains(&files[1].path));
-        assert!(app.context.messages[1]
+        assert!(app.request.messages[1].content().contains(&files[1].path));
+        assert!(app.request.messages[1]
             .content()
             .contains(&files[1].content));
 
-        assert!(command.has(app.context.clone()));
+        assert!(command.has(app.request.clone()));
     }
 
     #[test]
@@ -374,11 +374,11 @@ mod tests {
         let (app, command) = app.update(tool_result.clone()).unwrap();
 
         assert_eq!(
-            app.context.messages[0].content(),
+            app.request.messages[0].content(),
             "An error occurred while processing the tool, test_tool"
         );
 
-        assert!(command.has(app.context.clone()));
+        assert!(command.has(app.request.clone()));
         assert!(command.has(ChatResponse::ToolUseEnd(tool_result)));
     }
 
