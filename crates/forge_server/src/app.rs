@@ -30,6 +30,7 @@ pub struct FileResponse {
 
 #[derive(Default, Debug, serde::Deserialize, Clone, Setters)]
 #[setters(into)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatRequest {
     pub content: String,
     pub model: ModelId,
