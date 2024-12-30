@@ -28,6 +28,9 @@ tokio-stream = "0.1.17"
 async-recursion = "1.1.1"
 futures = "0.3.31"
 pulldown-cmark = { version = "0.9.3" }
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "macros"] }
+thiserror = "1.0.40"
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
+tempfile = "3.8"
