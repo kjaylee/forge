@@ -21,3 +21,7 @@ Cargo.lock
 #.idea/
 .aider*
 .env
+
+
+# database file where all the conversation with llm agent are stored.
+.codeforge.db
