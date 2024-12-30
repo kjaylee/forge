@@ -84,7 +84,9 @@ impl API {
     }
 }
 
-async fn completions_handler<S: Storage + 'static>(State(state): State<Arc<Server<S>>>) -> axum::Json<Vec<File>> {
+async fn completions_handler<S: Storage + 'static>(
+    State(state): State<Arc<Server<S>>>,
+) -> axum::Json<Vec<File>> {
     let files = state
         .completions()
         .await
