@@ -2,7 +2,6 @@
 use std::fmt::Debug;
 use std::path::Path;
 
-use bincode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sqlx::{Row, SqlitePool};
