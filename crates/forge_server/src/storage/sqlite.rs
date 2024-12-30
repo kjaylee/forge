@@ -29,10 +29,7 @@ where
 
         let storage = Self { pool, _phantom: PhantomData };
         storage.init().await?;
-        info!(
-            "Initialized SQLite database at {}",
-            db_path.as_ref().display()
-        );
+        info!("Initialized SQLite database",);
         Ok(storage)
     }
 
@@ -64,7 +61,7 @@ where
     }
 
     // Save an item to the database, if item already exists update it.
-    async fn save(&self, key: String, item: &T) -> Result<String, StorageError> {
+    async fn save(&self, key: &str, item: &T) -> Result<(), StorageError> {
         let json_data = serde_json::to_string(item)?;
         println!("SqLite: Save: {} and {}", key, json_data);
         sqlx::query(
@@ -79,10 +76,10 @@ where
         .execute(&self.pool)
         .await?;
 
-        Ok(key)
+        Ok(())
     }
 
-    async fn get(&self, id: String) -> Result<Option<T>, StorageError> {
+    async fn get(&self, key: &str) -> Result<Option<T>, StorageError> {
         let record = sqlx::query(
             r#"
             SELECT data
@@ -90,11 +87,11 @@ where
             WHERE id = ?
             "#,
         )
-        .bind(id.clone())
+        .bind(&key)
         .fetch_optional(&self.pool)
         .await?;
 
-        println!("SqLite: GET: {} ", id);
+        println!("SqLite: GET: {} ", key);
 
         match record {
             Some(row) => {
@@ -153,11 +150,10 @@ mod tests {
         let (storage, _file) = create_test_storage().await;
 
         let item = TestItem { name: "test".to_string(), value: 42 };
-        let key = "1".to_string();
-        let id = storage.save(key, &item).await.unwrap();
-
+        let key = "1";
+        let _ = storage.save(key, &item).await.unwrap();
         // Retrieve and verify
-        let retrieved = storage.get(id).await.unwrap().unwrap();
+        let retrieved = storage.get(key).await.unwrap().unwrap();
         assert_eq!(item, retrieved);
     }
 
@@ -167,7 +163,7 @@ mod tests {
 
         // Generate a random UUID that won't exist in the database
         let nonexistent_id = Uuid::new_v4().to_string();
-        let result = storage.get(nonexistent_id).await.unwrap();
+        let result = storage.get(&nonexistent_id).await.unwrap();
         assert!(result.is_none());
     }
 
@@ -192,7 +188,7 @@ mod tests {
         let mut ids = Vec::new();
         for item in &items {
             let id = uuid::Uuid::new_v4().to_string();
-            let id = storage.save(id, item).await.unwrap();
+            let _ = storage.save(&id, item).await.unwrap();
             ids.push(id);
         }
 
@@ -207,7 +203,7 @@ mod tests {
 
         // Verify each item can be retrieved by its ID
         for (id, expected) in ids.iter().zip(items.iter()) {
-            let item = storage.get(id.clone()).await.unwrap().unwrap();
+            let item = storage.get(id).await.unwrap().unwrap();
             assert_eq!(&item, expected);
         }
     }
@@ -225,7 +221,8 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let item = TestItem { name: format!("item_{}", i), value: i };
                 let id = uuid::Uuid::new_v4().to_string();
-                storage.save(id, &item).await.unwrap()
+                storage.save(&id, &item).await.unwrap();
+                id
             });
             handles.push(handle);
         }
@@ -244,7 +241,7 @@ mod tests {
 
         // Verify each ID exists
         for id in ids {
-            assert!(storage.get(id).await.unwrap().is_some());
+            assert!(storage.get(&id).await.unwrap().is_some());
         }
     }
 }

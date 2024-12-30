@@ -7,6 +7,7 @@ use super::CompletionMessage;
 /// Represents a request being made to the LLM provider
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
+    pub conversation_id: Option<String>,
     pub messages: Vec<CompletionMessage>,
     pub model: ModelId,
     pub tools: Vec<ToolDefinition>,
@@ -14,7 +15,7 @@ pub struct Request {
 
 impl Request {
     pub fn new(id: ModelId) -> Self {
-        Request { messages: vec![], tools: vec![], model: id }
+        Request { model: id, ..Default::default() }
     }
 
     pub fn add_tool(mut self, tool: impl Into<ToolDefinition>) -> Self {

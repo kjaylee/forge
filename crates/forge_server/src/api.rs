@@ -109,10 +109,14 @@ async fn conversation_handler(
     // 1. pull the conversation context from database.
     let conversation_ctx = state
         .storage()
-        .get(conversation_id)
+        .get(&conversation_id)
         .await
         .expect("Failed to get conversation context.")
-        .unwrap_or_else(|| state.system_prompt());
+        .unwrap_or_else(|| {
+            state
+                .system_prompt()
+                .conversation_id(Some(conversation_id))
+        });
 
     let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
 
@@ -127,19 +131,20 @@ async fn conversation_handler(
     }))
 }
 
+// TODO: expose better errors to the client. eg why the conversation failed.
 async fn conversation_by_id_handler(
     State(state): State<Arc<Server>>,
     Path(id): Path<String>,
 ) -> std::result::Result<Json<Request>, (axum::http::StatusCode, String)> {
-    match state.storage().get(id).await {
+    match state.storage().get(&id).await {
         Ok(Some(history)) => Ok(Json(history)),
         Ok(None) => Err((
             axum::http::StatusCode::NOT_FOUND,
             "Conversation not found".to_string(),
         )),
-        Err(e) => Err((
+        Err(_e) => Err((
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to retrieve conversation: {}", e),
+            format!("Failed to retrieve conversation"),
         )),
     }
 }

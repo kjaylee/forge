@@ -15,10 +15,10 @@ where
     async fn init(&self) -> Result<(), StorageError>;
 
     /// Store an item and return its UUID
-    async fn save(&self, key: String, item: &T) -> Result<String, StorageError>;
+    async fn save(&self, key: &str, item: &T) -> Result<(), StorageError>;
 
     /// Retrieve an item by its UUID
-    async fn get(&self, id: String) -> Result<Option<T>, StorageError>;
+    async fn get(&self, key: &str) -> Result<Option<T>, StorageError>;
 
     /// List all items
     async fn list(&self) -> Result<Vec<T>, StorageError>;

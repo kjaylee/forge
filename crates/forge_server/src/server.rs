@@ -104,7 +104,7 @@ impl Server {
             // once everything is executed, update the context in db.
             let data = context.read().unwrap().clone();
             // TODO: handle save error gracefully.
-            let _ = storage.save(conversation_id.to_string(), &data).await;
+            let _ = storage.save(&conversation_id, &data).await;
             result
         });
 
