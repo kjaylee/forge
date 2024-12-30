@@ -11,7 +11,6 @@ use crate::app::{Action, App, ChatRequest, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::ApplicationRuntime;
-use crate::storage::SqliteStorage;
 use crate::{Result, Storage};
 
 #[derive(Clone)]
@@ -27,7 +26,11 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn new(env: Environment, api_key: impl Into<String>) -> Self {
+    pub fn new(
+        env: Environment,
+        storage: Arc<dyn Storage<Request>>,
+        api_key: impl Into<String>,
+    ) -> Self {
         let tools = ToolEngine::new(env.clone());
 
         let system_prompt = env
@@ -41,11 +44,6 @@ impl Server {
 
         let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
-        let storage = Arc::new(
-            SqliteStorage::<Request>::default()
-                .await
-                .expect("failed to initialize the sqlite database."),
-        );
         Self {
             env,
             provider: Arc::new(Provider::open_router(api_key.clone(), None)),

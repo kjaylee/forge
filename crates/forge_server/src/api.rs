@@ -17,6 +17,7 @@ use tracing::info;
 use crate::app::ChatRequest;
 use crate::completion::File;
 use crate::server::Server;
+use crate::storage::SqliteStorage;
 use crate::Result;
 
 pub struct API {
@@ -36,7 +37,8 @@ impl API {
     pub async fn launch(self) -> Result<()> {
         tracing_subscriber::fmt().init();
         let env = Environment::from_env().await?;
-        let state = Arc::new(Server::new(env, self.api_key).await);
+        let storage = Arc::new(SqliteStorage::<Request>::default().await?);
+        let state = Arc::new(Server::new(env, storage, self.api_key));
 
         if dotenv::dotenv().is_ok() {
             info!("Loaded .env file");

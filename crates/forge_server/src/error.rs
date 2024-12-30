@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 use derive_more::derive::{Display, From};
 use derive_setters::Setters;
 
-use crate::app::ChatResponse;
+use crate::{app::ChatResponse, StorageError};
 
 #[derive(Display, From)]
 pub enum Error {
@@ -18,6 +18,7 @@ pub enum Error {
     Walk(forge_walker::Error),
     Env(forge_env::Error),
     ToolCallMissingName,
+    StorageError(StorageError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
