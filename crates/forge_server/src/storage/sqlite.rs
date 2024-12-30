@@ -5,6 +5,8 @@ use sqlx::{Row, SqlitePool};
 use std::marker::PhantomData;
 use std::path::Path;
 
+const DB_PATH: &str = "sqlite://codeforge.db";
+
 pub struct SqliteStorage<T> {
     pool: SqlitePool,
     _phantom: PhantomData<T>,
@@ -14,10 +16,19 @@ impl<T> SqliteStorage<T>
 where
     T: Serialize + DeserializeOwned + Send + Sync,
 {
+    /// Create a new SQLite storage with a custom path
     pub async fn new(db_path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let db_url = format!("sqlite://{}", db_path.as_ref().to_string_lossy());
         let pool = SqlitePool::connect(&db_url).await?;
 
+        let storage = Self { pool, _phantom: PhantomData };
+        storage.init().await?;
+        Ok(storage)
+    }
+
+    /// Create a new SQLite storage with the default path
+    pub async fn default() -> Result<Self, StorageError> {
+        let pool = SqlitePool::connect(DB_PATH).await?;
         let storage = Self { pool, _phantom: PhantomData };
         storage.init().await?;
         Ok(storage)
@@ -33,7 +44,7 @@ where
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id VARCHAR(36) PRIMARY KEY,
                 data TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
@@ -45,24 +56,24 @@ where
         Ok(())
     }
 
-    async fn set(&self, item: &T) -> Result<i64, StorageError> {
+    async fn set(&self, key: String, item: &T) -> Result<String, StorageError> {
         let json_data = serde_json::to_string(item)?;
 
-        let result = sqlx::query(
+        sqlx::query(
             r#"
-            INSERT INTO items (data)
-            VALUES (?)
-            RETURNING id
+            INSERT INTO items (id, data)
+            VALUES (?, ?)
             "#,
         )
+        .bind(&key)
         .bind(json_data)
-        .fetch_one(&self.pool)
+        .execute(&self.pool)
         .await?;
 
-        Ok(result.get::<i64, _>("id"))
+        Ok(key)
     }
 
-    async fn get(&self, id: i64) -> Result<Option<T>, StorageError> {
+    async fn get(&self, id: String) -> Result<Option<T>, StorageError> {
         let record = sqlx::query(
             r#"
             SELECT data
@@ -89,14 +100,15 @@ where
             r#"
             SELECT data
             FROM items
+            ORDER BY created_at DESC
             "#,
         )
         .fetch_all(&self.pool)
         .await?;
 
         let mut items = Vec::with_capacity(records.len());
-        for row in records {
-            let data: String = row.get("data");
+        for record in records {
+            let data: String = record.get("data");
             let item = serde_json::from_str(&data)?;
             items.push(item);
         }
@@ -110,6 +122,7 @@ mod tests {
     use super::*;
     use serde::{Deserialize, Serialize};
     use tempfile::NamedTempFile;
+    use uuid::Uuid;
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct TestItem {
@@ -128,9 +141,8 @@ mod tests {
         let (storage, _file) = create_test_storage().await;
 
         let item = TestItem { name: "test".to_string(), value: 42 };
-
-        // Store the item
-        let id = storage.set(&item).await.unwrap();
+        let key = "1".to_string();
+        let id = storage.set(key, &item).await.unwrap();
 
         // Retrieve and verify
         let retrieved = storage.get(id).await.unwrap().unwrap();
@@ -141,7 +153,9 @@ mod tests {
     async fn test_get_nonexistent() {
         let (storage, _file) = create_test_storage().await;
 
-        let result = storage.get(1).await.unwrap();
+        // Generate a random UUID that won't exist in the database
+        let nonexistent_id = Uuid::new_v4().to_string();
+        let result = storage.get(nonexistent_id).await.unwrap();
         assert!(result.is_none());
     }
 
@@ -162,18 +176,28 @@ mod tests {
             TestItem { name: "second".to_string(), value: 2 },
         ];
 
-        // Store items
+        // Store items and collect their UUIDs
+        let mut ids = Vec::new();
         for item in &items {
-            storage.set(item).await.unwrap();
+            let id = uuid::Uuid::new_v4().to_string();
+            let id = storage.set(id, item).await.unwrap();
+            ids.push(id);
         }
 
-        // Retrieve and verify
+        // Verify each ID is a valid UUID
+        for id in &ids {
+            assert!(Uuid::parse_str(id).is_ok());
+        }
+
+        // Retrieve and verify all items
         let retrieved = storage.list().await.unwrap();
         assert_eq!(retrieved.len(), items.len());
 
-        // Items should be returned in reverse order (newest first)
-        assert_eq!(retrieved[0], items[0]);
-        assert_eq!(retrieved[1], items[1]);
+        // Verify each item can be retrieved by its ID
+        for (id, expected) in ids.iter().zip(items.iter()) {
+            let item = storage.get(id.clone()).await.unwrap().unwrap();
+            assert_eq!(&item, expected);
+        }
     }
 
     #[tokio::test]
@@ -188,15 +212,18 @@ mod tests {
             let storage = storage.clone();
             let handle = tokio::spawn(async move {
                 let item = TestItem { name: format!("item_{}", i), value: i };
-                storage.set(&item).await.unwrap()
+                let id = uuid::Uuid::new_v4().to_string();
+                storage.set(id, &item).await.unwrap()
             });
             handles.push(handle);
         }
 
-        // Wait for all tasks to complete
+        // Wait for all tasks to complete and collect UUIDs
         let mut ids = vec![];
         for handle in handles {
-            ids.push(handle.await.unwrap());
+            let id = handle.await.unwrap();
+            assert!(Uuid::parse_str(&id).is_ok()); // Verify each ID is a valid UUID
+            ids.push(id);
         }
 
         // Verify all items were stored

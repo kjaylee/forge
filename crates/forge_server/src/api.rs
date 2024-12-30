@@ -10,6 +10,7 @@ use axum::Router;
 use forge_env::Environment;
 use forge_provider::{Model, Request};
 use forge_tool::ToolDefinition;
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
@@ -34,7 +35,9 @@ impl Default for API {
     }
 }
 
-async fn context_html_handler(State(state): State<Arc<Server>>) -> Html<String> {
+async fn context_html_handler<T: DeserializeOwned + Serialize + Send + Sync + 'static>(
+    State(state): State<Arc<Server<T>>>,
+) -> Html<String> {
     let context = state.context().await;
     let engine = ContextEngine::new(context);
     Html(engine.render_html())
@@ -44,7 +47,7 @@ impl API {
     pub async fn launch(self) -> Result<()> {
         tracing_subscriber::fmt().init();
         let env = Environment::from_env().await?;
-        let state = Arc::new(Server::new(env, self.api_key));
+        let state = Arc::new(Server::<Request>::new(env, self.api_key).await);
 
         if dotenv::dotenv().is_ok() {
             info!("Loaded .env file");
@@ -90,7 +93,9 @@ impl API {
     }
 }
 
-async fn completions_handler(State(state): State<Arc<Server>>) -> axum::Json<Vec<File>> {
+async fn completions_handler<T: DeserializeOwned + Serialize + Send + Sync + 'static>(
+    State(state): State<Arc<Server<T>>>,
+) -> axum::Json<Vec<File>> {
     let files = state
         .completions()
         .await
@@ -98,9 +103,9 @@ async fn completions_handler(State(state): State<Arc<Server>>) -> axum::Json<Vec
     axum::Json(files)
 }
 
-#[axum::debug_handler]
-async fn conversation_handler(
-    State(state): State<Arc<Server>>,
+// #[axum::debug_handler]
+async fn conversation_handler<T: DeserializeOwned + Serialize + Send + Sync + 'static>(
+    State(state): State<Arc<Server<T>>>,
     Json(request): Json<ChatRequest>,
 ) -> Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>> {
     let stream = state
@@ -113,8 +118,8 @@ async fn conversation_handler(
     }))
 }
 
-#[axum::debug_handler]
-async fn tools_handler(State(state): State<Arc<Server>>) -> Json<ToolResponse> {
+// #[axum::debug_handler]
+async fn tools_handler<T: DeserializeOwned + Serialize + Send + Sync + 'static>(State(state): State<Arc<Server<T>>>) -> Json<ToolResponse> {
     let tools = state.tools();
     Json(ToolResponse { tools })
 }
@@ -126,12 +131,12 @@ async fn health_handler() -> axum::response::Response {
         .unwrap()
 }
 
-async fn models_handler(State(state): State<Arc<Server>>) -> Json<ModelResponse> {
+async fn models_handler<T: DeserializeOwned + Serialize + Send + Sync + 'static>(State(state): State<Arc<Server<T>>>) -> Json<ModelResponse> {
     let models = state.models().await.unwrap_or_default();
     Json(ModelResponse { models })
 }
 
-async fn context_handler(State(state): State<Arc<Server>>) -> Json<ContextResponse> {
+async fn context_handler<T: DeserializeOwned + Serialize + Send + Sync + 'static>(State(state): State<Arc<Server<T>>>) -> Json<ContextResponse> {
     let context = state.context().await;
     Json(ContextResponse { context })
 }

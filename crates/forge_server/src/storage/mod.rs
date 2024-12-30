@@ -3,6 +3,8 @@ use serde::{de::DeserializeOwned, Serialize};
 
 mod sqlite;
 
+pub use sqlite::SqliteStorage;
+
 #[async_trait]
 pub trait Storage<T>: Send + Sync
 where
@@ -11,13 +13,13 @@ where
     /// Initialize the storage
     async fn init(&self) -> Result<(), StorageError>;
 
-    /// Store an item and return its ID
-    async fn set(&self, item: &T) -> Result<i64, StorageError>;
+    /// Store an item and return its UUID
+    async fn set(&self, key: String, item: &T) -> Result<String, StorageError>;
 
-    /// Retrieve an item by its ID
-    async fn get(&self, id: i64) -> Result<Option<T>, StorageError>;
+    /// Retrieve an item by its UUID
+    async fn get(&self, id: String) -> Result<Option<T>, StorageError>;
 
-    /// List all stored items
+    /// List all items
     async fn list(&self) -> Result<Vec<T>, StorageError>;
 }
 
