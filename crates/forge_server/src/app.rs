@@ -49,6 +49,7 @@ pub enum Command {
 #[serde(rename_all = "camelCase")]
 pub enum ChatResponse {
     Text(String),
+    ConversationId(String),
     ToolUseStart(ToolCallPart),
     ToolUseEnd(ToolResult),
     Complete,

@@ -81,15 +81,18 @@ impl Server {
         chat: ChatRequest,
         context: Arc<RwLock<Request>>,
     ) -> Result<impl Stream<Item = ChatResponse> + Send> {
-        let (tx, rx) = mpsc::channel::<ChatResponse>(100);
-        let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
-        let runtime = self.runtime.clone();
-        let storage = self.storage.clone();
-        let message = format!("##Task\n{}", chat.content);
         let conversation_id = chat
             .conversation_id
             .clone()
             .expect("`conversation_id` is expected to be present!");
+        let (tx, rx) = mpsc::channel::<ChatResponse>(100);
+        // send the conversation id to the client.
+        tx.send(ChatResponse::ConversationId(conversation_id.clone())).await?;
+
+        let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
+        let runtime = self.runtime.clone();
+        let storage = self.storage.clone();
+        let message = format!("##Task\n{}", chat.content);
 
         tokio::spawn(async move {
             let result = runtime
