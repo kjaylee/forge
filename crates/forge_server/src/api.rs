@@ -18,7 +18,7 @@ use crate::app::ChatRequest;
 use crate::completion::File;
 use crate::server::Server;
 use crate::storage::SqliteStorage;
-use crate::Result;
+use crate::{Result, Storage};
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
@@ -37,7 +37,7 @@ impl API {
     pub async fn launch(self) -> Result<()> {
         tracing_subscriber::fmt().init();
         let env = Environment::from_env().await?;
-        let storage = Arc::new(SqliteStorage::<Request>::default().await?);
+        let storage = Arc::new(SqliteStorage::default().await?);
         let state = Arc::new(Server::new(env, storage, self.api_key));
 
         if dotenv::dotenv().is_ok() {
@@ -84,7 +84,7 @@ impl API {
     }
 }
 
-async fn completions_handler(State(state): State<Arc<Server>>) -> axum::Json<Vec<File>> {
+async fn completions_handler<S: Storage + 'static>(State(state): State<Arc<Server<S>>>) -> axum::Json<Vec<File>> {
     let files = state
         .completions()
         .await
@@ -93,9 +93,8 @@ async fn completions_handler(State(state): State<Arc<Server>>) -> axum::Json<Vec
 }
 
 // execute the chat_request against the chat ctx.
-#[axum::debug_handler]
-async fn conversation_handler(
-    State(state): State<Arc<Server>>,
+async fn conversation_handler<S: Storage + 'static>(
+    State(state): State<Arc<Server<S>>>,
     Json(mut request): Json<ChatRequest>,
 ) -> Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>> {
     let conversation_id = request
@@ -128,8 +127,8 @@ async fn conversation_handler(
 }
 
 // TODO: expose better errors to the client. eg why the conversation failed.
-async fn conversation_by_id_handler(
-    State(state): State<Arc<Server>>,
+async fn conversation_by_id_handler<S: Storage + 'static>(
+    State(state): State<Arc<Server<S>>>,
     Path(id): Path<String>,
 ) -> std::result::Result<Json<Request>, (axum::http::StatusCode, String)> {
     match state.storage().get(&id).await {
@@ -145,8 +144,9 @@ async fn conversation_by_id_handler(
     }
 }
 
-#[axum::debug_handler]
-async fn tools_handler(State(state): State<Arc<Server>>) -> Json<ToolResponse> {
+async fn tools_handler<S: Storage + 'static>(
+    State(state): State<Arc<Server<S>>>,
+) -> Json<ToolResponse> {
     let tools = state.tools();
     Json(ToolResponse { tools })
 }
@@ -158,13 +158,17 @@ async fn health_handler() -> axum::response::Response {
         .unwrap()
 }
 
-async fn models_handler(State(state): State<Arc<Server>>) -> Json<ModelResponse> {
+async fn models_handler<S: Storage + 'static>(
+    State(state): State<Arc<Server<S>>>,
+) -> Json<ModelResponse> {
     let models = state.models().await.unwrap_or_default();
     Json(ModelResponse { models })
 }
 
 // TODO: currently we return all the conversations, we should paginate this.
-async fn all_conversations_handler(State(state): State<Arc<Server>>) -> Json<Vec<Request>> {
+async fn all_conversations_handler<S: Storage + 'static>(
+    State(state): State<Arc<Server<S>>>,
+) -> Json<Vec<Request>> {
     let chat_history = state.storage().list().await.unwrap_or_default();
     Json(chat_history)
 }

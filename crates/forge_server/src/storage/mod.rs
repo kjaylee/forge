@@ -7,21 +7,24 @@ mod sqlite;
 pub use sqlite::SqliteStorage;
 
 #[async_trait]
-pub trait Storage<T>: Send + Sync + std::fmt::Debug
-where
-    T: Serialize + DeserializeOwned + Send + Sync,
-{
+pub trait Storage: Send + Sync + std::fmt::Debug {
     /// Initialize the storage
     async fn init(&self) -> Result<(), StorageError>;
 
     /// Store an item and return its UUID
-    async fn save(&self, key: &str, item: &T) -> Result<(), StorageError>;
+    async fn save<T>(&self, key: &str, item: &T) -> Result<(), StorageError>
+    where
+        T: Serialize + Send + Sync;
 
     /// Retrieve an item by its UUID
-    async fn get(&self, key: &str) -> Result<Option<T>, StorageError>;
+    async fn get<T>(&self, key: &str) -> Result<Option<T>, StorageError>
+    where
+        T: DeserializeOwned + Send + Sync;
 
     /// List all items
-    async fn list(&self) -> Result<Vec<T>, StorageError>;
+    async fn list<T>(&self) -> Result<Vec<T>, StorageError>
+    where
+        T: DeserializeOwned + Send + Sync;
 }
 
 #[derive(Debug, thiserror::Error)]

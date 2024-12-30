@@ -14,23 +14,19 @@ use crate::runtime::ApplicationRuntime;
 use crate::{Result, Storage};
 
 #[derive(Clone)]
-pub struct Server {
+pub struct Server<S: Storage> {
     provider: Arc<Provider<Request, Response, forge_provider::Error>>,
     tools: Arc<ToolEngine>,
     completions: Arc<Completion>,
     runtime: Arc<ApplicationRuntime<App>>,
     env: Environment,
     api_key: String,
-    storage: Arc<dyn Storage<Request>>,
+    storage: Arc<S>,
     base_context: Request,
 }
 
-impl Server {
-    pub fn new(
-        env: Environment,
-        storage: Arc<dyn Storage<Request>>,
-        api_key: impl Into<String>,
-    ) -> Self {
+impl<S: Storage + 'static> Server<S> {
+    pub fn new(env: Environment, storage: Arc<S>, api_key: impl Into<String>) -> Self {
         let tools = ToolEngine::new(env.clone());
 
         let system_prompt = env
@@ -72,7 +68,7 @@ impl Server {
         Ok(self.provider.models().await?)
     }
 
-    pub fn storage(&self) -> Arc<dyn Storage<Request>> {
+    pub fn storage(&self) -> Arc<S> {
         self.storage.clone()
     }
 

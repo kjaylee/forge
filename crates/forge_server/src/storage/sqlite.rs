@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::path::Path;
 
 use serde::de::DeserializeOwned;
@@ -13,21 +12,17 @@ use super::{Storage, StorageError};
 const DB_PATH: &str = ".codeforge.db";
 
 #[derive(Debug)]
-pub struct SqliteStorage<T> {
+pub struct SqliteStorage {
     pool: SqlitePool,
-    _phantom: PhantomData<T>,
 }
 
-impl<T> SqliteStorage<T>
-where
-    T: Serialize + DeserializeOwned + Send + Sync + Debug,
-{
+impl SqliteStorage {
     /// Create a new SQLite storage with a custom path
     pub async fn new(db_path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let db_url = format!("sqlite://{}", db_path.as_ref().to_string_lossy());
         let pool = SqlitePool::connect(&db_url).await?;
 
-        let storage = Self { pool, _phantom: PhantomData };
+        let storage = Self { pool };
         storage.init().await?;
         info!("Initialized SQLite database",);
         Ok(storage)
@@ -40,10 +35,7 @@ where
 }
 
 #[async_trait::async_trait]
-impl<T> Storage<T> for SqliteStorage<T>
-where
-    T: Serialize + DeserializeOwned + Send + Sync + Debug,
-{
+impl Storage for SqliteStorage {
     async fn init(&self) -> Result<(), StorageError> {
         sqlx::query(
             r#"
@@ -60,10 +52,11 @@ where
         Ok(())
     }
 
-    // Save an item to the database, if item already exists update it.
-    async fn save(&self, key: &str, item: &T) -> Result<(), StorageError> {
+    async fn save<T>(&self, key: &str, item: &T) -> Result<(), StorageError>
+    where
+        T: Serialize + Send + Sync,
+    {
         let json_data = serde_json::to_string(item)?;
-        println!("SqLite: Save: {} and {}", key, json_data);
         sqlx::query(
             r#"
             INSERT INTO conversation_history (id, data)
@@ -79,11 +72,13 @@ where
         Ok(())
     }
 
-    async fn get(&self, key: &str) -> Result<Option<T>, StorageError> {
-        let record = sqlx::query(
+    async fn get<T>(&self, key: &str) -> Result<Option<T>, StorageError>
+    where
+        T: DeserializeOwned + Send + Sync,
+    {
+        let result = sqlx::query(
             r#"
-            SELECT data
-            FROM conversation_history
+            SELECT data FROM conversation_history
             WHERE id = ?
             "#,
         )
@@ -91,36 +86,32 @@ where
         .fetch_optional(&self.pool)
         .await?;
 
-        println!("SqLite: GET: {} ", key);
-
-        match record {
+        match result {
             Some(row) => {
-                let data: String = row.get("data");
-                let item = serde_json::from_str(&data)?;
-                Ok(Some(item))
+                let data: String = row.get(0);
+                Ok(Some(serde_json::from_str(&data)?))
             }
             None => Ok(None),
         }
     }
 
-    async fn list(&self) -> Result<Vec<T>, StorageError> {
-        let records = sqlx::query(
+    async fn list<T>(&self) -> Result<Vec<T>, StorageError>
+    where
+        T: DeserializeOwned + Send + Sync,
+    {
+        let rows = sqlx::query(
             r#"
-            SELECT data
-            FROM conversation_history
-            ORDER BY created_at DESC
+            SELECT data FROM conversation_history
             "#,
         )
         .fetch_all(&self.pool)
         .await?;
 
-        let mut items = Vec::with_capacity(records.len());
-        for record in records {
-            let data: String = record.get("data");
-            let item = serde_json::from_str(&data)?;
-            items.push(item);
+        let mut items = Vec::with_capacity(rows.len());
+        for row in rows {
+            let data: String = row.get(0);
+            items.push(serde_json::from_str(&data)?);
         }
-
         Ok(items)
     }
 }
@@ -139,7 +130,7 @@ mod tests {
         value: i32,
     }
 
-    async fn create_test_storage() -> (SqliteStorage<TestItem>, NamedTempFile) {
+    async fn create_test_storage() -> (SqliteStorage, NamedTempFile) {
         let file = NamedTempFile::new().unwrap();
         let storage = SqliteStorage::new(file.path()).await.unwrap();
         (storage, file)
@@ -163,7 +154,7 @@ mod tests {
 
         // Generate a random UUID that won't exist in the database
         let nonexistent_id = Uuid::new_v4().to_string();
-        let result = storage.get(&nonexistent_id).await.unwrap();
+        let result = storage.get::<String>(&nonexistent_id).await.unwrap();
         assert!(result.is_none());
     }
 
@@ -171,7 +162,7 @@ mod tests {
     async fn test_list_empty() {
         let (storage, _file) = create_test_storage().await;
 
-        let items = storage.list().await.unwrap();
+        let items = storage.list::<TestItem>().await.unwrap();
         assert!(items.is_empty());
     }
 
@@ -198,12 +189,12 @@ mod tests {
         }
 
         // Retrieve and verify all items
-        let retrieved = storage.list().await.unwrap();
+        let retrieved = storage.list::<TestItem>().await.unwrap();
         assert_eq!(retrieved.len(), items.len());
 
         // Verify each item can be retrieved by its ID
         for (id, expected) in ids.iter().zip(items.iter()) {
-            let item = storage.get(id).await.unwrap().unwrap();
+            let item = storage.get::<TestItem>(id).await.unwrap().unwrap();
             assert_eq!(&item, expected);
         }
     }
@@ -236,12 +227,12 @@ mod tests {
         }
 
         // Verify all items were stored
-        let items = storage.list().await.unwrap();
+        let items = storage.list::<TestItem>().await.unwrap();
         assert_eq!(items.len(), 10);
 
         // Verify each ID exists
         for id in ids {
-            assert!(storage.get(&id).await.unwrap().is_some());
+            assert!(storage.get::<TestItem>(&id).await.unwrap().is_some());
         }
     }
 }
