@@ -167,6 +167,7 @@ async fn models_handler(State(state): State<Arc<Server>>) -> Json<ModelResponse>
     Json(ModelResponse { models })
 }
 
+// TODO: currently we return all the conversations, we should paginate this.
 async fn all_conversations_handler(State(state): State<Arc<Server>>) -> Json<Vec<Request>> {
     let chat_history = state.storage().list().await.unwrap_or_default();
     Json(chat_history)
