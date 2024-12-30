@@ -112,11 +112,7 @@ async fn conversation_handler(
         .get(&conversation_id)
         .await
         .expect("Failed to get conversation context.")
-        .unwrap_or_else(|| {
-            state
-                .system_prompt()
-                .conversation_id(Some(conversation_id))
-        });
+        .unwrap_or_else(|| state.system_prompt().conversation_id(Some(conversation_id)));
 
     let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
 
@@ -144,7 +140,7 @@ async fn conversation_by_id_handler(
         )),
         Err(_e) => Err((
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to retrieve conversation"),
+            "Failed to retrieve conversation".to_string(),
         )),
     }
 }

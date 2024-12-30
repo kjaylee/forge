@@ -71,7 +71,7 @@ where
             ON CONFLICT(id) DO UPDATE SET data = excluded.data
             "#,
         )
-        .bind(&key)
+        .bind(key)
         .bind(json_data)
         .execute(&self.pool)
         .await?;
@@ -87,7 +87,7 @@ where
             WHERE id = ?
             "#,
         )
-        .bind(&key)
+        .bind(key)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -151,7 +151,7 @@ mod tests {
 
         let item = TestItem { name: "test".to_string(), value: 42 };
         let key = "1";
-        let _ = storage.save(key, &item).await.unwrap();
+        storage.save(key, &item).await.unwrap();
         // Retrieve and verify
         let retrieved = storage.get(key).await.unwrap().unwrap();
         assert_eq!(item, retrieved);
@@ -188,7 +188,7 @@ mod tests {
         let mut ids = Vec::new();
         for item in &items {
             let id = uuid::Uuid::new_v4().to_string();
-            let _ = storage.save(&id, item).await.unwrap();
+            storage.save(&id, item).await.unwrap();
             ids.push(id);
         }
 
