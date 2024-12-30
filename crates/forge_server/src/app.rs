@@ -428,42 +428,34 @@ mod tests {
         let app = App::default();
 
         // Test when next thought is needed
-        let think_result_continue = ToolResult {
-            tool_use_id: None,
-            tool_name: ToolName::from("think"),
-            content: json!({
+        let think_result_continue = ToolResult::new(ToolName::new("think"))
+            .content(json!({
                 "thoughtNumber": 1,
                 "totalThoughts": 3,
                 "nextThoughtNeeded": true,
                 "branches": [],
                 "thoughtHistoryLength": 1
-            }),
-            is_error: false,
-        };
+            }));
 
         let action = Action::ToolResponse(think_result_continue);
-        let (app, commands) = app.update(action).unwrap();
+        let (app, commands) = app.run(action).unwrap();
 
-        assert!(commands.has(Command::AssistantMessage(app.context.clone())));
+        assert!(commands.has(Command::AssistantMessage(app.request.clone())));
 
         // Test when thinking is complete
-        let think_result_end = ToolResult {
-            tool_use_id: None,
-            tool_name: ToolName::from("think"),
-            content: json!({
+        let think_result_end = ToolResult::new(ToolName::new("think"))
+            .content(json!({
                 "thoughtNumber": 3,
                 "totalThoughts": 3,
                 "nextThoughtNeeded": false,
                 "branches": [],
                 "thoughtHistoryLength": 3
-            }),
-            is_error: false,
-        };
+            }));
 
         let action = Action::ToolResponse(think_result_end.clone());
-        let (app, commands) = app.update(action).unwrap();
+        let (app, commands) = app.run(action).unwrap();
 
-        assert!(commands.has(Command::AssistantMessage(app.context)));
+        assert!(commands.has(Command::AssistantMessage(app.request.clone())));
         assert!(commands.has(Command::UserMessage(ChatResponse::ToolUseEnd(
             think_result_end
         ))));
@@ -473,44 +465,36 @@ mod tests {
         let app = App::default();
 
         // Test when next thought is needed
-        let think_result_continue = ToolResult {
-            tool_use_id: None,
-            tool_name: ToolName::from("think"),
-            content: json!({
+        let think_result_continue = ToolResult::new(ToolName::new("think"))
+            .content(json!({
                 "thoughtNumber": 1,
                 "totalThoughts": 3,
                 "nextThoughtNeeded": true,
                 "branches": [],
                 "thoughtHistoryLength": 1
-            }),
-            is_error: false,
-        };
+            }));
 
         let action = Action::ToolResponse(think_result_continue.clone());
-        let (app, _) = app.update(action).unwrap();
+        let (app, _) = app.run(action).unwrap();
 
         // Should only push AssistantMessage to continue conversation
 
         // Test when thinking is complete
-        let think_result_end = ToolResult {
-            tool_use_id: None,
-            tool_name: ToolName::from("think"),
-            content: json!({
+        let think_result_end = ToolResult::new(ToolName::new("think"))
+            .content(json!({
                 "thoughtNumber": 3,
                 "totalThoughts": 3,
                 "nextThoughtNeeded": false,
                 "branches": [],
                 "thoughtHistoryLength": 3
-            }),
-            is_error: false,
-        };
+            }));
 
         let action = Action::ToolResponse(think_result_end.clone());
-        let (app, _) = app.update(action).unwrap();
+        let (app, _) = app.run(action).unwrap();
 
         assert_eq!(
-            app.context.tool_result,
-            vec![think_result_continue, think_result_end]
+            app.request.messages,
+            vec![think_result_continue.clone(), think_result_end].into_iter().map(CompletionMessage::from).collect::<Vec<_>>()
         );
     }
 }

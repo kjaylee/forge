@@ -135,7 +135,8 @@ impl ToolImporter {
 
         assert!(
             description.len() < 1024,
-            "Description for tool {} is longer than 1024",
+            "Description for tool '{}' is {} which greater than the max limit of 1024",
+            description.len(),
             name
         );
 

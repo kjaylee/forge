@@ -8,65 +8,32 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolTrait};
 
-/// A flexible, iterative reasoning framework for multi-step problem analysis.
+/// A framework for iterative reasoning in problem-solving.
 ///
 /// ## Purpose
-/// Use this structure to capture a series of "thoughts" (or reasoning steps)
-/// that can be expanded, revised, or branched off. It is designed to guide and
-/// track the chain-of-thought behind solving complex or partially defined
-/// problems.
-///
-/// This framework is particularly suitable for:
-/// - Decomposing complex tasks into multiple steps
-/// - Maintaining context across iterative reasoning passes
-/// - Revising earlier thought processes without losing the entire history
-/// - Splitting reasoning into multiple branches when exploring alternative
-///   solutions
-/// - Tracking confidence levels as you generate and verify hypotheses
+/// Tracks reasoning steps ("thoughts") to solve complex problems:
+/// - Breaks tasks into steps
+/// - Supports revisions and branching
+/// - Tracks confidence and verifies solutions
 ///
 /// ## Key Features
-/// - **Adjustable Thought Count**: You can increase or decrease
-///   `total_thoughts` at any point to accommodate unexpected complexity.
-/// - **Revisions**: Mark any step as a revision (`is_revision`) of a previous
-///   step (`revises_thought`).
-/// - **Branching**: Create alternative solution paths by forking from a
-///   specific thought (`branch_from_thought`) and labeling the branch with
-///   `branch_id`.
-/// - **Iterative Confidence**: Optionally store and update a
-///   `solution_confidence` rating for each thought as analysis progresses.
-/// - **Solution Hypothesis & Verification**: Store partial or final solution
-///   hypotheses, then verify them step-by-step, and repeat until the solution
-///   is reached (`solution_reached`).
+/// - Adjust `total_thoughts` for complexity
+/// - Link revisions with `revises_thought`
+/// - Branch paths via `branch_from_thought`
+/// - Update `solution_confidence`
+/// - Mark completion with `solution_reached`
 ///
-/// ## Usage in LLM Workflows
-/// 1. **Initialize**: Start with a `Think` object, specifying an initial guess
-///    for `total_thoughts`.
-/// 2. **Add Thoughts**: Append entries to `thought_history` as you break down
-///    the problem and explore solutions.
-/// 3. **Revise / Branch**: If you realize a mistake or want to explore a new
-///    line of reasoning, mark the thought with `is_revision` and
-///    `revises_thought` or branch out with `branch_from_thought` and
-///    `branch_id`.
-/// 4. **Check Completion**: If `solution_reached` is true and
-///    `next_thought_needed` is false, the reasoning is considered complete and
-///    an answer can be provided.
-/// 5. **Confidence Tracking**: At each step, optionally update
-///    `solution_confidence` to reflect how certain you are in the emerging
-///    solution.
-/// 6. **Final Answer**: When done, the last thought in `thought_history` should
-///    contain the correct or best solution found.
+/// ## Workflow
+/// 1. Initialize `Think` with `total_thoughts`.
+/// 2. Add steps to `thought_history`.
+/// 3. Revise or branch as needed.
+/// 4. Update confidence and validate.
+/// 5. Mark `solution_reached` when done.
 ///
 /// ## Fields
-/// - **thought_history**: A list of `ThoughtData` representing each step in
-///   your iterative reasoning process.
-/// - **branches**: A mapping from branch IDs to alternate `ThoughtData`
-///   sequences. Helpful when the solution involves exploring or comparing
-///   parallel solution paths.
-/// - **solution_reached**: A boolean indicating if you have arrived at a final,
-///   validated solution.
-///
-/// For usage examples, see tests or demonstration code where `Think` is used to
-/// hold state across an interactive or iterative problem-solving session.
+/// - `thought_history`: Steps taken.
+/// - `branches`: Alternate paths.
+/// - `solution_reached`: Final solution.
 #[derive(Clone, Default, Description)]
 pub struct Think {
     thought_history: Vec<ThoughtData>,
