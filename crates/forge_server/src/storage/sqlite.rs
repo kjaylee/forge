@@ -1,10 +1,13 @@
 #![allow(dead_code)]
-use super::{Storage, StorageError};
-use serde::{de::DeserializeOwned, Serialize};
-use sqlx::{Row, SqlitePool};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
+
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use sqlx::{Row, SqlitePool};
+
+use super::{Storage, StorageError};
 
 const DB_PATH: &str = ".codeforge.db";
 
@@ -85,7 +88,7 @@ where
         .bind(id.clone())
         .fetch_optional(&self.pool)
         .await?;
-    
+
         println!("SqLite: GET: {} ", id);
 
         match record {
@@ -122,10 +125,11 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde::{Deserialize, Serialize};
     use tempfile::NamedTempFile;
     use uuid::Uuid;
+
+    use super::*;
 
     #[derive(Debug, Serialize, Deserialize, PartialEq)]
     struct TestItem {
