@@ -1,11 +1,14 @@
 #![allow(dead_code)]
-use super::{Storage, StorageError};
-use serde::{de::DeserializeOwned, Serialize};
-use sqlx::{Row, SqlitePool};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
+
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use sqlx::{Row, SqlitePool};
 use tracing::info;
+
+use super::{Storage, StorageError};
 
 const DB_PATH: &str = ".codeforge.db";
 
