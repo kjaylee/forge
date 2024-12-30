@@ -88,7 +88,7 @@ impl Server {
         let conversation_id = chat
             .conversation_id
             .clone()
-            .expect("conversation_id is expected to be present!");
+            .expect("`conversation_id` is expected to be present!");
 
         tokio::spawn(async move {
             let result = runtime
