@@ -3,7 +3,8 @@ use std::fmt::{Debug, Display, Formatter};
 use derive_more::derive::{Display, From};
 use derive_setters::Setters;
 
-use crate::{app::ChatResponse, StorageError};
+use crate::app::ChatResponse;
+use crate::StorageError;
 
 #[derive(Display, From)]
 pub enum Error {
