@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
 
-const DB_PATH: &str = "sqlite://codeforge.db";
+const DB_PATH: &str = ".codeforge.db";
 
 #[derive(Debug)]
 pub struct SqliteStorage<T> {
@@ -30,10 +30,7 @@ where
 
     /// Create a new SQLite storage with the default path
     pub async fn default() -> Result<Self, StorageError> {
-        let pool = SqlitePool::connect(DB_PATH).await?;
-        let storage = Self { pool, _phantom: PhantomData };
-        storage.init().await?;
-        Ok(storage)
+        Self::new(Path::new(DB_PATH)).await
     }
 }
 
@@ -60,7 +57,7 @@ where
 
     async fn save(&self, key: String, item: &T) -> Result<String, StorageError> {
         let json_data = serde_json::to_string(item)?;
-
+        println!("SqLite: Save: {} and {}", key, json_data);
         sqlx::query(
             r#"
             INSERT INTO items (id, data)
@@ -83,9 +80,11 @@ where
             WHERE id = ?
             "#,
         )
-        .bind(id)
+        .bind(id.clone())
         .fetch_optional(&self.pool)
         .await?;
+    
+        println!("SqLite: GET: {} ", id);
 
         match record {
             Some(row) => {

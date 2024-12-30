@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 const SERVER_PORT: u16 = 8080;
 
-use axum::extract::{Json, State};
+use axum::extract::{Json, Path, State};
 use axum::response::sse::{Event, Sse};
 use axum::response::Html;
 use axum::routing::{get, post};
@@ -52,6 +52,7 @@ impl API {
 
         // Setup HTTP server
         let app = Router::new()
+            .route("/conversation/:id", get(conversation_by_id_handler))
             .route("/conversation", post(conversation_handler))
             .route("/completions", get(completions_handler))
             .route("/health", get(health_handler))
@@ -98,22 +99,59 @@ async fn completions_handler(State(state): State<Arc<Server>>) -> axum::Json<Vec
     axum::Json(files)
 }
 
-// #[axum::debug_handler]
+// execute the chat_request against the chat ctx.
+#[axum::debug_handler]
 async fn conversation_handler(
     State(state): State<Arc<Server>>,
-    Json(request): Json<ChatRequest>,
+    Json(mut request): Json<ChatRequest>,
 ) -> Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>> {
+    let conversation_id = request
+        .conversation_id
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    request.conversation_id = Some(conversation_id.clone());
+
+    println!("[Finder]: conversation_id: {}", conversation_id);
+
+    // 1. pull the conversation context from database.
+    let conversation_ctx = state
+        .storage()
+        .get(conversation_id)
+        .await
+        .expect("Failed to get conversation context.")
+        .unwrap_or_else(|| state.base_context());
+
+    let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
+
     let stream = state
-        .chat(request)
+        .chat(request, conversation_ctx)
         .await
         .expect("Engine failed to respond with a chat message");
+
     Sse::new(stream.map(|action| {
         let data = serde_json::to_string(&action).expect("Failed to serialize action");
         Ok(Event::default().data(data))
     }))
 }
 
-// #[axum::debug_handler]
+async fn conversation_by_id_handler(
+    State(state): State<Arc<Server>>,
+    Path(id): Path<String>,
+) -> std::result::Result<Json<Request>, (axum::http::StatusCode, String)> {
+    match state.storage().get(id).await {
+        Ok(Some(history)) => Ok(Json(history)),
+        Ok(None) => Err((
+            axum::http::StatusCode::NOT_FOUND,
+            "Conversation not found".to_string(),
+        )),
+        Err(e) => Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to retrieve conversation: {}", e),
+        )),
+    }
+}
+
+#[axum::debug_handler]
 async fn tools_handler(State(state): State<Arc<Server>>) -> Json<ToolResponse> {
     let tools = state.tools();
     Json(ToolResponse { tools })
