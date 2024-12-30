@@ -1,13 +1,11 @@
 #![allow(dead_code)]
+use super::{Storage, StorageError};
+use serde::{de::DeserializeOwned, Serialize};
+use sqlx::{Row, SqlitePool};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
-
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use sqlx::{Row, SqlitePool};
-
-use super::{Storage, StorageError};
+use tracing::info;
 
 const DB_PATH: &str = ".codeforge.db";
 
@@ -28,6 +26,10 @@ where
 
         let storage = Self { pool, _phantom: PhantomData };
         storage.init().await?;
+        info!(
+            "Initialized SQLite database at {}",
+            db_path.as_ref().display()
+        );
         Ok(storage)
     }
 

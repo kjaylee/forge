@@ -110,7 +110,7 @@ async fn conversation_handler(
         .get(conversation_id)
         .await
         .expect("Failed to get conversation context.")
-        .unwrap_or_else(|| state.base_context());
+        .unwrap_or_else(|| state.system_prompt());
 
     let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
 

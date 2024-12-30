@@ -41,8 +41,11 @@ impl Server {
 
         let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
-        // TODO: drop unwrap and handle error gracefully.
-        let storage = Arc::new(SqliteStorage::<Request>::default().await.unwrap());
+        let storage = Arc::new(
+            SqliteStorage::<Request>::default()
+                .await
+                .expect("failed to initialize the sqlite database."),
+        );
         Self {
             env,
             provider: Arc::new(Provider::open_router(api_key.clone(), None)),
@@ -63,7 +66,7 @@ impl Server {
         self.tools.list()
     }
 
-    pub fn base_context(&self) -> Request {
+    pub fn system_prompt(&self) -> Request {
         self.base_context.clone()
     }
 
@@ -103,10 +106,7 @@ impl Server {
             // once everything is executed, update the context in db.
             let data = context.read().unwrap().clone();
             // TODO: handle save error gracefully.
-            let _ = storage
-                .save(conversation_id.to_string(), &data)
-                .await
-                .unwrap();
+            let _ = storage.save(conversation_id.to_string(), &data).await;
             result
         });
 

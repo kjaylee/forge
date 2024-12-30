@@ -508,4 +508,28 @@ mod tests {
                 .collect::<Vec<_>>()
         );
     }
+
+    #[test]
+    fn test_chat_context() {
+        let app = App::default();
+
+        // request 1 executed against chat context.
+        let chat_request_1 = ChatRequest::default().content("Count - 1");
+        let chat_context = Arc::new(RwLock::new(Request::default()));
+        let (_app, _) = app
+            .run(chat_context.clone(), chat_request_1.clone())
+            .unwrap();
+
+        // request 2 executed against the same chat context.
+        let app = App::default();
+        let chat_request_2 = ChatRequest::default().content("Count - 1");
+        let (_, _) = app
+            .run(chat_context.clone(), chat_request_2.clone())
+            .unwrap();
+
+        let ctx_reader = chat_context.read().unwrap();
+
+        assert_eq!(ctx_reader.model, ModelId::default());
+        assert_eq!(ctx_reader.messages.len(), 2);
+    }
 }
