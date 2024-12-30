@@ -42,7 +42,7 @@ where
     async fn init(&self) -> Result<(), StorageError> {
         sqlx::query(
             r#"
-            CREATE TABLE IF NOT EXISTS items (
+            CREATE TABLE IF NOT EXISTS conversation_history (
                 id VARCHAR(36) PRIMARY KEY,
                 data TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -55,13 +55,15 @@ where
         Ok(())
     }
 
+    // Save an item to the database, if item already exists update it.
     async fn save(&self, key: String, item: &T) -> Result<String, StorageError> {
         let json_data = serde_json::to_string(item)?;
         println!("SqLite: Save: {} and {}", key, json_data);
         sqlx::query(
             r#"
-            INSERT INTO items (id, data)
+            INSERT INTO conversation_history (id, data)
             VALUES (?, ?)
+            ON CONFLICT(id) DO UPDATE SET data = excluded.data
             "#,
         )
         .bind(&key)
@@ -76,7 +78,7 @@ where
         let record = sqlx::query(
             r#"
             SELECT data
-            FROM items
+            FROM conversation_history
             WHERE id = ?
             "#,
         )
@@ -100,7 +102,7 @@ where
         let records = sqlx::query(
             r#"
             SELECT data
-            FROM items
+            FROM conversation_history
             ORDER BY created_at DESC
             "#,
         )
