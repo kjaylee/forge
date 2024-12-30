@@ -87,7 +87,8 @@ impl Server {
             .expect("`conversation_id` is expected to be present!");
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         // send the conversation id to the client.
-        tx.send(ChatResponse::ConversationId(conversation_id.clone())).await?;
+        tx.send(ChatResponse::ConversationId(conversation_id.clone()))
+            .await?;
 
         let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
