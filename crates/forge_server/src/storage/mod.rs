@@ -7,7 +7,7 @@ mod sqlite;
 pub use sqlite::SqliteStorage;
 
 #[async_trait]
-pub trait Storage: Send + Sync + std::fmt::Debug {
+pub trait Storage: Send + Sync + std::fmt::Debug + Clone {
     /// Initialize the storage
     async fn init(&self) -> Result<(), StorageError>;
 

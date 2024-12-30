@@ -1,15 +1,32 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use forge_provider::ResultStream;
+use forge_provider::{Request, ResultStream};
 use futures::future::join_all;
+use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
+
+use crate::Storage;
+
+pub trait ConversationContext: Clone + Send + Sync {
+    fn id(&self) -> String;
+}
+
+impl ConversationContext for Arc<RwLock<Request>> {
+    fn id(&self) -> String {
+        self.read()
+            .unwrap()
+            .conversation_id
+            .clone()
+            .expect("at the point conversation_id should be set")
+    }
+}
 
 pub trait Application: Send + Sync + Sized + Clone {
     type Action: Send;
     type Error: Send;
     type Command: Send;
-    type Context: Send;
+    type Context: ConversationContext + Send;
     fn run(
         self,
         context: Self::Context,
@@ -39,17 +56,18 @@ pub trait Application: Send + Sync + Sized + Clone {
 }
 
 #[derive(Clone)]
-pub struct ApplicationRuntime<A: Application> {
+pub struct ApplicationRuntime<A: Application, S: Storage> {
     state: Arc<Mutex<A>>,
+    storage: Arc<S>,
 }
 
-impl<A: Application> ApplicationRuntime<A> {
-    pub fn new(app: A) -> Self {
-        Self { state: Arc::new(Mutex::new(app)) }
+impl<A: Application, S: Storage> ApplicationRuntime<A, S> {
+    pub fn new(app: A, storage: Arc<S>) -> Self {
+        Self { state: Arc::new(Mutex::new(app)), storage }
     }
 }
 
-impl<A: Application + 'static> ApplicationRuntime<A> {
+impl<A: Application + 'static, S: Storage + 'static> ApplicationRuntime<A, S> {
     #[async_recursion::async_recursion]
     pub async fn execute<'a>(
         &'a self,
@@ -60,13 +78,17 @@ impl<A: Application + 'static> ApplicationRuntime<A> {
         >,
     ) -> std::result::Result<(), A::Error>
     where
-        A::Context: Clone,
+        A::Context: Clone + Serialize,
     {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
         let (app, commands) = app.run(context.clone(), action)?;
         *guard = app;
         drop(guard);
+
+        // on every succesfull action, save the context.
+        let conversation_id = context.id();
+        let _ = self.storage.save(&conversation_id, &context).await;
 
         join_all(commands.into_iter().map(|command| {
             let executor = executor.clone();

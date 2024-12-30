@@ -11,7 +11,7 @@ use super::{Storage, StorageError};
 
 const DB_PATH: &str = ".codeforge.db";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SqliteStorage {
     pool: SqlitePool,
 }
