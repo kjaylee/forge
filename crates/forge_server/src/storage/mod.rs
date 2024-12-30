@@ -6,7 +6,7 @@ mod sqlite;
 pub use sqlite::SqliteStorage;
 
 #[async_trait]
-pub trait Storage<T>: Send + Sync
+pub trait Storage<T>: Send + Sync + std::fmt::Debug
 where
     T: Serialize + DeserializeOwned + Send + Sync,
 {
@@ -14,7 +14,7 @@ where
     async fn init(&self) -> Result<(), StorageError>;
 
     /// Store an item and return its UUID
-    async fn set(&self, key: String, item: &T) -> Result<String, StorageError>;
+    async fn save(&self, key: String, item: &T) -> Result<String, StorageError>;
 
     /// Retrieve an item by its UUID
     async fn get(&self, id: String) -> Result<Option<T>, StorageError>;

@@ -2,11 +2,13 @@
 use super::{Storage, StorageError};
 use serde::{de::DeserializeOwned, Serialize};
 use sqlx::{Row, SqlitePool};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
 
 const DB_PATH: &str = "sqlite://codeforge.db";
 
+#[derive(Debug)]
 pub struct SqliteStorage<T> {
     pool: SqlitePool,
     _phantom: PhantomData<T>,
@@ -14,7 +16,7 @@ pub struct SqliteStorage<T> {
 
 impl<T> SqliteStorage<T>
 where
-    T: Serialize + DeserializeOwned + Send + Sync,
+    T: Serialize + DeserializeOwned + Send + Sync + Debug,
 {
     /// Create a new SQLite storage with a custom path
     pub async fn new(db_path: impl AsRef<Path>) -> Result<Self, StorageError> {
@@ -38,7 +40,7 @@ where
 #[async_trait::async_trait]
 impl<T> Storage<T> for SqliteStorage<T>
 where
-    T: Serialize + DeserializeOwned + Send + Sync,
+    T: Serialize + DeserializeOwned + Send + Sync + Debug,
 {
     async fn init(&self) -> Result<(), StorageError> {
         sqlx::query(
@@ -56,7 +58,7 @@ where
         Ok(())
     }
 
-    async fn set(&self, key: String, item: &T) -> Result<String, StorageError> {
+    async fn save(&self, key: String, item: &T) -> Result<String, StorageError> {
         let json_data = serde_json::to_string(item)?;
 
         sqlx::query(
@@ -142,7 +144,7 @@ mod tests {
 
         let item = TestItem { name: "test".to_string(), value: 42 };
         let key = "1".to_string();
-        let id = storage.set(key, &item).await.unwrap();
+        let id = storage.save(key, &item).await.unwrap();
 
         // Retrieve and verify
         let retrieved = storage.get(id).await.unwrap().unwrap();
@@ -180,7 +182,7 @@ mod tests {
         let mut ids = Vec::new();
         for item in &items {
             let id = uuid::Uuid::new_v4().to_string();
-            let id = storage.set(id, item).await.unwrap();
+            let id = storage.save(id, item).await.unwrap();
             ids.push(id);
         }
 
@@ -213,7 +215,7 @@ mod tests {
             let handle = tokio::spawn(async move {
                 let item = TestItem { name: format!("item_{}", i), value: i };
                 let id = uuid::Uuid::new_v4().to_string();
-                storage.set(id, &item).await.unwrap()
+                storage.save(id, &item).await.unwrap()
             });
             handles.push(handle);
         }

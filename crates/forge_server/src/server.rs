@@ -3,8 +3,6 @@ use std::sync::Arc;
 use forge_env::Environment;
 use forge_provider::{CompletionMessage, Model, ModelId, Provider, Request, Response};
 use forge_tool::{ToolDefinition, ToolEngine};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
@@ -14,23 +12,19 @@ use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::ApplicationRuntime;
 use crate::storage::SqliteStorage;
-use crate::{Result, Storage};
+use crate::Result;
 
 #[derive(Clone)]
-pub struct Server<T> {
+pub struct Server {
     provider: Arc<Provider<Request, Response, forge_provider::Error>>,
     tools: Arc<ToolEngine>,
     completions: Arc<Completion>,
     runtime: Arc<ApplicationRuntime<App>>,
     env: Environment,
     api_key: String,
-    storage: Arc<dyn Storage<T>>,
 }
 
-impl<T> Server<T>
-where
-    T: 'static + Serialize + DeserializeOwned + Send + Sync,
-{
+impl Server {
     pub async fn new(env: Environment, api_key: impl Into<String>) -> Self {
         let tools = ToolEngine::new(env.clone());
 
@@ -46,16 +40,16 @@ where
         let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
         // TODO: drop unwrap and handle error gracefully.
-        let storage = SqliteStorage::default().await.unwrap();
-
+        let storage = Arc::new(SqliteStorage::<Request>::default().await.unwrap());
         Self {
             env,
             provider: Arc::new(Provider::open_router(api_key.clone(), None)),
             tools: Arc::new(tools),
             completions: Arc::new(Completion::new(cwd.clone())),
-            runtime: Arc::new(ApplicationRuntime::new(App::new(request))),
+            runtime: Arc::new(ApplicationRuntime::new(
+                App::new(request).with_storage(storage),
+            )),
             api_key,
-            storage: Arc::new(storage),
         }
     }
 

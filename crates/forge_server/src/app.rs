@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use derive_more::derive::From;
 use derive_setters::Setters;
 use forge_prompt::Prompt;
@@ -9,7 +11,7 @@ use serde::Serialize;
 
 use crate::runtime::Application;
 use crate::template::MessageTemplate;
-use crate::Result;
+use crate::{Result, Storage};
 
 #[derive(Clone, Debug, From)]
 pub enum Action {
@@ -67,6 +69,9 @@ pub struct App {
 
     // Keep context at the end so that debugging the Serialized format is easier
     pub request: Request,
+
+    #[serde(skip)]
+    pub(crate) storage: Option<Arc<dyn Storage<Request>>>,
 }
 
 impl App {
@@ -76,7 +81,12 @@ impl App {
             user_objective: None,
             tool_call_part: Vec::new(),
             assistant_buffer: "".to_string(),
+            storage: None,
         }
+    }
+
+    pub fn with_storage<S: Storage<Request> + 'static>(self, storage: Arc<S>) -> Self {
+        Self { storage: Some(storage), ..self }
     }
 }
 
@@ -165,6 +175,11 @@ impl Application for App {
                 commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
             }
         };
+
+        self.storage
+            .as_ref()
+            .map(|storage| storage.save("2131321312312312321312312".to_string(), &self.request));
+
         Ok((self, commands))
     }
 }
