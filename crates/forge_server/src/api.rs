@@ -4,7 +4,6 @@ const SERVER_PORT: u16 = 8080;
 
 use axum::extract::{Json, Path, State};
 use axum::response::sse::{Event, Sse};
-use axum::response::Html;
 use axum::routing::{get, post};
 use axum::Router;
 use forge_env::Environment;
@@ -17,7 +16,6 @@ use tracing::info;
 
 use crate::app::ChatRequest;
 use crate::completion::File;
-use crate::context::ContextEngine;
 use crate::server::Server;
 use crate::Result;
 
@@ -34,12 +32,6 @@ impl Default for API {
     }
 }
 
-async fn context_html_handler(State(state): State<Arc<Server>>) -> Html<String> {
-    let context = state.context().await;
-    let engine = ContextEngine::new(context);
-    Html(engine.render_html())
-}
-
 impl API {
     pub async fn launch(self) -> Result<()> {
         tracing_subscriber::fmt().init();
@@ -52,14 +44,13 @@ impl API {
 
         // Setup HTTP server
         let app = Router::new()
+            .route("/conversations", get(all_conversations_handler))
             .route("/conversation/:id", get(conversation_by_id_handler))
             .route("/conversation", post(conversation_handler))
             .route("/completions", get(completions_handler))
             .route("/health", get(health_handler))
             .route("/tools", get(tools_handler))
             .route("/models", get(models_handler))
-            .route("/context", get(context_handler))
-            .route("/context/html", get(context_html_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -111,7 +102,7 @@ async fn conversation_handler(
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     request.conversation_id = Some(conversation_id.clone());
 
-    println!("[Finder]: conversation_id: {}", conversation_id);
+    dbg!(&conversation_id);
 
     // 1. pull the conversation context from database.
     let conversation_ctx = state
@@ -169,9 +160,9 @@ async fn models_handler(State(state): State<Arc<Server>>) -> Json<ModelResponse>
     Json(ModelResponse { models })
 }
 
-async fn context_handler(State(state): State<Arc<Server>>) -> Json<ContextResponse> {
-    let context = state.context().await;
-    Json(ContextResponse { context })
+async fn all_conversations_handler(State(state): State<Arc<Server>>) -> Json<Vec<Request>> {
+    let chat_history = state.storage().list().await.unwrap_or_default();
+    Json(chat_history)
 }
 
 #[derive(Serialize)]

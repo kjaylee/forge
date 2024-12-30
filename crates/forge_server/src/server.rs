@@ -11,7 +11,7 @@ use crate::app::{Action, App, ChatRequest, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::ApplicationRuntime;
-use crate::storage::{self, SqliteStorage};
+use crate::storage::SqliteStorage;
 use crate::{Result, Storage};
 
 #[derive(Clone)]
@@ -63,11 +63,6 @@ impl Server {
         self.tools.list()
     }
 
-    pub async fn context(&self) -> Request {
-        // self.runtime.state().await.assistant_buffer
-        unimplemented!()
-    }
-
     pub fn base_context(&self) -> Request {
         self.base_context.clone()
     }
@@ -93,10 +88,10 @@ impl Server {
         let conversation_id = chat
             .conversation_id
             .clone()
-            .expect("conversation_id is required");
-        
+            .expect("conversation_id is expected to be present!");
+
         tokio::spawn(async move {
-            let ans = runtime
+            let result = runtime
                 .clone()
                 .execute(
                     context.clone(),
@@ -105,14 +100,14 @@ impl Server {
                 )
                 .await;
 
-            // update the context in db.
+            // once everything is executed, update the context in db.
             let data = context.read().unwrap().clone();
+            // TODO: handle save error gracefully.
             let _ = storage
                 .save(conversation_id.to_string(), &data)
                 .await
                 .unwrap();
-
-            ans
+            result
         });
 
         Ok(ReceiverStream::new(rx))

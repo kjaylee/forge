@@ -47,10 +47,6 @@ impl<A: Application> ApplicationRuntime<A> {
     pub fn new(app: A) -> Self {
         Self { state: Arc::new(Mutex::new(app)) }
     }
-
-    pub async fn state(&self) -> A {
-        self.state.lock().await.clone()
-    }
 }
 
 impl<A: Application + 'static> ApplicationRuntime<A> {
