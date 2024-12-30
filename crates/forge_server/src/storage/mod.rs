@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use bincode::Error;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -33,7 +34,7 @@ pub enum StorageError {
     Database(#[from] sqlx::Error),
 
     #[error("Serialization error: {0}")]
-    Serialization(#[from] serde_json::Error),
+    Serialization(#[from] Error),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
