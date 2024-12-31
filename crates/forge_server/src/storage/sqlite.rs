@@ -42,7 +42,7 @@ impl Storage for SqliteStorage {
             r#"
             CREATE TABLE IF NOT EXISTS conversation_history (
                 id VARCHAR(36) PRIMARY KEY,
-                data BLOB NOT NULL
+                data BLOB NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             "#,
