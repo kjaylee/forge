@@ -5,13 +5,13 @@ use forge_provider::{
     CompletionMessage, ContentMessage, FinishReason, ModelId, Request, Response, ToolCall,
     ToolCallPart, ToolResult,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::runtime::Application;
 use crate::template::MessageTemplate;
 use crate::Result;
 
-#[derive(Clone, Debug, From)]
+#[derive(Clone, Debug, From, Serialize, Deserialize)]
 pub enum Action {
     UserMessage(ChatRequest),
     FileReadResponse(Vec<FileResponse>),
@@ -19,14 +19,14 @@ pub enum Action {
     ToolResponse(ToolResult),
 }
 
-#[derive(Default, Debug, Clone, Setters)]
+#[derive(Default, Debug, Serialize,Clone, Setters, Deserialize)]
 #[setters(into)]
 pub struct FileResponse {
     pub path: String,
     pub content: String,
 }
 
-#[derive(Debug, serde::Deserialize, Clone, Setters)]
+#[derive(Debug, Serialize, serde::Deserialize, Clone, Setters)]
 #[setters(into)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatRequest {
@@ -55,10 +55,13 @@ pub enum ChatResponse {
     Fail(String),
 }
 
-#[derive(Default, Debug, Clone, Serialize, Setters)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Setters)]
 #[serde(rename_all = "camelCase")]
 #[setters(strip_option)]
 pub struct App {
+    // App Belongs to a conversation id.
+    pub conversation_id: Option<String>,
+    
     // The main objective that the user is trying to achieve
     pub user_objective: Option<MessageTemplate>,
 

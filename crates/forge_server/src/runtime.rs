@@ -2,11 +2,23 @@ use std::sync::Arc;
 
 use forge_provider::ResultStream;
 use futures::future::join_all;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
-use crate::Storage;
+use crate::{app::App, Storage};
+
+pub trait Identifier {
+    fn id(&self) -> &str;
+}
+
+impl Identifier for App {
+    fn id(&self) -> &str {
+        self.conversation_id
+            .as_ref()
+            .expect("at this point conversation_id should be set")
+    }
+}
 
 pub trait Application: Send + Sync + Sized + Clone {
     type Action: Send + Sync;
@@ -35,64 +47,65 @@ pub trait Application: Send + Sync + Sized + Clone {
 }
 
 #[derive(Clone)]
-pub struct ApplicationRuntime<A: Application, S: Storage> {
-    state: Arc<Mutex<A>>,
+pub struct ApplicationRuntime<S: Storage> {
     storage: Arc<S>,
 }
 
-impl<A: Application, S: Storage> ApplicationRuntime<A, S> {
-    pub fn new(app: A, storage: Arc<S>) -> Self {
-        Self { state: Arc::new(Mutex::new(app)), storage }
+impl<S: Storage> ApplicationRuntime<S> {
+    pub fn new(storage: Arc<S>) -> Self {
+        Self { storage }
     }
 }
 
-#[derive(Serialize)]
-struct ExecutionState<A: Serialize, B: Serialize> {
-    app: A,
-    action: B,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorePoint<A, B> {
+    pub app: A,
+    pub action: B,
 }
 
-impl<A: Application + 'static + Serialize, S: Storage + 'static> ApplicationRuntime<A, S> {
+impl<S: Storage + 'static> ApplicationRuntime<S> {
     #[async_recursion::async_recursion]
-    pub async fn execute<'a>(
+    pub async fn execute<'a, A: Application + Serialize + DeserializeOwned + Identifier>(
         &'a self,
+        base_app: Arc<Mutex<A>>,
         action: A::Action,
         executor: Arc<
             impl Executor<Command = A::Command, Action = A::Action, Error = A::Error> + 'static,
         >,
     ) -> std::result::Result<(), A::Error>
     where
-        A::Action: Serialize + Clone,
+        A::Action: Serialize + DeserializeOwned + Clone,
     {
-        let mut guard = self.state.lock().await;
-        let app = guard.clone();
+        let mut guard = base_app.lock().await;
+        let new_app = guard.clone();
 
-        // before calling app.run -> persist the current app(line no 84) and action. -> replace the app with the new app in db(UPSERT).
-        // we need the conversation_id to save the context.
+        // Save the current state of the app.
         let _ = self
             .storage
             .save(
-                "app_app",
-                &ExecutionState { app: app.clone(), action: action.clone() },
+                new_app.id(),
+                &StorePoint { app: new_app.clone(), action: action.clone() },
             )
             .await;
 
-        let (app, commands) = app.run(action)?;
+        let (app, commands) = new_app.run(action)?;
         *guard = app;
         drop(guard);
 
         join_all(commands.into_iter().map(|command| {
             let executor = executor.clone();
+            let app = base_app.clone();
             async move {
                 let _: Result<(), A::Error> = async move {
                     let mut stream = executor.clone().execute(&command).await?;
                     while let Some(action) = stream.next().await {
                         let this = self.clone();
                         let executor = executor.clone();
+                        let app = app.clone();
                         // NOTE: The `execute` call needs to run sequentially. Executing it
                         // asynchronously would disrupt the order of `toolUse` content, leading to
                         // mixed-up.
-                        this.execute(action?, executor).await?;
+                        this.execute(app, action?, executor).await?;
                     }
 
                     Ok(())

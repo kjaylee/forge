@@ -10,12 +10,14 @@ use forge_env::Environment;
 use forge_provider::{Model, Request};
 use forge_tool::ToolDefinition;
 use serde::Serialize;
+use tokio::sync::Mutex;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::app::ChatRequest;
 use crate::completion::File;
+use crate::runtime::StorePoint;
 use crate::server::Server;
 use crate::storage::SqliteStorage;
 use crate::{Result, Storage};
@@ -108,17 +110,20 @@ async fn conversation_handler<S: Storage + 'static>(
     dbg!(&conversation_id);
 
     // // 1. pull the conversation context from database.
-    // let conversation_ctx = state
-    //     .storage()
-    //     .get(&conversation_id)
-    //     .await
-    //     .expect("Failed to get conversation context.")
-    //     .unwrap_or_else(|| state.system_prompt().conversation_id(Some(conversation_id)));
+    let conversation_ctx = state
+        .storage()
+        .get(&conversation_id)
+        .await
+        .expect("Failed to get conversation context.")
+        .unwrap_or_else(|| StorePoint {
+            app: state.app().conversation_id(conversation_id.clone()),
+            action: crate::app::Action::FileReadResponse(vec![]),
+        });
 
-    // let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
+    let conversation_ctx = Arc::new(Mutex::new(conversation_ctx));
 
     let stream = state
-        .chat(request)
+        .chat(conversation_ctx, request)
         .await
         .expect("Engine failed to respond with a chat message");
 

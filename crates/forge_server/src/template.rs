@@ -2,9 +2,9 @@ use std::fmt::Display;
 
 use derive_setters::Setters;
 use forge_provider::CompletionMessage;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Setters)]
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Setters, Deserialize)]
 #[setters(into)]
 pub struct Tag {
     // TODO: move to enum type
@@ -12,7 +12,7 @@ pub struct Tag {
     pub attributes: Vec<(String, String)>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MessageTemplate {
     Tagged {
         tag: Tag,
