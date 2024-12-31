@@ -40,7 +40,7 @@ impl<S: Storage + 'static> Server<S> {
             runtime: Arc::new(ApplicationRuntime::new(App::default(), storage.clone())),
             api_key,
             storage,
-            base_context,
+            base_context: request,
         }
     }
 

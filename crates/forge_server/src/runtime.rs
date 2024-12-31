@@ -82,6 +82,7 @@ impl<A: Application + 'static, S: Storage + 'static> ApplicationRuntime<A, S> {
     {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
+        // before calling app.run -> persist the current app(line no 84) and action. -> replace the app with the new app in db(UPSERT).
         let (app, commands) = app.run(context.clone(), action)?;
         *guard = app;
         drop(guard);
