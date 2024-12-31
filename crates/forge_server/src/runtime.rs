@@ -2,27 +2,14 @@ use std::sync::Arc;
 
 use forge_provider::ResultStream;
 use futures::future::join_all;
+use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
 use crate::Storage;
 
-// pub trait ConversationContext: Clone + Send + Sync {
-//     fn id(&self) -> String;
-// }
-
-// impl ConversationContext for Arc<RwLock<Request>> {
-//     fn id(&self) -> String {
-//         self.read()
-//             .unwrap()
-//             .conversation_id
-//             .clone()
-//             .expect("at the point conversation_id should be set")
-//     }
-// }
-
 pub trait Application: Send + Sync + Sized + Clone {
-    type Action: Send;
+    type Action: Send + Sync;
     type Error: Send;
     type Command: Send;
     fn run(
@@ -59,7 +46,13 @@ impl<A: Application, S: Storage> ApplicationRuntime<A, S> {
     }
 }
 
-impl<A: Application + 'static, S: Storage + 'static> ApplicationRuntime<A, S> {
+#[derive(Serialize)]
+struct ExecutionState<A: Serialize, B: Serialize> {
+    app: A,
+    action: B,
+}
+
+impl<A: Application + 'static + Serialize, S: Storage + 'static> ApplicationRuntime<A, S> {
     #[async_recursion::async_recursion]
     pub async fn execute<'a>(
         &'a self,
@@ -67,21 +60,29 @@ impl<A: Application + 'static, S: Storage + 'static> ApplicationRuntime<A, S> {
         executor: Arc<
             impl Executor<Command = A::Command, Action = A::Action, Error = A::Error> + 'static,
         >,
-    ) -> std::result::Result<(), A::Error> {
+    ) -> std::result::Result<(), A::Error>
+    where
+        A::Action: Serialize + Clone,
+    {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
+
         // before calling app.run -> persist the current app(line no 84) and action. -> replace the app with the new app in db(UPSERT).
+        // we need the conversation_id to save the context.
+        let _ = self
+            .storage
+            .save(
+                "app_app",
+                &ExecutionState { app: app.clone(), action: action.clone() },
+            )
+            .await;
+
         let (app, commands) = app.run(action)?;
         *guard = app;
         drop(guard);
 
-        // // on every succesfull action, save the context.
-        // let conversation_id = context.id();
-        // let _ = self.storage.save(&conversation_id, &context).await;
-
         join_all(commands.into_iter().map(|command| {
             let executor = executor.clone();
-            // let context = context.clone();
             async move {
                 let _: Result<(), A::Error> = async move {
                     let mut stream = executor.clone().execute(&command).await?;

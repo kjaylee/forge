@@ -22,7 +22,6 @@ pub struct Server<S: Storage> {
     env: Environment,
     api_key: String,
     storage: Arc<S>,
-    base_context: Request,
 }
 
 impl<S: Storage + 'static> Server<S> {
@@ -37,10 +36,9 @@ impl<S: Storage + 'static> Server<S> {
             provider: Arc::new(Provider::open_router(api_key.clone(), None)),
             tools: Arc::new(tools),
             completions: Arc::new(Completion::new(cwd.clone())),
-            runtime: Arc::new(ApplicationRuntime::new(App::default(), storage.clone())),
+            runtime: Arc::new(ApplicationRuntime::new(App::new(request), storage.clone())),
             api_key,
             storage,
-            base_context: request,
         }
     }
 
@@ -50,10 +48,6 @@ impl<S: Storage + 'static> Server<S> {
 
     pub fn tools(&self) -> Vec<ToolDefinition> {
         self.tools.list()
-    }
-
-    pub fn system_prompt(&self) -> Request {
-        self.base_context.clone()
     }
 
     pub async fn models(&self) -> Result<Vec<Model>> {

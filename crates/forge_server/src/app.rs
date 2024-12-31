@@ -72,6 +72,12 @@ pub struct App {
     pub request: Request,
 }
 
+impl App {
+    pub fn new(request: Request) -> Self {
+        Self { request, ..Default::default() }
+    }
+}
+
 impl Application for App {
     type Action = Action;
     type Error = crate::Error;
