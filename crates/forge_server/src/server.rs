@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use forge_env::Environment;
 use forge_provider::{Model, ModelId, Provider, Request, Response};
@@ -64,11 +64,7 @@ impl<S: Storage + 'static> Server<S> {
         self.storage.clone()
     }
 
-    pub async fn chat(
-        &self,
-        chat: ChatRequest,
-        context: Arc<RwLock<Request>>,
-    ) -> Result<impl Stream<Item = ChatResponse> + Send> {
+    pub async fn chat(&self, chat: ChatRequest) -> Result<impl Stream<Item = ChatResponse> + Send> {
         let conversation_id = chat
             .conversation_id
             .clone()
@@ -80,23 +76,22 @@ impl<S: Storage + 'static> Server<S> {
 
         let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
-        let storage = self.storage.clone();
+        // let storage = self.storage.clone();
         let message = format!("<task>{}</task>", chat.content);
 
         tokio::spawn(async move {
             let result = runtime
                 .clone()
                 .execute(
-                    context.clone(),
                     Action::UserMessage(chat.content(message)),
                     Arc::new(executor),
                 )
                 .await;
 
-            // once everything is executed, update the context in db.
-            let data = context.read().unwrap().clone();
-            // TODO: handle save error gracefully.
-            let _ = storage.save(&conversation_id, &data).await;
+            // // once everything is executed, update the context in db.
+            // let data = context.read().unwrap().clone();
+            // // TODO: handle save error gracefully.
+            // let _ = storage.save(&conversation_id, &data).await;
             result
         });
 

@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 const SERVER_PORT: u16 = 8080;
 
@@ -107,18 +107,18 @@ async fn conversation_handler<S: Storage + 'static>(
 
     dbg!(&conversation_id);
 
-    // 1. pull the conversation context from database.
-    let conversation_ctx = state
-        .storage()
-        .get(&conversation_id)
-        .await
-        .expect("Failed to get conversation context.")
-        .unwrap_or_else(|| state.system_prompt().conversation_id(Some(conversation_id)));
+    // // 1. pull the conversation context from database.
+    // let conversation_ctx = state
+    //     .storage()
+    //     .get(&conversation_id)
+    //     .await
+    //     .expect("Failed to get conversation context.")
+    //     .unwrap_or_else(|| state.system_prompt().conversation_id(Some(conversation_id)));
 
-    let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
+    // let conversation_ctx = Arc::new(RwLock::new(conversation_ctx));
 
     let stream = state
-        .chat(request, conversation_ctx)
+        .chat(request)
         .await
         .expect("Engine failed to respond with a chat message");
 

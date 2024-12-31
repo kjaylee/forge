@@ -1,52 +1,44 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
-use forge_provider::{Request, ResultStream};
+use forge_provider::ResultStream;
 use futures::future::join_all;
-use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
 use crate::Storage;
 
-pub trait ConversationContext: Clone + Send + Sync {
-    fn id(&self) -> String;
-}
+// pub trait ConversationContext: Clone + Send + Sync {
+//     fn id(&self) -> String;
+// }
 
-impl ConversationContext for Arc<RwLock<Request>> {
-    fn id(&self) -> String {
-        self.read()
-            .unwrap()
-            .conversation_id
-            .clone()
-            .expect("at the point conversation_id should be set")
-    }
-}
+// impl ConversationContext for Arc<RwLock<Request>> {
+//     fn id(&self) -> String {
+//         self.read()
+//             .unwrap()
+//             .conversation_id
+//             .clone()
+//             .expect("at the point conversation_id should be set")
+//     }
+// }
 
 pub trait Application: Send + Sync + Sized + Clone {
     type Action: Send;
     type Error: Send;
     type Command: Send;
-    type Context: ConversationContext + Send;
     fn run(
         self,
-        context: Self::Context,
         action: impl Into<Self::Action>,
     ) -> std::result::Result<(Self, Vec<Self::Command>), Self::Error>;
 
     #[allow(unused)]
-    fn run_seq(
-        self,
-        context: Self::Context,
-        actions: Vec<Self::Action>,
-    ) -> Result<(Self, Vec<Self::Command>), Self::Error>
+    fn run_seq(self, actions: Vec<Self::Action>) -> Result<(Self, Vec<Self::Command>), Self::Error>
     where
         Self::Action: Clone,
-        Self::Context: Clone,
     {
         let mut this = self;
         let mut commands = Vec::new();
         for action in actions {
-            let (s, c) = this.run(context.clone(), action.clone())?;
+            let (s, c) = this.run(action.clone())?;
             this = s;
             commands.extend(c)
         }
@@ -71,29 +63,25 @@ impl<A: Application + 'static, S: Storage + 'static> ApplicationRuntime<A, S> {
     #[async_recursion::async_recursion]
     pub async fn execute<'a>(
         &'a self,
-        context: A::Context,
         action: A::Action,
         executor: Arc<
             impl Executor<Command = A::Command, Action = A::Action, Error = A::Error> + 'static,
         >,
-    ) -> std::result::Result<(), A::Error>
-    where
-        A::Context: Clone + Serialize,
-    {
+    ) -> std::result::Result<(), A::Error> {
         let mut guard = self.state.lock().await;
         let app = guard.clone();
         // before calling app.run -> persist the current app(line no 84) and action. -> replace the app with the new app in db(UPSERT).
-        let (app, commands) = app.run(context.clone(), action)?;
+        let (app, commands) = app.run(action)?;
         *guard = app;
         drop(guard);
 
-        // on every succesfull action, save the context.
-        let conversation_id = context.id();
-        let _ = self.storage.save(&conversation_id, &context).await;
+        // // on every succesfull action, save the context.
+        // let conversation_id = context.id();
+        // let _ = self.storage.save(&conversation_id, &context).await;
 
         join_all(commands.into_iter().map(|command| {
             let executor = executor.clone();
-            let context = context.clone();
+            // let context = context.clone();
             async move {
                 let _: Result<(), A::Error> = async move {
                     let mut stream = executor.clone().execute(&command).await?;
@@ -103,7 +91,7 @@ impl<A: Application + 'static, S: Storage + 'static> ApplicationRuntime<A, S> {
                         // NOTE: The `execute` call needs to run sequentially. Executing it
                         // asynchronously would disrupt the order of `toolUse` content, leading to
                         // mixed-up.
-                        this.execute(context.clone(), action?, executor).await?;
+                        this.execute(action?, executor).await?;
                     }
 
                     Ok(())
