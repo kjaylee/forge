@@ -122,6 +122,7 @@ async fn conversation_handler<S: Storage + 'static>(
             app: state.app().conversation_id(conversation_id.clone()),
             action: Action::UserMessage(request.clone()),
         });
+    // since we are not trying to restore, in order to execute the present request we replace the action with the new request.
     store_point.action = Action::UserMessage(request);
 
     let store_point = Arc::new(Mutex::new(store_point));
