@@ -83,16 +83,36 @@ impl<S: Storage + 'static> Server<S> {
             .await?;
         let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
+        let storage = self.storage.clone();
 
         tokio::spawn(async move {
             let guard = store_point.lock().await;
-            let app = guard.app.clone();
+            let app = Arc::new(Mutex::new(guard.app.clone()));
             let action = guard.action.clone();
             drop(guard);
 
             let result = runtime
-                .execute(Arc::new(Mutex::new(app)), action, Arc::new(executor))
+                .execute(app.clone(), action, Arc::new(executor))
                 .await;
+
+            if result.is_ok() {
+                // if everything is executed successfully, then save the state.
+                let guard = app.lock().await;
+                let _ = storage
+                    .save(
+                        &conversation_id,
+                        &StorePoint {
+                            app: guard.clone(),
+                            action: Action::AssistantResponse(Response {
+                                content: "".to_string(),
+                                tool_call: vec![],
+                                finish_reason: None,
+                            }),
+                        },
+                    )
+                    .await;
+            }
+
             result
         });
 
