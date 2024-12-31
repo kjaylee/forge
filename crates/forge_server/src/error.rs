@@ -20,6 +20,7 @@ pub enum Error {
     Env(forge_env::Error),
     ToolCallMissingName,
     StorageError(StorageError),
+    Handlebars(handlebars::RenderError),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -43,25 +43,22 @@ fn persist_changes<P: AsRef<Path>>(
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReplaceInput {
+    /// File path relative to the current working directory
     pub path: String,
+    /// SEARCH/REPLACE blocks defining changes
     pub diff: String,
 }
 
 /// Replace sections in a file using SEARCH/REPLACE blocks for precise
 /// modifications.
 ///
-/// ## Parameters
-/// - `path`: File path relative to {{cwd}}
-/// - `diff`: SEARCH/REPLACE blocks defining changes
-///
-/// ## Format
 /// <<<<<<< SEARCH
 /// [exact content to find]
 /// =======
 /// [new content to replace with]
 /// >>>>>>> REPLACE
 ///
-/// ## Rules
+/// Rules:
 /// 1. SEARCH must match exactly (whitespace, indentation, line endings)
 /// 2. Each block replaces first match only
 /// 3. Keep blocks minimal - include only changing lines plus needed context
@@ -69,7 +66,7 @@ pub struct FSReplaceInput {
 /// 5. For moves: use 2 blocks (delete + insert)
 /// 6. For deletes: use empty REPLACE section
 ///
-/// ## Example
+/// Example:
 /// <<<<<<< SEARCH
 /// def old_function(x):
 ///     return x + 1

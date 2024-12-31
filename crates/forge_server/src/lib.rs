@@ -8,6 +8,7 @@ mod log;
 mod runtime;
 mod server;
 mod storage;
+mod system_prompt;
 mod template;
 
 pub use api::API;

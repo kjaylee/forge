@@ -10,7 +10,7 @@ use crate::{Description, ToolTrait};
 #[derive(Deserialize, JsonSchema)]
 pub struct FSListInput {
     #[schemars(
-        description = "The path of the directory to list contents for (relative to the current working directory {{cwd}})"
+        description = "The path of the directory to list contents for (relative to the current working directory)"
     )]
     pub path: String,
     #[schemars(
@@ -24,11 +24,7 @@ pub struct FSListInput {
 /// recursive is false or not provided, it will only list the top-level
 /// contents. Do not use this tool to confirm the existence of files you may
 /// have created, as the user will let you know if the files were created
-/// successfully or not. Parameters:
-/// - path: (required) The path of the directory to list contents for (relative
-///   to the current working directory {{cwd}})
-/// - recursive: (optional) Whether to list files recursively. Use true for
-///   recursive listing, false or omit for top-level only.
+/// successfully or not.
 #[derive(DescriptionDerive)]
 pub struct FSList;
 

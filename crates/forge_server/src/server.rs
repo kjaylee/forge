@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use forge_env::Environment;
-use forge_provider::{CompletionMessage, Model, ModelId, Provider, Request, Response};
+use forge_provider::{Model, ModelId, Provider, Request, Response};
 use forge_tool::{ToolDefinition, ToolEngine};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
@@ -27,16 +27,8 @@ pub struct Server<S: Storage> {
 
 impl<S: Storage + 'static> Server<S> {
     pub fn new(env: Environment, storage: Arc<S>, api_key: impl Into<String>) -> Self {
-        let tools = ToolEngine::new(env.clone());
-
-        let system_prompt = env
-            .clone()
-            .render(include_str!("./prompts/system.md"))
-            .expect("Failed to render system prompt");
-
-        let base_context = Request::new(ModelId::default())
-            .add_message(CompletionMessage::system(system_prompt))
-            .tools(tools.list());
+        let tools = ToolEngine::new();
+        let request = Request::new(ModelId::default());
 
         let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
@@ -89,7 +81,7 @@ impl<S: Storage + 'static> Server<S> {
         let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
         let storage = self.storage.clone();
-        let message = format!("##Task\n{}", chat.content);
+        let message = format!("<task>{}</task>", chat.content);
 
         tokio::spawn(async move {
             let result = runtime

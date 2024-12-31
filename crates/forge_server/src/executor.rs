@@ -8,12 +8,14 @@ use tokio_stream::StreamExt;
 
 use crate::app::{Action, ChatResponse, Command, FileResponse};
 use crate::runtime::Executor;
+use crate::system_prompt::SystemPrompt;
 use crate::Error;
 
 pub struct ChatCommandExecutor {
     provider: Arc<Provider<Request, Response, forge_provider::Error>>,
     tools: Arc<ToolEngine>,
     tx: mpsc::Sender<ChatResponse>,
+    system_prompt: SystemPrompt,
 }
 
 impl ChatCommandExecutor {
@@ -22,12 +24,13 @@ impl ChatCommandExecutor {
         api_key: impl Into<String>,
         tx: mpsc::Sender<ChatResponse>,
     ) -> Self {
-        let tools = ToolEngine::new(env);
+        let tools = Arc::new(ToolEngine::new());
 
         Self {
             provider: Arc::new(Provider::open_router(api_key.into(), None)),
-            tools: Arc::new(tools),
+            tools: tools.clone(),
             tx,
+            system_prompt: SystemPrompt::new(env, tools),
         }
     }
 }
@@ -51,15 +54,27 @@ impl Executor for ChatCommandExecutor {
 
                 Ok(stream)
             }
-            Command::AssistantMessage(a) => {
+            Command::AssistantMessage(request) => {
+                // TODO: To use or not to use tools should be decided by the app and not the
+                // executor. Set system prompt based on the model type
+                let parameters = self.provider.parameters(request.model.clone()).await?;
+                let request = if parameters.tools {
+                    request
+                        .clone()
+                        .set_system_message(self.system_prompt.clone().use_tool(true).render()?)
+                        .tools(self.tools.list())
+                } else {
+                    request
+                        .clone()
+                        .set_system_message(self.system_prompt.clone().render()?)
+                };
+
                 let actions =
-                    self.provider.chat(a.clone()).await?.map(|response| {
+                    self.provider.chat(request).await?.map(|response| {
                         response.map(Action::AssistantResponse).map_err(Error::from)
                     });
 
-                let msg: BoxStream<Action, Error> = Box::pin(actions);
-
-                Ok(msg)
+                Ok(Box::pin(actions))
             }
             Command::UserMessage(message) => {
                 self.tx.send(message.clone()).await?;
