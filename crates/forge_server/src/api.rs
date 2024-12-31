@@ -15,7 +15,7 @@ use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::app::ChatRequest;
+use crate::app::{Action, App, ChatRequest};
 use crate::completion::File;
 use crate::runtime::StorePoint;
 use crate::server::Server;
@@ -109,21 +109,24 @@ async fn conversation_handler<S: Storage + 'static>(
 
     dbg!(&conversation_id);
 
+    let message = format!("<task>{}</task>", request.content);
+    let request = request.content(message);
+
     // // 1. pull the conversation context from database.
-    let conversation_ctx = state
+    let store_point = state
         .storage()
         .get(&conversation_id)
         .await
         .expect("Failed to get conversation context.")
         .unwrap_or_else(|| StorePoint {
             app: state.app().conversation_id(conversation_id.clone()),
-            action: crate::app::Action::FileReadResponse(vec![]),
+            action: Action::UserMessage(request),
         });
 
-    let conversation_ctx = Arc::new(Mutex::new(conversation_ctx));
+    let store_point = Arc::new(Mutex::new(store_point));
 
     let stream = state
-        .chat(conversation_ctx, request)
+        .chat(store_point)
         .await
         .expect("Engine failed to respond with a chat message");
 
@@ -137,7 +140,7 @@ async fn conversation_handler<S: Storage + 'static>(
 async fn conversation_by_id_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
     Path(id): Path<String>,
-) -> std::result::Result<Json<Request>, (axum::http::StatusCode, String)> {
+) -> std::result::Result<Json<StorePoint<App, Action>>, (axum::http::StatusCode, String)> {
     match state.storage().get(&id).await {
         Ok(Some(history)) => Ok(Json(history)),
         Ok(None) => Err((
@@ -175,7 +178,7 @@ async fn models_handler<S: Storage + 'static>(
 // TODO: currently we return all the conversations, we should paginate this.
 async fn all_conversations_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
-) -> Json<Vec<Request>> {
+) -> Json<Vec<StorePoint<App, Action>>> {
     let chat_history = state.storage().list().await.unwrap_or_default();
     Json(chat_history)
 }

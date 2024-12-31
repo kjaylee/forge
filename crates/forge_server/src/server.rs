@@ -7,7 +7,7 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
 
-use crate::app::{Action, App, ChatRequest, ChatResponse};
+use crate::app::{Action, App, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::{ApplicationRuntime, StorePoint};
@@ -66,29 +66,32 @@ impl<S: Storage + 'static> Server<S> {
 
     pub async fn chat(
         &self,
-        store_point: Arc<Mutex<StorePoint<App,Action>>>,
-        chat: ChatRequest,
+        store_point: Arc<Mutex<StorePoint<App, Action>>>,
     ) -> Result<impl Stream<Item = ChatResponse> + Send> {
-        let conversation_id = chat
-            .conversation_id
-            .clone()
-            .expect("`conversation_id` is expected to be present!");
+        let conversation_id = {
+            store_point
+                .lock()
+                .await
+                .app
+                .conversation_id
+                .clone()
+                .expect("`conversation_id` is expected to be present!")
+        };
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         // send the conversation id to the client.
         tx.send(ChatResponse::ConversationId(conversation_id.clone()))
             .await?;
-
         let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
         let runtime = self.runtime.clone();
-        let message = format!("<task>{}</task>", chat.content);
 
         tokio::spawn(async move {
+            let guard = store_point.lock().await;
+            let app = guard.app.clone();
+            let action = guard.action.clone();
+            drop(guard);
+
             let result = runtime
-                .execute(
-                    Arc::new(Mutex::new(store_point.lock().await.app.clone())),
-                    Action::UserMessage(chat.content(message)),
-                    Arc::new(executor),
-                )
+                .execute(Arc::new(Mutex::new(app)), action, Arc::new(executor))
                 .await;
             result
         });

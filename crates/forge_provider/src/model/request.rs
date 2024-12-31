@@ -8,7 +8,6 @@ use super::{CompletionMessage, Role};
 /// is created with assuming the model supports use of external tools.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
 pub struct Request {
-    pub conversation_id: Option<String>,
     pub messages: Vec<CompletionMessage>,
     pub model: ModelId,
     pub tools: Vec<ToolDefinition>,
