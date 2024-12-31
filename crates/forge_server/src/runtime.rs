@@ -58,7 +58,7 @@ impl<S: Storage> ApplicationRuntime<S> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StorePoint<A, B> {
+pub struct ExecutionContext<A, B> {
     pub app: A,
     pub action: B,
 }
@@ -84,7 +84,7 @@ impl<S: Storage + 'static> ApplicationRuntime<S> {
             .storage
             .save(
                 new_app.id(),
-                &StorePoint { app: new_app.clone(), action: action.clone() },
+                &ExecutionContext { app: new_app.clone(), action: action.clone() },
             )
             .await;
 

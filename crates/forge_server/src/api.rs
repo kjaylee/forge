@@ -17,7 +17,7 @@ use tracing::info;
 
 use crate::app::{Action, App, ChatRequest};
 use crate::completion::File;
-use crate::runtime::StorePoint;
+use crate::runtime::ExecutionContext;
 use crate::server::Server;
 use crate::storage::SqliteStorage;
 use crate::{Result, Storage};
@@ -118,7 +118,7 @@ async fn conversation_handler<S: Storage + 'static>(
         .get(&conversation_id)
         .await
         .expect("Failed to get conversation context.")
-        .unwrap_or_else(|| StorePoint {
+        .unwrap_or_else(|| ExecutionContext {
             app: state.app().conversation_id(conversation_id.clone()),
             action: Action::UserMessage(request.clone()),
         });
@@ -142,7 +142,7 @@ async fn conversation_handler<S: Storage + 'static>(
 async fn conversation_by_id_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
     Path(id): Path<String>,
-) -> std::result::Result<Json<StorePoint<App, Action>>, (axum::http::StatusCode, String)> {
+) -> std::result::Result<Json<ExecutionContext<App, Action>>, (axum::http::StatusCode, String)> {
     match state.storage().get(&id).await {
         Ok(Some(history)) => Ok(Json(history)),
         Ok(None) => Err((
@@ -180,7 +180,7 @@ async fn models_handler<S: Storage + 'static>(
 // TODO: currently we return all the conversations, we should paginate this.
 async fn all_conversations_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
-) -> Json<Vec<StorePoint<App, Action>>> {
+) -> Json<Vec<ExecutionContext<App, Action>>> {
     let chat_history = state.storage().list().await.unwrap_or_default();
     Json(chat_history)
 }

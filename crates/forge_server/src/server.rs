@@ -10,7 +10,7 @@ use tokio_stream::Stream;
 use crate::app::{Action, App, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
-use crate::runtime::{ApplicationRuntime, StorePoint};
+use crate::runtime::{ApplicationRuntime, ExecutionContext};
 use crate::{Result, Storage};
 
 #[derive(Clone)]
@@ -66,7 +66,7 @@ impl<S: Storage + 'static> Server<S> {
 
     pub async fn chat(
         &self,
-        store_point: Arc<Mutex<StorePoint<App, Action>>>,
+        store_point: Arc<Mutex<ExecutionContext<App, Action>>>,
     ) -> Result<impl Stream<Item = ChatResponse> + Send> {
         let conversation_id = {
             store_point
@@ -101,7 +101,7 @@ impl<S: Storage + 'static> Server<S> {
                 let _ = storage
                     .save(
                         &conversation_id,
-                        &StorePoint {
+                        &ExecutionContext {
                             app: guard.clone(),
                             action: Action::AssistantResponse(Response {
                                 content: "".to_string(),
