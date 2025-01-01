@@ -2,11 +2,13 @@ use std::sync::Arc;
 
 use forge_provider::ResultStream;
 use futures::future::join_all;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
-use crate::{app::App, Storage};
+use crate::app::App;
+use crate::Storage;
 
 pub trait Identifier {
     fn id(&self) -> &str;

@@ -74,7 +74,6 @@ impl<S: Storage + 'static> Server<S> {
                 .await
                 .app
                 .conversation_id()
-                .clone()
                 .expect("`conversation_id` is expected to be present!")
                 .to_string()
         };
