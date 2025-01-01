@@ -94,13 +94,6 @@ impl API {
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
-// Error response type for HTTP endpoints
-#[derive(Serialize)]
-struct ErrorResponse {
-    error: String,
-    message: String,
-}
-
 impl IntoResponse for crate::Error {
     fn into_response(self) -> Response {
         let status = match self {
@@ -109,9 +102,8 @@ impl IntoResponse for crate::Error {
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
-        let body = ErrorResponse { error: self.to_string(), message: format!("{:?}", self) };
-
-        (status, axum::Json(body)).into_response()
+        let error_response = ApiErrorResponse::from(&self);
+        (status, axum::Json(error_response)).into_response()
     }
 }
 
@@ -121,6 +113,58 @@ type ApiResult<T> = std::result::Result<T, crate::Error>;
 // Type alias for SSE event stream
 type SseEvent = std::result::Result<Event, std::convert::Infallible>;
 type EventStream = Pin<Box<dyn Stream<Item = SseEvent> + Send>>;
+
+#[derive(Serialize)]
+struct ApiErrorResponse {
+    error: ApiError,
+}
+
+#[derive(Serialize)]
+struct ApiError {
+    #[serde(rename = "type")]
+    error_type: String,
+    message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<serde_json::Value>,
+}
+
+impl From<&crate::Error> for ApiErrorResponse {
+    fn from(err: &crate::Error) -> Self {
+        match err {
+            crate::Error::Provider(provider_err) => match provider_err {
+                forge_provider::Error::Provider { provider, error } => Self {
+                    error: ApiError {
+                        error_type: "provider_error".to_string(),
+                        message: error.to_string(),
+                        provider: Some(provider.to_string()),
+                        details: match error {
+                            forge_provider::ProviderError::UpstreamError(value) => Some(value.clone()),
+                            _ => Some(serde_json::Value::String(error.to_string())),
+                        },
+                    },
+                },
+                _ => Self {
+                    error: ApiError {
+                        error_type: "provider_error".to_string(),
+                        message: provider_err.to_string(),
+                        provider: None,
+                        details: None,
+                    },
+                },
+            },
+            _ => Self {
+                error: ApiError {
+                    error_type: "error".to_string(),
+                    message: err.to_string(),
+                    provider: None,
+                    details: None,
+                },
+            },
+        }
+    }
+}
 
 async fn completions_handler(State(state): State<Arc<Server>>) -> ApiResult<axum::Json<Vec<File>>> {
     let files = state.completions().await?;
@@ -140,24 +184,20 @@ async fn conversation_handler(
                         // Try to parse error as JSON first
                         match serde_json::from_str::<serde_json::Value>(error) {
                             Ok(json) => json.to_string(),
-                            Err(_) => serde_json::json!({
-                                "error": {
-                                    "type": "chat_error",
-                                    "message": error
-                                }
-                            })
-                            .to_string(),
+                            Err(_) => {
+                                let error = crate::Error::Custom(error.to_string());
+                                serde_json::to_string(&ApiErrorResponse::from(&error))
+                                    .unwrap_or_else(|e| e.to_string())
+                            }
                         }
                     }
                     _ => match serde_json::to_string(&response) {
                         Ok(data) => data,
-                        Err(e) => serde_json::json!({
-                            "error": {
-                                "type": "serialization_error",
-                                "message": e.to_string()
-                            }
-                        })
-                        .to_string(),
+                        Err(e) => {
+                            let error = crate::Error::Serde(e);
+                            serde_json::to_string(&ApiErrorResponse::from(&error))
+                                .unwrap_or_else(|e| e.to_string())
+                        }
                     },
                 };
                 Ok(Event::default().data(event_data))
@@ -165,34 +205,8 @@ async fn conversation_handler(
             Sse::new(Box::pin(mapped_stream) as EventStream)
         }
         Err(e) => {
-            let error_data = match e {
-                crate::Error::Provider(provider_err) => match provider_err {
-                    forge_provider::Error::Provider { provider, error } => serde_json::json!({
-                        "error": {
-                            "type": "provider_error",
-                            "provider": provider,
-                            "message": error.to_string(),
-                            "details": match error {
-                                forge_provider::ProviderError::UpstreamError(value) => value,
-                                _ => serde_json::Value::String(error.to_string())
-                            }
-                        }
-                    }),
-                    _ => serde_json::json!({
-                        "error": {
-                            "type": "provider_error",
-                            "message": provider_err.to_string()
-                        }
-                    }),
-                },
-                _ => serde_json::json!({
-                    "error": {
-                        "type": "chat_error",
-                        "message": e.to_string()
-                    }
-                }),
-            }
-            .to_string();
+            let error_response = ApiErrorResponse::from(&e);
+            let error_data = serde_json::to_string(&error_response).unwrap_or_else(|e| e.to_string());
             Sse::new(
                 Box::pin(tokio_stream::once(Ok(Event::default().data(error_data)))) as EventStream,
             )
