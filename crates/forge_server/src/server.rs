@@ -11,7 +11,7 @@ use crate::app::{Action, App, ChatRequest, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::ApplicationRuntime;
-use crate::Result;
+use crate::{Result, Error};
 
 #[derive(Clone)]
 pub struct Server {
@@ -60,18 +60,35 @@ impl Server {
 
     pub async fn chat(&self, chat: ChatRequest) -> Result<impl Stream<Item = ChatResponse> + Send> {
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
-        let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
+        let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx.clone());
         let runtime = self.runtime.clone();
         let message = format!("<task>{}</task>", chat.content);
 
         tokio::spawn(async move {
-            runtime
+            if let Err(e) = runtime
                 .clone()
                 .execute(
                     Action::UserMessage(chat.content(message)),
                     Arc::new(executor),
                 )
                 .await
+            {
+                // Forward the error as JSON if possible
+                let error_msg = if let Error::Provider(provider_err) = &e {
+                    if let forge_provider::Error::Provider { provider: _, error } = provider_err {
+                        if let forge_provider::ProviderError::UpstreamError(value) = error {
+                            serde_json::to_string(value).unwrap_or_else(|_| e.to_string())
+                        } else {
+                            e.to_string()
+                        }
+                    } else {
+                        e.to_string()
+                    }
+                } else {
+                    e.to_string()
+                };
+                let _ = tx.send(ChatResponse::Fail(error_msg)).await;
+            }
         });
 
         Ok(ReceiverStream::new(rx))

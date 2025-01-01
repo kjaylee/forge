@@ -45,8 +45,16 @@ impl Executor for ChatCommandExecutor {
             Command::FileRead(files) => {
                 let mut responses = vec![];
                 for file in files {
-                    let content = tokio::fs::read_to_string(file.clone()).await?;
-                    responses.push(FileResponse { path: file.to_string(), content });
+                    match tokio::fs::read_to_string(file.clone()).await {
+                        Ok(content) => {
+                            responses.push(FileResponse { path: file.to_string(), content });
+                        }
+                        Err(e) => {
+                            // Send error through the channel before returning empty stream
+                            let _ = self.tx.send(ChatResponse::Fail(format!("Failed to read file {}: {}", file, e))).await;
+                            return Ok(Box::pin(tokio_stream::empty()));
+                        }
+                    }
                 }
 
                 let stream: BoxStream<Action, Error> =
@@ -57,51 +65,97 @@ impl Executor for ChatCommandExecutor {
             Command::AssistantMessage(request) => {
                 // TODO: To use or not to use tools should be decided by the app and not the
                 // executor. Set system prompt based on the model type
-                let parameters = self.provider.parameters(request.model.clone()).await?;
+                let parameters = match self.provider.parameters(request.model.clone()).await {
+                    Ok(params) => params,
+                    Err(e) => {
+                        // Send error through the channel before returning empty stream
+                        let _ = self.tx.send(ChatResponse::Fail(e.to_string())).await;
+                        return Ok(Box::pin(tokio_stream::empty()));
+                    }
+                };
                 let request = if parameters.tools {
                     request
                         .clone()
-                        .set_system_message(self.system_prompt.clone().use_tool(true).render()?)
+                        .set_system_message(match self.system_prompt.clone().use_tool(true).render() {
+                            Ok(msg) => msg,
+                            Err(e) => {
+                                // Send error through the channel before returning empty stream
+                                let _ = self.tx.send(ChatResponse::Fail(e.to_string())).await;
+                                return Ok(Box::pin(tokio_stream::empty()));
+                            }
+                        })
                         .tools(self.tools.list())
                 } else {
                     request
                         .clone()
-                        .set_system_message(self.system_prompt.clone().render()?)
+                        .set_system_message(match self.system_prompt.clone().render() {
+                            Ok(msg) => msg,
+                            Err(e) => {
+                                // Send error through the channel before returning empty stream
+                                let _ = self.tx.send(ChatResponse::Fail(e.to_string())).await;
+                                return Ok(Box::pin(tokio_stream::empty()));
+                            }
+                        })
                 };
 
-                let actions =
-                    self.provider.chat(request).await?.map(|response| {
-                        response.map(Action::AssistantResponse).map_err(Error::from)
-                    });
-
-                Ok(Box::pin(actions))
+                match self.provider.chat(request).await {
+                    Ok(response_stream) => {
+                        let tx = self.tx.clone();
+                        let actions = response_stream.then(move |response| {
+                            let tx = tx.clone();
+                            async move {
+                                match response {
+                                    Ok(resp) => Ok(Action::AssistantResponse(resp)),
+                                    Err(e) => {
+                                        if let forge_provider::Error::Provider { provider: _, error } = &e {
+                                            if let forge_provider::ProviderError::UpstreamError(value) = error {
+                                                let _ = tx.send(ChatResponse::Fail(serde_json::to_string(value).unwrap_or_else(|_| value.to_string()))).await;
+                                            }
+                                        }
+                                        Err(Error::from(e))
+                                    }
+                                }
+                            }
+                        });
+                        Ok(Box::pin(actions))
+                    }
+                    Err(e) => {
+                        if let forge_provider::Error::Provider { provider: _, error } = &e {
+                            if let forge_provider::ProviderError::UpstreamError(value) = error {
+                                let _ = self.tx.send(ChatResponse::Fail(serde_json::to_string(value).unwrap_or_else(|_| value.to_string()))).await;
+                            }
+                        }
+                        Err(e.into())
+                    }
+                }
             }
             Command::UserMessage(message) => {
-                self.tx.send(message.clone()).await?;
+                if let Err(e) = self.tx.send(message.clone()).await {
+                    // Send error through the channel before returning empty stream
+                    let _ = self.tx.send(ChatResponse::Fail(format!("Failed to send message: {}", e))).await;
+                    return Ok(Box::pin(tokio_stream::empty()));
+                }
 
                 let stream: BoxStream<Action, Error> = Box::pin(tokio_stream::empty());
                 Ok(stream)
             }
             Command::ToolCall(tool_call) => {
-                let tool_result = self
-                    .tools
-                    .call(&tool_call.name, tool_call.arguments.clone())
-                    .await;
-                let is_error = tool_result.is_err();
-                let tool_call_response = Action::ToolResponse(ToolResult {
-                    content: match tool_result {
-                        Ok(content) => content,
-                        Err(e) => serde_json::Value::from(e),
-                    },
-                    use_id: tool_call.call_id.clone(),
-                    name: tool_call.name.clone(),
-                    is_error,
-                });
-
-                let stream: BoxStream<Action, Error> =
-                    Box::pin(tokio_stream::once(Ok(tool_call_response)));
-
-                Ok(stream)
+                match self.tools.call(&tool_call.name, tool_call.arguments.clone()).await {
+                    Ok(content) => {
+                        let tool_call_response = Action::ToolResponse(ToolResult {
+                            content,
+                            use_id: tool_call.call_id.clone(),
+                            name: tool_call.name.clone(),
+                            is_error: false,
+                        });
+                        Ok(Box::pin(tokio_stream::once(Ok(tool_call_response))))
+                    }
+                    Err(e) => {
+                        // Send error through the channel before returning empty stream
+                        let _ = self.tx.send(ChatResponse::Fail(format!("Tool call failed: {}", e))).await;
+                        Ok(Box::pin(tokio_stream::empty()))
+                    }
+                }
             }
         }
     }
