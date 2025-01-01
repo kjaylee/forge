@@ -252,7 +252,8 @@ impl Application for App {
 
         // On any action, persist the current app state.
         if let Ok(ref mut cmds) = commands {
-            cmds.push(Command::Persist(AppState { app: self.clone(), action }));
+            // prioritize the persist command to be the first command to be executed.
+            cmds.insert(0, Command::Persist(AppState { app: self.clone(), action }));
         }
 
         commands
