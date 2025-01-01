@@ -72,7 +72,7 @@ impl<S: Storage + 'static> Server<S> {
             store_point
                 .lock()
                 .await
-                .app
+                .state
                 .conversation_id()
                 .expect("`conversation_id` is expected to be present!")
                 .to_string()
@@ -92,7 +92,7 @@ impl<S: Storage + 'static> Server<S> {
 
         tokio::spawn(async move {
             let guard = store_point.lock().await;
-            let app = Arc::new(Mutex::new(guard.app.clone()));
+            let app = Arc::new(Mutex::new(guard.state.clone()));
             let action = guard.action.clone();
             drop(guard);
 
@@ -107,7 +107,7 @@ impl<S: Storage + 'static> Server<S> {
                     .save(
                         &conversation_id,
                         &ExecutionContext {
-                            app: guard.clone(),
+                            state: guard.state.clone(),
                             action: Action::AssistantResponse(Response {
                                 content: "".to_string(),
                                 tool_call: vec![],

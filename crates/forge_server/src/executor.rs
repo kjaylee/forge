@@ -108,7 +108,7 @@ impl<S: Storage> Executor for ChatCommandExecutor<S> {
             }
             Command::Persist(_ctx) => {
                 let key = _ctx
-                    .app
+                    .state
                     .conversation_id
                     .as_ref()
                     .expect("conversation_id is expected to be present");

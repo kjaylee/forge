@@ -15,7 +15,7 @@ use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::app::{Action, App, ChatRequest};
+use crate::app::{Action, App, ChatRequest, State as AppState};
 use crate::completion::File;
 use crate::runtime::ExecutionContext;
 use crate::server::Server;
@@ -119,7 +119,7 @@ async fn conversation_handler<S: Storage + 'static>(
         .await
         .expect("Failed to get conversation context.")
         .unwrap_or_else(|| ExecutionContext {
-            app: state.app().with_conversation_id(conversation_id.clone()),
+            state: state.app().with_conversation_id(conversation_id.clone()),
             action: Action::UserMessage(request.clone()),
         });
     // since we are not trying to restore, in order to execute the present request
@@ -143,7 +143,8 @@ async fn conversation_handler<S: Storage + 'static>(
 async fn conversation_by_id_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
     Path(id): Path<String>,
-) -> std::result::Result<Json<ExecutionContext<App, Action>>, (axum::http::StatusCode, String)> {
+) -> std::result::Result<Json<ExecutionContext<AppState, Action>>, (axum::http::StatusCode, String)>
+{
     match state.storage().get(&id).await {
         Ok(Some(history)) => Ok(Json(history)),
         Ok(None) => Err((

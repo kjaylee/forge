@@ -150,7 +150,7 @@ impl State {
         )));
 
         commands.push(Command::Persist(ExecutionContext {
-            app: self.clone(),
+            state: self.clone(),
             action: Action::ToolResponse(tool_result),
         }));
 
@@ -179,7 +179,7 @@ impl State {
         }
 
         commands.push(Command::Persist(ExecutionContext {
-            app: self.clone(),
+            state: self.clone(),
             action: Action::UserMessage(chat.clone()),
         }));
         Ok(commands)
@@ -199,7 +199,7 @@ impl State {
 
             commands.push(Command::AssistantMessage(self.request.clone()));
             commands.push(Command::Persist(ExecutionContext {
-                app: self.clone(),
+                state: self.clone(),
                 action: Action::FileReadResponse(files),
             }));
         }
@@ -225,7 +225,7 @@ impl State {
 
             if !finish_commands.is_empty() {
                 commands.push(Command::Persist(ExecutionContext {
-                    app: self.clone(),
+                    state: self.clone(),
                     action: Action::AssistantResponse(response.clone()),
                 }));
             }
@@ -245,7 +245,7 @@ impl State {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct App {
-    state: State,
+    pub(crate) state: State,
 }
 
 impl App {
