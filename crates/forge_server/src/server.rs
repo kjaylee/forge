@@ -64,34 +64,40 @@ impl<S: Storage + 'static> Server<S> {
         &self,
         mut chat: ChatRequest,
     ) -> Result<impl Stream<Item = ChatResponse> + Send> {
+        // if the conversation id is not provided, then generate a new one.
         let conversation_id = chat
             .conversation_id
-            .clone()
+            .take()
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-        chat.conversation_id = Some(conversation_id.clone());
-        dbg!(&conversation_id);
-        let message = format!("<task>{}</task>", chat.content);
-        let request = chat.content(message);
 
-        // // 1. pull the conversation context from database.
-        let mut exec_ctx = self
-            .storage
-            .get(&conversation_id)
-            .await
-            .expect("Failed to get conversation context.")
-            .unwrap_or_else(|| ExecutionContext {
-                app: App::new(self.inital_request.clone(), conversation_id.clone()),
-                action: Action::UserMessage(request.clone()),
-            });
-        // since we are not trying to restore, in order to execute the present request
-        // we replace the action with the new request.
-        exec_ctx.action = Action::UserMessage(request);
-        let exec_ctx = Arc::new(Mutex::new(exec_ctx));
+        let content = chat.content;
+        let request = chat
+            .conversation_id(Some(conversation_id.clone()))
+            .content(format!("<task>{}</task>", content));
+
+        dbg!(&conversation_id);
+
+        let exec_ctx = {
+            // 1. pull the conversation context from database.
+            let mut exec_ctx = self
+                .storage
+                .get(&conversation_id)
+                .await?
+                .unwrap_or_else(|| ExecutionContext {
+                    app: App::new(self.inital_request.clone(), conversation_id.clone()),
+                    action: Action::UserMessage(request.clone()),
+                });
+            // since we are not trying to restore, in order to execute the present request
+            // we replace the action with the new request.
+            exec_ctx.action = Action::UserMessage(request);
+            Arc::new(Mutex::new(exec_ctx))
+        };
 
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         // send the conversation id to the client.
         tx.send(ChatResponse::ConversationId(conversation_id.clone()))
-            .await?;
+            .await;
+
         let executor = ChatCommandExecutor::new(
             self.env.clone(),
             self.api_key.clone(),
