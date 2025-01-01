@@ -117,13 +117,12 @@ impl Executor for ChatCommandExecutor {
                                     Err(e) => {
                                         if let forge_provider::Error::Provider {
                                             provider: _,
-                                            error,
+                                            error: forge_provider::ProviderError::UpstreamError(
+                                                value,
+                                            ),
                                         } = &e
                                         {
-                                            if let forge_provider::ProviderError::UpstreamError(
-                                                value,
-                                            ) = error
-                                            {
+                                            
                                                 let _ = tx
                                                     .send(ChatResponse::Fail(
                                                         serde_json::to_string(value)
@@ -131,7 +130,7 @@ impl Executor for ChatCommandExecutor {
                                                     ))
                                                     .await;
                                             }
-                                        }
+                                        
                                         Err(Error::from(e))
                                     }
                                 }
@@ -140,8 +139,8 @@ impl Executor for ChatCommandExecutor {
                         Ok(Box::pin(actions))
                     }
                     Err(e) => {
-                        if let forge_provider::Error::Provider { provider: _, error } = &e {
-                            if let forge_provider::ProviderError::UpstreamError(value) = error {
+                        if let forge_provider::Error::Provider { provider: _, error: forge_provider::ProviderError::UpstreamError(value) } = &e {
+                            
                                 let _ = self
                                     .tx
                                     .send(ChatResponse::Fail(
@@ -149,7 +148,7 @@ impl Executor for ChatCommandExecutor {
                                             .unwrap_or_else(|_| value.to_string()),
                                     ))
                                     .await;
-                            }
+                            
                         }
                         Err(e.into())
                     }

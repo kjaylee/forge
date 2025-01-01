@@ -74,16 +74,9 @@ impl Server {
                 .await
             {
                 // Forward the error as JSON if possible
-                let error_msg = if let Error::Provider(provider_err) = &e {
-                    if let forge_provider::Error::Provider { provider: _, error } = provider_err {
-                        if let forge_provider::ProviderError::UpstreamError(value) = error {
-                            serde_json::to_string(value).unwrap_or_else(|_| e.to_string())
-                        } else {
-                            e.to_string()
-                        }
-                    } else {
-                        e.to_string()
-                    }
+                let error_msg = if let Error::Provider(forge_provider::Error::Provider { provider: _, error: forge_provider::ProviderError::UpstreamError(value) }) = &e {
+                        serde_json::to_string(value).unwrap_or_else(|_| e.to_string())
+                    
                 } else {
                     e.to_string()
                 };
