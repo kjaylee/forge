@@ -1,7 +1,6 @@
 mod api;
 mod app;
 mod completion;
-mod context;
 mod error;
 mod executor;
 mod log;
