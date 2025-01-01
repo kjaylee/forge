@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::pin::Pin;
+use std::sync::Arc;
 
 const SERVER_PORT: u16 = 8080;
 
@@ -109,10 +109,7 @@ impl IntoResponse for crate::Error {
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
-        let body = ErrorResponse {
-            error: self.to_string(),
-            message: format!("{:?}", self),
-        };
+        let body = ErrorResponse { error: self.to_string(), message: format!("{:?}", self) };
 
         (status, axum::Json(body)).into_response()
     }
@@ -125,9 +122,7 @@ type ApiResult<T> = std::result::Result<T, crate::Error>;
 type SseEvent = std::result::Result<Event, std::convert::Infallible>;
 type EventStream = Pin<Box<dyn Stream<Item = SseEvent> + Send>>;
 
-async fn completions_handler(
-    State(state): State<Arc<Server>>,
-) -> ApiResult<axum::Json<Vec<File>>> {
+async fn completions_handler(State(state): State<Arc<Server>>) -> ApiResult<axum::Json<Vec<File>>> {
     let files = state.completions().await?;
     Ok(axum::Json(files))
 }
@@ -150,9 +145,10 @@ async fn conversation_handler(
                                     "type": "chat_error",
                                     "message": error
                                 }
-                            }).to_string()
+                            })
+                            .to_string(),
                         }
-                    },
+                    }
                     _ => match serde_json::to_string(&response) {
                         Ok(data) => data,
                         Err(e) => serde_json::json!({
@@ -160,8 +156,9 @@ async fn conversation_handler(
                                 "type": "serialization_error",
                                 "message": e.to_string()
                             }
-                        }).to_string(),
-                    }
+                        })
+                        .to_string(),
+                    },
                 };
                 Ok(Event::default().data(event_data))
             });
@@ -169,35 +166,36 @@ async fn conversation_handler(
         }
         Err(e) => {
             let error_data = match e {
-                crate::Error::Provider(provider_err) => {
-                    match provider_err {
-                        forge_provider::Error::Provider { provider, error } => serde_json::json!({
-                            "error": {
-                                "type": "provider_error",
-                                "provider": provider,
-                                "message": error.to_string(),
-                                "details": match error {
-                                    forge_provider::ProviderError::UpstreamError(value) => value,
-                                    _ => serde_json::Value::String(error.to_string())
-                                }
+                crate::Error::Provider(provider_err) => match provider_err {
+                    forge_provider::Error::Provider { provider, error } => serde_json::json!({
+                        "error": {
+                            "type": "provider_error",
+                            "provider": provider,
+                            "message": error.to_string(),
+                            "details": match error {
+                                forge_provider::ProviderError::UpstreamError(value) => value,
+                                _ => serde_json::Value::String(error.to_string())
                             }
-                        }),
-                        _ => serde_json::json!({
-                            "error": {
-                                "type": "provider_error",
-                                "message": provider_err.to_string()
-                            }
-                        })
-                    }
+                        }
+                    }),
+                    _ => serde_json::json!({
+                        "error": {
+                            "type": "provider_error",
+                            "message": provider_err.to_string()
+                        }
+                    }),
                 },
                 _ => serde_json::json!({
                     "error": {
                         "type": "chat_error",
                         "message": e.to_string()
                     }
-                })
-            }.to_string();
-            Sse::new(Box::pin(tokio_stream::once(Ok(Event::default().data(error_data)))) as EventStream)
+                }),
+            }
+            .to_string();
+            Sse::new(
+                Box::pin(tokio_stream::once(Ok(Event::default().data(error_data)))) as EventStream,
+            )
         }
     })
 }
@@ -212,9 +210,7 @@ async fn health_handler() -> Response {
     StatusCode::OK.into_response()
 }
 
-async fn models_handler(
-    State(state): State<Arc<Server>>,
-) -> ApiResult<Json<ModelResponse>> {
+async fn models_handler(State(state): State<Arc<Server>>) -> ApiResult<Json<ModelResponse>> {
     let models = state.models().await?;
     Ok(Json(ModelResponse { models }))
 }

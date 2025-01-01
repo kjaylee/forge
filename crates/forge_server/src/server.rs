@@ -11,7 +11,7 @@ use crate::app::{Action, App, ChatRequest, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::ApplicationRuntime;
-use crate::{Result, Error};
+use crate::{Error, Result};
 
 #[derive(Clone)]
 pub struct Server {

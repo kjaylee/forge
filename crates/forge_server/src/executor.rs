@@ -51,7 +51,13 @@ impl Executor for ChatCommandExecutor {
                         }
                         Err(e) => {
                             // Send error through the channel before returning empty stream
-                            let _ = self.tx.send(ChatResponse::Fail(format!("Failed to read file {}: {}", file, e))).await;
+                            let _ = self
+                                .tx
+                                .send(ChatResponse::Fail(format!(
+                                    "Failed to read file {}: {}",
+                                    file, e
+                                )))
+                                .await;
                             return Ok(Box::pin(tokio_stream::empty()));
                         }
                     }
@@ -76,14 +82,16 @@ impl Executor for ChatCommandExecutor {
                 let request = if parameters.tools {
                     request
                         .clone()
-                        .set_system_message(match self.system_prompt.clone().use_tool(true).render() {
-                            Ok(msg) => msg,
-                            Err(e) => {
-                                // Send error through the channel before returning empty stream
-                                let _ = self.tx.send(ChatResponse::Fail(e.to_string())).await;
-                                return Ok(Box::pin(tokio_stream::empty()));
-                            }
-                        })
+                        .set_system_message(
+                            match self.system_prompt.clone().use_tool(true).render() {
+                                Ok(msg) => msg,
+                                Err(e) => {
+                                    // Send error through the channel before returning empty stream
+                                    let _ = self.tx.send(ChatResponse::Fail(e.to_string())).await;
+                                    return Ok(Box::pin(tokio_stream::empty()));
+                                }
+                            },
+                        )
                         .tools(self.tools.list())
                 } else {
                     request
@@ -107,9 +115,21 @@ impl Executor for ChatCommandExecutor {
                                 match response {
                                     Ok(resp) => Ok(Action::AssistantResponse(resp)),
                                     Err(e) => {
-                                        if let forge_provider::Error::Provider { provider: _, error } = &e {
-                                            if let forge_provider::ProviderError::UpstreamError(value) = error {
-                                                let _ = tx.send(ChatResponse::Fail(serde_json::to_string(value).unwrap_or_else(|_| value.to_string()))).await;
+                                        if let forge_provider::Error::Provider {
+                                            provider: _,
+                                            error,
+                                        } = &e
+                                        {
+                                            if let forge_provider::ProviderError::UpstreamError(
+                                                value,
+                                            ) = error
+                                            {
+                                                let _ = tx
+                                                    .send(ChatResponse::Fail(
+                                                        serde_json::to_string(value)
+                                                            .unwrap_or_else(|_| value.to_string()),
+                                                    ))
+                                                    .await;
                                             }
                                         }
                                         Err(Error::from(e))
@@ -122,7 +142,13 @@ impl Executor for ChatCommandExecutor {
                     Err(e) => {
                         if let forge_provider::Error::Provider { provider: _, error } = &e {
                             if let forge_provider::ProviderError::UpstreamError(value) = error {
-                                let _ = self.tx.send(ChatResponse::Fail(serde_json::to_string(value).unwrap_or_else(|_| value.to_string()))).await;
+                                let _ = self
+                                    .tx
+                                    .send(ChatResponse::Fail(
+                                        serde_json::to_string(value)
+                                            .unwrap_or_else(|_| value.to_string()),
+                                    ))
+                                    .await;
                             }
                         }
                         Err(e.into())
@@ -132,7 +158,10 @@ impl Executor for ChatCommandExecutor {
             Command::UserMessage(message) => {
                 if let Err(e) = self.tx.send(message.clone()).await {
                     // Send error through the channel before returning empty stream
-                    let _ = self.tx.send(ChatResponse::Fail(format!("Failed to send message: {}", e))).await;
+                    let _ = self
+                        .tx
+                        .send(ChatResponse::Fail(format!("Failed to send message: {}", e)))
+                        .await;
                     return Ok(Box::pin(tokio_stream::empty()));
                 }
 
@@ -140,7 +169,11 @@ impl Executor for ChatCommandExecutor {
                 Ok(stream)
             }
             Command::ToolCall(tool_call) => {
-                match self.tools.call(&tool_call.name, tool_call.arguments.clone()).await {
+                match self
+                    .tools
+                    .call(&tool_call.name, tool_call.arguments.clone())
+                    .await
+                {
                     Ok(content) => {
                         let tool_call_response = Action::ToolResponse(ToolResult {
                             content,
@@ -152,7 +185,10 @@ impl Executor for ChatCommandExecutor {
                     }
                     Err(e) => {
                         // Send error through the channel before returning empty stream
-                        let _ = self.tx.send(ChatResponse::Fail(format!("Tool call failed: {}", e))).await;
+                        let _ = self
+                            .tx
+                            .send(ChatResponse::Fail(format!("Tool call failed: {}", e)))
+                            .await;
                         Ok(Box::pin(tokio_stream::empty()))
                     }
                 }
