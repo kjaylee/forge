@@ -115,8 +115,7 @@ async fn conversation_handler<S: Storage + 'static>(
 async fn conversation_by_id_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
     Path(id): Path<String>,
-) -> std::result::Result<Json<ExecutionContext<App, Action>>, (axum::http::StatusCode, String)>
-{
+) -> std::result::Result<Json<ExecutionContext<App, Action>>, (axum::http::StatusCode, String)> {
     match state.storage().get(&id).await {
         Ok(Some(history)) => Ok(Json(history)),
         Ok(None) => Err((

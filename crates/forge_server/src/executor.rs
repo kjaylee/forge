@@ -109,7 +109,7 @@ impl<S: Storage> Executor for ChatCommandExecutor<S> {
             Command::Persist(_ctx) => {
                 let key = _ctx.app.conversation_id();
                 // it's okay if db save op fails. we don't have to bubble up the error.
-                let _ = self.storage.save(&key, _ctx).await;
+                let _ = self.storage.save(key, _ctx).await;
                 Ok(Box::pin(tokio_stream::empty()))
             }
         }
