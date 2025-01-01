@@ -70,7 +70,7 @@ impl<S: Storage + 'static> Server<S> {
             .take()
             .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
-        let content = chat.content;
+        let content = chat.content.clone();
         let request = chat
             .conversation_id(Some(conversation_id.clone()))
             .content(format!("<task>{}</task>", content));
