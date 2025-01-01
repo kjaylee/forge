@@ -22,13 +22,13 @@ pub struct Server<S: Storage> {
     env: Environment,
     api_key: String,
     storage: Arc<S>,
-    inital_request: Request,
+    initial_request: Request,
 }
 
 impl<S: Storage + 'static> Server<S> {
     pub fn new(env: Environment, storage: Arc<S>, api_key: impl Into<String>) -> Self {
         let tools = ToolEngine::new();
-        let inital_request = Request::new(ModelId::default());
+        let initial_request = Request::new(ModelId::default());
 
         let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
@@ -40,7 +40,7 @@ impl<S: Storage + 'static> Server<S> {
             runtime: Arc::new(ApplicationRuntime),
             api_key,
             storage,
-            inital_request,
+            initial_request,
         }
     }
 
@@ -84,7 +84,7 @@ impl<S: Storage + 'static> Server<S> {
                 .get(&conversation_id)
                 .await?
                 .unwrap_or_else(|| AppState {
-                    app: App::new(self.inital_request.clone(), conversation_id.clone()),
+                    app: App::new(self.initial_request.clone(), conversation_id.clone()),
                     action: Action::UserMessage(request.clone()),
                 });
             // since we are not trying to restore, in order to execute the present request
