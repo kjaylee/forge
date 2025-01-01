@@ -37,14 +37,14 @@ impl SqliteStorage {
 
         if tokio::fs::metadata(&db_path).await.is_err() {
             // if the directory doesn't exist, create it.
-            let _ = tokio::fs::create_dir_all(&db_path).await?;
+            tokio::fs::create_dir_all(&db_path).await?;
         }
         let db_path = db_path.join(DB_PATH);
         if tokio::fs::metadata(&db_path).await.is_err() {
             // if db file doesn't exist, create it.
-            let _ = tokio::fs::write(&db_path, b"").await?;
+            tokio::fs::write(&db_path, b"").await?;
         }
-        Ok(Self::new(db_path).await?)
+        Self::new(db_path).await
     }
 }
 
