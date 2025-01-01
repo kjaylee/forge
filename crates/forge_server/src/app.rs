@@ -7,7 +7,7 @@ use forge_provider::{
 use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::{Application, AppState};
+use crate::runtime::{AppState, Application};
 use crate::template::MessageTemplate;
 use crate::Result;
 
@@ -252,10 +252,7 @@ impl Application for App {
 
         // On any action, persist the current app state.
         if let Ok(ref mut cmds) = commands {
-            cmds.push(Command::Persist(AppState {
-                app: self.clone(),
-                action,
-            }));
+            cmds.push(Command::Persist(AppState { app: self.clone(), action }));
         }
 
         commands
