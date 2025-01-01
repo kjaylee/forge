@@ -145,9 +145,7 @@ impl State {
         self.request = self.request.clone().add_message(tool_result.clone());
 
         commands.push(Command::AssistantMessage(self.request.clone()));
-        commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(
-            tool_result.clone(),
-        )));
+        commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
 
         Ok(commands)
     }
@@ -167,7 +165,7 @@ impl State {
             self.request = self
                 .request
                 .clone()
-                .add_message(CompletionMessage::user(chat.content.clone()));
+                .add_message(CompletionMessage::user(chat.content));
             commands.push(Command::AssistantMessage(self.request.clone()))
         } else {
             commands.push(Command::FileRead(prompt.files()))
@@ -179,7 +177,7 @@ impl State {
         let mut commands = Vec::new();
 
         if let Some(message) = self.user_objective.clone() {
-            for fr in files.clone().into_iter() {
+            for fr in files.into_iter() {
                 self.request = self.request.clone().add_message(
                     message
                         .clone()
@@ -204,9 +202,9 @@ impl State {
             }
         }
 
-        self.tool_call_part.extend(response.tool_call.clone());
+        self.tool_call_part.extend(response.tool_call);
 
-        if let Some(finish_reason) = response.finish_reason.clone() {
+        if let Some(finish_reason) = response.finish_reason {
             let finish_commands = self.on_finish_reason(finish_reason)?;
             commands.extend(finish_commands);
         }
