@@ -107,13 +107,9 @@ impl<S: Storage> Executor for ChatCommandExecutor<S> {
                 Ok(stream)
             }
             Command::Persist(_ctx) => {
-                let key = _ctx
-                    .state
-                    .conversation_id
-                    .as_ref()
-                    .expect("conversation_id is expected to be present");
-                // it's okay if it fails. we don't have to bubble up the error.
-                let _ = self.storage.save(key, _ctx).await;
+                let key = _ctx.app.conversation_id();
+                // it's okay if db save op fails. we don't have to bubble up the error.
+                let _ = self.storage.save(&key, _ctx).await;
                 Ok(Box::pin(tokio_stream::empty()))
             }
         }

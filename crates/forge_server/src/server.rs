@@ -7,7 +7,7 @@ use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
 
-use crate::app::{Action, App, ChatResponse};
+use crate::app::{Action, App, ChatRequest, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
 use crate::runtime::{ApplicationRuntime, ExecutionContext};
@@ -22,13 +22,13 @@ pub struct Server<S: Storage> {
     env: Environment,
     api_key: String,
     storage: Arc<S>,
-    base_app: App,
+    inital_request: Request,
 }
 
 impl<S: Storage + 'static> Server<S> {
     pub fn new(env: Environment, storage: Arc<S>, api_key: impl Into<String>) -> Self {
         let tools = ToolEngine::new();
-        let request = Request::new(ModelId::default());
+        let inital_request = Request::new(ModelId::default());
 
         let cwd: String = env.cwd.clone();
         let api_key: String = api_key.into();
@@ -40,7 +40,7 @@ impl<S: Storage + 'static> Server<S> {
             runtime: Arc::new(ApplicationRuntime),
             api_key,
             storage,
-            base_app: App::new(request),
+            inital_request,
         }
     }
 
@@ -50,10 +50,6 @@ impl<S: Storage + 'static> Server<S> {
 
     pub fn tools(&self) -> Vec<ToolDefinition> {
         self.tools.list()
-    }
-
-    pub fn app(&self) -> App {
-        self.base_app.clone()
     }
 
     pub async fn models(&self) -> Result<Vec<Model>> {
@@ -66,17 +62,32 @@ impl<S: Storage + 'static> Server<S> {
 
     pub async fn chat(
         &self,
-        store_point: Arc<Mutex<ExecutionContext<App, Action>>>,
+        mut chat: ChatRequest,
     ) -> Result<impl Stream<Item = ChatResponse> + Send> {
-        let conversation_id = {
-            store_point
-                .lock()
-                .await
-                .state
-                .conversation_id()
-                .expect("`conversation_id` is expected to be present!")
-                .to_string()
-        };
+        let conversation_id = chat
+            .conversation_id
+            .clone()
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        chat.conversation_id = Some(conversation_id.clone());
+        dbg!(&conversation_id);
+        let message = format!("<task>{}</task>", chat.content);
+        let request = chat.content(message);
+
+        // // 1. pull the conversation context from database.
+        let mut exec_ctx = self
+            .storage
+            .get(&conversation_id)
+            .await
+            .expect("Failed to get conversation context.")
+            .unwrap_or_else(|| ExecutionContext {
+                app: App::new(self.inital_request.clone(), conversation_id.clone()),
+                action: Action::UserMessage(request.clone()),
+            });
+        // since we are not trying to restore, in order to execute the present request
+        // we replace the action with the new request.
+        exec_ctx.action = Action::UserMessage(request);
+        let exec_ctx = Arc::new(Mutex::new(exec_ctx));
+
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         // send the conversation id to the client.
         tx.send(ChatResponse::ConversationId(conversation_id.clone()))
@@ -91,8 +102,8 @@ impl<S: Storage + 'static> Server<S> {
         let storage = self.storage.clone();
 
         tokio::spawn(async move {
-            let guard = store_point.lock().await;
-            let app = Arc::new(Mutex::new(guard.state.clone()));
+            let guard = exec_ctx.lock().await;
+            let app = Arc::new(Mutex::new(guard.app.clone()));
             let action = guard.action.clone();
             drop(guard);
 
@@ -107,7 +118,7 @@ impl<S: Storage + 'static> Server<S> {
                     .save(
                         &conversation_id,
                         &ExecutionContext {
-                            state: guard.state.clone(),
+                            app: guard.clone(),
                             action: Action::AssistantResponse(Response {
                                 content: "".to_string(),
                                 tool_call: vec![],

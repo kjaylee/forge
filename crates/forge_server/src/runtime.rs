@@ -35,7 +35,7 @@ pub struct ApplicationRuntime;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionContext<A, B> {
-    pub state: A,
+    pub app: A,
     pub action: B,
 }
 

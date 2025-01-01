@@ -10,12 +10,11 @@ use forge_env::Environment;
 use forge_provider::{Model, Request};
 use forge_tool::ToolDefinition;
 use serde::Serialize;
-use tokio::sync::Mutex;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::app::{Action, App, ChatRequest, State as AppState};
+use crate::app::{Action, App, ChatRequest};
 use crate::completion::File;
 use crate::runtime::ExecutionContext;
 use crate::server::Server;
@@ -99,37 +98,10 @@ async fn completions_handler<S: Storage + 'static>(
 // execute the chat_request against the chat ctx.
 async fn conversation_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
-    Json(mut request): Json<ChatRequest>,
+    Json(request): Json<ChatRequest>,
 ) -> Sse<impl Stream<Item = std::result::Result<Event, std::convert::Infallible>>> {
-    let conversation_id = request
-        .conversation_id
-        .clone()
-        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-    request.conversation_id = Some(conversation_id.clone());
-
-    dbg!(&conversation_id);
-
-    let message = format!("<task>{}</task>", request.content);
-    let request = request.content(message);
-
-    // // 1. pull the conversation context from database.
-    let mut exec_ctx = state
-        .storage()
-        .get(&conversation_id)
-        .await
-        .expect("Failed to get conversation context.")
-        .unwrap_or_else(|| ExecutionContext {
-            state: state.app().with_conversation_id(conversation_id.clone()),
-            action: Action::UserMessage(request.clone()),
-        });
-    // since we are not trying to restore, in order to execute the present request
-    // we replace the action with the new request.
-    exec_ctx.action = Action::UserMessage(request);
-
-    let exec_ctx = Arc::new(Mutex::new(exec_ctx));
-
     let stream = state
-        .chat(exec_ctx)
+        .chat(request)
         .await
         .expect("Engine failed to respond with a chat message");
 
@@ -143,7 +115,7 @@ async fn conversation_handler<S: Storage + 'static>(
 async fn conversation_by_id_handler<S: Storage + 'static>(
     State(state): State<Arc<Server<S>>>,
     Path(id): Path<String>,
-) -> std::result::Result<Json<ExecutionContext<AppState, Action>>, (axum::http::StatusCode, String)>
+) -> std::result::Result<Json<ExecutionContext<App, Action>>, (axum::http::StatusCode, String)>
 {
     match state.storage().get(&id).await {
         Ok(Some(history)) => Ok(Json(history)),

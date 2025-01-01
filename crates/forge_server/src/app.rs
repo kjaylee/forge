@@ -42,7 +42,7 @@ pub enum Command {
     AssistantMessage(#[from] Request),
     UserMessage(#[from] ChatResponse),
     ToolCall(#[from] ToolCall),
-    Persist(ExecutionContext<State, Action>),
+    Persist(ExecutionContext<App, Action>),
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From)]
@@ -79,7 +79,7 @@ impl From<ToolName> for ToolUseStart {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct State {
     /// Unique identifier for tracking conversation state across interactions
-    pub conversation_id: Option<String>,
+    pub conversation_id: String,
 
     // The main objective that the user is trying to achieve
     pub user_objective: Option<MessageTemplate>,
@@ -95,13 +95,13 @@ pub struct State {
 }
 
 impl State {
-    fn new(context: Request) -> Self {
+    fn new(context: Request, conversation_id: impl Into<String>) -> Self {
         Self {
             request: context,
             user_objective: None,
             tool_call_part: Vec::new(),
             assistant_buffer: "".to_string(),
-            conversation_id: None,
+            conversation_id: conversation_id.into(),
         }
     }
 
@@ -149,11 +149,6 @@ impl State {
             tool_result.clone(),
         )));
 
-        commands.push(Command::Persist(ExecutionContext {
-            state: self.clone(),
-            action: Action::ToolResponse(tool_result),
-        }));
-
         Ok(commands)
     }
 
@@ -177,11 +172,6 @@ impl State {
         } else {
             commands.push(Command::FileRead(prompt.files()))
         }
-
-        commands.push(Command::Persist(ExecutionContext {
-            state: self.clone(),
-            action: Action::UserMessage(chat.clone()),
-        }));
         Ok(commands)
     }
 
@@ -198,10 +188,6 @@ impl State {
             }
 
             commands.push(Command::AssistantMessage(self.request.clone()));
-            commands.push(Command::Persist(ExecutionContext {
-                state: self.clone(),
-                action: Action::FileReadResponse(files),
-            }));
         }
 
         Ok(commands)
@@ -222,14 +208,6 @@ impl State {
 
         if let Some(finish_reason) = response.finish_reason.clone() {
             let finish_commands = self.on_finish_reason(finish_reason)?;
-
-            if !finish_commands.is_empty() {
-                commands.push(Command::Persist(ExecutionContext {
-                    state: self.clone(),
-                    action: Action::AssistantResponse(response.clone()),
-                }));
-            }
-
             commands.extend(finish_commands);
         }
 
@@ -249,17 +227,12 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(context: Request) -> Self {
-        Self { state: State::new(context) }
+    pub fn new(context: Request, conversation_id: impl Into<String>) -> Self {
+        Self { state: State::new(context, conversation_id) }
     }
 
-    pub fn with_conversation_id(mut self, conversation_id: impl ToString) -> Self {
-        self.state.conversation_id = Some(conversation_id.to_string());
-        self
-    }
-
-    pub fn conversation_id(&self) -> Option<&str> {
-        self.state.conversation_id.as_deref()
+    pub fn conversation_id(&self) -> &str {
+        self.state.conversation_id.as_ref()
     }
 }
 
@@ -270,12 +243,22 @@ impl Application for App {
 
     fn run(&mut self, action: impl Into<Action>) -> Result<Vec<Command>> {
         let action = action.into();
-        match action {
+        let mut commands = match action.clone() {
             Action::UserMessage(message) => self.state.on_user_message(message),
             Action::FileReadResponse(message) => self.state.on_file_read_response(message),
             Action::AssistantResponse(message) => self.state.on_assistant_response(message),
             Action::ToolResponse(message) => self.state.on_tool_response(message),
+        };
+
+        // On any action, persist the current app state.
+        if let Ok(ref mut cmds) = commands {
+            cmds.push(Command::Persist(ExecutionContext {
+                app: self.clone(),
+                action,
+            }));
         }
+
+        commands
     }
 }
 
