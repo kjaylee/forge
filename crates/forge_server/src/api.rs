@@ -140,7 +140,9 @@ impl From<&crate::Error> for ApiErrorResponse {
                         message: error.to_string(),
                         provider: Some(provider.to_string()),
                         details: match error {
-                            forge_provider::ProviderError::UpstreamError(value) => Some(value.clone()),
+                            forge_provider::ProviderError::UpstreamError(value) => {
+                                Some(value.clone())
+                            }
                             _ => Some(serde_json::Value::String(error.to_string())),
                         },
                     },
@@ -206,7 +208,8 @@ async fn conversation_handler(
         }
         Err(e) => {
             let error_response = ApiErrorResponse::from(&e);
-            let error_data = serde_json::to_string(&error_response).unwrap_or_else(|e| e.to_string());
+            let error_data =
+                serde_json::to_string(&error_response).unwrap_or_else(|e| e.to_string());
             Sse::new(
                 Box::pin(tokio_stream::once(Ok(Event::default().data(error_data)))) as EventStream,
             )
