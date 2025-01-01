@@ -113,22 +113,22 @@ async fn conversation_handler<S: Storage + 'static>(
     let request = request.content(message);
 
     // // 1. pull the conversation context from database.
-    let mut store_point = state
+    let mut exec_ctx = state
         .storage()
         .get(&conversation_id)
         .await
         .expect("Failed to get conversation context.")
         .unwrap_or_else(|| ExecutionContext {
-            app: state.app().conversation_id(conversation_id.clone()),
+            app: state.app().with_conversation_id(conversation_id.clone()),
             action: Action::UserMessage(request.clone()),
         });
     // since we are not trying to restore, in order to execute the present request we replace the action with the new request.
-    store_point.action = Action::UserMessage(request);
+    exec_ctx.action = Action::UserMessage(request);
 
-    let store_point = Arc::new(Mutex::new(store_point));
+    let exec_ctx = Arc::new(Mutex::new(exec_ctx));
 
     let stream = state
-        .chat(store_point)
+        .chat(exec_ctx)
         .await
         .expect("Engine failed to respond with a chat message");
 

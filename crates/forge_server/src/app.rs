@@ -5,7 +5,6 @@ use forge_provider::{
     ToolCallPart, ToolResult,
 };
 use forge_tool::ToolName;
-use serde::Serialize;
 use serde::{Deserialize, Serialize};
 
 use crate::runtime::Application;
@@ -227,10 +226,6 @@ pub struct App {
 impl App {
     pub fn new(context: Request) -> Self {
         Self { state: State::new(context) }
-    }
-
-    pub fn request(&self) -> &Request {
-        &self.state.request
     }
 
     pub fn with_conversation_id(mut self, conversation_id: impl ToString) -> Self {

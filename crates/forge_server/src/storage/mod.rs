@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use bincode::Error;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde_json::Error;
 
 mod sqlite;
 

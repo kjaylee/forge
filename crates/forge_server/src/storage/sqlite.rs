@@ -2,7 +2,6 @@
 use std::fmt::Debug;
 use std::path::Path;
 
-use bincode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sqlx::{Row, SqlitePool};
@@ -42,7 +41,7 @@ impl Storage for SqliteStorage {
             r#"
             CREATE TABLE IF NOT EXISTS conversation_history (
                 id VARCHAR(36) PRIMARY KEY,
-                data BLOB NOT NULL,
+                data TEXT NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
             "#,
@@ -57,7 +56,7 @@ impl Storage for SqliteStorage {
     where
         T: Serialize + Send + Sync,
     {
-        let binary_data = bincode::serialize(item)?;
+        let data = serde_json::to_string(item)?;
         sqlx::query(
             r#"
             INSERT INTO conversation_history (id, data)
@@ -66,7 +65,7 @@ impl Storage for SqliteStorage {
             "#,
         )
         .bind(key)
-        .bind(binary_data)
+        .bind(data)
         .execute(&self.pool)
         .await?;
 
@@ -89,8 +88,8 @@ impl Storage for SqliteStorage {
 
         match result {
             Some(row) => {
-                let data: Vec<u8> = row.get(0);
-                Ok(Some(bincode::deserialize(&data)?))
+                let data: String = row.get(0);
+                Ok(Some(serde_json::from_str(&data)?))
             }
             None => Ok(None),
         }
@@ -110,8 +109,8 @@ impl Storage for SqliteStorage {
 
         let mut items = Vec::with_capacity(rows.len());
         for row in rows {
-            let data: Vec<u8> = row.get(0);
-            items.push(bincode::deserialize(&data)?);
+            let data: String = row.get(0);
+            items.push(serde_json::from_str(&data)?);
         }
         Ok(items)
     }
