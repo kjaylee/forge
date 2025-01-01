@@ -73,9 +73,10 @@ impl<S: Storage + 'static> Server<S> {
                 .lock()
                 .await
                 .app
-                .conversation_id
+                .conversation_id()
                 .clone()
                 .expect("`conversation_id` is expected to be present!")
+                .to_string()
         };
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         // send the conversation id to the client.

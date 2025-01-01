@@ -1,8 +1,5 @@
-mod fs;
-
 mod ask;
-#[allow(unused)]
-mod mcp;
+mod fs;
 mod outline;
 mod shell;
 mod think;

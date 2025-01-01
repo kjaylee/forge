@@ -3,6 +3,7 @@ use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::parser::parse;
 use crate::{Error, Result};
 
 /// Unique identifier for a using a tool
@@ -71,6 +72,11 @@ impl ToolCall {
         } else {
             Err(Error::ToolUseMissingName)
         }
+    }
+
+    /// Parse multiple tool calls from XML format.
+    pub fn try_from_xml(input: &str) -> std::result::Result<Vec<Self>, String> {
+        parse(input)
     }
 }
 
