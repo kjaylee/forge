@@ -7,11 +7,11 @@ use forge_provider::{
 use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::Application;
+use crate::runtime::{Application, ExecutionContext};
 use crate::template::MessageTemplate;
 use crate::Result;
 
-#[derive(Clone, Debug, derive_more::From, Serialize, Deserialize)]
+#[derive(Clone, Debug, derive_more::From, Serialize, Deserialize, PartialEq)]
 pub enum Action {
     UserMessage(ChatRequest),
     FileReadResponse(Vec<FileResponse>),
@@ -19,14 +19,14 @@ pub enum Action {
     ToolResponse(ToolResult),
 }
 
-#[derive(Default, Debug, Serialize, Clone, Setters, Deserialize)]
+#[derive(Default, Debug, Serialize, Clone, Setters, Deserialize, PartialEq)]
 #[setters(into)]
 pub struct FileResponse {
     pub path: String,
     pub content: String,
 }
 
-#[derive(Debug, Serialize, serde::Deserialize, Clone, Setters)]
+#[derive(Debug, Serialize, serde::Deserialize, Clone, Setters, PartialEq)]
 #[setters(into)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatRequest {
@@ -42,6 +42,7 @@ pub enum Command {
     AssistantMessage(#[from] Request),
     UserMessage(#[from] ChatResponse),
     ToolCall(#[from] ToolCall),
+    Persist(ExecutionContext<State, Action>),
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From)]
@@ -75,7 +76,7 @@ impl From<ToolName> for ToolUseStart {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct State {
     /// Unique identifier for tracking conversation state across interactions
     pub conversation_id: Option<String>,
@@ -144,7 +145,14 @@ impl State {
         self.request = self.request.clone().add_message(tool_result.clone());
 
         commands.push(Command::AssistantMessage(self.request.clone()));
-        commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(tool_result)));
+        commands.push(Command::UserMessage(ChatResponse::ToolUseEnd(
+            tool_result.clone(),
+        )));
+
+        commands.push(Command::Persist(ExecutionContext {
+            app: self.clone(),
+            action: Action::ToolResponse(tool_result),
+        }));
 
         Ok(commands)
     }
@@ -164,12 +172,16 @@ impl State {
             self.request = self
                 .request
                 .clone()
-                .add_message(CompletionMessage::user(chat.content));
+                .add_message(CompletionMessage::user(chat.content.clone()));
             commands.push(Command::AssistantMessage(self.request.clone()))
         } else {
             commands.push(Command::FileRead(prompt.files()))
         }
 
+        commands.push(Command::Persist(ExecutionContext {
+            app: self.clone(),
+            action: Action::UserMessage(chat.clone()),
+        }));
         Ok(commands)
     }
 
@@ -177,7 +189,7 @@ impl State {
         let mut commands = Vec::new();
 
         if let Some(message) = self.user_objective.clone() {
-            for fr in files.into_iter() {
+            for fr in files.clone().into_iter() {
                 self.request = self.request.clone().add_message(
                     message
                         .clone()
@@ -185,7 +197,11 @@ impl State {
                 );
             }
 
-            commands.push(Command::AssistantMessage(self.request.clone()))
+            commands.push(Command::AssistantMessage(self.request.clone()));
+            commands.push(Command::Persist(ExecutionContext {
+                app: self.clone(),
+                action: Action::FileReadResponse(files),
+            }));
         }
 
         Ok(commands)
@@ -202,10 +218,18 @@ impl State {
             }
         }
 
-        self.tool_call_part.extend(response.tool_call);
+        self.tool_call_part.extend(response.tool_call.clone());
 
-        if let Some(finish_reason) = response.finish_reason {
+        if let Some(finish_reason) = response.finish_reason.clone() {
             let finish_commands = self.on_finish_reason(finish_reason)?;
+
+            if !finish_commands.is_empty() {
+                commands.push(Command::Persist(ExecutionContext {
+                    app: self.clone(),
+                    action: Action::AssistantResponse(response.clone()),
+                }));
+            }
+
             commands.extend(finish_commands);
         }
 
@@ -218,7 +242,7 @@ impl State {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct App {
     state: State,

@@ -7,7 +7,7 @@ use super::ToolCallPart;
 /// Represents a message that was received from the LLM provider
 /// NOTE: ToolUse messages are part of the larger Response object and not part
 /// of the message.
-#[derive(Clone, Debug, Setters, Serialize, Deserialize)]
+#[derive(Clone, Debug, Setters, Serialize, Deserialize, PartialEq)]
 #[setters(into, strip_option)]
 pub struct Response {
     pub content: String,

@@ -18,7 +18,7 @@ pub struct Server<S: Storage> {
     provider: Arc<Provider<Request, Response, forge_provider::Error>>,
     tools: Arc<ToolEngine>,
     completions: Arc<Completion>,
-    runtime: Arc<ApplicationRuntime<S>>,
+    runtime: Arc<ApplicationRuntime>,
     env: Environment,
     api_key: String,
     storage: Arc<S>,
@@ -37,7 +37,7 @@ impl<S: Storage + 'static> Server<S> {
             provider: Arc::new(Provider::open_router(api_key.clone(), None)),
             tools: Arc::new(tools),
             completions: Arc::new(Completion::new(cwd.clone())),
-            runtime: Arc::new(ApplicationRuntime::new(storage.clone())),
+            runtime: Arc::new(ApplicationRuntime),
             api_key,
             storage,
             base_app: App::new(request),
@@ -81,7 +81,12 @@ impl<S: Storage + 'static> Server<S> {
         // send the conversation id to the client.
         tx.send(ChatResponse::ConversationId(conversation_id.clone()))
             .await?;
-        let executor = ChatCommandExecutor::new(self.env.clone(), self.api_key.clone(), tx);
+        let executor = ChatCommandExecutor::new(
+            self.env.clone(),
+            self.api_key.clone(),
+            tx,
+            self.storage.clone(),
+        );
         let runtime = self.runtime.clone();
         let storage = self.storage.clone();
 

@@ -7,20 +7,6 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
-use crate::app::App;
-use crate::Storage;
-
-pub trait Identifier {
-    fn id(&self) -> &str;
-}
-
-impl Identifier for App {
-    fn id(&self) -> &str {
-        self.conversation_id()
-            .expect("at this point conversation_id should be set")
-    }
-}
-
 pub trait Application: Send + Sync + Sized + Clone {
     type Action: Send + Sync;
     type Error: Send;
@@ -45,49 +31,31 @@ pub trait Application: Send + Sync + Sized + Clone {
 }
 
 #[derive(Clone)]
-pub struct ApplicationRuntime<S: Storage> {
-    storage: Arc<S>,
-}
+pub struct ApplicationRuntime;
 
-impl<S: Storage> ApplicationRuntime<S> {
-    pub fn new(storage: Arc<S>) -> Self {
-        Self { storage }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExecutionContext<A, B> {
     pub app: A,
     pub action: B,
 }
 
-impl<S: Storage + 'static> ApplicationRuntime<S> {
+impl ApplicationRuntime {
     #[async_recursion::async_recursion]
-    pub async fn execute<'a, A: Application + Serialize + DeserializeOwned + Identifier>(
+    pub async fn execute<'a, A: Application + Serialize + DeserializeOwned>(
         &'a self,
-        base_app: Arc<Mutex<A>>,
+        app: Arc<Mutex<A>>,
         action: A::Action,
         executor: Arc<
             impl Executor<Command = A::Command, Action = A::Action, Error = A::Error> + 'static,
         >,
-    ) -> std::result::Result<(), A::Error>
-    where
-        A::Action: Serialize + DeserializeOwned + Clone,
-    {
-        let mut guard = base_app.lock().await;
-        let commands = guard.run(action.clone())?;
-
-        // Save the current state of the app.
-        let _ = self
-            .storage
-            .save(guard.id(), &ExecutionContext { app: guard.clone(), action })
-            .await;
-
+    ) -> std::result::Result<(), A::Error> {
+        let mut guard = app.lock().await;
+        let commands = guard.run(action)?;
         drop(guard);
 
         join_all(commands.into_iter().map(|command| {
             let executor = executor.clone();
-            let app = base_app.clone();
+            let app = app.clone();
             async move {
                 let _: Result<(), A::Error> = async move {
                     let mut stream = executor.clone().execute(&command).await?;

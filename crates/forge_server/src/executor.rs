@@ -9,20 +9,22 @@ use tokio_stream::StreamExt;
 use crate::app::{Action, ChatResponse, Command, FileResponse};
 use crate::runtime::Executor;
 use crate::system_prompt::SystemPrompt;
-use crate::Error;
+use crate::{Error, Storage};
 
-pub struct ChatCommandExecutor {
+pub struct ChatCommandExecutor<S> {
     provider: Arc<Provider<Request, Response, forge_provider::Error>>,
     tools: Arc<ToolEngine>,
     tx: mpsc::Sender<ChatResponse>,
     system_prompt: SystemPrompt,
+    storage: Arc<S>,
 }
 
-impl ChatCommandExecutor {
+impl<S: Storage> ChatCommandExecutor<S> {
     pub fn new(
         env: Environment,
         api_key: impl Into<String>,
         tx: mpsc::Sender<ChatResponse>,
+        storage: Arc<S>,
     ) -> Self {
         let tools = Arc::new(ToolEngine::new());
 
@@ -31,12 +33,13 @@ impl ChatCommandExecutor {
             tools: tools.clone(),
             tx,
             system_prompt: SystemPrompt::new(env, tools),
+            storage,
         }
     }
 }
 
 #[async_trait::async_trait]
-impl Executor for ChatCommandExecutor {
+impl<S: Storage> Executor for ChatCommandExecutor<S> {
     type Command = Command;
     type Action = Action;
     type Error = Error;
@@ -102,6 +105,16 @@ impl Executor for ChatCommandExecutor {
                     Box::pin(tokio_stream::once(Ok(tool_call_response)));
 
                 Ok(stream)
+            }
+            Command::Persist(_ctx) => {
+                let key = _ctx
+                    .app
+                    .conversation_id
+                    .as_ref()
+                    .expect("conversation_id is expected to be present");
+                // it's okay if it fails. we don't have to bubble up the error.
+                let _ = self.storage.save(key, _ctx).await;
+                Ok(Box::pin(tokio_stream::empty()))
             }
         }
     }
