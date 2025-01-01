@@ -3,7 +3,7 @@ use std::sync::Arc;
 use forge_provider::ResultStream;
 use futures::future::join_all;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 
@@ -32,12 +32,6 @@ pub trait Application: Send + Sync + Sized + Clone {
 
 #[derive(Clone)]
 pub struct ApplicationRuntime;
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct AppState<A, B> {
-    pub app: A,
-    pub action: B,
-}
 
 impl ApplicationRuntime {
     #[async_recursion::async_recursion]

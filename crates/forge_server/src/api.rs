@@ -16,7 +16,7 @@ use tracing::info;
 
 use crate::app::{Action, App, ChatRequest};
 use crate::completion::File;
-use crate::runtime::AppState;
+use crate::executor::AppState;
 use crate::server::Server;
 use crate::storage::SqliteStorage;
 use crate::{Result, Storage};

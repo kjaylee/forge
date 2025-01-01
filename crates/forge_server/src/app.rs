@@ -7,7 +7,8 @@ use forge_provider::{
 use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::{AppState, Application};
+use crate::executor::AppState;
+use crate::runtime::Application;
 use crate::template::MessageTemplate;
 use crate::Result;
 

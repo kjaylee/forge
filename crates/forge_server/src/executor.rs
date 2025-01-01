@@ -3,6 +3,7 @@ use std::sync::Arc;
 use forge_env::Environment;
 use forge_provider::{BoxStream, Provider, Request, Response, ResultStream, ToolResult};
 use forge_tool::ToolEngine;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio_stream::StreamExt;
 
@@ -17,6 +18,12 @@ pub struct ChatCommandExecutor<S> {
     tx: mpsc::Sender<ChatResponse>,
     system_prompt: SystemPrompt,
     storage: Arc<S>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AppState<A, B> {
+    pub app: A,
+    pub action: B,
 }
 
 impl<S: Storage> ChatCommandExecutor<S> {
