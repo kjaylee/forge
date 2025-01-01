@@ -77,8 +77,9 @@ impl From<ToolName> for ToolUseStart {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct State {
-    // App has an a conversation id.
+    /// Unique identifier for tracking conversation state across interactions
     pub conversation_id: Option<String>,
+    
     // The main objective that the user is trying to achieve
     pub user_objective: Option<MessageTemplate>,
 
