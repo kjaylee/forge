@@ -34,7 +34,7 @@ pub trait Application: Send + Sync + Sized + Clone {
 pub struct ApplicationRuntime;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ExecutionContext<A, B> {
+pub struct AppState<A, B> {
     pub app: A,
     pub action: B,
 }

@@ -7,7 +7,7 @@ use forge_provider::{
 use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::{Application, ExecutionContext};
+use crate::runtime::{Application, AppState};
 use crate::template::MessageTemplate;
 use crate::Result;
 
@@ -42,7 +42,7 @@ pub enum Command {
     AssistantMessage(#[from] Request),
     UserMessage(#[from] ChatResponse),
     ToolCall(#[from] ToolCall),
-    Persist(ExecutionContext<App, Action>),
+    Persist(AppState<App, Action>),
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From)]
@@ -252,7 +252,7 @@ impl Application for App {
 
         // On any action, persist the current app state.
         if let Ok(ref mut cmds) = commands {
-            cmds.push(Command::Persist(ExecutionContext {
+            cmds.push(Command::Persist(AppState {
                 app: self.clone(),
                 action,
             }));

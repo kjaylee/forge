@@ -10,7 +10,7 @@ use tokio_stream::Stream;
 use crate::app::{Action, App, ChatRequest, ChatResponse};
 use crate::completion::{Completion, File};
 use crate::executor::ChatCommandExecutor;
-use crate::runtime::{ApplicationRuntime, ExecutionContext};
+use crate::runtime::{ApplicationRuntime, AppState};
 use crate::{Result, Storage};
 
 #[derive(Clone)]
@@ -83,7 +83,7 @@ impl<S: Storage + 'static> Server<S> {
                 .storage
                 .get(&conversation_id)
                 .await?
-                .unwrap_or_else(|| ExecutionContext {
+                .unwrap_or_else(|| AppState {
                     app: App::new(self.inital_request.clone(), conversation_id.clone()),
                     action: Action::UserMessage(request.clone()),
                 });
@@ -124,7 +124,7 @@ impl<S: Storage + 'static> Server<S> {
                 let _ = storage
                     .save(
                         &conversation_id,
-                        &ExecutionContext { app: guard.clone(), action: action.clone() },
+                        &AppState { app: guard.clone(), action: action.clone() },
                     )
                     .await;
             }
