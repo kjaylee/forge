@@ -95,7 +95,8 @@ impl<S: Storage + 'static> Server<S> {
 
         let (tx, rx) = mpsc::channel::<ChatResponse>(100);
         // send the conversation id to the client.
-        tx.send(ChatResponse::ConversationId(conversation_id.clone()))
+        let _ = tx
+            .send(ChatResponse::ConversationId(conversation_id.clone()))
             .await;
 
         let executor = ChatCommandExecutor::new(
