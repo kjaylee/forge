@@ -903,7 +903,6 @@ dependencies = [
  "sqlx",
  "tailcall-valid",
  "tempfile",
- "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
  "tower-http",

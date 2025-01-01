@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use derive_more::derive::{Display, From};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Error;
@@ -28,14 +29,9 @@ pub trait Storage: Send + Sync + std::fmt::Debug + Clone {
         T: DeserializeOwned + Send + Sync;
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, From, Display)]
 pub enum StorageError {
-    #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
-
-    #[error("Serialization error: {0}")]
     Serialization(#[from] Error),
-
-    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
