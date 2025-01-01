@@ -118,20 +118,13 @@ impl<S: Storage + 'static> Server<S> {
                 .execute(app.clone(), action, Arc::new(executor))
                 .await;
 
-            if result.is_ok() {
+            if let Ok(action) = result.as_ref() {
                 // if everything is executed successfully, then save the state.
                 let guard = app.lock().await;
                 let _ = storage
                     .save(
                         &conversation_id,
-                        &ExecutionContext {
-                            app: guard.clone(),
-                            action: Action::AssistantResponse(Response {
-                                content: "".to_string(),
-                                tool_call: vec![],
-                                finish_reason: None,
-                            }),
-                        },
+                        &ExecutionContext { app: guard.clone(), action: action.clone() },
                     )
                     .await;
             }

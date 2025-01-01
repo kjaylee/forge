@@ -41,16 +41,20 @@ pub struct ExecutionContext<A, B> {
 
 impl ApplicationRuntime {
     #[async_recursion::async_recursion]
-    pub async fn execute<'a, A: Application + Serialize + DeserializeOwned>(
+    pub async fn execute<'a, A>(
         &'a self,
         app: Arc<Mutex<A>>,
         action: A::Action,
         executor: Arc<
             impl Executor<Command = A::Command, Action = A::Action, Error = A::Error> + 'static,
         >,
-    ) -> std::result::Result<(), A::Error> {
+    ) -> std::result::Result<A::Action, A::Error>
+    where
+        A: Application + Serialize + DeserializeOwned,
+        A::Action: Clone,
+    {
         let mut guard = app.lock().await;
-        let commands = guard.run(action)?;
+        let commands = guard.run(action.clone())?;
         drop(guard);
 
         join_all(commands.into_iter().map(|command| {
@@ -76,7 +80,7 @@ impl ApplicationRuntime {
         }))
         .await;
 
-        Ok(())
+        Ok(action)
     }
 }
 
