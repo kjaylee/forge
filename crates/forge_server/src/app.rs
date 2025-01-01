@@ -79,7 +79,7 @@ impl From<ToolName> for ToolUseStart {
 pub struct State {
     /// Unique identifier for tracking conversation state across interactions
     pub conversation_id: Option<String>,
-    
+
     // The main objective that the user is trying to achieve
     pub user_objective: Option<MessageTemplate>,
 
