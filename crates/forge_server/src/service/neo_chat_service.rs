@@ -50,24 +50,25 @@ impl Live {
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
     ) -> Result<()> {
         loop {
-            let mut response = self.provider.chat(request.clone()).await?;
-            let mut current_tool = Vec::new();
-            let mut assistant_buffer = String::new();
+            let mut tool_call = None;
+            let mut tool_call_parts = Vec::new();
             let mut tool_result = None;
-            let mut tool_call_req = None;
+            let mut assistant_message_content = String::new();
+
+            let mut response = self.provider.chat(request.clone()).await?;
 
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
                 if message.tool_call.is_empty() {
                     // TODO: drop unwrap from here.
-                    assistant_buffer.push_str(&message.content);
+                    assistant_message_content.push_str(&message.content);
                     tx.send(Ok(ChatResponse::Text(message.content)))
                         .await
                         .expect("Failed to send message");
                 } else {
-                    assistant_buffer.push_str(&message.content);
+                    assistant_message_content.push_str(&message.content);
                     if let Some(tool_part) = message.tool_call.first() {
-                        if current_tool.is_empty() {
+                        if tool_call_parts.is_empty() {
                             // very first instance where we found a tool call.
                             tx.send(Ok(ChatResponse::ToolUseStart(ToolUseStart {
                                 tool_name: tool_part.name.clone(),
@@ -75,13 +76,13 @@ impl Live {
                             .await
                             .expect("Failed to send message");
                         }
-                        current_tool.push(tool_part.clone());
+                        tool_call_parts.push(tool_part.clone());
                     }
 
                     if let Some(FinishReason::ToolCalls) = message.finish_reason {
                         // TODO: drop clone from here.
-                        let actual_tool_call = ToolCall::try_from_parts(current_tool.clone())?;
-                        tool_call_req = Some(actual_tool_call.clone());
+                        let actual_tool_call = ToolCall::try_from_parts(tool_call_parts.clone())?;
+                        tool_call = Some(actual_tool_call.clone());
                         tool_result = Some(
                             self.tool
                                 .call(&actual_tool_call.name, actual_tool_call.arguments)
@@ -91,9 +92,9 @@ impl Live {
                 }
             }
 
-            request = request.add_message(CompletionMessage::assistant_with_tool(
-                assistant_buffer,
-                tool_call_req,
+            request = request.add_message(CompletionMessage::assistant(
+                assistant_message_content,
+                tool_call,
             ));
             if let Some(Ok(tool_result)) = tool_result {
                 let tool_result: ToolResult = serde_json::from_value(tool_result).unwrap();
@@ -147,7 +148,6 @@ pub enum ChatResponse {
     ToolUseStart(ToolUseStart),
     ToolUseEnd(ToolResult),
     Complete,
-    #[from(ignore)]
     Error(Errata),
 }
 
