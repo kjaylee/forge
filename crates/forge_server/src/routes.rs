@@ -4,7 +4,8 @@ const SERVER_PORT: u16 = 8080;
 
 use axum::extract::{Json, State};
 use axum::response::sse::{Event, Sse};
-use axum::response::Html;
+use axum::response::{Html, Json as AxumJson};
+use utoipa::OpenApi;
 use axum::routing::{get, post};
 use axum::Router;
 use forge_env::Environment;
@@ -16,7 +17,38 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{ChatRequest, ChatResponse, Errata, File, Result, RootAPIService, Service};
+use crate::{ChatRequest, ChatResponse, Errata, File, Result, RootAPIService, Service, ToolUseStart};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        health_handler,
+        conversation_handler,
+        completions_handler,
+        tools_handler,
+        models_handler,
+        context_handler,
+        context_html_handler,
+        openapi_handler
+    ),
+    components(
+        schemas(
+            ChatRequest,
+            ChatResponse,
+            ToolResponse,
+            ModelResponse,
+            ContextResponse,
+            File,
+            Errata,
+            ToolUseStart
+        )
+    ),
+    tags(
+        (name = "forge", description = "Forge API endpoints")
+    ),
+    external_docs(url = "https://github.com/tailcallhq/code-forge")
+)]
+struct ApiDoc;
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
@@ -31,6 +63,15 @@ impl Default for API {
     }
 }
 
+/// Get context as HTML
+#[utoipa::path(
+    get,
+    path = "/context/html",
+    tag = "forge",
+    responses(
+        (status = 200, description = "Context rendered as HTML", body = String)
+    )
+)]
 async fn context_html_handler(State(state): State<Arc<dyn RootAPIService>>) -> Html<String> {
     let context = state.context().await;
     let engine = ContextEngine::new(context);
@@ -56,6 +97,7 @@ impl API {
             .route("/models", get(models_handler))
             .route("/context", get(context_handler))
             .route("/context/html", get(context_html_handler))
+            .route("/openapi.json", get(openapi_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -87,6 +129,15 @@ impl API {
     }
 }
 
+/// Get file completions
+#[utoipa::path(
+    get,
+    path = "/completions",
+    tag = "forge",
+    responses(
+        (status = 200, description = "List of files", body = Vec<File>)
+    )
+)]
 async fn completions_handler(
     State(state): State<Arc<dyn RootAPIService>>,
 ) -> axum::Json<Vec<File>> {
@@ -98,6 +149,16 @@ async fn completions_handler(
 }
 
 #[axum::debug_handler]
+/// Start a conversation
+#[utoipa::path(
+    post,
+    path = "/conversation",
+    tag = "forge",
+    request_body = ChatRequest,
+    responses(
+        (status = 200, description = "Server-sent events stream of chat responses", body = String)
+    )
+)]
 async fn conversation_handler(
     State(state): State<Arc<dyn RootAPIService>>,
     Json(request): Json<ChatRequest>,
@@ -116,11 +177,29 @@ async fn conversation_handler(
 }
 
 #[axum::debug_handler]
+/// Get available tools
+#[utoipa::path(
+    get,
+    path = "/tools",
+    tag = "forge",
+    responses(
+        (status = 200, description = "List of available tools", body = ToolResponse)
+    )
+)]
 async fn tools_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<ToolResponse> {
     let tools = state.tools().await;
     Json(ToolResponse { tools })
 }
 
+/// Health check endpoint
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "forge",
+    responses(
+        (status = 200, description = "Server is healthy")
+    )
+)]
 async fn health_handler() -> axum::response::Response {
     axum::response::Response::builder()
         .status(200)
@@ -128,27 +207,61 @@ async fn health_handler() -> axum::response::Response {
         .unwrap()
 }
 
+/// Get available models
+#[utoipa::path(
+    get,
+    path = "/models",
+    tag = "forge",
+    responses(
+        (status = 200, description = "List of available models", body = ModelResponse)
+    )
+)]
 async fn models_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<ModelResponse> {
     let models = state.models().await.unwrap_or_default();
     Json(ModelResponse { models })
 }
 
+/// Get current context
+#[utoipa::path(
+    get,
+    path = "/context",
+    tag = "forge",
+    responses(
+        (status = 200, description = "Current context", body = ContextResponse)
+    )
+)]
 async fn context_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<ContextResponse> {
     let context = state.context().await;
     Json(ContextResponse { context })
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct ContextResponse {
+    #[schema(value_type = Object, example = json!({"messages": [], "model": "gpt-4"}))]
     context: Request,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct ModelResponse {
+    #[schema(value_type = Array, example = json!([{"id": "gpt-4", "name": "GPT-4"}]))]
     models: Vec<Model>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct ToolResponse {
+    #[schema(value_type = Array, example = json!([{"name": "read_file", "description": "Read file contents"}]))]
     tools: Vec<ToolDefinition>,
+}
+
+/// Get OpenAPI documentation
+#[utoipa::path(
+    get,
+    path = "/openapi.json",
+    tag = "forge",
+    responses(
+        (status = 200, description = "OpenAPI specification", body = String)
+    )
+)]
+async fn openapi_handler() -> AxumJson<serde_json::Value> {
+    AxumJson(serde_json::json!(ApiDoc::openapi()))
 }

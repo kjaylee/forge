@@ -39,7 +39,7 @@ impl std::fmt::Debug for Error {
     }
 }
 
-#[derive(Clone, Setters, Serialize, PartialEq, Eq)]
+#[derive(Clone, Setters, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 pub struct Errata {
     pub message: String,
     #[setters(strip_option)]

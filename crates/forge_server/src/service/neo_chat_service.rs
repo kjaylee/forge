@@ -132,15 +132,21 @@ impl NeoChatService for Live {
     }
 }
 
-#[derive(Debug, serde::Deserialize, Clone, Setters)]
+#[derive(Debug, serde::Deserialize, Clone, Setters, utoipa::ToSchema)]
 #[setters(into)]
 pub struct ChatRequest {
+    #[schema(example = "What files are in the current directory?")]
     pub content: String,
+    #[schema(example = "openai/gpt-4")]
     pub model: ModelId,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[schema(example = json!({
+    "type": "text",
+    "content": "Let me help you with that."
+}))]
 pub enum ChatResponse {
     #[from(ignore)]
     Text(String),
@@ -151,8 +157,11 @@ pub enum ChatResponse {
     Error(Errata),
 }
 
-#[derive(Default, Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, PartialEq, Eq, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
+#[schema(example = json!({
+    "toolName": "read_file"
+}))]
 pub struct ToolUseStart {
     pub tool_name: Option<ToolName>,
 }

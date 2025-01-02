@@ -6,7 +6,7 @@ use serde::Serialize;
 use super::Service;
 use crate::Result;
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct File {
     pub path: String,
     pub is_dir: bool,
