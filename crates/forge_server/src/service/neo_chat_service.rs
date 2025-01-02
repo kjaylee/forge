@@ -1,18 +1,20 @@
 use std::sync::Arc;
 
+use derive_setters::Setters;
 use forge_provider::{
-    CompletionMessage, FinishReason, ProviderService, Request, ResultStream, ToolCall, ToolResult,
+    CompletionMessage, FinishReason, ModelId, ProviderService, Request, ResultStream, ToolCall,
+    ToolResult,
 };
-use forge_tool::ToolService;
+use forge_tool::{ToolName, ToolService};
+use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use super::{Service, SystemPromptService};
-use crate::app::{ChatRequest, ChatResponse};
-use crate::{Error, Result};
+use crate::{Errata, Error, Result};
 
 #[async_trait::async_trait]
-pub trait NeoChatService {
+pub trait NeoChatService: Send + Sync {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error>;
 }
 
@@ -65,11 +67,11 @@ impl Live {
                     if let Some(tool_part) = message.tool_call.first() {
                         if current_tool.is_empty() {
                             // very first instance where we found a tool call.
-                            if let Some(tool_name) = &tool_part.name {
-                                tx.send(Ok(ChatResponse::ToolUseStart(tool_name.clone().into())))
-                                    .await
-                                    .expect("Failed to send message");
-                            }
+                            tx.send(Ok(ChatResponse::ToolUseStart(ToolUseStart {
+                                tool_name: tool_part.name.clone(),
+                            })))
+                            .await
+                            .expect("Failed to send message");
                         }
                         current_tool.push(tool_part.clone());
                     }
@@ -125,42 +127,52 @@ impl NeoChatService for Live {
     }
 }
 
+#[derive(Debug, serde::Deserialize, Clone, Setters)]
+#[setters(into)]
+pub struct ChatRequest {
+    pub content: String,
+    pub model: ModelId,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From)]
+#[serde(rename_all = "camelCase")]
+pub enum ChatResponse {
+    #[from(ignore)]
+    Text(String),
+    ToolUseStart(ToolUseStart),
+    ToolUseEnd(ToolResult),
+    Complete,
+    #[from(ignore)]
+    Error(Errata),
+}
+
+#[derive(Default, Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolUseStart {
+    pub tool_name: Option<ToolName>,
+}
+
 #[cfg(test)]
-pub mod tests {
-    use std::sync::{Arc, Mutex};
+mod tests {
+    use std::sync::Arc;
     use std::vec;
 
-    use derive_setters::Setters;
     use forge_provider::{
-        CompletionMessage, Error, FinishReason, Model, ModelId, Parameters, ProviderError,
-        ProviderService, Request, Response, Result, ResultStream, ToolCallId, ToolCallPart,
-        ToolResult,
+        CompletionMessage, FinishReason, ModelId, Response, ToolCallId, ToolCallPart, ToolResult,
     };
     use forge_tool::{ToolDefinition, ToolName, ToolService};
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
-    use super::Live;
-    use crate::app::{ChatRequest, ChatResponse};
+    use super::{ChatRequest, Live, ToolUseStart};
     use crate::service::neo_chat_service::NeoChatService;
-    use crate::tests::TestSystemPrompt;
+    use crate::service::tests::{TestProvider, TestSystemPrompt};
+    use crate::ChatResponse;
 
-    #[derive(Default, Setters)]
-    pub struct TestProvider {
-        messages: Mutex<Vec<Vec<Response>>>,
-        request: Mutex<Option<Request>>,
-        models: Vec<Model>,
-        parameters: Vec<(ModelId, Parameters)>,
-    }
-
-    impl TestProvider {
-        pub fn with_messages(self, messages: Vec<Vec<Response>>) -> Self {
-            self.messages(Mutex::new(messages))
-        }
-
-        pub fn get_last_call(&self) -> Option<Request> {
-            self.request.lock().unwrap().clone()
+    impl ChatRequest {
+        pub fn new(content: impl ToString) -> ChatRequest {
+            ChatRequest { content: content.to_string(), model: ModelId::default() }
         }
     }
 
@@ -188,35 +200,6 @@ pub mod tests {
         }
         fn usage_prompt(&self) -> String {
             "".to_string()
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl ProviderService for TestProvider {
-        async fn chat(&self, request: Request) -> ResultStream<Response, Error> {
-            self.request.lock().unwrap().replace(request);
-            // TODO: don't remove this else tests stop working, but we need to understand
-            // why so revisit this later on.
-            tokio::time::sleep(tokio::time::Duration::from_millis(5)).await;
-
-            // clear the messages as we send it to the stream.
-            let mut guard = self.messages.lock().unwrap();
-            let response = guard.remove(0);
-            Ok(Box::pin(tokio_stream::iter(response).map(Ok)))
-        }
-
-        async fn models(&self) -> Result<Vec<Model>> {
-            Ok(self.models.clone())
-        }
-
-        async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
-            match self.parameters.iter().find(|(id, _)| id == model) {
-                None => Err(forge_provider::Error::Provider {
-                    provider: "closed_ai".to_string(),
-                    error: ProviderError::UpstreamError(json!({"error": "Model not found"})),
-                }),
-                Some((_, parameter)) => Ok(parameter.clone()),
-            }
         }
     }
 
@@ -268,9 +251,12 @@ pub mod tests {
 
     impl Default for Fixture {
         fn default() -> Self {
-            let provider = Arc::new(TestProvider::default().messages(Mutex::new(vec![vec![
-                Response::assistant(ASSISTANT_RESPONSE.to_string()),
-            ]])));
+            let provider =
+                Arc::new(
+                    TestProvider::default().with_messages(vec![vec![Response::assistant(
+                        ASSISTANT_RESPONSE.to_string(),
+                    )]]),
+                );
             let system_prompt = Arc::new(TestSystemPrompt::new(SYSTEM_PROMPT));
             let tool = Arc::new(TestToolService::new(json!({"result": "fs success."})));
             let service = Live::new(provider.clone(), system_prompt.clone(), tool.clone());
@@ -331,7 +317,9 @@ pub mod tests {
             .chat(request)
             .await;
 
-        assert!(result.contains(&ChatResponse::ToolUseStart(ToolName::new("foo").into())));
+        assert!(result.contains(&ChatResponse::ToolUseStart(ToolUseStart {
+            tool_name: Some(ToolName::new("foo"))
+        })));
         assert!(result.contains(&ChatResponse::ToolUseEnd(tool_result)));
         assert!(result.contains(&ChatResponse::Text(message_3.content)));
     }
