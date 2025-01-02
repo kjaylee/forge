@@ -130,6 +130,7 @@ impl NeoChatService for Live {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
+            tx.send(Ok(ChatResponse::Complete)).await.unwrap();
         });
 
         Ok(Box::pin(ReceiverStream::new(rx)))
@@ -277,7 +278,10 @@ mod tests {
         let chat_request = ChatRequest::new("Hello can you help me?");
 
         let actual = Fixture::default().chat(chat_request).await;
-        let expected = vec![ChatResponse::Text(ASSISTANT_RESPONSE.to_string())];
+        let expected = vec![
+            ChatResponse::Text(ASSISTANT_RESPONSE.to_string()),
+            ChatResponse::Complete,
+        ];
         assert_eq!(actual, expected)
     }
 
