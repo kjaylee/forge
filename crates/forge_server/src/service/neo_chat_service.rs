@@ -117,7 +117,10 @@ impl NeoChatService for Live {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         let request = Request::default()
             .set_system_message(system_prompt)
-            .add_message(CompletionMessage::user(chat.content))
+            .add_message(CompletionMessage::user(format!(
+                "<task>{}</task>",
+                chat.content
+            )))
             .model(chat.model);
 
         let that = self.clone();
@@ -361,5 +364,14 @@ mod tests {
         let _ = tester.chat(request).await;
         let last_request = tester.provider.get_last_call().unwrap();
         insta::assert_debug_snapshot!(last_request);
+    }
+
+    #[tokio::test]
+    async fn test_task_wrapped_prompt() {
+        let f = Fixture::default();
+        let message = "Do me a favor";
+        f.chat(ChatRequest::new(message)).await;
+        let request = f.provider.get_last_call().unwrap().messages[1].content();
+        assert_eq!(request, "<task>Do me a favor</task>");
     }
 }
