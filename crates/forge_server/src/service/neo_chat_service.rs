@@ -155,6 +155,10 @@ pub mod tests {
     }
 
     impl TestProvider {
+        pub fn with_messages(self, messages: Vec<Vec<Response>>) -> Self {
+            self.messages(Mutex::new(messages))
+        }
+
         pub fn get_last_call(&self) -> Option<Request> {
             self.request.lock().unwrap().clone()
         }
@@ -219,14 +223,14 @@ pub mod tests {
     const ASSISTANT_RESPONSE: &str = "Sure thing!";
     const SYSTEM_PROMPT: &str = "Do everything that the user says";
 
-    struct FixtureBuilder {
+    struct Fixture {
         provider: Arc<TestProvider>,
         system_prompt: Arc<TestSystemPrompt>,
         tool: Arc<TestToolService>,
         service: Live,
     }
 
-    impl FixtureBuilder {
+    impl Fixture {
         pub fn with_provider(self, provider: TestProvider) -> Self {
             let provider = Arc::new(provider);
             Self {
@@ -248,9 +252,21 @@ pub mod tests {
                 tool,
             }
         }
+
+        pub async fn chat(&self, request: ChatRequest) -> Vec<ChatResponse> {
+            self.service
+                .chat(request)
+                .await
+                .unwrap()
+                .collect::<Vec<_>>()
+                .await
+                .into_iter()
+                .map(|value| value.unwrap())
+                .collect::<Vec<_>>()
+        }
     }
 
-    impl Default for FixtureBuilder {
+    impl Default for Fixture {
         fn default() -> Self {
             let provider = Arc::new(TestProvider::default().messages(Mutex::new(vec![vec![
                 Response::assistant(ASSISTANT_RESPONSE.to_string()),
@@ -264,28 +280,16 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_chat_response() {
-        let tester = FixtureBuilder::default();
         let chat_request = ChatRequest::new("Hello can you help me?");
 
-        let actual = tester
-            .service
-            .chat(chat_request)
-            .await
-            .unwrap()
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .map(|value| value.unwrap())
-            .collect::<Vec<_>>();
-
+        let actual = Fixture::default().chat(chat_request).await;
         let expected = vec![ChatResponse::Text(ASSISTANT_RESPONSE.to_string())];
-
         assert_eq!(actual, expected)
     }
 
     #[tokio::test]
     async fn test_chat_system_prompt() {
-        let tester = FixtureBuilder::default();
+        let tester = Fixture::default();
         let chat_request = ChatRequest::new("Hello can you help me?");
 
         // TODO: don't remove this else tests stop working, but we need to understand
@@ -317,24 +321,16 @@ pub mod tests {
             "a": 100,
             "b": 200
         }));
+        let request = ChatRequest::new("Hello can you help me?");
+        let result = Fixture::default()
+            .with_provider(
+                TestProvider::default()
+                    .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]]),
+            )
+            .with_tool(tool_result.clone())
+            .chat(request)
+            .await;
 
-        let tester = FixtureBuilder::default()
-            .with_provider(TestProvider::default().messages(Mutex::new(vec![
-                vec![message_1, message_2],
-                vec![message_3.clone()],
-            ])))
-            .with_tool(tool_result.clone());
-
-        let result = tester
-            .service
-            .chat(ChatRequest::new("Hello can you help me?"))
-            .await
-            .unwrap()
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .map(|value| value.unwrap())
-            .collect::<Vec<_>>();
         assert!(result.contains(&ChatResponse::ToolUseStart(ToolName::new("foo").into())));
         assert!(result.contains(&ChatResponse::ToolUseEnd(tool_result)));
         assert!(result.contains(&ChatResponse::Text(message_3.content)));
