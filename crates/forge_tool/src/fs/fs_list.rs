@@ -26,7 +26,7 @@ pub struct FSListInput {
 #[derive(DescriptionDerive)]
 pub struct FSList;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename = "fs_list")]
 pub struct FSListOutput {
     #[serde(rename = "@path")]
@@ -38,7 +38,7 @@ pub struct FSListOutput {
     entries: Vec<FileType>,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum FileType {
     Dir(String),
