@@ -206,8 +206,8 @@ mod tests {
     use std::sync::Arc;
     use std::vec;
 
-    use forge_provider::{
-        CompletionMessage, FinishReason, ModelId, ProviderService, Response, ToolCallId,
+    use forge_provider::{        
+        CompletionMessage, FinishReason, ModelId, Response, ToolCallId,
         ToolCallPart, ToolResult,
     };
     use forge_tool::{ToolDefinition, ToolName, ToolService};
@@ -215,7 +215,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use schemars::schema::RootSchema;
     use serde_json::{json, Value};
-    use tokio_stream::StreamExt;
+    use tokio_stream::StreamExt;    
 
     use super::{ChatRequest, Live};
     use crate::service::neo_chat_service::NeoChatService;
