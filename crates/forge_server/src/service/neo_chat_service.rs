@@ -143,25 +143,31 @@ impl NeoChatService for Live {
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
-        let request = Request::default()
-            .set_system_message(system_prompt)
-            .add_message(CompletionMessage::user(user_prompt))
-            .tools(self.tool.list())
-            .model(chat.model);
-
-        // Create initial conversation
-        let conversation = self.storage.create_conversation(&request).await?;
-        let conversation_id = conversation.id;
+        let (conversation_id, request) = match chat.conversation_id {
+            Some(id) => {
+                let request = self.storage.get_request(id).await
+                    .set_system_message(system_prompt)
+                    .add_message(CompletionMessage::user(user_prompt))
+                    .tools(self.tool.list())
+                    .model(chat.model);
+                (id, request)
+            }
+            None => {
+                let request = Request::default()
+                    .set_system_message(system_prompt)
+                    .add_message(CompletionMessage::user(user_prompt))
+                    .tools(self.tool.list())
+                    .model(chat.model);
+                let conversation = self.storage.create_conversation(&request).await?;
+                (conversation.id, request)
+            }
+        };
 
         let that = self.clone();
         tokio::spawn(async move {
-            match that
-                .chat_workflow(request, tx.clone(), conversation_id)
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => tx.send(Err(e)).await.unwrap(),
-            };
+            if let Err(e) = that.chat_workflow(request, tx.clone(), conversation_id).await {
+                tx.send(Err(e)).await.unwrap();
+            }
             tx.send(Ok(ChatResponse::Complete)).await.unwrap();
         });
 
@@ -174,6 +180,7 @@ impl NeoChatService for Live {
 pub struct ChatRequest {
     pub content: String,
     pub model: ModelId,
+    pub conversation_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, derive_more::From)]
@@ -190,11 +197,12 @@ pub enum ChatResponse {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use std::sync::{Arc, Mutex};
     use std::vec;
 
     use forge_provider::{
-        CompletionMessage, FinishReason, ModelId, Response, ToolCallId, ToolCallPart, ToolResult,
+        CompletionMessage, FinishReason, ModelId, ProviderService, Request, Response, ToolCallId,
+        ToolCallPart, ToolResult,
     };
     use forge_tool::{ToolDefinition, ToolName, ToolService};
     use insta::assert_debug_snapshot;
@@ -202,16 +210,21 @@ mod tests {
     use schemars::schema::RootSchema;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
+    use uuid::Uuid;
 
-    use super::{ChatRequest, Live};
+    use super::{ChatRequest, Live, StorageService};
     use crate::service::neo_chat_service::NeoChatService;
     use crate::service::tests::{TestProvider, TestStorage, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
-    use crate::ChatResponse;
+    use crate::{ChatResponse, Conversation, Result};
 
     impl ChatRequest {
         pub fn new(content: impl ToString) -> ChatRequest {
-            ChatRequest { content: content.to_string(), model: ModelId::default() }
+            ChatRequest { 
+                content: content.to_string(), 
+                model: ModelId::default(),
+                conversation_id: None,
+            }
         }
     }
 
