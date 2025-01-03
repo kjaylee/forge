@@ -344,7 +344,7 @@ mod tests {
             .content(json!({
                 "a": 100,
                 "b": 200
-            }))
+            }).to_string())
             .use_id(ToolCallId::new("too_call_001"));
         let request = ChatRequest::new("Hello can you help me?");
         let result = Fixture::default()
@@ -380,7 +380,7 @@ mod tests {
             .content(json!({
                 "a": 100,
                 "b": 200
-            }))
+            }).to_string())
             .use_id(ToolCallId::new("too_call_001"));
         let request = ChatRequest::new("Hello can you help me?");
         let tester = Fixture::default()

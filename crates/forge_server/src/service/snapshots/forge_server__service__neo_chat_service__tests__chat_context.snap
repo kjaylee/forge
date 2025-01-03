@@ -50,10 +50,7 @@ Request {
                         "too_call_001",
                     ),
                 ),
-                content: Object {
-                    "a": Number(100),
-                    "b": Number(200),
-                },
+                content: "{\"a\":100,\"b\":200}",
                 is_error: false,
             },
         ),
