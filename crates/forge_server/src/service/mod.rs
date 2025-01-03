@@ -2,6 +2,7 @@ mod completion_service;
 mod neo_chat_service;
 mod root_api_service;
 mod system_prompt_service;
+mod user_prompt_service;
 pub use completion_service::*;
 pub use neo_chat_service::*;
 pub use root_api_service::*;

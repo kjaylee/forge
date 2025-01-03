@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
+use forge_env::Environment;
 use forge_provider::{
     CompletionMessage, FinishReason, ModelId, ProviderService, Request, ResultStream, ToolCall,
     ToolResult,
@@ -20,16 +21,18 @@ pub trait NeoChatService: Send + Sync {
 
 impl Service {
     pub fn neo_chat_service(
+        env: Environment,
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
     ) -> impl NeoChatService {
-        Live::new(provider, system_prompt, tool)
+        Live::new(env, provider, system_prompt, tool)
     }
 }
 
 #[derive(Clone)]
 struct Live {
+    env: Environment,
     provider: Arc<dyn ProviderService>,
     system_prompt: Arc<dyn SystemPromptService>,
     tool: Arc<dyn ToolService>,
@@ -37,14 +40,16 @@ struct Live {
 
 impl Live {
     fn new(
+        env: Environment,
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
     ) -> Self {
-        Self { provider, system_prompt, tool }
+        Self { env, provider, system_prompt, tool }
     }
 
-    async fn loop_until(
+    /// Executes the chat workflow until the task is complete.
+    async fn chat_workflow(
         &self,
         mut request: Request,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
@@ -115,18 +120,26 @@ impl NeoChatService for Live {
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
+
         let request = Request::default()
             .set_system_message(system_prompt)
-            .add_message(CompletionMessage::user(format!(
-                "<task>{}</task>",
-                chat.content
-            )))
+            .add_message(CompletionMessage::user(
+                vec![
+                    format!("<task>{}</task>", chat.content),
+                    format!("\nFiles in the current working directory:"),
+                    format!(
+                        "<current_working_directory_files>{}</current_working_directory_files>",
+                        self.env.cwd_files.join("\n")
+                    ),
+                ]
+                .join("\n"),
+            ))
             .model(chat.model);
 
         let that = self.clone();
         tokio::spawn(async move {
             // TODO: simplify this match.
-            match that.loop_until(request, tx.clone()).await {
+            match that.chat_workflow(request, tx.clone()).await {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
@@ -166,6 +179,7 @@ mod tests {
     use std::sync::Arc;
     use std::vec;
 
+    use forge_env::Environment;
     use forge_provider::{
         CompletionMessage, FinishReason, ModelId, Response, ToolCallId, ToolCallPart, ToolResult,
     };
@@ -227,7 +241,12 @@ mod tests {
             let provider = Arc::new(provider);
             Self {
                 provider: provider.clone(),
-                service: Live::new(provider, self.system_prompt.clone(), self.tool.clone()),
+                service: Live::new(
+                    self.service.env,
+                    provider,
+                    self.system_prompt.clone(),
+                    self.tool.clone(),
+                ),
                 system_prompt: self.system_prompt,
                 tool: self.tool,
             }
@@ -239,7 +258,12 @@ mod tests {
             ));
             Self {
                 provider: self.provider.clone(),
-                service: Live::new(self.provider, self.system_prompt.clone(), tool.clone()),
+                service: Live::new(
+                    self.service.env,
+                    self.provider,
+                    self.system_prompt.clone(),
+                    tool.clone(),
+                ),
                 system_prompt: self.system_prompt,
                 tool,
             }
@@ -268,7 +292,18 @@ mod tests {
                 );
             let system_prompt = Arc::new(TestSystemPrompt::new(SYSTEM_PROMPT));
             let tool = Arc::new(TestToolService::new(json!({"result": "fs success."})));
-            let service = Live::new(provider.clone(), system_prompt.clone(), tool.clone());
+            let env = Environment {
+                os: "linux".to_string(),
+                cwd: "/home/user".to_string(),
+                shell: "/bin/bash".to_string(),
+                home: Some("/home/user".to_string()),
+
+                cwd_files: vec![
+                    "/home/user/file1.txt".to_string(),
+                    "/home/user/file2.txt".to_string(),
+                ],
+            };
+            let service = Live::new(env, provider.clone(), system_prompt.clone(), tool.clone());
             Self { provider, system_prompt, tool, service }
         }
     }

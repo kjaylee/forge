@@ -82,7 +82,7 @@ mod tests {
             cwd: "/home/user/project".to_string(),
             shell: "/bin/bash".to_string(),
             home: Some("/home/user".to_string()),
-            files: vec!["file1.txt".to_string(), "file2.txt".to_string()],
+            cwd_files: vec!["file1.txt".to_string(), "file2.txt".to_string()],
         }
     }
 

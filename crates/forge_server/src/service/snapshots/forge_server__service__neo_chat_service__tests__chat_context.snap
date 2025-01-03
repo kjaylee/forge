@@ -15,7 +15,7 @@ Request {
         ContentMessage(
             ContentMessage {
                 role: User,
-                content: "<task>Hello can you help me?</task>",
+                content: "<task>Hello can you help me?</task>\n\n<files>/home/user/file1.txt\n/home/user/file2.txt</files>",
                 tool_call: None,
             },
         ),

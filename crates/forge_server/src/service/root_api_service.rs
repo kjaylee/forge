@@ -45,6 +45,7 @@ impl Live {
         ));
 
         let chat_service = Arc::new(Service::neo_chat_service(
+            env,
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),

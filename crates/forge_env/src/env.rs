@@ -7,12 +7,18 @@ use crate::Result;
 #[derive(Default, Serialize, Debug, Setters, Clone)]
 #[serde(rename_all = "camelCase")]
 #[setters(strip_option)]
+/// Represents the environment in which the application is running.
 pub struct Environment {
+    /// The operating system of the environment.
     pub os: String,
+    /// The current working directory.
     pub cwd: String,
+    /// The shell being used.
     pub shell: String,
+    /// The home directory, if available.
     pub home: Option<String>,
-    pub files: Vec<String>,
+    /// A list of files in the current working directory.
+    pub cwd_files: Vec<String>,
 }
 
 impl Environment {
@@ -36,7 +42,7 @@ impl Environment {
                 std::env::var("SHELL").unwrap_or("/bin/sh".to_string())
             },
             home: dirs::home_dir().map(|a| a.display().to_string()),
-            files,
+            cwd_files: files,
         })
     }
 }
