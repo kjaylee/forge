@@ -1,0 +1,7 @@
+---
+source: crates/forge_tool/src/tool_service.rs
+expression: result
+---
+<tool_result type="fs_list" status="error" path="incorrect_dir" recursive="false">
+    <message>Directory does not exist</message>
+</tool_result>

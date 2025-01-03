@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
-#[derive(Deserialize, JsonSchema, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, JsonSchema, Serialize, Debug, PartialEq, Clone)]
 pub struct FSReadInput {
     /// The path of the file to read (relative to the current working directory)
     #[serde(rename = "@path")]

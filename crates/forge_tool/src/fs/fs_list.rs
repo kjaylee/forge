@@ -30,19 +30,18 @@ pub struct FSListInput {
 pub struct FSList;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
-#[serde(rename = "fs_list")]
 pub struct FSListOutput {
-    #[serde(flatten)]
-    input: FSListInput,
     #[serde(rename = "$value")]
-    entries: Vec<FileType>,
+    pub entries: Vec<FileType>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum FileType {
-    Dir(String),
-    File(String),
+    #[serde(rename = "directory")]
+    Dir(#[serde(rename = "$text")] String),
+    #[serde(rename = "file")]
+    File(#[serde(rename = "$text")] String),
 }
 
 #[async_trait::async_trait]
@@ -79,7 +78,7 @@ impl ToolCallService for FSList {
             }
         }
 
-        Ok(FSListOutput { input: input.clone(), entries: paths })
+        Ok(FSListOutput { entries: paths })
     }
 }
 
@@ -311,7 +310,6 @@ mod test {
     #[test]
     fn serialize_to_xml() {
         let output = FSListOutput {
-            input: FSListInput { path: ".".to_string(), recursive: None },
             entries: vec![
                 FileType::Dir("dir1".to_string()),
                 FileType::File("file1.txt".to_string()),
@@ -320,7 +318,7 @@ mod test {
 
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
-        writer.write_serializable("fs_list", &output).unwrap();
+        writer.write_serializable("tool_result", &output).unwrap();
 
         let xml_str = std::str::from_utf8(&buffer).unwrap();
         insta::assert_snapshot!(xml_str);

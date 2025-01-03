@@ -1,12 +1,11 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
-use std::io;
 
 use inflector::Inflector;
 use schemars::schema::RootSchema;
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::fs::*;
 use crate::outline::Outline;
@@ -25,10 +24,31 @@ impl<T> JsonTool<T> {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub struct ToolResult<In, Out> {
+    #[serde(rename = "@type")]
+    pub r#type: String,
+    #[serde(rename = "@status")]
+    pub status: Status,
+    #[serde(flatten)]
+    pub input: In,
+    #[serde(flatten)]
+    pub output: Out,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+pub enum Status {
+    #[serde(rename = "success")]
+    Success,
+    #[serde(rename = "error")]
+    Error,
+}
+
 #[async_trait::async_trait]
 impl<T: ToolCallService + Sync> ToolCallService for JsonTool<T>
 where
-    T::Input: serde::de::DeserializeOwned + JsonSchema,
+    T::Input: serde::de::DeserializeOwned + JsonSchema + Serialize,
     T::Output: serde::Serialize + JsonSchema,
 {
     type Input = Value;
@@ -36,24 +56,48 @@ where
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let input: T::Input = serde_json::from_value(input).map_err(|e| e.to_string())?;
-        let output: T::Output = self.tool.call(input).await?;
+        let output: Result<T::Output, String> = self.tool.call(input.clone()).await;
 
-        // convert the output to XML.
-        let mut buffer = Vec::new();
-        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        let status = if let Ok(_) = output {
+            Status::Success
+        } else {
+            Status::Error
+        };
 
-        // Start tool_result tag
-        writer
-            .create_element("tool_result")
-            .write_inner_content(|writer| {
+        match output {
+            Ok(output) => {
+                let tool_result = ToolResult::<T::Input, T::Output> {
+                    r#type: self.name.clone(),
+                    status,
+                    input,
+                    output,
+                };
+                // convert the output to XML.
+                let mut buffer = Vec::new();
+                let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
                 writer
-                    .write_serializable(&self.name, &output)
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
-            })
-            .map_err(|e| e.to_string())?;
-
-        let xml_str = std::str::from_utf8(&buffer).unwrap();
-        Ok(xml_str.to_string())
+                    .write_serializable("tool_result", &tool_result)
+                    .map_err(|e| e.to_string())?;
+                let xml_str = std::str::from_utf8(&buffer).unwrap();
+                Ok(xml_str.to_string())
+            }
+            Err(e) => {
+                let tool_result = ToolResult::<T::Input, Value> {
+                    r#type: self.name.clone(),
+                    status,
+                    input,
+                    output: json!({ "message": e }),
+                };
+                // convert the output to XML.
+                let mut buffer = Vec::new();
+                let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+                writer
+                    .write_serializable("tool_result", &tool_result)
+                    .map_err(|e| e.to_string())?;
+                let xml_str = std::str::from_utf8(&buffer).unwrap();
+                Ok(xml_str.to_string())
+            }
+        }
     }
 }
 
@@ -246,7 +290,7 @@ impl Tool {
     fn new<T>(tool: T) -> Tool
     where
         T: ToolCallService + Description + Send + Sync + 'static,
-        T::Input: serde::de::DeserializeOwned + JsonSchema,
+        T::Input: serde::de::DeserializeOwned + JsonSchema + Serialize,
         T::Output: serde::Serialize + JsonSchema,
     {
         let name = std::any::type_name::<T>()
@@ -351,10 +395,19 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_fs_list() {
+    async fn test_fs_list_success() {
         let tool = Tool::new(FSList);
         let input =
-            serde_json::to_value(&FSListInput { path: ".".to_string(), recursive: None }).unwrap();
+            serde_json::to_value(&FSListInput { path: ".".to_string(), recursive: Some(false) }).unwrap();
+        let result = tool.executable.call(input).await.unwrap();
+        insta::assert_snapshot!(result);
+    }
+
+    #[tokio::test]
+    async fn test_fs_list_fail() {
+        let tool = Tool::new(FSList);
+        let input =
+            serde_json::to_value(&FSListInput { path: "incorrect_dir".to_string(), recursive: Some(false) }).unwrap();
         let result = tool.executable.call(input).await.unwrap();
         insta::assert_snapshot!(result);
     }

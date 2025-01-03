@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{Description, ToolCallService};
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Clone)]
 pub struct AskFollowUpQuestionInput {
     /// The question to ask the user. This should be a clear, specific question
     /// that addresses the information you need.
