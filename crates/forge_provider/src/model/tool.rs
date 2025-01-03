@@ -91,11 +91,6 @@ pub struct ToolResult {
 
 impl ToolResult {
     pub fn new(name: ToolName) -> ToolResult {
-        Self {
-            name,
-            use_id: None,
-            content: String::new(),
-            is_error: false,
-        }
+        Self { name, use_id: None, content: String::new(), is_error: false }
     }
 }

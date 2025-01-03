@@ -341,10 +341,13 @@ mod tests {
         let message_3 = Response::new("Task is complete, let me know how can i help you!");
 
         let tool_result = ToolResult::new(ToolName::new("foo"))
-            .content(json!({
-                "a": 100,
-                "b": 200
-            }).to_string())
+            .content(
+                json!({
+                    "a": 100,
+                    "b": 200
+                })
+                .to_string(),
+            )
             .use_id(ToolCallId::new("too_call_001"));
         let request = ChatRequest::new("Hello can you help me?");
         let result = Fixture::default()
@@ -377,10 +380,13 @@ mod tests {
         let message_3 = Response::new("Task is complete, let me know how can i help you!");
 
         let tool_result = ToolResult::new(ToolName::new("foo"))
-            .content(json!({
-                "a": 100,
-                "b": 200
-            }).to_string())
+            .content(
+                json!({
+                    "a": 100,
+                    "b": 200
+                })
+                .to_string(),
+            )
             .use_id(ToolCallId::new("too_call_001"));
         let request = ChatRequest::new("Hello can you help me?");
         let tester = Fixture::default()

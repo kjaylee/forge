@@ -333,9 +333,7 @@ mod test {
 
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
-        writer
-            .write_serializable("fs_list", &output)
-            .unwrap();
+        writer.write_serializable("fs_list", &output).unwrap();
 
         let xml_str = std::str::from_utf8(&buffer).unwrap();
         insta::assert_snapshot!(xml_str);
