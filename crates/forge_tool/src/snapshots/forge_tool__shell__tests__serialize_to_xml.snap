@@ -1,0 +1,8 @@
+---
+source: crates/forge_tool/src/shell.rs
+expression: xml_str
+---
+<fs_write command="cat demo.txt">
+    <stdout>Hello, World!</stdout>
+    <success>true</success>
+</fs_write>

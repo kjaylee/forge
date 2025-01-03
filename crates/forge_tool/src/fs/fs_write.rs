@@ -36,8 +36,11 @@ impl ToolCallService for FSWrite {
 }
 
 #[derive(Serialize, JsonSchema)]
+#[serde(rename = "fs_write")]
 pub struct FSWriteOutput {
+    #[serde(rename = "@path")]
     pub path: String,
+    #[serde(rename = "$value")]
     pub content: String,
 }
 
@@ -67,5 +70,17 @@ mod test {
         // Verify file was actually written
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "Hello, World!")
+    }
+
+    #[test]
+    fn serialize_to_xml() {
+        let output = FSWriteOutput { path: ".".to_string(), content: "Hello, World!".to_string() };
+
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        writer.write_serializable("fs_write", &output).unwrap();
+
+        let xml_str = std::str::from_utf8(&buffer).unwrap();
+        insta::assert_snapshot!(xml_str);
     }
 }

@@ -322,7 +322,7 @@ mod test {
 
     #[test]
     fn serialize_to_xml() {
-        let fs_list_output = FSListOutput {
+        let output = FSListOutput {
             path: ".".to_string(),
             recursive: None,
             entries: vec![
@@ -334,7 +334,7 @@ mod test {
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
         writer
-            .write_serializable("fs_list", &fs_list_output)
+            .write_serializable("fs_list", &output)
             .unwrap();
 
         let xml_str = std::str::from_utf8(&buffer).unwrap();

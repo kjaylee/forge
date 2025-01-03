@@ -1,0 +1,5 @@
+---
+source: crates/forge_tool/src/fs/fs_read.rs
+expression: xml_str
+---
+<fs_read path=".">Hello, World!</fs_read>

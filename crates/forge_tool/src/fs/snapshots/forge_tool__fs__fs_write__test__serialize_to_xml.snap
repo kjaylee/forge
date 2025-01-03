@@ -1,0 +1,5 @@
+---
+source: crates/forge_tool/src/fs/fs_write.rs
+expression: xml_str
+---
+<fs_write path=".">Hello, World!</fs_write>

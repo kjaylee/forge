@@ -1,6 +1,6 @@
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
@@ -18,6 +18,15 @@ pub struct FSReadInput {
 /// it returns the raw content as a string.
 #[derive(DescriptionDerive)]
 pub struct FSRead;
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename = "fs_read")]
+pub struct FSReadOutput {
+    #[serde(rename = "$value")]
+    pub content: String,
+    #[serde(rename = "@path")]
+    pub path: String,
+}
 
 #[async_trait::async_trait]
 impl ToolCallService for FSRead {
@@ -87,5 +96,21 @@ mod test {
     #[test]
     fn test_description() {
         assert!(FSRead::description().len() > 100)
+    }
+
+    #[test]
+    fn serialize_to_xml() {
+        let output = FSReadOutput {
+            path: ".".to_string(),
+            content: "Hello, World!".to_string(),
+        };
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        writer
+            .write_serializable("fs_read", &output)
+            .unwrap();
+
+        let xml_str = std::str::from_utf8(&buffer).unwrap();
+        insta::assert_snapshot!(xml_str);
     }
 }
