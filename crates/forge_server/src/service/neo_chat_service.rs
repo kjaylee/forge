@@ -145,7 +145,10 @@ impl NeoChatService for Live {
 
         let (conversation_id, request) = match chat.conversation_id {
             Some(id) => {
-                let request = self.storage.get_request(id).await
+                let request = self
+                    .storage
+                    .get_request(id)
+                    .await
                     .set_system_message(system_prompt)
                     .add_message(CompletionMessage::user(user_prompt))
                     .tools(self.tool.list())
@@ -165,7 +168,10 @@ impl NeoChatService for Live {
 
         let that = self.clone();
         tokio::spawn(async move {
-            if let Err(e) = that.chat_workflow(request, tx.clone(), conversation_id).await {
+            if let Err(e) = that
+                .chat_workflow(request, tx.clone(), conversation_id)
+                .await
+            {
                 tx.send(Err(e)).await.unwrap();
             }
             tx.send(Ok(ChatResponse::Complete)).await.unwrap();
@@ -197,11 +203,11 @@ pub enum ChatResponse {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
     use std::vec;
 
     use forge_provider::{
-        CompletionMessage, FinishReason, ModelId, ProviderService, Request, Response, ToolCallId,
+        CompletionMessage, FinishReason, ModelId, ProviderService, Response, ToolCallId,
         ToolCallPart, ToolResult,
     };
     use forge_tool::{ToolDefinition, ToolName, ToolService};
@@ -210,18 +216,18 @@ mod tests {
     use schemars::schema::RootSchema;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
-    use uuid::Uuid;
+    
 
-    use super::{ChatRequest, Live, StorageService};
+    use super::{ChatRequest, Live};
     use crate::service::neo_chat_service::NeoChatService;
     use crate::service::tests::{TestProvider, TestStorage, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
-    use crate::{ChatResponse, Conversation, Result};
+    use crate::ChatResponse;
 
     impl ChatRequest {
         pub fn new(content: impl ToString) -> ChatRequest {
-            ChatRequest { 
-                content: content.to_string(), 
+            ChatRequest {
+                content: content.to_string(),
                 model: ModelId::default(),
                 conversation_id: None,
             }
