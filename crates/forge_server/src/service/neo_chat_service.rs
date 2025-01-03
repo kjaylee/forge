@@ -216,7 +216,6 @@ mod tests {
     use schemars::schema::RootSchema;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
-    
 
     use super::{ChatRequest, Live};
     use crate::service::neo_chat_service::NeoChatService;
