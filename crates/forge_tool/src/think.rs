@@ -85,8 +85,6 @@ pub struct ThoughtInput {
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ThoughtResult {
-    #[serde(flatten)]
-    input: ThoughtInput,
     pub thought_number: i32,
     pub total_thoughts: i32,
     pub next_thought_needed: bool,
@@ -155,7 +153,6 @@ impl Think {
     }
 
     fn process_thought(&mut self, input: ThoughtInput) -> Result<ThoughtResult> {
-        let thought_input = input.clone();
         let mut thought_data = self.validate_thought_data(input)?;
 
         // Adjust total thoughts if needed
@@ -196,7 +193,6 @@ impl Think {
         eprintln!("{}", self.format_thought(&thought_data));
 
         Ok(ThoughtResult {
-            input: thought_input,
             thought_number: thought_data.thought_number,
             total_thoughts: thought_data.total_thoughts,
             next_thought_needed: thought_data.next_thought_needed,
@@ -222,23 +218,11 @@ impl ToolCallService for Think {
 
 #[cfg(test)]
 mod test {
-    use super::{ThoughtInput, ThoughtResult};
+    use super::ThoughtResult;
 
     #[test]
     fn serialize_to_xml() {
         let output = ThoughtResult {
-            input: ThoughtInput {
-                thought: "Think about it".to_string(),
-                next_thought_needed: true,
-                thought_number: 1,
-                total_thoughts: 3,
-                is_revision: Some(false),
-                revises_thought: None,
-                branch_from_thought: None,
-                branch_id: None,
-                needs_more_thoughts: None,
-                solution_confidence: Some(0.5),
-            },
             thought_number: 1,
             total_thoughts: 3,
             next_thought_needed: true,
