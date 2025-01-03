@@ -233,7 +233,7 @@ impl Service {
 mod tests {
     use std::fs;
 
-    use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+    use diesel_migrations::MigrationHarness;
     use forge_provider::CompletionMessage;
     use tempfile::TempDir;
 
