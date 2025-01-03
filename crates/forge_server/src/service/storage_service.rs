@@ -1,8 +1,9 @@
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
+use diesel::sql_types::{Integer, Text, Timestamp};
 use serde::{Deserialize, Serialize};
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc, NaiveDateTime};
 
 use super::Service;
 use crate::Result;
@@ -15,9 +16,35 @@ type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 #[diesel(table_name = conversations)]
 pub struct Conversation {
     pub id: i32,
-    pub created_at: NaiveDateTime,
-    pub updated_at: NaiveDateTime,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub created_at: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_seconds")]
+    pub updated_at: DateTime<Utc>,
     pub content: String, // JSON serialized Request
+}
+
+#[derive(QueryableByName)]
+#[diesel(table_name = conversations)]
+struct RawConversation {
+    #[diesel(sql_type = Integer)]
+    id: i32,
+    #[diesel(sql_type = Timestamp)]
+    created_at: NaiveDateTime,
+    #[diesel(sql_type = Timestamp)]
+    updated_at: NaiveDateTime,
+    #[diesel(sql_type = Text)]
+    content: String,
+}
+
+impl From<RawConversation> for Conversation {
+    fn from(raw: RawConversation) -> Self {
+        Self {
+            id: raw.id,
+            created_at: DateTime::from_naive_utc_and_offset(raw.created_at, Utc),
+            updated_at: DateTime::from_naive_utc_and_offset(raw.updated_at, Utc),
+            content: raw.content,
+        }
+    }
 }
 
 impl TryFrom<Conversation> for ProviderRequest {
@@ -71,15 +98,14 @@ impl Live {
 
     // Private implementation method
     async fn get_conversation_impl(&self, conversation_id: i32) -> Result<Option<Conversation>> {
-        use crate::schema::conversations::dsl::*;
-        
         let conn = &mut self.pool.get()
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
         
-        conversations
-            .find(conversation_id)
-            .first(conn)
+        diesel::sql_query("SELECT * FROM conversations WHERE id = ? LIMIT 1")
+            .bind::<Integer, _>(conversation_id)
+            .get_result::<RawConversation>(conn)
             .optional()
+            .map(|opt| opt.map(Into::into))
             .map_err(|e| crate::error::Error::Custom(e.to_string()))
     }
 }
@@ -98,9 +124,9 @@ impl StorageService for Live {
             .execute(conn)
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
 
-        conversations
-            .order(id.desc())
-            .first(conn)
+        diesel::sql_query("SELECT * FROM conversations ORDER BY id DESC LIMIT 1")
+            .get_result::<RawConversation>(conn)
+            .map(|raw| raw.into())
             .map_err(|e| crate::error::Error::Custom(e.to_string()))
     }
 
@@ -113,14 +139,14 @@ impl StorageService for Live {
     }
 
     async fn get_all_requests(&self) -> Result<Vec<ProviderRequest>> {
-        use crate::schema::conversations::dsl::*;
-        
         let conn = &mut self.pool.get()
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
         
-        let convs = conversations
-            .load::<Conversation>(conn)
+        let raw_convs: Vec<RawConversation> = diesel::sql_query("SELECT * FROM conversations")
+            .load(conn)
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
+        
+        let convs: Vec<Conversation> = raw_convs.into_iter().map(Into::into).collect();
 
         convs.into_iter()
             .map(|conv| conv.try_into())
@@ -143,10 +169,11 @@ impl StorageService for Live {
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
 
         if updated > 0 {
-            conversations
-                .find(conversation_id)
-                .first(conn)
-                .optional()
+            diesel::sql_query("SELECT * FROM conversations WHERE id = ? LIMIT 1")
+                .bind::<Integer, _>(conversation_id)
+            .get_result::<RawConversation>(conn)
+            .optional()
+            .map(|opt| opt.map(Into::into))
                 .map_err(|e| crate::error::Error::Custom(e.to_string()))
         } else {
             Ok(None)

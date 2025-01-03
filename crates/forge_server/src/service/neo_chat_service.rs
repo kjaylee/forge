@@ -12,7 +12,7 @@ use tokio_stream::StreamExt;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
-use super::Service;
+use super::{Service, StorageService};
 use crate::{Errata, Error, Result};
 
 #[async_trait::async_trait]
@@ -26,8 +26,9 @@ impl Service {
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
         user_prompt: Arc<dyn UserPromptService>,
+        storage: Arc<dyn StorageService>,
     ) -> impl NeoChatService {
-        Live::new(provider, system_prompt, tool, user_prompt)
+        Live::new(provider, system_prompt, tool, user_prompt, storage)
     }
 }
 
@@ -37,6 +38,7 @@ struct Live {
     system_prompt: Arc<dyn SystemPromptService>,
     tool: Arc<dyn ToolService>,
     user_prompt: Arc<dyn UserPromptService>,
+    storage: Arc<dyn StorageService>,
 }
 
 impl Live {
@@ -45,8 +47,9 @@ impl Live {
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
         user_prompt: Arc<dyn UserPromptService>,
+        storage: Arc<dyn StorageService>,
     ) -> Self {
-        Self { provider, system_prompt, tool, user_prompt }
+        Self { provider, system_prompt, tool, user_prompt, storage }
     }
 
     /// Executes the chat workflow until the task is complete.
@@ -54,8 +57,12 @@ impl Live {
         &self,
         mut request: Request,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
+        conversation_id: i32,
     ) -> Result<()> {
         loop {
+            // Update conversation before provider chat
+            self.storage.update_conversation(conversation_id, &request).await?;
+
             let mut tool_call = None;
             let mut tool_call_parts = Vec::new();
             let mut tool_result = None;
@@ -106,6 +113,10 @@ impl Live {
                 assistant_message_content,
                 tool_call,
             ));
+
+            // Update conversation after getting response
+            self.storage.update_conversation(conversation_id, &request).await?;
+
             if let Some(Ok(tool_result)) = tool_result {
                 let tool_result: ToolResult = serde_json::from_value(tool_result).unwrap();
                 request = request.add_message(CompletionMessage::ToolMessage(tool_result.clone()));
@@ -133,10 +144,13 @@ impl NeoChatService for Live {
             .tools(self.tool.list())
             .model(chat.model);
 
+        // Create initial conversation
+        let conversation = self.storage.create_conversation(&request).await?;
+        let conversation_id = conversation.id;
+
         let that = self.clone();
         tokio::spawn(async move {
-            // TODO: simplify this match.
-            match that.chat_workflow(request, tx.clone()).await {
+            match that.chat_workflow(request, tx.clone(), conversation_id).await {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
@@ -183,7 +197,7 @@ mod tests {
 
     use super::{ChatRequest, Live};
     use crate::service::neo_chat_service::NeoChatService;
-    use crate::service::tests::{TestProvider, TestSystemPrompt};
+    use crate::service::tests::{TestProvider, TestSystemPrompt, TestStorage};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
     use crate::ChatResponse;
 
@@ -237,6 +251,7 @@ mod tests {
         system_prompt: Arc<TestSystemPrompt>,
         tool: Arc<TestToolService>,
         user_prompt: Arc<TestUserPrompt>,
+        storage: Arc<TestStorage>,
         service: Live,
     }
 
@@ -245,15 +260,11 @@ mod tests {
             let provider = Arc::new(provider);
             Self {
                 provider: provider.clone(),
-                service: Live::new(
-                    provider,
-                    self.system_prompt.clone(),
-                    self.tool.clone(),
-                    self.user_prompt.clone(),
-                ),
+                service: Live::new(provider,self.user_prompt.clone(), self.system_prompt.clone(), self.tool.clone(), self.storage.clone()),
                 system_prompt: self.system_prompt,
                 tool: self.tool,
                 user_prompt: self.user_prompt,
+                storage: self.storage,
             }
         }
 
@@ -268,10 +279,12 @@ mod tests {
                     self.system_prompt.clone(),
                     tool.clone(),
                     self.user_prompt.clone(),
+                    self.storage.clone()
                 ),
                 system_prompt: self.system_prompt,
                 tool,
                 user_prompt: self.user_prompt,
+                storage: self.storage,
             }
         }
 
@@ -299,13 +312,15 @@ mod tests {
             let system_prompt = Arc::new(TestSystemPrompt::new(SYSTEM_PROMPT));
             let tool = Arc::new(TestToolService::new(json!({"result": "fs success."})));
             let user_prompt = Arc::new(TestUserPrompt);
+            let storage = Arc::new(TestStorage::default());
             let service = Live::new(
                 provider.clone(),
                 system_prompt.clone(),
                 tool.clone(),
                 user_prompt.clone(),
+                storage.clone()
             );
-            Self { provider, system_prompt, tool, service, user_prompt }
+            Self { provider, system_prompt, tool, service, user_prompt, storage }
         }
     }
 

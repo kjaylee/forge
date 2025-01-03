@@ -50,11 +50,14 @@ impl Live {
         let file_read = Arc::new(Service::file_read_service());
         let user_prompt = Arc::new(Service::user_prompt_service(file_read));
 
+        let storage = Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+
         let chat_service = Arc::new(Service::neo_chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
             user_prompt,
+            storage.clone(),
         ));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));

@@ -14,8 +14,8 @@ pub struct Service;
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-
+    use std::sync::{Arc, Mutex};
+    use chrono::DateTime;
     use derive_setters::Setters;
     use forge_provider::{
         Model, ModelId, Parameters, ProviderError, ProviderService, Request, Response, ResultStream,
@@ -23,6 +23,8 @@ mod tests {
     use serde_json::json;
     use tokio_stream::StreamExt;
 
+    use super::{StorageService};
+    use super::storage_service::Conversation;
     use super::system_prompt_service::SystemPromptService;
     use crate::Result;
 
@@ -87,6 +89,48 @@ mod tests {
                 }),
                 Some((_, parameter)) => Ok(parameter.clone()),
             }
+        }
+    }
+
+    pub struct TestStorage {
+        conversation_id: Arc<Mutex<i32>>,
+    }
+
+    impl Default for TestStorage {
+        fn default() -> Self {
+            Self {
+                conversation_id: Arc::new(Mutex::new(1)),
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl StorageService for TestStorage {
+        async fn create_conversation(&self, _request: &Request) -> Result<Conversation> {
+            let id = *self.conversation_id.lock().unwrap();
+            Ok(Conversation {
+                id,
+                created_at: DateTime::from_timestamp(0, 0).unwrap(),
+                updated_at: DateTime::from_timestamp(0, 0).unwrap(),
+                content: String::new(),
+            })
+        }
+
+        async fn get_request(&self, _id: i32) -> Request {
+            Request::new(ModelId::default())
+        }
+
+        async fn get_all_requests(&self) -> Result<Vec<Request>> {
+            Ok(vec![])
+        }
+
+        async fn update_conversation(&self, _id: i32, _request: &Request) -> Result<Option<Conversation>> {
+            Ok(Some(Conversation {
+                id: *self.conversation_id.lock().unwrap(),
+                created_at: DateTime::from_timestamp(0, 0).unwrap(),
+                updated_at: DateTime::from_timestamp(0, 0).unwrap(),
+                content: String::new(),
+            }))
         }
     }
 }
