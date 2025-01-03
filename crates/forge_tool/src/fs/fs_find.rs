@@ -1,9 +1,9 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Deref};
 use std::path::Path;
 
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
@@ -26,10 +26,20 @@ pub struct FSSearchInput {
 #[derive(DescriptionDerive)]
 pub struct FSSearch;
 
+#[derive(Serialize, JsonSchema, Debug)]
+pub struct FSSearchOutput(pub Vec<String>);
+
+impl Deref for FSSearchOutput {
+    type Target = Vec<String>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[async_trait::async_trait]
 impl ToolCallService for FSSearch {
     type Input = FSSearchInput;
-    type Output = Vec<String>;
+    type Output = FSSearchOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         use regex::Regex;
@@ -140,7 +150,7 @@ impl ToolCallService for FSSearch {
             }
         }
 
-        Ok(matches)
+        Ok(FSSearchOutput(matches))
     }
 }
 
@@ -289,6 +299,7 @@ mod test {
             .await
             .unwrap();
         assert_eq!(result.len(), 2);
+
         assert!(result.iter().any(|p| p.ends_with("TEST.txt")));
         assert!(result.iter().any(|p| p.ends_with("TeSt2.txt")));
     }
@@ -358,5 +369,19 @@ mod test {
 
         assert_eq!(result.len(), 1);
         assert!(result.iter().any(|p| p.ends_with("test_dir")));
+    }
+
+    #[test]
+    fn serialize_to_xml() {
+        let output = FSSearchOutput(vec![
+            "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt\nLines 1-1:\nTeSt2.txt".to_string(),
+            "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt\nLines 1-1:\nTEST.txt".to_string(),
+        ]);
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        writer
+            .write_serializable("fs_search", &output)
+            .unwrap();
+        insta::assert_snapshot!(std::str::from_utf8(&buffer).unwrap());
     }
 }

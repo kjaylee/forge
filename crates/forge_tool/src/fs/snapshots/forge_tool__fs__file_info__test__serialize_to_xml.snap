@@ -1,0 +1,5 @@
+---
+source: crates/forge_tool/src/fs/file_info.rs
+expression: "std::str::from_utf8(&buffer).unwrap()"
+---
+<fs_file_info path=".">metadata</fs_file_info>

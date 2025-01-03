@@ -1,0 +1,14 @@
+---
+source: crates/forge_tool/src/think.rs
+expression: xml_str
+---
+<think>
+    <thought_number>1</thought_number>
+    <total_thoughts>3</total_thoughts>
+    <next_thought_needed>true</next_thought_needed>
+    <solution_reached>false</solution_reached>
+    <solution_confidence>0.5</solution_confidence>
+    <branches>branch1</branches>
+    <branches>branch2</branches>
+    <thought_history_length>1</thought_history_length>
+</think>

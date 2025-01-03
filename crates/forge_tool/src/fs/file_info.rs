@@ -1,6 +1,6 @@
 use forge_tool_macros::Description as DescriptionDerive;
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
@@ -18,16 +18,25 @@ pub struct FSFileInfoInput {
 #[derive(DescriptionDerive)]
 pub struct FSFileInfo;
 
+#[derive(Serialize, JsonSchema)]
+#[serde(rename="fs_file_info")]
+pub struct FSFileInfoOutput {
+    #[serde(rename="@path")]
+    pub path: String,
+    #[serde(rename="$value")]
+    pub metadata: String,
+}
+
 #[async_trait::async_trait]
 impl ToolCallService for FSFileInfo {
     type Input = FSFileInfoInput;
-    type Output = String;
+    type Output = FSFileInfoOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let meta = tokio::fs::metadata(input.path)
+        let meta = tokio::fs::metadata(&input.path)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(format!("{:?}", meta))
+        Ok(FSFileInfoOutput { path: input.path, metadata: format!("{:?}", meta) })
     }
 }
 
@@ -50,9 +59,9 @@ mod test {
             .await
             .unwrap();
 
-        assert!(result.contains("FileType"));
-        assert!(result.contains("permissions"));
-        assert!(result.contains("modified"));
+        assert!(result.metadata.contains("FileType"));
+        assert!(result.metadata.contains("permissions"));
+        assert!(result.metadata.contains("modified"));
     }
 
     #[tokio::test]
@@ -67,9 +76,9 @@ mod test {
             .await
             .unwrap();
 
-        assert!(result.contains("FileType"));
-        assert!(result.contains("permissions"));
-        assert!(result.contains("modified"));
+        assert!(result.metadata.contains("FileType"));
+        assert!(result.metadata.contains("permissions"));
+        assert!(result.metadata.contains("modified"));
     }
 
     #[tokio::test]
@@ -83,5 +92,19 @@ mod test {
             .await;
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn serialize_to_xml() {
+        let output = FSFileInfoOutput { 
+            path: ".".to_string(),
+            metadata: "metadata".to_string(),
+        };
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        writer
+            .write_serializable("fs_file_info", &output)
+            .unwrap();
+        insta::assert_snapshot!(std::str::from_utf8(&buffer).unwrap());
     }
 }

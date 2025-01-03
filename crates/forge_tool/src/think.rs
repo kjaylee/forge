@@ -205,3 +205,27 @@ impl ToolCallService for Think {
         Ok(thought_result)
     }
 }
+
+
+#[cfg(test)]
+mod test {
+    use super::ThoughtResult;
+
+    #[test]
+    fn serialize_to_xml() {
+        let output = ThoughtResult {
+            thought_number: 1,
+            total_thoughts: 3,
+            next_thought_needed: true,
+            solution_reached: false,
+            solution_confidence: 0.5,
+            branches: vec!["branch1".to_string(), "branch2".to_string()],
+            thought_history_length: 1,
+        };
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        writer.write_serializable("think", &output).unwrap();
+        let xml_str = std::str::from_utf8(&buffer).unwrap();
+        insta::assert_snapshot!(xml_str);
+    }
+}
