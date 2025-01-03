@@ -65,43 +65,37 @@ mod test {
     use tempfile::TempDir;
     use tokio::fs;
 
+    use crate::fs::tests::Fixture;
+
     use super::*;
 
     #[tokio::test]
     async fn test_fs_list_empty_directory() {
-        let temp_dir = TempDir::new().unwrap();
-
-        let fs_list = FSList;
-        let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            })
+        let setup = Fixture::setup(|temp_dir: TempDir| async { temp_dir }).await;
+        let result = setup
+            .run(FSList, FSListInput { path: setup.path(), recursive: None })
             .await
             .unwrap();
-
         assert!(result.is_empty());
     }
 
     #[tokio::test]
     async fn test_fs_list_with_files_and_dirs() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir: TempDir| async {
+            fs::write(temp_dir.path().join("file1.txt"), "content1")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("file2.txt"), "content2")
+                .await
+                .unwrap();
+            fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
+            fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
+            temp_dir
+        })
+        .await;
 
-        fs::write(temp_dir.path().join("file1.txt"), "content1")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("file2.txt"), "content2")
-            .await
-            .unwrap();
-        fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
-        fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
-
-        let fs_list = FSList;
-        let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            })
+        let result = setup
+            .run(FSList, FSListInput { path: setup.path(), recursive: None })
             .await
             .unwrap();
 
@@ -112,7 +106,6 @@ mod test {
 
         assert_eq!(files.len(), 2);
         assert_eq!(dirs.len(), 2);
-
         assert!(result.iter().any(|p| p.contains("file1.txt")));
         assert!(result.iter().any(|p| p.contains("file2.txt")));
         assert!(result.iter().any(|p| p.contains("dir1")));
@@ -121,40 +114,33 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_list_nonexistent_directory() {
-        let temp_dir = TempDir::new().unwrap();
-        let nonexistent_dir = temp_dir.path().join("nonexistent");
-
-        let fs_list = FSList;
-        let result = fs_list
-            .call(FSListInput {
-                path: nonexistent_dir.to_string_lossy().to_string(),
-                recursive: None,
-            })
+        let setup = Fixture::setup(|temp_dir: TempDir| async { temp_dir }).await;
+        let result = setup
+            .run(
+                FSList,
+                FSListInput { path: setup.join("nonexistent"), recursive: None },
+            )
             .await;
-
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_fs_list_with_hidden_files() {
-        let temp_dir = TempDir::new().unwrap();
-
-        fs::write(temp_dir.path().join("regular.txt"), "content")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join(".hidden"), "content")
-            .await
-            .unwrap();
-        fs::create_dir(temp_dir.path().join(".hidden_dir"))
-            .await
-            .unwrap();
-
-        let fs_list = FSList;
-        let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            })
+        let setup = Fixture::setup(|temp_dir: TempDir| async {
+            fs::write(temp_dir.path().join("regular.txt"), "content")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join(".hidden"), "content")
+                .await
+                .unwrap();
+            fs::create_dir(temp_dir.path().join(".hidden_dir"))
+                .await
+                .unwrap();
+            temp_dir
+        })
+        .await;
+        let result = setup
+            .run(FSList, FSListInput { path: setup.path(), recursive: None })
             .await
             .unwrap();
 
@@ -164,31 +150,29 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_list_recursive() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create nested directory structure
-        fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
-        fs::write(temp_dir.path().join("dir1/file1.txt"), "content1")
-            .await
-            .unwrap();
-        fs::create_dir(temp_dir.path().join("dir1/subdir"))
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("dir1/subdir/file2.txt"), "content2")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("root.txt"), "content3")
-            .await
-            .unwrap();
-
-        let fs_list = FSList;
-
-        // Test recursive listing
-        let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: Some(true),
-            })
+        let setup = Fixture::setup(|temp_dir: TempDir| async {
+            // Create nested directory structure
+            fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
+            fs::write(temp_dir.path().join("dir1/file1.txt"), "content1")
+                .await
+                .unwrap();
+            fs::create_dir(temp_dir.path().join("dir1/subdir"))
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("dir1/subdir/file2.txt"), "content2")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("root.txt"), "content3")
+                .await
+                .unwrap();
+            temp_dir
+        })
+        .await;
+        let result = setup
+            .run(
+                FSList,
+                FSListInput { path: setup.path(), recursive: Some(true) },
+            )
             .await
             .unwrap();
 
@@ -200,11 +184,11 @@ mod test {
         assert!(result.iter().any(|p| p.contains("file2.txt")));
 
         // Test non-recursive listing of same structure
-        let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: Some(false),
-            })
+        let result = setup
+            .run(
+                FSList,
+                FSListInput { path: setup.path(), recursive: Some(false) },
+            )
             .await
             .unwrap();
 
