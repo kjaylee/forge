@@ -264,9 +264,8 @@ impl ToolCallService for FSReplace {
 
 #[cfg(test)]
 mod test {
-    use crate::fs::tests::{File, FixtureBuilder};
-
     use super::*;
+    use crate::fs::tests::{File, FixtureBuilder};
 
     #[tokio::test]
     async fn test_whitespace_preservation() {
