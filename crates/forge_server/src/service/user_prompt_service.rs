@@ -4,7 +4,8 @@ use forge_prompt::Prompt;
 use handlebars::Handlebars;
 use serde::Serialize;
 
-use super::{file_read_service::FileReadService, Service};
+use super::file_read_service::FileReadService;
+use super::Service;
 use crate::Result;
 
 #[async_trait::async_trait]
@@ -59,9 +60,8 @@ impl UserPromptService for Live {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::service::file_read_service::tests::TestFileReadService;
-
     use super::*;
+    use crate::service::file_read_service::tests::TestFileReadService;
 
     pub struct TestUserPrompt;
 

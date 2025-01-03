@@ -4,8 +4,9 @@ use forge_env::Environment;
 use forge_provider::{Model, ProviderService, Request, ResultStream};
 use forge_tool::{ToolDefinition, ToolService};
 
+use super::completion_service::CompletionService;
 use super::neo_chat_service::NeoChatService;
-use super::{CompletionService, Service};
+use super::Service;
 use crate::{ChatRequest, ChatResponse, Error, File, Result};
 
 #[async_trait::async_trait]

@@ -1,6 +1,5 @@
-use crate::Result;
-
 use super::Service;
+use crate::Result;
 
 #[async_trait::async_trait]
 pub trait FileReadService: Send + Sync {

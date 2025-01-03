@@ -10,8 +10,9 @@ use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
+use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
-use super::{Service, SystemPromptService};
+use super::Service;
 use crate::{Errata, Error, Result};
 
 #[async_trait::async_trait]
