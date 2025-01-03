@@ -1,9 +1,10 @@
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
-use diesel::sql_types::{Integer, Text, Timestamp};
+use diesel::sql_types::{Text, Timestamp};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, NaiveDateTime};
+use uuid::Uuid;
 
 use super::Service;
 use crate::Result;
@@ -15,7 +16,7 @@ type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 #[derive(Queryable, Selectable, Serialize, Deserialize, Debug)]
 #[diesel(table_name = conversations)]
 pub struct Conversation {
-    pub id: i32,
+    pub id: Uuid,
     #[serde(with = "chrono::serde::ts_seconds")]
     pub created_at: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_seconds")]
@@ -26,8 +27,8 @@ pub struct Conversation {
 #[derive(QueryableByName)]
 #[diesel(table_name = conversations)]
 struct RawConversation {
-    #[diesel(sql_type = Integer)]
-    id: i32,
+    #[diesel(sql_type = Text)]
+    id: String,
     #[diesel(sql_type = Timestamp)]
     created_at: NaiveDateTime,
     #[diesel(sql_type = Timestamp)]
@@ -39,7 +40,7 @@ struct RawConversation {
 impl From<RawConversation> for Conversation {
     fn from(raw: RawConversation) -> Self {
         Self {
-            id: raw.id,
+            id: Uuid::parse_str(&raw.id).unwrap(),
             created_at: DateTime::from_naive_utc_and_offset(raw.created_at, Utc),
             updated_at: DateTime::from_naive_utc_and_offset(raw.updated_at, Utc),
             content: raw.content,
@@ -59,6 +60,7 @@ impl TryFrom<Conversation> for ProviderRequest {
 #[derive(Insertable)]
 #[diesel(table_name = conversations)]
 pub struct NewConversation {
+    pub id: String,
     pub content: String,
 }
 
@@ -67,6 +69,7 @@ impl TryFrom<&ProviderRequest> for NewConversation {
 
     fn try_from(request: &ProviderRequest) -> std::result::Result<Self, Self::Error> {
         Ok(NewConversation {
+            id: Uuid::new_v4().to_string(),
             content: serde_json::to_string(request)
                 .map_err(|e| crate::error::Error::Custom(format!("Failed to serialize request: {}", e)))?,
         })
@@ -76,9 +79,9 @@ impl TryFrom<&ProviderRequest> for NewConversation {
 #[async_trait::async_trait]
 pub trait StorageService: Send + Sync {
     async fn create_conversation(&self, request: &ProviderRequest) -> Result<Conversation>;
-    async fn get_request(&self, id: i32) -> ProviderRequest;
+    async fn get_request(&self, id: Uuid) -> ProviderRequest;
     async fn get_all_requests(&self) -> Result<Vec<ProviderRequest>>;
-    async fn update_conversation(&self, id: i32, request: &ProviderRequest) -> Result<Option<Conversation>>;
+    async fn update_conversation(&self, id: Uuid, request: &ProviderRequest) -> Result<Option<Conversation>>;
 }
 
 struct Live {
@@ -97,12 +100,12 @@ impl Live {
     }
 
     // Private implementation method
-    async fn get_conversation_impl(&self, conversation_id: i32) -> Result<Option<Conversation>> {
+    async fn get_conversation_impl(&self, conversation_id: Uuid) -> Result<Option<Conversation>> {
         let conn = &mut self.pool.get()
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
         
         diesel::sql_query("SELECT * FROM conversations WHERE id = ? LIMIT 1")
-            .bind::<Integer, _>(conversation_id)
+            .bind::<Text, _>(conversation_id.to_string())
             .get_result::<RawConversation>(conn)
             .optional()
             .map(|opt| opt.map(Into::into))
@@ -124,13 +127,14 @@ impl StorageService for Live {
             .execute(conn)
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
 
-        diesel::sql_query("SELECT * FROM conversations ORDER BY id DESC LIMIT 1")
+        diesel::sql_query("SELECT * FROM conversations WHERE id = ? LIMIT 1")
+            .bind::<Text, _>(new_conversation.id)
             .get_result::<RawConversation>(conn)
             .map(|raw| raw.into())
             .map_err(|e| crate::error::Error::Custom(e.to_string()))
     }
 
-    async fn get_request(&self, id: i32) -> ProviderRequest {
+    async fn get_request(&self, id: Uuid) -> ProviderRequest {
         if let Ok(Some(conversation)) = self.get_conversation_impl(id).await {
             conversation.try_into().unwrap_or_else(|_| ProviderRequest::new(ModelId::default()))
         } else {
@@ -154,7 +158,7 @@ impl StorageService for Live {
             .map_err(|e| crate::error::Error::Custom(format!("Failed to deserialize requests: {}", e)))
     }
 
-    async fn update_conversation(&self, conversation_id: i32, request: &ProviderRequest) -> Result<Option<Conversation>> {
+    async fn update_conversation(&self, conversation_id: Uuid, request: &ProviderRequest) -> Result<Option<Conversation>> {
         use crate::schema::conversations::dsl::*;
         
         let conn = &mut self.pool.get()
@@ -163,17 +167,17 @@ impl StorageService for Live {
         let content_str = serde_json::to_string(request)
             .map_err(|e| crate::error::Error::Custom(format!("Failed to serialize request: {}", e)))?;
 
-        let updated = diesel::update(conversations.find(conversation_id))
+        let updated = diesel::update(conversations.find(conversation_id.to_string()))
             .set(content.eq(content_str))
             .execute(conn)
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
 
         if updated > 0 {
             diesel::sql_query("SELECT * FROM conversations WHERE id = ? LIMIT 1")
-                .bind::<Integer, _>(conversation_id)
-            .get_result::<RawConversation>(conn)
-            .optional()
-            .map(|opt| opt.map(Into::into))
+                .bind::<Text, _>(conversation_id.to_string())
+                .get_result::<RawConversation>(conn)
+                .optional()
+                .map(|opt| opt.map(Into::into))
                 .map_err(|e| crate::error::Error::Custom(e.to_string()))
         } else {
             Ok(None)

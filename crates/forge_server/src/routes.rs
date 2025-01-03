@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use uuid::Uuid;
 
 const SERVER_PORT: u16 = 8080;
 
@@ -33,7 +34,7 @@ impl Default for API {
 
 async fn context_html_handler(
     State(state): State<Arc<dyn RootAPIService>>, 
-    axum::extract::Path(id): axum::extract::Path<i32>
+    axum::extract::Path(id): axum::extract::Path<Uuid>
 ) -> Html<String> {
     let context = state.context(id).await;
     let engine = ContextEngine::new(context);
@@ -138,7 +139,7 @@ async fn models_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<Mo
 #[axum::debug_handler]
 async fn context_handler(
     State(state): State<Arc<dyn RootAPIService>>,
-    axum::extract::Path(id): axum::extract::Path<i32>,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
 ) -> Json<ContextResponse> {
     let context = state.context(id).await;
     Json(ContextResponse { context })

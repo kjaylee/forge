@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
+use uuid::Uuid;
 use forge_provider::{
     CompletionMessage, FinishReason, ModelId, ProviderService, Request, ResultStream, ToolCall,
     ToolResult,
@@ -57,7 +58,7 @@ impl Live {
         &self,
         mut request: Request,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
-        conversation_id: i32,
+        conversation_id: Uuid,
     ) -> Result<()> {
         loop {
             // Update conversation before provider chat

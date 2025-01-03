@@ -17,6 +17,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use chrono::DateTime;
     use derive_setters::Setters;
+    use uuid::Uuid;
     use forge_provider::{
         Model, ModelId, Parameters, ProviderError, ProviderService, Request, Response, ResultStream,
     };
@@ -93,13 +94,13 @@ mod tests {
     }
 
     pub struct TestStorage {
-        conversation_id: Arc<Mutex<i32>>,
+        conversation_id: Arc<Mutex<Uuid>>,
     }
 
     impl Default for TestStorage {
         fn default() -> Self {
             Self {
-                conversation_id: Arc::new(Mutex::new(1)),
+                conversation_id: Arc::new(Mutex::new(Uuid::new_v4())),
             }
         }
     }
@@ -116,7 +117,7 @@ mod tests {
             })
         }
 
-        async fn get_request(&self, _id: i32) -> Request {
+        async fn get_request(&self, _id: Uuid) -> Request {
             Request::new(ModelId::default())
         }
 
@@ -124,7 +125,7 @@ mod tests {
             Ok(vec![])
         }
 
-        async fn update_conversation(&self, _id: i32, _request: &Request) -> Result<Option<Conversation>> {
+        async fn update_conversation(&self, _id: Uuid, _request: &Request) -> Result<Option<Conversation>> {
             Ok(Some(Conversation {
                 id: *self.conversation_id.lock().unwrap(),
                 created_at: DateTime::from_timestamp(0, 0).unwrap(),

@@ -2,9 +2,9 @@
 
 diesel::table! {
     conversations (id) {
-        id -> Integer,
+        id -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
-        content -> Text,  // Will be deserialized into Request type
+        content -> Text,
     }
 }

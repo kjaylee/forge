@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use forge_env::Environment;
+use uuid::Uuid;
 use forge_provider::{
     Model, ProviderService, Request, ResultStream
 };
@@ -15,7 +16,7 @@ use crate::{ChatRequest, ChatResponse, Error, File, Result};
 pub trait RootAPIService: Send + Sync {
     async fn completions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
-    async fn context(&self, conversation_id: i32) -> Request;
+    async fn context(&self, conversation_id: Uuid) -> Request;
     async fn models(&self) -> Result<Vec<Model>>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
 }
@@ -78,7 +79,7 @@ impl RootAPIService for Live {
         self.tool.list()
     }
 
-    async fn context(&self, conversation_id: i32) -> Request {
+    async fn context(&self, conversation_id: Uuid) -> Request {
         self.storage.get_request(conversation_id).await
     }
 
