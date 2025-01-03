@@ -50,7 +50,6 @@ pub mod tests {
             exec: R,
             input: R::Input,
         ) -> Result<R::Output, String> {
-            
             exec.call(input).await
         }
     }
