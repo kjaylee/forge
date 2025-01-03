@@ -9,7 +9,7 @@ pub use tool_service::*;
 
 #[async_trait::async_trait]
 trait ToolCallService {
-    type Input;
+    type Input: Clone + Send + Sync;
     type Output;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String>;

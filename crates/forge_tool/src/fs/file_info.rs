@@ -22,8 +22,6 @@ pub struct FSFileInfo;
 #[derive(Serialize, JsonSchema)]
 #[serde(rename = "fs_file_info")]
 pub struct FSFileInfoOutput {
-    #[serde(flatten)]
-    input: FSFileInfoInput,
     #[serde(rename = "$value")]
     pub metadata: String,
 }
@@ -37,7 +35,7 @@ impl ToolCallService for FSFileInfo {
         let meta = tokio::fs::metadata(&input.path)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(FSFileInfoOutput { input: input.clone(), metadata: format!("{:?}", meta) })
+        Ok(FSFileInfoOutput { metadata: format!("{:?}", meta) })
     }
 }
 
@@ -97,10 +95,7 @@ mod test {
 
     #[test]
     fn serialize_to_xml() {
-        let output = FSFileInfoOutput {
-            input: FSFileInfoInput { path: ".".to_string() },
-            metadata: "metadata".to_string(),
-        };
+        let output = FSFileInfoOutput { metadata: "metadata".to_string() };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
         writer.write_serializable("fs_file_info", &output).unwrap();

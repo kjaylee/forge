@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tree_sitter::{Language, Parser, Query, QueryCursor};
 use walkdir::WalkDir;
@@ -74,7 +74,7 @@ fn parse_file(_file: &Path, content: &str, parser: &mut Parser, query: &Query) -
     }
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Clone, Serialize)]
 pub struct OutlineInput {
     /// The path to the directory containing the source code files to analyze.
     pub path: String,

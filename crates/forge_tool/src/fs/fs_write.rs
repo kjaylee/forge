@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Clone, Serialize)]
 pub struct FSWriteInput {
     /// The path of the file to write to (relative to the current working
     /// directory)

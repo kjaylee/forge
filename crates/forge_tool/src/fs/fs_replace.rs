@@ -248,8 +248,6 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
 
 #[derive(Serialize, JsonSchema)]
 pub struct FSReplaceOutput {
-    #[serde(flatten)]
-    input: FSReplaceInput,
     pub path: String,
     pub content: String,
 }
@@ -262,7 +260,7 @@ impl ToolCallService for FSReplace {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let blocks = parse_blocks(&input.diff)?;
         let content = apply_changes(&input.path, blocks)?;
-        Ok(FSReplaceOutput { input: input.clone(), path: input.path, content })
+        Ok(FSReplaceOutput { path: input.path, content })
     }
 }
 
@@ -578,24 +576,8 @@ function computeTotal(items, tax = 0) {
 
     #[test]
     fn serialize_to_xml() {
-        let output = FSReplaceOutput {
-            input: FSReplaceInput {
-                path: ".".to_string(),
-                diff: r#"<<<<<<< SEARCH
-    if (!user) throw new Error('User not found');
-    return user;
-=======
-    if (!user) {
-      throw new UserNotFoundError(id);
-    }
-    return this.sanitizeUser(user);
->>>>>>> REPLACE
-"#
-                .to_string(),
-            },
-            path: ".".to_string(),
-            content: "Hello, World!".to_string(),
-        };
+        let output =
+            FSReplaceOutput { path: ".".to_string(), content: "Hello, World!".to_string() };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
         writer.write_serializable("fs_replace", &output).unwrap();

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
-#[derive(Deserialize, JsonSchema, Serialize, Debug, PartialEq)]
+#[derive(Deserialize, JsonSchema, Serialize, Debug, PartialEq, Clone)]
 pub struct FSReadInput {
     /// The path of the file to read (relative to the current working directory)
     #[serde(rename = "@path")]
@@ -23,8 +23,6 @@ pub struct FSRead;
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename = "fs_read")]
 pub struct FSReadOutput {
-    #[serde(flatten)]
-    input: FSReadInput,
     #[serde(rename = "$value")]
     pub content: String,
 }
@@ -101,10 +99,7 @@ mod test {
 
     #[test]
     fn serialize_to_xml() {
-        let output = FSReadOutput {
-            input: FSReadInput { path: ".".to_string() },
-            content: "Hello, World!".to_string(),
-        };
+        let output = FSReadOutput { content: "Hello, World!".to_string() };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
         writer.write_serializable("fs_read", &output).unwrap();
