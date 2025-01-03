@@ -601,7 +601,7 @@ dependencies = [
  "dsl_auto_type",
  "proc-macro2",
  "quote",
- "syn 2.0.91",
+ "syn 2.0.94",
 ]
 
 [[package]]
@@ -621,7 +621,7 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "209c735641a413bc68c4923a9d6ad4bcb3ca306b794edaa7eb0b3228a99ffb25"
 dependencies = [
- "syn 2.0.91",
+ "syn 2.0.94",
 ]
 
 [[package]]
@@ -695,7 +695,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn 2.0.91",
+ "syn 2.0.94",
 ]
 
 [[package]]
@@ -884,6 +884,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tailcall-valid",
+ "tempfile",
  "tokio",
  "tokio-stream",
  "tower-http",

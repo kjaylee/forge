@@ -121,7 +121,7 @@ mod tests {
             Request::new(ModelId::default())
         }
 
-        async fn get_all_requests(&self) -> Result<Vec<Request>> {
+        async fn get_all_conversation(&self) -> Result<Vec<Conversation>> {
             Ok(vec![])
         }
 
