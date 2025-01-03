@@ -43,9 +43,8 @@ pub struct FSWriteOutput {
 
 #[cfg(test)]
 mod test {
-    use crate::fs::tests::Fixture;
-
     use super::*;
+    use crate::fs::tests::Fixture;
 
     #[tokio::test]
     async fn test_fs_write_success() {

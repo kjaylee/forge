@@ -148,9 +148,8 @@ impl ToolCallService for FSSearch {
 mod test {
     use tokio::fs;
 
-    use crate::fs::tests::Fixture;
-
     use super::*;
+    use crate::fs::tests::Fixture;
 
     #[tokio::test]
     async fn test_fs_search_content() {

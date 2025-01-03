@@ -36,8 +36,8 @@ impl ToolCallService for FSRead {
 mod test {
     use tokio::fs;
 
-    use crate::fs::tests::Fixture;
     use super::*;
+    use crate::fs::tests::Fixture;
 
     #[tokio::test]
     async fn test_fs_read_success() {
