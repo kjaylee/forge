@@ -136,6 +136,7 @@ impl NeoChatService for Live {
         let request = Request::default()
             .set_system_message(system_prompt)
             .add_message(CompletionMessage::user(user_prompt))
+            .tools(self.tool.list())
             .model(chat.model);
 
         let that = self.clone();
@@ -182,6 +183,7 @@ mod tests {
     use forge_tool::{ToolDefinition, ToolName, ToolService};
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
+    use schemars::schema::RootSchema;
     use serde_json::Value;
     use tokio_stream::StreamExt;
 
@@ -217,7 +219,16 @@ mod tests {
             Ok(self.result.to_string())
         }
         fn list(&self) -> Vec<ToolDefinition> {
-            vec![]
+            vec![ToolDefinition {
+                name: ToolName::new("foo"),
+                description: "foo tool".to_string(),
+                input_schema: RootSchema {
+                    meta_schema: None,
+                    schema: Default::default(),
+                    definitions: Default::default(),
+                },
+                output_schema: None,
+            }]
         }
         fn usage_prompt(&self) -> String {
             "".to_string()
