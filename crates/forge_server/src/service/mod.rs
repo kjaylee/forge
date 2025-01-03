@@ -15,18 +15,19 @@ pub struct Service;
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};
+
     use chrono::DateTime;
     use derive_setters::Setters;
-    use uuid::Uuid;
     use forge_provider::{
         Model, ModelId, Parameters, ProviderError, ProviderService, Request, Response, ResultStream,
     };
     use serde_json::json;
     use tokio_stream::StreamExt;
+    use uuid::Uuid;
 
-    use super::{StorageService};
     use super::storage_service::Conversation;
     use super::system_prompt_service::SystemPromptService;
+    use super::StorageService;
     use crate::Result;
 
     pub struct TestSystemPrompt {
@@ -99,9 +100,7 @@ mod tests {
 
     impl Default for TestStorage {
         fn default() -> Self {
-            Self {
-                conversation_id: Arc::new(Mutex::new(Uuid::new_v4())),
-            }
+            Self { conversation_id: Arc::new(Mutex::new(Uuid::new_v4())) }
         }
     }
 
@@ -125,7 +124,11 @@ mod tests {
             Ok(vec![])
         }
 
-        async fn update_conversation(&self, _id: Uuid, _request: &Request) -> Result<Option<Conversation>> {
+        async fn update_conversation(
+            &self,
+            _id: Uuid,
+            _request: &Request,
+        ) -> Result<Option<Conversation>> {
             Ok(Some(Conversation {
                 id: *self.conversation_id.lock().unwrap(),
                 created_at: DateTime::from_timestamp(0, 0).unwrap(),

@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use uuid::Uuid;
 
 const SERVER_PORT: u16 = 8080;
@@ -17,8 +18,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{ChatRequest, Errata, File, Result, RootAPIService, Service};
-use crate::Conversation;
+use crate::{ChatRequest, Conversation, Errata, File, Result, RootAPIService, Service};
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
@@ -34,8 +34,8 @@ impl Default for API {
 }
 
 async fn context_html_handler(
-    State(state): State<Arc<dyn RootAPIService>>, 
-    axum::extract::Path(id): axum::extract::Path<Uuid>
+    State(state): State<Arc<dyn RootAPIService>>,
+    axum::extract::Path(id): axum::extract::Path<Uuid>,
 ) -> Html<String> {
     let context = state.context(id).await;
     let engine = ContextEngine::new(context);
@@ -138,7 +138,9 @@ async fn models_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<Mo
     Json(ModelResponse { models })
 }
 
-async fn conversations_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<ConversationResponse> {
+async fn conversations_handler(
+    State(state): State<Arc<dyn RootAPIService>>,
+) -> Json<ConversationResponse> {
     let conversations = state.conversations().await.unwrap_or_default();
     Json(ConversationResponse { conversations })
 }

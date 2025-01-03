@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
-use uuid::Uuid;
 use forge_provider::{
     CompletionMessage, FinishReason, ModelId, ProviderService, Request, ResultStream, ToolCall,
     ToolResult,
@@ -10,6 +9,7 @@ use forge_tool::{ToolName, ToolService};
 use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
+use uuid::Uuid;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
@@ -62,7 +62,9 @@ impl Live {
     ) -> Result<()> {
         loop {
             // Update conversation before provider chat
-            self.storage.update_conversation(conversation_id, &request).await?;
+            self.storage
+                .update_conversation(conversation_id, &request)
+                .await?;
 
             let mut tool_call = None;
             let mut tool_call_parts = Vec::new();
@@ -116,7 +118,9 @@ impl Live {
             ));
 
             // Update conversation after getting response
-            self.storage.update_conversation(conversation_id, &request).await?;
+            self.storage
+                .update_conversation(conversation_id, &request)
+                .await?;
 
             if let Some(Ok(tool_result)) = tool_result {
                 let tool_result: ToolResult = serde_json::from_value(tool_result).unwrap();
@@ -151,7 +155,10 @@ impl NeoChatService for Live {
 
         let that = self.clone();
         tokio::spawn(async move {
-            match that.chat_workflow(request, tx.clone(), conversation_id).await {
+            match that
+                .chat_workflow(request, tx.clone(), conversation_id)
+                .await
+            {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
@@ -198,7 +205,7 @@ mod tests {
 
     use super::{ChatRequest, Live};
     use crate::service::neo_chat_service::NeoChatService;
-    use crate::service::tests::{TestProvider, TestSystemPrompt, TestStorage};
+    use crate::service::tests::{TestProvider, TestStorage, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
     use crate::ChatResponse;
 
@@ -261,7 +268,13 @@ mod tests {
             let provider = Arc::new(provider);
             Self {
                 provider: provider.clone(),
-                service: Live::new(provider, self.system_prompt.clone(), self.tool.clone(),self.user_prompt.clone(), self.storage.clone()),
+                service: Live::new(
+                    provider,
+                    self.system_prompt.clone(),
+                    self.tool.clone(),
+                    self.user_prompt.clone(),
+                    self.storage.clone(),
+                ),
                 system_prompt: self.system_prompt,
                 tool: self.tool,
                 user_prompt: self.user_prompt,
@@ -280,7 +293,7 @@ mod tests {
                     self.system_prompt.clone(),
                     tool.clone(),
                     self.user_prompt.clone(),
-                    self.storage.clone()
+                    self.storage.clone(),
                 ),
                 system_prompt: self.system_prompt,
                 tool,
@@ -319,7 +332,7 @@ mod tests {
                 system_prompt.clone(),
                 tool.clone(),
                 user_prompt.clone(),
-                storage.clone()
+                storage.clone(),
             );
             Self { provider, system_prompt, tool, service, user_prompt, storage }
         }

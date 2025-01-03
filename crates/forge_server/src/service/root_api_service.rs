@@ -1,15 +1,13 @@
 use std::sync::Arc;
 
 use forge_env::Environment;
-use uuid::Uuid;
-use forge_provider::{
-    Model, ProviderService, Request, ResultStream
-};
+use forge_provider::{Model, ProviderService, Request, ResultStream};
 use forge_tool::{ToolDefinition, ToolService};
+use uuid::Uuid;
 
 use super::completion_service::CompletionService;
 use super::neo_chat_service::NeoChatService;
-use super::{ Service, StorageService};
+use super::{Service, StorageService};
 use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
 
 #[async_trait::async_trait]
@@ -52,7 +50,8 @@ impl Live {
         let file_read = Arc::new(Service::file_read_service());
         let user_prompt = Arc::new(Service::user_prompt_service(file_read));
 
-        let storage = Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+        let storage =
+            Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
         let chat_service = Arc::new(Service::neo_chat_service(
             provider.clone(),
@@ -64,7 +63,8 @@ impl Live {
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));
 
-        let storage = Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+        let storage =
+            Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
         Self { provider, tool, completions, chat_service, storage }
     }
