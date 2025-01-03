@@ -1,0 +1,17 @@
+---
+source: crates/forge_tool/src/fs/fs_replace.rs
+expression: xml_str
+---
+<fs_replace path="." diff="&lt;&lt;&lt;&lt;&lt;&lt;&lt; SEARCH
+    if (!user) throw new Error('User not found');
+    return user;
+=======
+    if (!user) {
+      throw new UserNotFoundError(id);
+    }
+    return this.sanitizeUser(user);
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; REPLACE
+">
+    <path>.</path>
+    <content>Hello, World!</content>
+</fs_replace>
