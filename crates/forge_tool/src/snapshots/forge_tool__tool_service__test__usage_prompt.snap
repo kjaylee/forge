@@ -1,7 +1,6 @@
 ---
 source: crates/forge_tool/src/tool_service.rs
 expression: docs
-snapshot_kind: text
 ---
 1. fs_file_info
 Request to retrieve detailed metadata about a file or directory at the

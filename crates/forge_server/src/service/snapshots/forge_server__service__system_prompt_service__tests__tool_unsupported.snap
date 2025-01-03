@@ -64,11 +64,11 @@ Request to retrieve detailed metadata about a file or directory at the
  understand file characteristics without reading the actual content.
 
 Parameters:
-- @path (required): The path of the file or directory to inspect (relative to the current working directory)
+- path (required): The path of the file or directory to inspect (relative to the current working directory)
 
 Usage:
 <fs_file_info>
-<@path>...</@path>
+<path>...</path>
 </fs_file_info>
 
 2. fs_list
@@ -80,13 +80,13 @@ Request to list files and directories within the specified directory. If
  successfully or not.
 
 Parameters:
-- @path (required): The path of the directory to list contents for (relative to the current working directory)
-- @recursive: Whether to list files recursively. Use true for recursive listing, false or omit for top-level only.
+- path (required): The path of the directory to list contents for (relative to the current working directory)
+- recursive: Whether to list files recursively. Use true for recursive listing, false or omit for top-level only.
 
 Usage:
 <fs_list>
-<@path>...</@path>
-<@recursive>...</@recursive>
+<path>...</path>
+<recursive>...</recursive>
 </fs_list>
 
 3. fs_read
@@ -98,11 +98,11 @@ Request to read the contents of a file at the specified path. Use this when
  it returns the raw content as a string.
 
 Parameters:
-- @path (required): The path of the file to read (relative to the current working directory)
+- path (required): The path of the file to read (relative to the current working directory)
 
 Usage:
 <fs_read>
-<@path>...</@path>
+<path>...</path>
 </fs_read>
 
 4. fs_replace
@@ -130,13 +130,13 @@ Replace sections in a file using SEARCH/REPLACE blocks for precise
  >>>>>>> REPLACE
 
 Parameters:
-- @diff (required): SEARCH/REPLACE blocks defining changes
-- @path (required): File path relative to the current working directory
+- diff (required): SEARCH/REPLACE blocks defining changes
+- path (required): File path relative to the current working directory
 
 Usage:
 <fs_replace>
-<@diff>...</@diff>
-<@path>...</@path>
+<diff>...</diff>
+<path>...</path>
 </fs_replace>
 
 5. fs_search
@@ -146,15 +146,15 @@ Request to perform a regex search across files in a specified directory,
  context.
 
 Parameters:
-- @file_pattern: Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not provided, it will search all files (*).
-- @path (required): The path of the directory to search in (relative to the current working directory). This directory will be recursively searched.
-- @regex (required): The regular expression pattern to search for. Uses Rust regex syntax.
+- file_pattern: Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not provided, it will search all files (*).
+- path (required): The path of the directory to search in (relative to the current working directory). This directory will be recursively searched.
+- regex (required): The regular expression pattern to search for. Uses Rust regex syntax.
 
 Usage:
 <fs_search>
-<@file_pattern>...</@file_pattern>
-<@path>...</@path>
-<@regex>...</@regex>
+<file_pattern>...</file_pattern>
+<path>...</path>
+<regex>...</regex>
 </fs_search>
 
 6. fs_write
@@ -190,11 +190,11 @@ Execute shell commands with safety checks and validation. This tool provides
  operations through a comprehensive blacklist and validation system.
 
 Parameters:
-- @command (required): The shell command to execute.
+- command (required): The shell command to execute.
 
 Usage:
 <shell>
-<@command>...</@command>
+<command>...</command>
 </shell>
 
 9. think

@@ -1,7 +1,6 @@
 ---
 source: crates/forge_server/src/service/neo_chat_service.rs
 expression: actual
-snapshot_kind: text
 ---
 [
     ToolUseDetected(
@@ -35,10 +34,7 @@ snapshot_kind: text
                     "too_call_001",
                 ),
             ),
-            content: Object {
-                "a": Number(100),
-                "b": Number(200),
-            },
+            content: "{\"a\":100,\"b\":200}",
             is_error: false,
         },
     ),
