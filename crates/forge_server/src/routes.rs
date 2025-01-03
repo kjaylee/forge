@@ -9,9 +9,13 @@ use utoipa::OpenApi;
 use axum::routing::{get, post};
 use axum::Router;
 use forge_env::Environment;
-use forge_provider::{Model, Request};
+use forge_provider::{
+    CompletionMessage, ContentMessage, Model, Request, Role, ToolCall, ToolCallId, ToolCallPart,
+    ToolResult,
+};
 use forge_tool::ToolDefinition;
 use serde::Serialize;
+use serde_json::json;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
@@ -40,13 +44,26 @@ use crate::{ChatRequest, ChatResponse, Errata, File, Result, RootAPIService, Ser
             ContextResponse,
             File,
             Errata,
-            ToolUseStart
+            ToolUseStart,
+            CompletionMessage,
+            ContentMessage,
+            Role,
+            ToolCall,
+            ToolCallPart,
+            ToolCallId,
+            ToolResult,
+            Model,
+            ToolDefinition,
+            Request
         )
     ),
     tags(
         (name = "forge", description = "Forge API endpoints")
     ),
-    external_docs(url = "https://github.com/tailcallhq/code-forge")
+    external_docs(
+        url = "https://github.com/tailcallhq/code-forge",
+        description = "Code Forge Repository"
+    )
 )]
 struct ApiDoc;
 
@@ -156,7 +173,7 @@ async fn completions_handler(
     tag = "forge",
     request_body = ChatRequest,
     responses(
-        (status = 200, description = "Server-sent events stream of chat responses", body = String)
+        (status = 200, description = "Server-sent events stream of chat responses", content_type = "text/event-stream", body = ChatResponse)
     )
 )]
 async fn conversation_handler(
@@ -237,20 +254,20 @@ async fn context_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<C
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ContextResponse {
-    #[schema(value_type = Object, example = json!({"messages": [], "model": "gpt-4"}))]
-    context: Request,
+    #[schema(example = json!({"messages": [], "model": "gpt-4"}))]
+    pub context: Request,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ModelResponse {
-    #[schema(value_type = Array, example = json!([{"id": "gpt-4", "name": "GPT-4"}]))]
-    models: Vec<Model>,
+    #[schema(value_type = Vec<Model>, example = json!([{"id": "gpt-4", "name": "GPT-4"}]))]
+    pub models: Vec<Model>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ToolResponse {
-    #[schema(value_type = Array, example = json!([{"name": "read_file", "description": "Read file contents"}]))]
-    tools: Vec<ToolDefinition>,
+    #[schema(value_type = Vec<ToolDefinition>, example = json!([{"name": "read_file", "description": "Read file contents"}]))]
+    pub tools: Vec<ToolDefinition>,
 }
 
 /// Get OpenAPI documentation

@@ -1,13 +1,16 @@
 use derive_more::derive::{Display, From};
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use utoipa::ToSchema;
 
 use super::{ToolCall, ToolResult};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
 /// of the message.
-#[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize, ToSchema)]
+#[schema(example = json!({"role": "assistant", "content": "Hello, how can I help you?"}))]
 pub enum CompletionMessage {
     ContentMessage(ContentMessage),
     ToolMessage(ToolResult),
@@ -60,7 +63,8 @@ impl CompletionMessage {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Setters, ToSchema)]
+#[schema(example = json!({"role": "assistant", "content": "Hello, how can I help you?"}))]
 #[setters(strip_option, into)]
 pub struct ContentMessage {
     pub role: Role,
@@ -80,7 +84,8 @@ impl ContentMessage {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Display)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Display, ToSchema)]
+#[schema(example = "assistant")]
 pub enum Role {
     System,
     User,

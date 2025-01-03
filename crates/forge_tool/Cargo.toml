@@ -28,6 +28,7 @@ forge_walker = { path = "../forge_walker" }
 
 tempfile = "3.8.1"
 handlebars = "6.2.0"
+utoipa = { version = "4.2.0", features = ["axum_extras"] }
 
 [dev-dependencies]
 insta = "1.34.0"

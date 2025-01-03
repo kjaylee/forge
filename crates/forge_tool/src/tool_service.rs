@@ -5,7 +5,8 @@ use inflector::Inflector;
 use schemars::schema::RootSchema;
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use utoipa::ToSchema;
 
 use crate::fs::*;
 use crate::outline::Outline;
@@ -45,11 +46,15 @@ struct Live {
 ///
 /// Refer to the specification over here:
 /// https://glama.ai/blog/2024-11-25-model-context-protocol-quickstart#server
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ToSchema)]
+#[schema(example = json!({"name": "read_file", "description": "Read file contents"}))]
 pub struct ToolDefinition {
+    #[schema(value_type = String)]
     pub name: ToolName,
     pub description: String,
+    #[schema(value_type = Object)]
     pub input_schema: RootSchema,
+    #[schema(value_type = Object)]
     pub output_schema: Option<RootSchema>,
 }
 
@@ -132,7 +137,8 @@ impl ToolDefinition {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema)]
+#[schema(example = "read_file")]
 #[serde(transparent)]
 pub struct ToolName(String);
 

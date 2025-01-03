@@ -743,6 +743,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -806,6 +807,7 @@ dependencies = [
  "tree-sitter-python",
  "tree-sitter-rust",
  "url",
+ "utoipa",
  "walkdir",
 ]
 

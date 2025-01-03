@@ -137,7 +137,7 @@ impl NeoChatService for Live {
 pub struct ChatRequest {
     #[schema(example = "What files are in the current directory?")]
     pub content: String,
-    #[schema(example = "openai/gpt-4")]
+    #[schema(value_type = String, example = "openai/gpt-4")]
     pub model: ModelId,
 }
 
@@ -163,6 +163,7 @@ pub enum ChatResponse {
     "toolName": "read_file"
 }))]
 pub struct ToolUseStart {
+    #[schema(value_type = String)]
     pub tool_name: Option<ToolName>,
 }
 

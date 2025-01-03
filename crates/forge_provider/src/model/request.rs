@@ -1,14 +1,18 @@
 use derive_setters::Setters;
 use forge_tool::ToolDefinition;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+use utoipa::ToSchema;
 
 use super::{CompletionMessage, Role};
 
 /// Represents a request being made to the LLM provider. By default the request
 /// is created with assuming the model supports use of external tools.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Setters, ToSchema)]
+#[schema(example = json!({"messages": [], "model": "gpt-4", "tools": []}))]
 pub struct Request {
     pub messages: Vec<CompletionMessage>,
+    #[schema(value_type = String)]
     pub model: ModelId,
     pub tools: Vec<ToolDefinition>,
 }
@@ -62,14 +66,17 @@ impl Request {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Serialize, Setters, ToSchema)]
+#[schema(example = json!({"id": "gpt-4", "name": "GPT-4"}))]
 pub struct Model {
+    #[schema(value_type = String)]
     pub id: ModelId,
     pub name: String,
     pub description: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Hash, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Hash, Eq, ToSchema)]
+#[schema(example = "gpt-4")]
 #[serde(transparent)]
 pub struct ModelId(String);
 

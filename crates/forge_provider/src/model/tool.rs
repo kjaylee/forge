@@ -1,13 +1,15 @@
 use derive_setters::Setters;
 use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
+use utoipa::ToSchema;
 
 use super::parser::parse;
 use crate::{Error, Result};
 
 /// Unique identifier for a using a tool
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, ToSchema)]
+#[schema(example = "tool_call_001")]
 #[serde(transparent)]
 pub struct ToolCallId(pub(crate) String);
 
@@ -19,12 +21,14 @@ impl ToolCallId {
 
 /// Contains a part message for using a tool. This is received as a part of the
 /// response from the model only when streaming is enabled.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Setters, ToSchema)]
+#[schema(example = json!({"name": "read_file", "arguments_part": "{\"path\": \"file.txt\"}"}))]
 #[setters(strip_option, into)]
 pub struct ToolCallPart {
     /// Optional unique identifier that represents a single call to the tool
     /// use. NOTE: Not all models support a call ID for using a tool
     pub call_id: Option<ToolCallId>,
+    #[schema(value_type = String)]
     pub name: Option<ToolName>,
 
     /// Arguments that need to be passed to the tool. NOTE: Not all tools
@@ -34,9 +38,11 @@ pub struct ToolCallPart {
 
 /// Contains the full information about using a tool. This is received as a part
 /// of the response from the model when streaming is disabled.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters, ToSchema)]
+#[schema(example = json!({"name": "read_file", "arguments": {"path": "file.txt"}}))]
 #[setters(strip_option, into)]
 pub struct ToolCall {
+    #[schema(value_type = String)]
     pub name: ToolName,
     pub call_id: Option<ToolCallId>,
     pub arguments: Value,
@@ -80,9 +86,11 @@ impl ToolCall {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters, ToSchema)]
+#[schema(example = json!({"name": "read_file", "content": {"result": "file contents"}}))]
 #[setters(strip_option)]
 pub struct ToolResult {
+    #[schema(value_type = String)]
     pub name: ToolName,
     pub use_id: Option<ToolCallId>,
     pub content: Value,
