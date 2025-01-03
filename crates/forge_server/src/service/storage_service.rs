@@ -239,8 +239,6 @@ mod tests {
 
     use super::*;
 
-    pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
-
     struct TestContext {
         _temp_dir: TempDir,
         storage: Box<dyn StorageService>,
