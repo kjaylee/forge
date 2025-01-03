@@ -117,7 +117,7 @@ impl ToolDefinition {
                     .properties
                     .keys()
                     .map(|name| UsageParameterPrompt {
-                        parameter_name: name.to_string(),
+                        parameter_name: name.trim_start_matches('@').to_string(),
                         parameter_type: "...".to_string(),
                     })
                     .collect::<Vec<_>>()
@@ -241,7 +241,13 @@ impl Tool {
             .clone()
             .object
             .iter()
-            .flat_map(|object| object.required.clone().into_iter())
+            .flat_map(|object| {
+                object
+                    .required
+                    .clone()
+                    .into_iter()
+                    .map(|name| name.trim_start_matches('@').to_string())
+            })
             .collect::<BTreeSet<_>>();
         for (name, desc) in input
             .schema
@@ -254,7 +260,7 @@ impl Tool {
                     .into_object()
                     .metadata
                     .into_iter()
-                    .map(move |meta| (name.clone(), meta))
+                    .map(move |meta| (name.trim_start_matches('@').to_string(), meta))
             })
             .flat_map(|(name, meta)| {
                 meta.description
@@ -315,7 +321,6 @@ mod test {
     #[test]
     fn test_usage_prompt() {
         let docs = Live::new().usage_prompt();
-
         assert_snapshot!(docs);
     }
 }
