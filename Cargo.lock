@@ -786,6 +786,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "colorize",
+ "derive_setters",
  "dissimilar",
  "forge_tool_macros",
  "forge_walker",

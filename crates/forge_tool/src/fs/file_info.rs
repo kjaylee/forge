@@ -33,20 +33,15 @@ impl ToolCallService for FSFileInfo {
 
 #[cfg(test)]
 mod test {
-    use tokio::fs;
-
     use super::*;
-    use crate::fs::tests::Fixture;
+    use crate::fs::tests::{File, FixtureBuilder};
 
     #[tokio::test]
     async fn test_fs_file_info_on_file() {
-        let setup = Fixture::setup(|temp_dir| async {
-            let file_path = temp_dir.path().join("test.txt");
-            fs::write(&file_path, "test content").await.unwrap();
-            temp_dir
-        })
-        .await;
-
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", "test-content")])
+            .build()
+            .await;
         let result = setup
             .run(FSFileInfo, FSFileInfoInput { path: setup.join("test.txt") })
             .await
@@ -60,12 +55,11 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_file_info_on_directory() {
-        let setup = Fixture::setup(|temp_dir| async {
-            let dir_path = temp_dir.path().join("test_dir");
-            fs::create_dir(&dir_path).await.unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .dirs(vec![String::from("test_dir")])
+            .build()
+            .await;
+
         let result = setup
             .run(FSFileInfo, FSFileInfoInput { path: setup.join("test_dir") })
             .await
@@ -77,7 +71,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_file_info_nonexistent() {
-        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let setup = FixtureBuilder::default().build().await;
         let result = setup
             .run(
                 FSFileInfo,

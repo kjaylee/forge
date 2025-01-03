@@ -43,12 +43,14 @@ pub struct FSWriteOutput {
 
 #[cfg(test)]
 mod test {
+    use crate::fs::tests::FixtureBuilder;
+
     use super::*;
     use crate::fs::tests::Fixture;
 
     #[tokio::test]
     async fn test_fs_write_success() {
-        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let setup = FixtureBuilder::default().build().await;
         let output = setup
             .run(
                 FSWrite,

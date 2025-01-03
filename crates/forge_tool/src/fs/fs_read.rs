@@ -34,21 +34,16 @@ impl ToolCallService for FSRead {
 
 #[cfg(test)]
 mod test {
-    use tokio::fs;
-
     use super::*;
-    use crate::fs::tests::Fixture;
+    use crate::fs::tests::{File, FixtureBuilder};
 
     #[tokio::test]
     async fn test_fs_read_success() {
         let content = "Hello, World!";
-        let setup = Fixture::setup(|temp_dir| async {
-            let file_path = temp_dir.path().join("test.txt");
-            fs::write(&file_path, content).await.unwrap();
-            temp_dir
-        })
-        .await;
-
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
         let result = setup
             .run(FSRead, FSReadInput { path: setup.join("test.txt") })
             .await
@@ -58,7 +53,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_read_nonexistent_file() {
-        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let setup = FixtureBuilder::default().build().await;
         let result = setup
             .run(FSRead, FSReadInput { path: setup.join("nonexistent.txt") })
             .await;
@@ -67,12 +62,10 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_read_empty_file() {
-        let setup = Fixture::setup(|temp_dir| async {
-            let file_path = temp_dir.path().join("empty.txt");
-            fs::write(&file_path, "").await.unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("empty.txt", "")])
+            .build()
+            .await;
         let result = setup
             .run(FSRead, FSReadInput { path: setup.join("empty.txt") })
             .await

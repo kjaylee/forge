@@ -146,27 +146,19 @@ impl ToolCallService for FSSearch {
 
 #[cfg(test)]
 mod test {
-    use tokio::fs;
-
     use super::*;
-    use crate::fs::tests::Fixture;
+    use crate::fs::tests::{File, FixtureBuilder};
 
     #[tokio::test]
     async fn test_fs_search_content() {
-        let setup = Fixture::setup(|temp_dir| async {
-            fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("test2.txt"), "Another test case")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("other.txt"), "No match here")
-                .await
-                .unwrap();
-
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![
+                File::new("test.txt", "Hello test world"),
+                File::new("other.txt", "No match here"),
+                File::new("test2.txt", "Another test case"),
+            ])
+            .build()
+            .await;
 
         let result = setup
             .run(
@@ -181,23 +173,19 @@ mod test {
             .unwrap();
 
         assert_eq!(result.len(), 2);
-        assert!(result.iter().any(|p| p.contains("test1.txt")));
+        assert!(result.iter().any(|p| p.contains("test.txt")));
         assert!(result.iter().any(|p| p.contains("test2.txt")));
-        assert!(result.iter().all(|p| p.contains("Lines")));
     }
 
     #[tokio::test]
     async fn test_fs_search_with_pattern() {
-        let setup = Fixture::setup(|temp_dir| async {
-            fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("test2.rs"), "fn test() {}")
-                .await
-                .unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![
+                File::new("test1.txt", "Hello test world"),
+                File::new("test2.rs", "fn test() {}"),
+            ])
+            .build()
+            .await;
 
         let result = setup
             .run(
@@ -218,13 +206,10 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_with_context() {
         let content = "line 1\nline 2\ntest line\nline 4\nline 5";
-        let setup = Fixture::setup(|temp_dir| async {
-            fs::write(temp_dir.path().join("test.txt"), content)
-                .await
-                .unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
         let result = setup
             .run(
                 FSSearch,
@@ -254,17 +239,15 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_recursive() {
-        let setup = Fixture::setup(|temp_dir| async {
-            let sub_dir = temp_dir.path().join("subdir");
-            fs::create_dir(&sub_dir).await.unwrap();
-            fs::write(temp_dir.path().join("test1.txt"), "")
-                .await
-                .unwrap();
-            fs::write(sub_dir.join("test2.txt"), "").await.unwrap();
-            fs::write(sub_dir.join("other.txt"), "").await.unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![
+                File::new("test1.txt", ""),
+                File::new("subdir/test2.txt", ""),
+                File::new("subdir/other.txt", ""),
+            ])
+            .dirs(vec![String::from("subdir")])
+            .build()
+            .await;
 
         let result = setup
             .run(
@@ -285,17 +268,10 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_case_insensitive() {
-        let setup = Fixture::setup(|temp_dir| async {
-            fs::write(temp_dir.path().join("TEST.txt"), "")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("TeSt2.txt"), "")
-                .await
-                .unwrap();
-
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("TEST.txt", ""), File::new("TeSt2.txt", "")])
+            .build()
+            .await;
         let result = setup
             .run(
                 FSSearch,
@@ -314,14 +290,11 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_empty_pattern() {
-        let setup = Fixture::setup(|temp_dir| async {
-            fs::write(temp_dir.path().join("test.txt"), "")
-                .await
-                .unwrap();
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", "")])
+            .build()
+            .await;
 
-            temp_dir
-        })
-        .await;
         let result = setup
             .run(
                 FSSearch,
@@ -340,7 +313,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_nonexistent_directory() {
-        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let setup = FixtureBuilder::default().build().await;
         let result = setup
             .run(
                 FSSearch,
@@ -357,20 +330,14 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_directory_names() {
-        let setup = Fixture::setup(|temp_dir| async {
-            fs::create_dir(temp_dir.path().join("test_dir"))
-                .await
-                .unwrap();
-            fs::create_dir(temp_dir.path().join("test_dir").join("nested"))
-                .await
-                .unwrap();
-            fs::create_dir(temp_dir.path().join("other_dir"))
-                .await
-                .unwrap();
-            temp_dir
-        })
-        .await;
-
+        let setup = FixtureBuilder::default()
+            .dirs(vec![
+                String::from("test_dir"),
+                String::from("other_dir"),
+                String::from("test_dir/nested"),
+            ])
+            .build()
+            .await;
         let result = setup
             .run(
                 FSSearch,

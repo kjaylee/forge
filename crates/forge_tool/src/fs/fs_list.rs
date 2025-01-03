@@ -62,15 +62,12 @@ impl ToolCallService for FSList {
 
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
-    use tokio::fs;
-
     use super::*;
-    use crate::fs::tests::Fixture;
+    use crate::fs::tests::{File, FixtureBuilder};
 
     #[tokio::test]
     async fn test_fs_list_empty_directory() {
-        let setup = Fixture::setup(|temp_dir: TempDir| async { temp_dir }).await;
+        let setup = FixtureBuilder::default().build().await;
         let result = setup
             .run(FSList, FSListInput { path: setup.path(), recursive: None })
             .await
@@ -80,18 +77,14 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_list_with_files_and_dirs() {
-        let setup = Fixture::setup(|temp_dir: TempDir| async {
-            fs::write(temp_dir.path().join("file1.txt"), "content1")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("file2.txt"), "content2")
-                .await
-                .unwrap();
-            fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
-            fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![
+                File::new("file1.txt", "content1"),
+                File::new("file2.txt", "content2"),
+            ])
+            .dirs(vec![String::from("dir1"), String::from("dir2")])
+            .build()
+            .await;
 
         let result = setup
             .run(FSList, FSListInput { path: setup.path(), recursive: None })
@@ -113,7 +106,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_list_nonexistent_directory() {
-        let setup = Fixture::setup(|temp_dir: TempDir| async { temp_dir }).await;
+        let setup = FixtureBuilder::default().build().await;
         let result = setup
             .run(
                 FSList,
@@ -125,48 +118,33 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_list_with_hidden_files() {
-        let setup = Fixture::setup(|temp_dir: TempDir| async {
-            fs::write(temp_dir.path().join("regular.txt"), "content")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join(".hidden"), "content")
-                .await
-                .unwrap();
-            fs::create_dir(temp_dir.path().join(".hidden_dir"))
-                .await
-                .unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .files(vec![
+                File::new(".hidden", "content2"),
+                File::new("regular.txt", "content"),
+            ])
+            .dirs(vec![String::from(".hidden_dir")])
+            .build()
+            .await;
         let result = setup
             .run(FSList, FSListInput { path: setup.path(), recursive: None })
             .await
             .unwrap();
-
         assert_eq!(result.len(), 1);
         assert!(result.iter().any(|p| p.contains("regular.txt")));
     }
 
     #[tokio::test]
     async fn test_fs_list_recursive() {
-        let setup = Fixture::setup(|temp_dir: TempDir| async {
-            // Create nested directory structure
-            fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
-            fs::write(temp_dir.path().join("dir1/file1.txt"), "content1")
-                .await
-                .unwrap();
-            fs::create_dir(temp_dir.path().join("dir1/subdir"))
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("dir1/subdir/file2.txt"), "content2")
-                .await
-                .unwrap();
-            fs::write(temp_dir.path().join("root.txt"), "content3")
-                .await
-                .unwrap();
-            temp_dir
-        })
-        .await;
+        let setup = FixtureBuilder::default()
+            .dirs(vec!["dir1".into(), "dir1/subdir".into()])
+            .files(vec![
+                File::new("dir1/file1.txt", "content1"),
+                File::new("dir1/subdir/file2.txt", "content2"),
+                File::new("root.txt", "content3"),
+            ])
+            .build()
+            .await;
         let result = setup
             .run(
                 FSList,

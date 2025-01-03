@@ -14,12 +14,64 @@ pub use fs_write::*;
 
 #[cfg(test)]
 pub mod tests {
+    use derive_setters::Setters;
     use tempfile::TempDir;
 
     use crate::ToolCallService;
 
+    #[derive(Setters)]
+    pub struct FixtureBuilder {
+        _temp_dir: TempDir,
+        files: Vec<File>,
+        dirs: Vec<String>,
+    }
+
+    pub struct File {
+        path: String,
+        content: String,
+    }
+
+    impl File {
+        pub fn new(path: impl ToString, content: impl ToString) -> Self {
+            Self { path: path.to_string(), content: content.to_string() }
+        }
+    }
+
+    impl FixtureBuilder {
+        pub async fn build(self) -> Fixture {
+            // create dirs
+            for dir in self.dirs {
+                let path = self._temp_dir.path().join(dir);
+                tokio::fs::create_dir(path).await.unwrap();
+            }
+            // create files
+            for file in self.files {
+                let path = self._temp_dir.path().join(file.path);
+                tokio::fs::write(path, file.content).await.unwrap();
+            }
+
+            Fixture { _temp_dir: self._temp_dir }
+        }
+    }
+
+    impl Default for FixtureBuilder {
+        fn default() -> Self {
+            Self {
+                _temp_dir: TempDir::new().unwrap(),
+                files: Vec::new(),
+                dirs: Vec::new(),
+            }
+        }
+    }
+
     pub struct Fixture {
         _temp_dir: TempDir,
+    }
+
+    impl Default for Fixture {
+        fn default() -> Self {
+            Self { _temp_dir: TempDir::new().unwrap() }
+        }
     }
 
     impl Fixture {
@@ -33,16 +85,6 @@ pub mod tests {
                 .join(path)
                 .to_string_lossy()
                 .to_string()
-        }
-
-        pub async fn setup<F, Fut>(creator: F) -> Self
-        where
-            F: Fn(TempDir) -> Fut,
-            Fut: std::future::Future<Output = TempDir>,
-        {
-            let temp_dir = TempDir::new().unwrap();
-            let temp_dir = creator(temp_dir).await;
-            Self { _temp_dir: temp_dir }
         }
 
         pub async fn run<R: ToolCallService>(
