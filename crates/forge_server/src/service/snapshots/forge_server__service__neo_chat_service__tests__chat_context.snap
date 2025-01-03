@@ -1,7 +1,6 @@
 ---
 source: crates/forge_server/src/service/neo_chat_service.rs
 expression: last_request
-snapshot_kind: text
 ---
 Request {
     messages: [
@@ -15,7 +14,7 @@ Request {
         ContentMessage(
             ContentMessage {
                 role: User,
-                content: "<task>Hello can you help me?</task>\n\n<files>/home/user/file1.txt\n/home/user/file2.txt</files>",
+                content: "<task>Hello can you help me?</task>",
                 tool_call: None,
             },
         ),

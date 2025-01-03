@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
-use forge_env::Environment;
 use forge_provider::{
     CompletionMessage, FinishReason, ModelId, ProviderService, Request, ResultStream, ToolCall,
     ToolResult,
@@ -11,6 +10,7 @@ use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
+use super::user_prompt_service::UserPromptService;
 use super::{Service, SystemPromptService};
 use crate::{Errata, Error, Result};
 
@@ -21,31 +21,31 @@ pub trait NeoChatService: Send + Sync {
 
 impl Service {
     pub fn neo_chat_service(
-        env: Environment,
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
+        user_prompt: Arc<dyn UserPromptService>,
     ) -> impl NeoChatService {
-        Live::new(env, provider, system_prompt, tool)
+        Live::new(provider, system_prompt, tool, user_prompt)
     }
 }
 
 #[derive(Clone)]
 struct Live {
-    env: Environment,
     provider: Arc<dyn ProviderService>,
     system_prompt: Arc<dyn SystemPromptService>,
     tool: Arc<dyn ToolService>,
+    user_prompt: Arc<dyn UserPromptService>,
 }
 
 impl Live {
     fn new(
-        env: Environment,
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
+        user_prompt: Arc<dyn UserPromptService>,
     ) -> Self {
-        Self { env, provider, system_prompt, tool }
+        Self { provider, system_prompt, tool, user_prompt }
     }
 
     /// Executes the chat workflow until the task is complete.
@@ -119,21 +119,12 @@ impl Live {
 impl NeoChatService for Live {
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
+        let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let request = Request::default()
             .set_system_message(system_prompt)
-            .add_message(CompletionMessage::user(
-                vec![
-                    format!("<task>{}</task>", chat.content),
-                    format!("\nFiles in the current working directory:"),
-                    format!(
-                        "<current_working_directory_files>{}</current_working_directory_files>",
-                        self.env.cwd_files.join("\n")
-                    ),
-                ]
-                .join("\n"),
-            ))
+            .add_message(CompletionMessage::user(user_prompt))
             .model(chat.model);
 
         let that = self.clone();
@@ -179,7 +170,6 @@ mod tests {
     use std::sync::Arc;
     use std::vec;
 
-    use forge_env::Environment;
     use forge_provider::{
         CompletionMessage, FinishReason, ModelId, Response, ToolCallId, ToolCallPart, ToolResult,
     };
@@ -191,6 +181,7 @@ mod tests {
     use super::{ChatRequest, Live, ToolUseStart};
     use crate::service::neo_chat_service::NeoChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
+    use crate::service::user_prompt_service::tests::TestUserPrompt;
     use crate::ChatResponse;
 
     impl ChatRequest {
@@ -233,6 +224,7 @@ mod tests {
         provider: Arc<TestProvider>,
         system_prompt: Arc<TestSystemPrompt>,
         tool: Arc<TestToolService>,
+        user_prompt: Arc<TestUserPrompt>,
         service: Live,
     }
 
@@ -242,13 +234,14 @@ mod tests {
             Self {
                 provider: provider.clone(),
                 service: Live::new(
-                    self.service.env,
                     provider,
                     self.system_prompt.clone(),
                     self.tool.clone(),
+                    self.user_prompt.clone(),
                 ),
                 system_prompt: self.system_prompt,
                 tool: self.tool,
+                user_prompt: self.user_prompt,
             }
         }
 
@@ -259,13 +252,14 @@ mod tests {
             Self {
                 provider: self.provider.clone(),
                 service: Live::new(
-                    self.service.env,
                     self.provider,
                     self.system_prompt.clone(),
                     tool.clone(),
+                    self.user_prompt.clone(),
                 ),
                 system_prompt: self.system_prompt,
                 tool,
+                user_prompt: self.user_prompt,
             }
         }
 
@@ -292,19 +286,14 @@ mod tests {
                 );
             let system_prompt = Arc::new(TestSystemPrompt::new(SYSTEM_PROMPT));
             let tool = Arc::new(TestToolService::new(json!({"result": "fs success."})));
-            let env = Environment {
-                os: "linux".to_string(),
-                cwd: "/home/user".to_string(),
-                shell: "/bin/bash".to_string(),
-                home: Some("/home/user".to_string()),
-
-                cwd_files: vec![
-                    "/home/user/file1.txt".to_string(),
-                    "/home/user/file2.txt".to_string(),
-                ],
-            };
-            let service = Live::new(env, provider.clone(), system_prompt.clone(), tool.clone());
-            Self { provider, system_prompt, tool, service }
+            let user_prompt = Arc::new(TestUserPrompt);
+            let service = Live::new(
+                provider.clone(),
+                system_prompt.clone(),
+                tool.clone(),
+                user_prompt.clone(),
+            );
+            Self { provider, system_prompt, tool, service, user_prompt }
         }
     }
 

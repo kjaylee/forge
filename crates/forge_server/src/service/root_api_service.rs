@@ -43,12 +43,13 @@ impl Live {
             tool.clone(),
             provider.clone(),
         ));
+        let user_prompt = Arc::new(Service::user_prompt_service(env.clone()));
 
         let chat_service = Arc::new(Service::neo_chat_service(
-            env,
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
+            user_prompt,
         ));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));

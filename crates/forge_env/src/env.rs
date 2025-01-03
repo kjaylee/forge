@@ -18,7 +18,7 @@ pub struct Environment {
     /// The home directory, if available.
     pub home: Option<String>,
     /// A list of files in the current working directory.
-    pub cwd_files: Vec<String>,
+    pub files: Vec<String>,
 }
 
 impl Environment {
@@ -42,7 +42,7 @@ impl Environment {
                 std::env::var("SHELL").unwrap_or("/bin/sh".to_string())
             },
             home: dirs::home_dir().map(|a| a.display().to_string()),
-            cwd_files: files,
+            files,
         })
     }
 }
