@@ -84,13 +84,13 @@ impl ToolCall {
 #[setters(strip_option)]
 pub struct ToolResult {
     pub name: ToolName,
-    pub use_id: Option<ToolCallId>,
+    pub call_id: Option<ToolCallId>,
     pub content: String,
     pub is_error: bool,
 }
 
 impl ToolResult {
     pub fn new(name: ToolName) -> ToolResult {
-        Self { name, use_id: None, content: String::new(), is_error: false }
+        Self { name, call_id: None, content: String::new(), is_error: false }
     }
 }

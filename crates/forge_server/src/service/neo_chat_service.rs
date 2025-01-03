@@ -56,9 +56,7 @@ impl Live {
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
     ) -> Result<()> {
         loop {
-            let mut tool_call = None;
             let mut tool_call_parts = Vec::new();
-            let mut tool_result = None;
             let mut assistant_message_content = String::new();
 
             let mut response = self.provider.chat(request.clone()).await?;
@@ -87,34 +85,42 @@ impl Live {
 
                     if let Some(FinishReason::ToolCalls) = message.finish_reason {
                         // TODO: drop clone from here.
-                        let actual_tool_call = ToolCall::try_from_parts(tool_call_parts.clone())?;
+                        let tool_call = ToolCall::try_from_parts(tool_call_parts.clone())?;
 
-                        tx.send(Ok(ChatResponse::ToolCallStart(actual_tool_call.clone())))
+                        tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
                             .await
                             .unwrap();
-                        tool_call = Some(actual_tool_call.clone());
-                        tool_result = Some(
+
+                        let tool_result = Some(
                             self.tool
-                                .call(&actual_tool_call.name, actual_tool_call.arguments)
+                                .call(&tool_call.name, tool_call.arguments.clone())
                                 .await,
                         );
+
+                        request = request.add_message(CompletionMessage::assistant(
+                            assistant_message_content.clone(),
+                            Some(tool_call.clone()),
+                        ));
+
+                        if let Some(Ok(tool_result)) = tool_result {
+                            let mut tool_result =
+                                ToolResult::new(tool_call.name.clone()).content(tool_result);
+
+                            if let Some(call_id) = tool_call.call_id {
+                                tool_result = tool_result.call_id(call_id);
+                            }
+                            request = request
+                                .add_message(CompletionMessage::ToolMessage(tool_result.clone()));
+
+                            // send the tool use end message.
+                            tx.send(Ok(ChatResponse::ToolUseEnd(tool_result)))
+                                .await
+                                .unwrap();
+                        } else {
+                            return Ok(());
+                        }
                     }
                 }
-            }
-
-            request = request.add_message(CompletionMessage::assistant(
-                assistant_message_content,
-                tool_call,
-            ));
-            if let Some(Ok(tool_result)) = tool_result {
-                let tool_result: ToolResult = serde_json::from_str(&tool_result).unwrap();
-                request = request.add_message(CompletionMessage::ToolMessage(tool_result.clone()));
-                // send the tool use end message.
-                tx.send(Ok(ChatResponse::ToolUseEnd(tool_result)))
-                    .await
-                    .unwrap();
-            } else {
-                break Ok(());
             }
         }
     }
@@ -176,7 +182,7 @@ mod tests {
     use forge_tool::{ToolDefinition, ToolName, ToolService};
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
-    use serde_json::{json, Value};
+    use serde_json::Value;
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, Live};
@@ -192,11 +198,11 @@ mod tests {
     }
 
     struct TestToolService {
-        result: Value,
+        result: String,
     }
 
     impl TestToolService {
-        pub fn new(result: Value) -> Self {
+        pub fn new(result: String) -> Self {
             Self { result }
         }
     }
@@ -246,10 +252,8 @@ mod tests {
             }
         }
 
-        pub fn with_tool(self, tool_result: ToolResult) -> Self {
-            let tool = Arc::new(TestToolService::new(
-                serde_json::to_value(tool_result).unwrap(),
-            ));
+        pub fn with_tool_result(self, tool_result: ToolResult) -> Self {
+            let tool = Arc::new(TestToolService::new(tool_result.content));
             Self {
                 provider: self.provider.clone(),
                 service: Live::new(
@@ -286,7 +290,7 @@ mod tests {
                     )]]),
                 );
             let system_prompt = Arc::new(TestSystemPrompt::new(SYSTEM_PROMPT));
-            let tool = Arc::new(TestToolService::new(json!({"result": "fs success."})));
+            let tool = Arc::new(TestToolService::new("<foo>success</foo>".to_string()));
             let user_prompt = Arc::new(TestUserPrompt);
             let service = Live::new(
                 provider.clone(),
@@ -343,14 +347,8 @@ mod tests {
         let message_3 = Response::new("Task is complete, let me know if you need anything else.");
 
         let tool_result = ToolResult::new(ToolName::new("foo"))
-            .content(
-                json!({
-                    "a": 100,
-                    "b": 200
-                })
-                .to_string(),
-            )
-            .use_id(ToolCallId::new("too_call_001"));
+            .content("<foo><a>100</a><><b>200</b></foo>".to_string())
+            .call_id(ToolCallId::new("too_call_001"));
 
         let request = ChatRequest::new("Hello can you help me?");
 
@@ -359,7 +357,7 @@ mod tests {
                 TestProvider::default()
                     .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]]),
             )
-            .with_tool(tool_result.clone())
+            .with_tool_result(tool_result.clone())
             .chat(request)
             .await;
 
@@ -380,21 +378,15 @@ mod tests {
         let message_3 = Response::new("Task is complete, let me know how can i help you!");
 
         let tool_result = ToolResult::new(ToolName::new("foo"))
-            .content(
-                json!({
-                    "a": 100,
-                    "b": 200
-                })
-                .to_string(),
-            )
-            .use_id(ToolCallId::new("too_call_001"));
+            .content("<foo><a>100</a><><b>200</b></foo>".to_string())
+            .call_id(ToolCallId::new("too_call_001"));
         let request = ChatRequest::new("Hello can you help me?");
         let tester = Fixture::default()
             .with_provider(
                 TestProvider::default()
                     .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]]),
             )
-            .with_tool(tool_result.clone());
+            .with_tool_result(tool_result.clone());
 
         let _ = tester.chat(request).await;
         let last_request = tester.provider.get_last_call().unwrap();
