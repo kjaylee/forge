@@ -2,9 +2,11 @@
 source: crates/forge_tool/src/fs/fs_find.rs
 expression: "std::str::from_utf8(&buffer).unwrap()"
 ---
-<fs_search>File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt
+<fs_search path="." regex="*.txt">
+    <matches>File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt
 Lines 1-1:
-TeSt2.txt</fs_search>
-<fs_search>File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt
+TeSt2.txt</matches>
+    <matches>File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt
 Lines 1-1:
-TEST.txt</fs_search>
+TEST.txt</matches>
+</fs_search>

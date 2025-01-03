@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::ops::Deref;
 use std::path::Path;
 
 use forge_tool_macros::Description as DescriptionDerive;
@@ -28,13 +27,15 @@ pub struct FSSearchInput {
 pub struct FSSearch;
 
 #[derive(Serialize, JsonSchema, Debug)]
-pub struct FSSearchOutput(pub Vec<String>);
-
-impl Deref for FSSearchOutput {
-    type Target = Vec<String>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub struct FSSearchOutput {
+    #[serde(rename = "@path")]
+    path: String,
+    #[serde(rename = "@regex")]
+    regex: String,
+    #[serde(rename = "@file_pattern")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file_pattern: Option<String>,
+    matches: Vec<String>,
 }
 
 #[async_trait::async_trait]
@@ -151,7 +152,12 @@ impl ToolCallService for FSSearch {
             }
         }
 
-        Ok(FSSearchOutput(matches))
+        Ok(FSSearchOutput {
+            matches,
+            path: input.path,
+            regex: input.regex,
+            file_pattern: input.file_pattern,
+        })
     }
 }
 
@@ -186,10 +192,10 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 2);
-        assert!(result.iter().any(|p| p.contains("test1.txt")));
-        assert!(result.iter().any(|p| p.contains("test2.txt")));
-        assert!(result.iter().all(|p| p.contains("Lines")));
+        assert_eq!(result.matches.len(), 2);
+        assert!(result.matches.iter().any(|p| p.contains("test1.txt")));
+        assert!(result.matches.iter().any(|p| p.contains("test2.txt")));
+        assert!(result.matches.iter().all(|p| p.contains("Lines")));
     }
 
     #[tokio::test]
@@ -213,8 +219,8 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 1);
-        assert!(result.iter().any(|p| p.contains("test2.rs")));
+        assert_eq!(result.matches.len(), 1);
+        assert!(result.matches.iter().any(|p| p.contains("test2.rs")));
     }
 
     #[tokio::test]
@@ -236,8 +242,8 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 1);
-        let output = &result[0];
+        assert_eq!(result.matches.len(), 1);
+        let output = &result.matches[0];
         let lines: Vec<&str> = output.lines().collect();
         assert_eq!(lines.len(), 3);
 
@@ -274,9 +280,9 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 2);
-        assert!(result.iter().any(|p| p.ends_with("test1.txt")));
-        assert!(result.iter().any(|p| p.ends_with("test2.txt")));
+        assert_eq!(result.matches.len(), 2);
+        assert!(result.matches.iter().any(|p| p.ends_with("test1.txt")));
+        assert!(result.matches.iter().any(|p| p.ends_with("test2.txt")));
     }
 
     #[tokio::test]
@@ -299,10 +305,10 @@ mod test {
             })
             .await
             .unwrap();
-        assert_eq!(result.len(), 2);
+        assert_eq!(result.matches.len(), 2);
 
-        assert!(result.iter().any(|p| p.ends_with("TEST.txt")));
-        assert!(result.iter().any(|p| p.ends_with("TeSt2.txt")));
+        assert!(result.matches.iter().any(|p| p.ends_with("TEST.txt")));
+        assert!(result.matches.iter().any(|p| p.ends_with("TeSt2.txt")));
     }
 
     #[tokio::test]
@@ -323,8 +329,8 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 1);
-        assert!(result.iter().any(|p| p.ends_with("test.txt")));
+        assert_eq!(result.matches.len(), 1);
+        assert!(result.matches.iter().any(|p| p.ends_with("test.txt")));
     }
 
     #[tokio::test]
@@ -368,16 +374,21 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 1);
-        assert!(result.iter().any(|p| p.ends_with("test_dir")));
+        assert_eq!(result.matches.len(), 1);
+        assert!(result.matches.iter().any(|p| p.ends_with("test_dir")));
     }
 
     #[test]
     fn serialize_to_xml() {
-        let output = FSSearchOutput(vec![
-            "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt\nLines 1-1:\nTeSt2.txt".to_string(),
-            "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt\nLines 1-1:\nTEST.txt".to_string(),
-        ]);
+        let output = FSSearchOutput {
+            matches:vec![
+                "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt\nLines 1-1:\nTeSt2.txt".to_string(),
+                "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt\nLines 1-1:\nTEST.txt".to_string(),
+            ],
+            path: ".".to_string(),
+            regex: "*.txt".to_string(),
+            file_pattern: None
+        };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
         writer.write_serializable("fs_search", &output).unwrap();
