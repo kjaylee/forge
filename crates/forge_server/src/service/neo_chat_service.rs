@@ -261,7 +261,7 @@ mod tests {
             let provider = Arc::new(provider);
             Self {
                 provider: provider.clone(),
-                service: Live::new(provider,self.user_prompt.clone(), self.system_prompt.clone(), self.tool.clone(), self.storage.clone()),
+                service: Live::new(provider, self.system_prompt.clone(), self.tool.clone(),self.user_prompt.clone(), self.storage.clone()),
                 system_prompt: self.system_prompt,
                 tool: self.tool,
                 user_prompt: self.user_prompt,

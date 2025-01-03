@@ -10,7 +10,7 @@ use forge_tool::{ToolDefinition, ToolService};
 use super::completion_service::CompletionService;
 use super::neo_chat_service::NeoChatService;
 use super::{ Service, StorageService};
-use crate::{ChatRequest, ChatResponse, Error, File, Result};
+use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
 
 #[async_trait::async_trait]
 pub trait RootAPIService: Send + Sync {

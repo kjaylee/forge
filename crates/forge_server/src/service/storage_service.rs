@@ -11,7 +11,7 @@ use uuid::Uuid;
 use super::Service;
 use crate::Result;
 use crate::schema::conversations;
-use forge_provider::{Request as ProviderRequest, ModelId, CompletionMessage};
+use forge_provider::{Request as ProviderRequest, ModelId};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
@@ -216,6 +216,7 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+    use forge_provider::CompletionMessage;
 
     pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
@@ -289,7 +290,7 @@ mod tests {
     async fn test_get_all_conversation() {
         let ctx = TestContext::new();
         let request1 = ProviderRequest::new(ModelId::default()).add_message(CompletionMessage::user("test message"));
-        let request2 = ProviderRequest::new(ModelId::default()).add_message(CompletionMessage::assistant("test message2"));
+        let request2 = ProviderRequest::new(ModelId::default()).add_message(CompletionMessage::assistant("test message2", None));
         
         // Create two conversations
         let _conv1 = ctx.storage.create_conversation(&request1)

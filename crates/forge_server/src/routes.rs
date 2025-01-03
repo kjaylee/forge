@@ -18,7 +18,7 @@ use tracing::info;
 
 use crate::context::ContextEngine;
 use crate::{ChatRequest, Errata, File, Result, RootAPIService, Service};
-use crate::{ChatResponse, Conversation};
+use crate::Conversation;
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
