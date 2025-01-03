@@ -43,7 +43,8 @@ impl Live {
             tool.clone(),
             provider.clone(),
         ));
-        let user_prompt = Arc::new(Service::user_prompt_service(env.clone()));
+        let file_read = Arc::new(Service::file_read_service());
+        let user_prompt = Arc::new(Service::user_prompt_service(file_read));
 
         let chat_service = Arc::new(Service::neo_chat_service(
             provider.clone(),
