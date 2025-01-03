@@ -241,8 +241,8 @@ mod tests {
     }
 
     impl Fixture {
-        pub fn with_provider(self, provider: TestProvider) -> Self {
-            let provider = Arc::new(provider);
+        pub fn with_messages(self, messages: Vec<Vec<Response>>) -> Self {
+            let provider = Arc::new(TestProvider::default().with_messages(messages));
             Self {
                 provider: provider.clone(),
                 service: Live::new(
@@ -360,10 +360,7 @@ mod tests {
         let request = ChatRequest::new("Hello can you help me?");
 
         let actual = Fixture::default()
-            .with_provider(
-                TestProvider::default()
-                    .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]]),
-            )
+            .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]])
             .with_tool(tool_result.clone())
             .chat(request)
             .await;
@@ -392,10 +389,7 @@ mod tests {
             .use_id(ToolCallId::new("too_call_001"));
         let request = ChatRequest::new("Hello can you help me?");
         let tester = Fixture::default()
-            .with_provider(
-                TestProvider::default()
-                    .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]]),
-            )
+            .with_messages(vec![vec![message_1, message_2], vec![message_3.clone()]])
             .with_tool(tool_result.clone());
 
         let _ = tester.chat(request).await;
