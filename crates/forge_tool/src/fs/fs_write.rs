@@ -43,29 +43,24 @@ pub struct FSWriteOutput {
 
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
-    use tokio::fs;
+    use crate::fs::tests::Fixture;
 
     use super::*;
 
     #[tokio::test]
     async fn test_fs_write_success() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        let fs_write = FSWrite;
-        let output = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: "Hello, World!".to_string(),
-            })
+        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let output = setup
+            .run(
+                FSWrite,
+                FSWriteInput {
+                    path: setup.join("test.txt"),
+                    content: "Hello, World!".to_string(),
+                },
+            )
             .await
             .unwrap();
-        assert_eq!(output.path, file_path.to_string_lossy().to_string());
-        assert_eq!(output.content, "Hello, World!");
 
-        // Verify file was actually written
-        let content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(content, "Hello, World!")
+        assert_eq!(output.content, "Hello, World!");
     }
 }

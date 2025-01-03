@@ -34,53 +34,49 @@ impl ToolCallService for FSRead {
 
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
     use tokio::fs;
 
+    use crate::fs::tests::Fixture;
     use super::*;
 
     #[tokio::test]
     async fn test_fs_read_success() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
+        let content = "Hello, World!";
+        let setup = Fixture::setup(|temp_dir| async {
+            let file_path = temp_dir.path().join("test.txt");
+            fs::write(&file_path, content).await.unwrap();
+            temp_dir
+        })
+        .await;
 
-        let test_content = "Hello, World!";
-        fs::write(&file_path, test_content).await.unwrap();
-
-        let fs_read = FSRead;
-        let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
+        let result = setup
+            .run(FSRead, FSReadInput { path: setup.join("test.txt") })
             .await
             .unwrap();
-
-        assert_eq!(result, test_content);
+        assert_eq!(result, content);
     }
 
     #[tokio::test]
     async fn test_fs_read_nonexistent_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let nonexistent_file = temp_dir.path().join("nonexistent.txt");
-
-        let fs_read = FSRead;
-        let result = fs_read
-            .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() })
+        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let result = setup
+            .run(FSRead, FSReadInput { path: setup.join("nonexistent.txt") })
             .await;
-
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn test_fs_read_empty_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("empty.txt");
-        fs::write(&file_path, "").await.unwrap();
-
-        let fs_read = FSRead;
-        let result = fs_read
-            .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
+        let setup = Fixture::setup(|temp_dir| async {
+            let file_path = temp_dir.path().join("empty.txt");
+            fs::write(&file_path, "").await.unwrap();
+            temp_dir
+        })
+        .await;
+        let result = setup
+            .run(FSRead, FSReadInput { path: setup.join("empty.txt") })
             .await
             .unwrap();
-
         assert_eq!(result, "");
     }
 

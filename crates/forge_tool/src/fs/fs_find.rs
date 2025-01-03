@@ -146,32 +146,38 @@ impl ToolCallService for FSSearch {
 
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
     use tokio::fs;
+
+    use crate::fs::tests::Fixture;
 
     use super::*;
 
     #[tokio::test]
     async fn test_fs_search_content() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir| async {
+            fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("test2.txt"), "Another test case")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("other.txt"), "No match here")
+                .await
+                .unwrap();
 
-        fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("test2.txt"), "Another test case")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("other.txt"), "No match here")
-            .await
-            .unwrap();
+            temp_dir
+        })
+        .await;
 
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: None,
-            })
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await
             .unwrap();
 
@@ -183,22 +189,26 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_with_pattern() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir| async {
+            fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("test2.rs"), "fn test() {}")
+                .await
+                .unwrap();
+            temp_dir
+        })
+        .await;
 
-        fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("test2.rs"), "fn test() {}")
-            .await
-            .unwrap();
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: Some("*.rs".to_string()),
-            })
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "test".to_string(),
+                    file_pattern: Some("*.rs".to_string()),
+                },
+            )
             .await
             .unwrap();
 
@@ -208,20 +218,23 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_with_context() {
-        let temp_dir = TempDir::new().unwrap();
         let content = "line 1\nline 2\ntest line\nline 4\nline 5";
-
-        fs::write(temp_dir.path().join("test.txt"), content)
-            .await
-            .unwrap();
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: None,
-            })
+        let setup = Fixture::setup(|temp_dir| async {
+            fs::write(temp_dir.path().join("test.txt"), content)
+                .await
+                .unwrap();
+            temp_dir
+        })
+        .await;
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await
             .unwrap();
 
@@ -242,24 +255,27 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_recursive() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir| async {
+            let sub_dir = temp_dir.path().join("subdir");
+            fs::create_dir(&sub_dir).await.unwrap();
+            fs::write(temp_dir.path().join("test1.txt"), "")
+                .await
+                .unwrap();
+            fs::write(sub_dir.join("test2.txt"), "").await.unwrap();
+            fs::write(sub_dir.join("other.txt"), "").await.unwrap();
+            temp_dir
+        })
+        .await;
 
-        let sub_dir = temp_dir.path().join("subdir");
-        fs::create_dir(&sub_dir).await.unwrap();
-
-        fs::write(temp_dir.path().join("test1.txt"), "")
-            .await
-            .unwrap();
-        fs::write(sub_dir.join("test2.txt"), "").await.unwrap();
-        fs::write(sub_dir.join("other.txt"), "").await.unwrap();
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: None,
-            })
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await
             .unwrap();
 
@@ -270,22 +286,26 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_case_insensitive() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir| async {
+            fs::write(temp_dir.path().join("TEST.txt"), "")
+                .await
+                .unwrap();
+            fs::write(temp_dir.path().join("TeSt2.txt"), "")
+                .await
+                .unwrap();
 
-        fs::write(temp_dir.path().join("TEST.txt"), "")
-            .await
-            .unwrap();
-        fs::write(temp_dir.path().join("TeSt2.txt"), "")
-            .await
-            .unwrap();
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: None,
-            })
+            temp_dir
+        })
+        .await;
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await
             .unwrap();
         assert_eq!(result.len(), 2);
@@ -295,19 +315,23 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_empty_pattern() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir| async {
+            fs::write(temp_dir.path().join("test.txt"), "")
+                .await
+                .unwrap();
 
-        fs::write(temp_dir.path().join("test.txt"), "")
-            .await
-            .unwrap();
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "".to_string(),
-                file_pattern: None,
-            })
+            temp_dir
+        })
+        .await;
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await
             .unwrap();
 
@@ -317,16 +341,16 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_nonexistent_directory() {
-        let temp_dir = TempDir::new().unwrap();
-        let nonexistent_dir = temp_dir.path().join("nonexistent");
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: nonexistent_dir.to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: None,
-            })
+        let setup = Fixture::setup(|temp_dir| async { temp_dir }).await;
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.join("nonexistent"),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -334,25 +358,29 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_directory_names() {
-        let temp_dir = TempDir::new().unwrap();
+        let setup = Fixture::setup(|temp_dir| async {
+            fs::create_dir(temp_dir.path().join("test_dir"))
+                .await
+                .unwrap();
+            fs::create_dir(temp_dir.path().join("test_dir").join("nested"))
+                .await
+                .unwrap();
+            fs::create_dir(temp_dir.path().join("other_dir"))
+                .await
+                .unwrap();
+            temp_dir
+        })
+        .await;
 
-        fs::create_dir(temp_dir.path().join("test_dir"))
-            .await
-            .unwrap();
-        fs::create_dir(temp_dir.path().join("test_dir").join("nested"))
-            .await
-            .unwrap();
-        fs::create_dir(temp_dir.path().join("other_dir"))
-            .await
-            .unwrap();
-
-        let fs_search = FSSearch;
-        let result = fs_search
-            .call(FSSearchInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
-                file_pattern: None,
-            })
+        let result = setup
+            .run(
+                FSSearch,
+                FSSearchInput {
+                    path: setup.path(),
+                    regex: "test".to_string(),
+                    file_pattern: None,
+                },
+            )
             .await
             .unwrap();
 
