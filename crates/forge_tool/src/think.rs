@@ -206,7 +206,6 @@ impl ToolCallService for Think {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::ThoughtResult;

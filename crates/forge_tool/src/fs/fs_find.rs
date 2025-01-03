@@ -1,4 +1,5 @@
-use std::{collections::HashSet, ops::Deref};
+use std::collections::HashSet;
+use std::ops::Deref;
 use std::path::Path;
 
 use forge_tool_macros::Description as DescriptionDerive;
@@ -379,9 +380,7 @@ mod test {
         ]);
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
-        writer
-            .write_serializable("fs_search", &output)
-            .unwrap();
+        writer.write_serializable("fs_search", &output).unwrap();
         insta::assert_snapshot!(std::str::from_utf8(&buffer).unwrap());
     }
 }

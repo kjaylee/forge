@@ -19,11 +19,11 @@ pub struct FSFileInfoInput {
 pub struct FSFileInfo;
 
 #[derive(Serialize, JsonSchema)]
-#[serde(rename="fs_file_info")]
+#[serde(rename = "fs_file_info")]
 pub struct FSFileInfoOutput {
-    #[serde(rename="@path")]
+    #[serde(rename = "@path")]
     pub path: String,
-    #[serde(rename="$value")]
+    #[serde(rename = "$value")]
     pub metadata: String,
 }
 
@@ -96,15 +96,10 @@ mod test {
 
     #[test]
     fn serialize_to_xml() {
-        let output = FSFileInfoOutput { 
-            path: ".".to_string(),
-            metadata: "metadata".to_string(),
-        };
+        let output = FSFileInfoOutput { path: ".".to_string(), metadata: "metadata".to_string() };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
-        writer
-            .write_serializable("fs_file_info", &output)
-            .unwrap();
+        writer.write_serializable("fs_file_info", &output).unwrap();
         insta::assert_snapshot!(std::str::from_utf8(&buffer).unwrap());
     }
 }
