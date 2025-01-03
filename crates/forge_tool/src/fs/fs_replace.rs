@@ -264,31 +264,20 @@ impl ToolCallService for FSReplace {
 
 #[cfg(test)]
 mod test {
-    use std::fs::File;
-
-    use tempfile::TempDir;
+    use crate::fs::tests::{File, FixtureBuilder};
 
     use super::*;
 
-    async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
-        let mut file = File::create(path).map_err(|e| e.to_string())?;
-        file.write_all(content.as_bytes())
-            .map_err(|e| e.to_string())?;
-        Ok(())
-    }
-
     #[tokio::test]
     async fn test_whitespace_preservation() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
         let content = "    Hello World    \n  Test Line  \n   Goodbye World   \n";
-
-        write_test_file(&file_path, content).await.unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
+        let result = setup
+            .run(FSReplace, FSReplaceInput {
+                path: setup.join("test.txt"),
                 diff: "<<<<<<< SEARCH\n    Hello World    \n=======\n    Hi World    \n>>>>>>> REPLACE\n"
                     .to_string(),
             })
@@ -303,17 +292,18 @@ mod test {
 
     #[tokio::test]
     async fn test_empty_search_new_file() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        write_test_file(&file_path, "").await.unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n=======\nNew content\n>>>>>>> REPLACE\n".to_string(),
-            })
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", "")])
+            .build()
+            .await;
+        let result = setup
+            .run(
+                FSReplace,
+                FSReplaceInput {
+                    path: setup.join("test.txt"),
+                    diff: "<<<<<<< SEARCH\n=======\nNew content\n>>>>>>> REPLACE\n".to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -322,17 +312,18 @@ mod test {
 
     #[tokio::test]
     async fn test_multiple_blocks() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
         let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
 
-        write_test_file(&file_path, content).await.unwrap();
-
-        let fs_replace = FSReplace;
         let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
-
-        let result = fs_replace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
+        let result = setup
+            .run(
+                FSReplace,
+                FSReplaceInput { path: setup.join("test.txt"), diff },
+            )
             .await
             .unwrap();
 
@@ -344,39 +335,37 @@ mod test {
 
     #[tokio::test]
     async fn test_empty_block() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
         let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
-
-        write_test_file(&file_path, content).await.unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: "<<<<<<< SEARCH\n  Middle Line  \n=======\n>>>>>>> REPLACE\n".to_string(),
-            })
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
+        let result = setup
+            .run(
+                FSReplace,
+                FSReplaceInput {
+                    path: setup.join("test.txt"),
+                    diff: "<<<<<<< SEARCH\n  Middle Line  \n=======\n>>>>>>> REPLACE\n".to_string(),
+                },
+            )
             .await
             .unwrap();
-
         assert_eq!(result.content, "    First Line    \n    Last Line    \n");
     }
 
     #[tokio::test]
     async fn test_complex_newline_preservation() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
         // Test file with various newline patterns
         let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
-        write_test_file(&file_path, content).await.unwrap();
-
-        let fs_replace = FSReplace;
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
 
         // Test 1: Replace content while preserving surrounding newlines
-        let result1 = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
+        let result1 = setup
+            .run(FSReplace,FSReplaceInput {
+                path: setup.join("test.txt"),
                 diff: "<<<<<<< SEARCH\n    let x = 1;\n\n\n    console.log(x);\n=======\n    let y = 2;\n\n\n    console.log(y);\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
@@ -388,9 +377,9 @@ mod test {
         );
 
         // Test 2: Replace block with different newline pattern
-        let result2 = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
+        let result2 = setup
+            .run(FSReplace,FSReplaceInput {
+                path: setup.join("test.txt"),
                 diff: "<<<<<<< SEARCH\n\n// Footer comment\n\n\n=======\n\n\n\n// Updated footer\n\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
@@ -402,9 +391,9 @@ mod test {
         );
 
         // Test 3: Replace with empty lines preservation
-        let result3 = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
+        let result3 = setup
+            .run(FSReplace,FSReplaceInput {
+                path: setup.join("test.txt"),
                 diff: "<<<<<<< SEARCH\n\n\n// Header comment\n\n\n=======\n\n\n\n// New header\n\n\n\n>>>>>>> REPLACE\n".to_string(),
             })
             .await
@@ -418,9 +407,6 @@ mod test {
 
     #[tokio::test]
     async fn test_fuzzy_search_replace() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
         // Test file with typos and variations
         let content = r#"function calculateTotal(items) {
   let total = 0;
@@ -430,14 +416,18 @@ mod test {
   return total;
 }
 "#;
-        write_test_file(&file_path, content).await.unwrap();
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
 
-        let fs_replace = FSReplace;
         // Search with different casing, spacing, and variable names
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
+        let result = setup
+            .run(
+                FSReplace,
+                FSReplaceInput {
+                    path: setup.join("test.txt"),
+                    diff: r#"<<<<<<< SEARCH
   for (const itm of items) {
     total += itm.price;
 =======
@@ -445,8 +435,9 @@ mod test {
     total += item.price * item.quantity;
 >>>>>>> REPLACE
 "#
-                .to_string(),
-            })
+                    .to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -463,10 +454,12 @@ mod test {
         );
 
         // Test fuzzy matching with more variations
-        let result2 = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
+        let result2 = setup
+            .run(
+                FSReplace,
+                FSReplaceInput {
+                    path: setup.join("test.txt"),
+                    diff: r#"<<<<<<< SEARCH
 function calculateTotal(items) {
   let total = 0;
 =======
@@ -474,8 +467,9 @@ function computeTotal(items, tax = 0) {
   let total = 0.0;
 >>>>>>> REPLACE
 "#
-                .to_string(),
-            })
+                    .to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -494,9 +488,6 @@ function computeTotal(items, tax = 0) {
 
     #[tokio::test]
     async fn test_fuzzy_search_advanced() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
         // Test file with more complex variations
         let content = r#"class UserManager {
   async getUserById(userId) {
@@ -506,14 +497,18 @@ function computeTotal(items, tax = 0) {
   }
 }
 "#;
-        write_test_file(&file_path, content).await.unwrap();
+        let setup = FixtureBuilder::default()
+            .files(vec![File::new("test.txt", content)])
+            .build()
+            .await;
 
-        let fs_replace = FSReplace;
         // Search with structural similarities but different variable names and spacing
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
+        let result = setup
+            .run(
+                FSReplace,
+                FSReplaceInput {
+                    path: setup.join("test.txt"),
+                    diff: r#"<<<<<<< SEARCH
   async getUserById(userId) {
     const user = await db.findOne({ id: userId });
 =======
@@ -521,8 +516,9 @@ function computeTotal(items, tax = 0) {
     const user = await this.db.findOne({ userId: id, ...options });
 >>>>>>> REPLACE
 "#
-                .to_string(),
-            })
+                    .to_string(),
+                },
+            )
             .await
             .unwrap();
 
@@ -539,10 +535,12 @@ function computeTotal(items, tax = 0) {
         );
 
         // Test fuzzy matching with error handling changes
-        let result2 = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
+        let result2 = setup
+            .run(
+                FSReplace,
+                FSReplaceInput {
+                    path: setup.join("test.txt"),
+                    diff: r#"<<<<<<< SEARCH
     if (!user) throw new Error('User not found');
     return user;
 =======
@@ -552,8 +550,9 @@ function computeTotal(items, tax = 0) {
     return this.sanitizeUser(user);
 >>>>>>> REPLACE
 "#
-                .to_string(),
-            })
+                    .to_string(),
+                },
+            )
             .await
             .unwrap();
 
