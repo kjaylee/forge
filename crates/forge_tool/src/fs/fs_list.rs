@@ -133,24 +133,12 @@ mod test {
         let files: Vec<_> = result
             .entries
             .iter()
-            .filter(|p| {
-                if let FileType::File(_) = p {
-                    true
-                } else {
-                    false
-                }
-            })
+            .filter(|p| matches!(p, FileType::File(_)))
             .collect();
         let dirs: Vec<_> = result
             .entries
             .iter()
-            .filter(|p| {
-                if let FileType::Dir(_) = p {
-                    true
-                } else {
-                    false
-                }
-            })
+            .filter(|p| matches!(p, FileType::Dir(_)))
             .collect();
 
         assert_eq!(files.len(), 2);
