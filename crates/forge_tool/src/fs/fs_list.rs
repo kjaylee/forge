@@ -7,13 +7,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema, Clone)]
 pub struct FSListInput {
     /// The path of the directory to list contents for (relative to the current
     /// working directory)
+    #[serde(rename = "@path")]
     pub path: String,
     /// Whether to list files recursively. Use true for recursive listing, false
     /// or omit for top-level only.
+    #[serde(rename = "@recursive")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recursive: Option<bool>,
 }
 
@@ -29,11 +32,8 @@ pub struct FSList;
 #[derive(Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename = "fs_list")]
 pub struct FSListOutput {
-    #[serde(rename = "@path")]
-    path: String,
-    #[serde(rename = "@recursive")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    recursive: Option<bool>,
+    #[serde(flatten)]
+    args: FSListInput,
     #[serde(rename = "$value")]
     entries: Vec<FileType>,
 }
@@ -79,7 +79,7 @@ impl ToolCallService for FSList {
             }
         }
 
-        Ok(FSListOutput { path: input.path, recursive: input.recursive, entries: paths })
+        Ok(FSListOutput { args: input.clone(), entries: paths })
     }
 }
 
@@ -323,8 +323,7 @@ mod test {
     #[test]
     fn serialize_to_xml() {
         let output = FSListOutput {
-            path: ".".to_string(),
-            recursive: None,
+            args: FSListInput { path: ".".to_string(), recursive: None },
             entries: vec![
                 FileType::Dir("dir1".to_string()),
                 FileType::File("file1.txt".to_string()),

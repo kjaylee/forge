@@ -7,15 +7,19 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Deserialize, JsonSchema, Serialize, Clone)]
 pub struct FSSearchInput {
     /// The path of the directory to search in (relative to the current working
     /// directory). This directory will be recursively searched.
+    #[serde(rename = "@path")]
     pub path: String,
     /// The regular expression pattern to search for. Uses Rust regex syntax.
+    #[serde(rename = "@regex")]
     pub regex: String,
     /// Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not
     /// provided, it will search all files (*).
+    #[serde(rename = "@file_pattern")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub file_pattern: Option<String>,
 }
 
@@ -26,15 +30,10 @@ pub struct FSSearchInput {
 #[derive(DescriptionDerive)]
 pub struct FSSearch;
 
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Serialize, JsonSchema)]
 pub struct FSSearchOutput {
-    #[serde(rename = "@path")]
-    path: String,
-    #[serde(rename = "@regex")]
-    regex: String,
-    #[serde(rename = "@file_pattern")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    file_pattern: Option<String>,
+    #[serde(flatten)]
+    args: FSSearchInput,
     matches: Vec<String>,
 }
 
@@ -152,12 +151,7 @@ impl ToolCallService for FSSearch {
             }
         }
 
-        Ok(FSSearchOutput {
-            matches,
-            path: input.path,
-            regex: input.regex,
-            file_pattern: input.file_pattern,
-        })
+        Ok(FSSearchOutput { matches, args: input.clone() })
     }
 }
 
@@ -385,9 +379,11 @@ mod test {
                 "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt\nLines 1-1:\nTeSt2.txt".to_string(),
                 "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt\nLines 1-1:\nTEST.txt".to_string(),
             ],
-            path: ".".to_string(),
-            regex: "*.txt".to_string(),
-            file_pattern: None
+            args: FSSearchInput{
+                path: ".".to_string(),
+                regex: "*.txt".to_string(),
+                file_pattern: None
+            }
         };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
