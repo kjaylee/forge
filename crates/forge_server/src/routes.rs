@@ -18,6 +18,7 @@ use tracing::info;
 
 use crate::context::ContextEngine;
 use crate::{ChatRequest, Errata, File, Result, RootAPIService, Service};
+use crate::{ChatResponse, Conversation};
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
@@ -60,6 +61,7 @@ impl API {
             .route("/models", get(models_handler))
             .route("/context/{id}", get(context_handler))
             .route("/context/{id}/html", get(context_html_handler))
+            .route("/conversations", get(conversations_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -136,6 +138,11 @@ async fn models_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<Mo
     Json(ModelResponse { models })
 }
 
+async fn conversations_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<ConversationResponse> {
+    let conversations = state.conversations().await.unwrap_or_default();
+    Json(ConversationResponse { conversations })
+}
+
 #[axum::debug_handler]
 async fn context_handler(
     State(state): State<Arc<dyn RootAPIService>>,
@@ -158,4 +165,9 @@ pub struct ModelResponse {
 #[derive(Serialize)]
 pub struct ToolResponse {
     tools: Vec<ToolDefinition>,
+}
+
+#[derive(Serialize)]
+pub struct ConversationResponse {
+    conversations: Vec<Conversation>,
 }

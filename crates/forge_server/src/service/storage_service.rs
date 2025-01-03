@@ -80,7 +80,7 @@ impl TryFrom<&ProviderRequest> for NewConversation {
 pub trait StorageService: Send + Sync {
     async fn create_conversation(&self, request: &ProviderRequest) -> Result<Conversation>;
     async fn get_request(&self, id: Uuid) -> ProviderRequest;
-    async fn get_all_requests(&self) -> Result<Vec<ProviderRequest>>;
+    async fn get_all_conversation(&self) -> Result<Vec<Conversation>>;
     async fn update_conversation(&self, id: Uuid, request: &ProviderRequest) -> Result<Option<Conversation>>;
 }
 
@@ -142,7 +142,7 @@ impl StorageService for Live {
         }
     }
 
-    async fn get_all_requests(&self) -> Result<Vec<ProviderRequest>> {
+    async fn get_all_conversation(&self) -> Result<Vec<Conversation>> {
         let conn = &mut self.pool.get()
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
         
@@ -152,10 +152,7 @@ impl StorageService for Live {
         
         let convs: Vec<Conversation> = raw_convs.into_iter().map(Into::into).collect();
 
-        convs.into_iter()
-            .map(|conv| conv.try_into())
-            .collect::<std::result::Result<Vec<_>, _>>()
-            .map_err(|e| crate::error::Error::Custom(format!("Failed to deserialize requests: {}", e)))
+        Ok(convs)
     }
 
     async fn update_conversation(&self, conversation_id: Uuid, request: &ProviderRequest) -> Result<Option<Conversation>> {

@@ -19,6 +19,7 @@ pub trait RootAPIService: Send + Sync {
     async fn context(&self, conversation_id: Uuid) -> Request;
     async fn models(&self) -> Result<Vec<Model>>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
+    async fn conversations(&self) -> Result<Vec<Conversation>>;
 }
 
 impl Service {
@@ -89,5 +90,9 @@ impl RootAPIService for Live {
 
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
         Ok(self.chat_service.chat(chat).await?)
+    }
+
+    async fn conversations(&self) -> Result<Vec<Conversation>> {
+        self.storage.get_all_conversation().await
     }
 }
