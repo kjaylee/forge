@@ -33,7 +33,7 @@ pub struct FSList;
 #[serde(rename = "fs_list")]
 pub struct FSListOutput {
     #[serde(flatten)]
-    args: FSListInput,
+    input: FSListInput,
     #[serde(rename = "$value")]
     entries: Vec<FileType>,
 }
@@ -79,7 +79,7 @@ impl ToolCallService for FSList {
             }
         }
 
-        Ok(FSListOutput { args: input.clone(), entries: paths })
+        Ok(FSListOutput { input: input.clone(), entries: paths })
     }
 }
 
@@ -323,7 +323,7 @@ mod test {
     #[test]
     fn serialize_to_xml() {
         let output = FSListOutput {
-            args: FSListInput { path: ".".to_string(), recursive: None },
+            input: FSListInput { path: ".".to_string(), recursive: None },
             entries: vec![
                 FileType::Dir("dir1".to_string()),
                 FileType::File("file1.txt".to_string()),

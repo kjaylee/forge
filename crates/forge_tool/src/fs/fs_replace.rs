@@ -249,7 +249,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
 #[derive(Serialize, JsonSchema)]
 pub struct FSReplaceOutput {
     #[serde(flatten)]
-    args: FSReplaceInput,
+    input: FSReplaceInput,
     pub path: String,
     pub content: String,
 }
@@ -262,7 +262,7 @@ impl ToolCallService for FSReplace {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let blocks = parse_blocks(&input.diff)?;
         let content = apply_changes(&input.path, blocks)?;
-        Ok(FSReplaceOutput { args: input.clone(), path: input.path, content })
+        Ok(FSReplaceOutput { input: input.clone(), path: input.path, content })
     }
 }
 
@@ -579,7 +579,7 @@ function computeTotal(items, tax = 0) {
     #[test]
     fn serialize_to_xml() {
         let output = FSReplaceOutput {
-            args: FSReplaceInput {
+            input: FSReplaceInput {
                 path: ".".to_string(),
                 diff: r#"<<<<<<< SEARCH
     if (!user) throw new Error('User not found');

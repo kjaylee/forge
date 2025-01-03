@@ -11,14 +11,15 @@ use crate::{Description, ToolCallService};
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
     /// The shell command to execute.
+    #[serde(rename = "@command")]
     pub command: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename = "shell")]
 pub struct ShellOutput {
-    #[serde(rename = "@command")]
-    pub command: String,
+    #[serde(flatten)]
+    input: ShellInput,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub stdout: String,
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -102,7 +103,7 @@ impl Shell {
         };
 
         Ok(ShellOutput {
-            command: command.to_string(),
+            input: ShellInput { command: command.to_string() },
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
             success: output.status.success(),
@@ -218,7 +219,7 @@ mod tests {
     #[test]
     fn serialize_to_xml() {
         let output = ShellOutput {
-            command: "cat demo.txt".to_string(),
+            input: ShellInput { command: "cat demo.txt".to_string() },
             stdout: "Hello, World!".to_string(),
             stderr: "".to_string(),
             success: true,

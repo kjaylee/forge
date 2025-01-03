@@ -23,7 +23,7 @@ pub struct FSFileInfo;
 #[serde(rename = "fs_file_info")]
 pub struct FSFileInfoOutput {
     #[serde(flatten)]
-    args: FSFileInfoInput,
+    input: FSFileInfoInput,
     #[serde(rename = "$value")]
     pub metadata: String,
 }
@@ -37,7 +37,7 @@ impl ToolCallService for FSFileInfo {
         let meta = tokio::fs::metadata(&input.path)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(FSFileInfoOutput { args: input.clone(), metadata: format!("{:?}", meta) })
+        Ok(FSFileInfoOutput { input: input.clone(), metadata: format!("{:?}", meta) })
     }
 }
 
@@ -98,7 +98,7 @@ mod test {
     #[test]
     fn serialize_to_xml() {
         let output = FSFileInfoOutput {
-            args: FSFileInfoInput { path: ".".to_string() },
+            input: FSFileInfoInput { path: ".".to_string() },
             metadata: "metadata".to_string(),
         };
         let mut buffer = Vec::new();

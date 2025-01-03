@@ -24,7 +24,7 @@ pub struct FSRead;
 #[serde(rename = "fs_read")]
 pub struct FSReadOutput {
     #[serde(flatten)]
-    args: FSReadInput,
+    input: FSReadInput,
     #[serde(rename = "$value")]
     pub content: String,
 }
@@ -102,7 +102,7 @@ mod test {
     #[test]
     fn serialize_to_xml() {
         let output = FSReadOutput {
-            args: FSReadInput { path: ".".to_string() },
+            input: FSReadInput { path: ".".to_string() },
             content: "Hello, World!".to_string(),
         };
         let mut buffer = Vec::new();

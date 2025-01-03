@@ -44,37 +44,49 @@ pub struct Think {
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ThoughtInput {
     /// The description of the current thought or reasoning step.
+    #[serde(rename = "@thought")]
     pub thought: String,
     /// Whether another thought is needed to reach a solution.
+    #[serde(rename = "@next_thought_needed")]
     pub next_thought_needed: bool,
     /// The number of the current thought or reasoning step.
+    #[serde(rename = "@thought_number")]
     pub thought_number: i32,
     /// The total number of thoughts or reasoning steps expected to reach a
     /// solution.
+    #[serde(rename = "@total_thoughts")]
     pub total_thoughts: i32,
     /// Whether this thought is a revision of a previous thought.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@is_revision")]
     pub is_revision: Option<bool>,
     /// The number of the thought being revised, if this is a revision.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@revises_thought")]
     pub revises_thought: Option<i32>,
     /// The number of the thought from which this thought branches, if this is a
     /// branch.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@branch_from_thought")]
     pub branch_from_thought: Option<i32>,
     /// A unique identifier for the branch, if this is a branch.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@branch_id")]
     pub branch_id: Option<String>,
     /// Whether additional thoughts are needed to reach a solution.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@needs_more_thoughts")]
     pub needs_more_thoughts: Option<bool>,
     /// The current confidence in the solution, ranging from 0.0 to 1.0.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "@solution_confidence")]
     pub solution_confidence: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ThoughtResult {
+    #[serde(flatten)]
+    input: ThoughtInput,
     pub thought_number: i32,
     pub total_thoughts: i32,
     pub next_thought_needed: bool,
@@ -143,6 +155,7 @@ impl Think {
     }
 
     fn process_thought(&mut self, input: ThoughtInput) -> Result<ThoughtResult> {
+        let thought_input = input.clone();
         let mut thought_data = self.validate_thought_data(input)?;
 
         // Adjust total thoughts if needed
@@ -183,6 +196,7 @@ impl Think {
         eprintln!("{}", self.format_thought(&thought_data));
 
         Ok(ThoughtResult {
+            input: thought_input,
             thought_number: thought_data.thought_number,
             total_thoughts: thought_data.total_thoughts,
             next_thought_needed: thought_data.next_thought_needed,
@@ -208,11 +222,23 @@ impl ToolCallService for Think {
 
 #[cfg(test)]
 mod test {
-    use super::ThoughtResult;
+    use super::{ThoughtInput, ThoughtResult};
 
     #[test]
     fn serialize_to_xml() {
         let output = ThoughtResult {
+            input: ThoughtInput {
+                thought: "Think about it".to_string(),
+                next_thought_needed: true,
+                thought_number: 1,
+                total_thoughts: 3,
+                is_revision: Some(false),
+                revises_thought: None,
+                branch_from_thought: None,
+                branch_id: None,
+                needs_more_thoughts: None,
+                solution_confidence: Some(0.5),
+            },
             thought_number: 1,
             total_thoughts: 3,
             next_thought_needed: true,

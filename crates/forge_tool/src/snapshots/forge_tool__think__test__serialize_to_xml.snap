@@ -2,7 +2,7 @@
 source: crates/forge_tool/src/think.rs
 expression: xml_str
 ---
-<think>
+<think thought="Think about it" next_thought_needed="true" thought_number="1" total_thoughts="3" is_revision="false" solution_confidence="0.5">
     <thought_number>1</thought_number>
     <total_thoughts>3</total_thoughts>
     <next_thought_needed>true</next_thought_needed>
