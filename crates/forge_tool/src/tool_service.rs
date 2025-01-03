@@ -5,7 +5,7 @@ use inflector::Inflector;
 use schemars::schema::RootSchema;
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use utoipa::ToSchema;
 
 use crate::fs::*;

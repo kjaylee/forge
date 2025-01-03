@@ -1,7 +1,6 @@
 use derive_setters::Setters;
 use forge_tool::ToolDefinition;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use utoipa::ToSchema;
 
 use super::{CompletionMessage, Role};

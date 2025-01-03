@@ -5,7 +5,6 @@ const SERVER_PORT: u16 = 8080;
 use axum::extract::{Json, State};
 use axum::response::sse::{Event, Sse};
 use axum::response::{Html, Json as AxumJson};
-use utoipa::OpenApi;
 use axum::routing::{get, post};
 use axum::Router;
 use forge_env::Environment;
@@ -15,13 +14,15 @@ use forge_provider::{
 };
 use forge_tool::ToolDefinition;
 use serde::Serialize;
-use serde_json::json;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
+use utoipa::OpenApi;
 
 use crate::context::ContextEngine;
-use crate::{ChatRequest, ChatResponse, Errata, File, Result, RootAPIService, Service, ToolUseStart};
+use crate::{
+    ChatRequest, ChatResponse, Errata, File, Result, RootAPIService, Service, ToolUseStart,
+};
 
 #[derive(OpenApi)]
 #[openapi(
