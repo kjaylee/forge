@@ -376,7 +376,7 @@ mod test {
             matches:vec![
                 "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TeSt2.txt\nLines 1-1:\nTeSt2.txt".to_string(),
                 "File: /var/folders/99/v0n6z0gj5yj3j5vvsyfmvx100000gn/T/.tmpCdUifn/TEST.txt\nLines 1-1:\nTEST.txt".to_string(),
-            ] 
+            ],
         };
         let mut buffer = Vec::new();
         let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);

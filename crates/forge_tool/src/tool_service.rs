@@ -58,7 +58,7 @@ where
         let input: T::Input = serde_json::from_value(input).map_err(|e| e.to_string())?;
         let output: Result<T::Output, String> = self.tool.call(input.clone()).await;
 
-        let status = if let Ok(_) = output {
+        let status = if output.is_ok() {
             Status::Success
         } else {
             Status::Error
@@ -398,7 +398,8 @@ mod test {
     async fn test_fs_list_success() {
         let tool = Tool::new(FSList);
         let input =
-            serde_json::to_value(&FSListInput { path: ".".to_string(), recursive: Some(false) }).unwrap();
+            serde_json::to_value(&FSListInput { path: ".".to_string(), recursive: Some(false) })
+                .unwrap();
         let result = tool.executable.call(input).await.unwrap();
         insta::assert_snapshot!(result);
     }
@@ -406,8 +407,11 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_fail() {
         let tool = Tool::new(FSList);
-        let input =
-            serde_json::to_value(&FSListInput { path: "incorrect_dir".to_string(), recursive: Some(false) }).unwrap();
+        let input = serde_json::to_value(&FSListInput {
+            path: "incorrect_dir".to_string(),
+            recursive: Some(false),
+        })
+        .unwrap();
         let result = tool.executable.call(input).await.unwrap();
         insta::assert_snapshot!(result);
     }
