@@ -65,9 +65,8 @@ mod test {
     use tempfile::TempDir;
     use tokio::fs;
 
-    use crate::fs::tests::Fixture;
-
     use super::*;
+    use crate::fs::tests::Fixture;
 
     #[tokio::test]
     async fn test_fs_list_empty_directory() {

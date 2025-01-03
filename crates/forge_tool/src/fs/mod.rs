@@ -50,8 +50,8 @@ pub mod tests {
             exec: R,
             input: R::Input,
         ) -> Result<R::Output, String> {
-            let result = exec.call(input).await;
-            result
+            
+            exec.call(input).await
         }
     }
 }
