@@ -2,12 +2,14 @@ use std::fmt::{Debug, Display, Formatter};
 
 use derive_more::derive::{Display, From};
 use derive_setters::Setters;
+use diesel::r2d2;
 use serde::{Deserialize, Serialize};
 
 #[derive(Display, From)]
 pub enum Error {
     // TODO: drop `Custom` because its too generic
     Custom(String),
+    DatabaseError(r2d2::Error),
     Provider(forge_provider::Error),
     IO(std::io::Error),
     Var(std::env::VarError),

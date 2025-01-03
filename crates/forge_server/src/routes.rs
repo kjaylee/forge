@@ -31,8 +31,11 @@ impl Default for API {
     }
 }
 
-async fn context_html_handler(State(state): State<Arc<dyn RootAPIService>>) -> Html<String> {
-    let context = state.context().await;
+async fn context_html_handler(
+    State(state): State<Arc<dyn RootAPIService>>, 
+    axum::extract::Path(id): axum::extract::Path<i32>
+) -> Html<String> {
+    let context = state.context(id).await;
     let engine = ContextEngine::new(context);
     Html(engine.render_html())
 }
@@ -54,8 +57,8 @@ impl API {
             .route("/health", get(health_handler))
             .route("/tools", get(tools_handler))
             .route("/models", get(models_handler))
-            .route("/context", get(context_handler))
-            .route("/context/html", get(context_html_handler))
+            .route("/context/{id}", get(context_handler))
+            .route("/context/{id}/html", get(context_html_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -132,8 +135,12 @@ async fn models_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<Mo
     Json(ModelResponse { models })
 }
 
-async fn context_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<ContextResponse> {
-    let context = state.context().await;
+#[axum::debug_handler]
+async fn context_handler(
+    State(state): State<Arc<dyn RootAPIService>>,
+    axum::extract::Path(id): axum::extract::Path<i32>,
+) -> Json<ContextResponse> {
+    let context = state.context(id).await;
     Json(ContextResponse { context })
 }
 

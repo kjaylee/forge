@@ -1,19 +1,21 @@
 use std::sync::Arc;
 
 use forge_env::Environment;
-use forge_provider::{Model, ProviderService, Request, ResultStream};
+use forge_provider::{
+    Model, ProviderService, Request, ResultStream
+};
 use forge_tool::{ToolDefinition, ToolService};
 
 use super::completion_service::CompletionService;
 use super::neo_chat_service::NeoChatService;
-use super::Service;
+use super::{ Service, StorageService};
 use crate::{ChatRequest, ChatResponse, Error, File, Result};
 
 #[async_trait::async_trait]
 pub trait RootAPIService: Send + Sync {
     async fn completions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
-    async fn context(&self) -> Request;
+    async fn context(&self, conversation_id: i32) -> Request;
     async fn models(&self) -> Result<Vec<Model>>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
 }
@@ -30,6 +32,7 @@ struct Live {
     tool: Arc<dyn ToolService>,
     completions: Arc<dyn CompletionService>,
     chat_service: Arc<dyn NeoChatService>,
+    storage: Arc<dyn StorageService>,
 }
 
 impl Live {
@@ -55,7 +58,10 @@ impl Live {
         ));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));
-        Self { provider, tool, completions, chat_service }
+
+        let storage = Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+
+        Self { provider, tool, completions, chat_service, storage }
     }
 }
 
@@ -69,8 +75,8 @@ impl RootAPIService for Live {
         self.tool.list()
     }
 
-    async fn context(&self) -> Request {
-        todo!("Implement it via the storage API");
+    async fn context(&self, conversation_id: i32) -> Request {
+        self.storage.get_request(conversation_id).await
     }
 
     async fn models(&self) -> Result<Vec<Model>> {

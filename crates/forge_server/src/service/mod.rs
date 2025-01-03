@@ -2,11 +2,13 @@ mod completion_service;
 mod file_read_service;
 mod neo_chat_service;
 mod root_api_service;
+mod storage_service;
 mod system_prompt_service;
 mod user_prompt_service;
 pub use completion_service::File;
 pub use neo_chat_service::{ChatRequest, ChatResponse};
 pub use root_api_service::*;
+pub use storage_service::*;
 
 pub struct Service;
 
