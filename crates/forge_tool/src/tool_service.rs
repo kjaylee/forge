@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
+use std::io;
 
 use inflector::Inflector;
 use schemars::schema::RootSchema;
@@ -13,7 +14,16 @@ use crate::shell::Shell;
 use crate::think::Think;
 use crate::{Description, Service, ToolCallService};
 
-struct JsonTool<T>(T);
+struct JsonTool<T> {
+    tool: T,
+    name: String,
+}
+
+impl<T> JsonTool<T> {
+    fn new(tool: T, name: impl ToString) -> Self {
+        Self { tool, name: name.to_string() }
+    }
+}
 
 #[async_trait::async_trait]
 impl<T: ToolCallService + Sync> ToolCallService for JsonTool<T>
@@ -22,18 +32,34 @@ where
     T::Output: serde::Serialize + JsonSchema,
 {
     type Input = Value;
-    type Output = Value;
+    type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let input: T::Input = serde_json::from_value(input).map_err(|e| e.to_string())?;
-        let output: T::Output = self.0.call(input).await?;
-        Ok(serde_json::to_value(output).map_err(|e| e.to_string())?)
+        let output: T::Output = self.tool.call(input).await?;
+
+        // convert the output to XML.
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+
+        // Start tool_result tag
+        writer
+            .create_element("tool_result")
+            .write_inner_content(|writer| {
+                writer
+                    .write_serializable(&self.name, &output)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            })
+            .map_err(|e| e.to_string())?;
+
+        let xml_str = std::str::from_utf8(&buffer).unwrap();
+        Ok(xml_str.to_string())
     }
 }
 
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
-    async fn call(&self, name: &ToolName, input: Value) -> Result<Value, String>;
+    async fn call(&self, name: &ToolName, input: Value) -> Result<String, String>;
     fn list(&self) -> Vec<ToolDefinition>;
     fn usage_prompt(&self) -> String;
 }
@@ -177,7 +203,7 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ToolService for Live {
-    async fn call(&self, name: &ToolName, input: Value) -> Result<Value, String> {
+    async fn call(&self, name: &ToolName, input: Value) -> Result<String, String> {
         let output = match self.tools.get(name) {
             Some(tool) => tool.executable.call(input).await,
             None => Err(format!("No such tool found: {}", name.as_str())),
@@ -212,7 +238,7 @@ impl ToolService for Live {
 
 struct Tool {
     name: ToolName,
-    executable: Box<dyn ToolCallService<Input = Value, Output = Value> + Send + Sync + 'static>,
+    executable: Box<dyn ToolCallService<Input = Value, Output = String> + Send + Sync + 'static>,
     definition: ToolDefinition,
 }
 
@@ -228,7 +254,7 @@ impl Tool {
             .last()
             .unwrap()
             .to_snake_case();
-        let executable = Box::new(JsonTool(tool));
+        let executable = Box::new(JsonTool::new(tool, name.clone()));
 
         let input: RootSchema = schema_for!(T::Input);
         let output: RootSchema = schema_for!(T::Output);
@@ -322,5 +348,14 @@ mod test {
     fn test_usage_prompt() {
         let docs = Live::new().usage_prompt();
         assert_snapshot!(docs);
+    }
+
+    #[tokio::test]
+    async fn test_fs_list() {
+        let tool = Tool::new(FSList);
+        let input =
+            serde_json::to_value(&FSListInput { path: ".".to_string(), recursive: None }).unwrap();
+        let result = tool.executable.call(input).await.unwrap();
+        insta::assert_snapshot!(result);
     }
 }

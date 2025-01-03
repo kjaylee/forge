@@ -1,0 +1,10 @@
+---
+source: crates/forge_tool/src/tool_service.rs
+expression: result
+---
+<tool_result>
+    <fs_list path=".">
+        <file>Cargo.toml</file>
+        <dir>src</dir>
+    </fs_list>
+</tool_result>

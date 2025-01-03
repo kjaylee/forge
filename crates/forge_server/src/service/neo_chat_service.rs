@@ -107,7 +107,7 @@ impl Live {
                 tool_call,
             ));
             if let Some(Ok(tool_result)) = tool_result {
-                let tool_result: ToolResult = serde_json::from_value(tool_result).unwrap();
+                let tool_result: ToolResult = serde_json::from_str(&tool_result).unwrap();
                 request = request.add_message(CompletionMessage::ToolMessage(tool_result.clone()));
                 // send the tool use end message.
                 tx.send(Ok(ChatResponse::ToolUseEnd(tool_result)))
@@ -207,8 +207,8 @@ mod tests {
             &self,
             _name: &ToolName,
             _input: Value,
-        ) -> std::result::Result<Value, String> {
-            Ok(self.result.clone())
+        ) -> std::result::Result<String, String> {
+            Ok(self.result.to_string())
         }
         fn list(&self) -> Vec<ToolDefinition> {
             vec![]
