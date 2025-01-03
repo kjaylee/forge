@@ -1,0 +1,8 @@
+---
+source: crates/forge_tool/src/fs/fs_list.rs
+expression: xml_str
+---
+<fs_list path=".">
+    <dir>dir1</dir>
+    <file>file1.txt</file>
+</fs_list>

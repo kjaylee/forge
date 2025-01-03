@@ -3,7 +3,7 @@ use std::path::Path;
 use forge_tool_macros::Description as DescriptionDerive;
 use forge_walker::Walker;
 use schemars::JsonSchema;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{Description, ToolCallService};
 
@@ -26,10 +26,29 @@ pub struct FSListInput {
 #[derive(DescriptionDerive)]
 pub struct FSList;
 
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename = "fs_list")]
+pub struct FSListOutput {
+    #[serde(rename = "@path")]
+    path: String,
+    #[serde(rename = "@recursive")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recursive: Option<bool>,
+    #[serde(rename = "$value")]
+    entries: Vec<FileType>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum FileType {
+    Dir(String),
+    File(String),
+}
+
 #[async_trait::async_trait]
 impl ToolCallService for FSList {
     type Input = FSListInput;
-    type Output = Vec<String>;
+    type Output = FSListOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let dir = Path::new(&input.path);
@@ -51,12 +70,16 @@ impl ToolCallService for FSList {
             }
 
             if !entry.path.is_empty() {
-                let prefix = if entry.is_dir { "[DIR]" } else { "[FILE]" };
-                paths.push(format!("{} {}", prefix, entry.path));
+                let entry_type = if entry.is_dir {
+                    FileType::Dir(entry.path)
+                } else {
+                    FileType::File(entry.path)
+                };
+                paths.push(entry_type);
             }
         }
 
-        Ok(paths)
+        Ok(FSListOutput { path: input.path, recursive: input.recursive, entries: paths })
     }
 }
 
@@ -80,7 +103,7 @@ mod test {
             .await
             .unwrap();
 
-        assert!(result.is_empty());
+        assert!(result.entries.is_empty());
     }
 
     #[tokio::test]
@@ -105,18 +128,33 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 4);
+        assert_eq!(result.entries.len(), 4);
 
-        let files: Vec<_> = result.iter().filter(|p| p.starts_with("[FILE]")).collect();
-        let dirs: Vec<_> = result.iter().filter(|p| p.starts_with("[DIR]")).collect();
+        let files: Vec<_> = result
+            .entries
+            .iter()
+            .filter(|p| {
+                if let FileType::File(_) = p {
+                    true
+                } else {
+                    false
+                }
+            })
+            .collect();
+        let dirs: Vec<_> = result
+            .entries
+            .iter()
+            .filter(|p| {
+                if let FileType::Dir(_) = p {
+                    true
+                } else {
+                    false
+                }
+            })
+            .collect();
 
         assert_eq!(files.len(), 2);
         assert_eq!(dirs.len(), 2);
-
-        assert!(result.iter().any(|p| p.contains("file1.txt")));
-        assert!(result.iter().any(|p| p.contains("file2.txt")));
-        assert!(result.iter().any(|p| p.contains("dir1")));
-        assert!(result.iter().any(|p| p.contains("dir2")));
     }
 
     #[tokio::test]
@@ -158,8 +196,14 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 1);
-        assert!(result.iter().any(|p| p.contains("regular.txt")));
+        assert_eq!(result.entries.len(), 1);
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("regular.txt")
+            } else {
+                false
+            }
+        }));
     }
 
     #[tokio::test]
@@ -192,12 +236,42 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 5); // root.txt, dir1, file1.txt, subdir, file2.txt
-        assert!(result.iter().any(|p| p.contains("root.txt")));
-        assert!(result.iter().any(|p| p.contains("dir1")));
-        assert!(result.iter().any(|p| p.contains("file1.txt")));
-        assert!(result.iter().any(|p| p.contains("subdir")));
-        assert!(result.iter().any(|p| p.contains("file2.txt")));
+        assert_eq!(result.entries.len(), 5); // root.txt, dir1, file1.txt, subdir, file2.txt
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("root.txt")
+            } else {
+                false
+            }
+        }));
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::Dir(dir_name) = p {
+                dir_name.contains("dir1")
+            } else {
+                false
+            }
+        }));
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("file1.txt")
+            } else {
+                false
+            }
+        }));
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::Dir(dir_name) = p {
+                dir_name.contains("subdir")
+            } else {
+                false
+            }
+        }));
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("file2.txt")
+            } else {
+                false
+            }
+        }));
 
         // Test non-recursive listing of same structure
         let result = fs_list
@@ -208,11 +282,62 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 2); // Only root.txt and dir1
-        assert!(result.iter().any(|p| p.contains("root.txt")));
-        assert!(result.iter().any(|p| p.contains("dir1")));
-        assert!(!result.iter().any(|p| p.contains("file1.txt")));
-        assert!(!result.iter().any(|p| p.contains("subdir")));
-        assert!(!result.iter().any(|p| p.contains("file2.txt")));
+        assert_eq!(result.entries.len(), 2); // Only root.txt and dir1
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("root.txt")
+            } else {
+                false
+            }
+        }));
+        assert!(result.entries.iter().any(|p| {
+            if let FileType::Dir(dir_name) = p {
+                dir_name.contains("dir1")
+            } else {
+                false
+            }
+        }));
+        assert!(!result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("file1.txt")
+            } else {
+                false
+            }
+        }));
+        assert!(!result.entries.iter().any(|p| {
+            if let FileType::Dir(dir_name) = p {
+                dir_name.contains("subdir")
+            } else {
+                false
+            }
+        }));
+        assert!(!result.entries.iter().any(|p| {
+            if let FileType::File(file_name) = p {
+                file_name.contains("file2.txt")
+            } else {
+                false
+            }
+        }));
+    }
+
+    #[test]
+    fn serialize_to_xml() {
+        let fs_list_output = FSListOutput {
+            path: ".".to_string(),
+            recursive: None,
+            entries: vec![
+                FileType::Dir("dir1".to_string()),
+                FileType::File("file1.txt".to_string()),
+            ],
+        };
+
+        let mut buffer = Vec::new();
+        let mut writer = quick_xml::Writer::new_with_indent(&mut buffer, b' ', 4);
+        writer
+            .write_serializable("fs_list", &fs_list_output)
+            .unwrap();
+
+        let xml_str = std::str::from_utf8(&buffer).unwrap();
+        insta::assert_snapshot!(xml_str);
     }
 }

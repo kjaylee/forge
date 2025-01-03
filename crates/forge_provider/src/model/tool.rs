@@ -85,7 +85,7 @@ impl ToolCall {
 pub struct ToolResult {
     pub name: ToolName,
     pub use_id: Option<ToolCallId>,
-    pub content: Value,
+    pub content: String,
     pub is_error: bool,
 }
 
@@ -94,7 +94,7 @@ impl ToolResult {
         Self {
             name,
             use_id: None,
-            content: Value::default(),
+            content: String::new(),
             is_error: false,
         }
     }

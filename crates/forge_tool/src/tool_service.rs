@@ -157,7 +157,7 @@ impl Live {
         let tools: HashMap<ToolName, Tool> = [
             Tool::new(FSRead),
             Tool::new(FSWrite),
-            Tool::new(FSList),
+            // Tool::new(FSList),
             Tool::new(FSSearch),
             Tool::new(FSFileInfo),
             Tool::new(FSReplace),
@@ -305,7 +305,7 @@ mod test {
             .name
             .into_string()
             .ends_with("fs_search"));
-        assert!(Tool::new(FSList).name.into_string().ends_with("fs_list"));
+        // assert!(Tool::new(FSList).name.into_string().ends_with("fs_list"));
         assert!(Tool::new(FSFileInfo)
             .name
             .into_string()

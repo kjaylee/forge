@@ -25,7 +25,7 @@ tree-sitter-javascript = "0.20.1"
 tree-sitter-python = "0.20.4"
 replace_with = "0.1.7"
 forge_walker = { path = "../forge_walker" }
-
+quick-xml = {version = "0.37.2", features = ["serialize"]}
 tempfile = "3.8.1"
 handlebars = "6.2.0"
 
