@@ -6,25 +6,25 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Display, derive_more::From)]
 pub enum Error {
-    DatabaseQueryError(diesel::result::Error),
-    DieselError(diesel::ConnectionError),
-    Provider(forge_provider::Error),
-    IO(std::io::Error),
-    Var(std::env::VarError),
-    Serde(serde_json::Error),
-    EmptyResponse,
-    Walk(forge_walker::Error),
-    Env(forge_env::Error),
-    ToolCallMissingName,
-    Handlebars(handlebars::RenderError),
-    BoxedError(Box<dyn std::error::Error + Send + Sync>),
+    Diesel(diesel::result::Error),
+    DieselConnection(diesel::ConnectionError),
     DieselR2D2(diesel::r2d2::Error),
+    EmptyResponse,
+    Env(forge_env::Error),
+    Handlebars(handlebars::RenderError),
+    IO(std::io::Error),
+    Provider(forge_provider::Error),
     R2D2(r2d2::Error),
+    Serde(serde_json::Error),
+    StdError(Box<dyn std::error::Error + Send + Sync>),
+    ToolCallMissingName,
+    Var(std::env::VarError),
+    Walk(forge_walker::Error),
 }
 
 impl Error {
     pub fn from_std_error<T: std::error::Error + Send + Sync + 'static>(err: T) -> Self {
-        Error::BoxedError(Box::new(err))
+        Error::StdError(Box::new(err))
     }
 }
 
