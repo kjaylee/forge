@@ -1,7 +1,7 @@
+use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness};
-use diesel::prelude::*;
 
 use crate::Result;
 
@@ -20,9 +20,9 @@ impl LiveDbPool {
     pub fn new(cwd: &str, migrations: EmbeddedMigrations) -> Result<Self> {
         let db_path = format!("{}/conversations.db", cwd);
 
-            // Run migrations first
-            let mut conn = SqliteConnection::establish(&db_path)
-                .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
+        // Run migrations first
+        let mut conn = SqliteConnection::establish(&db_path)
+            .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
         conn.run_pending_migrations(migrations)
             .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
         drop(conn);
@@ -46,8 +46,9 @@ impl DbPoolService for LiveDbPool {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     pub struct TestDbPool {
         pool: DbPool,
@@ -57,7 +58,12 @@ pub mod tests {
     impl TestDbPool {
         pub fn new(migrations: EmbeddedMigrations) -> Result<Self> {
             let temp_dir = TempDir::new().unwrap();
-            let db_path = temp_dir.path().join("test.db").to_str().unwrap().to_string();
+            let db_path = temp_dir
+                .path()
+                .join("test.db")
+                .to_str()
+                .unwrap()
+                .to_string();
 
             // Run migrations
             let mut conn = SqliteConnection::establish(&db_path)
@@ -72,10 +78,7 @@ pub mod tests {
                 .build(manager)
                 .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
 
-            Ok(Self { 
-                pool,
-                _temp_dir: temp_dir 
-            })
+            Ok(Self { pool, _temp_dir: temp_dir })
         }
     }
 

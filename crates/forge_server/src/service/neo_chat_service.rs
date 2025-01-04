@@ -144,9 +144,11 @@ impl NeoChatService for Live {
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
-
         let req = if let Some(conversation_id) = &chat.conversation_id {
-            let conversation = self.storage.get_conversation(conversation_id.clone()).await?;
+            let conversation = self
+                .storage
+                .get_conversation(conversation_id.clone())
+                .await?;
             conversation.context
         } else {
             Request::default()
@@ -158,12 +160,19 @@ impl NeoChatService for Live {
             .tools(self.tool.list())
             .model(chat.model);
 
-        let conversation_id = self.storage.set_conversation(&request, chat.conversation_id).await?.id;
+        let conversation_id = self
+            .storage
+            .set_conversation(&request, chat.conversation_id)
+            .await?
+            .id;
 
         let that = self.clone();
         tokio::spawn(async move {
             // TODO: simplify this match.
-            match that.chat_workflow(request, tx.clone(), conversation_id).await {
+            match that
+                .chat_workflow(request, tx.clone(), conversation_id)
+                .await
+            {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
@@ -216,7 +225,7 @@ mod tests {
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
     use crate::storage_service::tests::TestStorage;
-    use crate::{ChatResponse, StorageService};
+    use crate::ChatResponse;
 
     impl ChatRequest {
         pub fn new(content: impl ToString) -> ChatRequest {

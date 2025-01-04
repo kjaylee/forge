@@ -1,17 +1,16 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use derive_setters::Setters;
 use diesel::prelude::*;
-use diesel::sql_types::{Text, Timestamp, Bool};
+use diesel::sql_types::{Bool, Text, Timestamp};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use forge_provider::{Request as ProviderRequest, Request};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::schema::conversations;
-use crate::Result;
-use crate::service::db_pool_service::{DbPoolService, LiveDbPool};
-
 use super::Service;
+use crate::schema::conversations;
+use crate::service::db_pool_service::{DbPoolService, LiveDbPool};
+use crate::Result;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
@@ -84,7 +83,11 @@ impl TryFrom<RawConversation> for Conversation {
 
 #[async_trait::async_trait]
 pub trait StorageService: Send + Sync {
-    async fn set_conversation(&self, request: &ProviderRequest, id: Option<ConversationId>) -> Result<Conversation>;
+    async fn set_conversation(
+        &self,
+        request: &ProviderRequest,
+        id: Option<ConversationId>,
+    ) -> Result<Conversation>;
     async fn get_conversation(&self, id: ConversationId) -> Result<Conversation>;
     async fn list_conversations(&self) -> Result<Vec<Conversation>>;
     async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation>;
@@ -102,7 +105,11 @@ impl<P: DbPoolService> Live<P> {
 
 #[async_trait::async_trait]
 impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
-    async fn set_conversation(&self, request: &ProviderRequest, id: Option<ConversationId>) -> Result<Conversation> {
+    async fn set_conversation(
+        &self,
+        request: &ProviderRequest,
+        id: Option<ConversationId>,
+    ) -> Result<Conversation> {
         let pool = self.pool_service.get_pool().await?;
         let mut conn = pool.get()?;
         let id = id.unwrap_or_else(ConversationId::generate);
@@ -145,8 +152,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
     async fn list_conversations(&self) -> Result<Vec<Conversation>> {
         let pool = self.pool_service.get_pool().await?;
         let mut conn = pool.get()?;
-        let raw: Vec<RawConversation> = conversations::table
-            .load(&mut conn)?;
+        let raw: Vec<RawConversation> = conversations::table.load(&mut conn)?;
 
         raw.into_iter().map(Conversation::try_from).collect()
     }
@@ -176,16 +182,16 @@ impl Service {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use super::super::db_pool_service::tests::TestDbPool;
     use forge_provider::ModelId;
+
+    use super::super::db_pool_service::tests::TestDbPool;
+    use super::*;
     pub struct TestStorage;
     impl TestStorage {
         pub fn in_memory() -> Result<impl StorageService> {
             let pool_service = TestDbPool::new(MIGRATIONS)?;
             Ok(Live::new(pool_service))
         }
-        
     }
 
     #[tokio::test]

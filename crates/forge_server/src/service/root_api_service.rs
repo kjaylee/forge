@@ -80,7 +80,11 @@ impl RootAPIService for Live {
     }
 
     async fn context(&self, conversation_id: ConversationId) -> Result<Request> {
-        Ok(self.storage.get_conversation(conversation_id).await?.context)
+        Ok(self
+            .storage
+            .get_conversation(conversation_id)
+            .await?
+            .context)
     }
 
     async fn models(&self) -> Result<Vec<Model>> {

@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-
 const SERVER_PORT: u16 = 8080;
 
 use axum::extract::{Json, State};
@@ -17,7 +16,9 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{ChatRequest, Conversation, ConversationId, Errata, File, Result, RootAPIService, Service};
+use crate::{
+    ChatRequest, Conversation, ConversationId, Errata, File, Result, RootAPIService, Service,
+};
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
