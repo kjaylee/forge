@@ -204,7 +204,7 @@ pub enum ChatResponse {
     ToolUseDetected(ToolName),
     ToolCallStart(ToolCall),
     ToolUseEnd(ToolResult),
-    ConversationStarted{
+    ConversationStarted {
         conversation_id: ConversationId,
     },
     Complete,
@@ -380,7 +380,9 @@ mod tests {
             .messages;
 
         let expected = vec![
-            ChatResponse::ConversationStarted{conversation_id: crate::ConversationId::generate()},
+            ChatResponse::ConversationStarted {
+                conversation_id: crate::ConversationId::generate(),
+            },
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::Complete,
         ];
