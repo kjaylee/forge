@@ -13,7 +13,7 @@ use tokio_stream::StreamExt;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
-use super::{ConversationId, Service, StorageService};
+use super::{ConversationId, ConversationService, Service};
 use crate::{Errata, Error, Result};
 
 #[async_trait::async_trait]
@@ -27,7 +27,7 @@ impl Service {
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
         user_prompt: Arc<dyn UserPromptService>,
-        storage: Arc<dyn StorageService>,
+        storage: Arc<dyn ConversationService>,
     ) -> impl NeoChatService {
         Live::new(provider, system_prompt, tool, user_prompt, storage)
     }
@@ -39,7 +39,7 @@ struct Live {
     system_prompt: Arc<dyn SystemPromptService>,
     tool: Arc<dyn ToolService>,
     user_prompt: Arc<dyn UserPromptService>,
-    storage: Arc<dyn StorageService>,
+    storage: Arc<dyn ConversationService>,
 }
 
 impl Live {
@@ -48,7 +48,7 @@ impl Live {
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
         user_prompt: Arc<dyn UserPromptService>,
-        storage: Arc<dyn StorageService>,
+        storage: Arc<dyn ConversationService>,
     ) -> Self {
         Self { provider, system_prompt, tool, user_prompt, storage }
     }
@@ -259,10 +259,12 @@ mod tests {
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
-    use super::{ChatRequest, ChatResponse, Live, NeoChatService};
+    use super::{ChatRequest, Live};
+    use crate::conversation_service::tests::TestStorage;
+    use crate::service::neo_chat_service::NeoChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
-    use crate::storage_service::{tests::TestStorage, ConversationId};
+    use crate::ChatResponse;
 
     impl ChatRequest {
         pub fn new(content: impl ToString) -> ChatRequest {
@@ -378,7 +380,7 @@ mod tests {
             .messages;
 
         let expected = vec![
-            ChatResponse::ConversationStarted{conversation_id: ConversationId::generate()},
+            ChatResponse::ConversationStarted{conversation_id: crate::ConversationId::generate()},
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::Complete,
         ];
