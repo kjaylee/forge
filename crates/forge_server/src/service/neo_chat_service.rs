@@ -165,6 +165,13 @@ impl NeoChatService for Live {
             .await?
             .id;
 
+        // Send the conversation ID back to the client if this is a new conversation
+        if chat.conversation_id.is_none() {
+            tx.send(Ok(ChatResponse::ConversationStarted { conversation_id }))
+                .await
+                .unwrap();
+        }
+
         let that = self.clone();
         tokio::spawn(async move {
             // TODO: simplify this match.
@@ -200,6 +207,9 @@ pub enum ChatResponse {
     ToolUseDetected(ToolName),
     ToolCallStart(ToolCall),
     ToolUseEnd(ToolResult),
+    ConversationStarted{
+        conversation_id: ConversationId,
+    },
     Complete,
     Error(Errata),
 }
@@ -252,12 +262,10 @@ mod tests {
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
-    use super::{ChatRequest, Live};
-    use crate::service::neo_chat_service::NeoChatService;
+    use super::{ChatRequest, ChatResponse, Live, NeoChatService};
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
-    use crate::storage_service::tests::TestStorage;
-    use crate::ChatResponse;
+    use crate::storage_service::{tests::TestStorage, ConversationId};
 
     impl ChatRequest {
         pub fn new(content: impl ToString) -> ChatRequest {
@@ -373,10 +381,17 @@ mod tests {
             .messages;
 
         let expected = vec![
+            ChatResponse::ConversationStarted(ConversationId::generate()),
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::Complete,
         ];
-        assert_eq!(actual, expected)
+        // We can't directly compare the ConversationStarted IDs since they're randomly generated
+        assert_eq!(actual.len(), expected.len());
+        match (&actual[0], &expected[0]) {
+            (ChatResponse::ConversationStarted(_), ChatResponse::ConversationStarted(_)) => (),
+            _ => panic!("First message should be ConversationStarted"),
+        }
+        assert_eq!(&actual[1..], &expected[1..]);
     }
 
     #[tokio::test]
@@ -430,7 +445,10 @@ mod tests {
             .await
             .messages;
 
-        let expected = vec![
+        // Skip comparing the first message (ConversationStarted) since it has a random ID
+        assert!(matches!(actual[0], ChatResponse::ConversationStarted(_)));
+
+        let expected_remaining = vec![
             ChatResponse::Text("Let's use foo tool".to_string()),
             ChatResponse::ToolUseDetected(ToolName::new("foo")),
             ChatResponse::ToolCallStart(
@@ -449,7 +467,7 @@ mod tests {
             ChatResponse::Complete,
         ];
 
-        assert_eq!(actual, expected);
+        assert_eq!(&actual[1..], &expected_remaining);
     }
 
     #[tokio::test]
