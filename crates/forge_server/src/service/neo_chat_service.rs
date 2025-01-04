@@ -204,7 +204,7 @@ pub enum ChatResponse {
     ToolUseDetected(ToolName),
     ToolCallStart(ToolCall),
     ToolUseEnd(ToolResult),
-    ConversationStarted {
+    ConversationStarted{
         conversation_id: ConversationId,
     },
     Complete,
@@ -380,22 +380,11 @@ mod tests {
             .messages;
 
         let expected = vec![
-            ChatResponse::ConversationStarted {
-                conversation_id: crate::ConversationId::generate(),
-            },
+            ChatResponse::ConversationStarted{conversation_id: crate::ConversationId::generate()},
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::Complete,
         ];
-        // We can't directly compare the ConversationStarted IDs since they're randomly
-        // generated
         assert_eq!(actual.len(), expected.len());
-        match (&actual[0], &expected[0]) {
-            (
-                ChatResponse::ConversationStarted { conversation_id: _ },
-                ChatResponse::ConversationStarted { conversation_id: _ },
-            ) => (),
-            _ => panic!("First message should be ConversationStarted"),
-        }
         assert_eq!(&actual[1..], &expected[1..]);
     }
 
@@ -450,14 +439,7 @@ mod tests {
             .await
             .messages;
 
-        // Skip comparing the first message (ConversationStarted) since it has a random
-        // ID
-        assert!(matches!(
-            actual[0],
-            ChatResponse::ConversationStarted { conversation_id: _ }
-        ));
-
-        let expected_remaining = vec![
+        let expected = vec![
             ChatResponse::Text("Let's use foo tool".to_string()),
             ChatResponse::ToolUseDetected(ToolName::new("foo")),
             ChatResponse::ToolCallStart(
@@ -476,7 +458,7 @@ mod tests {
             ChatResponse::Complete,
         ];
 
-        assert_eq!(&actual[1..], &expected_remaining);
+        assert_eq!(&actual[1..], &expected);
     }
 
     #[tokio::test]
