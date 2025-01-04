@@ -204,6 +204,44 @@ pub enum ChatResponse {
     Error(Errata),
 }
 
+#[derive(Default,Debug, Clone, Serialize)]
+pub struct ConversationHistory{
+    pub messages: Vec<ChatResponse>,
+}
+
+impl From<Request> for ConversationHistory {
+    fn from(request: Request) -> Self {
+        let messages = request
+            .messages
+            .iter()
+            .filter(|message| {
+                match message {
+                    CompletionMessage::ContentMessage(content) => {
+                        content.role != forge_provider::Role::System
+                    }
+                    CompletionMessage::ToolMessage(_) => {
+                        true
+                    }
+                }
+            })
+            .flat_map(|message| {
+                match message {
+                    CompletionMessage::ContentMessage(content) => {
+                        let mut messages = vec![ChatResponse::Text(content.content.clone())];
+                        if let Some(tool_call) = &content.tool_call {
+                            messages.push(ChatResponse::ToolCallStart(tool_call.clone()));
+                        }
+                        messages
+                    },
+                    CompletionMessage::ToolMessage(result) => vec![ChatResponse::ToolUseEnd(result.clone())],
+                }
+            })
+            .collect();
+        Self { messages }
+    }
+
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::{Arc, Mutex};

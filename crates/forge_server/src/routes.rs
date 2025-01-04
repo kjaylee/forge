@@ -16,9 +16,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{
-    ChatRequest, Conversation, ConversationId, Errata, File, Result, RootAPIService, Service,
-};
+use crate::{ChatRequest, Conversation, ConversationHistory, ConversationId, Errata, File, Result, RootAPIService, Service};
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
@@ -62,6 +60,7 @@ impl API {
             .route("/context/{id}", get(context_handler))
             .route("/context/{id}/html", get(context_html_handler))
             .route("/conversations", get(conversations_handler))
+            .route("/conversation/{id}", get(history_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -140,9 +139,16 @@ async fn models_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<Mo
 
 async fn conversations_handler(
     State(state): State<Arc<dyn RootAPIService>>,
-) -> Json<ConversationResponse> {
+) -> Json<ConversationsResponse> {
     let conversations = state.conversations().await.unwrap_or_default();
-    Json(ConversationResponse { conversations })
+    Json(ConversationsResponse { conversations })
+}
+
+async fn history_handler(
+    State(state): State<Arc<dyn RootAPIService>>,
+    axum::extract::Path(id): axum::extract::Path<ConversationId>,
+) -> Json<ConversationHistory> {
+    Json(state.conversation(id).await.unwrap_or_default())
 }
 
 #[axum::debug_handler]
@@ -170,6 +176,6 @@ pub struct ToolResponse {
 }
 
 #[derive(Serialize)]
-pub struct ConversationResponse {
+pub struct ConversationsResponse {
     conversations: Vec<Conversation>,
 }

@@ -5,7 +5,7 @@ use forge_provider::{Model, ProviderService, Request, ResultStream};
 use forge_tool::{ToolDefinition, ToolService};
 
 use super::completion_service::CompletionService;
-use super::neo_chat_service::NeoChatService;
+use super::neo_chat_service::{ConversationHistory, NeoChatService};
 use super::{ConversationId, Service, StorageService};
 use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
 
@@ -17,6 +17,7 @@ pub trait RootAPIService: Send + Sync {
     async fn models(&self) -> Result<Vec<Model>>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
+    async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
 }
 
 impl Service {
@@ -97,5 +98,9 @@ impl RootAPIService for Live {
 
     async fn conversations(&self) -> Result<Vec<Conversation>> {
         self.storage.list_conversations().await
+    }
+
+    async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory> {
+        Ok(self.storage.get_conversation(conversation_id).await?.context.into())
     }
 }
