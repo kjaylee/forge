@@ -101,6 +101,11 @@ impl RootAPIService for Live {
     }
 
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory> {
-        Ok(self.storage.get_conversation(conversation_id).await?.context.into())
+        Ok(self
+            .storage
+            .get_conversation(conversation_id)
+            .await?
+            .context
+            .into())
     }
 }
