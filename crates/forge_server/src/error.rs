@@ -1,16 +1,13 @@
 use std::fmt::{Debug, Display, Formatter};
 
-use derive_more::derive::{Display, From};
+use derive_more::derive::Display;
 use derive_setters::Setters;
-use diesel::r2d2;
 use serde::{Deserialize, Serialize};
 
-#[derive(Display, From)]
+#[derive(Display, derive_more::From)]
 pub enum Error {
-    // TODO: drop `Custom` because its too generic
-    Custom(String),
-    DatabaseConnectionError(r2d2::PoolError),
     DatabaseQueryError(diesel::result::Error),
+    DieselError(diesel::ConnectionError),
     Provider(forge_provider::Error),
     IO(std::io::Error),
     Var(std::env::VarError),
@@ -20,6 +17,15 @@ pub enum Error {
     Env(forge_env::Error),
     ToolCallMissingName,
     Handlebars(handlebars::RenderError),
+    BoxedError(Box<dyn std::error::Error + Send + Sync>),
+    DieselR2D2(diesel::r2d2::Error),
+    R2D2(r2d2::Error),
+}
+
+impl Error {
+    pub fn from_std_error<T: std::error::Error + Send + Sync + 'static>(err: T) -> Self {
+        Error::BoxedError(Box::new(err))
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -100,7 +106,6 @@ impl From<&Error> for Errata {
 
 #[cfg(test)]
 mod tests {
-
     use pretty_assertions::assert_eq;
 
     use super::*;

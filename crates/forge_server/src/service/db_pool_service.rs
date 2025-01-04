@@ -7,6 +7,8 @@ use crate::Result;
 
 pub type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
+const DB_NAME: &str = "conversations.db";
+
 #[async_trait::async_trait]
 pub trait DbPoolService: Send + Sync {
     async fn get_pool(&self) -> Result<DbPool>;
@@ -17,21 +19,17 @@ pub struct LiveDbPool {
 }
 
 impl LiveDbPool {
-    pub fn new(cwd: &str, migrations: EmbeddedMigrations) -> Result<Self> {
-        let db_path = format!("{}/conversations.db", cwd);
+    pub fn connect(cwd: &str, migrations: EmbeddedMigrations) -> Result<Self> {
+        let db_path = format!("{}/{}", cwd, DB_NAME);
 
         // Run migrations first
-        let mut conn = SqliteConnection::establish(&db_path)
-            .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
-        conn.run_pending_migrations(migrations)
-            .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
+        let mut conn = SqliteConnection::establish(&db_path)?;
+        conn.run_pending_migrations(migrations)?;
         drop(conn);
 
         // Create connection pool
         let manager = ConnectionManager::<SqliteConnection>::new(db_path);
-        let pool = Pool::builder()
-            .build(manager)
-            .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
+        let pool = Pool::builder().build(manager)?;
 
         Ok(Self { pool })
     }
@@ -66,17 +64,13 @@ pub mod tests {
                 .to_string();
 
             // Run migrations
-            let mut conn = SqliteConnection::establish(&db_path)
-                .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
-            conn.run_pending_migrations(migrations)
-                .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
+            let mut conn = SqliteConnection::establish(&db_path)?;
+            conn.run_pending_migrations(migrations)?;
             drop(conn);
 
             // Create connection pool
             let manager = ConnectionManager::<SqliteConnection>::new(db_path);
-            let pool = Pool::builder()
-                .build(manager)
-                .map_err(|e| crate::error::Error::Custom(e.to_string()))?;
+            let pool = Pool::builder().build(manager)?;
 
             Ok(Self { pool, _temp_dir: temp_dir })
         }

@@ -7,6 +7,7 @@ use forge_provider::{
 };
 use forge_tool::{ToolName, ToolService};
 use serde::Serialize;
+use serde_json::Value;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
@@ -108,7 +109,8 @@ impl Live {
                     let value = self
                         .tool
                         .call(&tool_call.name, tool_call.arguments.clone())
-                        .await?;
+                        .await
+                        .unwrap_or_else(|error| Value::from(format!("<error>{}</error>", error)));
 
                     let tool_result = ToolResult::from(tool_call).content(value);
                     some_tool_result = Some(tool_result.clone());

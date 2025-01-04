@@ -177,7 +177,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
 
 impl Service {
     pub fn storage_service(database_url: &str) -> Result<impl StorageService> {
-        let pool_service = LiveDbPool::new(database_url, MIGRATIONS)?;
+        let pool_service = LiveDbPool::connect(database_url, MIGRATIONS)?;
         Ok(Live::new(pool_service))
     }
 }

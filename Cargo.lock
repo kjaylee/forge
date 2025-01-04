@@ -880,6 +880,7 @@ dependencies = [
  "insta",
  "pretty_assertions",
  "pulldown-cmark",
+ "r2d2",
  "schemars",
  "serde",
  "serde_json",
