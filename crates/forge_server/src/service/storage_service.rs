@@ -181,7 +181,7 @@ pub mod tests {
     use forge_provider::ModelId;
     pub struct TestStorage;
     impl TestStorage {
-        pub fn live() -> Result<impl StorageService> {
+        pub fn in_memory() -> Result<impl StorageService> {
             let pool_service = TestDbPool::new(MIGRATIONS)?;
             Ok(Live::new(pool_service))
         }
@@ -190,7 +190,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_set_and_get_conversation() {
-        let ctx = TestStorage::live().expect("Failed to create storage service");
+        let ctx = TestStorage::in_memory().expect("Failed to create storage service");
         let request = ProviderRequest::new(ModelId::default());
         let id = ConversationId::generate();
 
@@ -213,7 +213,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_list_conversations() {
-        let ctx = TestStorage::live().expect("Failed to create storage service");
+        let ctx = TestStorage::in_memory().expect("Failed to create storage service");
         let request1 = ProviderRequest::new(ModelId::default());
         let request2 = ProviderRequest::new(ModelId::default());
         let id1 = ConversationId::generate();
@@ -240,7 +240,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_archive_conversation() {
-        let ctx = TestStorage::live().expect("Failed to create storage service");
+        let ctx = TestStorage::in_memory().expect("Failed to create storage service");
         let request = ProviderRequest::new(ModelId::default());
         let id = ConversationId::generate();
 
