@@ -384,7 +384,6 @@ mod tests {
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::Complete,
         ];
-        assert_eq!(actual.len(), expected.len());
         assert_eq!(&actual[1..], &expected[1..]);
     }
 
