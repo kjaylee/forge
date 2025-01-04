@@ -2,17 +2,14 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use derive_setters::Setters;
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Text, Timestamp};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use forge_provider::{Request as ProviderRequest, Request};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::Service;
 use crate::schema::conversations;
-use crate::service::db_pool_service::{DbPoolService, LiveDbPool};
+use crate::service::db_pool_service::DbPoolService;
 use crate::Result;
-
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 #[derive(Debug, Setters, Serialize, Deserialize)]
 pub struct Conversation {
@@ -110,7 +107,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
         request: &ProviderRequest,
         id: Option<ConversationId>,
     ) -> Result<Conversation> {
-        let pool = self.pool_service.get_pool().await?;
+        let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let id = id.unwrap_or_else(ConversationId::generate);
 
@@ -140,7 +137,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
     }
 
     async fn get_conversation(&self, id: ConversationId) -> Result<Conversation> {
-        let pool = self.pool_service.get_pool().await?;
+        let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let raw: RawConversation = conversations::table
             .find(id.0.to_string())
@@ -150,7 +147,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
     }
 
     async fn list_conversations(&self) -> Result<Vec<Conversation>> {
-        let pool = self.pool_service.get_pool().await?;
+        let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let raw: Vec<RawConversation> = conversations::table
             .filter(conversations::archived.eq(false))
@@ -160,7 +157,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
     }
 
     async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation> {
-        let pool = self.pool_service.get_pool().await?;
+        let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
 
         diesel::update(conversations::table.find(id.0.to_string()))
@@ -177,7 +174,7 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
 
 impl Service {
     pub fn storage_service(database_url: &str) -> Result<impl StorageService> {
-        let pool_service = LiveDbPool::connect(database_url, MIGRATIONS)?;
+        let pool_service = Service::db_pool_service(database_url)?;
         Ok(Live::new(pool_service))
     }
 }
@@ -191,7 +188,7 @@ pub mod tests {
     pub struct TestStorage;
     impl TestStorage {
         pub fn in_memory() -> Result<impl StorageService> {
-            let pool_service = TestDbPool::new(MIGRATIONS)?;
+            let pool_service = TestDbPool::new()?;
             Ok(Live::new(pool_service))
         }
     }
@@ -210,16 +207,11 @@ pub mod tests {
 
     #[tokio::test]
     async fn conversation_can_be_stored_and_retrieved() {
-        let storage = setup_storage().await.expect("storage setup failed");
+        let storage = setup_storage().await.unwrap();
         let id = ConversationId::generate();
 
-        let saved = create_conversation(&storage, Some(id))
-            .await
-            .expect("failed to create conversation");
-        let retrieved = storage
-            .get_conversation(id)
-            .await
-            .expect("failed to retrieve conversation");
+        let saved = create_conversation(&storage, Some(id)).await.unwrap();
+        let retrieved = storage.get_conversation(id).await.unwrap();
 
         assert_eq!(saved.id.0, retrieved.id.0);
         assert_eq!(saved.context, retrieved.context);
@@ -227,28 +219,16 @@ pub mod tests {
 
     #[tokio::test]
     async fn list_returns_active_conversations() {
-        let storage = setup_storage().await.expect("storage setup failed");
+        let storage = setup_storage().await.unwrap();
 
-        let conv1 = create_conversation(&storage, None)
-            .await
-            .expect("failed to create first conversation");
-        let conv2 = create_conversation(&storage, None)
-            .await
-            .expect("failed to create second conversation");
-        let conv3 = create_conversation(&storage, None)
-            .await
-            .expect("failed to create third conversation");
+        let conv1 = create_conversation(&storage, None).await.unwrap();
+        let conv2 = create_conversation(&storage, None).await.unwrap();
+        let conv3 = create_conversation(&storage, None).await.unwrap();
 
         // Archive one conversation
-        storage
-            .archive_conversation(conv2.id)
-            .await
-            .expect("failed to archive conversation");
+        storage.archive_conversation(conv2.id).await.unwrap();
 
-        let conversations = storage
-            .list_conversations()
-            .await
-            .expect("failed to list conversations");
+        let conversations = storage.list_conversations().await.unwrap();
 
         assert_eq!(conversations.len(), 2);
         assert!(conversations.iter().all(|c| !c.archived));
@@ -259,15 +239,10 @@ pub mod tests {
 
     #[tokio::test]
     async fn archive_marks_conversation_as_archived() {
-        let storage = setup_storage().await.expect("storage setup failed");
-        let conversation = create_conversation(&storage, None)
-            .await
-            .expect("failed to create conversation");
+        let storage = setup_storage().await.unwrap();
+        let conversation = create_conversation(&storage, None).await.unwrap();
 
-        let archived = storage
-            .archive_conversation(conversation.id)
-            .await
-            .expect("failed to archive conversation");
+        let archived = storage.archive_conversation(conversation.id).await.unwrap();
 
         assert!(archived.archived);
         assert_eq!(archived.id, conversation.id);
