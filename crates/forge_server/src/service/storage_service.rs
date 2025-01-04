@@ -152,7 +152,8 @@ impl<P: DbPoolService + Send + Sync> StorageService for Live<P> {
     async fn list_conversations(&self) -> Result<Vec<Conversation>> {
         let pool = self.pool_service.get_pool().await?;
         let mut conn = pool.get()?;
-        let raw: Vec<RawConversation> = conversations::table.load(&mut conn)?;
+        let raw: Vec<RawConversation> = conversations::table.filter(conversations::archived.eq(false))
+            .load(&mut conn)?;
 
         raw.into_iter().map(Conversation::try_from).collect()
     }
@@ -208,7 +209,7 @@ pub mod tests {
         let storage = setup_storage().await.expect("storage setup failed");
         let id = ConversationId::generate();
         
-        let saved = create_conversation(&storage, Some(id.clone()))
+        let saved = create_conversation(&storage, Some(id))
             .await
             .expect("failed to create conversation");
         let retrieved = storage
@@ -221,11 +222,15 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn list_returns_all_conversations() {
+    async fn list_returns_active_conversations() {
         let storage = setup_storage().await.expect("storage setup failed");
         
-        create_conversation(&storage, None).await.expect("failed to create first conversation");
-        create_conversation(&storage, None).await.expect("failed to create second conversation");
+        let conv1 = create_conversation(&storage, None).await.expect("failed to create first conversation");
+        let conv2 = create_conversation(&storage, None).await.expect("failed to create second conversation");
+        let conv3 = create_conversation(&storage, None).await.expect("failed to create third conversation");
+
+        // Archive one conversation
+        storage.archive_conversation(conv2.id).await.expect("failed to archive conversation");
 
         let conversations = storage
             .list_conversations()
@@ -233,8 +238,10 @@ pub mod tests {
             .expect("failed to list conversations");
 
         assert_eq!(conversations.len(), 2);
-        assert!(!conversations[0].archived);
-        assert!(!conversations[1].archived);
+        assert!(conversations.iter().all(|c| !c.archived));
+        assert!(conversations.iter().any(|c| c.id == conv1.id));
+        assert!(conversations.iter().any(|c| c.id == conv3.id));
+        assert!(conversations.iter().all(|c| c.id != conv2.id));
     }
 
     #[tokio::test]
