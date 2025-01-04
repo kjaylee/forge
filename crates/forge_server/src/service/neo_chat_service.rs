@@ -61,7 +61,7 @@ impl Live {
     ) -> Result<()> {
         loop {
             self.storage
-                .set_conversation(&request, Some(conversation_id.clone()))
+                .set_conversation(&request, Some(conversation_id))
                 .await?;
             let mut tool_call_parts = Vec::new();
             let mut some_tool_call = None;
@@ -131,7 +131,7 @@ impl Live {
                 break Ok(());
             }
             self.storage
-                .set_conversation(&request, Some(conversation_id.clone()))
+                .set_conversation(&request, Some(conversation_id))
                 .await?;
         }
     }
@@ -147,7 +147,7 @@ impl NeoChatService for Live {
         let req = if let Some(conversation_id) = &chat.conversation_id {
             let conversation = self
                 .storage
-                .get_conversation(conversation_id.clone())
+                .get_conversation(*conversation_id)
                 .await?;
             conversation.context
         } else {
