@@ -145,10 +145,7 @@ impl NeoChatService for Live {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let req = if let Some(conversation_id) = &chat.conversation_id {
-            let conversation = self
-                .storage
-                .get_conversation(*conversation_id)
-                .await?;
+            let conversation = self.storage.get_conversation(*conversation_id).await?;
             conversation.context
         } else {
             Request::default()
