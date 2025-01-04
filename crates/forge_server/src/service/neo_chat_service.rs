@@ -164,14 +164,11 @@ impl NeoChatService for Live {
             .set_conversation(&request, chat.conversation_id)
             .await?
             .id;
-
-        // Send the conversation ID back to the client if this is a new conversation
         if chat.conversation_id.is_none() {
             tx.send(Ok(ChatResponse::ConversationStarted { conversation_id }))
                 .await
                 .unwrap();
         }
-
         let that = self.clone();
         tokio::spawn(async move {
             // TODO: simplify this match.
@@ -381,14 +378,14 @@ mod tests {
             .messages;
 
         let expected = vec![
-            ChatResponse::ConversationStarted(ConversationId::generate()),
+            ChatResponse::ConversationStarted{conversation_id: ConversationId::generate()},
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::Complete,
         ];
         // We can't directly compare the ConversationStarted IDs since they're randomly generated
         assert_eq!(actual.len(), expected.len());
         match (&actual[0], &expected[0]) {
-            (ChatResponse::ConversationStarted(_), ChatResponse::ConversationStarted(_)) => (),
+            (ChatResponse::ConversationStarted{ conversation_id: _ }, ChatResponse::ConversationStarted{ conversation_id: _ }) => (),
             _ => panic!("First message should be ConversationStarted"),
         }
         assert_eq!(&actual[1..], &expected[1..]);
@@ -446,7 +443,7 @@ mod tests {
             .messages;
 
         // Skip comparing the first message (ConversationStarted) since it has a random ID
-        assert!(matches!(actual[0], ChatResponse::ConversationStarted(_)));
+        assert!(matches!(actual[0], ChatResponse::ConversationStarted{ conversation_id: _ }));
 
         let expected_remaining = vec![
             ChatResponse::Text("Let's use foo tool".to_string()),
