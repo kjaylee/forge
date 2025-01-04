@@ -3,18 +3,17 @@ use std::sync::Arc;
 use forge_env::Environment;
 use forge_provider::{Model, ProviderService, Request, ResultStream};
 use forge_tool::{ToolDefinition, ToolService};
-use uuid::Uuid;
 
 use super::completion_service::CompletionService;
 use super::neo_chat_service::NeoChatService;
-use super::{Service, StorageService};
+use super::{ConversationId, Service, StorageService};
 use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
 
 #[async_trait::async_trait]
 pub trait RootAPIService: Send + Sync {
     async fn completions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
-    async fn context(&self, conversation_id: Uuid) -> Request;
+    async fn context(&self, conversation_id: ConversationId) -> Result<Request>;
     async fn models(&self) -> Result<Vec<Model>>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
@@ -80,8 +79,8 @@ impl RootAPIService for Live {
         self.tool.list()
     }
 
-    async fn context(&self, conversation_id: Uuid) -> Request {
-        self.storage.get_request(conversation_id).await
+    async fn context(&self, conversation_id: ConversationId) -> Result<Request> {
+        Ok(self.storage.get_conversation(conversation_id).await?.context)
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
@@ -93,6 +92,6 @@ impl RootAPIService for Live {
     }
 
     async fn conversations(&self) -> Result<Vec<Conversation>> {
-        self.storage.get_all_conversation().await
+        self.storage.list_conversations().await
     }
 }

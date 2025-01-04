@@ -2,32 +2,30 @@ mod completion_service;
 mod file_read_service;
 mod neo_chat_service;
 mod root_api_service;
-mod storage_service;
+pub mod storage_service;
 mod system_prompt_service;
 mod user_prompt_service;
+pub mod db_pool_service;
 pub use completion_service::File;
 pub use neo_chat_service::{ChatRequest, ChatResponse};
 pub use root_api_service::*;
-pub use storage_service::*;
+pub use storage_service::{StorageService, Conversation, ConversationId};
 
 pub struct Service;
 
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use std::sync::Mutex;
 
-    use chrono::DateTime;
     use derive_setters::Setters;
     use forge_provider::{
         Model, ModelId, Parameters, ProviderError, ProviderService, Request, Response, ResultStream,
     };
     use serde_json::json;
+    
     use tokio_stream::StreamExt;
-    use uuid::Uuid;
 
-    use super::storage_service::Conversation;
     use super::system_prompt_service::SystemPromptService;
-    use super::StorageService;
     use crate::Result;
 
     pub struct TestSystemPrompt {
@@ -93,48 +91,5 @@ mod tests {
             }
         }
     }
+}    
 
-    pub struct TestStorage {
-        conversation_id: Arc<Mutex<Uuid>>,
-    }
-
-    impl Default for TestStorage {
-        fn default() -> Self {
-            Self { conversation_id: Arc::new(Mutex::new(Uuid::new_v4())) }
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl StorageService for TestStorage {
-        async fn create_conversation(&self, _request: &Request) -> Result<Conversation> {
-            let id = *self.conversation_id.lock().unwrap();
-            Ok(Conversation {
-                id,
-                created_at: DateTime::from_timestamp(0, 0).unwrap(),
-                updated_at: DateTime::from_timestamp(0, 0).unwrap(),
-                content: String::new(),
-            })
-        }
-
-        async fn get_request(&self, _id: Uuid) -> Request {
-            Request::new(ModelId::default())
-        }
-
-        async fn get_all_conversation(&self) -> Result<Vec<Conversation>> {
-            Ok(vec![])
-        }
-
-        async fn update_conversation(
-            &self,
-            _id: Uuid,
-            _request: &Request,
-        ) -> Result<Option<Conversation>> {
-            Ok(Some(Conversation {
-                id: *self.conversation_id.lock().unwrap(),
-                created_at: DateTime::from_timestamp(0, 0).unwrap(),
-                updated_at: DateTime::from_timestamp(0, 0).unwrap(),
-                content: String::new(),
-            }))
-        }
-    }
-}

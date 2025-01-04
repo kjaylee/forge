@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use uuid::Uuid;
 
 const SERVER_PORT: u16 = 8080;
 
@@ -18,7 +17,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{ChatRequest, Conversation, Errata, File, Result, RootAPIService, Service};
+use crate::{ChatRequest, Conversation, ConversationId, Errata, File, Result, RootAPIService, Service};
 
 pub struct API {
     // TODO: rename Conversation to Server and drop Server
@@ -35,9 +34,9 @@ impl Default for API {
 
 async fn context_html_handler(
     State(state): State<Arc<dyn RootAPIService>>,
-    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    axum::extract::Path(id): axum::extract::Path<ConversationId>,
 ) -> Html<String> {
-    let context = state.context(id).await;
+    let context = state.context(id).await.unwrap();
     let engine = ContextEngine::new(context);
     Html(engine.render_html())
 }
@@ -148,9 +147,9 @@ async fn conversations_handler(
 #[axum::debug_handler]
 async fn context_handler(
     State(state): State<Arc<dyn RootAPIService>>,
-    axum::extract::Path(id): axum::extract::Path<Uuid>,
+    axum::extract::Path(id): axum::extract::Path<ConversationId>,
 ) -> Json<ContextResponse> {
-    let context = state.context(id).await;
+    let context = state.context(id).await.unwrap();
     Json(ContextResponse { context })
 }
 

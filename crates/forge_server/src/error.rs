@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 pub enum Error {
     // TODO: drop `Custom` because its too generic
     Custom(String),
-    DatabaseError(r2d2::Error),
+    DatabaseConnectionError(r2d2::PoolError),
+    DatabaseQueryError(diesel::result::Error),
     Provider(forge_provider::Error),
     IO(std::io::Error),
     Var(std::env::VarError),
