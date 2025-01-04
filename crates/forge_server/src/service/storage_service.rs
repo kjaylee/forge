@@ -34,7 +34,7 @@ impl Conversation {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
 #[serde(transparent)]
 pub struct ConversationId(Uuid);
 
@@ -194,76 +194,62 @@ pub mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_set_and_get_conversation() {
-        let ctx = TestStorage::in_memory().expect("Failed to create storage service");
+    async fn setup_storage() -> Result<impl StorageService> {
+        TestStorage::in_memory()
+    }
+
+    async fn create_conversation(storage: &impl StorageService, id: Option<ConversationId>) -> Result<Conversation> {
         let request = ProviderRequest::new(ModelId::default());
-        let id = ConversationId::generate();
-
-        // Set conversation
-        let conversation = ctx
-            .set_conversation(&request, Some(id.clone()))
-            .await
-            .expect("Failed to set conversation");
-
-        assert_eq!(conversation.id.0, id.0);
-
-        // Get conversation
-        let retrieved = ctx
-            .get_conversation(id.clone())
-            .await
-            .expect("Failed to get conversation");
-
-        assert_eq!(retrieved.id.0, id.0);
+        storage.set_conversation(&request, id).await
     }
 
     #[tokio::test]
-    async fn test_list_conversations() {
-        let ctx = TestStorage::in_memory().expect("Failed to create storage service");
-        let request1 = ProviderRequest::new(ModelId::default());
-        let request2 = ProviderRequest::new(ModelId::default());
-        let id1 = ConversationId::generate();
-        let id2 = ConversationId::generate();
-
-        // Create two conversations
-        let _conv1 = ctx
-            .set_conversation(&request1, Some(id1))
+    async fn conversation_can_be_stored_and_retrieved() {
+        let storage = setup_storage().await.expect("storage setup failed");
+        let id = ConversationId::generate();
+        
+        let saved = create_conversation(&storage, Some(id.clone()))
             .await
-            .expect("Failed to set first conversation");
-        let _conv2 = ctx
-            .set_conversation(&request2, Some(id2))
+            .expect("failed to create conversation");
+        let retrieved = storage
+            .get_conversation(id)
             .await
-            .expect("Failed to set second conversation");
+            .expect("failed to retrieve conversation");
 
-        // List all conversations
-        let conversations = ctx
+        assert_eq!(saved.id.0, retrieved.id.0);
+        assert_eq!(saved.context, retrieved.context);
+    }
+
+    #[tokio::test]
+    async fn list_returns_all_conversations() {
+        let storage = setup_storage().await.expect("storage setup failed");
+        
+        create_conversation(&storage, None).await.expect("failed to create first conversation");
+        create_conversation(&storage, None).await.expect("failed to create second conversation");
+
+        let conversations = storage
             .list_conversations()
             .await
-            .expect("Failed to list conversations");
+            .expect("failed to list conversations");
 
         assert_eq!(conversations.len(), 2);
+        assert!(!conversations[0].archived);
+        assert!(!conversations[1].archived);
     }
 
     #[tokio::test]
-    async fn test_archive_conversation() {
-        let ctx = TestStorage::in_memory().expect("Failed to create storage service");
-        let request = ProviderRequest::new(ModelId::default());
-        let id = ConversationId::generate();
-
-        // Create conversation
-        let conversation = ctx
-            .set_conversation(&request, Some(id.clone()))
+    async fn archive_marks_conversation_as_archived() {
+        let storage = setup_storage().await.expect("storage setup failed");
+        let conversation = create_conversation(&storage, None)
             .await
-            .expect("Failed to set conversation");
+            .expect("failed to create conversation");
 
-        assert!(!conversation.archived);
-
-        // Archive conversation
-        let archived = ctx
-            .archive_conversation(id.clone())
+        let archived = storage
+            .archive_conversation(conversation.id)
             .await
-            .expect("Failed to archive conversation");
+            .expect("failed to archive conversation");
 
         assert!(archived.archived);
+        assert_eq!(archived.id, conversation.id);
     }
 }
