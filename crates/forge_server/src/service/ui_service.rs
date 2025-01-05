@@ -74,9 +74,9 @@ impl UIService for Live {
             .then(move |message| {
                 let conversation_service = conversation_service.clone();
                 async move {
-                    if let Ok(ChatResponse::ModifyConversation { id, context }) = &message {
+                    if let Ok(ChatResponse::ModifyContext(context)) = &message {
                         conversation_service
-                            .set_conversation(context, Some(*id))
+                            .set_conversation(context, request.conversation_id)
                             .await?;
                         message
                     } else {
@@ -84,7 +84,7 @@ impl UIService for Live {
                     }
                 }
             })
-            .filter(|message| !matches!(message, Ok(ChatResponse::ModifyConversation { .. })));
+            .filter(|message| !matches!(message, Ok(ChatResponse::ModifyContext { .. })));
 
         Ok(Box::pin(stream))
     }

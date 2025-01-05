@@ -21,7 +21,7 @@ pub trait ChatService: Send + Sync {
     async fn chat(
         &self,
         prompt: ChatRequest,
-        request: Context,
+        context: Context,
     ) -> ResultStream<ChatResponse, Error>;
 }
 
@@ -59,7 +59,6 @@ impl Live {
         &self,
         mut request: Context,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
-        conversation_id: ConversationId,
     ) -> Result<()> {
         loop {
             let mut tool_call_parts = Vec::new();
@@ -120,21 +119,15 @@ impl Live {
                 some_tool_call,
             ));
 
-            tx.send(Ok(ChatResponse::ModifyConversation {
-                id: conversation_id,
-                context: request.clone(),
-            }))
-            .await
-            .unwrap();
+            tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
+                .await
+                .unwrap();
 
             if let Some(tool_result) = some_tool_result {
                 request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                tx.send(Ok(ChatResponse::ModifyConversation {
-                    id: conversation_id,
-                    context: request.clone(),
-                }))
-                .await
-                .unwrap();
+                tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
+                    .await
+                    .unwrap();
             } else {
                 break Ok(());
             }
@@ -154,14 +147,12 @@ impl ChatService for Live {
             .add_message(ContextMessage::user(user_prompt))
             .tools(self.tool.list())
             .model(chat.model);
-        let conversation_id = chat.conversation_id.unwrap();
+
         let that = self.clone();
+
         tokio::spawn(async move {
             // TODO: simplify this match.
-            match that
-                .chat_workflow(request, tx.clone(), conversation_id)
-                .await
-            {
+            match that.chat_workflow(request, tx.clone()).await {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
@@ -193,10 +184,7 @@ pub enum ChatResponse {
     ConversationStarted {
         conversation_id: ConversationId,
     },
-    ModifyConversation {
-        id: ConversationId,
-        context: Context,
-    },
+    ModifyContext(Context),
     Complete,
     Error(Errata),
 }
@@ -363,7 +351,7 @@ mod tests {
             .await
             .messages
             .into_iter()
-            .filter(|msg| !matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .filter(|msg| !matches!(msg, ChatResponse::ModifyContext { .. }))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -425,7 +413,7 @@ mod tests {
             .await
             .messages
             .into_iter()
-            .filter(|msg| matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .filter(|msg| matches!(msg, ChatResponse::ModifyContext { .. }))
             .count();
 
         // Expected ModifyContext events:
@@ -490,7 +478,7 @@ mod tests {
             .await
             .messages
             .into_iter()
-            .filter(|msg| !matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .filter(|msg| !matches!(msg, ChatResponse::ModifyContext { .. }))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -546,7 +534,7 @@ mod tests {
             .await
             .messages
             .into_iter()
-            .filter(|msg| matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .filter(|msg| matches!(msg, ChatResponse::ModifyContext { .. }))
             .count();
 
         assert_eq!(actual, 3);
