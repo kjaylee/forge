@@ -42,51 +42,41 @@ impl UIService {
 #[async_trait::async_trait]
 impl UIServiceTrait for Live {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error> {
-        let mut is_new = false;
-       let req = if let Some(conversation_id) = &request.conversation_id {
-            self.conversation_service
+        let (req, is_new) = if let Some(conversation_id) = &request.conversation_id {
+            let context = self.conversation_service
                 .get_conversation(conversation_id.clone())
                 .await?
-                .context
+                .context;
+            (context, false)
         } else {
-            is_new = true;
-            Request::default()
+            (Request::default(), true)
         };
 
         let conversation = self.conversation_service.set_conversation(&req, None).await?;
-        let request = request.conversation_id(conversation.id);
+        let request = request.conversation_id(conversation.id.clone());
 
-        let stream = self
-            .neo_chat_service
-            .chat(request.clone(), Request::default())
-            .await?;
+        let mut stream = self.neo_chat_service.chat(request.clone(), Request::default()).await?;
 
-        let stream = if is_new {
+        if is_new {
             let id = conversation.id.clone();
-            Box::pin(once(Ok(ChatResponse::ConversationStarted {
-                conversation_id: id,
-            }))
-            .chain(stream))
-        } else {
-            stream
-        };
+            stream = Box::pin(once(Ok(ChatResponse::ConversationStarted { conversation_id: id })).chain(stream));
+        }
 
         let conversation_service = self.conversation_service.clone();
         let stream = stream.then(move |message| {
             let conversation_service = conversation_service.clone();
             async move {
-                match &message {
-                    Ok(ChatResponse::ModifyConversation { id, context }) => {
-                        match conversation_service.set_conversation(context, Some(id.clone())).await {
-                            Ok(_) => Ok(ChatResponse::Text("".to_string())),
-                            Err(e) => Err(e),
-                        }
+                if let Ok(ChatResponse::ModifyConversation { id, context }) = &message {
+                    if let Err(e) = conversation_service.set_conversation(context, Some(id.clone())).await {
+                        return Err(e);
                     }
-                    _ => message,
+                    Ok(ChatResponse::Text("".to_string()))
+                } else {
+                    message
                 }
             }
         });
 
-       Ok(Box::pin(stream))
+        Ok(Box::pin(stream))
     }
 }
