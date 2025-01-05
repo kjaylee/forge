@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
+use forge_domain::ModelId;
 use forge_env::Environment;
-use forge_provider::{ModelId, ProviderService};
+use forge_provider::ProviderService;
 use forge_tool::ToolService;
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -72,7 +73,7 @@ impl SystemPromptService for Live {
 
 #[cfg(test)]
 mod tests {
-    use forge_provider::Parameters;
+    use forge_domain::Parameters;
     use insta::assert_snapshot;
 
     use super::*;
@@ -91,11 +92,10 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::live());
-        let provider = Arc::new(TestProvider::default().parameters(vec![(
-            ModelId::default(),
-            Parameters::default().tool_supported(true),
-        )]));
+        let tools = Arc::new(forge_tool::Service::tool_service());
+        let provider = Arc::new(
+            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
+        );
         let prompt = Live::new(env, tools, provider)
             .get_system_prompt(&ModelId::default())
             .await
@@ -106,11 +106,10 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::live());
-        let provider = Arc::new(TestProvider::default().parameters(vec![(
-            ModelId::default(),
-            Parameters::default().tool_supported(false),
-        )]));
+        let tools = Arc::new(forge_tool::Service::tool_service());
+        let provider = Arc::new(
+            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
+        );
         let prompt = Live::new(env, tools, provider)
             .get_system_prompt(&ModelId::default())
             .await

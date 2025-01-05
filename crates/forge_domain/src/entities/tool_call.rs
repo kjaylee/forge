@@ -1,10 +1,9 @@
 use derive_setters::Setters;
-use forge_tool::ToolName;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::parser::parse;
-use crate::{Error, Result};
+use super::tool_call_parser::parse;
+use crate::{Error, Result, ToolName};
 
 /// Unique identifier for a using a tool
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -77,36 +76,5 @@ impl ToolCall {
     /// Parse multiple tool calls from XML format.
     pub fn try_from_xml(input: &str) -> std::result::Result<Vec<Self>, String> {
         parse(input)
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
-#[setters(strip_option)]
-pub struct ToolResult {
-    pub name: ToolName,
-    pub call_id: Option<ToolCallId>,
-    pub content: Value,
-    pub is_error: bool,
-}
-
-impl ToolResult {
-    pub fn new(name: ToolName) -> ToolResult {
-        Self {
-            name,
-            call_id: None,
-            content: Value::default(),
-            is_error: false,
-        }
-    }
-}
-
-impl From<ToolCall> for ToolResult {
-    fn from(value: ToolCall) -> Self {
-        Self {
-            name: value.name,
-            call_id: value.call_id,
-            content: Value::default(),
-            is_error: false,
-        }
     }
 }

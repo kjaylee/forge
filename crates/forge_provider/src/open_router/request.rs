@@ -1,9 +1,8 @@
 use derive_more::derive::Display;
-use forge_tool::{ToolDefinition, ToolName};
+use forge_domain::{Context, ContextMessage, ModelId, Role, ToolCallId, ToolDefinition, ToolName};
 use serde::{Deserialize, Serialize};
 
 use super::response::{FunctionCall, OpenRouterToolCall};
-use crate::{CompletionMessage, ModelId, Request, Role, ToolCallId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -185,8 +184,8 @@ impl From<ToolDefinition> for OpenRouterTool {
     }
 }
 
-impl From<Request> for OpenRouterRequest {
-    fn from(request: Request) -> Self {
+impl From<Context> for OpenRouterRequest {
+    fn from(request: Context) -> Self {
         OpenRouterRequest {
             messages: {
                 let messages = request
@@ -236,10 +235,10 @@ impl From<Request> for OpenRouterRequest {
     }
 }
 
-impl From<CompletionMessage> for OpenRouterMessage {
-    fn from(value: CompletionMessage) -> Self {
+impl From<ContextMessage> for OpenRouterMessage {
+    fn from(value: ContextMessage) -> Self {
         match value {
-            CompletionMessage::ContentMessage(chat_message) => OpenRouterMessage {
+            ContextMessage::ContentMessage(chat_message) => OpenRouterMessage {
                 role: chat_message.role.into(),
                 content: Some(MessageContent::Text(chat_message.content)),
                 name: None,
@@ -256,11 +255,9 @@ impl From<CompletionMessage> for OpenRouterMessage {
                     }]
                 }),
             },
-            CompletionMessage::ToolMessage(tool_result) => OpenRouterMessage {
+            ContextMessage::ToolMessage(tool_result) => OpenRouterMessage {
                 role: OpenRouterRole::Tool,
-                content: Some(MessageContent::Text(
-                    serde_json::to_string(&tool_result.content).unwrap(),
-                )),
+                content: Some(MessageContent::Text(tool_result.to_string())),
                 name: Some(tool_result.name),
                 tool_call_id: tool_result.call_id,
                 tool_calls: None,
@@ -298,4 +295,58 @@ pub enum OpenRouterRole {
     User,
     Assistant,
     Tool,
+}
+
+#[cfg(test)]
+mod tests {
+    use forge_domain::{
+        ContentMessage, ContextMessage, Role, ToolCall, ToolCallId, ToolName, ToolResult,
+    };
+    use insta::assert_json_snapshot;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_user_message_conversion() {
+        let user_message = ContextMessage::ContentMessage(ContentMessage {
+            role: Role::User,
+            content: "Hello".to_string(),
+            tool_call: None,
+        });
+        let router_message = OpenRouterMessage::from(user_message);
+        assert_json_snapshot!(router_message);
+    }
+
+    #[test]
+    fn test_assistant_message_with_tool_call_conversion() {
+        let tool_call = ToolCall {
+            call_id: Some(ToolCallId::new("123")),
+            name: ToolName::new("test_tool"),
+            arguments: json!({"key": "value"}),
+        };
+
+        let assistant_message = ContextMessage::ContentMessage(ContentMessage {
+            role: Role::Assistant,
+            content: "Using tool".to_string(),
+            tool_call: Some(tool_call),
+        });
+        let router_message = OpenRouterMessage::from(assistant_message);
+        assert_json_snapshot!(router_message);
+    }
+
+    #[test]
+    fn test_tool_message_conversion() {
+        let tool_result = ToolResult::new(ToolName::new("test_tool"))
+            .call_id(ToolCallId::new("123"))
+            .content(json!({
+               "user": "John",
+               "age": 30,
+               "address": [{"city": "New York"}, {"city": "San Francisco"}]
+            }));
+
+        let tool_message = ContextMessage::ToolMessage(tool_result);
+        let router_message = OpenRouterMessage::from(tool_message);
+        assert_json_snapshot!(router_message);
+    }
 }

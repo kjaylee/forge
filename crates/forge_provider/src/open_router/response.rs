@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use forge_tool::ToolName;
+use forge_domain::{
+    ChatCompletionMessage as ModelResponse, FinishReason, ToolCallId, ToolCallPart, ToolName,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
-use crate::model::{Response as ModelResponse, ToolCallPart};
-use crate::{FinishReason, ToolCallId};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterResponse {

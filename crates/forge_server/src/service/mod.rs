@@ -1,15 +1,15 @@
+mod chat_service;
 mod completion_service;
 pub mod conversation_service;
 pub mod db_service;
 mod file_read_service;
-mod neo_chat_service;
 mod root_api_service;
 mod system_prompt_service;
 mod user_prompt_service;
 mod ui_service;
 pub use completion_service::File;
 pub use conversation_service::{Conversation, ConversationId, ConversationService};
-pub use neo_chat_service::{ChatRequest, ChatResponse, ConversationHistory, NeoChatService};
+pub use chat_service::{ChatRequest, ChatResponse, ConversationHistory, ChatService};
 pub use root_api_service::*;
 pub use ui_service::{UIServiceTrait, UIService};
 
@@ -20,9 +20,8 @@ mod tests {
     use std::sync::Mutex;
 
     use derive_setters::Setters;
-    use forge_provider::{
-        Model, ModelId, Parameters, ProviderError, ProviderService, Request, Response, ResultStream,
-    };
+    use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
+    use forge_provider::{ProviderError, ProviderService};
     use serde_json::json;
     use tokio_stream::StreamExt;
 
@@ -48,25 +47,28 @@ mod tests {
 
     #[derive(Default, Setters)]
     pub struct TestProvider {
-        messages: Mutex<Vec<Vec<Response>>>,
-        calls: Mutex<Vec<Request>>,
+        messages: Mutex<Vec<Vec<ChatCompletionMessage>>>,
+        calls: Mutex<Vec<Context>>,
         models: Vec<Model>,
         parameters: Vec<(ModelId, Parameters)>,
     }
 
     impl TestProvider {
-        pub fn with_messages(self, messages: Vec<Vec<Response>>) -> Self {
+        pub fn with_messages(self, messages: Vec<Vec<ChatCompletionMessage>>) -> Self {
             self.messages(Mutex::new(messages))
         }
 
-        pub fn get_calls(&self) -> Vec<Request> {
+        pub fn get_calls(&self) -> Vec<Context> {
             self.calls.lock().unwrap().clone()
         }
     }
 
     #[async_trait::async_trait]
     impl ProviderService for TestProvider {
-        async fn chat(&self, request: Request) -> ResultStream<Response, forge_provider::Error> {
+        async fn chat(
+            &self,
+            request: Context,
+        ) -> ResultStream<ChatCompletionMessage, forge_provider::Error> {
             self.calls.lock().unwrap().push(request);
             let mut guard = self.messages.lock().unwrap();
             if guard.is_empty() {

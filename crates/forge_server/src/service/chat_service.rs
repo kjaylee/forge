@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
-use forge_provider::{
-    CompletionMessage, FinishReason, ModelId, ProviderService, Request, ResultStream, ToolCall,
+use forge_domain::{
+    Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolName,
     ToolResult,
 };
-use forge_tool::{ToolName, ToolService};
+use forge_provider::ProviderService;
+use forge_tool::ToolService;
 use serde::Serialize;
-use serde_json::Value;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
@@ -17,17 +17,17 @@ use super::{ConversationId, Service};
 use crate::{Errata, Error, Result};
 
 #[async_trait::async_trait]
-pub trait NeoChatService: Send + Sync {
-    async fn chat(&self, prompt: ChatRequest, request:  Request) -> ResultStream<ChatResponse, Error>;
+pub trait ChatService: Send + Sync {
+    async fn chat(&self, prompt: ChatRequest, request:  Context) -> ResultStream<ChatResponse, Error>;
 }
 
 impl Service {
-    pub fn neo_chat_service(
+    pub fn chat_service(
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn SystemPromptService>,
         tool: Arc<dyn ToolService>,
         user_prompt: Arc<dyn UserPromptService>,
-    ) -> impl NeoChatService {
+    ) -> impl ChatService {
         Live::new(provider, system_prompt, tool, user_prompt)
     }
 }
@@ -53,7 +53,7 @@ impl Live {
     /// Executes the chat workflow until the task is complete.
     async fn chat_workflow(
         &self,
-        mut request: Request,
+        mut request: Context,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
         conversation_id: ConversationId,
     ) -> Result<()> {
@@ -102,13 +102,8 @@ impl Live {
                         .await
                         .unwrap();
 
-                    let value = self
-                        .tool
-                        .call(&tool_call.name, tool_call.arguments.clone())
-                        .await
-                        .unwrap_or_else(|error| Value::from(format!("<error>{}</error>", error)));
+                    let tool_result = self.tool.call(tool_call).await;
 
-                    let tool_result = ToolResult::from(tool_call).content(value);
                     some_tool_result = Some(tool_result.clone());
 
                     // send the tool use end message.
@@ -118,7 +113,7 @@ impl Live {
                 }
             }
 
-            request = request.add_message(CompletionMessage::assistant(
+            request = request.add_message(ContextMessage::assistant(
                 assistant_message_content.clone(),
                 some_tool_call,
             ));
@@ -128,7 +123,7 @@ impl Live {
                 .unwrap();
 
             if let Some(tool_result) = some_tool_result {
-                request = request.add_message(CompletionMessage::ToolMessage(tool_result));
+                request = request.add_message(ContextMessage::ToolMessage(tool_result));
                 tx.send(Ok(ChatResponse::ModifyConversation { id: conversation_id, context: request.clone() }))
                 .await
                 .unwrap();
@@ -140,15 +135,15 @@ impl Live {
 }
 
 #[async_trait::async_trait]
-impl NeoChatService for Live {
-    async fn chat(&self, chat: ChatRequest, request:  Request) -> ResultStream<ChatResponse, Error> {
+impl ChatService for Live {
+    async fn chat(&self, chat: ChatRequest, request:  Context) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let request = request
             .set_system_message(system_prompt)
-            .add_message(CompletionMessage::user(user_prompt))
+            .add_message(ContextMessage::user(user_prompt))
             .tools(self.tool.list())
             .model(chat.model);
         let conversation_id = chat.conversation_id.unwrap();
@@ -192,7 +187,7 @@ pub enum ChatResponse {
     },
     ModifyConversation{
         id: ConversationId,
-        context: Request
+        context: Context
     },
     Complete,
     Error(Errata),
@@ -203,26 +198,24 @@ pub struct ConversationHistory {
     pub messages: Vec<ChatResponse>,
 }
 
-impl From<Request> for ConversationHistory {
-    fn from(request: Request) -> Self {
+impl From<Context> for ConversationHistory {
+    fn from(request: Context) -> Self {
         let messages = request
             .messages
             .iter()
             .filter(|message| match message {
-                CompletionMessage::ContentMessage(content) => {
-                    content.role != forge_provider::Role::System
-                }
-                CompletionMessage::ToolMessage(_) => true,
+                ContextMessage::ContentMessage(content) => content.role != Role::System,
+                ContextMessage::ToolMessage(_) => true,
             })
             .flat_map(|message| match message {
-                CompletionMessage::ContentMessage(content) => {
+                ContextMessage::ContentMessage(content) => {
                     let mut messages = vec![ChatResponse::Text(content.content.clone())];
                     if let Some(tool_call) = &content.tool_call {
                         messages.push(ChatResponse::ToolCallStart(tool_call.clone()));
                     }
                     messages
                 }
-                CompletionMessage::ToolMessage(result) => {
+                ContextMessage::ToolMessage(result) => {
                     vec![ChatResponse::ToolUseEnd(result.clone())]
                 }
             })
@@ -237,17 +230,17 @@ mod tests {
     use std::vec;
 
     use derive_setters::Setters;
-    use forge_provider::{
-        CompletionMessage, FinishReason, ModelId, Request, Response, ToolCall, ToolCallId,
-        ToolCallPart, ToolResult,
+    use forge_domain::{
+        ChatCompletionMessage, Context, ContextMessage, FinishReason, ModelId, ToolCall,
+        ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult,
     };
-    use forge_tool::{ToolDefinition, ToolName, ToolService};
+    use forge_tool::ToolService;
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, Live};
-    use crate::service::neo_chat_service::NeoChatService;
+    use crate::service::chat_service::ChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
     use crate::{ChatResponse, ConversationId};
@@ -282,17 +275,13 @@ mod tests {
 
     #[async_trait::async_trait]
     impl ToolService for TestToolService {
-        async fn call(
-            &self,
-            _name: &ToolName,
-            _input: Value,
-        ) -> std::result::Result<Value, String> {
+        async fn call(&self, call: ToolCall) -> ToolResult {
             let mut result = self.result.lock().unwrap();
 
             if let Some(value) = result.pop() {
-                Ok(value)
+                ToolResult::from(call).content(value)
             } else {
-                Err("No tool call is available".to_string())
+                ToolResult::from(call).content(json!({"error": "No tool call is available"}))
             }
         }
 
@@ -309,7 +298,7 @@ mod tests {
     #[setters(into, strip_option)]
     struct Fixture {
         tools: Vec<Value>,
-        assistant_responses: Vec<Vec<Response>>,
+        assistant_responses: Vec<Vec<ChatCompletionMessage>>,
         system_prompt: String,
     }
 
@@ -333,7 +322,7 @@ mod tests {
             );
 
             let messages = chat
-                .chat(request, Request::default())
+                .chat(request, Context::default())
                 .await
                 .unwrap()
                 .collect::<Vec<_>>()
@@ -350,13 +339,13 @@ mod tests {
 
     struct TestResult {
         messages: Vec<ChatResponse>,
-        llm_calls: Vec<Request>,
+        llm_calls: Vec<Context>,
     }
 
     #[tokio::test]
     async fn test_messages() {
         let actual = Fixture::default()
-            .assistant_responses(vec![vec![Response::assistant(
+            .assistant_responses(vec![vec![ChatCompletionMessage::assistant(
                 "Yes sure, tell me what you need.",
             )]])
             .run(ChatRequest::new("Hello can you help me?").conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")))
@@ -367,12 +356,12 @@ mod tests {
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
             ChatResponse::ModifyConversation {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Request::default()
-                    .add_message(CompletionMessage::system("Do everything that the user says"))
-                    .add_message(CompletionMessage::user(
+                context: Context::default()
+                    .add_message(ContextMessage::system("Do everything that the user says"))
+                    .add_message(ContextMessage::user(
                         "<task>Hello can you help me?</task>",
                     ))
-                    .add_message(CompletionMessage::assistant(
+                    .add_message(ContextMessage::assistant(
                         "Yes sure, tell me what you need.",
                         None,
                     )),
@@ -392,13 +381,9 @@ mod tests {
 
         let expected = vec![
             //
-            Request::default()
-                .add_message(CompletionMessage::system(
-                    "Do everything that the user says",
-                ))
-                .add_message(CompletionMessage::user(
-                    "<task>Hello can you help me?</task>",
-                )),
+            Context::default()
+                .add_message(ContextMessage::system("Do everything that the user says"))
+                .add_message(ContextMessage::user("<task>Hello can you help me?</task>")),
         ];
 
         assert_eq!(actual, expected)
@@ -408,7 +393,7 @@ mod tests {
     async fn test_messages_with_tool_call() {
         let mock_llm_responses = vec![
             vec![
-                Response::default()
+                ChatCompletionMessage::default()
                     .content("Let's use foo tool")
                     .add_tool_call(
                         ToolCallPart::default()
@@ -416,14 +401,14 @@ mod tests {
                             .arguments_part(r#"{"foo": 1,"#)
                             .call_id(ToolCallId::new("too_call_001")),
                     ),
-                Response::default()
+                ChatCompletionMessage::default()
                     .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
                 // IMPORTANT: the last message has an empty string in content
-                Response::default()
+                ChatCompletionMessage::default()
                     .content("")
                     .finish_reason(FinishReason::ToolCalls),
             ],
-            vec![Response::default()
+            vec![ChatCompletionMessage::default()
                 .content("Task is complete, let me know if you need anything else.")],
         ];
         let actual = Fixture::default()
@@ -448,12 +433,12 @@ mod tests {
             ),
             ChatResponse::ModifyConversation {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Request::default()
-                    .add_message(CompletionMessage::system("Do everything that the user says"))
-                    .add_message(CompletionMessage::user(
+                context: Context::default()
+                    .add_message(ContextMessage::system("Do everything that the user says"))
+                    .add_message(ContextMessage::user(
                         "<task>Hello can you help me?</task>",
                     ))
-                    .add_message(CompletionMessage::assistant(
+                    .add_message(ContextMessage::assistant(
                         "Let's use foo tool",
                         Some(
                             ToolCall::new(ToolName::new("foo"))
@@ -464,12 +449,12 @@ mod tests {
             },
             ChatResponse::ModifyConversation {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Request::default()
-                    .add_message(CompletionMessage::system("Do everything that the user says"))
-                    .add_message(CompletionMessage::user(
+                context: Context::default()
+                    .add_message(ContextMessage::system("Do everything that the user says"))
+                    .add_message(ContextMessage::user(
                         "<task>Hello can you help me?</task>",
                     ))
-                    .add_message(CompletionMessage::assistant(
+                    .add_message(ContextMessage::assistant(
                         "Let's use foo tool",
                         Some(
                             ToolCall::new(ToolName::new("foo"))
@@ -477,7 +462,7 @@ mod tests {
                                 .call_id(ToolCallId::new("too_call_001")),
                         ),
                     ))
-                    .add_message(CompletionMessage::ToolMessage(
+                    .add_message(ContextMessage::ToolMessage(
                         ToolResult::new(ToolName::new("foo"))
                             .content(json!({"a": 100, "b": 200}))
                             .call_id(ToolCallId::new("too_call_001")),
@@ -488,12 +473,12 @@ mod tests {
             ),
             ChatResponse::ModifyConversation {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Request::default()
-                .add_message(CompletionMessage::system("Do everything that the user says"))
-                    .add_message(CompletionMessage::user(
+                context: Context::default()
+                .add_message(ContextMessage::system("Do everything that the user says"))
+                    .add_message(ContextMessage::user(
                         "<task>Hello can you help me?</task>",
                     ))
-                    .add_message(CompletionMessage::assistant(
+                    .add_message(ContextMessage::assistant(
                         "Let's use foo tool",
                         Some(
                             ToolCall::new(ToolName::new("foo"))
@@ -501,12 +486,12 @@ mod tests {
                                 .call_id(ToolCallId::new("too_call_001")),
                         ),
                     ))
-                    .add_message(CompletionMessage::ToolMessage(
+                    .add_message(ContextMessage::ToolMessage(
                         ToolResult::new(ToolName::new("foo"))
                             .content(json!({"a": 100, "b": 200}))
                             .call_id(ToolCallId::new("too_call_001")),
                     ))
-                    .add_message(CompletionMessage::assistant(
+                    .add_message(ContextMessage::assistant(
                         "Task is complete, let me know if you need anything else.",
                         None,
                     )),
@@ -521,7 +506,7 @@ mod tests {
     async fn test_llm_calls_with_tool() {
         let mock_llm_responses = vec![
             vec![
-                Response::default()
+                ChatCompletionMessage::default()
                     .content("Let's use foo tool")
                     .add_tool_call(
                         ToolCallPart::default()
@@ -529,15 +514,16 @@ mod tests {
                             .arguments_part(r#"{"foo": 1,"#)
                             .call_id(ToolCallId::new("too_call_001")),
                     ),
-                Response::default()
+                ChatCompletionMessage::default()
                     .content("")
                     .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
                 // IMPORTANT: the last message has an empty string in content
-                Response::default()
+                ChatCompletionMessage::default()
                     .content("")
                     .finish_reason(FinishReason::ToolCalls),
             ],
-            vec![Response::default().content("Task is complete, let me know how can i help you!")],
+            vec![ChatCompletionMessage::default()
+                .content("Task is complete, let me know how can i help you!")],
         ];
 
         let actual = Fixture::default()
@@ -547,16 +533,16 @@ mod tests {
             .await
             .llm_calls;
 
-        let expected_llm_request_1 = Request::default()
+        let expected_llm_request_1 = Context::default()
             .set_system_message("Do everything that the user says")
-            .add_message(CompletionMessage::user(
+            .add_message(ContextMessage::user(
                 "<task>Hello can you use foo tool?</task>",
             ));
 
         let expected = vec![
             expected_llm_request_1.clone(),
             expected_llm_request_1
-                .add_message(CompletionMessage::assistant(
+                .add_message(ContextMessage::assistant(
                     "Let's use foo tool",
                     Some(
                         ToolCall::new(ToolName::new("foo"))
@@ -564,7 +550,7 @@ mod tests {
                             .call_id(ToolCallId::new("too_call_001")),
                     ),
                 ))
-                .add_message(CompletionMessage::ToolMessage(
+                .add_message(ContextMessage::ToolMessage(
                     ToolResult::new(ToolName::new("foo"))
                         .content(json!({"a": 100, "b": 200}))
                         .call_id(ToolCallId::new("too_call_001")),

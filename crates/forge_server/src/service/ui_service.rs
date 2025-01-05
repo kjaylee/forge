@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use forge_provider::{Request, ResultStream};
 use tokio_stream::{StreamExt, once};
+use forge_domain::{Context, ResultStream};
 use crate::Error;
 
-use super::{neo_chat_service::NeoChatService, ChatRequest, ChatResponse, ConversationService};
+use super::{chat_service::ChatService, ChatRequest, ChatResponse, ConversationService};
 
 #[async_trait::async_trait]
 pub trait UIServiceTrait: Send + Sync {
@@ -13,17 +13,17 @@ pub trait UIServiceTrait: Send + Sync {
 
 struct Live {
     conversation_service: Arc<dyn ConversationService>,
-    neo_chat_service: Arc<dyn NeoChatService>,
+    chat_service: Arc<dyn ChatService>,
 }
 
 impl Live {
     pub fn new(
         conversation_service: Arc<dyn ConversationService>,
-        neo_chat_service: Arc<dyn NeoChatService>,
+        chat_service: Arc<dyn ChatService>,
     ) -> Self {
         Self {
             conversation_service,
-            neo_chat_service,
+            chat_service,
         }
     }
 }
@@ -33,7 +33,7 @@ pub struct UIService;
 impl UIService {
     pub fn ui_service(
         conversation_service: Arc<dyn ConversationService>,
-        neo_chat_service: Arc<dyn NeoChatService>,
+        neo_chat_service: Arc<dyn ChatService>,
     ) -> impl UIServiceTrait {
         Live::new(conversation_service, neo_chat_service)
     }
@@ -44,20 +44,20 @@ impl UIServiceTrait for Live {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error> {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self.conversation_service
-                .get_conversation(conversation_id.clone())
+                .get_conversation(*conversation_id)
                 .await?;
             (context, false)
         } else {
-            let conversation = self.conversation_service.set_conversation(&Request::default(), None).await?;
+            let conversation = self.conversation_service.set_conversation(&Context::default(), None).await?;
             (conversation, true)
         };
 
-        let request = request.conversation_id(conversation.id.clone());
+        let request = request.conversation_id(conversation.id);
 
-        let mut stream = self.neo_chat_service.chat(request.clone(), conversation.context).await?;
+        let mut stream = self.chat_service.chat(request.clone(), conversation.context).await?;
 
         if is_new {
-            let id = conversation.id.clone();
+            let id = conversation.id;
             stream = Box::pin(once(Ok(ChatResponse::ConversationStarted { conversation_id: id })).chain(stream));
         }
 
@@ -66,7 +66,7 @@ impl UIServiceTrait for Live {
             let conversation_service = conversation_service.clone();
             async move {
                 if let Ok(ChatResponse::ModifyConversation { id, context }) = &message {
-                    conversation_service.set_conversation(context, Some(id.clone())).await?;
+                    conversation_service.set_conversation(context, Some(*id)).await?;
                     message
                 
                 } else {
@@ -74,11 +74,7 @@ impl UIServiceTrait for Live {
                 }
             }
         }).filter(|message| {
-            if let Ok(ChatResponse::ModifyConversation { .. }) = message {
-                false
-            } else {
-                true
-            }
+            !matches!(message, Ok(ChatResponse::ModifyConversation { .. }))
         });
 
         Ok(Box::pin(stream))

@@ -1,13 +1,12 @@
-use derive_setters::Setters;
+use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
 use moka2::future::Cache;
-use serde::{Deserialize, Serialize};
 
 use super::error::Result;
-use crate::{Error, Model, ModelId, Request, Response, ResultStream};
+use crate::Error;
 
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {
-    async fn chat(&self, request: Request) -> ResultStream<Response, Error>;
+    async fn chat(&self, request: Context) -> ResultStream<ChatCompletionMessage, Error>;
     async fn models(&self) -> Result<Vec<Model>>;
     async fn parameters(&self, model: &ModelId) -> Result<Parameters>;
 }
@@ -25,7 +24,7 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ProviderService for Live {
-    async fn chat(&self, request: Request) -> ResultStream<Response, Error> {
+    async fn chat(&self, request: Context) -> ResultStream<ChatCompletionMessage, Error> {
         self.provider.chat(request).await
     }
 
@@ -41,10 +40,4 @@ impl ProviderService for Live {
 
         Ok(parameters?)
     }
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Setters)]
-pub struct Parameters {
-    pub tool_supported: bool,
-    pub model: ModelId,
 }

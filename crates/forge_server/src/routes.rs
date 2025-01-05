@@ -7,9 +7,8 @@ use axum::response::sse::{Event, Sse};
 use axum::response::Html;
 use axum::routing::{get, post};
 use axum::Router;
+use forge_domain::{Context, Model, ToolDefinition};
 use forge_env::Environment;
-use forge_provider::{Model, Request};
-use forge_tool::ToolDefinition;
 use serde::Serialize;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
@@ -165,7 +164,7 @@ async fn context_handler(
 
 #[derive(Serialize)]
 pub struct ContextResponse {
-    context: Request,
+    context: Context,
 }
 
 #[derive(Serialize)]
