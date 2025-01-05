@@ -62,8 +62,6 @@ impl Live {
         conversation_id: ConversationId,
     ) -> Result<()> {
         loop {
-            // let message = ChatResponse::ModifyConversation { id: conversation_id,
-            // context: request.clone() }; tx.send(Ok(message)).await.unwrap();
             let mut tool_call_parts = Vec::new();
             let mut some_tool_call = None;
             let mut some_tool_result = None;
