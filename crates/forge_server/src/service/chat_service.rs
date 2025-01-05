@@ -18,7 +18,11 @@ use crate::{Errata, Error, Result};
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {
-    async fn chat(&self, prompt: ChatRequest, request:  Context) -> ResultStream<ChatResponse, Error>;
+    async fn chat(
+        &self,
+        prompt: ChatRequest,
+        request: Context,
+    ) -> ResultStream<ChatResponse, Error>;
 }
 
 impl Service {
@@ -58,8 +62,8 @@ impl Live {
         conversation_id: ConversationId,
     ) -> Result<()> {
         loop {
-            // let message = ChatResponse::ModifyConversation { id: conversation_id, context: request.clone() };
-            // tx.send(Ok(message)).await.unwrap();
+            // let message = ChatResponse::ModifyConversation { id: conversation_id,
+            // context: request.clone() }; tx.send(Ok(message)).await.unwrap();
             let mut tool_call_parts = Vec::new();
             let mut some_tool_call = None;
             let mut some_tool_result = None;
@@ -118,13 +122,19 @@ impl Live {
                 some_tool_call,
             ));
 
-            tx.send(Ok(ChatResponse::ModifyConversation { id: conversation_id, context: request.clone() }))
-                .await
-                .unwrap();
+            tx.send(Ok(ChatResponse::ModifyConversation {
+                id: conversation_id,
+                context: request.clone(),
+            }))
+            .await
+            .unwrap();
 
             if let Some(tool_result) = some_tool_result {
                 request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                tx.send(Ok(ChatResponse::ModifyConversation { id: conversation_id, context: request.clone() }))
+                tx.send(Ok(ChatResponse::ModifyConversation {
+                    id: conversation_id,
+                    context: request.clone(),
+                }))
                 .await
                 .unwrap();
             } else {
@@ -136,7 +146,7 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ChatService for Live {
-    async fn chat(&self, chat: ChatRequest, request:  Context) -> ResultStream<ChatResponse, Error> {
+    async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
@@ -185,9 +195,9 @@ pub enum ChatResponse {
     ConversationStarted {
         conversation_id: ConversationId,
     },
-    ModifyConversation{
+    ModifyConversation {
         id: ConversationId,
-        context: Context
+        context: Context,
     },
     Complete,
     Error(Errata),
@@ -348,7 +358,10 @@ mod tests {
             .assistant_responses(vec![vec![ChatCompletionMessage::assistant(
                 "Yes sure, tell me what you need.",
             )]])
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")))
+            .run(
+                ChatRequest::new("Hello can you help me?")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+            )
             .await
             .messages;
 
@@ -358,9 +371,7 @@ mod tests {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
                 context: Context::default()
                     .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user(
-                        "<task>Hello can you help me?</task>",
-                    ))
+                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
                     .add_message(ContextMessage::assistant(
                         "Yes sure, tell me what you need.",
                         None,
@@ -375,7 +386,10 @@ mod tests {
     async fn test_llm_calls_with_system_prompt() {
         let actual = Fixture::default()
             .system_prompt("Do everything that the user says")
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")))
+            .run(
+                ChatRequest::new("Hello can you help me?")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+            )
             .await
             .llm_calls;
 
@@ -414,7 +428,10 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")))
+            .run(
+                ChatRequest::new("Hello can you help me?")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+            )
             .await
             .messages;
 
@@ -435,9 +452,7 @@ mod tests {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
                 context: Context::default()
                     .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user(
-                        "<task>Hello can you help me?</task>",
-                    ))
+                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
                     .add_message(ContextMessage::assistant(
                         "Let's use foo tool",
                         Some(
@@ -445,15 +460,13 @@ mod tests {
                                 .arguments(json!({"foo": 1, "bar": 2}))
                                 .call_id(ToolCallId::new("too_call_001")),
                         ),
-                    ))
+                    )),
             },
             ChatResponse::ModifyConversation {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
                 context: Context::default()
                     .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user(
-                        "<task>Hello can you help me?</task>",
-                    ))
+                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
                     .add_message(ContextMessage::assistant(
                         "Let's use foo tool",
                         Some(
@@ -474,10 +487,8 @@ mod tests {
             ChatResponse::ModifyConversation {
                 id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
                 context: Context::default()
-                .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user(
-                        "<task>Hello can you help me?</task>",
-                    ))
+                    .add_message(ContextMessage::system("Do everything that the user says"))
+                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
                     .add_message(ContextMessage::assistant(
                         "Let's use foo tool",
                         Some(
@@ -529,7 +540,10 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
-            .run(ChatRequest::new("Hello can you use foo tool?").conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")))
+            .run(
+                ChatRequest::new("Hello can you use foo tool?")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+            )
             .await
             .llm_calls;
 

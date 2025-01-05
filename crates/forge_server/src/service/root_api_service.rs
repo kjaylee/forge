@@ -61,17 +61,20 @@ impl Live {
             user_prompt,
         ));
 
-        let chat_service = Arc::new(UIService::ui_service(
-            storage.clone(),
-            neo_chat_service,
-        ));
+        let chat_service = Arc::new(UIService::ui_service(storage.clone(), neo_chat_service));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));
 
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        Self { provider, tool, completions, ui_service: chat_service, storage }
+        Self {
+            provider,
+            tool,
+            completions,
+            ui_service: chat_service,
+            storage,
+        }
     }
 }
 

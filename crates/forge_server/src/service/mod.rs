@@ -5,13 +5,13 @@ pub mod db_service;
 mod file_read_service;
 mod root_api_service;
 mod system_prompt_service;
-mod user_prompt_service;
 mod ui_service;
+mod user_prompt_service;
+pub use chat_service::{ChatRequest, ChatResponse, ChatService, ConversationHistory};
 pub use completion_service::File;
 pub use conversation_service::{Conversation, ConversationId, ConversationService};
-pub use chat_service::{ChatRequest, ChatResponse, ConversationHistory, ChatService};
 pub use root_api_service::*;
-pub use ui_service::{UIServiceTrait, UIService};
+pub use ui_service::{UIService, UIServiceTrait};
 
 pub struct Service;
 
