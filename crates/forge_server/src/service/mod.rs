@@ -9,8 +9,9 @@ mod user_prompt_service;
 mod ui_service;
 pub use completion_service::File;
 pub use conversation_service::{Conversation, ConversationId, ConversationService};
-pub use neo_chat_service::{ChatRequest, ChatResponse, ConversationHistory};
+pub use neo_chat_service::{ChatRequest, ChatResponse, ConversationHistory, NeoChatService};
 pub use root_api_service::*;
+pub use ui_service::{UIServiceTrait, UIService};
 
 pub struct Service;
 

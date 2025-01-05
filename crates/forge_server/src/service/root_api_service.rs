@@ -5,8 +5,8 @@ use forge_provider::{Model, ProviderService, Request, ResultStream};
 use forge_tool::{ToolDefinition, ToolService};
 
 use super::completion_service::CompletionService;
-use super::neo_chat_service::{ConversationHistory, NeoChatService};
-use super::{ConversationId, ConversationService, Service};
+use super::neo_chat_service::ConversationHistory;
+use super::{ConversationId, ConversationService, Service, UIService, UIServiceTrait};
 use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
 
 #[async_trait::async_trait]
@@ -31,7 +31,7 @@ struct Live {
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
     completions: Arc<dyn CompletionService>,
-    chat_service: Arc<dyn NeoChatService>,
+    chat_service: Arc<dyn UIServiceTrait>,
     storage: Arc<dyn ConversationService>,
 }
 
@@ -53,11 +53,16 @@ impl Live {
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        let chat_service = Arc::new(Service::neo_chat_service(
+        let neo_chat_service = Arc::new(Service::neo_chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
             user_prompt,
+        ));
+
+        let chat_service = Arc::new(UIService::ui_service(
+            storage.clone(),
+            neo_chat_service,
         ));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));
@@ -92,7 +97,7 @@ impl RootAPIService for Live {
     }
 
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
-        Ok(self.chat_service.chat(chat, Request::default()).await?)
+        Ok(self.chat_service.chat(chat).await?)
     }
 
     async fn conversations(&self) -> Result<Vec<Conversation>> {
