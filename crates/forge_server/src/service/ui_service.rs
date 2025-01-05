@@ -89,3 +89,71 @@ impl UIService for Live {
         Ok(Box::pin(stream))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::conversation_service::tests::TestStorage;
+    use tokio_stream::Stream;
+    use std::pin::Pin;
+
+    #[async_trait::async_trait]
+    impl ChatService for TestStorage {
+        async fn chat(
+            &self,
+            _request: ChatRequest,
+            _context: Context,
+        ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatResponse, Error>> + Send>>, Error> {
+            Ok(Box::pin(once(Ok(ChatResponse::Text("test message".to_string())))))
+        }
+    }
+
+    impl Default for ChatRequest {
+        fn default() -> Self {
+            Self {
+                content: "test".to_string(),
+                model: ModelId::default(),
+                conversation_id: None,
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn test_chat_new_conversation() {
+        let storage = Arc::new(TestStorage);
+        let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
+        let service = Service::ui_service(conversation_service.clone(), storage.clone());
+        let request = ChatRequest::default();
+
+        let mut responses = service.chat(request).await.unwrap();
+
+        if let Some(Ok(ChatResponse::ConversationStarted { conversation_id: _ })) = responses.next().await {
+        } else {
+            panic!("Expected ConversationStarted response");
+        }
+
+        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
+            assert_eq!(content, "test message");
+        } else {
+            panic!("Expected Text response");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_chat_existing_conversation() {
+        let storage = Arc::new(TestStorage);
+        let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
+        let service = Service::ui_service(conversation_service.clone(), storage.clone());
+        
+        let conversation = conversation_service.set_conversation(&Context::default(), None).await.unwrap();
+        
+        let request = ChatRequest::default().conversation_id(conversation.id);
+        let mut responses = service.chat(request).await.unwrap();
+
+        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
+            assert_eq!(content, "test message");
+        } else {
+            panic!("Expected Text response");
+        }
+    }
+}
