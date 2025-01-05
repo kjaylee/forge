@@ -58,7 +58,6 @@ impl Live {
             system_prompt.clone(),
             tool.clone(),
             user_prompt,
-            storage.clone(),
         ));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));
@@ -93,7 +92,7 @@ impl RootAPIService for Live {
     }
 
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
-        Ok(self.chat_service.chat(chat).await?)
+        Ok(self.chat_service.chat(chat, Request::default()).await?)
     }
 
     async fn conversations(&self) -> Result<Vec<Conversation>> {
