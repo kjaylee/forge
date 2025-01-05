@@ -94,6 +94,7 @@ impl UIService for Live {
 mod tests {
     use super::*;
     use super::super::conversation_service::tests::TestStorage;
+    use forge_domain::ModelId;
     use tokio_stream::Stream;
     use std::pin::Pin;
 

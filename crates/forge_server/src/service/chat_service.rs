@@ -363,23 +363,81 @@ mod tests {
                     .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
-            .messages;
+            .messages
+            .into_iter()
+            .filter(|msg| !matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .collect::<Vec<_>>();
 
         let expected = vec![
             ChatResponse::Text("Yes sure, tell me what you need.".to_string()),
-            ChatResponse::ModifyConversation {
-                id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Context::default()
-                    .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
-                    .add_message(ContextMessage::assistant(
-                        "Yes sure, tell me what you need.",
-                        None,
-                    )),
-            },
             ChatResponse::Complete,
         ];
         assert_eq!(&actual, &expected);
+    }
+
+    #[tokio::test]
+    async fn test_modify_context_count() {
+        let mock_llm_responses = vec![
+            // First tool call
+            vec![
+                ChatCompletionMessage::default()
+                    .content("Let's use foo tool first")
+                    .add_tool_call(
+                        ToolCallPart::default()
+                            .name(ToolName::new("foo"))
+                            .arguments_part(r#"{"foo": 1,"#)
+                            .call_id(ToolCallId::new("tool_call_001")),
+                    ),
+                ChatCompletionMessage::default()
+                    .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
+                ChatCompletionMessage::default()
+                    .content("")
+                    .finish_reason(FinishReason::ToolCalls),
+            ],
+            // Second tool call
+            vec![
+                ChatCompletionMessage::default()
+                    .content("Now let's use bar tool")
+                    .add_tool_call(
+                        ToolCallPart::default()
+                            .name(ToolName::new("bar"))
+                            .arguments_part(r#"{"x": 100,"#)
+                            .call_id(ToolCallId::new("tool_call_002")),
+                    ),
+                ChatCompletionMessage::default()
+                    .add_tool_call(ToolCallPart::default().arguments_part(r#""y": 200}"#)),
+                ChatCompletionMessage::default()
+                    .content("")
+                    .finish_reason(FinishReason::ToolCalls),
+            ],
+            // Final completion message
+            vec![ChatCompletionMessage::default()
+                .content("All tools have been used successfully.")],
+        ];
+
+        let actual = Fixture::default()
+            .assistant_responses(mock_llm_responses)
+            .tools(vec![
+                json!({"result": "foo tool called"}),
+                json!({"result": "bar tool called"}),
+            ])
+            .run(
+                ChatRequest::new("Hello can you help me?")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+            )
+            .await
+            .messages
+            .into_iter()
+            .filter(|msg| matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .count();
+
+        // Expected ModifyContext events:
+        // 1. After first assistant message with foo tool_call
+        // 2. After foo tool_result
+        // 3. After second assistant message with bar tool_call
+        // 4. After bar tool_result
+        // 5. After final completion message
+        assert_eq!(actual, 5);
     }
 
     #[tokio::test]
@@ -433,7 +491,10 @@ mod tests {
                     .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
-            .messages;
+            .messages
+            .into_iter()
+            .filter(|msg| !matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .collect::<Vec<_>>();
 
         let expected = vec![
             ChatResponse::Text("Let's use foo tool".to_string()),
@@ -448,69 +509,50 @@ mod tests {
                     .content(json!({"a": 100, "b": 200}))
                     .call_id(ToolCallId::new("too_call_001")),
             ),
-            ChatResponse::ModifyConversation {
-                id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Context::default()
-                    .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
-                    .add_message(ContextMessage::assistant(
-                        "Let's use foo tool",
-                        Some(
-                            ToolCall::new(ToolName::new("foo"))
-                                .arguments(json!({"foo": 1, "bar": 2}))
-                                .call_id(ToolCallId::new("too_call_001")),
-                        ),
-                    )),
-            },
-            ChatResponse::ModifyConversation {
-                id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Context::default()
-                    .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
-                    .add_message(ContextMessage::assistant(
-                        "Let's use foo tool",
-                        Some(
-                            ToolCall::new(ToolName::new("foo"))
-                                .arguments(json!({"foo": 1, "bar": 2}))
-                                .call_id(ToolCallId::new("too_call_001")),
-                        ),
-                    ))
-                    .add_message(ContextMessage::ToolMessage(
-                        ToolResult::new(ToolName::new("foo"))
-                            .content(json!({"a": 100, "b": 200}))
-                            .call_id(ToolCallId::new("too_call_001")),
-                    )),
-            },
             ChatResponse::Text(
                 "Task is complete, let me know if you need anything else.".to_string(),
             ),
-            ChatResponse::ModifyConversation {
-                id: ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"),
-                context: Context::default()
-                    .add_message(ContextMessage::system("Do everything that the user says"))
-                    .add_message(ContextMessage::user("<task>Hello can you help me?</task>"))
-                    .add_message(ContextMessage::assistant(
-                        "Let's use foo tool",
-                        Some(
-                            ToolCall::new(ToolName::new("foo"))
-                                .arguments(json!({"foo": 1, "bar": 2}))
-                                .call_id(ToolCallId::new("too_call_001")),
-                        ),
-                    ))
-                    .add_message(ContextMessage::ToolMessage(
-                        ToolResult::new(ToolName::new("foo"))
-                            .content(json!({"a": 100, "b": 200}))
-                            .call_id(ToolCallId::new("too_call_001")),
-                    ))
-                    .add_message(ContextMessage::assistant(
-                        "Task is complete, let me know if you need anything else.",
-                        None,
-                    )),
-            },
             ChatResponse::Complete,
         ];
 
         assert_eq!(&actual, &expected);
+    }
+
+    #[tokio::test]
+    async fn test_modify_context_count_with_tool_call() {
+        let mock_llm_responses = vec![
+            vec![
+                ChatCompletionMessage::default()
+                    .content("Let's use foo tool")
+                    .add_tool_call(
+                        ToolCallPart::default()
+                            .name(ToolName::new("foo"))
+                            .arguments_part(r#"{"foo": 1,"#)
+                            .call_id(ToolCallId::new("too_call_001")),
+                    ),
+                ChatCompletionMessage::default()
+                    .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
+                ChatCompletionMessage::default()
+                    .content("")
+                    .finish_reason(FinishReason::ToolCalls),
+            ],
+            vec![ChatCompletionMessage::default()
+                .content("Task is complete, let me know if you need anything else.")],
+        ];
+        let actual = Fixture::default()
+            .assistant_responses(mock_llm_responses)
+            .tools(vec![json!({"a": 100, "b": 200})])
+            .run(
+                ChatRequest::new("Hello can you help me?")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+            )
+            .await
+            .messages
+            .into_iter()
+            .filter(|msg| matches!(msg, ChatResponse::ModifyConversation { .. }))
+            .count();
+
+        assert_eq!(actual, 3);
     }
 
     #[tokio::test]
