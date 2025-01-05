@@ -411,8 +411,7 @@ mod tests {
                     .finish_reason(FinishReason::ToolCalls),
             ],
             // Final completion message
-            vec![ChatCompletionMessage::default()
-                .content("All tools have been used successfully.")],
+            vec![ChatCompletionMessage::default().content("All tools have been used successfully.")],
         ];
 
         let actual = Fixture::default()

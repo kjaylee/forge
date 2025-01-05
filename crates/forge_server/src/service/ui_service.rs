@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{Context, ResultStream};
 use tokio_stream::{once, StreamExt};
+
 use super::chat_service::ChatService;
 use super::{ChatRequest, ChatResponse, ConversationService};
 use crate::{Error, Service};
@@ -24,7 +25,6 @@ impl Live {
         Self { conversation_service, chat_service }
     }
 }
-
 
 impl Service {
     pub fn ui_service(
@@ -92,11 +92,13 @@ impl UIService for Live {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::conversation_service::tests::TestStorage;
+    use std::pin::Pin;
+
     use forge_domain::ModelId;
     use tokio_stream::Stream;
-    use std::pin::Pin;
+
+    use super::super::conversation_service::tests::TestStorage;
+    use super::*;
 
     #[async_trait::async_trait]
     impl ChatService for TestStorage {
@@ -104,8 +106,11 @@ mod tests {
             &self,
             _request: ChatRequest,
             _context: Context,
-        ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatResponse, Error>> + Send>>, Error> {
-            Ok(Box::pin(once(Ok(ChatResponse::Text("test message".to_string())))))
+        ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatResponse, Error>> + Send>>, Error>
+        {
+            Ok(Box::pin(once(Ok(ChatResponse::Text(
+                "test message".to_string(),
+            )))))
         }
     }
 
@@ -128,7 +133,9 @@ mod tests {
 
         let mut responses = service.chat(request).await.unwrap();
 
-        if let Some(Ok(ChatResponse::ConversationStarted { conversation_id: _ })) = responses.next().await {
+        if let Some(Ok(ChatResponse::ConversationStarted { conversation_id: _ })) =
+            responses.next().await
+        {
         } else {
             panic!("Expected ConversationStarted response");
         }
@@ -145,9 +152,12 @@ mod tests {
         let storage = Arc::new(TestStorage);
         let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
         let service = Service::ui_service(conversation_service.clone(), storage.clone());
-        
-        let conversation = conversation_service.set_conversation(&Context::default(), None).await.unwrap();
-        
+
+        let conversation = conversation_service
+            .set_conversation(&Context::default(), None)
+            .await
+            .unwrap();
+
         let request = ChatRequest::default().conversation_id(conversation.id);
         let mut responses = service.chat(request).await.unwrap();
 
