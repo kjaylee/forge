@@ -42,20 +42,19 @@ impl UIService {
 #[async_trait::async_trait]
 impl UIServiceTrait for Live {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error> {
-        let (req, is_new) = if let Some(conversation_id) = &request.conversation_id {
+        let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self.conversation_service
                 .get_conversation(conversation_id.clone())
-                .await?
-                .context;
+                .await?;
             (context, false)
         } else {
-            (Request::default(), true)
+            let conversation = self.conversation_service.set_conversation(&Request::default(), None).await?;
+            (conversation, true)
         };
 
-        let conversation = self.conversation_service.set_conversation(&req, None).await?;
         let request = request.conversation_id(conversation.id.clone());
 
-        let mut stream = self.neo_chat_service.chat(request.clone(), Request::default()).await?;
+        let mut stream = self.neo_chat_service.chat(request.clone(), conversation.context).await?;
 
         if is_new {
             let id = conversation.id.clone();
@@ -67,13 +66,18 @@ impl UIServiceTrait for Live {
             let conversation_service = conversation_service.clone();
             async move {
                 if let Ok(ChatResponse::ModifyConversation { id, context }) = &message {
-                    if let Err(e) = conversation_service.set_conversation(context, Some(id.clone())).await {
-                        return Err(e);
-                    }
-                    Ok(ChatResponse::Text("".to_string()))
+                    conversation_service.set_conversation(context, Some(id.clone())).await?;
+                    message
+                
                 } else {
                     message
                 }
+            }
+        }).filter(|message| {
+            if let Ok(ChatResponse::ModifyConversation { .. }) = message {
+                false
+            } else {
+                true
             }
         });
 
