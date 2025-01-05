@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use forge_domain::{Context, ResultStream};
 use tokio_stream::{once, StreamExt};
-
 use super::chat_service::ChatService;
 use super::{ChatRequest, ChatResponse, ConversationService};
-use crate::Error;
+use crate::{Error, Service};
 
 #[async_trait::async_trait]
-pub trait UIServiceTrait: Send + Sync {
+pub trait UIService: Send + Sync {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error>;
 }
 
@@ -18,7 +17,7 @@ struct Live {
 }
 
 impl Live {
-    pub fn new(
+    fn new(
         conversation_service: Arc<dyn ConversationService>,
         chat_service: Arc<dyn ChatService>,
     ) -> Self {
@@ -26,19 +25,18 @@ impl Live {
     }
 }
 
-pub struct UIService;
 
-impl UIService {
+impl Service {
     pub fn ui_service(
         conversation_service: Arc<dyn ConversationService>,
         neo_chat_service: Arc<dyn ChatService>,
-    ) -> impl UIServiceTrait {
+    ) -> impl UIService {
         Live::new(conversation_service, neo_chat_service)
     }
 }
 
 #[async_trait::async_trait]
-impl UIServiceTrait for Live {
+impl UIService for Live {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error> {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self

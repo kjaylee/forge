@@ -7,7 +7,7 @@ use forge_tool::ToolService;
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
-use super::{ConversationId, ConversationService, Service, UIService, UIServiceTrait};
+use super::{ConversationId, ConversationService, Service, UIService};
 use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
 
 #[async_trait::async_trait]
@@ -32,7 +32,7 @@ struct Live {
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
     completions: Arc<dyn CompletionService>,
-    ui_service: Arc<dyn UIServiceTrait>,
+    ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
 }
 
@@ -61,7 +61,7 @@ impl Live {
             user_prompt,
         ));
 
-        let chat_service = Arc::new(UIService::ui_service(storage.clone(), neo_chat_service));
+        let chat_service = Arc::new(Service::ui_service(storage.clone(), neo_chat_service));
 
         let completions = Arc::new(Service::completion_service(cwd.clone()));
 

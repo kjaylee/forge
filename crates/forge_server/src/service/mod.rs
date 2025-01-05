@@ -11,7 +11,7 @@ pub use chat_service::{ChatRequest, ChatResponse, ChatService, ConversationHisto
 pub use completion_service::File;
 pub use conversation_service::{Conversation, ConversationId, ConversationService};
 pub use root_api_service::*;
-pub use ui_service::{UIService, UIServiceTrait};
+pub use ui_service::UIService;
 
 pub struct Service;
 
