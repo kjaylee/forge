@@ -7,5 +7,6 @@ diesel::table! {
         updated_at -> Timestamp,
         content -> Text,
         archived -> Bool,
+        title -> Nullable<Text>,
     }
 }

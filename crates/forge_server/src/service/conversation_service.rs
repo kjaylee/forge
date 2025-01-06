@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use derive_setters::Setters;
 use diesel::prelude::*;
-use diesel::sql_types::{Bool, Text, Timestamp};
+use diesel::sql_types::{Bool, Nullable, Text, Timestamp};
 use forge_domain::Context;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -18,6 +18,7 @@ pub struct Conversation {
     pub meta: Option<ConversationMeta>,
     pub context: Context,
     pub archived: bool,
+    pub title: Option<String>,
 }
 
 impl Conversation {
@@ -27,6 +28,7 @@ impl Conversation {
             meta: None,
             context,
             archived: false,
+            title: None,
         }
     }
 }
@@ -60,6 +62,8 @@ struct RawConversation {
     content: String,
     #[diesel(sql_type = Bool)]
     archived: bool,
+    #[diesel(sql_type = Nullable<Text>)]
+    title: Option<String>,
 }
 
 impl TryFrom<RawConversation> for Conversation {
@@ -74,6 +78,7 @@ impl TryFrom<RawConversation> for Conversation {
             }),
             context: serde_json::from_str(&raw.content)?,
             archived: raw.archived,
+            title: raw.title,
         })
     }
 }
@@ -117,6 +122,7 @@ impl<P: DBService + Send + Sync> ConversationService for Live<P> {
             updated_at: Utc::now().naive_utc(),
             content: serde_json::to_string(request)?,
             archived: false,
+            title: None,
         };
 
         diesel::insert_into(conversations::table)
