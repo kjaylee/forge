@@ -283,4 +283,17 @@ pub mod tests {
         assert!(archived.archived);
         assert_eq!(archived.id, conversation.id);
     }
+
+    #[tokio::test]
+    async fn test_set_title_for_conversation() {
+        let storage = setup_storage().await.unwrap();
+        let conversation = create_conversation(&storage, None).await.unwrap();
+        let result = storage
+            .set_conversation_title(&conversation.id, "test-title".to_string())
+            .await
+            .unwrap();
+
+        assert!(result.title.is_some());
+        assert_eq!(result.id, conversation.id);
+    }
 }
