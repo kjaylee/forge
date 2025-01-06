@@ -98,7 +98,12 @@ impl UIService for Live {
                 let conversation_service = conversation_service.clone();
                 async move {
                     match &message {
-                        Ok(ChatResponse::ConversationStarted { .. }) => message,
+                        Ok(ChatResponse::ConversationStarted { conversation_id, title }) => {
+                            conversation_service
+                                .set_conversation_title(conversation_id, title.to_owned())
+                                .await?;
+                            message
+                        }
                         Ok(ChatResponse::ModifyContext(context)) => {
                             conversation_service
                                 .set_conversation(context, request.conversation_id)
