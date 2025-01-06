@@ -6,8 +6,7 @@ use forge_provider::ProviderService;
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
 use super::{
-    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService, File, Service,
-    UIService,
+    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService, CreateSettingRequest, File, Service, Setting, SettingId, SettingsService, UIService
 };
 use crate::Result;
 
@@ -20,6 +19,8 @@ pub trait RootAPIService: Send + Sync {
     async fn chat(&self, chat: ChatRequest) -> Result<UStream<ChatResponse>>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
+    async fn setting_by_id(&self, setting_id: SettingId) -> Result<Setting>;
+    async fn create_setting(&self, request: CreateSettingRequest) -> Result<Setting>;
 }
 
 impl Service {
@@ -35,6 +36,7 @@ struct Live {
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
+    setting_storage: Arc<dyn SettingsService>,
 }
 
 impl Live {
@@ -67,6 +69,9 @@ impl Live {
 
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+        let setting_storage = Arc::new(
+            Service::settings_service(&cwd).expect("Failed to create settings storage service"),
+        );
 
         Self {
             provider,
@@ -74,6 +79,7 @@ impl Live {
             completions,
             ui_service: chat_service,
             storage,
+            setting_storage,
         }
     }
 }
@@ -115,5 +121,13 @@ impl RootAPIService for Live {
             .await?
             .context
             .into())
+    }
+
+    async fn setting_by_id(&self, setting_id: SettingId) -> Result<Setting> {
+        Ok(self.setting_storage.get_setting(setting_id).await?)
+    }
+
+    async fn create_setting(&self, request: CreateSettingRequest) -> Result<Setting> {
+        self.setting_storage.create_setting(request).await
     }
 }

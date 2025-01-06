@@ -15,6 +15,7 @@ pub use completion_service::*;
 pub use conversation_service::*;
 pub use env_service::*;
 pub use root_api_service::*;
+pub use settings_service::{CreateSettingRequest, Setting, SettingId, SettingsService};
 pub use ui_service::*;
 
 pub struct Service;

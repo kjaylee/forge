@@ -14,9 +14,9 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::service::{
-    ChatRequest, ChatResponse, Conversation, ConversationHistory, ConversationId,
-    EnvironmentService, File, RootAPIService,
+use crate::{
+    ChatRequest, Conversation, ConversationHistory, ConversationId, CreateSettingRequest, Errata,
+    File, Result, RootAPIService, Service, Setting, SettingId,
 };
 use crate::{Result, Service};
 
@@ -63,6 +63,8 @@ impl API {
             .route("/context/{id}/html", get(context_html_handler))
             .route("/conversations", get(conversations_handler))
             .route("/conversation/{id}", get(history_handler))
+            .route("/settings/{id}", get(setting_by_id_handler))
+            .route("/settings", post(create_setting_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -158,6 +160,24 @@ async fn context_handler(
 ) -> Json<ContextResponse> {
     let context = state.context(id).await.unwrap();
     Json(ContextResponse { context })
+}
+
+#[axum::debug_handler]
+async fn setting_by_id_handler(
+    State(state): State<Arc<dyn RootAPIService>>,
+    axum::extract::Path(setting_id): axum::extract::Path<SettingId>,
+) -> Json<Setting> {
+    let setting = state.setting_by_id(setting_id).await.unwrap();
+    Json(setting)
+}
+
+#[axum::debug_handler]
+async fn create_setting_handler(
+    State(state): State<Arc<dyn RootAPIService>>,
+    Json(request): Json<CreateSettingRequest>,
+) -> Json<Setting> {
+    let setting = state.create_setting(request).await.unwrap();
+    Json(setting)
 }
 
 #[derive(Serialize)]
