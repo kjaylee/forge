@@ -1,10 +1,12 @@
+use std::fmt::Display;
+use std::path::PathBuf;
+
 use chrono::{DateTime, NaiveDateTime, Utc};
 use derive_setters::Setters;
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp};
 use forge_domain::ModelId;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use uuid::Uuid;
 
 use super::Service;
@@ -23,9 +25,11 @@ impl SettingId {
     pub fn generate() -> Self {
         Self(Uuid::new_v4())
     }
+}
 
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+impl Display for SettingId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -38,10 +42,7 @@ pub struct CreateSettingRequest {
 
 impl CreateSettingRequest {
     pub fn new(project_path: PathBuf, chosen_model: ModelId) -> Self {
-        Self {
-            project_path,
-            chosen_model,
-        }
+        Self { project_path, chosen_model }
     }
 }
 
