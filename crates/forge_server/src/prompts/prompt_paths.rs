@@ -14,24 +14,12 @@ pub struct PromptPath {
 }
 
 impl PromptPath {
-    pub fn exists(&self) -> bool {
-        self.system.exists() && self.user.exists()
-    }
-
     pub fn user(&self) -> String {
         self.user.to_string_lossy().to_string()
     }
 
     pub fn system(&self) -> String {
         self.system.to_string_lossy().to_string()
-    }
-
-    pub fn system_exists(&self) -> bool {
-        self.system.exists()
-    }
-
-    pub fn user_exists(&self) -> bool {
-        self.user.exists()
     }
 }
 
@@ -57,6 +45,20 @@ impl Agents {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl PromptPath {
+        pub fn exists(&self) -> bool {
+            self.system.exists() && self.user.exists()
+        }
+
+        pub fn system_exists(&self) -> bool {
+            self.system.exists()
+        }
+
+        pub fn user_exists(&self) -> bool {
+            self.user.exists()
+        }
+    }
 
     #[test]
     fn test_prompt_paths_exist() {
