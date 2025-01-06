@@ -12,7 +12,7 @@ use crate::schema::settings;
 use crate::service::db_service::DBService;
 use crate::Result;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SettingId(Uuid);
 
 impl SettingId {
@@ -29,8 +29,24 @@ impl SettingId {
     }
 }
 
-#[derive(Debug, Setters, Serialize, Deserialize)]
-pub struct Settings {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSettingRequest {
+    project_path: PathBuf,
+    chosen_model: ModelId,
+}
+
+impl CreateSettingRequest {
+    pub fn new(project_path: PathBuf, chosen_model: ModelId) -> Self {
+        Self {
+            project_path,
+            chosen_model,
+        }
+    }
+}
+
+#[derive(Debug, Setters, Serialize, Deserialize, Clone)]
+pub struct Setting {
     pub id: SettingId,
     pub project_path: PathBuf,
     pub chosen_model: ModelId,
@@ -38,7 +54,7 @@ pub struct Settings {
     pub meta: Option<SettingsMeta>,
 }
 
-impl Settings {
+impl Setting {
     pub fn new(project_path: PathBuf, model: ModelId) -> Self {
         Self {
             id: SettingId::generate(),
@@ -49,7 +65,7 @@ impl Settings {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SettingsMeta {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -70,11 +86,11 @@ struct RawSettings {
     updated_at: NaiveDateTime,
 }
 
-impl TryFrom<RawSettings> for Settings {
+impl TryFrom<RawSettings> for Setting {
     type Error = crate::error::Error;
 
     fn try_from(raw: RawSettings) -> Result<Self> {
-        Ok(Settings {
+        Ok(Setting {
             id: SettingId::new(&raw.id),
             project_path: PathBuf::from(raw.project_path),
             chosen_model: ModelId::new(&raw.chosen_model),
@@ -88,8 +104,8 @@ impl TryFrom<RawSettings> for Settings {
 
 #[async_trait::async_trait]
 pub trait SettingsService: Send + Sync {
-    async fn get_settings(&self, setting_id: SettingId) -> Result<Settings>;
-    async fn update_settings(&self, settings: &Settings) -> Result<Settings>;
+    async fn get_setting(&self, setting_id: SettingId) -> Result<Setting>;
+    async fn create_setting(&self, create_setting_req: CreateSettingRequest) -> Result<Setting>;
 }
 
 pub struct Live<P> {
@@ -104,7 +120,7 @@ impl<P: DBService> Live<P> {
 
 #[async_trait::async_trait]
 impl<P: DBService + Send + Sync> SettingsService for Live<P> {
-    async fn get_settings(&self, setting_id: SettingId) -> Result<Settings> {
+    async fn get_setting(&self, setting_id: SettingId) -> Result<Setting> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
 
@@ -115,7 +131,11 @@ impl<P: DBService + Send + Sync> SettingsService for Live<P> {
         Ok(raw.try_into()?)
     }
 
-    async fn update_settings(&self, new_settings: &Settings) -> Result<Settings> {
+    async fn create_setting(&self, create_setting_req: CreateSettingRequest) -> Result<Setting> {
+        let new_settings = Setting::new(
+            create_setting_req.project_path,
+            create_setting_req.chosen_model,
+        );
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let now = Utc::now().naive_utc();
@@ -171,42 +191,15 @@ pub mod tests {
     async fn test_settings_can_be_stored_and_retrieved() -> Result<()> {
         let storage = setup_storage().await?;
         let project_path = PathBuf::from("/test/project");
-        let settings = Settings::new(project_path.clone(), ModelId::new("gpt-4"));
+        let settings = CreateSettingRequest::new(project_path.clone(), ModelId::new("gpt-4"));
 
-        let stored = storage.update_settings(&settings).await?;
+        let stored = storage.create_setting(settings.clone()).await?;
         assert_eq!(stored.chosen_model, settings.chosen_model);
         assert_eq!(stored.project_path, settings.project_path);
         assert!(stored.meta.is_some());
 
-        let retrieved = storage.get_settings(settings.id).await?;
+        let retrieved = storage.get_setting(stored.id).await?;
         assert_eq!(retrieved.chosen_model, settings.chosen_model);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_update_existing_settings() -> Result<()> {
-        let storage = setup_storage().await?;
-        let project_path = PathBuf::from("/test/project");
-
-        // Create initial settings
-        let initial_settings = Settings::new(project_path.clone(), ModelId::new("gpt-3.5-turbo"));
-        storage.update_settings(&initial_settings).await?;
-
-        // Update with new model
-        let new_settings = Settings {
-            id: initial_settings.id,
-            project_path: project_path.clone(),
-            chosen_model: ModelId::new("gpt-4"),
-            meta: None,
-        };
-        let updated = storage.update_settings(&new_settings).await?;
-
-        assert_eq!(updated.chosen_model, ModelId::new("gpt-4"));
-        assert_eq!(updated.project_path, project_path);
-
-        // Verify the update
-        let retrieved = storage.get_settings(new_settings.id).await?;
-        assert_eq!(retrieved.chosen_model, ModelId::new("gpt-4"));
         Ok(())
     }
 }
