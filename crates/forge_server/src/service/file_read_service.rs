@@ -53,13 +53,13 @@ pub mod tests {
     #[async_trait::async_trait]
     impl FileReadService for TestFileReadService {
         async fn read(&self, path: String) -> Result<String> {
-            self.0
-                .get(&path)
-                .cloned()
-                .ok_or_else(|| std::io::Error::new(
+            self.0.get(&path).cloned().ok_or_else(|| {
+                std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    format!("File not found: {}", path)
-                ).into())
+                    format!("File not found: {}", path),
+                )
+                .into()
+            })
         }
     }
 }
