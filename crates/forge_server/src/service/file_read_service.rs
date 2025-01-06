@@ -25,9 +25,8 @@ impl FileReadService for Live {
 pub mod tests {
     use std::collections::HashMap;
 
-    use crate::prompts::Agents;
-
     use super::*;
+    use crate::prompts::Agents;
 
     pub struct TestFileReadService(HashMap<String, String>);
 
@@ -58,7 +57,7 @@ pub mod tests {
                 .0
                 .get(&path)
                 .cloned()
-                .expect(&format!("`{}` File not found", path)))
+                .unwrap_or_else(|| panic!("`{}` File not found", path)))
         }
     }
 }

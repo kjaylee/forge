@@ -7,7 +7,8 @@ use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::info;
 
-use super::{file_read_service::FileReadService, Service};
+use super::file_read_service::FileReadService;
+use super::Service;
 use crate::Result;
 
 #[async_trait::async_trait]
@@ -79,10 +80,9 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::{
-        prompts::Agents,
-        service::{file_read_service::tests::TestFileReadService, tests::TestProvider},
-    };
+    use crate::prompts::Agents;
+    use crate::service::file_read_service::tests::TestFileReadService;
+    use crate::service::tests::TestProvider;
 
     fn test_env() -> Environment {
         Environment {
