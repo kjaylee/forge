@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, Default)]
-pub enum Agents {
+pub enum Agent {
     #[default]
     Coding,
     TitleGenerator,
@@ -23,11 +23,11 @@ impl PromptPath {
     }
 }
 
-impl Agents {
+impl Agent {
     fn dir_name(self) -> &'static str {
         match self {
-            Agents::Coding => "coding",
-            Agents::TitleGenerator => "title",
+            Agent::Coding => "coding",
+            Agent::TitleGenerator => "title",
         }
     }
 
@@ -62,14 +62,14 @@ mod tests {
 
     #[test]
     fn test_prompt_paths_exist() {
-        let paths = Agents::Coding.prompt_path();
+        let paths = Agent::Coding.prompt_path();
         println!("{:?}", paths);
         assert!(paths.exists(), "Prompt files should exist");
     }
 
     #[test]
     fn test_individual_paths_exist() {
-        let paths = Agents::Coding.prompt_path();
+        let paths = Agent::Coding.prompt_path();
         assert!(paths.system_exists(), "System prompt should exist");
         assert!(paths.user_exists(), "User prompt should exist");
     }

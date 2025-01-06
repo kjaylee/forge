@@ -80,7 +80,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::prompts::Agents;
+    use crate::prompts::Agent;
     use crate::service::file_read_service::tests::TestFileReadService;
     use crate::service::tests::TestProvider;
 
@@ -103,7 +103,7 @@ mod tests {
         );
         let file_read = Arc::new(TestFileReadService::default());
         let prompt = Live::new(env, tools, provider, file_read)
-            .get_system_prompt(Agents::Coding.prompt_path().system(), &ModelId::default())
+            .get_system_prompt(Agent::Coding.prompt_path().system(), &ModelId::default())
             .await
             .unwrap();
         assert_snapshot!(prompt);
@@ -118,7 +118,7 @@ mod tests {
         );
         let file_read = Arc::new(TestFileReadService::default());
         let prompt = Live::new(env, tools, provider, file_read)
-            .get_system_prompt(Agents::Coding.prompt_path().system(), &ModelId::default())
+            .get_system_prompt(Agent::Coding.prompt_path().system(), &ModelId::default())
             .await
             .unwrap();
         assert_snapshot!(prompt);

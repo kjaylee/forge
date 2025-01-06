@@ -1,2 +1,2 @@
-mod prompt_paths;
-pub use prompt_paths::Agents;
+mod agent;
+pub use agent::Agent;

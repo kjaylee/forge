@@ -62,7 +62,7 @@ pub mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::prompts::Agents;
+    use crate::prompts::Agent;
     use crate::service::file_read_service::tests::TestFileReadService;
 
     pub struct TestUserPrompt;
@@ -83,7 +83,7 @@ pub mod tests {
         let file_read = Arc::new(TestFileReadService::new(file_map));
         let rendered_prompt = Service::user_prompt_service(file_read)
             .get_user_prompt(
-                Agents::Coding.prompt_path().user(),
+                Agent::Coding.prompt_path().user(),
                 "read this file content from @foo.txt and @bar.txt",
             )
             .await

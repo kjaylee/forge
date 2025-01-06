@@ -26,13 +26,13 @@ pub mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::prompts::Agents;
+    use crate::prompts::Agent;
 
     pub struct TestFileReadService(HashMap<String, String>);
 
     impl Default for TestFileReadService {
         fn default() -> Self {
-            let prompts = Agents::Coding.prompt_path();
+            let prompts = Agent::Coding.prompt_path();
             let system_template = std::fs::read_to_string(&prompts.system).unwrap();
             let user_template = std::fs::read_to_string(&prompts.user).unwrap();
             let mut map = HashMap::new();
