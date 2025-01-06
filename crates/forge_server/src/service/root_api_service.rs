@@ -9,7 +9,7 @@ use super::completion_service::CompletionService;
 use super::{
     ConversationId, ConversationService, Service, Setting, SettingId, SettingsService, UIService,
 };
-use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result, CreateSettingRequest};
+use crate::{ChatRequest, ChatResponse, Conversation, CreateSettingRequest, Error, File, Result};
 
 #[async_trait::async_trait]
 pub trait RootAPIService: Send + Sync {
