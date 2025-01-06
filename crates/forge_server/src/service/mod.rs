@@ -40,7 +40,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl SystemPromptService for TestSystemPrompt {
-        async fn get_system_prompt(&self, _: &ModelId) -> Result<String> {
+        async fn get_system_prompt(&self, _: String, _: &ModelId) -> Result<String> {
             Ok(self.prompt.to_string())
         }
     }

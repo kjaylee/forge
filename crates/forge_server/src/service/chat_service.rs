@@ -13,15 +13,39 @@ use tokio_stream::StreamExt;
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
 use super::{ConversationId, Service};
+use crate::prompts::Agents;
 use crate::{Errata, Error, Result};
+
+pub struct Request {
+    content: String,
+    model: ModelId,
+    #[allow(dead_code)]
+    conversation_id: ConversationId,
+    agent: Agents,
+}
+
+impl Request {
+    pub fn with_agent(self, agent: Agents) -> Self {
+        Self { agent, ..self }
+    }
+}
+
+impl From<ChatRequest> for Request {
+    fn from(request: ChatRequest) -> Self {
+        Self {
+            content: request.content,
+            model: request.model,
+            conversation_id: request
+                .conversation_id
+                .expect("`conversation_id` is expected to be present."),
+            agent: Agents::default(),
+        }
+    }
+}
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {
-    async fn chat(
-        &self,
-        prompt: ChatRequest,
-        context: Context,
-    ) -> ResultStream<ChatResponse, Error>;
+    async fn chat(&self, prompt: Request, context: Context) -> ResultStream<ChatResponse, Error>;
 }
 
 impl Service {
@@ -136,9 +160,16 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ChatService for Live {
-    async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
-        let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
-        let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
+    async fn chat(&self, chat: Request, request: Context) -> ResultStream<ChatResponse, Error> {
+        let prompt_paths = chat.agent.prompt_path();
+        let system_prompt = self
+            .system_prompt
+            .get_system_prompt(prompt_paths.system(), &chat.model)
+            .await?;
+        let user_prompt = self
+            .user_prompt
+            .get_user_prompt(prompt_paths.user(), &chat.content)
+            .await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let request = request
@@ -182,6 +213,7 @@ pub enum ChatResponse {
     ToolUseEnd(ToolResult),
     ConversationStarted {
         conversation_id: ConversationId,
+        title: String,
     },
     ModifyContext(Context),
     Complete,
@@ -316,7 +348,7 @@ mod tests {
             );
 
             let messages = chat
-                .chat(request, Context::default())
+                .chat(request.into(), Context::default())
                 .await
                 .unwrap()
                 .collect::<Vec<_>>()

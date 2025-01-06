@@ -41,14 +41,15 @@ impl Live {
         let api_key: String = api_key.into();
         let provider = Arc::new(forge_provider::Service::open_router(api_key));
         let tool = Arc::new(forge_tool::Service::tool_service());
+        let file_read = Arc::new(Service::file_read_service());
 
         let system_prompt = Arc::new(Service::system_prompt(
             env.clone(),
             tool.clone(),
             provider.clone(),
+            file_read.clone(),
         ));
-        let file_read = Arc::new(Service::file_read_service());
-        let user_prompt = Arc::new(Service::user_prompt_service(file_read));
+        let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
@@ -60,12 +61,8 @@ impl Live {
             user_prompt,
         ));
 
-        let chat_service = Arc::new(Service::ui_service(storage.clone(), neo_chat_service));
-
         let completions = Arc::new(Service::completion_service(cwd.clone()));
-
-        let storage =
-            Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
+        let chat_service = Arc::new(Service::ui_service(storage.clone(), neo_chat_service));
 
         Self {
             provider,
