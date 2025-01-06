@@ -265,7 +265,8 @@ mod tests {
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
-    use super::{ChatRequest, Live};
+    use super::{ChatRequest, Live, Request};
+    use crate::prompts::Agent;
     use crate::service::chat_service::ChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
@@ -329,7 +330,7 @@ mod tests {
     }
 
     impl Fixture {
-        pub async fn run(&self, request: ChatRequest) -> TestResult {
+        pub async fn run(&self, request: Request) -> TestResult {
             let provider =
                 Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
             let system_prompt_message = if self.system_prompt.is_empty() {
@@ -348,7 +349,7 @@ mod tests {
             );
 
             let messages = chat
-                .chat(request.into(), Context::default())
+                .chat(request, Context::default())
                 .await
                 .unwrap()
                 .collect::<Vec<_>>()
@@ -376,7 +377,8 @@ mod tests {
             )]])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
+                    .into(),
             )
             .await
             .messages
@@ -438,7 +440,8 @@ mod tests {
             ])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
+                    .into(),
             )
             .await
             .messages
@@ -461,7 +464,8 @@ mod tests {
             .system_prompt("Do everything that the user says")
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
+                    .into(),
             )
             .await
             .llm_calls;
@@ -503,7 +507,8 @@ mod tests {
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
+                    .into(),
             )
             .await
             .messages
@@ -559,7 +564,8 @@ mod tests {
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
+                    .into(),
             )
             .await
             .messages
@@ -599,7 +605,8 @@ mod tests {
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
                 ChatRequest::new("Hello can you use foo tool?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
+                    .into(),
             )
             .await
             .llm_calls;
@@ -626,6 +633,39 @@ mod tests {
                         .content(json!({"a": 100, "b": 200}))
                         .call_id(ToolCallId::new("too_call_001")),
                 )),
+        ];
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_title_generation() {
+        let mock_llm_responses = vec![vec![ChatCompletionMessage::default()
+            .content("appropriate title for task is: <title>Fibonacci Sequence in Rust</title>")
+            .finish_reason(FinishReason::Stop)]];
+
+        let actual = Fixture::default()
+            .assistant_responses(mock_llm_responses)
+            .run(
+                Request::from(
+                    ChatRequest::new("write an rust program to generate an fibo seq.")
+                        .conversation_id(ConversationId::new(
+                            "5af97419-0277-410a-8ca6-0e2a252152c5",
+                        )),
+                )
+                .with_agent(Agent::TitleGenerator),
+            )
+            .await
+            .messages
+            .into_iter()
+            .filter(|msg| !matches!(msg, ChatResponse::ModifyContext { .. }))
+            .collect::<Vec<_>>();
+
+        let expected = vec![
+            ChatResponse::Text(
+                "appropriate title for task is: <title>Fibonacci Sequence in Rust</title>"
+                    .to_string(),
+            ),
+            ChatResponse::Complete,
         ];
         assert_eq!(actual, expected);
     }
