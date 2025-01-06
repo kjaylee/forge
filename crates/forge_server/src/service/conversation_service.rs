@@ -93,6 +93,11 @@ pub trait ConversationService: Send + Sync {
     async fn get_conversation(&self, id: ConversationId) -> Result<Conversation>;
     async fn list_conversations(&self) -> Result<Vec<Conversation>>;
     async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation>;
+    async fn set_conversation_title(
+        &self,
+        id: &ConversationId,
+        title: String,
+    ) -> Result<Conversation>;
 }
 
 pub struct Live<P: DBService> {
@@ -175,6 +180,25 @@ impl<P: DBService + Send + Sync> ConversationService for Live<P> {
             .first(&mut conn)?;
 
         Conversation::try_from(raw)
+    }
+
+    async fn set_conversation_title(
+        &self,
+        id: &ConversationId,
+        title: String,
+    ) -> Result<Conversation> {
+        let pool = self.pool_service.pool().await?;
+        let mut conn = pool.get()?;
+
+        diesel::update(conversations::table.find(id.0.to_string()))
+            .set(conversations::title.eq(title))
+            .execute(&mut conn)?;
+
+        let raw: RawConversation = conversations::table
+            .find(id.0.to_string())
+            .first(&mut conn)?;
+
+        raw.try_into()
     }
 }
 
