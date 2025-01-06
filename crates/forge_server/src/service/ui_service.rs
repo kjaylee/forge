@@ -6,7 +6,7 @@ use tokio_stream::{once, StreamExt};
 
 use super::chat_service::{ChatService, Request};
 use super::{ChatRequest, ChatResponse, ConversationService};
-use crate::prompts::Agents;
+use crate::prompts::Agent;
 use crate::{Error, Service};
 
 #[async_trait::async_trait]
@@ -64,7 +64,7 @@ impl UIService for Live {
         if is_new {
             // since conversation is new, we've to generate the title for conversation.
             let title_generate_agent_request =
-                Request::from(request.clone()).with_agent(Agents::TitleGenerator);
+                Request::from(request.clone()).with_agent(Agent::TitleGenerator);
             let mut title_stream = self
                 .chat_service
                 .chat(title_generate_agent_request, Context::default())

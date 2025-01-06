@@ -13,7 +13,7 @@ use tokio_stream::StreamExt;
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
 use super::{ConversationId, Service};
-use crate::prompts::Agents;
+use crate::prompts::Agent;
 use crate::{Errata, Error, Result};
 
 pub struct Request {
@@ -21,11 +21,11 @@ pub struct Request {
     model: ModelId,
     #[allow(dead_code)]
     conversation_id: ConversationId,
-    agent: Agents,
+    agent: Agent,
 }
 
 impl Request {
-    pub fn with_agent(self, agent: Agents) -> Self {
+    pub fn with_agent(self, agent: Agent) -> Self {
         Self { agent, ..self }
     }
 }
@@ -38,7 +38,7 @@ impl From<ChatRequest> for Request {
             conversation_id: request
                 .conversation_id
                 .expect("`conversation_id` is expected to be present."),
-            agent: Agents::default(),
+            agent: Agent::default(),
         }
     }
 }
