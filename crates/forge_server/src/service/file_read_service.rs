@@ -30,19 +30,25 @@ pub mod tests {
 
     pub struct TestFileReadService(HashMap<String, String>);
 
-    impl Default for TestFileReadService {
-        fn default() -> Self {
-            let prompts = Agent::Coding.prompt_path();
-            let system_template = std::fs::read_to_string(&prompts.system).unwrap();
-            let user_template = std::fs::read_to_string(&prompts.user).unwrap();
+    impl TestFileReadService {
+        pub fn default() -> Self {
             let mut map = HashMap::new();
-            map.insert(prompts.user(), user_template);
-            map.insert(prompts.system(), system_template);
+
+            let mut load_templates = |agent: &Agent| {
+                let prompts = agent.prompt_path();
+                let system_template = std::fs::read_to_string(&prompts.system).unwrap();
+                let user_template = std::fs::read_to_string(&prompts.user).unwrap();
+
+                map.insert(prompts.user(), user_template);
+                map.insert(prompts.system(), system_template);
+            };
+
+            load_templates(&Agent::Coding);
+            load_templates(&Agent::TitleGenerator);
+
             Self(map)
         }
-    }
 
-    impl TestFileReadService {
         pub fn new(s: HashMap<String, String>) -> Self {
             let mut default_file_read = Self::default();
             default_file_read.0.extend(s);

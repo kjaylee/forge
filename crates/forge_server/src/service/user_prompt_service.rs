@@ -90,4 +90,17 @@ pub mod tests {
             .unwrap();
         insta::assert_snapshot!(rendered_prompt);
     }
+
+    #[tokio::test]
+    async fn test_render_user_prompt_of_title_agent() {
+        let file_read = Arc::new(TestFileReadService::default());
+        let rendered_prompt = Service::user_prompt_service(file_read)
+            .get_user_prompt(
+                Agent::TitleGenerator.prompt_path().user(),
+                "write an fibo seq generator in python",
+            )
+            .await
+            .unwrap();
+        insta::assert_snapshot!(rendered_prompt);
+    }
 }

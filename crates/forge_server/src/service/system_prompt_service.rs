@@ -123,4 +123,22 @@ mod tests {
             .unwrap();
         assert_snapshot!(prompt);
     }
+
+    #[tokio::test]
+    async fn test_system_prompt_for_title_gen_agent() {
+        let env = test_env();
+        let tools = Arc::new(forge_tool::Service::tool_service());
+        let provider = Arc::new(
+            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
+        );
+        let file_read = Arc::new(TestFileReadService::default());
+        let prompt = Live::new(env, tools, provider, file_read)
+            .get_system_prompt(
+                Agent::TitleGenerator.prompt_path().system(),
+                &ModelId::default(),
+            )
+            .await
+            .unwrap();
+        assert_snapshot!(prompt);
+    }
 }
