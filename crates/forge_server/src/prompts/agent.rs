@@ -24,7 +24,7 @@ impl PromptPath {
 }
 
 impl Agent {
-    fn dir_name(self) -> &'static str {
+    fn prompt_dir(self) -> &'static str {
         match self {
             Agent::Coding => "coding",
             Agent::TitleGenerator => "title",
@@ -32,12 +32,13 @@ impl Agent {
     }
 
     pub fn prompt_path(self) -> PromptPath {
-        let prompts_dir = Path::new("src").join("prompts");
-        let agent_dir = prompts_dir.join(self.dir_name());
+        // Using absolute paths for prompt files
+        let crate_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let prompts_dir = crate_root.join("src").join("prompts");
 
         PromptPath {
-            system: agent_dir.join("system.md"),
-            user: agent_dir.join("user_task.md"),
+            system: prompts_dir.join(self.prompt_dir()).join("system.md"),
+            user: prompts_dir.join(self.prompt_dir()).join("user_task.md"),
         }
     }
 }
@@ -63,8 +64,8 @@ mod tests {
     #[test]
     fn test_prompt_paths_exist() {
         let paths = Agent::Coding.prompt_path();
-        println!("{:?}", paths);
-        assert!(paths.exists(), "Prompt files should exist");
+        assert!(paths.system.exists(), "System prompt file should exist");
+        assert!(paths.user.exists(), "User prompt file should exist");
     }
 
     #[test]
