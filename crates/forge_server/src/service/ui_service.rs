@@ -63,11 +63,11 @@ impl UIService for Live {
 
         if is_new {
             // since conversation is new, we've to generate the title for conversation.
-            let title_generate_agent_request =
+            let title_gen_request =
                 Request::from(request.clone()).with_agent(Agent::TitleGenerator);
             let mut title_stream = self
                 .chat_service
-                .chat(title_generate_agent_request, Context::default())
+                .chat(title_gen_request, Context::default())
                 .await?;
 
             // Collect all text responses into a single string
@@ -97,13 +97,15 @@ impl UIService for Live {
             .then(move |message| {
                 let conversation_service = conversation_service.clone();
                 async move {
-                    if let Ok(ChatResponse::ModifyContext(context)) = &message {
-                        conversation_service
-                            .set_conversation(context, request.conversation_id)
-                            .await?;
-                        message
-                    } else {
-                        message
+                    match &message {
+                        Ok(ChatResponse::ConversationStarted { .. }) => message,
+                        Ok(ChatResponse::ModifyContext(context)) => {
+                            conversation_service
+                                .set_conversation(context, request.conversation_id)
+                                .await?;
+                            message
+                        }
+                        _ => message,
                     }
                 }
             })
