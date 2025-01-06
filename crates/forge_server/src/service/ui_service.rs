@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use forge_domain::{Context, ResultStream};
+use forge_prompt::TagParser;
 use tokio_stream::{once, StreamExt};
 
-use super::chat_service::ChatService;
+use super::chat_service::{ChatService, Request};
 use super::{ChatRequest, ChatResponse, ConversationService};
+use crate::prompts::Agents;
 use crate::{Error, Service};
 
 #[async_trait::async_trait]
@@ -56,14 +58,35 @@ impl UIService for Live {
 
         let mut stream = self
             .chat_service
-            .chat(request.clone(), conversation.context)
+            .chat(request.clone().into(), conversation.context)
             .await?;
 
         if is_new {
+            // since conversation is new, we've to generate the title for conversation.
+            let title_generate_agent_request =
+                Request::from(request.clone()).with_agent(Agents::TitleGenerator);
+            let mut title_stream = self
+                .chat_service
+                .chat(title_generate_agent_request, Context::default())
+                .await?;
+
+            // Collect all text responses into a single string
+            let mut complete_response = String::new();
+            while let Some(res) = title_stream.next().await {
+                if let Ok(ChatResponse::Text(text)) = res {
+                    complete_response.push_str(&text);
+                }
+            }
+            let title = TagParser::parse(complete_response)
+                .get("title")
+                .unwrap_or("Untitled")
+                .to_string();
+
             let id = conversation.id;
             stream = Box::pin(
                 once(Ok(ChatResponse::ConversationStarted {
                     conversation_id: id,
+                    title,
                 }))
                 .chain(stream),
             );
@@ -104,7 +127,7 @@ mod tests {
     impl ChatService for TestStorage {
         async fn chat(
             &self,
-            _request: ChatRequest,
+            _request: Request,
             _context: Context,
         ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatResponse, Error>> + Send>>, Error>
         {
@@ -133,7 +156,7 @@ mod tests {
 
         let mut responses = service.chat(request).await.unwrap();
 
-        if let Some(Ok(ChatResponse::ConversationStarted { conversation_id: _ })) =
+        if let Some(Ok(ChatResponse::ConversationStarted { conversation_id: _, .. })) =
             responses.next().await
         {
         } else {

@@ -23,20 +23,42 @@ impl FileReadService for Live {
 
 #[cfg(test)]
 pub mod tests {
+    use std::collections::HashMap;
+
+    use crate::prompts::Agents;
+
     use super::*;
 
-    pub struct TestFileReadService(String);
+    pub struct TestFileReadService(HashMap<String, String>);
+
+    impl Default for TestFileReadService {
+        fn default() -> Self {
+            let prompts = Agents::Coding.prompt_path();
+            let system_template = std::fs::read_to_string(&prompts.system).unwrap();
+            let user_template = std::fs::read_to_string(&prompts.user).unwrap();
+            let mut map = HashMap::new();
+            map.insert(prompts.user(), user_template);
+            map.insert(prompts.system(), system_template);
+            Self(map)
+        }
+    }
 
     impl TestFileReadService {
-        pub fn new(s: impl ToString) -> Self {
-            Self(s.to_string())
+        pub fn new(s: HashMap<String, String>) -> Self {
+            let mut default_file_read = Self::default();
+            default_file_read.0.extend(s);
+            default_file_read
         }
     }
 
     #[async_trait::async_trait]
     impl FileReadService for TestFileReadService {
-        async fn read(&self, _: String) -> Result<String> {
-            Ok(self.0.clone())
+        async fn read(&self, path: String) -> Result<String> {
+            Ok(self
+                .0
+                .get(&path)
+                .cloned()
+                .expect(&format!("`{}` File not found", path)))
         }
     }
 }

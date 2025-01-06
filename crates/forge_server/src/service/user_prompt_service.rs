@@ -10,7 +10,7 @@ use crate::Result;
 
 #[async_trait::async_trait]
 pub trait UserPromptService: Send + Sync {
-    async fn get_user_prompt(&self, task: &str) -> Result<String>;
+    async fn get_user_prompt(&self, template_path: String, task: &str) -> Result<String>;
 }
 
 impl Service {
@@ -37,9 +37,8 @@ struct FileRead {
 
 #[async_trait::async_trait]
 impl UserPromptService for Live {
-    async fn get_user_prompt(&self, task: &str) -> Result<String> {
-        let template = include_str!("../prompts/user_task.md").to_string();
-
+    async fn get_user_prompt(&self, template_path: String, task: &str) -> Result<String> {
+        let template = self.file_read.read(template_path).await?;
         let parsed_task = Prompt::parse(task.to_string());
 
         let mut file_contents = vec![];
@@ -60,23 +59,32 @@ impl UserPromptService for Live {
 
 #[cfg(test)]
 pub mod tests {
+    use std::collections::HashMap;
+
     use super::*;
-    use crate::service::file_read_service::tests::TestFileReadService;
+    use crate::{prompts::Agents, service::file_read_service::tests::TestFileReadService};
 
     pub struct TestUserPrompt;
 
     #[async_trait::async_trait]
     impl UserPromptService for TestUserPrompt {
-        async fn get_user_prompt(&self, task: &str) -> Result<String> {
+        async fn get_user_prompt(&self, _: String, task: &str) -> Result<String> {
             Ok(format!("<task>{}</task>", task))
         }
     }
 
     #[tokio::test]
     async fn test_render_user_prompt() {
-        let file_read = Arc::new(TestFileReadService::new("Hello World"));
+        let mut file_map = HashMap::new();
+        file_map.insert("foo.txt".to_string(), "Hello World - Foo".to_string());
+        file_map.insert("bar.txt".to_string(), "Hello World - Bar".to_string());
+
+        let file_read = Arc::new(TestFileReadService::new(file_map));
         let rendered_prompt = Service::user_prompt_service(file_read)
-            .get_user_prompt("read this file content from @foo.txt and @bar.txt")
+            .get_user_prompt(
+                Agents::Coding.prompt_path().user(),
+                "read this file content from @foo.txt and @bar.txt",
+            )
             .await
             .unwrap();
         insta::assert_snapshot!(rendered_prompt);
