@@ -62,7 +62,8 @@ pub mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::{prompts::Agents, service::file_read_service::tests::TestFileReadService};
+    use crate::prompts::Agents;
+    use crate::service::file_read_service::tests::TestFileReadService;
 
     pub struct TestUserPrompt;
 

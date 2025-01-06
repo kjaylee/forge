@@ -1,10 +1,8 @@
-use nom::{
-    bytes::complete::{tag, take_until1},
-    character::complete::space0,
-    error::{Error, ErrorKind},
-    sequence::delimited,
-    IResult,
-};
+use nom::bytes::complete::{tag, take_until1};
+use nom::character::complete::space0;
+use nom::error::{Error, ErrorKind};
+use nom::sequence::delimited;
+use nom::IResult;
 
 #[derive(Debug, PartialEq)]
 pub struct TagParser;
@@ -26,10 +24,13 @@ impl ParseResult {
     }
 
     pub fn get_all(&self, tag: &str) -> Vec<&str> {
-        self.0.iter().filter_map(|t| match t {
-            ParsedTag::Tag { name, content } if name == tag => Some(content.as_str()),
-            _ => None,
-        }).collect()
+        self.0
+            .iter()
+            .filter_map(|t| match t {
+                ParsedTag::Tag { name, content } if name == tag => Some(content.as_str()),
+                _ => None,
+            })
+            .collect()
     }
 
     pub fn len(&self) -> usize {
@@ -66,7 +67,10 @@ impl TagParser {
         let (input, _) = space0(input)?;
         let (input, tag_name) = Self::parse_tag_name(input)?;
         let (input, content) = Self::parse_tag_content(input, tag_name)?;
-        Ok((input, ParsedTag::Tag { name: tag_name.to_string(), content }))
+        Ok((
+            input,
+            ParsedTag::Tag { name: tag_name.to_string(), content },
+        ))
     }
 
     pub fn parse(content: String) -> ParseResult {
