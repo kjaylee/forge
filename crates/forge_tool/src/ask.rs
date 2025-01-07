@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, RwLock};
 
 /// Represents a question that requires a text response from the user.
-/// This is used when the LLM needs to ask the user a question that requires a text response.
+/// This is used when the LLM needs to ask the user a question that requires a
+/// text response.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TextQuestion {
     /// The question to be presented to the user
@@ -16,7 +17,8 @@ pub struct TextQuestion {
 }
 
 /// Represents a question that requires a boolean choice between two options.
-/// This is used when the LLM needs to ask the user a question that requires a binary choice.
+/// This is used when the LLM needs to ask the user a question that requires a
+/// binary choice.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BooleanQuestion {
