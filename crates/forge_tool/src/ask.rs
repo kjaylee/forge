@@ -41,6 +41,7 @@ pub enum Question {
 }
 
 #[derive(Deserialize, Serialize, JsonSchema)]
+#[serde(transparent)]
 pub struct AskFollowUpQuestionInput {
     /// The question to ask the user. This should be a clear, specific question
     /// that addresses the information you need.
@@ -217,8 +218,10 @@ mod tests {
             option_two: "No".to_string(),
         });
 
-        let text_json = serde_json::to_string(&text_q).unwrap();
-        let bool_json = serde_json::to_string(&bool_q).unwrap();
+        let text_json = serde_json::to_string_pretty(&text_q).unwrap();
+        let bool_json = serde_json::to_string_pretty(&bool_q).unwrap();
+
+        println!("Text question: {}", text_json);
 
         assert!(text_json.contains("text"));
         assert!(bool_json.contains("boolean"));
