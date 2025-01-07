@@ -654,7 +654,9 @@ mod tests {
     #[tokio::test]
     async fn test_title_generation() {
         let mock_llm_responses = vec![vec![ChatCompletionMessage::default()
-            .content_part("appropriate title for task is: <title>Fibonacci Sequence in Rust</title>")
+            .content_part(
+                "appropriate title for task is: <title>Fibonacci Sequence in Rust</title>",
+            )
             .finish_reason(FinishReason::Stop)]];
 
         let actual = Fixture::default()
