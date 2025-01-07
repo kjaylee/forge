@@ -1,9 +1,74 @@
 ---
 source: crates/forge_tool/src/tool_service.rs
 expression: "serde_json::to_string_pretty(&tools).unwrap()"
-snapshot_kind: text
 ---
 [
+  {
+    "name": "ask_follow_up_question",
+    "description": "Ask the user a question to gather additional information needed to complete\n the task. This is useful when you need clarification or additional details\n from the user.\n\nParameters:",
+    "input_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Question",
+      "description": "Represents different types of questions that the LLM can ask the user. This enum allows the LLM to request either free-form text input or a choice between two options.",
+      "oneOf": [
+        {
+          "description": "A question requiring free-form text input",
+          "type": "object",
+          "required": [
+            "question",
+            "type"
+          ],
+          "properties": {
+            "question": {
+              "description": "The question to be presented to the user",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "text"
+              ]
+            }
+          }
+        },
+        {
+          "description": "A question requiring a choice between two options",
+          "type": "object",
+          "required": [
+            "optionOne",
+            "optionTwo",
+            "question",
+            "type"
+          ],
+          "properties": {
+            "optionOne": {
+              "description": "The first choice for the question",
+              "type": "string"
+            },
+            "optionTwo": {
+              "description": "The second choice for the question",
+              "type": "string"
+            },
+            "question": {
+              "description": "The question to be presented to the user",
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "boolean"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "output_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "String",
+      "type": "string"
+    }
+  },
   {
     "name": "fs_file_info",
     "description": "Request to retrieve detailed metadata about a file or directory at the\n specified path. Returns comprehensive information including size, creation\n time, last modified time, permissions, and type. Use this when you need to\n understand file characteristics without reading the actual content.\n\nParameters:\n- path (required): The path of the file or directory to inspect (relative to the current working directory)",

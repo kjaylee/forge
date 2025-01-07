@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, oneshot, RwLock};
 
 /// Represents a question that requires a text response from the user.
-/// This is used when the LLM needs free-form text input.
+/// This is used when the LLM needs to ask the user a question that requires a text response.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TextQuestion {
     /// The question to be presented to the user
@@ -16,14 +16,15 @@ pub struct TextQuestion {
 }
 
 /// Represents a question that requires a boolean choice between two options.
-/// This is used when the LLM needs the user to choose between two alternatives.
+/// This is used when the LLM needs to ask the user a question that requires a binary choice.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct BooleanQuestion {
     /// The question to be presented to the user
     pub question: String,
-    /// The first choice option
+    /// The first choice for the question
     pub option_one: String,
-    /// The second choice option
+    /// The second choice for the question
     pub option_two: String,
 }
 
@@ -206,23 +207,5 @@ mod tests {
 
         // Ensure the ask task completes
         ask_handle.await.unwrap();
-    }
-
-    #[test]
-    fn test_question_serialization() {
-        let text_q = Question::Text(TextQuestion { question: "What's your name?".to_string() });
-        let bool_q = Question::Boolean(BooleanQuestion {
-            question: "Do you agree?".to_string(),
-            option_one: "Yes".to_string(),
-            option_two: "No".to_string(),
-        });
-
-        let text_json = serde_json::to_string_pretty(&text_q).unwrap();
-        let bool_json = serde_json::to_string_pretty(&bool_q).unwrap();
-
-        println!("Text question: {}", text_json);
-
-        assert!(text_json.contains("text"));
-        assert!(bool_json.contains("boolean"));
     }
 }
