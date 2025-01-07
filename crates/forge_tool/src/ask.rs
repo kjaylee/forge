@@ -1,7 +1,12 @@
-use forge_domain::{Description, ToolCallService};
+use forge_domain::Description;
+use forge_domain::ToolCallService;
 use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::broadcast;
+use tokio::sync::oneshot;
+use tokio::sync::RwLock;
 
 /// Represents a question that requires a text response from the user.
 /// This is used when the LLM needs free-form text input.
@@ -43,57 +48,179 @@ pub struct AskFollowUpQuestionInput {
 }
 
 /// Ask the user a question to gather additional information needed to complete
-/// the task. This tool should be used when you encounter ambiguities, need
-/// clarification, or require more details to proceed effectively. It allows for
-/// interactive problem-solving by enabling direct communication with the user.
-#[derive(Description)]
-pub struct AskFollowUpQuestion;
+/// the task. This is useful when you need clarification or additional details
+/// from the user.
+#[derive(Clone, Description)]
+pub struct AskFollowUpQuestion {
+    pending_questions: Arc<PendingQuestions>,
+}
+
+impl AskFollowUpQuestion {
+    pub fn new(pending_questions: Arc<PendingQuestions>) -> Self {
+        Self { pending_questions }
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolCallService for AskFollowUpQuestion {
     type Input = AskFollowUpQuestionInput;
     type Output = String;
 
-    async fn call(&self, _input: Self::Input) -> Result<Self::Output, String> {
-        Ok("".to_string())
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let rx = self
+            .pending_questions
+            .submit_question(&input.question)
+            .await?;
+        // wait for the user to answer the question
+        let answer = rx.await.map_err(|e| e.to_string())?;
+        Ok(answer)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct AgentQuestion {
+    pub id: String,
+    pub question: String,
+}
+
+impl TryFrom<&Question> for AgentQuestion {
+    type Error = String;
+    fn try_from(value: &Question) -> Result<Self, Self::Error> {
+        let question = serde_json::to_string(&value).map_err(|e| e.to_string())?;
+        let id = uuid::Uuid::new_v4().to_string();
+        Ok(AgentQuestion { question, id })
+    }
+}
+
+/// Manages pending questions waiting for user responses
+pub struct PendingQuestions {
+    pub sender: broadcast::Sender<AgentQuestion>,
+    pub questions: Arc<RwLock<HashMap<String, oneshot::Sender<String>>>>,
+}
+
+impl Default for PendingQuestions {
+    fn default() -> Self {
+        let (sender, _) = broadcast::channel(1);
+        Self { sender, questions: Arc::new(RwLock::new(HashMap::new())) }
+    }
+}
+
+impl PendingQuestions {
+    pub async fn submit_question(
+        &self,
+        question: &Question,
+    ) -> Result<oneshot::Receiver<String>, String> {
+        let (tx, rx) = oneshot::channel();
+        let question: AgentQuestion = question.try_into()?;
+        self.questions.write().await.insert(question.id.clone(), tx);
+
+        // Send the question to the client.
+        self.sender.send(question).expect("Failed to send question");
+
+        Ok(rx)
+    }
+
+    /// Submit an answer for a question by its ID
+    pub async fn submit_answer(&self, id: String, answer: String) -> Result<(), String> {
+        let mut questions = self.questions.write().await;
+        if let Some(tx) = questions.remove(&id) {
+            tx.send(answer)
+                .map_err(|_| "Failed to send answer".to_string())
+        } else {
+            Err("Question not found".to_string())
+        }
     }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[tokio::test]
     async fn test_ask_followup_question() {
-        let ask = AskFollowUpQuestion;
-        let _result = ask
-            .call(AskFollowUpQuestionInput {
-                question: Question::Text(TextQuestion {
-                    question: "What is your favorite color?".to_string(),
-                }),
-            })
+        let pending_questions = Arc::new(PendingQuestions::default());
+        let ask = AskFollowUpQuestion::new(pending_questions.clone());
+
+        // Create the subscriber before sending any messages
+        let mut receiver = pending_questions.sender.subscribe();
+
+        // Send the question in a separate task
+        let ask_handle = tokio::spawn({
+            let ask = ask.clone();
+            async move {
+                let result = ask
+                    .call(AskFollowUpQuestionInput {
+                        question: Question::Text(TextQuestion {
+                            question: "What is your favorite color?".to_string(),
+                        }),
+                    })
+                    .await
+                    .unwrap();
+                assert_eq!(result, "Blue");
+            }
+        });
+
+        // Handle the response in main task
+        let question = receiver.recv().await.unwrap();
+        pending_questions
+            .submit_answer(question.id, "Blue".to_string())
             .await
             .unwrap();
-        // assert_eq!(result, "Question: What is your favorite color?");
+
+        // Ensure the ask task completes
+        ask_handle.await.unwrap();
     }
 
     #[tokio::test]
     async fn test_ask_followup_boolean_question() {
-        let ask = AskFollowUpQuestion;
-        let _result = ask
-            .call(AskFollowUpQuestionInput {
-                question: Question::Boolean(BooleanQuestion {
-                    question: "Do you like cats?".to_string(),
-                    option_one: "Yes".to_string(),
-                    option_two: "No".to_string(),
-                }),
-            })
+        let pending_questions = Arc::new(PendingQuestions::default());
+        let ask = AskFollowUpQuestion::new(pending_questions.clone());
+
+        // Create the subscriber before sending any messages
+        let mut receiver = pending_questions.sender.subscribe();
+
+        // Send the question in a separate task
+        let ask_handle = tokio::spawn({
+            let ask = ask.clone();
+            async move {
+                let _result = ask
+                    .call(AskFollowUpQuestionInput {
+                        question: Question::Boolean(BooleanQuestion {
+                            question: "Do you like blue?".to_string(),
+                            option_one: "Yes".to_string(),
+                            option_two: "No".to_string(),
+                        }),
+                    })
+                    .await
+                    .unwrap();
+                assert_eq!(_result, "Yes".to_string());
+            }
+        });
+
+        // Handle the response in main task
+        let question = receiver.recv().await.unwrap();
+        pending_questions
+            .submit_answer(question.id, "Yes".to_string())
             .await
             .unwrap();
+
+        // Ensure the ask task completes
+        ask_handle.await.unwrap();
     }
 
     #[test]
-    fn test_description() {
-        assert!(AskFollowUpQuestion::description().len() > 100)
+    fn test_question_serialization() {
+        let text_q = Question::Text(TextQuestion { question: "What's your name?".to_string() });
+        let bool_q = Question::Boolean(BooleanQuestion {
+            question: "Do you agree?".to_string(),
+            option_one: "Yes".to_string(),
+            option_two: "No".to_string(),
+        });
+
+        let text_json = serde_json::to_string(&text_q).unwrap();
+        let bool_json = serde_json::to_string(&bool_q).unwrap();
+
+        assert!(text_json.contains("text"));
+        assert!(bool_json.contains("boolean"));
     }
 }

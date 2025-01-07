@@ -48,6 +48,9 @@ async fn main() -> Result<()> {
                 ChatResponse::Error(err) => {
                     panic!("{:?}", err);
                 }
+                ChatResponse::QuestionRequest { question, .. } => {
+                    println!("Question: {}", question);
+                }
             }
         }
 

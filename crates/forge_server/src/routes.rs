@@ -4,11 +4,12 @@ const SERVER_PORT: u16 = 8080;
 
 use axum::extract::{Json, State};
 use axum::response::sse::{Event, Sse};
-use axum::response::Html;
+use axum::response::{Html, IntoResponse};
 use axum::routing::{get, post};
 use axum::Router;
 use forge_domain::{Context, Environment, Model, ModelId, ResultStream, ToolDefinition};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
@@ -63,6 +64,7 @@ impl API {
             .route("/context/{id}/html", get(context_html_handler))
             .route("/conversations", get(conversations_handler))
             .route("/conversation/{id}", get(history_handler))
+            .route("/answer/{question_id}", post(answer_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -113,13 +115,29 @@ async fn conversation_handler(
         .chat(request)
         .await
         .expect("Engine failed to respond with a chat message");
-    Sse::new(stream.map(|message| {
-        let data = serde_json::to_string(
-            &message.unwrap_or_else(|error| Errata::new(error.to_string()).into()),
-        )
-        .expect("Failed to serialize message");
+
+    let pending_questions = state.pending_questions().await;
+    let rx = pending_questions.sender.subscribe();
+
+
+    let question_stream = BroadcastStream::new(rx).map(|question| {
+        let question = question.expect("Failed to receive question");
+        let data = ChatResponse::QuestionRequest { id: question.id, question: question.question };
+        let data = serde_json::to_string(&data).expect("Failed to serialize question");
         Ok(Event::default().data(data))
-    }))
+    });
+
+    Sse::new(
+        stream
+            .map(|message| {
+                let data = serde_json::to_string(
+                    &message.unwrap_or_else(|error| Errata::new(error.to_string()).into()),
+                )
+                .expect("Failed to serialize message");
+                Ok(Event::default().data(data))
+            })
+            .merge(question_stream),
+    )
 }
 
 #[axum::debug_handler]
@@ -181,4 +199,25 @@ pub struct ToolResponse {
 #[derive(Serialize)]
 pub struct ConversationsResponse {
     conversations: Vec<Conversation>,
+}
+
+#[derive(Deserialize)]
+pub struct AnswerRequest {
+    answer: String,
+}
+
+async fn answer_handler(
+    State(state): State<Arc<dyn RootAPIService>>,
+    axum::extract::Path(question_id): axum::extract::Path<String>,
+    Json(request): Json<AnswerRequest>,
+) -> impl axum::response::IntoResponse {
+    let pending_questions = state.pending_questions().await;
+    if let Err(e) = pending_questions
+        .submit_answer(question_id, request.answer)
+        .await
+    {
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e).into_response()
+    } else {
+        axum::http::StatusCode::OK.into_response()
+    }
 }
