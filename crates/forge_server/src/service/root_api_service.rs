@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{Context, Environment, Model, ResultStream, ToolDefinition, ToolService};
 use forge_provider::ProviderService;
-use forge_tool::PendingQuestions;
+use forge_tool::QuestionCoordinator;
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
@@ -21,7 +21,7 @@ pub trait RootAPIService: Send + Sync {
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
-    async fn pending_questions(&self) -> Arc<PendingQuestions>;
+    async fn pending_questions(&self) -> Arc<QuestionCoordinator>;
 }
 
 impl Service {
@@ -37,13 +37,13 @@ struct Live {
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
-    pending_questions: Arc<PendingQuestions>,
+    pending_questions: Arc<QuestionCoordinator>,
 }
 
 impl Live {
     fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
-        let pending_questions = Arc::new(PendingQuestions::default());
+        let pending_questions = Arc::new(QuestionCoordinator::default());
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
         let tool = Arc::new(forge_tool::Service::tool_service(pending_questions.clone()));
 
@@ -122,7 +122,7 @@ impl RootAPIService for Live {
             .into())
     }
 
-    async fn pending_questions(&self) -> Arc<PendingQuestions> {
+    async fn pending_questions(&self) -> Arc<QuestionCoordinator> {
         self.pending_questions.clone()
     }
 }

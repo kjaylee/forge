@@ -5,7 +5,7 @@ use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::PendingQuestions;
+use crate::pending_questions::QuestionCoordinator;
 
 /// Represents a question that requires a text response from the user.
 /// This is used when the LLM needs to ask the user a question that requires a
@@ -55,11 +55,11 @@ pub struct AskFollowUpQuestionInput {
 /// from the user.
 #[derive(Clone, Description)]
 pub struct AskFollowUpQuestion {
-    pending_questions: Arc<PendingQuestions>,
+    pending_questions: Arc<QuestionCoordinator>,
 }
 
 impl AskFollowUpQuestion {
-    pub fn new(pending_questions: Arc<PendingQuestions>) -> Self {
+    pub fn new(pending_questions: Arc<QuestionCoordinator>) -> Self {
         Self { pending_questions }
     }
 }
@@ -70,12 +70,11 @@ impl ToolCallService for AskFollowUpQuestion {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let rx = self
+        let answer = self
             .pending_questions
-            .submit_question(&input.question)
-            .await?;
-        // wait for the user to answer the question
-        let answer = rx.await.map_err(|e| e.to_string())?;
+            .ask_question(&input.question, None)
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(answer)
     }
 }
@@ -98,11 +97,10 @@ impl TryFrom<&Question> for AgentQuestion {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PendingQuestions;
 
     #[tokio::test]
     async fn test_ask_followup_question() {
-        let pending_questions = Arc::new(PendingQuestions::default());
+        let pending_questions = Arc::new(QuestionCoordinator::default());
         let ask = AskFollowUpQuestion::new(pending_questions.clone());
 
         // Create the subscriber before sending any messages
@@ -137,7 +135,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_ask_followup_boolean_question() {
-        let pending_questions = Arc::new(PendingQuestions::default());
+        let pending_questions = Arc::new(QuestionCoordinator::default());
         let ask = AskFollowUpQuestion::new(pending_questions.clone());
 
         // Create the subscriber before sending any messages

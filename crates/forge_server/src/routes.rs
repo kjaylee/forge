@@ -215,7 +215,7 @@ async fn answer_handler(
         .submit_answer(question_id, request.answer)
         .await
     {
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e).into_response()
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
     } else {
         axum::http::StatusCode::OK.into_response()
     }

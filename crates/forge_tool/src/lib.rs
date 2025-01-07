@@ -8,4 +8,4 @@ mod tool_service;
 
 pub struct Service;
 
-pub use pending_questions::PendingQuestions;
+pub use pending_questions::QuestionCoordinator;

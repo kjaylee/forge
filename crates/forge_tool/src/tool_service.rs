@@ -10,7 +10,7 @@ use crate::fs::*;
 use crate::outline::Outline;
 use crate::shell::Shell;
 use crate::think::Think;
-use crate::{PendingQuestions, Service};
+use crate::{QuestionCoordinator, Service};
 
 struct Live {
     tools: HashMap<ToolName, Tool>,
@@ -87,7 +87,7 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub fn tool_service(pending_questions: Arc<PendingQuestions>) -> impl ToolService {
+    pub fn tool_service(pending_questions: Arc<QuestionCoordinator>) -> impl ToolService {
         Live::from_iter([
             Tool::new(FSRead),
             Tool::new(FSWrite),
@@ -134,13 +134,13 @@ mod test {
 
     #[test]
     fn test_usage_prompt() {
-        let docs = Service::tool_service(Arc::new(PendingQuestions::default())).usage_prompt();
+        let docs = Service::tool_service(Arc::new(QuestionCoordinator::default())).usage_prompt();
         insta::assert_snapshot!(docs);
     }
 
     #[test]
     fn test_tool_definition() {
-        let tools = Service::tool_service(Arc::new(PendingQuestions::default())).list();
+        let tools = Service::tool_service(Arc::new(QuestionCoordinator::default())).list();
         insta::assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 }

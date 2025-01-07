@@ -72,7 +72,7 @@ impl SystemPromptService for Live {
 #[cfg(test)]
 mod tests {
     use forge_domain::Parameters;
-    use forge_tool::PendingQuestions;
+    use forge_tool::QuestionCoordinator;
     use insta::assert_snapshot;
 
     use super::*;
@@ -95,7 +95,7 @@ mod tests {
     async fn test_tool_supported() {
         let env = test_env();
         let tools = Arc::new(forge_tool::Service::tool_service(Arc::new(
-            PendingQuestions::default(),
+            QuestionCoordinator::default(),
         )));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
@@ -111,7 +111,7 @@ mod tests {
     async fn test_tool_unsupported() {
         let env = test_env();
         let tools = Arc::new(forge_tool::Service::tool_service(Arc::new(
-            PendingQuestions::default(),
+            QuestionCoordinator::default(),
         )));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
