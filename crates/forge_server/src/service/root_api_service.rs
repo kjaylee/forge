@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
-use forge_domain::{Context, Model, ResultStream, ToolDefinition, ToolService};
-use forge_env::Environment;
+use forge_domain::{Context, Environment, Model, ToolDefinition, ToolService, UStream};
 use forge_provider::ProviderService;
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
-use super::{ConversationId, ConversationService, Service, UIService};
-use crate::{ChatRequest, ChatResponse, Conversation, Error, File, Result};
+use super::{
+    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService, File, Service,
+    UIService,
+};
+use crate::Result;
 
 #[async_trait::async_trait]
 pub trait RootAPIService: Send + Sync {
@@ -15,14 +17,14 @@ pub trait RootAPIService: Send + Sync {
     async fn tools(&self) -> Vec<ToolDefinition>;
     async fn context(&self, conversation_id: ConversationId) -> Result<Context>;
     async fn models(&self) -> Result<Vec<Model>>;
-    async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
+    async fn chat(&self, chat: ChatRequest) -> Result<UStream<ChatResponse>>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
 }
 
 impl Service {
-    pub fn root_api_service(env: Environment, api_key: impl Into<String>) -> impl RootAPIService {
-        Live::new(env, api_key)
+    pub fn root_api_service(env: Environment) -> impl RootAPIService {
+        Live::new(env)
     }
 }
 
@@ -36,10 +38,9 @@ struct Live {
 }
 
 impl Live {
-    fn new(env: Environment, api_key: impl Into<String>) -> Self {
+    fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
-        let api_key: String = api_key.into();
-        let provider = Arc::new(forge_provider::Service::open_router(api_key));
+        let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
         let tool = Arc::new(forge_tool::Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
 
@@ -54,7 +55,7 @@ impl Live {
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        let neo_chat_service = Arc::new(Service::chat_service(
+        let chat_service = Arc::new(Service::chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
@@ -96,7 +97,7 @@ impl RootAPIService for Live {
         Ok(self.provider.models().await?)
     }
 
-    async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
+    async fn chat(&self, chat: ChatRequest) -> Result<UStream<ChatResponse>> {
         Ok(self.ui_service.chat(chat).await?)
     }
 

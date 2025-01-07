@@ -7,29 +7,31 @@ use axum::response::sse::{Event, Sse};
 use axum::response::Html;
 use axum::routing::{get, post};
 use axum::Router;
-use forge_domain::{Context, Model, ToolDefinition};
-use forge_env::Environment;
+use forge_domain::{Context, Environment, Model, ModelId, ToolDefinition, UStream};
 use serde::Serialize;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{
-    ChatRequest, Conversation, ConversationHistory, ConversationId, Errata, File, Result,
-    RootAPIService, Service,
+use crate::service::{
+    ChatRequest, ChatResponse, Conversation, ConversationHistory, ConversationId,
+    EnvironmentService, File, RootAPIService,
 };
+use crate::{Result, Service};
 
 pub struct API {
-    // TODO: rename Conversation to Server and drop Server
-    api_key: String,
+    api: Arc<dyn RootAPIService>,
+    env: Environment,
 }
 
-impl Default for API {
-    fn default() -> Self {
-        dotenv::dotenv().ok();
-        let api_key = std::env::var("FORGE_KEY").expect("FORGE_KEY must be set");
-        Self { api_key }
+impl API {
+    pub async fn init() -> Result<Self> {
+        tracing_subscriber::fmt().init();
+        let env = Service::environment_service().get().await?;
+        let api = Arc::new(Service::root_api_service(env.clone()));
+
+        Ok(Self { api, env })
     }
 }
 
@@ -43,15 +45,13 @@ async fn context_html_handler(
 }
 
 impl API {
+    pub async fn run(self, content: String) -> Result<UStream<ChatResponse>> {
+        let model = ModelId::from_env(&self.env);
+        let chat = ChatRequest { content, model, conversation_id: None };
+        self.api.chat(chat).await
+    }
+
     pub async fn launch(self) -> Result<()> {
-        tracing_subscriber::fmt().init();
-        let env = Environment::from_env().await?;
-        let state = Arc::new(Service::root_api_service(env, self.api_key));
-
-        if dotenv::dotenv().is_ok() {
-            info!("Loaded .env file");
-        }
-
         // Setup HTTP server
         let app = Router::new()
             .route("/conversation", post(conversation_handler))
@@ -76,7 +76,7 @@ impl API {
                         axum::http::header::AUTHORIZATION,
                     ]),
             )
-            .with_state(state.clone());
+            .with_state(self.api.clone());
 
         // Spawn HTTP server
         let server = tokio::spawn(async move {
@@ -114,9 +114,7 @@ async fn conversation_handler(
         .await
         .expect("Engine failed to respond with a chat message");
     Sse::new(stream.map(|message| {
-        let data =
-            serde_json::to_string(&message.unwrap_or_else(|error| Errata::from(&error).into()))
-                .expect("Failed to serialize message");
+        let data = serde_json::to_string(&message).expect("Failed to serialize message");
         Ok(Event::default().data(data))
     }))
 }
