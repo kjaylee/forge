@@ -117,7 +117,7 @@ impl TryFrom<RawConfig> for Config {
 #[async_trait::async_trait]
 pub trait ConfigService: Send + Sync {
     async fn get(&self) -> Result<GlobalConfig>;
-    async fn set(&self, create_setting_req: CreateConfigRequest) -> Result<Config>;
+    async fn set(&self, config: CreateConfigRequest) -> Result<Config>;
 }
 
 pub struct Live<P> {
@@ -157,16 +157,16 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
         Ok(GlobalConfig(configs))
     }
 
-    async fn set(&self, create_config_req: CreateConfigRequest) -> Result<Config> {
+    async fn set(&self, config: CreateConfigRequest) -> Result<Config> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let now = Utc::now().naive_utc();
 
         let raw = RawConfig {
-            provider_type: create_config_req.provider_type.to_string(),
-            provider_id: create_config_req.provider_id,
-            model_id: create_config_req.model_id.as_str().to_string(),
-            api_key: Some(create_config_req.api_key),
+            provider_type: config.provider_type.to_string(),
+            provider_id: config.provider_id,
+            model_id: config.model_id.as_str().to_string(),
+            api_key: Some(config.api_key),
             created_at: now,
             updated_at: now,
         };
@@ -215,7 +215,7 @@ pub mod tests {
     }
 
     #[tokio::test]
-    async fn test_settings_can_be_stored_and_retrieved() -> Result<()> {
+    async fn test_config_can_be_stored_and_retrieved() -> Result<()> {
         let storage = setup_storage().await?;
 
         // Create primary config

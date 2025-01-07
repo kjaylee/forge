@@ -167,8 +167,8 @@ async fn context_handler(
 
 #[axum::debug_handler]
 async fn get_config_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<GlobalConfig> {
-    let setting = state.get_config().await.unwrap();
-    Json(setting)
+    let config = state.get_config().await.unwrap();
+    Json(config)
 }
 
 #[axum::debug_handler]
@@ -176,8 +176,8 @@ async fn set_config_handler(
     State(state): State<Arc<dyn RootAPIService>>,
     Json(request): Json<CreateConfigRequest>,
 ) -> Json<Config> {
-    let setting = state.set_config(request).await.unwrap();
-    Json(setting)
+    let config = state.set_config(request).await.unwrap();
+    Json(config)
 }
 
 #[derive(Serialize)]

@@ -37,7 +37,7 @@ struct Live {
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
-    setting_storage: Arc<dyn ConfigService>,
+    config_storage: Arc<dyn ConfigService>,
 }
 
 impl Live {
@@ -70,8 +70,8 @@ impl Live {
 
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
-        let setting_storage = Arc::new(
-            Service::config_service(&cwd).expect("Failed to create settings storage service"),
+        let config_storage = Arc::new(
+            Service::config_service(&cwd).expect("Failed to create config storage service"),
         );
 
         Self {
@@ -80,7 +80,7 @@ impl Live {
             completions,
             ui_service: chat_service,
             storage,
-            setting_storage,
+            config_storage,
         }
     }
 }
@@ -125,10 +125,10 @@ impl RootAPIService for Live {
     }
 
     async fn get_config(&self) -> Result<GlobalConfig> {
-        Ok(self.setting_storage.get().await?)
+        Ok(self.config_storage.get().await?)
     }
 
     async fn set_config(&self, request: CreateConfigRequest) -> Result<Config> {
-        self.setting_storage.set(request).await
+        self.config_storage.set(request).await
     }
 }
