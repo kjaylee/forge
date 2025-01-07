@@ -6,7 +6,8 @@ use forge_provider::ProviderService;
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
 use super::{
-    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService, CreateSettingRequest, File, Service, Setting, SettingId, SettingsService, UIService
+    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService,
+    CreateSettingRequest, File, Service, Setting, SettingId, SettingsService, UIService,
 };
 use crate::{Error, Result};
 
