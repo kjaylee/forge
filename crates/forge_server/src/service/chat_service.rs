@@ -380,7 +380,6 @@ mod tests {
                     ),
                 ChatCompletionMessage::default()
                     .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
-                // IMPORTANT: the last message has an empty string in content
                 ChatCompletionMessage::default()
                     .content_part("")
                     .finish_reason(FinishReason::ToolCalls),
@@ -397,7 +396,6 @@ mod tests {
                     ),
                 ChatCompletionMessage::default()
                     .add_tool_call(ToolCallPart::default().arguments_part(r#""y": 200}"#)),
-                // IMPORTANT: the last message has an empty string in content
                 ChatCompletionMessage::default()
                     .content_part("")
                     .finish_reason(FinishReason::ToolCalls),
