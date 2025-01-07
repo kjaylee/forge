@@ -55,7 +55,7 @@ impl Live {
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        let chat_service = Arc::new(Service::chat_service(
+        let neo_chat_service = Arc::new(Service::chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),

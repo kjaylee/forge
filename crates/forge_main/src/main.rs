@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
                 ChatResponse::ToolCallEnd(tool_result) => {
                     println!("{}", tool_result.content);
                 }
-                ChatResponse::ConversationStarted(_) => {}
+                ChatResponse::ConversationStarted { .. } => {}
                 ChatResponse::ModifyContext(_) => {}
                 ChatResponse::Complete => {
                     println!("Job completed");
