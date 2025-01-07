@@ -6,13 +6,12 @@ use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::info;
 
-use super::file_read_service::FileReadService;
 use super::Service;
 use crate::Result;
 
 #[async_trait::async_trait]
 pub trait SystemPromptService: Send + Sync {
-    async fn get_system_prompt(&self, template_path: String, model: &ModelId) -> Result<String>;
+    async fn get_system_prompt(&self, model: &ModelId) -> Result<String>;
 }
 
 impl Service {
@@ -20,9 +19,8 @@ impl Service {
         env: Environment,
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
-        file_read: Arc<dyn FileReadService>,
     ) -> impl SystemPromptService {
-        Live::new(env, tool, provider, file_read)
+        Live::new(env, tool, provider)
     }
 }
 
@@ -38,7 +36,6 @@ struct Live {
     env: Environment,
     tool: Arc<dyn ToolService>,
     provider: Arc<dyn ProviderService>,
-    file_read: Arc<dyn FileReadService>,
 }
 
 impl Live {
@@ -46,16 +43,15 @@ impl Live {
         env: Environment,
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
-        file_read: Arc<dyn FileReadService>,
     ) -> Self {
-        Self { env, tool, provider, file_read }
+        Self { env, tool, provider }
     }
 }
 
 #[async_trait::async_trait]
 impl SystemPromptService for Live {
-    async fn get_system_prompt(&self, template_path: String, model: &ModelId) -> Result<String> {
-        let template = self.file_read.read(template_path).await?;
+    async fn get_system_prompt(&self, model: &ModelId) -> Result<String> {
+        let template = include_str!("../prompts/coding/system.md");
 
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -69,7 +65,7 @@ impl SystemPromptService for Live {
             tool_supported,
         };
 
-        Ok(hb.render_template(template.as_str(), &ctx)?)
+        Ok(hb.render_template(template, &ctx)?)
     }
 }
 
@@ -79,8 +75,6 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::prompts::Agent;
-    use crate::service::file_read_service::tests::TestFileReadService;
     use crate::service::tests::TestProvider;
 
     fn test_env() -> Environment {
@@ -103,9 +97,8 @@ mod tests {
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
         );
-        let file_read = Arc::new(TestFileReadService::default());
-        let prompt = Live::new(env, tools, provider, file_read)
-            .get_system_prompt(Agent::Coding.prompt_path().system(), &ModelId::default())
+        let prompt = Live::new(env, tools, provider)
+            .get_system_prompt(&ModelId::default())
             .await
             .unwrap();
         assert_snapshot!(prompt);
@@ -118,27 +111,8 @@ mod tests {
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
         );
-        let file_read = Arc::new(TestFileReadService::default());
-        let prompt = Live::new(env, tools, provider, file_read)
-            .get_system_prompt(Agent::Coding.prompt_path().system(), &ModelId::default())
-            .await
-            .unwrap();
-        assert_snapshot!(prompt);
-    }
-
-    #[tokio::test]
-    async fn test_system_prompt_for_title_gen_agent() {
-        let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
-        let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
-        );
-        let file_read = Arc::new(TestFileReadService::default());
-        let prompt = Live::new(env, tools, provider, file_read)
-            .get_system_prompt(
-                Agent::TitleGenerator.prompt_path().system(),
-                &ModelId::default(),
-            )
+        let prompt = Live::new(env, tools, provider)
+            .get_system_prompt(&ModelId::default())
             .await
             .unwrap();
         assert_snapshot!(prompt);

@@ -9,6 +9,9 @@ mod system_prompt_service;
 mod ui_service;
 mod user_prompt_service;
 
+mod title_system_prompt_service;
+mod title_user_prompt_service;
+
 pub use chat_service::*;
 pub use completion_service::*;
 pub use conversation_service::*;
@@ -43,7 +46,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl SystemPromptService for TestSystemPrompt {
-        async fn get_system_prompt(&self, _: String, _: &ModelId) -> Result<String> {
+        async fn get_system_prompt(&self, _: &ModelId) -> Result<String> {
             Ok(self.prompt.to_string())
         }
     }

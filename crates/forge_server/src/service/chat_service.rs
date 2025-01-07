@@ -13,39 +13,15 @@ use tokio_stream::StreamExt;
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
 use super::{ConversationId, Service};
-use crate::prompts::Agent;
 use crate::{Errata, Error, Result};
-
-pub struct Request {
-    content: String,
-    model: ModelId,
-    #[allow(dead_code)]
-    conversation_id: ConversationId,
-    agent: Agent,
-}
-
-impl Request {
-    pub fn with_agent(self, agent: Agent) -> Self {
-        Self { agent, ..self }
-    }
-}
-
-impl From<ChatRequest> for Request {
-    fn from(request: ChatRequest) -> Self {
-        Self {
-            content: request.content,
-            model: request.model,
-            conversation_id: request
-                .conversation_id
-                .expect("`conversation_id` is expected to be present."),
-            agent: Agent::default(),
-        }
-    }
-}
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {
-    async fn chat(&self, prompt: Request, context: Context) -> ResultStream<ChatResponse, Error>;
+    async fn chat(
+        &self,
+        prompt: ChatRequest,
+        context: Context,
+    ) -> ResultStream<ChatResponse, Error>;
 }
 
 impl Service {
@@ -160,16 +136,9 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ChatService for Live {
-    async fn chat(&self, chat: Request, request: Context) -> ResultStream<ChatResponse, Error> {
-        let prompt_paths = chat.agent.prompt_path();
-        let system_prompt = self
-            .system_prompt
-            .get_system_prompt(prompt_paths.system(), &chat.model)
-            .await?;
-        let user_prompt = self
-            .user_prompt
-            .get_user_prompt(prompt_paths.user(), &chat.content)
-            .await?;
+    async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
+        let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
+        let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let request = request
@@ -268,8 +237,7 @@ mod tests {
     use serde_json::{json, Value};
     use tokio_stream::StreamExt;
 
-    use super::{ChatRequest, Live, Request};
-    use crate::prompts::Agent;
+    use super::{ChatRequest, Live};
     use crate::service::chat_service::ChatService;
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::user_prompt_service::tests::TestUserPrompt;
@@ -333,7 +301,7 @@ mod tests {
     }
 
     impl Fixture {
-        pub async fn run(&self, request: Request) -> TestResult {
+        pub async fn run(&self, request: ChatRequest) -> TestResult {
             let provider =
                 Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
             let system_prompt_message = if self.system_prompt.is_empty() {
@@ -380,8 +348,7 @@ mod tests {
             ))]])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
-                    .into(),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .messages
@@ -444,8 +411,7 @@ mod tests {
             ])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
-                    .into(),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .messages
@@ -468,8 +434,7 @@ mod tests {
             .system_prompt("Do everything that the user says")
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
-                    .into(),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .llm_calls;
@@ -511,8 +476,7 @@ mod tests {
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
-                    .into(),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .messages
@@ -568,8 +532,7 @@ mod tests {
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
                 ChatRequest::new("Hello can you help me?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
-                    .into(),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .messages
@@ -609,8 +572,7 @@ mod tests {
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
                 ChatRequest::new("Hello can you use foo tool?")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5"))
-                    .into(),
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .llm_calls;
@@ -652,13 +614,8 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .run(
-                Request::from(
-                    ChatRequest::new("write an rust program to generate an fibo seq.")
-                        .conversation_id(ConversationId::new(
-                            "5af97419-0277-410a-8ca6-0e2a252152c5",
-                        )),
-                )
-                .with_agent(Agent::TitleGenerator),
+                ChatRequest::new("write an rust program to generate an fibo seq.")
+                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
             )
             .await
             .messages

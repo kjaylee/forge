@@ -1,3 +1,7 @@
+---
+source: crates/forge_server/src/service/title_system_prompt_service.rs
+expression: system_prompt
+---
 You are Code-Forge's Title Generation Expert. Your task is to analyze content and generate precise, impactful titles that capture the essence of the material.
 
 Input Format:

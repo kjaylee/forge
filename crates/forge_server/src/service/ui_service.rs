@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
 use forge_domain::{Context, ResultStream};
-use forge_prompt::TagParser;
 use tokio_stream::{once, StreamExt};
 use tracing::info;
 
-use super::chat_service::{ChatService, Request};
+use super::chat_service::ChatService;
 use super::{ChatRequest, ChatResponse, ConversationService};
-use crate::prompts::Agent;
 use crate::{Error, Service};
 
 #[async_trait::async_trait]
@@ -18,14 +16,16 @@ pub trait UIService: Send + Sync {
 struct Live {
     conversation_service: Arc<dyn ConversationService>,
     chat_service: Arc<dyn ChatService>,
+    title_service: Arc<dyn ChatService>,
 }
 
 impl Live {
     fn new(
         conversation_service: Arc<dyn ConversationService>,
         chat_service: Arc<dyn ChatService>,
+        title_service: Arc<dyn ChatService>,
     ) -> Self {
-        Self { conversation_service, chat_service }
+        Self { conversation_service, chat_service, title_service }
     }
 }
 
@@ -33,8 +33,9 @@ impl Service {
     pub fn ui_service(
         conversation_service: Arc<dyn ConversationService>,
         neo_chat_service: Arc<dyn ChatService>,
+        title_service: Arc<dyn ChatService>,
     ) -> impl UIService {
-        Live::new(conversation_service, neo_chat_service)
+        Live::new(conversation_service, neo_chat_service, title_service)
     }
 }
 
@@ -60,29 +61,23 @@ impl UIService for Live {
 
         let mut stream = self
             .chat_service
-            .chat(request.clone().into(), conversation.context)
+            .chat(request.clone(), conversation.context)
             .await?;
 
         if is_new {
             // since conversation is new, we've to generate the title for conversation.
-            let title_gen_request =
-                Request::from(request.clone()).with_agent(Agent::TitleGenerator);
             let mut title_stream = self
-                .chat_service
-                .chat(title_gen_request, Context::default())
+                .title_service
+                .chat(request.clone(), Context::default())
                 .await?;
 
             // Collect all text responses into a single string
-            let mut complete_response = String::new();
+            let mut title = String::new();
             while let Some(res) = title_stream.next().await {
                 if let Ok(ChatResponse::Text(text)) = res {
-                    complete_response.push_str(&text);
+                    title.push_str(&text);
                 }
             }
-            let title = TagParser::parse(complete_response)
-                .get("title")
-                .unwrap_or("Untitled")
-                .to_string();
 
             let id = conversation.id;
             stream = Box::pin(
@@ -132,7 +127,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl ChatService for TestStorage {
-        async fn chat(&self, _: Request, _: Context) -> ResultStream<ChatResponse, Error> {
+        async fn chat(&self, _: ChatRequest, _: Context) -> ResultStream<ChatResponse, Error> {
             Ok(Box::pin(once(Ok(ChatResponse::Text(
                 "test message".to_string(),
             )))))
@@ -153,7 +148,11 @@ mod tests {
     async fn test_chat_new_conversation() {
         let storage = Arc::new(TestStorage);
         let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
-        let service = Service::ui_service(conversation_service.clone(), storage.clone());
+        let service = Service::ui_service(
+            conversation_service.clone(),
+            storage.clone(),
+            storage.clone(),
+        );
         let request = ChatRequest::default();
 
         let mut responses = service.chat(request).await.unwrap();
@@ -174,7 +173,11 @@ mod tests {
     async fn test_chat_existing_conversation() {
         let storage = Arc::new(TestStorage);
         let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
-        let service = Service::ui_service(conversation_service.clone(), storage.clone());
+        let service = Service::ui_service(
+            conversation_service.clone(),
+            storage.clone(),
+            storage.clone(),
+        );
 
         let conversation = conversation_service
             .set_conversation(&Context::default(), None)
