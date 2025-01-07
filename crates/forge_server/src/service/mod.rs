@@ -1,21 +1,21 @@
 mod chat_service;
 mod completion_service;
+mod config_service;
 mod conversation_service;
 mod db_service;
 mod env_service;
 mod file_read_service;
 mod root_api_service;
-mod settings_service;
 mod system_prompt_service;
 mod ui_service;
 mod user_prompt_service;
 
 pub use chat_service::*;
 pub use completion_service::*;
+pub use config_service::*;
 pub use conversation_service::*;
 pub use env_service::*;
 pub use root_api_service::*;
-pub use settings_service::{CreateSettingRequest, Setting, SettingId, SettingsService};
 pub use ui_service::*;
 
 pub struct Service;

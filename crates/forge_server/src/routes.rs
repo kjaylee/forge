@@ -15,8 +15,8 @@ use tracing::info;
 
 use crate::context::ContextEngine;
 use crate::service::{
-    ChatRequest, Conversation, ConversationHistory, ConversationId, CreateSettingRequest,
-    EnvironmentService, File, Setting, SettingId,
+    ChatRequest, Config, Conversation, ConversationHistory, ConversationId, CreateConfigRequest,
+    EnvironmentService, File, GlobalConfig,
 };
 use crate::{ChatResponse, Errata, Error, Result, RootAPIService, Service};
 
@@ -63,8 +63,8 @@ impl API {
             .route("/context/{id}/html", get(context_html_handler))
             .route("/conversations", get(conversations_handler))
             .route("/conversation/{id}", get(history_handler))
-            .route("/settings/{id}", get(setting_by_id_handler))
-            .route("/settings", post(create_setting_handler))
+            .route("/configuration", get(get_config_handler))
+            .route("/configurations", post(set_config_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
@@ -166,20 +166,17 @@ async fn context_handler(
 }
 
 #[axum::debug_handler]
-async fn setting_by_id_handler(
-    State(state): State<Arc<dyn RootAPIService>>,
-    axum::extract::Path(setting_id): axum::extract::Path<SettingId>,
-) -> Json<Setting> {
-    let setting = state.setting_by_id(setting_id).await.unwrap();
+async fn get_config_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<GlobalConfig> {
+    let setting = state.get_config().await.unwrap();
     Json(setting)
 }
 
 #[axum::debug_handler]
-async fn create_setting_handler(
+async fn set_config_handler(
     State(state): State<Arc<dyn RootAPIService>>,
-    Json(request): Json<CreateSettingRequest>,
-) -> Json<Setting> {
-    let setting = state.create_setting(request).await.unwrap();
+    Json(request): Json<CreateConfigRequest>,
+) -> Json<Config> {
+    let setting = state.set_config(request).await.unwrap();
     Json(setting)
 }
 

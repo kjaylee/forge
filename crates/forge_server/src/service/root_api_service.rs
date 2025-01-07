@@ -6,8 +6,8 @@ use forge_provider::ProviderService;
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
 use super::{
-    ChatRequest, ChatResponse, Conversation, ConversationId, ConversationService,
-    CreateSettingRequest, File, Service, Setting, SettingId, SettingsService, UIService,
+    ChatRequest, ChatResponse, Config, ConfigService, Conversation, ConversationId,
+    ConversationService, CreateConfigRequest, File, GlobalConfig, Service, UIService,
 };
 use crate::{Error, Result};
 
@@ -20,8 +20,8 @@ pub trait RootAPIService: Send + Sync {
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
-    async fn setting_by_id(&self, setting_id: SettingId) -> Result<Setting>;
-    async fn create_setting(&self, request: CreateSettingRequest) -> Result<Setting>;
+    async fn get_config(&self) -> Result<GlobalConfig>;
+    async fn set_config(&self, request: CreateConfigRequest) -> Result<Config>;
 }
 
 impl Service {
@@ -37,7 +37,7 @@ struct Live {
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
-    setting_storage: Arc<dyn SettingsService>,
+    setting_storage: Arc<dyn ConfigService>,
 }
 
 impl Live {
@@ -124,11 +124,11 @@ impl RootAPIService for Live {
             .into())
     }
 
-    async fn setting_by_id(&self, setting_id: SettingId) -> Result<Setting> {
-        Ok(self.setting_storage.get_setting(setting_id).await?)
+    async fn get_config(&self) -> Result<GlobalConfig> {
+        Ok(self.setting_storage.get().await?)
     }
 
-    async fn create_setting(&self, request: CreateSettingRequest) -> Result<Setting> {
-        self.setting_storage.create_setting(request).await
+    async fn set_config(&self, request: CreateConfigRequest) -> Result<Config> {
+        self.setting_storage.set(request).await
     }
 }

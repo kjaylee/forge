@@ -4,6 +4,8 @@ use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
+use crate::service::ConfigError;
+
 #[derive(Debug, Display, derive_more::From)]
 pub enum Error {
     Diesel(diesel::result::Error),
@@ -20,6 +22,7 @@ pub enum Error {
     ToolCallMissingName,
     Var(std::env::VarError),
     Walk(forge_walker::Error),
+    ConfigError(ConfigError),
 }
 
 impl Error {
