@@ -45,7 +45,9 @@ impl Live {
         let cwd: String = env.cwd.clone();
         let question_coordinator = Arc::new(QuestionCoordinator::default());
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
-        let tool = Arc::new(forge_tool::Service::tool_service(question_coordinator.clone()));
+        let tool = Arc::new(forge_tool::Service::tool_service(
+            question_coordinator.clone(),
+        ));
 
         let system_prompt = Arc::new(Service::system_prompt(
             env.clone(),
