@@ -87,7 +87,7 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub fn tool_service(pending_questions: Arc<QuestionCoordinator>) -> impl ToolService {
+    pub fn tool_service(question_coordinator: Arc<QuestionCoordinator>) -> impl ToolService {
         Live::from_iter([
             Tool::new(FSRead),
             Tool::new(FSWrite),
@@ -98,7 +98,7 @@ impl Service {
             Tool::new(Outline),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
-            Tool::new(AskFollowUpQuestion::new(pending_questions)),
+            Tool::new(AskFollowUpQuestion::new(question_coordinator)),
         ])
     }
 }

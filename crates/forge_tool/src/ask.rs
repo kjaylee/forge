@@ -5,7 +5,7 @@ use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::pending_questions::QuestionCoordinator;
+use crate::question_coordinator::QuestionCoordinator;
 
 /// Represents a question that requires a text response from the user.
 /// This is used when the LLM needs to ask the user a question that requires a
@@ -55,12 +55,12 @@ pub struct AskFollowUpQuestionInput {
 /// from the user.
 #[derive(Clone, Description)]
 pub struct AskFollowUpQuestion {
-    pending_questions: Arc<QuestionCoordinator>,
+    question_coordinator: Arc<QuestionCoordinator>,
 }
 
 impl AskFollowUpQuestion {
-    pub fn new(pending_questions: Arc<QuestionCoordinator>) -> Self {
-        Self { pending_questions }
+    pub fn new(question_coordinator: Arc<QuestionCoordinator>) -> Self {
+        Self { question_coordinator }
     }
 }
 
@@ -71,7 +71,7 @@ impl ToolCallService for AskFollowUpQuestion {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let answer = self
-            .pending_questions
+            .question_coordinator
             .ask_question(&input.question, None)
             .await
             .map_err(|e| e.to_string())?;
@@ -100,11 +100,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_ask_followup_question() {
-        let pending_questions = Arc::new(QuestionCoordinator::default());
-        let ask = AskFollowUpQuestion::new(pending_questions.clone());
+        let question_coordinator = Arc::new(QuestionCoordinator::default());
+        let ask = AskFollowUpQuestion::new(question_coordinator.clone());
 
         // Create the subscriber before sending any messages
-        let mut receiver = pending_questions.sender.subscribe();
+        let mut receiver = question_coordinator.sender.subscribe();
 
         // Send the question in a separate task
         let ask_handle = tokio::spawn({
@@ -124,7 +124,7 @@ mod tests {
 
         // Handle the response in main task
         let question = receiver.recv().await.unwrap();
-        pending_questions
+        question_coordinator
             .submit_answer(question.id, "Blue".to_string())
             .await
             .unwrap();
@@ -135,11 +135,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_ask_followup_boolean_question() {
-        let pending_questions = Arc::new(QuestionCoordinator::default());
-        let ask = AskFollowUpQuestion::new(pending_questions.clone());
+        let question_coordinator = Arc::new(QuestionCoordinator::default());
+        let ask = AskFollowUpQuestion::new(question_coordinator.clone());
 
         // Create the subscriber before sending any messages
-        let mut receiver = pending_questions.sender.subscribe();
+        let mut receiver = question_coordinator.sender.subscribe();
 
         // Send the question in a separate task
         let ask_handle = tokio::spawn({
@@ -161,7 +161,7 @@ mod tests {
 
         // Handle the response in main task
         let question = receiver.recv().await.unwrap();
-        pending_questions
+        question_coordinator
             .submit_answer(question.id, "Yes".to_string())
             .await
             .unwrap();

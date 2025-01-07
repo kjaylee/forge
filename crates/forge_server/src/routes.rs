@@ -116,8 +116,8 @@ async fn conversation_handler(
         .await
         .expect("Engine failed to respond with a chat message");
 
-    let pending_questions = state.pending_questions().await;
-    let rx = pending_questions.sender.subscribe();
+    let question_coordinator = state.question_coordinator().await;
+    let rx = question_coordinator.sender.subscribe();
 
     let question_stream = BroadcastStream::new(rx).map(|question| {
         let question = question.expect("Failed to receive question");
@@ -210,8 +210,8 @@ async fn answer_handler(
     axum::extract::Path(question_id): axum::extract::Path<String>,
     Json(request): Json<AnswerRequest>,
 ) -> impl axum::response::IntoResponse {
-    let pending_questions = state.pending_questions().await;
-    if let Err(e) = pending_questions
+    let question_coordinator = state.question_coordinator().await;
+    if let Err(e) = question_coordinator
         .submit_answer(question_id, request.answer)
         .await
     {

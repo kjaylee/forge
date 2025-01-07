@@ -1,11 +1,11 @@
 mod ask;
 mod fs;
 mod outline;
-mod pending_questions;
+mod question_coordinator;
 mod shell;
 mod think;
 mod tool_service;
 
 pub struct Service;
 
-pub use pending_questions::QuestionCoordinator;
+pub use question_coordinator::QuestionCoordinator;
