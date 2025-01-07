@@ -132,17 +132,15 @@ mod test {
             .ends_with("file_info"));
     }
 
-    // #[test]
-    // fn test_usage_prompt() {
-    //     let docs = Service::tool_service().usage_prompt();
+    #[test]
+    fn test_usage_prompt() {
+        let docs = Service::tool_service(Arc::new(PendingQuestions::default())).usage_prompt();
+        insta::assert_snapshot!(docs);
+    }
 
-    //     insta::assert_snapshot!(docs);
-    // }
-
-    // #[test]
-    // fn test_tool_definition() {
-    //     let tools = Service::tool_service().list();
-
-    //     insta::assert_snapshot!(serde_json::to_string_pretty(&tools).
-    // unwrap()); }
+    #[test]
+    fn test_tool_definition() {
+        let tools = Service::tool_service(Arc::new(PendingQuestions::default())).list();
+        insta::assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
+    }
 }
