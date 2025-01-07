@@ -71,7 +71,7 @@ impl Live {
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
         let setting_storage = Arc::new(
-            Service::settings_service(&cwd).expect("Failed to create settings storage service"),
+            Service::config_service(&cwd).expect("Failed to create settings storage service"),
         );
 
         Self {

@@ -191,7 +191,7 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
 }
 
 impl Service {
-    pub fn settings_service(database_url: &str) -> Result<impl ConfigService> {
+    pub fn config_service(database_url: &str) -> Result<impl ConfigService> {
         Ok(Live::new(Service::db_pool_service(database_url)?))
     }
 }
