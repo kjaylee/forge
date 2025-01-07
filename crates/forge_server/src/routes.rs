@@ -14,11 +14,11 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
 use crate::context::ContextEngine;
-use crate::{
-    ChatRequest, Conversation, ConversationHistory, ConversationId, CreateSettingRequest, Errata,
-    File, Result, RootAPIService, Service, Setting, SettingId,
+use crate::service::{
+    ChatRequest, Conversation, ConversationHistory, ConversationId, CreateSettingRequest,
+    EnvironmentService, File, Setting, SettingId,
 };
-use crate::{Result, Service};
+use crate::{ChatResponse, Result, RootAPIService, Service};
 
 pub struct API {
     api: Arc<dyn RootAPIService>,
