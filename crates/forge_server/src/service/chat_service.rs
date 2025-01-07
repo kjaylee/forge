@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use derive_setters::Setters;
 use forge_domain::{
-    Context, ContextMessage, FinishReason, ModelId, Role, ToolCall, ToolCallFull, ToolName,
-    ToolResult, ToolService, UStream,
+    Context, ContextMessage, FinishReason, ModelId, ResultStream, Role, ToolCall, ToolCallFull,
+    ToolName, ToolResult, ToolService,
 };
 use forge_provider::ProviderService;
 use serde::Serialize;
@@ -14,7 +14,7 @@ use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
 use super::{ConversationId, Service};
 use crate::prompts::Agent;
-use crate::{Errata, Result};
+use crate::{Errata, Error, Result};
 
 pub struct Request {
     content: String,
@@ -45,7 +45,7 @@ impl From<ChatRequest> for Request {
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {
-    async fn chat(&self, prompt: Request, context: Context) -> Result<UStream<ChatResponse>>;
+    async fn chat(&self, prompt: Request, context: Context) -> ResultStream<ChatResponse, Error>;
 }
 
 impl Service {
@@ -81,7 +81,7 @@ impl Live {
     async fn chat_workflow(
         &self,
         mut request: Context,
-        tx: tokio::sync::mpsc::Sender<ChatResponse>,
+        tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
     ) -> Result<()> {
         loop {
             let mut tool_call_parts = Vec::new();
@@ -97,7 +97,7 @@ impl Live {
                 if let Some(ref content) = message.content {
                     if !content.is_empty() {
                         assistant_message_content.push_str(content.as_str());
-                        tx.send(ChatResponse::Text(content.as_str().to_string()))
+                        tx.send(Ok(ChatResponse::Text(content.as_str().to_string())))
                             .await
                             .unwrap();
                     }
@@ -108,7 +108,7 @@ impl Live {
                         if tool_call_parts.is_empty() {
                             // very first instance where we found a tool call.
                             if let Some(tool_name) = &tool_part.name {
-                                tx.send(ChatResponse::ToolUseDetected(tool_name.clone()))
+                                tx.send(Ok(ChatResponse::ToolCallDetected(tool_name.clone())))
                                     .await
                                     .unwrap();
                             }
@@ -122,7 +122,7 @@ impl Live {
                     let tool_call = ToolCallFull::try_from_parts(&tool_call_parts)?;
                     some_tool_call = Some(tool_call.clone());
 
-                    tx.send(ChatResponse::ToolCallStart(tool_call.clone()))
+                    tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
                         .await
                         .unwrap();
 
@@ -131,7 +131,7 @@ impl Live {
                     some_tool_result = Some(tool_result.clone());
 
                     // send the tool use end message.
-                    tx.send(ChatResponse::ToolCallEnd(tool_result))
+                    tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
                         .await
                         .unwrap();
                 }
@@ -142,13 +142,13 @@ impl Live {
                 some_tool_call,
             ));
 
-            tx.send(ChatResponse::ModifyContext(request.clone()))
+            tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
                 .await
                 .unwrap();
 
             if let Some(tool_result) = some_tool_result {
                 request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                tx.send(ChatResponse::ModifyContext(request.clone()))
+                tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
                     .await
                     .unwrap();
             } else {
@@ -160,7 +160,7 @@ impl Live {
 
 #[async_trait::async_trait]
 impl ChatService for Live {
-    async fn chat(&self, chat: Request, request: Context) -> Result<UStream<ChatResponse>> {
+    async fn chat(&self, chat: Request, request: Context) -> ResultStream<ChatResponse, Error> {
         let prompt_paths = chat.agent.prompt_path();
         let system_prompt = self
             .system_prompt
@@ -170,7 +170,7 @@ impl ChatService for Live {
             .user_prompt
             .get_user_prompt(prompt_paths.user(), &chat.content)
             .await?;
-        let (tx, rx) = tokio::sync::mpsc::channel::<ChatResponse>(1);
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let request = request
             .set_system_message(system_prompt)
@@ -184,12 +184,10 @@ impl ChatService for Live {
             // TODO: simplify this match.
             match that.chat_workflow(request, tx.clone()).await {
                 Ok(_) => {}
-                Err(e) => tx
-                    .send(ChatResponse::Error(Errata::from(&e)))
-                    .await
-                    .unwrap(),
+                Err(e) => tx.send(Err(e)).await.unwrap(),
             };
-            tx.send(ChatResponse::Complete).await.unwrap();
+
+            tx.send(Ok(ChatResponse::Complete)).await.unwrap();
 
             drop(tx);
         });
@@ -213,7 +211,7 @@ pub struct ChatRequest {
 pub enum ChatResponse {
     #[from(ignore)]
     Text(String),
-    ToolUseDetected(ToolName),
+    ToolCallDetected(ToolName),
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
     ConversationStarted {
@@ -223,15 +221,6 @@ pub enum ChatResponse {
     ModifyContext(Context),
     Complete,
     Error(Errata),
-}
-
-impl From<Result<ChatResponse>> for ChatResponse {
-    fn from(value: Result<ChatResponse>) -> Self {
-        match value {
-            Ok(value) => value,
-            Err(e) => ChatResponse::Error(Errata::from(&e)),
-        }
-    }
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
@@ -369,6 +358,7 @@ mod tests {
                 .collect::<Vec<_>>()
                 .await
                 .into_iter()
+                .map(|message| message.unwrap())
                 .collect::<Vec<_>>();
 
             let llm_calls = provider.get_calls();
@@ -532,7 +522,7 @@ mod tests {
 
         let expected = vec![
             ChatResponse::Text("Let's use foo tool".to_string()),
-            ChatResponse::ToolUseDetected(ToolName::new("foo")),
+            ChatResponse::ToolCallDetected(ToolName::new("foo")),
             ChatResponse::ToolCallStart(
                 ToolCallFull::new(ToolName::new("foo"))
                     .arguments(json!({"foo": 1, "bar": 2}))

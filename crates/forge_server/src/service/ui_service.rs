@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{Context, UStream};
+use forge_domain::{Context, ResultStream};
 use forge_prompt::TagParser;
 use tokio_stream::{once, StreamExt};
 use tracing::info;
@@ -8,11 +8,11 @@ use tracing::info;
 use super::chat_service::{ChatService, Request};
 use super::{ChatRequest, ChatResponse, ConversationService};
 use crate::prompts::Agent;
-use crate::{Result, Service};
+use crate::{Error, Service};
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {
-    async fn chat(&self, request: ChatRequest) -> Result<UStream<ChatResponse>>;
+    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error>;
 }
 
 struct Live {
@@ -40,7 +40,7 @@ impl Service {
 
 #[async_trait::async_trait]
 impl UIService for Live {
-    async fn chat(&self, request: ChatRequest) -> Result<UStream<ChatResponse>> {
+    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error> {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self
                 .conversation_service
@@ -75,7 +75,7 @@ impl UIService for Live {
             // Collect all text responses into a single string
             let mut complete_response = String::new();
             while let Some(res) = title_stream.next().await {
-                if let ChatResponse::Text(text) = res {
+                if let Ok(ChatResponse::Text(text)) = res {
                     complete_response.push_str(&text);
                 }
             }
@@ -86,8 +86,11 @@ impl UIService for Live {
 
             let id = conversation.id;
             stream = Box::pin(
-                once(ChatResponse::ConversationStarted { conversation_id: id, title })
-                    .chain(stream),
+                once(Ok(ChatResponse::ConversationStarted {
+                    conversation_id: id,
+                    title,
+                }))
+                .chain(stream),
             );
         }
 
@@ -97,24 +100,23 @@ impl UIService for Live {
                 let conversation_service = conversation_service.clone();
                 async move {
                     match &message {
-                        ChatResponse::ConversationStarted { conversation_id, title } => {
+                        Ok(ChatResponse::ConversationStarted { conversation_id, title }) => {
                             conversation_service
                                 .set_conversation_title(conversation_id, title.to_owned())
                                 .await?;
-                            Ok(message)
+                            message
                         }
-                        ChatResponse::ModifyContext(context) => {
+                        Ok(ChatResponse::ModifyContext(context)) => {
                             conversation_service
                                 .set_conversation(context, request.conversation_id)
                                 .await?;
-                            Ok(message)
+                            message
                         }
-                        _ => Ok(message),
+                        _ => message,
                     }
                 }
             })
-            .map(|message: Result<ChatResponse>| ChatResponse::from(message))
-            .filter(|message| !matches!(message, ChatResponse::ModifyContext { .. }));
+            .filter(|message| !matches!(message, Ok(ChatResponse::ModifyContext { .. })));
 
         Ok(Box::pin(stream))
     }
@@ -130,10 +132,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl ChatService for TestStorage {
-        async fn chat(&self, _: Request, _: Context) -> Result<UStream<ChatResponse>> {
-            Ok(Box::pin(once(ChatResponse::Text(
+        async fn chat(&self, _: Request, _: Context) -> ResultStream<ChatResponse, Error> {
+            Ok(Box::pin(once(Ok(ChatResponse::Text(
                 "test message".to_string(),
-            ))))
+            )))))
         }
     }
 
@@ -156,12 +158,12 @@ mod tests {
 
         let mut responses = service.chat(request).await.unwrap();
 
-        if let Some(ChatResponse::ConversationStarted { .. }) = responses.next().await {
+        if let Some(Ok(ChatResponse::ConversationStarted { .. })) = responses.next().await {
         } else {
             panic!("Expected ConversationStarted response");
         }
 
-        if let Some(ChatResponse::Text(content)) = responses.next().await {
+        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
             assert_eq!(content, "test message");
         } else {
             panic!("Expected Text response");
@@ -182,7 +184,7 @@ mod tests {
         let request = ChatRequest::default().conversation_id(conversation.id);
         let mut responses = service.chat(request).await.unwrap();
 
-        if let Some(ChatResponse::Text(content)) = responses.next().await {
+        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
             assert_eq!(content, "test message");
         } else {
             panic!("Expected Text response");
