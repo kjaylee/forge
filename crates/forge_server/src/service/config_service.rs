@@ -136,7 +136,7 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
 
-        let mut configs = Vec::new();
+        let mut configs = Vec::with_capacity(2);
 
         // Try to get primary config if it exists
         if let Ok(primary_raw) = configurations::table
