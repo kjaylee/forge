@@ -40,7 +40,7 @@ struct Live {
 impl Live {
     fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
-        let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
+        let provider = Arc::new(forge_provider::Service::ollama());
         let tool = Arc::new(forge_tool::Service::tool_service());
 
         let system_prompt = Arc::new(Service::system_prompt(

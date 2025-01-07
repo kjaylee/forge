@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use derive_more::derive::Display;
+use reqwest_eventsource::CannotCloneRequestError;
 use serde_json::Value;
 
 #[derive(Debug, Display, derive_more::From)]
@@ -11,6 +12,7 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
     SerdeJson(#[from] serde_json::Error),
     EventSource(#[from] reqwest_eventsource::Error),
+    EventSourceBuild(#[from] CannotCloneRequestError),
     ToolCallMissingName,
     Arc(Arc<Error>),
 }

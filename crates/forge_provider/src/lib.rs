@@ -1,4 +1,5 @@
 mod error;
+mod ollama;
 mod open_router;
 mod provider;
 
