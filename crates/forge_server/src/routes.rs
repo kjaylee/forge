@@ -119,7 +119,6 @@ async fn conversation_handler(
     let pending_questions = state.pending_questions().await;
     let rx = pending_questions.sender.subscribe();
 
-
     let question_stream = BroadcastStream::new(rx).map(|question| {
         let question = question.expect("Failed to receive question");
         let data = ChatResponse::QuestionRequest { id: question.id, question: question.question };

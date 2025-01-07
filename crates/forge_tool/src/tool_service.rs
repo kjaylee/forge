@@ -6,11 +6,11 @@ use serde_json::Value;
 use tracing::info;
 
 use crate::ask::AskFollowUpQuestion;
+use crate::fs::*;
 use crate::outline::Outline;
 use crate::shell::Shell;
 use crate::think::Think;
-use crate::Service;
-use crate::{fs::*, PendingQuestions};
+use crate::{PendingQuestions, Service};
 
 struct Live {
     tools: HashMap<ToolName, Tool>,
@@ -143,6 +143,6 @@ mod test {
     // fn test_tool_definition() {
     //     let tools = Service::tool_service().list();
 
-    //     insta::assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
-    // }
+    //     insta::assert_snapshot!(serde_json::to_string_pretty(&tools).
+    // unwrap()); }
 }

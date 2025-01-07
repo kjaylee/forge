@@ -1,12 +1,11 @@
-use forge_domain::Description;
-use forge_domain::ToolCallService;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use forge_domain::{Description, ToolCallService};
 use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::broadcast;
-use tokio::sync::oneshot;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, oneshot, RwLock};
 
 /// Represents a question that requires a text response from the user.
 /// This is used when the LLM needs free-form text input.
