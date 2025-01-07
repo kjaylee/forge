@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{Context, ContextMessage, ResultStream};
 use forge_provider::ProviderService;
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
+use tokio_stream::{once, StreamExt};
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
@@ -36,15 +35,9 @@ impl Live {
         Self { provider, system_prompt, user_prompt }
     }
 
-    /// Executes the chat workflow until the task is complete.
-    async fn execute(
-        &self,
-        request: Context,
-        tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
-    ) -> Result<()> {
+    async fn execute(&self, request: Context) -> Result<String> {
         let mut assistant_response = String::new();
-        let mut response = self.provider.chat(request.clone()).await?;
-
+        let mut response = self.provider.chat(request).await?;
         while let Some(chunk) = response.next().await {
             let message = chunk?;
             if let Some(ref content) = message.content {
@@ -53,11 +46,7 @@ impl Live {
                 }
             }
         }
-
-        tx.send(Ok(ChatResponse::Text(assistant_response)))
-            .await
-            .unwrap();
-        Ok(())
+        Ok(assistant_response)
     }
 }
 
@@ -66,28 +55,12 @@ impl ChatService for Live {
     async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
-
         let request = request
             .set_system_message(system_prompt)
             .add_message(ContextMessage::user(user_prompt))
             .model(chat.model);
-
-        let that = self.clone();
-
-        tokio::spawn(async move {
-            // TODO: simplify this match.
-            match that.execute(request, tx.clone()).await {
-                Ok(_) => {}
-                Err(e) => tx.send(Err(e)).await.unwrap(),
-            };
-
-            tx.send(Ok(ChatResponse::Complete)).await.unwrap();
-
-            drop(tx);
-        });
-
-        Ok(Box::pin(ReceiverStream::new(rx)))
+        let response = self.execute(request).await?;
+        Ok(Box::pin(once(Ok(ChatResponse::Text(response)))))
     }
 }
 
@@ -152,10 +125,7 @@ mod tests {
             )
             .await;
 
-        let expected = vec![
-            ChatResponse::Text("Fibonacci Sequence in Rust".to_string()),
-            ChatResponse::Complete,
-        ];
+        let expected = vec![ChatResponse::Text("Fibonacci Sequence in Rust".to_string())];
         assert_eq!(actual, expected);
     }
 }
