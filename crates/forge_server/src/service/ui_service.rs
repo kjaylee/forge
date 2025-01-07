@@ -4,8 +4,7 @@ use forge_domain::{Context, ResultStream};
 use tokio_stream::{once, StreamExt};
 use tracing::info;
 
-use super::chat_service::ChatService;
-use super::{ChatRequest, ChatResponse, ConversationService};
+use super::{ChatRequest, ChatResponse, ChatService, ConversationService};
 use crate::{Error, Service};
 
 #[async_trait::async_trait]
@@ -66,19 +65,16 @@ impl UIService for Live {
 
         if is_new {
             // since conversation is new, we've to generate the title for conversation.
-            let mut title_stream = self
+            let title = self
                 .title_service
                 .chat(request.clone(), Context::default())
-                .await?;
-
-            // Collect all text responses into a single string
-            let mut title = String::new();
-            while let Some(res) = title_stream.next().await {
-                if let Ok(ChatResponse::Text(text)) = res {
-                    title.push_str(&text);
-                }
-            }
-
+                .await?
+                .filter_map(|msg| match msg {
+                    Ok(ChatResponse::Text(text)) => Some(text),
+                    _ => None,
+                })
+                .collect::<String>()
+                .await;
             let id = conversation.id;
             stream = Box::pin(
                 once(Ok(ChatResponse::ConversationStarted {
@@ -125,6 +121,17 @@ mod tests {
     use super::super::conversation_service::tests::TestStorage;
     use super::*;
 
+    struct TestTitleService;
+
+    #[async_trait::async_trait]
+    impl ChatService for TestTitleService {
+        async fn chat(&self, _: ChatRequest, _: Context) -> ResultStream<ChatResponse, Error> {
+            Ok(Box::pin(once(Ok(ChatResponse::Text(
+                "test title generated".to_string(),
+            )))))
+        }
+    }
+
     #[async_trait::async_trait]
     impl ChatService for TestStorage {
         async fn chat(&self, _: ChatRequest, _: Context) -> ResultStream<ChatResponse, Error> {
@@ -151,13 +158,14 @@ mod tests {
         let service = Service::ui_service(
             conversation_service.clone(),
             storage.clone(),
-            storage.clone(),
+            Arc::new(TestTitleService),
         );
         let request = ChatRequest::default();
 
         let mut responses = service.chat(request).await.unwrap();
 
-        if let Some(Ok(ChatResponse::ConversationStarted { .. })) = responses.next().await {
+        if let Some(Ok(ChatResponse::ConversationStarted { title, .. })) = responses.next().await {
+            assert_eq!(title, "test title generated");
         } else {
             panic!("Expected ConversationStarted response");
         }
@@ -176,7 +184,7 @@ mod tests {
         let service = Service::ui_service(
             conversation_service.clone(),
             storage.clone(),
-            storage.clone(),
+            Arc::new(TestTitleService),
         );
 
         let conversation = conversation_service

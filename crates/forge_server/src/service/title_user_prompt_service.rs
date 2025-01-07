@@ -34,8 +34,16 @@ impl UserPromptService for Live {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+
+    pub struct TestUserPrompt;
+    #[async_trait::async_trait]
+    impl UserPromptService for TestUserPrompt {
+        async fn get_user_prompt(&self, task: &str) -> Result<String> {
+            Ok(format!("<content>{}</content>", task))
+        }
+    }
 
     #[tokio::test]
     async fn test_rendered_prompt() {

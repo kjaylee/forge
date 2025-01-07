@@ -60,22 +60,21 @@ impl Live {
             tool.clone(),
             user_prompt,
         ));
+        let completions = Arc::new(Service::completion_service(cwd.clone()));
 
         // services for title.
         let title_system_prompt = Arc::new(Service::title_system_prompt_service());
         let title_user_prompt = Arc::new(Service::title_user_prompt_service());
-        let title_chat_service = Arc::new(Service::chat_service(
+        let title_service = Arc::new(Service::title_service(
             provider.clone(),
             title_system_prompt,
-            tool.clone(),
             title_user_prompt,
         ));
 
-        let completions = Arc::new(Service::completion_service(cwd.clone()));
         let chat_service = Arc::new(Service::ui_service(
             storage.clone(),
             neo_chat_service,
-            title_chat_service,
+            title_service,
         ));
 
         Self {

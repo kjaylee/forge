@@ -8,6 +8,7 @@ mod root_api_service;
 mod system_prompt_service;
 mod ui_service;
 mod user_prompt_service;
+mod workflow_title_service;
 
 mod title_system_prompt_service;
 mod title_user_prompt_service;
