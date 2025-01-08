@@ -210,11 +210,7 @@ async fn answer_handler(
     axum::extract::Path(question_id): axum::extract::Path<String>,
     Json(request): Json<AnswerRequest>,
 ) -> impl axum::response::IntoResponse {
-    let question_coordinator = state.question_coordinator().await;
-    if let Err(e) = question_coordinator
-        .submit_answer(question_id, request.answer)
-        .await
-    {
+    if let Err(e) = state.submit_answer(question_id, request.answer).await {
         (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
     } else {
         axum::http::StatusCode::OK.into_response()

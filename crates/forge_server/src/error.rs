@@ -20,6 +20,7 @@ pub enum Error {
     ToolCallMissingName,
     Var(std::env::VarError),
     Walk(forge_walker::Error),
+    QuestionCoordinator(forge_tool::CoordinatorError),
 }
 
 impl Error {

@@ -8,4 +8,4 @@ mod tool_service;
 
 pub struct Service;
 
-pub use question_coordinator::QuestionCoordinator;
+pub use question_coordinator::{CoordinatorError, QuestionCoordinator};

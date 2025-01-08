@@ -22,6 +22,7 @@ pub trait RootAPIService: Send + Sync {
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
     async fn question_coordinator(&self) -> Arc<QuestionCoordinator>;
+    async fn submit_answer(&self, question_id: String, answer: String) -> Result<()>;
 }
 
 impl Service {
@@ -126,5 +127,12 @@ impl RootAPIService for Live {
 
     async fn question_coordinator(&self) -> Arc<QuestionCoordinator> {
         self.question_coordinator.clone()
+    }
+
+    async fn submit_answer(&self, question_id: String, answer: String) -> Result<()> {
+        self.question_coordinator
+            .submit_answer(question_id, answer)
+            .await
+            .map_err(|e| e.into())
     }
 }
