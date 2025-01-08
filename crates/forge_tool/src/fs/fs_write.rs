@@ -1,5 +1,7 @@
 use forge_domain::{Description, ToolCallService};
 use forge_tool_macros::Description;
+
+use super::parse_validator::validate_parse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +29,9 @@ impl ToolCallService for FSWrite {
     type Output = FSWriteOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        // Validate source code parsing before writing
+        validate_parse(&input.path, &input.content)?;
+
         tokio::fs::write(&input.path, &input.content)
             .await
             .map_err(|e| e.to_string())?;
@@ -66,5 +71,126 @@ mod test {
         // Verify file was actually written
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "Hello, World!")
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_rust_valid() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: file_path.to_string_lossy().to_string(),
+                content: r#"
+fn main() {
+    println!("Hello, world!");
+}
+"#.to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_rust_invalid() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: file_path.to_string_lossy().to_string(),
+                content: r#"
+fn main() {
+    println!("Hello, world!"
+}
+"#.to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(!file_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_javascript_valid() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.js");
+
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: file_path.to_string_lossy().to_string(),
+                content: r#"
+function hello() {
+    console.log('Hello, world!');
+}
+"#.to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_javascript_invalid() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.js");
+
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: file_path.to_string_lossy().to_string(),
+                content: r#"
+function hello() {
+    console.log('Hello, world!'
+}
+"#.to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(!file_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_python_valid() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.py");
+
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: file_path.to_string_lossy().to_string(),
+                content: r#"
+def hello():
+    print('Hello, world!')
+"#.to_string(),
+            })
+            .await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_python_invalid() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.py");
+
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: file_path.to_string_lossy().to_string(),
+                content: r#"
+def hello()
+    print('Hello, world!')
+"#.to_string(),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(!file_path.exists());
     }
 }
