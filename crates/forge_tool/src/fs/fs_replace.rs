@@ -80,14 +80,14 @@ pub struct FSReplace {
 
 impl Default for FSReplace {
     fn default() -> Self {
-        Self { mode: Mode::Automated }
+        Self { mode: Mode::Manual }
     }
 }
 
 // make enum variants better, i.e give them better names.
 #[derive(Deserialize, Default, PartialEq, Eq)]
 pub enum Mode {
-    Supervision,
+    Manual,
     #[default]
     Automated,
 }
@@ -186,7 +186,7 @@ fn apply_replace(
         Mode::Automated => {
             result.replace_range(start_idx..start_idx + len, replace);
         }
-        Mode::Supervision => {
+        Mode::Manual => {
             let conflict_block = format!(
                 "<<<<<<< SEARCH\n{}\n=======\n{}\n>>>>>>> REPLACE",
                 search.trim_end(),
@@ -679,7 +679,7 @@ def new_function(x, y=0):
         assert_eq!(fs::read_to_string(&file_path).unwrap(), initial_content);
 
         // Test with edit_allowed = false (conflict markers)
-        let output = FSReplace::new(Mode::Supervision)
+        let output = FSReplace::new(Mode::Manual)
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: block.to_string(),
