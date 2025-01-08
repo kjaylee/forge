@@ -10,9 +10,6 @@ mod ui_service;
 mod user_prompt_service;
 mod workflow_title_service;
 
-mod title_system_prompt_service;
-mod title_user_prompt_service;
-
 pub use chat_service::*;
 pub use completion_service::*;
 pub use conversation_service::*;

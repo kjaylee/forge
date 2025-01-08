@@ -2,19 +2,17 @@ use std::sync::Arc;
 
 use forge_domain::{Context, ContextMessage, ResultStream};
 use forge_provider::ProviderService;
+use handlebars::Handlebars;
+use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
-use super::system_prompt_service::SystemPromptService;
-use super::user_prompt_service::UserPromptService;
 use super::{ChatRequest, ChatResponse, Service};
 use crate::{Error, Result};
 
 impl Service {
     pub fn title_service(provider: Arc<dyn ProviderService>) -> impl TitleService {
-        let title_system_prompt = Arc::new(Service::title_system_prompt_service());
-        let title_user_prompt = Arc::new(Service::title_user_prompt_service());
-        Live::new(provider, title_system_prompt, title_user_prompt)
+        Live::new(provider)
     }
 }
 
@@ -26,17 +24,33 @@ pub trait TitleService: Send + Sync {
 #[derive(Clone)]
 struct Live {
     provider: Arc<dyn ProviderService>,
-    system_prompt: Arc<dyn SystemPromptService>,
-    user_prompt: Arc<dyn UserPromptService>,
+}
+
+#[derive(Serialize)]
+struct UserPromptContext {
+    task: String,
 }
 
 impl Live {
-    fn new(
-        provider: Arc<dyn ProviderService>,
-        system_prompt: Arc<dyn SystemPromptService>,
-        user_prompt: Arc<dyn UserPromptService>,
-    ) -> Self {
-        Self { provider, system_prompt, user_prompt }
+    fn new(provider: Arc<dyn ProviderService>) -> Self {
+        Self { provider }
+    }
+
+    fn system_prompt(&self) -> Result<String> {
+        let template = include_str!("../prompts/title/system.md");
+        Ok(template.to_string())
+    }
+
+    fn user_prompt(&self, task: &str) -> Result<String> {
+        let template = include_str!("../prompts/title/user_task.md");
+
+        let mut hb = Handlebars::new();
+        hb.set_strict_mode(true);
+        hb.register_escape_fn(|str| str.to_string());
+
+        let ctx = UserPromptContext { task: task.to_string() };
+
+        Ok(hb.render_template(template, &ctx)?)
     }
 
     async fn execute(
@@ -70,8 +84,8 @@ impl Live {
 #[async_trait::async_trait]
 impl TitleService for Live {
     async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
-        let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
-        let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
+        let system_prompt = self.system_prompt()?;
+        let user_prompt = self.user_prompt(&chat.content)?;
         let request = Context::default()
             .set_system_message(system_prompt)
             .add_message(ContextMessage::user(user_prompt))
@@ -99,29 +113,20 @@ mod tests {
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, Live, TitleService};
-    use crate::service::tests::{TestProvider, TestSystemPrompt};
-    use crate::service::title_user_prompt_service::tests::TestUserPrompt;
+    use crate::service::tests::TestProvider;
     use crate::service::{ChatResponse, ConversationId};
 
     #[derive(Default, Setters)]
     #[setters(into, strip_option)]
     struct Fixture {
         assistant_responses: Vec<Vec<ChatCompletionMessage>>,
-        system_prompt: String,
     }
 
     impl Fixture {
         pub async fn run(&self, request: ChatRequest) -> Vec<ChatResponse> {
             let provider =
                 Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
-            let system_prompt_message = if self.system_prompt.is_empty() {
-                "Given a task, generate a title for the task."
-            } else {
-                self.system_prompt.as_str()
-            };
-            let system_prompt = Arc::new(TestSystemPrompt::new(system_prompt_message));
-            let user_prompt = Arc::new(TestUserPrompt);
-            let chat = Live::new(provider.clone(), system_prompt.clone(), user_prompt.clone());
+            let chat = Live::new(provider.clone());
 
             chat.get_title(request)
                 .await
@@ -151,5 +156,23 @@ mod tests {
         assert!(actual.contains(&ChatResponse::CompleteTitle(
             "Fibonacci Sequence in Rust".to_string()
         )));
+    }
+
+    #[tokio::test]
+    async fn test_user_prompt() {
+        let provider = Arc::new(TestProvider::default());
+        let chat = Live::new(provider);
+
+        insta::assert_snapshot!(chat
+            .user_prompt("write an rust program to generate an fibo seq.")
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_system_prompt() {
+        let provider = Arc::new(TestProvider::default());
+        let chat = Live::new(provider);
+
+        insta::assert_snapshot!(chat.system_prompt().unwrap());
     }
 }
