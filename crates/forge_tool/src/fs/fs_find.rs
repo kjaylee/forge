@@ -3,6 +3,7 @@ use std::path::Path;
 
 use forge_domain::{Description, ToolCallService};
 use forge_tool_macros::Description;
+use forge_walker::Walker;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -32,7 +33,6 @@ impl ToolCallService for FSSearch {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         use regex::Regex;
-        use walkdir::WalkDir;
 
         let dir = Path::new(&input.path);
         if !dir.exists() {
@@ -43,90 +43,56 @@ impl ToolCallService for FSSearch {
         let pattern = format!("(?i){}", input.regex);
         let regex = Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
-        let glob_pattern = input.file_pattern.unwrap_or_else(|| "*".to_string());
-        let glob = glob::Pattern::new(&glob_pattern)
-            .map_err(|e| format!("Invalid glob pattern: {}", e))?;
+        let walker = Walker::new(dir.to_path_buf());
+        let files = walker.get().await.map_err(|e| format!("Failed to walk directory: {}", e))?;
 
         let mut matches = Vec::new();
         let mut seen_paths = HashSet::new();
 
-        // Configure walker with proper options
-        let walker = WalkDir::new(dir)
-            .follow_links(true) // Follow symbolic links
-            .same_file_system(true) // Stay on same filesystem
-            .into_iter()
-            .filter_entry(move |e| {
-                if e.file_type().is_dir() {
-                    return true; // Always traverse directories
-                }
-                e.file_name()
-                    .to_str()
-                    .map(|name| glob.matches(name))
-                    .unwrap_or(false)
-            });
+        for file in files {
+            if file.is_dir {
+                continue;
+            }
 
-        for entry in walker.filter_map(Result::ok) {
-            let path = entry.path();
-            let path_str = path.to_string_lossy();
+            let path = Path::new(&file.path);
+
+            // Apply file pattern filter if provided
+            if let Some(ref pattern) = input.file_pattern {
+                let glob = glob::Pattern::new(pattern)
+                    .map_err(|e| format!("Invalid glob pattern: {}", e))?;
+                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                    if !glob.matches(filename) {
+                        continue;
+                    }
+                }
+            }
 
             // Skip if we've already processed this file
-            if !seen_paths.insert(path_str.to_string()) {
+            if !seen_paths.insert(path.to_path_buf()) {
                 continue;
             }
 
-            // Only process files
-            if !entry.file_type().is_file() {
-                continue;
-            }
-
+            // Full path for reading the file
+            let full_path = dir.join(path);
+            
             // Try to read the file content
-            let content = match tokio::fs::read_to_string(path).await {
+            let content = match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => content,
                 Err(e) => {
                     // Skip binary or unreadable files silently
                     if e.kind() != std::io::ErrorKind::InvalidData {
-                        matches.push(format!("Error reading {}: {}", path_str, e));
+                        matches.push(format!("Error reading {:?}: {}", path, e));
                     }
                     continue;
                 }
             };
 
-            let mut found_match = false;
-            let lines: Vec<&str> = content.lines().collect();
-
-            // Search through the file content
-            for (line_num, line) in lines.iter().enumerate() {
+            // Process the file line by line
+            for (line_num, line) in content.lines().enumerate() {
                 if regex.is_match(line) {
-                    found_match = true;
-
-                    // Get context (3 lines before and after)
-                    let start = line_num.saturating_sub(3);
-                    let end = (line_num + 4).min(lines.len());
-
-                    // Format the match with location and context
-                    let mut match_output =
-                        format!("{}:{}:{}\n", path_str, line_num + 1, line.trim());
-
-                    // Add context lines with line numbers
-                    for (ctx_num, ctx_line) in lines[start..end].iter().enumerate() {
-                        let ctx_line_num = start + ctx_num + 1;
-                        if ctx_line_num != line_num + 1 {
-                            // Skip the matching line itself
-                            match_output.push_str(&format!(
-                                "  {}: {}\n",
-                                ctx_line_num,
-                                ctx_line.trim()
-                            ));
-                        }
-                    }
-
-                    matches.push(match_output);
+                    // Format match in ripgrep style: filepath:line_num:content
+                    matches.push(format!("{}:{}:{}", path.display(), line_num + 1, line));
                 }
-            }
-
-            // If no content matches but filename matches pattern
-            if !found_match && regex.is_match(&path_str) {
-                matches.push(format!("{}\n", path_str));
             }
         }
 
@@ -223,8 +189,6 @@ mod test {
 
         assert_eq!(result.len(), 1);
         assert!(result[0].contains("test line"));
-        assert!(result[0].contains("line 1"));
-        assert!(result[0].contains("line 5"));
     }
 
     #[tokio::test]
@@ -240,6 +204,9 @@ mod test {
         fs::write(sub_dir.join("test2.txt"), "more test content")
             .await
             .unwrap();
+        fs::write(sub_dir.join("best.txt"), "this is proper\n test content")
+            .await
+            .unwrap();
 
         let fs_search = FSSearch;
         let result = fs_search
@@ -251,9 +218,11 @@ mod test {
             .await
             .unwrap();
 
-        assert_eq!(result.len(), 2);
+
+        assert_eq!(result.len(), 3);
         assert!(result.iter().any(|p| p.contains("test1.txt")));
         assert!(result.iter().any(|p| p.contains("test2.txt")));
+        assert!(result.iter().any(|p| p.contains("best.txt")));
     }
 
     #[tokio::test]
@@ -277,7 +246,7 @@ mod test {
             .await
             .unwrap();
 
-        assert!(result.len() >= 2);
+        assert_eq!(result.len(), 2);
         assert!(result.iter().any(|p| p.contains("TEST CONTENT")));
         assert!(result.iter().any(|p| p.contains("test content")));
     }
