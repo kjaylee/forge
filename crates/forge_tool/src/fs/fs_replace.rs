@@ -80,7 +80,7 @@ pub struct FSReplace {
 
 impl Default for FSReplace {
     fn default() -> Self {
-        Self { mode: Mode::Automatic }
+        Self { mode: Mode::default() }
     }
 }
 
