@@ -73,12 +73,10 @@ pub struct FSReplaceInput {
 /// def new_function(x, y=0):
 ///     return x + y
 /// >>>>>>> REPLACE
-#[derive(Description)]
-#[derive(Default)]
+#[derive(Description, Default)]
 pub struct FSReplace {
     mode: Mode,
 }
-
 
 // make enum variants better, i.e give them better names.
 #[derive(Deserialize, Default, PartialEq, Eq)]
