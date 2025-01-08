@@ -2,7 +2,23 @@ use std::path::Path;
 
 use tree_sitter::{Language, Parser};
 
-pub fn get_language_by_extension(ext: &str) -> Option<Language> {
+/// Maps file extensions to their corresponding Tree-sitter language parsers.
+/// 
+/// This function takes a file extension as input and returns the appropriate
+/// Tree-sitter language parser if supported.
+/// 
+/// # Arguments
+/// * `ext` - The file extension to get a language parser for
+/// 
+/// # Returns
+/// * `Some(Language)` - If the extension is supported
+/// * `None` - If the extension is not supported
+/// 
+/// # Supported Languages
+/// * Rust (.rs)
+/// * JavaScript/TypeScript (.js, .jsx, .ts, .tsx)
+/// * Python (.py)
+pub fn extension(ext: &str) -> Option<Language> {
     match ext.to_lowercase().as_str() {
         "rs" => Some(tree_sitter_rust::LANGUAGE.into()),
         "js" | "jsx" | "ts" | "tsx" => Some(tree_sitter_javascript::LANGUAGE.into()),
@@ -11,7 +27,24 @@ pub fn get_language_by_extension(ext: &str) -> Option<Language> {
     }
 }
 
-pub fn validate_parse(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
+/// Validates source code content using Tree-sitter parsers.
+/// 
+/// This function attempts to parse the provided content using a Tree-sitter parser
+/// appropriate for the file's extension. It checks for syntax errors in the parsed
+/// abstract syntax tree.
+/// 
+/// # Arguments
+/// * `path` - The path to the file being validated (used to determine language)
+/// * `content` - The source code content to validate
+/// 
+/// # Returns
+/// * `Ok(())` - If the content is valid for the given language
+/// * `Err(String)` - If validation fails, contains error description
+/// 
+/// # Note
+/// Files with unsupported extensions are considered valid and will return Ok(()).
+/// Files with no extension will return an error.
+pub fn validate(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
     let path = path.as_ref();
 
     // Get file extension
@@ -21,7 +54,7 @@ pub fn validate_parse(path: impl AsRef<Path>, content: &str) -> Result<(), Strin
         .ok_or_else(|| "File has no extension".to_string())?;
 
     // Get language for the extension
-    let language = if let Some(lang) = get_language_by_extension(ext) {
+    let language = if let Some(lang) = extension(ext) {
         lang
     } else {
         // If we don't support the language, consider it valid
@@ -72,50 +105,50 @@ mod tests {
     #[test]
     fn test_rust_valid() {
         let path = PathBuf::from("test.rs");
-        assert!(validate_parse(&path, RUST_VALID).is_ok());
+        assert!(validate(&path, RUST_VALID).is_ok());
     }
 
     #[test]
     fn test_rust_invalid() {
         let path = PathBuf::from("test.rs");
-        assert!(validate_parse(&path, RUST_INVALID).is_err());
+        assert!(validate(&path, RUST_INVALID).is_err());
     }
 
     #[test]
     fn test_javascript_valid() {
         let path = PathBuf::from("test.js");
-        assert!(validate_parse(&path, JAVASCRIPT_VALID).is_ok());
+        assert!(validate(&path, JAVASCRIPT_VALID).is_ok());
     }
 
     #[test]
     fn test_javascript_invalid() {
         let path = PathBuf::from("test.js");
-        assert!(validate_parse(&path, JAVASCRIPT_INVALID).is_err());
+        assert!(validate(&path, JAVASCRIPT_INVALID).is_err());
     }
 
     #[test]
     fn test_python_valid() {
         let path = PathBuf::from("test.py");
-        assert!(validate_parse(&path, PYTHON_VALID).is_ok());
+        assert!(validate(&path, PYTHON_VALID).is_ok());
     }
 
     #[test]
     fn test_python_invalid() {
         let path = PathBuf::from("test.py");
-        assert!(validate_parse(&path, PYTHON_INVALID).is_err());
+        assert!(validate(&path, PYTHON_INVALID).is_err());
     }
 
     #[test]
     fn test_unsupported_extension() {
         let content = "Some random content";
         let path = PathBuf::from("test.txt");
-        assert!(validate_parse(&path, content).is_ok());
+        assert!(validate(&path, content).is_ok());
     }
 
     #[test]
     fn test_no_extension() {
         let content = "Some random content";
         let path = PathBuf::from("test");
-        assert!(validate_parse(&path, content).is_err());
+        assert!(validate(&path, content).is_err());
     }
 }

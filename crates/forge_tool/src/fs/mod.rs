@@ -4,7 +4,7 @@ mod fs_list;
 mod fs_read;
 mod fs_replace;
 mod fs_write;
-mod parse_validator;
+mod syn;
 
 pub use file_info::*;
 pub use fs_find::*;
