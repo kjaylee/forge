@@ -134,11 +134,13 @@ Replace sections in a file using SEARCH/REPLACE blocks for precise
 
 Parameters:
 - diff (required): SEARCH/REPLACE blocks defining changes
+- mode: Mode for handling replacements ('manual' or 'automatic'). Default is 'automatic'. Use manual when the user explicitly asks for a proposal for some change. In manual mode the updates have to be verified and applied by the user. Continue with the next steps only when the user confirms the changes.
 - path (required): File path relative to the current working directory
 
 Usage:
 <fs_replace>
 <diff>...</diff>
+<mode>...</mode>
 <path>...</path>
 </fs_replace>
 

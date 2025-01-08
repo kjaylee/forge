@@ -46,6 +46,13 @@ pub struct FSReplaceInput {
     pub path: String,
     /// SEARCH/REPLACE blocks defining changes
     pub diff: String,
+    /// Mode for handling replacements ('manual' or 'automatic'). Default is
+    /// 'automatic'. Use manual when the user explicitly asks for a proposal
+    /// for some change. In manual mode the updates have to be verified and
+    /// applied by the user. Continue with the next steps only when the user
+    /// confirms the changes.
+    #[serde(default)]
+    pub mode: Mode,
 }
 
 /// Replace sections in a file using SEARCH/REPLACE blocks for precise
@@ -74,22 +81,14 @@ pub struct FSReplaceInput {
 ///     return x + y
 /// >>>>>>> REPLACE
 #[derive(Description, Default)]
-pub struct FSReplace {
-    mode: Mode,
-}
+pub struct FSReplace {}
 
-#[derive(Deserialize, Default, PartialEq, Eq)]
+#[derive(Deserialize, JsonSchema, Default, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub enum Mode {
     Manual,
     #[default]
     Automatic,
-}
-
-impl FSReplace {
-    #[allow(dead_code)]
-    pub fn new(mode: Mode) -> Self {
-        Self { mode }
-    }
 }
 
 struct Block {
@@ -319,7 +318,7 @@ impl ToolCallService for FSReplace {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let blocks = parse_blocks(&input.diff)?;
-        let content = apply_changes(&input.path, blocks, &self.mode)?;
+        let content = apply_changes(&input.path, blocks, &input.mode)?;
         Ok(FSReplaceOutput { path: input.path, content })
     }
 }
@@ -353,6 +352,7 @@ mod test {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n    Hello World    \n=======\n    Hi World    \n>>>>>>> REPLACE\n"
                     .to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -375,6 +375,7 @@ mod test {
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n=======\nNew content\n>>>>>>> REPLACE\n".to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -394,7 +395,11 @@ mod test {
         let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
 
         let result = fs_replace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff,
+                mode: Mode::Automatic,
+            })
             .await
             .unwrap();
 
@@ -417,6 +422,7 @@ mod test {
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n  Middle Line  \n=======\n>>>>>>> REPLACE\n".to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -440,6 +446,7 @@ mod test {
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n    let x = 1;\n\n\n    console.log(x);\n=======\n    let y = 2;\n\n\n    console.log(y);\n>>>>>>> REPLACE\n".to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -454,6 +461,7 @@ mod test {
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n\n// Footer comment\n\n\n=======\n\n\n\n// Updated footer\n\n>>>>>>> REPLACE\n".to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -468,6 +476,7 @@ mod test {
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: "<<<<<<< SEARCH\n\n\n// Header comment\n\n\n=======\n\n\n\n// New header\n\n\n\n>>>>>>> REPLACE\n".to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -508,6 +517,7 @@ mod test {
 >>>>>>> REPLACE
 "#
                 .to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -537,6 +547,7 @@ function computeTotal(items, tax = 0) {
 >>>>>>> REPLACE
 "#
                 .to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -584,6 +595,7 @@ function computeTotal(items, tax = 0) {
 >>>>>>> REPLACE
 "#
                 .to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -615,6 +627,7 @@ function computeTotal(items, tax = 0) {
 >>>>>>> REPLACE
 "#
                 .to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -651,11 +664,12 @@ def new_function(x, y=0):
             return x + y
 >>>>>>> REPLACE"#;
 
-        // Test with edit_allowed = true (direct replacement)
+        // Test with Mode::Automatic (direct replacement)
         let output = FSReplace::default()
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: block.to_string(),
+                mode: Mode::Automatic,
             })
             .await
             .unwrap();
@@ -671,11 +685,12 @@ def new_function(x, y=0):
 
         assert_eq!(fs::read_to_string(&file_path).unwrap(), initial_content);
 
-        // Test with edit_allowed = false (conflict markers)
-        let output = FSReplace::new(Mode::Manual)
+        // Test with Mode::Manual (conflict markers)
+        let output = FSReplace::default()
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: block.to_string(),
+                mode: Mode::Manual,
             })
             .await
             .unwrap();
