@@ -94,7 +94,7 @@ impl ToolCallService for FSSearch {
             for (line_num, line) in content.lines().enumerate() {
                 if regex.is_match(line) {
                     // Format match in ripgrep style: filepath:line_num:content
-                    matches.push(format!("{}:{}:{}", path.display(), line_num + 1, line));
+                    matches.push(format!("{}:{}:{}", full_path.display(), line_num + 1, line));
                 }
             }
         }
