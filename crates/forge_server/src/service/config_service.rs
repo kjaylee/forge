@@ -66,7 +66,7 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
         let mut conn = pool.get()?;
         let latest_config: RawConfig = configuration_table::table
             .order(configuration_table::id.desc())
-            .first(&mut *conn)?;
+            .first(&mut conn)?;
         Ok(latest_config.try_into()?)
     }
 
