@@ -63,11 +63,7 @@ impl ToolCallService for FSSearch {
             if let Some(ref pattern) = input.file_pattern {
                 let glob = glob::Pattern::new(pattern)
                     .map_err(|e| format!("Invalid glob pattern: {}", e))?;
-                if let Some(filename) = path
-                    .file_name()
-                    .unwrap_or(path.as_os_str())
-                    .to_str()
-                {
+                if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
                     if !glob.matches(filename) {
                         continue;
                     }
