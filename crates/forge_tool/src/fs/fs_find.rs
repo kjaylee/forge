@@ -44,7 +44,10 @@ impl ToolCallService for FSSearch {
         let regex = Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
         let walker = Walker::new(dir.to_path_buf());
-        let files = walker.get().await.map_err(|e| format!("Failed to walk directory: {}", e))?;
+        let files = walker
+            .get()
+            .await
+            .map_err(|e| format!("Failed to walk directory: {}", e))?;
 
         let mut matches = Vec::new();
         let mut seen_paths = HashSet::new();
@@ -74,7 +77,7 @@ impl ToolCallService for FSSearch {
 
             // Full path for reading the file
             let full_path = dir.join(path);
-            
+
             // Try to read the file content
             let content = match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => content,
@@ -217,7 +220,6 @@ mod test {
             })
             .await
             .unwrap();
-
 
         assert_eq!(result.len(), 3);
         assert!(result.iter().any(|p| p.contains("test1.txt")));
