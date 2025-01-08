@@ -120,15 +120,15 @@ impl ToolCallService for Shell {
 
 #[cfg(test)]
 mod tests {
+    use std::{env, fs};
+
     use super::*;
-    use std::env;
-    use std::fs;
 
     #[tokio::test]
     async fn test_shell_echo() {
         let shell = Shell::default();
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: "echo 'Hello, World!'".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
@@ -144,9 +144,9 @@ mod tests {
     async fn test_shell_with_working_directory() {
         let shell = Shell::default();
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
-        
+
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: if cfg!(target_os = "windows") {
                     "cd".to_string()
                 } else {
@@ -164,9 +164,10 @@ mod tests {
             Err(_) => output_path,
         };
         let expected_path = temp_dir.as_path();
-        
-        assert_eq!(actual_path, expected_path, 
-            "\nExpected path: {:?}\nActual path: {:?}", 
+
+        assert_eq!(
+            actual_path, expected_path,
+            "\nExpected path: {:?}\nActual path: {:?}",
             expected_path, actual_path
         );
         assert!(result.stderr.is_empty());
@@ -176,7 +177,7 @@ mod tests {
     async fn test_shell_invalid_command() {
         let shell = Shell::default();
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: "nonexistentcommand".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
@@ -191,7 +192,7 @@ mod tests {
     async fn test_shell_blacklisted_command() {
         let shell = Shell::default();
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: "rm -rf /".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
@@ -205,10 +206,7 @@ mod tests {
     async fn test_shell_empty_command() {
         let shell = Shell::default();
         let result = shell
-            .call(ShellInput { 
-                command: "".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
 
         assert!(result.is_err());
@@ -220,7 +218,7 @@ mod tests {
         let shell = Shell::default();
         let current_dir = fs::canonicalize(env::current_dir().unwrap()).unwrap();
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: if cfg!(target_os = "windows") {
                     "cd".to_string()
                 } else {
@@ -245,7 +243,7 @@ mod tests {
     async fn test_shell_multiple_commands() {
         let shell = Shell::default();
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: "echo 'first' && echo 'second'".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
@@ -262,7 +260,7 @@ mod tests {
     async fn test_shell_with_environment_variables() {
         let shell = Shell::default();
         let result = shell
-            .call(ShellInput { 
+            .call(ShellInput {
                 command: "echo $PATH".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
