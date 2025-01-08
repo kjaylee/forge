@@ -2,21 +2,25 @@ use std::sync::Arc;
 
 use forge_domain::{Context, ContextMessage, ResultStream};
 use forge_provider::ProviderService;
-use tokio_stream::{once, StreamExt};
+use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::StreamExt;
 
 use super::system_prompt_service::SystemPromptService;
 use super::user_prompt_service::UserPromptService;
-use super::{ChatRequest, ChatResponse, ChatService, Service};
+use super::{ChatRequest, ChatResponse, Service};
 use crate::{Error, Result};
 
 impl Service {
-    pub fn title_service(
-        provider: Arc<dyn ProviderService>,
-        system_prompt: Arc<dyn SystemPromptService>,
-        user_prompt: Arc<dyn UserPromptService>,
-    ) -> impl ChatService {
-        Live::new(provider, system_prompt, user_prompt)
+    pub fn title_service(provider: Arc<dyn ProviderService>) -> impl TitleService {
+        let title_system_prompt = Arc::new(Service::title_system_prompt_service());
+        let title_user_prompt = Arc::new(Service::title_user_prompt_service());
+        Live::new(provider, title_system_prompt, title_user_prompt)
     }
+}
+
+#[async_trait::async_trait]
+pub trait TitleService: Send + Sync {
+    async fn get_title(&self, content: ChatRequest) -> ResultStream<ChatResponse, Error>;
 }
 
 #[derive(Clone)]
@@ -35,32 +39,53 @@ impl Live {
         Self { provider, system_prompt, user_prompt }
     }
 
-    async fn execute(&self, request: Context) -> Result<String> {
-        let mut assistant_response = String::new();
+    async fn execute(
+        &self,
+        request: Context,
+        tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
+    ) -> Result<()> {
         let mut response = self.provider.chat(request).await?;
+        let mut title = String::new();
         while let Some(chunk) = response.next().await {
             let message = chunk?;
             if let Some(ref content) = message.content {
                 if !content.is_empty() {
-                    assistant_response.push_str(content.as_str());
+                    tx.send(Ok(ChatResponse::PartialTitle(content.as_str().to_string())))
+                        .await
+                        .unwrap();
+                    title.push_str(content.as_str());
                 }
             }
         }
-        Ok(assistant_response)
+
+        // send the complete the title, so that we can save it in the database.
+        tx.send(Ok(ChatResponse::CompleteTitle(title)))
+            .await
+            .unwrap();
+
+        Ok(())
     }
 }
 
 #[async_trait::async_trait]
-impl ChatService for Live {
-    async fn chat(&self, chat: ChatRequest, request: Context) -> ResultStream<ChatResponse, Error> {
+impl TitleService for Live {
+    async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
         let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
-        let request = request
+        let request = Context::default()
             .set_system_message(system_prompt)
             .add_message(ContextMessage::user(user_prompt))
             .model(chat.model);
-        let response = self.execute(request).await?;
-        Ok(Box::pin(once(Ok(ChatResponse::Text(response)))))
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+
+        let that = self.clone();
+        tokio::spawn(async move {
+            match that.execute(request, tx.clone()).await {
+                Ok(_) => {}
+                Err(e) => tx.send(Err(e)).await.unwrap(),
+            };
+        });
+        Ok(Box::pin(ReceiverStream::new(rx)))
     }
 }
 
@@ -70,12 +95,10 @@ mod tests {
     use std::vec;
 
     use derive_setters::Setters;
-    use forge_domain::{ChatCompletionMessage, Context, FinishReason};
-    use pretty_assertions::assert_eq;
+    use forge_domain::{ChatCompletionMessage, FinishReason};
     use tokio_stream::StreamExt;
 
-    use super::{ChatRequest, Live};
-    use crate::service::chat_service::ChatService;
+    use super::{ChatRequest, Live, TitleService};
     use crate::service::tests::{TestProvider, TestSystemPrompt};
     use crate::service::title_user_prompt_service::tests::TestUserPrompt;
     use crate::service::{ChatResponse, ConversationId};
@@ -100,7 +123,7 @@ mod tests {
             let user_prompt = Arc::new(TestUserPrompt);
             let chat = Live::new(provider.clone(), system_prompt.clone(), user_prompt.clone());
 
-            chat.chat(request, Context::default())
+            chat.get_title(request)
                 .await
                 .unwrap()
                 .collect::<Vec<_>>()
@@ -125,7 +148,8 @@ mod tests {
             )
             .await;
 
-        let expected = vec![ChatResponse::Text("Fibonacci Sequence in Rust".to_string())];
-        assert_eq!(actual, expected);
+        assert!(actual.contains(&ChatResponse::CompleteTitle(
+            "Fibonacci Sequence in Rust".to_string()
+        )));
     }
 }

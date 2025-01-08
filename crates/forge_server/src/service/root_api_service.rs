@@ -62,14 +62,7 @@ impl Live {
         ));
         let completions = Arc::new(Service::completion_service(cwd.clone()));
 
-        // services for title.
-        let title_system_prompt = Arc::new(Service::title_system_prompt_service());
-        let title_user_prompt = Arc::new(Service::title_user_prompt_service());
-        let title_service = Arc::new(Service::title_service(
-            provider.clone(),
-            title_system_prompt,
-            title_user_prompt,
-        ));
+        let title_service = Arc::new(Service::title_service(provider.clone()));
 
         let chat_service = Arc::new(Service::ui_service(
             storage.clone(),

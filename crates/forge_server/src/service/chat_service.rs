@@ -190,12 +190,13 @@ pub enum ChatResponse {
     ToolCallArgPart(String),
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
-    ConversationStarted {
-        conversation_id: ConversationId,
-        title: String,
-    },
+    ConversationStarted(ConversationId),
     ModifyContext(Context),
     Complete,
+    #[from(ignore)]
+    PartialTitle(String),
+    #[from(ignore)]
+    CompleteTitle(String),
     Error(Errata),
 }
 

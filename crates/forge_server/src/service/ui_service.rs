@@ -4,6 +4,7 @@ use forge_domain::{Context, ResultStream};
 use tokio_stream::{once, StreamExt};
 use tracing::info;
 
+use super::workflow_title_service::TitleService;
 use super::{ChatRequest, ChatResponse, ChatService, ConversationService};
 use crate::{Error, Service};
 
@@ -15,14 +16,14 @@ pub trait UIService: Send + Sync {
 struct Live {
     conversation_service: Arc<dyn ConversationService>,
     chat_service: Arc<dyn ChatService>,
-    title_service: Arc<dyn ChatService>,
+    title_service: Arc<dyn TitleService>,
 }
 
 impl Live {
     fn new(
         conversation_service: Arc<dyn ConversationService>,
         chat_service: Arc<dyn ChatService>,
-        title_service: Arc<dyn ChatService>,
+        title_service: Arc<dyn TitleService>,
     ) -> Self {
         Self { conversation_service, chat_service, title_service }
     }
@@ -32,7 +33,7 @@ impl Service {
     pub fn ui_service(
         conversation_service: Arc<dyn ConversationService>,
         neo_chat_service: Arc<dyn ChatService>,
-        title_service: Arc<dyn ChatService>,
+        title_service: Arc<dyn TitleService>,
     ) -> impl UIService {
         Live::new(conversation_service, neo_chat_service, title_service)
     }
@@ -64,24 +65,12 @@ impl UIService for Live {
             .await?;
 
         if is_new {
-            // since conversation is new, we've to generate the title for conversation.
-            let title = self
-                .title_service
-                .chat(request.clone(), Context::default())
-                .await?
-                .filter_map(|msg| match msg {
-                    Ok(ChatResponse::Text(text)) => Some(text),
-                    _ => None,
-                })
-                .collect::<String>()
-                .await;
+            let title_stream = self.title_service.get_title(request.clone()).await?;
             let id = conversation.id;
             stream = Box::pin(
-                once(Ok(ChatResponse::ConversationStarted {
-                    conversation_id: id,
-                    title,
-                }))
-                .chain(stream),
+                once(Ok(ChatResponse::ConversationStarted(id)))
+                    .chain(stream)
+                    .merge(title_stream),
             );
         }
 
@@ -91,9 +80,12 @@ impl UIService for Live {
                 let conversation_service = conversation_service.clone();
                 async move {
                     match &message {
-                        Ok(ChatResponse::ConversationStarted { conversation_id, title }) => {
+                        Ok(ChatResponse::CompleteTitle(title)) => {
+                            let conversation_id = request
+                                .conversation_id
+                                .expect("`conversation_id` must be set at this point.");
                             conversation_service
-                                .set_conversation_title(conversation_id, title.to_owned())
+                                .set_conversation_title(&conversation_id, title.to_owned())
                                 .await?;
                             message
                         }
@@ -124,9 +116,9 @@ mod tests {
     struct TestTitleService;
 
     #[async_trait::async_trait]
-    impl ChatService for TestTitleService {
-        async fn chat(&self, _: ChatRequest, _: Context) -> ResultStream<ChatResponse, Error> {
-            Ok(Box::pin(once(Ok(ChatResponse::Text(
+    impl TitleService for TestTitleService {
+        async fn get_title(&self, _: ChatRequest) -> ResultStream<ChatResponse, Error> {
+            Ok(Box::pin(once(Ok(ChatResponse::CompleteTitle(
                 "test title generated".to_string(),
             )))))
         }
@@ -164,10 +156,15 @@ mod tests {
 
         let mut responses = service.chat(request).await.unwrap();
 
-        if let Some(Ok(ChatResponse::ConversationStarted { title, .. })) = responses.next().await {
-            assert_eq!(title, "test title generated");
+        if let Some(Ok(ChatResponse::ConversationStarted(_))) = responses.next().await {
         } else {
             panic!("Expected ConversationStarted response");
+        }
+
+        if let Some(Ok(ChatResponse::CompleteTitle(content))) = responses.next().await {
+            assert_eq!(content, "test title generated");
+        } else {
+            panic!("Expected Text response");
         }
 
         if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
