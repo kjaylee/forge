@@ -80,7 +80,7 @@ pub struct FSReplace {
 
 impl Default for FSReplace {
     fn default() -> Self {
-        Self { mode: Mode::Manual }
+        Self { mode: Mode::Automatic }
     }
 }
 
@@ -89,7 +89,7 @@ impl Default for FSReplace {
 pub enum Mode {
     Manual,
     #[default]
-    Automated,
+    Automatic,
 }
 
 impl FSReplace {
@@ -183,7 +183,7 @@ fn apply_replace(
     mode: &Mode,
 ) {
     match mode {
-        Mode::Automated => {
+        Mode::Automatic => {
             result.replace_range(start_idx..start_idx + len, replace);
         }
         Mode::Manual => {
