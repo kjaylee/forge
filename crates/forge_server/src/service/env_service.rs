@@ -32,7 +32,11 @@ impl Live {
             std::env::var("FORGE_SMALL_MODEL").expect("FORGE_SMALL_MODEL must be set");
 
         let cwd = std::env::current_dir()?;
-        let files = match Walker::new(cwd.clone()).get().await {
+        let files = match Walker::new(cwd.clone())
+            .with_max_depth(usize::MAX)
+            .get()
+            .await
+        {
             Ok(files) => files
                 .into_iter()
                 .filter(|f| !f.is_dir)
