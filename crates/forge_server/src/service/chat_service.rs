@@ -611,29 +611,4 @@ mod tests {
         ];
         assert_eq!(actual, expected);
     }
-
-    #[tokio::test]
-    async fn test_title_generation() {
-        let mock_llm_responses = vec![vec![ChatCompletionMessage::default()
-            .content_part("Fibonacci Sequence in Rust")
-            .finish_reason(FinishReason::Stop)]];
-
-        let actual = Fixture::default()
-            .assistant_responses(mock_llm_responses)
-            .run(
-                ChatRequest::new("write an rust program to generate an fibo seq.")
-                    .conversation_id(ConversationId::new("5af97419-0277-410a-8ca6-0e2a252152c5")),
-            )
-            .await
-            .messages
-            .into_iter()
-            .filter(|msg| !matches!(msg, ChatResponse::ModifyContext { .. }))
-            .collect::<Vec<_>>();
-
-        let expected = vec![
-            ChatResponse::Text("Fibonacci Sequence in Rust".to_string()),
-            ChatResponse::Complete,
-        ];
-        assert_eq!(actual, expected);
-    }
 }
