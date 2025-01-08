@@ -63,7 +63,7 @@ impl API {
             .route("/conversations", get(conversations_handler))
             .route("/conversation/{id}", get(history_handler))
             .route("/configuration", get(get_config_handler))
-            .route("/configurations", post(set_config_handler))
+            .route("/configuration", post(set_config_handler))
             .layer(
                 CorsLayer::new()
                     .allow_origin(Any)
