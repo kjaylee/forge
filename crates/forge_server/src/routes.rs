@@ -7,7 +7,7 @@ use axum::response::sse::{Event, Sse};
 use axum::response::Html;
 use axum::routing::{get, post};
 use axum::Router;
-use forge_domain::{Context, Environment, Model, ResultStream, ToolDefinition};
+use forge_domain::{Config, Context, Environment, Model, ResultStream, ToolDefinition};
 use serde::Serialize;
 use tokio_stream::{Stream, StreamExt};
 use tower_http::cors::{Any, CorsLayer};
@@ -15,8 +15,7 @@ use tracing::info;
 
 use crate::context::ContextEngine;
 use crate::service::{
-    ChatRequest, Config, Conversation, ConversationHistory, ConversationId, CreateConfigRequest,
-    EnvironmentService, File, GlobalConfig,
+    ChatRequest, Conversation, ConversationHistory, ConversationId, EnvironmentService, File,
 };
 use crate::{ChatResponse, Errata, Error, Result, RootAPIService, Service};
 
@@ -166,7 +165,7 @@ async fn context_handler(
 }
 
 #[axum::debug_handler]
-async fn get_config_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<GlobalConfig> {
+async fn get_config_handler(State(state): State<Arc<dyn RootAPIService>>) -> Json<Config> {
     let config = state.get_config().await.unwrap();
     Json(config)
 }
@@ -174,7 +173,7 @@ async fn get_config_handler(State(state): State<Arc<dyn RootAPIService>>) -> Jso
 #[axum::debug_handler]
 async fn set_config_handler(
     State(state): State<Arc<dyn RootAPIService>>,
-    Json(request): Json<CreateConfigRequest>,
+    Json(request): Json<Config>,
 ) -> Json<Config> {
     let config = state.set_config(request).await.unwrap();
     Json(config)

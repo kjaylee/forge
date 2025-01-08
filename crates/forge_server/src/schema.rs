@@ -5,7 +5,6 @@ diesel::table! {
         id -> Text,
         data -> Text,
         created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 
@@ -19,7 +18,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(
-    configuration_table,
-    conversations,
-);
+diesel::allow_tables_to_appear_in_same_query!(configuration_table, conversations,);
