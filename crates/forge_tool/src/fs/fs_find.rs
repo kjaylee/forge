@@ -52,8 +52,8 @@ impl ToolCallService for FSSearch {
 
         // Configure walker with proper options
         let walker = WalkDir::new(dir)
-            .follow_links(true)  // Follow symbolic links
-            .same_file_system(true)  // Stay on same filesystem
+            .follow_links(true) // Follow symbolic links
+            .same_file_system(true) // Stay on same filesystem
             .into_iter()
             .filter_entry(move |e| {
                 if e.file_type().is_dir() {
@@ -98,22 +98,28 @@ impl ToolCallService for FSSearch {
             for (line_num, line) in lines.iter().enumerate() {
                 if regex.is_match(line) {
                     found_match = true;
-                    
+
                     // Get context (3 lines before and after)
                     let start = line_num.saturating_sub(3);
                     let end = (line_num + 4).min(lines.len());
-                    
+
                     // Format the match with location and context
-                    let mut match_output = format!("{}:{}:{}\n", path_str, line_num + 1, line.trim());
-                    
+                    let mut match_output =
+                        format!("{}:{}:{}\n", path_str, line_num + 1, line.trim());
+
                     // Add context lines with line numbers
                     for (ctx_num, ctx_line) in lines[start..end].iter().enumerate() {
                         let ctx_line_num = start + ctx_num + 1;
-                        if ctx_line_num != line_num + 1 {  // Skip the matching line itself
-                            match_output.push_str(&format!("  {}: {}\n", ctx_line_num, ctx_line.trim()));
+                        if ctx_line_num != line_num + 1 {
+                            // Skip the matching line itself
+                            match_output.push_str(&format!(
+                                "  {}: {}\n",
+                                ctx_line_num,
+                                ctx_line.trim()
+                            ));
                         }
                     }
-                    
+
                     matches.push(match_output);
                 }
             }
@@ -125,7 +131,10 @@ impl ToolCallService for FSSearch {
         }
 
         if matches.is_empty() {
-            Ok(vec![format!("No matches found for pattern '{}' in path '{}'", input.regex, input.path)])
+            Ok(vec![format!(
+                "No matches found for pattern '{}' in path '{}'",
+                input.regex, input.path
+            )])
         } else {
             Ok(matches)
         }
@@ -251,9 +260,12 @@ mod test {
     async fn test_fs_search_case_insensitive() {
         let temp_dir = TempDir::new().unwrap();
 
-        fs::write(temp_dir.path().join("test.txt"), "TEST CONTENT\ntest content")
-            .await
-            .unwrap();
+        fs::write(
+            temp_dir.path().join("test.txt"),
+            "TEST CONTENT\ntest content",
+        )
+        .await
+        .unwrap();
 
         let fs_search = FSSearch;
         let result = fs_search
