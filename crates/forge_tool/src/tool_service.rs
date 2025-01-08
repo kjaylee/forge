@@ -92,7 +92,8 @@ impl Service {
             Tool::new(FSList),
             Tool::new(FSSearch),
             Tool::new(FSFileInfo),
-            Tool::new(FSReplace),
+            // TODO: read the edit allowed from the config
+            Tool::new(FSReplace::new(true)),
             Tool::new(Outline),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),

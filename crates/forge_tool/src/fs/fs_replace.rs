@@ -74,7 +74,15 @@ pub struct FSReplaceInput {
 ///     return x + y
 /// >>>>>>> REPLACE
 #[derive(Description)]
-pub struct FSReplace;
+pub struct FSReplace {
+    edit_allowed: bool,
+}
+
+impl FSReplace {
+    pub fn new(edit_allowed: bool) -> Self {
+        Self { edit_allowed }
+    }
+}
 
 struct Block {
     search: String,
@@ -151,7 +159,11 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
     Ok(blocks)
 }
 
-fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, String> {
+fn apply_changes<P: AsRef<Path>>(
+    path: P,
+    blocks: Vec<Block>,
+    edit_allowed: bool,
+) -> Result<String, String> {
     let mut content = String::new();
     let mut result = String::new();
     let backup_path = path.as_ref().with_extension("bak");
@@ -191,47 +203,74 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
 
     // Apply each block sequentially
     for block in blocks {
-        // For exact matching, first try to find the exact string
-        if let Some(start_idx) = result.find(&block.search) {
-            let end_idx = start_idx + block.search.len();
-            result.replace_range(start_idx..end_idx, &block.replace);
-            continue;
-        }
+        let search = normalize_line_endings(&block.search);
+        let replace = normalize_line_endings(&block.replace);
 
-        // If exact match fails, try fuzzy matching
-        let normalized_search = block.search.replace("\r\n", "\n").replace('\r', "\n");
-        let normalized_result = result.replace("\r\n", "\n").replace('\r', "\n");
+        if let Some(pos) = result.find(&search) {
+            if edit_allowed {
+                result.replace_range(pos..pos + search.len(), &replace);
+            } else {
+                let conflict_block = format!(
+                    "<<<<<<< SEARCH\n{}\n=======\n{}\n>>>>>>> REPLACE",
+                    block.search.trim_end(),
+                    block.replace.trim_end()
+                );
+                result.replace_range(pos..pos + search.len(), &conflict_block);
+            }
+        } else {
+            // If exact match fails, try fuzzy matching
+            let normalized_search = search.replace("\r\n", "\n").replace('\r', "\n");
+            let normalized_result = result.replace("\r\n", "\n").replace('\r', "\n");
 
-        if let Some(start_idx) = normalized_result.find(&normalized_search) {
-            result.replace_range(start_idx..start_idx + block.search.len(), &block.replace);
-            continue;
-        }
+            if let Some(start_idx) = normalized_result.find(&normalized_search) {
+                if edit_allowed {
+                    result.replace_range(start_idx..start_idx + search.len(), &replace);
+                } else {
+                    let conflict_block = format!(
+                        "<<<<<<< SEARCH\n{}\n=======\n{}\n>>>>>>> REPLACE",
+                        block.search.trim_end(),
+                        block.replace.trim_end()
+                    );
+                    result.replace_range(start_idx..start_idx + search.len(), &conflict_block);
+                }
+                continue;
+            }
 
-        // If still no match, try more aggressive fuzzy matching
-        let chunks = dissimilar::diff(&result, &block.search);
-        let mut best_match = None;
-        let mut best_score = 0.0;
-        let mut current_pos = 0;
+            // If still no match, try more aggressive fuzzy matching
+            let chunks = dissimilar::diff(&result, &search);
+            let mut best_match = None;
+            let mut best_score = 0.0;
+            let mut current_pos = 0;
 
-        for chunk in chunks.iter() {
-            if let Chunk::Equal(text) = chunk {
-                let score = text.len() as f64 / block.search.len() as f64;
-                if score > best_score {
-                    best_score = score;
-                    best_match = Some((current_pos, text.len()));
+            for chunk in chunks.iter() {
+                if let Chunk::Equal(text) = chunk {
+                    let score = text.len() as f64 / search.len() as f64;
+                    if score > best_score {
+                        best_score = score;
+                        best_match = Some((current_pos, text.len()));
+                    }
+                }
+                match chunk {
+                    Chunk::Equal(text) | Chunk::Delete(text) | Chunk::Insert(text) => {
+                        current_pos += text.len();
+                    }
                 }
             }
-            match chunk {
-                Chunk::Equal(text) | Chunk::Delete(text) | Chunk::Insert(text) => {
-                    current_pos += text.len();
-                }
-            }
-        }
 
-        if let Some((start_idx, len)) = best_match {
-            if best_score > 0.7 {
-                // Threshold for fuzzy matching
-                result.replace_range(start_idx..start_idx + len, &block.replace);
+            if let Some((start_idx, len)) = best_match {
+                if best_score > 0.7 {
+                    // Threshold for fuzzy matching
+                    if edit_allowed {
+                        result.replace_range(start_idx..start_idx + len, &replace);
+                    } else {
+                        let conflict_block = format!(
+                            "<<<<<<< SEARCH\n{}\n=======\n{}\n>>>>>>> REPLACE",
+                            block.search.trim_end(),
+                            block.replace.trim_end()
+                        );
+                        result.replace_range(start_idx..start_idx + len, &conflict_block);
+                    }
+                }
             }
         }
     }
@@ -243,7 +282,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
     Ok(result)
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize, JsonSchema, Debug)]
 pub struct FSReplaceOutput {
     pub path: String,
     pub content: String,
@@ -256,7 +295,7 @@ impl ToolCallService for FSReplace {
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let blocks = parse_blocks(&input.diff)?;
-        let content = apply_changes(&input.path, blocks)?;
+        let content = apply_changes(&input.path, blocks, self.edit_allowed)?;
         Ok(FSReplaceOutput { path: input.path, content })
     }
 }
@@ -268,6 +307,12 @@ mod test {
     use tempfile::TempDir;
 
     use super::*;
+
+    impl Default for FSReplace {
+        fn default() -> Self {
+            FSReplace { edit_allowed: true }
+        }
+    }
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
         let mut file = File::create(path).map_err(|e| e.to_string())?;
@@ -284,7 +329,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -307,7 +352,7 @@ mod test {
 
         write_test_file(&file_path, "").await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -327,7 +372,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
         let diff = "<<<<<<< SEARCH\n    First Line    \n=======\n    New First    \n>>>>>>> REPLACE\n<<<<<<< SEARCH\n    Last Line    \n=======\n    New Last    \n>>>>>>> REPLACE\n".to_string();
 
         let result = fs_replace
@@ -349,7 +394,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -370,7 +415,7 @@ mod test {
         let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
 
         // Test 1: Replace content while preserving surrounding newlines
         let result1 = fs_replace
@@ -431,7 +476,7 @@ mod test {
 "#;
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
         // Search with different casing, spacing, and variable names
         let result = fs_replace
             .call(FSReplaceInput {
@@ -507,7 +552,7 @@ function computeTotal(items, tax = 0) {
 "#;
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = FSReplace::default();
         // Search with structural similarities but different variable names and spacing
         let result = fs_replace
             .call(FSReplaceInput {
@@ -569,5 +614,56 @@ function computeTotal(items, tax = 0) {
 }
 "#
         );
+    }
+
+    #[tokio::test]
+    async fn test_edit_modes() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.py");
+
+        let initial_content = r#"def old_function(x):
+            return x + 1"#;
+        write_test_file(&file_path, initial_content).await.unwrap();
+
+        let block = r#"<<<<<<< SEARCH
+def old_function(x):
+            return x + 1
+=======
+def new_function(x, y=0):
+            return x + y
+>>>>>>> REPLACE"#;
+
+        // Test with edit_allowed = true (direct replacement)
+        let output = FSReplace::new(true)
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: block.to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            output.content.trim(),
+            r#"def new_function(x, y=0):
+            return x + y"#
+        );
+
+        // Reset the file
+        write_test_file(&file_path, initial_content).await.unwrap();
+
+        assert_eq!(fs::read_to_string(&file_path).unwrap(), initial_content);
+
+        // Test with edit_allowed = false (conflict markers)
+        let output = FSReplace::new(false)
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: block.to_string(),
+            })
+            .await
+            .unwrap();
+
+        let expected_conflict = block.to_string();
+
+        assert_eq!(output.content, expected_conflict);
     }
 }
