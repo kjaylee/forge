@@ -38,6 +38,7 @@ struct RawConfig {
 impl TryFrom<RawConfig> for Config {
     type Error = crate::error::Error;
     fn try_from(raw: RawConfig) -> Result<Self> {
+        // TODO: currently we don't need id and created_at.
         Ok(serde_json::from_str(&raw.data)?)
     }
 }
