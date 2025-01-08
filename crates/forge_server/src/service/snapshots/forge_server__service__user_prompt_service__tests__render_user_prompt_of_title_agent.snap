@@ -1,5 +1,0 @@
----
-source: crates/forge_server/src/service/user_prompt_service.rs
-expression: rendered_prompt
----
-<content>write an fibo seq generator in python</content>

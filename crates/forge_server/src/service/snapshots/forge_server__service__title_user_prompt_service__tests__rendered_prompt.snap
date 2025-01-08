@@ -1,5 +1,0 @@
----
-source: crates/forge_server/src/service/title_user_prompt_service.rs
-expression: user_prompt
----
-<content>write fibo seq in rust</content>
