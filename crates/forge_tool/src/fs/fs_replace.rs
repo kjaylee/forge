@@ -78,7 +78,6 @@ pub struct FSReplace {
     mode: Mode,
 }
 
-// make enum variants better, i.e give them better names.
 #[derive(Deserialize, Default, PartialEq, Eq)]
 pub enum Mode {
     Manual,
