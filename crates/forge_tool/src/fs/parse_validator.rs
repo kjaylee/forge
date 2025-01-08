@@ -13,7 +13,7 @@ pub fn get_language_by_extension(ext: &str) -> Option<Language> {
 
 pub fn validate_parse(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
     let path = path.as_ref();
-    
+
     // Get file extension
     let ext = path
         .extension()
@@ -40,11 +40,16 @@ pub fn validate_parse(path: impl AsRef<Path>, content: &str) -> Result<(), Strin
     // Find syntax errors in the tree
     let root_node = tree.root_node();
     if root_node.has_error() || root_node.is_error() {
-        let error_text = root_node.utf8_text(content.as_bytes())
+        let error_text = root_node
+            .utf8_text(content.as_bytes())
             .unwrap_or("unknown error")
             .to_string();
-        return Err(format!("Syntax error found in {} while parsing as {}: {}", 
-            path.display(), ext, error_text));
+        return Err(format!(
+            "Syntax error found in {} while parsing as {}: {}",
+            path.display(),
+            ext,
+            error_text
+        ));
     }
 
     Ok(())
@@ -52,71 +57,52 @@ pub fn validate_parse(path: impl AsRef<Path>, content: &str) -> Result<(), Strin
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
+    use super::*;
+
+    // Include language samples
+    const RUST_VALID: &str = include_str!("lang/rust/valid.rs");
+    const RUST_INVALID: &str = include_str!("lang/rust/invalid.rs");
+    const JAVASCRIPT_VALID: &str = include_str!("lang/javascript/valid.js");
+    const JAVASCRIPT_INVALID: &str = include_str!("lang/javascript/invalid.js");
+    const PYTHON_VALID: &str = include_str!("lang/python/valid.py");
+    const PYTHON_INVALID: &str = include_str!("lang/python/invalid.py");
 
     #[test]
     fn test_rust_valid() {
-        let content = r#"
-fn main() {
-    println!("Hello, world!");
-}
-"#;
         let path = PathBuf::from("test.rs");
-        assert!(validate_parse(&path, content).is_ok());
+        assert!(validate_parse(&path, RUST_VALID).is_ok());
     }
 
     #[test]
     fn test_rust_invalid() {
-        let content = r#"
-fn main() {
-    println!("Hello, world!"
-}
-"#;
         let path = PathBuf::from("test.rs");
-        assert!(validate_parse(&path, content).is_err());
+        assert!(validate_parse(&path, RUST_INVALID).is_err());
     }
 
     #[test]
     fn test_javascript_valid() {
-        let content = r#"
-function hello() {
-    console.log("Hello, world!");
-}
-"#;
         let path = PathBuf::from("test.js");
-        assert!(validate_parse(&path, content).is_ok());
+        assert!(validate_parse(&path, JAVASCRIPT_VALID).is_ok());
     }
 
     #[test]
     fn test_javascript_invalid() {
-        let content = r#"
-function hello() {
-    console.log("Hello, world!"
-}
-"#;
         let path = PathBuf::from("test.js");
-        assert!(validate_parse(&path, content).is_err());
+        assert!(validate_parse(&path, JAVASCRIPT_INVALID).is_err());
     }
 
     #[test]
     fn test_python_valid() {
-        let content = r#"
-def hello():
-    print("Hello, world!")
-"#;
         let path = PathBuf::from("test.py");
-        assert!(validate_parse(&path, content).is_ok());
+        assert!(validate_parse(&path, PYTHON_VALID).is_ok());
     }
 
     #[test]
     fn test_python_invalid() {
-        let content = r#"
-def hello()
-    print("Hello, world!")
-"#;
         let path = PathBuf::from("test.py");
-        assert!(validate_parse(&path, content).is_err());
+        assert!(validate_parse(&path, PYTHON_INVALID).is_err());
     }
 
     #[test]
