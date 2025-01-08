@@ -3,17 +3,17 @@ use std::path::Path;
 use tree_sitter::{Language, Parser};
 
 /// Maps file extensions to their corresponding Tree-sitter language parsers.
-/// 
+///
 /// This function takes a file extension as input and returns the appropriate
 /// Tree-sitter language parser if supported.
-/// 
+///
 /// # Arguments
 /// * `ext` - The file extension to get a language parser for
-/// 
+///
 /// # Returns
 /// * `Some(Language)` - If the extension is supported
 /// * `None` - If the extension is not supported
-/// 
+///
 /// # Supported Languages
 /// * Rust (.rs)
 /// * JavaScript/TypeScript (.js, .jsx, .ts, .tsx)
@@ -28,22 +28,22 @@ pub fn extension(ext: &str) -> Option<Language> {
 }
 
 /// Validates source code content using Tree-sitter parsers.
-/// 
-/// This function attempts to parse the provided content using a Tree-sitter parser
-/// appropriate for the file's extension. It checks for syntax errors in the parsed
-/// abstract syntax tree.
-/// 
+///
+/// This function attempts to parse the provided content using a Tree-sitter
+/// parser appropriate for the file's extension. It checks for syntax errors in
+/// the parsed abstract syntax tree.
+///
 /// # Arguments
 /// * `path` - The path to the file being validated (used to determine language)
 /// * `content` - The source code content to validate
-/// 
+///
 /// # Returns
 /// * `Ok(())` - If the content is valid for the given language
 /// * `Err(String)` - If validation fails, contains error description
-/// 
+///
 /// # Note
-/// Files with unsupported extensions are considered valid and will return Ok(()).
-/// Files with no extension will return an error.
+/// Files with unsupported extensions are considered valid and will return
+/// Ok(()). Files with no extension will return an error.
 pub fn validate(path: impl AsRef<Path>, content: &str) -> Result<(), String> {
     let path = path.as_ref();
 
