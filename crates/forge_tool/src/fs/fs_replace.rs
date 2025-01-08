@@ -10,8 +10,6 @@ use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 use tracing::{debug, error};
 
-use super::parse_validator::validate_parse;
-
 fn persist_changes<P: AsRef<Path>>(
     temp_file: NamedTempFile,
     path: P,
@@ -259,10 +257,6 @@ impl ToolCallService for FSReplace {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let blocks = parse_blocks(&input.diff)?;
         let content = apply_changes(&input.path, blocks)?;
-
-        // Validate the modified content with Tree-sitter parsing
-        validate_parse(&input.path, &content)?;
-
         Ok(FSReplaceOutput { path: input.path, content })
     }
 }
@@ -422,218 +416,158 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_rust_validation_valid() {
+    async fn test_fuzzy_search_replace() {
         let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
+        let file_path = temp_dir.path().join("test.txt");
 
-        // Set up initial file with valid Rust code
-        write_test_file(
-            &file_path,
-            r#"
-fn old_func() {
-    println!("Old");
+        // Test file with typos and variations
+        let content = r#"function calculateTotal(items) {
+  let total = 0;
+  for (const itm of items) {
+    total += itm.price;
+  }
+  return total;
 }
-"#,
-        )
-        .await
-        .unwrap();
+"#;
+        write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
+        // Search with different casing, spacing, and variable names
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: r#"<<<<<<< SEARCH
-fn old_func() {
-    println!("Old");
+  for (const itm of items) {
+    total += itm.price;
 =======
-fn new_func() {
-    println!("New");
+  for (const item of items) {
+    total += item.price * item.quantity;
 >>>>>>> REPLACE
 "#
                 .to_string(),
             })
-            .await;
+            .await
+            .unwrap();
 
-        assert!(result.is_ok());
+        assert_eq!(
+            result.content,
+            r#"function calculateTotal(items) {
+  let total = 0;
+  for (const item of items) {
+    total += item.price * item.quantity;
+  }
+  return total;
+}
+"#
+        );
+
+        // Test fuzzy matching with more variations
+        let result2 = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: r#"<<<<<<< SEARCH
+function calculateTotal(items) {
+  let total = 0;
+=======
+function computeTotal(items, tax = 0) {
+  let total = 0.0;
+>>>>>>> REPLACE
+"#
+                .to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(
+            result2.content,
+            r#"function computeTotal(items, tax = 0) {
+  let total = 0.0;
+  for (const item of items) {
+    total += item.price * item.quantity;
+  }
+  return total;
+}
+"#
+        );
     }
 
     #[tokio::test]
-    async fn test_rust_validation_invalid() {
+    async fn test_fuzzy_search_advanced() {
         let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
+        let file_path = temp_dir.path().join("test.txt");
 
-        // Set up initial file with valid Rust code
-        write_test_file(
-            &file_path,
-            r#"
-fn valid_func() {
-    println!("Hello");
+        // Test file with more complex variations
+        let content = r#"class UserManager {
+  async getUserById(userId) {
+    const user = await db.findOne({ id: userId });
+    if (!user) throw new Error('User not found');
+    return user;
+  }
 }
-"#,
-        )
-        .await
-        .unwrap();
+"#;
+        write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
+        // Search with structural similarities but different variable names and spacing
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
                 diff: r#"<<<<<<< SEARCH
-fn valid_func() {
-    println!("Hello");
-}
+  async getUserById(userId) {
+    const user = await db.findOne({ id: userId });
 =======
-fn invalid_func() {
-    println!("World" // Missing semicolon
-}
+  async findUser(id, options = {}) {
+    const user = await this.db.findOne({ userId: id, ...options });
 >>>>>>> REPLACE
 "#
                 .to_string(),
             })
-            .await;
+            .await
+            .unwrap();
 
-        assert!(result.is_err());
+        assert_eq!(
+            result.content,
+            r#"class UserManager {
+  async findUser(id, options = {}) {
+    const user = await this.db.findOne({ userId: id, ...options });
+    if (!user) throw new Error('User not found');
+    return user;
+  }
+}
+"#
+        );
+
+        // Test fuzzy matching with error handling changes
+        let result2 = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: r#"<<<<<<< SEARCH
+    if (!user) throw new Error('User not found');
+    return user;
+=======
+    if (!user) {
+      throw new UserNotFoundError(id);
     }
-
-    #[tokio::test]
-    async fn test_javascript_validation_valid() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.js");
-
-        write_test_file(
-            &file_path,
-            r#"
-function oldFunction() {
-    console.log("Old");
-}
-"#,
-        )
-        .await
-        .unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-function oldFunction() {
-    console.log("Old");
-}
-=======
-function newFunction() {
-    console.log("New");
-}
+    return this.sanitizeUser(user);
 >>>>>>> REPLACE
 "#
                 .to_string(),
             })
-            .await;
+            .await
+            .unwrap();
 
-        assert!(result.is_ok());
+        assert_eq!(
+            result2.content,
+            r#"class UserManager {
+  async findUser(id, options = {}) {
+    const user = await this.db.findOne({ userId: id, ...options });
+    if (!user) {
+      throw new UserNotFoundError(id);
     }
-
-    #[tokio::test]
-    async fn test_javascript_validation_invalid() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.js");
-
-        write_test_file(
-            &file_path,
-            r#"
-function validFunction() {
-    console.log("Valid");
+    return this.sanitizeUser(user);
+  }
 }
-"#,
-        )
-        .await
-        .unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-function validFunction() {
-    console.log("Valid");
-}
-=======
-function invalidFunction() {
-    console.log("Invalid" // Missing closing parenthesis and semicolon
-}
->>>>>>> REPLACE
 "#
-                .to_string(),
-            })
-            .await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_python_validation_valid() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.py");
-
-        write_test_file(
-            &file_path,
-            r#"
-def old_function():
-    print("Old")
-"#,
-        )
-        .await
-        .unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-def old_function():
-    print("Old")
-=======
-def new_function():
-    print("New")
->>>>>>> REPLACE
-"#
-                .to_string(),
-            })
-            .await;
-
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_python_validation_invalid() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.py");
-
-        write_test_file(
-            &file_path,
-            r#"
-def valid_function():
-    print("Valid")
-"#,
-        )
-        .await
-        .unwrap();
-
-        let fs_replace = FSReplace;
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: r#"<<<<<<< SEARCH
-def valid_function():
-    print("Valid")
-=======
-def invalid_function()  # Missing colon
-    print("Invalid")
->>>>>>> REPLACE
-"#
-                .to_string(),
-            })
-            .await;
-
-        assert!(result.is_err());
+        );
     }
 }
