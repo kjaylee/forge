@@ -4,6 +4,7 @@ use std::path::Path;
 use forge_domain::{Description, ToolCallService};
 use forge_tool_macros::Description;
 use forge_walker::Walker;
+use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -32,8 +33,6 @@ impl ToolCallService for FSSearch {
     type Output = Vec<String>;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        use regex::Regex;
-
         let dir = Path::new(&input.path);
         if !dir.exists() {
             return Err(format!("Directory '{}' does not exist", input.path));
@@ -58,12 +57,17 @@ impl ToolCallService for FSSearch {
             }
 
             let path = Path::new(&file.path);
+            let full_path = dir.join(path);
 
             // Apply file pattern filter if provided
             if let Some(ref pattern) = input.file_pattern {
                 let glob = glob::Pattern::new(pattern)
                     .map_err(|e| format!("Invalid glob pattern: {}", e))?;
-                if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
+                if let Some(filename) = path
+                    .file_name()
+                    .unwrap_or_else(|| path.as_os_str())
+                    .to_str()
+                {
                     if !glob.matches(filename) {
                         continue;
                     }
@@ -71,12 +75,9 @@ impl ToolCallService for FSSearch {
             }
 
             // Skip if we've already processed this file
-            if !seen_paths.insert(path.to_path_buf()) {
+            if !seen_paths.insert(full_path.clone()) {
                 continue;
             }
-
-            // Full path for reading the file
-            let full_path = dir.join(path);
 
             // Try to read the file content
             let content = match tokio::fs::read_to_string(&full_path).await {
@@ -84,7 +85,7 @@ impl ToolCallService for FSSearch {
                 Err(e) => {
                     // Skip binary or unreadable files silently
                     if e.kind() != std::io::ErrorKind::InvalidData {
-                        matches.push(format!("Error reading {:?}: {}", path, e));
+                        matches.push(format!("Error reading {:?}: {}", full_path.display(), e));
                     }
                     continue;
                 }
