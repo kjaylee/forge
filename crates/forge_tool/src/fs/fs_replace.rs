@@ -5,12 +5,12 @@ use std::path::Path;
 use dissimilar::Chunk;
 use forge_domain::{Description, ToolCallService};
 use forge_tool_macros::Description;
-
-use super::parse_validator::validate_parse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 use tracing::{debug, error};
+
+use super::parse_validator::validate_parse;
 
 fn persist_changes<P: AsRef<Path>>(
     temp_file: NamedTempFile,
@@ -427,11 +427,16 @@ mod test {
         let file_path = temp_dir.path().join("test.rs");
 
         // Set up initial file with valid Rust code
-        write_test_file(&file_path, r#"
+        write_test_file(
+            &file_path,
+            r#"
 fn old_func() {
     println!("Old");
 }
-"#).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -458,11 +463,16 @@ fn new_func() {
         let file_path = temp_dir.path().join("test.rs");
 
         // Set up initial file with valid Rust code
-        write_test_file(&file_path, r#"
+        write_test_file(
+            &file_path,
+            r#"
 fn valid_func() {
     println!("Hello");
 }
-"#).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -490,11 +500,16 @@ fn invalid_func() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.js");
 
-        write_test_file(&file_path, r#"
+        write_test_file(
+            &file_path,
+            r#"
 function oldFunction() {
     console.log("Old");
 }
-"#).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -522,11 +537,16 @@ function newFunction() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.js");
 
-        write_test_file(&file_path, r#"
+        write_test_file(
+            &file_path,
+            r#"
 function validFunction() {
     console.log("Valid");
 }
-"#).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -554,10 +574,15 @@ function invalidFunction() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.py");
 
-        write_test_file(&file_path, r#"
+        write_test_file(
+            &file_path,
+            r#"
 def old_function():
     print("Old")
-"#).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace
@@ -583,10 +608,15 @@ def new_function():
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.py");
 
-        write_test_file(&file_path, r#"
+        write_test_file(
+            &file_path,
+            r#"
 def valid_function():
     print("Valid")
-"#).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         let fs_replace = FSReplace;
         let result = fs_replace

@@ -1,9 +1,9 @@
 use forge_domain::{Description, ToolCallService};
 use forge_tool_macros::Description;
-
-use super::parse_validator::validate_parse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use super::parse_validator::validate_parse;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
@@ -86,7 +86,8 @@ mod test {
 fn main() {
     println!("Hello, world!");
 }
-"#.to_string(),
+"#
+                .to_string(),
             })
             .await;
 
@@ -106,7 +107,8 @@ fn main() {
 fn main() {
     println!("Hello, world!"
 }
-"#.to_string(),
+"#
+                .to_string(),
             })
             .await;
 
@@ -127,7 +129,8 @@ fn main() {
 function hello() {
     console.log('Hello, world!');
 }
-"#.to_string(),
+"#
+                .to_string(),
             })
             .await;
 
@@ -147,7 +150,8 @@ function hello() {
 function hello() {
     console.log('Hello, world!'
 }
-"#.to_string(),
+"#
+                .to_string(),
             })
             .await;
 
@@ -167,7 +171,8 @@ function hello() {
                 content: r#"
 def hello():
     print('Hello, world!')
-"#.to_string(),
+"#
+                .to_string(),
             })
             .await;
 
@@ -186,7 +191,8 @@ def hello():
                 content: r#"
 def hello()
     print('Hello, world!')
-"#.to_string(),
+"#
+                .to_string(),
             })
             .await;
 
