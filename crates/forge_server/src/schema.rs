@@ -1,11 +1,9 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    configurations (provider_type) {
-        provider_type -> Text,
-        provider_id -> Text,
-        model_id -> Text,
-        api_key -> Nullable<Text>,
+    configuration_table (id) {
+        id -> Text,
+        data -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }
@@ -21,4 +19,7 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(configurations, conversations,);
+diesel::allow_tables_to_appear_in_same_query!(
+    configuration_table,
+    conversations,
+);
