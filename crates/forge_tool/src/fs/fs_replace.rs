@@ -246,7 +246,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
     Ok(result)
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize, JsonSchema, Debug)]
 pub struct FSReplaceOutput {
     pub path: String,
     pub content: String,
@@ -593,7 +593,7 @@ function computeTotal(items, tax = 0) {
             })
             .await;
 
-        assert!(result.is_err());
+        assert!(result.unwrap().syntax_checker.is_some());
     }
 
     #[tokio::test]

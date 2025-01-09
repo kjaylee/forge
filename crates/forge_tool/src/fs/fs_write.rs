@@ -91,9 +91,7 @@ mod test {
             })
             .await;
 
-        assert!(result.is_err());
-        // File should not exist since validation failed
-        assert!(!file_path.exists());
+        assert!(result.unwrap().syntax_checker.is_some());
     }
 
     #[tokio::test]
