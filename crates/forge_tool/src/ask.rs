@@ -59,7 +59,7 @@ impl ToolCallService for AskFollowUpQuestion {
                 }
             }
             QuestionType::Boolean => {
-                if input.choices.as_ref().map_or(true, |c| c.is_empty()) {
+                if input.choices.as_ref().is_none_or(|c| c.is_empty()) {
                     return Err(
                         "Choices are required and cannot be empty for boolean questions"
                             .to_string(),
