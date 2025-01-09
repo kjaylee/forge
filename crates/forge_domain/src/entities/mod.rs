@@ -6,6 +6,7 @@ mod context;
 mod environment;
 mod message;
 mod model;
+mod rag;
 mod stream_ext;
 mod tool;
 mod tool_call;
@@ -20,6 +21,7 @@ pub use context::*;
 pub use environment::*;
 pub use message::*;
 pub use model::*;
+pub use rag::*;  // Re-export everything from rag
 pub use tool::*;
 pub use tool_call::*;
 pub use tool_definition::*;
