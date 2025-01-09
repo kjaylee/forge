@@ -40,11 +40,13 @@ impl QuestionCoordinatorService for QuestionCoordinator {
         question: Self::Question,
     ) -> Result<Self::Answer, CoordinatorError> {
         let (tx, rx) = oneshot::channel();
-        self.questions.write().await.insert(question.id.clone(), tx);
+        let question_id = question.id.clone();
+        self.questions.write().await.insert(question_id.clone(), tx);
         self.sender
             .send(question)
-            .map_err(|_| CoordinatorError::QuestionSendError)?;
-        rx.await.map_err(|_| CoordinatorError::QuestionSendError)
+            .map_err(|_| CoordinatorError::QuestionSendError(question_id.clone()))?;
+        rx.await
+            .map_err(|_| CoordinatorError::QuestionSendError(question_id))
     }
 
     async fn submit_answer(&self, answer: Self::Answer) -> Result<(), CoordinatorError> {
@@ -54,8 +56,8 @@ impl QuestionCoordinatorService for QuestionCoordinator {
             .write()
             .await
             .remove(&question_id)
-            .ok_or(CoordinatorError::QuestionNotFound)?;
+            .ok_or(CoordinatorError::QuestionNotFound(question_id.clone()))?;
         tx.send(answer)
-            .map_err(|_| CoordinatorError::AnswerSendError)
+            .map_err(|_| CoordinatorError::AnswerSendError(question_id))
     }
 }

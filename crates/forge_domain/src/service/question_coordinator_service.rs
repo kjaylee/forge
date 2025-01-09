@@ -3,20 +3,29 @@ use serde::Serialize;
 
 #[derive(Debug)]
 pub enum CoordinatorError {
-    QuestionSendError,
-    AnswerSendError,
-    QuestionNotFound,
+    QuestionSendError(String),
+    AnswerSendError(String),
+    QuestionNotFound(String),
     QuestionConversion(String),
 }
-
 impl std::fmt::Display for CoordinatorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CoordinatorError::QuestionSendError => write!(f, "Failed to send question"),
-            CoordinatorError::AnswerSendError => write!(f, "Failed to send answer"),
-            CoordinatorError::QuestionNotFound => write!(f, "Question not found"),
-            CoordinatorError::QuestionConversion(e) => {
-                write!(f, "Failed to convert question: {}", e)
+            CoordinatorError::QuestionSendError(question_id) => {
+                write!(f, "Failed to send question with ID: {}", question_id)
+            }
+            CoordinatorError::AnswerSendError(question_id) => {
+                write!(
+                    f,
+                    "Failed to send answer for question with ID: {}",
+                    question_id
+                )
+            }
+            CoordinatorError::QuestionNotFound(question_id) => {
+                write!(f, "Question with ID not found: {}", question_id)
+            }
+            CoordinatorError::QuestionConversion(question_id) => {
+                write!(f, "Failed to convert question with ID: {}", question_id)
             }
         }
     }
