@@ -113,9 +113,8 @@ impl TryFrom<&Question> for AgentQuestion {
 
 #[cfg(test)]
 mod tests {
-    use crate::Service;
-
     use super::*;
+    use crate::Service;
 
     #[tokio::test]
     async fn test_ask_followup_question() {

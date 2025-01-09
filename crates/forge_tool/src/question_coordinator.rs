@@ -1,12 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use forge_domain::{CoordinatorError, QuestionCoordinatorService, QuestionIdentifier};
 use tokio::sync::{broadcast, oneshot, RwLock};
 
-use crate::{
-    ask::{AgentQuestion, Answer},
-    Service,
-};
+use crate::ask::{AgentQuestion, Answer};
+use crate::Service;
 
 struct QuestionCoordinator {
     pub sender: broadcast::Sender<AgentQuestion>,
@@ -22,7 +21,7 @@ impl Default for QuestionCoordinator {
 
 impl Service {
     pub fn question_coordinator(
-    ) -> impl  QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer> {
+    ) -> impl QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer> {
         QuestionCoordinator::default()
     }
 }
