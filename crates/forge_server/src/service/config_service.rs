@@ -75,6 +75,7 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
         let result: RawConfig = configuration_table::table
             .select(all_columns)
             .filter(configuration_table::created_at.eq_any(max_ts))
+            .limit(1)
             .first(&mut conn)?;
 
         Ok(Config::try_from(result)?)
