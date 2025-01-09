@@ -204,7 +204,7 @@ mod test {
                     .await;
                 assert!(result.is_err());
 
-                // test 1: check when choices array is provided but it's empty.
+                // test 2: check when choices array is provided but it's empty.
                 let result = ask
                     .call(AskFollowUpQuestionInput {
                         question: "What is your favorite color?".to_string(),
