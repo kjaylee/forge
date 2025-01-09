@@ -102,8 +102,8 @@ impl Service {
 
 #[cfg(test)]
 mod test {
-
     use insta::assert_snapshot;
+    use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};

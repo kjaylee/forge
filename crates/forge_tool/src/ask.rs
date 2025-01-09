@@ -30,6 +30,7 @@ impl ToolCallService for AskFollowUpQuestion {
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[tokio::test]
     async fn test_ask_followup_question() {

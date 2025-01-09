@@ -117,6 +117,7 @@ impl ToolCallService for Shell {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[tokio::test]
     async fn test_shell_echo() {

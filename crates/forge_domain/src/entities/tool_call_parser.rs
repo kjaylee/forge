@@ -147,6 +147,7 @@ pub fn parse(input: &str) -> Result<Vec<ToolCallFull>, String> {
 mod tests {
     use super::*;
     use crate::ToolName;
+    use pretty_assertions::assert_eq;
 
     // Test helpers
     struct ToolCallBuilder {

@@ -950,6 +950,7 @@ dependencies = [
  "forge_walker",
  "glob",
  "insta",
+ "pretty_assertions",
  "regex",
  "schemars",
  "serde",
@@ -979,6 +980,7 @@ name = "forge_walker"
 version = "0.1.0"
 dependencies = [
  "ignore",
+ "pretty_assertions",
  "thiserror 2.0.9",
  "tokio",
 ]

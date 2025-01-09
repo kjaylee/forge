@@ -111,6 +111,7 @@ impl ToolCallService for FSSearch {
 mod test {
     use tempfile::TempDir;
     use tokio::fs;
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
