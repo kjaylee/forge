@@ -194,11 +194,22 @@ mod test {
         let ask_handle = tokio::spawn({
             let ask = ask.clone();
             async move {
+                // test 1: check when choices are not provided.
                 let result = ask
                     .call(AskFollowUpQuestionInput {
                         question: "What is your favorite color?".to_string(),
                         r#type: QuestionType::Boolean,
                         choices: None,
+                    })
+                    .await;
+                assert!(result.is_err());
+
+                // test 1: check when choices array is provided but it's empty.
+                let result = ask
+                    .call(AskFollowUpQuestionInput {
+                        question: "What is your favorite color?".to_string(),
+                        r#type: QuestionType::Boolean,
+                        choices: Some(vec![]),
                     })
                     .await;
                 assert!(result.is_err());
