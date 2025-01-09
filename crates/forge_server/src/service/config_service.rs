@@ -1,4 +1,5 @@
 use chrono::{NaiveDateTime, Utc};
+use diesel::dsl::max;
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp};
 use forge_domain::Config;
@@ -6,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Service;
 use crate::error::Result;
-use crate::schema::configuration_table;
+use crate::schema::configuration_table::{self, all_columns};
 use crate::service::db_service::DBService;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -64,10 +65,19 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
     async fn get(&self) -> Result<Config> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
-        let latest_config: RawConfig = configuration_table::table
-            .order(configuration_table::id.desc())
+
+        // get the max timestamp.
+        let max_ts: Option<NaiveDateTime> = configuration_table::table
+            .select(max(configuration_table::created_at))
             .first(&mut conn)?;
-        Ok(latest_config.try_into()?)
+
+        // use the max timestamp to get the latest config.
+        let result: RawConfig = configuration_table::table
+            .select(all_columns)
+            .filter(configuration_table::created_at.eq_any(max_ts))
+            .first(&mut conn)?;
+
+        Ok(Config::try_from(result)?)
     }
 
     async fn set(&self, data: Config) -> Result<Config> {
