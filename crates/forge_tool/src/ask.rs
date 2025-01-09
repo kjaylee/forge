@@ -5,47 +5,26 @@ use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Represents a question that requires a text response from the user.
-/// This is used when the LLM needs to ask the user a question that requires a
-/// text response.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TextQuestion {
-    /// The question to be presented to the user
-    pub question: String,
-}
-
-/// Represents a question that requires a boolean choice between two options.
-/// This is used when the LLM needs to ask the user a question that requires a
-/// binary choice.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct BooleanQuestion {
-    /// The question to be presented to the user
-    pub question: String,
-    /// The first choice for the question
-    pub option_one: String,
-    /// The second choice for the question
-    pub option_two: String,
-}
-
-/// Represents different types of questions that the LLM can ask the user.
-/// This enum allows the LLM to request either free-form text input or
-/// a choice between two options.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase", tag = "type")]
-pub enum Question {
-    /// A question requiring free-form text input
-    Text(TextQuestion),
-    /// A question requiring a choice between two options
-    Boolean(BooleanQuestion),
+pub enum QuestionType {
+    Text,
+    Boolean,
 }
 
 #[derive(Deserialize, Serialize, JsonSchema)]
-#[serde(transparent)]
 pub struct AskFollowUpQuestionInput {
     /// The question to ask the user. This should be a clear, specific question
     /// that addresses the information you need.
-    pub question: Question,
+    pub question: String,
+    /// The type of the question. This determines whether the question expects
+    /// a textual answer or a boolean response (e.g., true/false or yes/no).
+    /// type can be either "text" or "boolean".
+    pub r#type: QuestionType,
+    /// The list of available choices for the user. This is only required for
+    /// boolean questions, where the user must choose between two options
+    /// (e.g., "Yes" or "No").
+    pub choices: Option<Vec<String>>,
 }
 
 /// Ask the user a question to gather additional information needed to complete
@@ -73,7 +52,23 @@ impl ToolCallService for AskFollowUpQuestion {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let agent_question = AgentQuestion::try_from(&input.question)?;
+        match input.r#type {
+            QuestionType::Text => {
+                if input.choices.is_some() {
+                    return Err("Choices are not allowed for text questions".to_string());
+                }
+            }
+            QuestionType::Boolean => {
+                if input.choices.as_ref().map_or(true, |c| c.is_empty()) {
+                    return Err(
+                        "Choices are required and cannot be empty for boolean questions"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+
+        let agent_question = AgentQuestion::from(input);
         let answer = self
             .question_coordinator
             .ask_question(agent_question)
@@ -87,6 +82,8 @@ impl ToolCallService for AskFollowUpQuestion {
 pub struct AgentQuestion {
     pub id: String,
     pub question: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub choices: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -102,12 +99,12 @@ impl QuestionIdentifier for Answer {
     }
 }
 
-impl TryFrom<&Question> for AgentQuestion {
-    type Error = String;
-    fn try_from(value: &Question) -> Result<Self, Self::Error> {
-        let question = serde_json::to_string(&value).map_err(|e| e.to_string())?;
+impl From<AskFollowUpQuestionInput> for AgentQuestion {
+    fn from(value: AskFollowUpQuestionInput) -> Self {
+        let question = value.question;
+        let choices = value.choices;
         let id = uuid::Uuid::new_v4().to_string();
-        Ok(AgentQuestion { question, id })
+        AgentQuestion { question, id, choices }
     }
 }
 
@@ -132,9 +129,9 @@ mod test {
             async move {
                 let result = ask
                     .call(AskFollowUpQuestionInput {
-                        question: Question::Text(TextQuestion {
-                            question: "What is your favorite color?".to_string(),
-                        }),
+                        question: "What is your favorite color?".to_string(),
+                        r#type: QuestionType::Text,
+                        choices: None,
                     })
                     .await
                     .unwrap();
@@ -167,11 +164,9 @@ mod test {
             async move {
                 let _result = ask
                     .call(AskFollowUpQuestionInput {
-                        question: Question::Boolean(BooleanQuestion {
-                            question: "Do you like blue?".to_string(),
-                            option_one: "Yes".to_string(),
-                            option_two: "No".to_string(),
-                        }),
+                        question: "Do you like blue?".to_string(),
+                        r#type: QuestionType::Boolean,
+                        choices: Some(vec!["Yes".to_string(), "No".to_string()]),
                     })
                     .await
                     .unwrap();
@@ -186,6 +181,52 @@ mod test {
             .await
             .unwrap();
 
+        // Ensure the ask task completes
+        ask_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_choices_required_for_boolean_question() {
+        let question_coordinator = Arc::new(Service::question_coordinator());
+        let ask = AskFollowUpQuestion::new(question_coordinator.clone());
+
+        // Send the question in a separate task
+        let ask_handle = tokio::spawn({
+            let ask = ask.clone();
+            async move {
+                let result = ask
+                    .call(AskFollowUpQuestionInput {
+                        question: "What is your favorite color?".to_string(),
+                        r#type: QuestionType::Boolean,
+                        choices: None,
+                    })
+                    .await;
+                assert!(result.is_err());
+            }
+        });
+        // Ensure the ask task completes
+        ask_handle.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_text_question_shouldnt_have_choices() {
+        let question_coordinator = Arc::new(Service::question_coordinator());
+        let ask = AskFollowUpQuestion::new(question_coordinator.clone());
+
+        // Send the question in a separate task
+        let ask_handle = tokio::spawn({
+            let ask = ask.clone();
+            async move {
+                let result = ask
+                    .call(AskFollowUpQuestionInput {
+                        question: "What is your favorite color?".to_string(),
+                        r#type: QuestionType::Text,
+                        choices: Some(vec!["Blue".to_string(), "Red".to_string()]),
+                    })
+                    .await;
+                assert!(result.is_err());
+            }
+        });
         // Ensure the ask task completes
         ask_handle.await.unwrap();
     }

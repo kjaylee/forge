@@ -8,9 +8,15 @@ Ask the user a question to gather additional information needed to complete
  from the user.
 
 Parameters:
+- choices: The list of available choices for the user. This is only required for boolean questions, where the user must choose between two options (e.g., "Yes" or "No").
+- question (required): The question to ask the user. This should be a clear, specific question that addresses the information you need.
+- type (required): The type of the question. This determines whether the question expects a textual answer or a boolean response (e.g., true/false or yes/no). type can be either "text" or "boolean".
 
 Usage:
 <ask_follow_up_question>
+<choices>...</choices>
+<question>...</question>
+<type>...</type>
 </ask_follow_up_question>
 
 2. fs_file_info

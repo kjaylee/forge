@@ -5,63 +5,48 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
 [
   {
     "name": "ask_follow_up_question",
-    "description": "Ask the user a question to gather additional information needed to complete\n the task. This is useful when you need clarification or additional details\n from the user.\n\nParameters:",
+    "description": "Ask the user a question to gather additional information needed to complete\n the task. This is useful when you need clarification or additional details\n from the user.\n\nParameters:\n- choices: The list of available choices for the user. This is only required for boolean questions, where the user must choose between two options (e.g., \"Yes\" or \"No\").\n- question (required): The question to ask the user. This should be a clear, specific question that addresses the information you need.\n- type (required): The type of the question. This determines whether the question expects a textual answer or a boolean response (e.g., true/false or yes/no). type can be either \"text\" or \"boolean\".",
     "input_schema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Question",
-      "description": "Represents different types of questions that the LLM can ask the user. This enum allows the LLM to request either free-form text input or a choice between two options.",
-      "oneOf": [
-        {
-          "description": "A question requiring free-form text input",
-          "type": "object",
-          "required": [
-            "question",
-            "type"
+      "title": "AskFollowUpQuestionInput",
+      "type": "object",
+      "required": [
+        "question",
+        "type"
+      ],
+      "properties": {
+        "choices": {
+          "description": "The list of available choices for the user. This is only required for boolean questions, where the user must choose between two options (e.g., \"Yes\" or \"No\").",
+          "type": [
+            "array",
+            "null"
           ],
-          "properties": {
-            "question": {
-              "description": "The question to be presented to the user",
-              "type": "string"
-            },
-            "type": {
-              "type": "string",
-              "enum": [
-                "text"
-              ]
-            }
+          "items": {
+            "type": "string"
           }
         },
-        {
-          "description": "A question requiring a choice between two options",
-          "type": "object",
-          "required": [
-            "optionOne",
-            "optionTwo",
-            "question",
-            "type"
-          ],
-          "properties": {
-            "optionOne": {
-              "description": "The first choice for the question",
-              "type": "string"
-            },
-            "optionTwo": {
-              "description": "The second choice for the question",
-              "type": "string"
-            },
-            "question": {
-              "description": "The question to be presented to the user",
-              "type": "string"
-            },
-            "type": {
-              "type": "string",
-              "enum": [
-                "boolean"
-              ]
+        "question": {
+          "description": "The question to ask the user. This should be a clear, specific question that addresses the information you need.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the question. This determines whether the question expects a textual answer or a boolean response (e.g., true/false or yes/no). type can be either \"text\" or \"boolean\".",
+          "allOf": [
+            {
+              "$ref": "#/definitions/QuestionType"
             }
-          }
+          ]
         }
-      ]
+      },
+      "definitions": {
+        "QuestionType": {
+          "type": "string",
+          "enum": [
+            "text",
+            "boolean"
+          ]
+        }
+      }
     },
     "output_schema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
