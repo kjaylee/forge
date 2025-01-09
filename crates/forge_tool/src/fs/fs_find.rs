@@ -109,9 +109,9 @@ impl ToolCallService for FSSearch {
 
 #[cfg(test)]
 mod test {
+    use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
-    use pretty_assertions::assert_eq;
 
     use super::*;
 
