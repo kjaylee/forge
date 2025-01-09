@@ -28,8 +28,9 @@ pub struct AskFollowUpQuestionInput {
 }
 
 /// Ask the user a question to gather additional information needed to complete
-/// the task. This is useful when you need clarification or additional details
-/// from the user.
+/// the task. This tool should be used when you encounter ambiguities, need
+/// clarification, or require more details to proceed effectively. It allows for
+/// interactive problem-solving by enabling direct communication with the user.
 #[derive(Clone, Description)]
 pub struct AskFollowUpQuestion {
     question_coordinator:
