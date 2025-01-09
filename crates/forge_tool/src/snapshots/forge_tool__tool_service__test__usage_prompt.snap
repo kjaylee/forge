@@ -147,10 +147,12 @@ Execute shell commands with safety checks and validation. This tool provides
 
 Parameters:
 - command (required): The shell command to execute.
+- cwd (required): The working directory where the command should be executed.
 
 Usage:
 <shell>
 <command>...</command>
+<cwd>...</cwd>
 </shell>
 
 10. think

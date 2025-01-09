@@ -112,7 +112,9 @@ impl TryFrom<&Question> for AgentQuestion {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::Service;
 
