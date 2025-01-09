@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
-use forge_domain::{Context, Environment, Model, ResultStream, ToolDefinition, ToolService};
+use forge_domain::{
+    Context, Environment, Model, QuestionCoordinatorService, ResultStream, ToolDefinition,
+    ToolService,
+};
 use forge_provider::ProviderService;
-use forge_tool::QuestionCoordinator;
+use forge_tool::{AgentQuestion, Answer};
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
@@ -21,8 +24,10 @@ pub trait RootAPIService: Send + Sync {
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
-    async fn question_coordinator(&self) -> Arc<QuestionCoordinator>;
-    async fn submit_answer(&self, question_id: String, answer: String) -> Result<()>;
+    async fn question_coordinator(
+        &self,
+    ) -> Arc<dyn QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer>>;
+    async fn submit_answer(&self, answer: Answer) -> Result<()>;
 }
 
 impl Service {
@@ -38,13 +43,14 @@ struct Live {
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
     storage: Arc<dyn ConversationService>,
-    question_coordinator: Arc<QuestionCoordinator>,
+    question_coordinator:
+        Arc<dyn QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer>>,
 }
 
 impl Live {
     fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
-        let question_coordinator = Arc::new(QuestionCoordinator::default());
+        let question_coordinator = Arc::new(forge_tool::Service::question_coordinator());
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
         let tool = Arc::new(forge_tool::Service::tool_service(
             question_coordinator.clone(),
@@ -125,13 +131,15 @@ impl RootAPIService for Live {
             .into())
     }
 
-    async fn question_coordinator(&self) -> Arc<QuestionCoordinator> {
+    async fn question_coordinator(
+        &self,
+    ) -> Arc<dyn QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer>> {
         self.question_coordinator.clone()
     }
 
-    async fn submit_answer(&self, question_id: String, answer: String) -> Result<()> {
+    async fn submit_answer(&self, answer: Answer) -> Result<()> {
         self.question_coordinator
-            .submit_answer(question_id, answer)
+            .submit_answer(answer)
             .await
             .map_err(|e| e.into())
     }

@@ -1,16 +1,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    QuestionCoordinatorService, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService,
+};
 use serde_json::Value;
 use tracing::info;
 
-use crate::ask::AskFollowUpQuestion;
+use crate::ask::{AgentQuestion, Answer, AskFollowUpQuestion};
 use crate::fs::*;
 use crate::outline::Outline;
 use crate::shell::Shell;
 use crate::think::Think;
-use crate::{QuestionCoordinator, Service};
+use crate::Service;
 
 struct Live {
     tools: HashMap<ToolName, Tool>,
@@ -87,7 +90,11 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub fn tool_service(question_coordinator: Arc<QuestionCoordinator>) -> impl ToolService {
+    pub fn tool_service(
+        question_coordinator: Arc<
+            dyn QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer>,
+        >,
+    ) -> impl ToolService {
         Live::from_iter([
             Tool::new(FSRead),
             Tool::new(FSWrite),
@@ -134,13 +141,13 @@ mod test {
 
     #[test]
     fn test_usage_prompt() {
-        let docs = Service::tool_service(Arc::new(QuestionCoordinator::default())).usage_prompt();
+        let docs = Service::tool_service(Arc::new(Service::question_coordinator())).usage_prompt();
         insta::assert_snapshot!(docs);
     }
 
     #[test]
     fn test_tool_definition() {
-        let tools = Service::tool_service(Arc::new(QuestionCoordinator::default())).list();
+        let tools = Service::tool_service(Arc::new(Service::question_coordinator())).list();
         insta::assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 }

@@ -117,7 +117,7 @@ async fn conversation_handler(
         .expect("Engine failed to respond with a chat message");
 
     let question_coordinator = state.question_coordinator().await;
-    let rx = question_coordinator.sender.subscribe();
+    let rx = question_coordinator.subscribe().await;
 
     let question_stream = BroadcastStream::new(rx).map(|question| {
         let question = question.expect("Failed to receive question");
@@ -210,7 +210,10 @@ async fn answer_handler(
     axum::extract::Path(question_id): axum::extract::Path<String>,
     Json(request): Json<AnswerRequest>,
 ) -> impl axum::response::IntoResponse {
-    if let Err(e) = state.submit_answer(question_id, request.answer).await {
+    if let Err(e) = state
+        .submit_answer(forge_tool::Answer { id: question_id, answer: request.answer })
+        .await
+    {
         (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
     } else {
         axum::http::StatusCode::OK.into_response()

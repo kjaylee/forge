@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
-use forge_domain::{Description, ToolCallService};
+use forge_domain::{Description, QuestionCoordinatorService, QuestionIdentifier, ToolCallService};
 use forge_tool_macros::Description;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use crate::question_coordinator::QuestionCoordinator;
 
 /// Represents a question that requires a text response from the user.
 /// This is used when the LLM needs to ask the user a question that requires a
@@ -55,11 +53,16 @@ pub struct AskFollowUpQuestionInput {
 /// from the user.
 #[derive(Clone, Description)]
 pub struct AskFollowUpQuestion {
-    question_coordinator: Arc<QuestionCoordinator>,
+    question_coordinator:
+        Arc<dyn QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer>>,
 }
 
 impl AskFollowUpQuestion {
-    pub fn new(question_coordinator: Arc<QuestionCoordinator>) -> Self {
+    pub fn new(
+        question_coordinator: Arc<
+            dyn QuestionCoordinatorService<Question = AgentQuestion, Answer = Answer>,
+        >,
+    ) -> Self {
         Self { question_coordinator }
     }
 }
@@ -70,12 +73,13 @@ impl ToolCallService for AskFollowUpQuestion {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        let agent_question = AgentQuestion::try_from(&input.question)?;
         let answer = self
             .question_coordinator
-            .ask_question(&input.question, None)
+            .ask_question(agent_question)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(answer)
+        Ok(answer.answer)
     }
 }
 
@@ -83,6 +87,19 @@ impl ToolCallService for AskFollowUpQuestion {
 pub struct AgentQuestion {
     pub id: String,
     pub question: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Answer {
+    pub id: String,
+    pub answer: String,
+}
+
+impl QuestionIdentifier for Answer {
+    type QuestionId = String;
+    fn question_id(&self) -> Self::QuestionId {
+        self.id.clone()
+    }
 }
 
 impl TryFrom<&Question> for AgentQuestion {
@@ -96,15 +113,17 @@ impl TryFrom<&Question> for AgentQuestion {
 
 #[cfg(test)]
 mod tests {
+    use crate::Service;
+
     use super::*;
 
     #[tokio::test]
     async fn test_ask_followup_question() {
-        let question_coordinator = Arc::new(QuestionCoordinator::default());
+        let question_coordinator = Arc::new(Service::question_coordinator());
         let ask = AskFollowUpQuestion::new(question_coordinator.clone());
 
         // Create the subscriber before sending any messages
-        let mut receiver = question_coordinator.sender.subscribe();
+        let mut receiver = question_coordinator.subscribe().await;
 
         // Send the question in a separate task
         let ask_handle = tokio::spawn({
@@ -125,7 +144,7 @@ mod tests {
         // Handle the response in main task
         let question = receiver.recv().await.unwrap();
         question_coordinator
-            .submit_answer(question.id, "Blue".to_string())
+            .submit_answer(Answer { id: question.id, answer: "Blue".to_string() })
             .await
             .unwrap();
 
@@ -135,11 +154,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_ask_followup_boolean_question() {
-        let question_coordinator = Arc::new(QuestionCoordinator::default());
+        let question_coordinator = Arc::new(Service::question_coordinator());
         let ask = AskFollowUpQuestion::new(question_coordinator.clone());
 
         // Create the subscriber before sending any messages
-        let mut receiver = question_coordinator.sender.subscribe();
+        let mut receiver = question_coordinator.subscribe().await;
 
         // Send the question in a separate task
         let ask_handle = tokio::spawn({
@@ -162,7 +181,7 @@ mod tests {
         // Handle the response in main task
         let question = receiver.recv().await.unwrap();
         question_coordinator
-            .submit_answer(question.id, "Yes".to_string())
+            .submit_answer(Answer { id: question.id, answer: "Yes".to_string() })
             .await
             .unwrap();
 
