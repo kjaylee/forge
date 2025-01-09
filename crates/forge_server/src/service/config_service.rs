@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Service;
 use crate::error::Result;
-use crate::schema::configuration_table::{self, all_columns};
+use crate::schema::configuration_table::{self};
 use crate::service::db_service::DBService;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -73,7 +73,6 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
 
         // use the max timestamp to get the latest config.
         let result: RawConfig = configuration_table::table
-            .select(all_columns)
             .filter(configuration_table::created_at.eq_any(max_ts))
             .limit(1)
             .first(&mut conn)?;
