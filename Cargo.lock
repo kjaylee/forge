@@ -834,6 +834,7 @@ name = "forge_ci"
 version = "0.1.0"
 dependencies = [
  "gh-workflow-tailcall",
+ "pretty_assertions",
 ]
 
 [[package]]
@@ -889,6 +890,7 @@ dependencies = [
  "forge_domain",
  "insta",
  "moka2",
+ "pretty_assertions",
  "reqwest",
  "reqwest-eventsource",
  "serde",
