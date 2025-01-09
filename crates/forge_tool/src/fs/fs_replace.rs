@@ -246,7 +246,7 @@ fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, 
     Ok(result)
 }
 
-#[derive(Serialize, JsonSchema, Debug)]
+#[derive(Serialize, JsonSchema)]
 pub struct FSReplaceOutput {
     pub path: String,
     pub content: String,
