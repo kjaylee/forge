@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use forge_domain::{
-    Tool, ToolCallFull, ToolCallService, ToolDefinition, ToolDescription, ToolName, ToolResult,
-    ToolService,
-};
-use schemars::JsonSchema;
+use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
 use serde_json::Value;
 use tracing::info;
 
