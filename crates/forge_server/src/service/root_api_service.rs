@@ -8,7 +8,9 @@ use forge_provider::ProviderService;
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
+use super::system_prompt_builder::SystemPrompt;
 use super::{ConfigService, ConversationService, File, Service, UIService};
+use crate::tools::AgentTool;
 use crate::{Error, Result};
 
 #[async_trait::async_trait]
@@ -47,17 +49,24 @@ impl Live {
         let tool = Arc::new(forge_tool::Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
 
-        let system_prompt = Arc::new(Service::system_prompt(
-            env.clone(),
-            tool.clone(),
-            provider.clone(),
-        ));
+        let system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/system.md"))
+                .build(),
+        );
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        let chat_service = Arc::new(Service::chat_service(
+        let _orchestrator = Arc::new(Service::chat_service(
+            provider.clone(),
+            system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        ));
+
+        let coder = Arc::new(Service::chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
@@ -69,11 +78,17 @@ impl Live {
 
         let chat_service = Arc::new(Service::ui_service(
             storage.clone(),
-            chat_service,
+            coder.clone(),
             title_service,
         ));
         let config_storage = Arc::new(
             Service::config_service(&cwd).expect("Failed to create config storage service"),
+        );
+
+        // tools to specific agents.
+        let _coder_tool = AgentTool::new(
+            coder,
+            "This is coder agent and can handle any coding related tasks".to_string(),
         );
 
         Self {
