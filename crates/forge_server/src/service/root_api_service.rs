@@ -48,37 +48,29 @@ impl Live {
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
         let tool = Arc::new(forge_tool::Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
-
-        let system_prompt = Arc::new(
-            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
-                .template(include_str!("../prompts/coding/system.md"))
-                .build(),
-        );
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
-
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
-
-        let coder = Arc::new(Service::chat_service(
-            provider.clone(),
-            system_prompt.clone(),
-            tool.clone(),
-            user_prompt.clone(),
-        ));
         let completions = Arc::new(Service::completion_service(cwd.clone()));
-
         let title_service = Arc::new(Service::title_service(provider.clone()));
-
-        // let chat_service = Arc::new(Service::ui_service(
-        //     storage.clone(),
-        //     coder.clone(),
-        //     title_service,
-        // ));
         let config_storage = Arc::new(
             Service::config_service(&cwd).expect("Failed to create config storage service"),
         );
 
-        // agents required for agent.
+        // Coding Agent
+        let coding_system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/system.md"))
+                .build(),
+        );
+        let coder = Arc::new(Service::chat_service(
+            provider.clone(),
+            coding_system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        ));
+
+        // Planning Agent
         let planner_system_prompt = Arc::new(
             SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
                 .template(include_str!("../prompts/coding/planner.md"))
@@ -91,6 +83,7 @@ impl Live {
             user_prompt.clone(),
         ));
 
+        // Researcher Agent
         let researcher_system_prompt = Arc::new(
             SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
                 .template(include_str!("../prompts/coding/researcher.md"))
@@ -103,6 +96,7 @@ impl Live {
             user_prompt.clone(),
         ));
 
+        // Tester Agent
         let tester_system_prompt = Arc::new(
             SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
                 .template(include_str!("../prompts/coding/tester.md"))
@@ -115,6 +109,7 @@ impl Live {
             user_prompt.clone(),
         ));
 
+        // Reviewer Agent
         let reviewer_system_prompt = Arc::new(
             SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
                 .template(include_str!("../prompts/coding/reviewer.md"))
@@ -127,7 +122,7 @@ impl Live {
             user_prompt.clone(),
         ));
 
-        // tools to specific agents.
+        // List of Tools for Orchestrator
         let tester_tool = AgentTool::new(tester, include_str!("../tools/descriptions/tester.md"));
         let reviewer_tool =
             AgentTool::new(reviewer, include_str!("../tools/descriptions/reviewer.md"));
@@ -147,13 +142,13 @@ impl Live {
             Tool::new(coder_tool),
         ]));
 
-        //
+        // Orchestrator Agent
         let orchestrator_system_prompt = Arc::new(
             SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
                 .template(include_str!("../prompts/coding/orchestrator.md"))
                 .build(),
         );
-        let _orchestrator = Arc::new(Service::chat_service(
+        let orchestrator = Arc::new(Service::chat_service(
             provider.clone(),
             orchestrator_system_prompt.clone(),
             orchestrator_tools.clone(),
@@ -162,7 +157,7 @@ impl Live {
 
         let chat_service = Arc::new(Service::ui_service(
             storage.clone(),
-            _orchestrator.clone(),
+            orchestrator.clone(),
             title_service,
         ));
 
