@@ -155,7 +155,7 @@ mod tests {
 
         assert_eq!(
             prompt,
-            "Your objective is : You're a Expert at Rust Programming Language"
+            "Your objective is : You're a Expert at Rust Programming Language and you answer each question with a detailed explanation."
         );
     }
 }
