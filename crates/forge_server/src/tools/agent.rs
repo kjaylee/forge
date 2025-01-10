@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use crate::Error;
 use forge_domain::{ChatRequest, ChatResponse, Context, ToolCallService, ToolDescription};
 use serde::Deserialize;
 use tokio_stream::StreamExt;
 
 use crate::service::ChatService;
+use crate::Error;
 
 pub struct AgentTool {
     chat_svc: Arc<dyn ChatService>,
