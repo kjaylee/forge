@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::Error;
-use forge_domain::{ChatRequest, ChatResponse, Context, Description, ToolCallService};
+use forge_domain::{ChatRequest, ChatResponse, Context, ToolCallService, ToolDescription};
 use serde::Deserialize;
 use tokio_stream::StreamExt;
 
@@ -9,18 +9,18 @@ use crate::service::ChatService;
 
 pub struct AgentTool {
     chat_svc: Arc<dyn ChatService>,
-    desc: &'static str,
+    desc: String,
 }
 
 impl AgentTool {
-    pub fn new(chat_svc: Arc<dyn ChatService>, desc: &'static str) -> Self {
-        Self { chat_svc, desc }
+    pub fn new(chat_svc: Arc<dyn ChatService>, desc: impl ToString) -> Self {
+        Self { chat_svc, desc: desc.to_string() }
     }
 }
 
-impl Description for AgentTool {
-    fn description() -> &'static str {
-        todo!()
+impl ToolDescription for AgentTool {
+    fn description(&self) -> String {
+        self.desc.clone()
     }
 }
 
