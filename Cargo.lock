@@ -924,6 +924,7 @@ dependencies = [
  "forge_provider",
  "forge_tool",
  "forge_walker",
+ "futures",
  "handlebars",
  "insta",
  "pretty_assertions",

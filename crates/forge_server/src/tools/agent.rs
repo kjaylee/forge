@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use forge_domain::{ChatRequest, ChatResponse, Context, ModelId, ToolCallService, ToolDescription};
+use futures::future::join_all;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio_stream::StreamExt;
@@ -32,30 +33,34 @@ pub struct AgentInput {
 
 #[async_trait::async_trait]
 impl ToolCallService for AgentTool {
-    type Input = AgentInput;
-    type Output = String;
+    type Input = Vec<AgentInput>;
+    type Output = Vec<String>;
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        // TODO: take the model as input to either in AgentInput or in the constructor.
-        let stream = self
-            .chat_svc
-            .chat(
-                ChatRequest::new(input.request).model(ModelId::new("anthropic/claude-3.5-sonnet")),
-                Context::default(),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
+        let futures = input.into_iter().map(|agent_input| async {
+            let stream = self
+                .chat_svc
+                .chat(
+                    ChatRequest::new(agent_input.request)
+                        .model(ModelId::new("anthropic/claude-3.5-sonnet")),
+                    Context::default(),
+                )
+                .await
+                .map_err(|e| e.to_string())?;
 
-        let text_output: Vec<String> = stream
-            .filter_map(|response: Result<ChatResponse, Error>| {
-                if let Ok(ChatResponse::Text(text)) = response {
-                    Some(text)
-                } else {
-                    None
-                }
-            })
-            .collect()
-            .await;
+            let text_output: Vec<String> = stream
+                .filter_map(|response: Result<ChatResponse, Error>| {
+                    if let Ok(ChatResponse::Text(text)) = response {
+                        Some(text)
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+                .await;
 
-        Ok(text_output.join(""))
+            Ok(text_output.join(""))
+        });
+        let results = join_all(futures).await;
+        results.into_iter().collect()
     }
 }
