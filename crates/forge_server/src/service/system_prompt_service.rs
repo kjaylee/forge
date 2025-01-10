@@ -76,7 +76,8 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::service::{system_prompt_builder::SystemPrompt, tests::TestProvider};
+    use crate::service::system_prompt_builder::SystemPrompt;
+    use crate::service::tests::TestProvider;
 
     fn test_env() -> Environment {
         Environment {
