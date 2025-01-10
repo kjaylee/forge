@@ -60,7 +60,7 @@ impl Live {
         // Coding Agent
         let coding_system_prompt = Arc::new(
             SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
-                .template(include_str!("../prompts/coding/system.md"))
+                .template(include_str!("../prompts/coding/coder.md"))
                 .build(),
         );
         let coder = Arc::new(Service::chat_service(

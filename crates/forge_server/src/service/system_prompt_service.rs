@@ -101,7 +101,7 @@ mod tests {
         );
 
         let prompt = SystemPrompt::new(env, tools, provider)
-            .template(include_str!("../prompts/coding/system.md"))
+            .template(include_str!("../prompts/coding/coder.md"))
             .build()
             .get_system_prompt(&ModelId::default())
             .await
@@ -117,7 +117,7 @@ mod tests {
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
         );
         let prompt = SystemPrompt::new(env, tools, provider)
-            .template(include_str!("../prompts/coding/system.md"))
+            .template(include_str!("../prompts/coding/coder.md"))
             .build()
             .get_system_prompt(&ModelId::default())
             .await
