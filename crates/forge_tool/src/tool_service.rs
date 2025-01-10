@@ -100,7 +100,7 @@ impl Service {
     }
 
     pub fn from_tools(tools: Vec<Tool>) -> impl ToolService {
-        Live::from_iter(tools.into_iter())
+        Live::from_iter(tools)
     }
 }
 
