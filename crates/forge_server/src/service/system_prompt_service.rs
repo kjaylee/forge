@@ -144,7 +144,7 @@ mod tests {
         let mut vars = HashMap::new();
         vars.insert(
             "objective".to_string(),
-            "You're a Expert at Rust Programming Language".to_string(),
+            "You're a Expert at Rust Programming Language and you answer each question with a detailed explanation.".to_string(),
         );
         let prompt = SystemPrompt::new(env, tools, provider)
             .template("Your objective is : {{vars.objective}}")
