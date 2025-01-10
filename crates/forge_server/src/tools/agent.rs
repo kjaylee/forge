@@ -1,6 +1,9 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{ChatRequest, ChatResponse, Context, ModelId, ToolCallService, ToolDescription};
+use forge_domain::{
+    ChatRequest, ChatResponse, Context, ModelId, TemplateVars, ToolCallService, ToolDescription,
+};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio_stream::StreamExt;
@@ -28,6 +31,15 @@ impl ToolDescription for AgentTool {
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentInput {
     pub request: String,
+    pub vars: Option<HashMap<String, String>>,
+}
+
+impl From<AgentInput> for ChatRequest {
+    fn from(input: AgentInput) -> Self {
+        ChatRequest::new(input.request)
+            .model(ModelId::new("anthropic/claude-3.5-sonnet"))
+            .template_vars(TemplateVars::from(input.vars.unwrap_or_default()))
+    }
 }
 
 #[async_trait::async_trait]
@@ -38,10 +50,7 @@ impl ToolCallService for AgentTool {
         // TODO: take the model as input to either in AgentInput or in the constructor.
         let stream = self
             .chat_svc
-            .chat(
-                ChatRequest::new(input.request).model(ModelId::new("anthropic/claude-3.5-sonnet")),
-                Context::default(),
-            )
+            .chat(input.into(), Context::default())
             .await
             .map_err(|e| e.to_string())?;
 

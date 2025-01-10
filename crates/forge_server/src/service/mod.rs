@@ -27,7 +27,9 @@ mod tests {
     use std::sync::Mutex;
 
     use derive_setters::Setters;
-    use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
+    use forge_domain::{
+        ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream, TemplateVars,
+    };
     use forge_provider::ProviderService;
     use serde_json::json;
     use tokio_stream::StreamExt;
@@ -47,7 +49,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl SystemPromptService for TestSystemPrompt {
-        async fn get_system_prompt(&self, _: &ModelId) -> Result<String> {
+        async fn get_system_prompt(&self, _: &ModelId, _: TemplateVars) -> Result<String> {
             Ok(self.prompt.to_string())
         }
     }

@@ -27,12 +27,9 @@ async fn main() -> Result<()> {
         let mut current_conversation_id = None;
         loop {
             let model = ModelId::from_env(api.env());
-            let chat = ChatRequest {
-                content: content.clone(),
-                model,
-                conversation_id: current_conversation_id,
-            };
-
+            let chat = ChatRequest::new(content.clone())
+                .model(model)
+                .conversation_id(current_conversation_id);
             let mut stream = api.chat(chat).await?;
             while let Some(message) = stream.next().await {
                 match message.unwrap() {

@@ -146,7 +146,10 @@ impl ChatService for Live {
         chat: forge_domain::ChatRequest,
         request: Context,
     ) -> ResultStream<ChatResponse, Error> {
-        let system_prompt = self.system_prompt.get_system_prompt(&chat.model).await?;
+        let system_prompt = self
+            .system_prompt
+            .get_system_prompt(&chat.model, chat.template_vars)
+            .await?;
         let user_prompt = self.user_prompt.get_user_prompt(&chat.content).await?;
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 

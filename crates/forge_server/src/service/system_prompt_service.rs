@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{Environment, ModelId, ToolService};
+use forge_domain::{Environment, ModelId, TemplateVars, ToolService};
 use forge_provider::ProviderService;
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -11,7 +11,7 @@ use crate::Result;
 
 #[async_trait::async_trait]
 pub trait SystemPromptService: Send + Sync {
-    async fn get_system_prompt(&self, model: &ModelId) -> Result<String>;
+    async fn get_system_prompt(&self, model: &ModelId, vars: TemplateVars) -> Result<String>;
 }
 
 impl Service {
@@ -30,6 +30,7 @@ struct Context {
     env: Environment,
     tool_information: String,
     tool_supported: bool,
+    vars: TemplateVars,
 }
 
 #[derive(Clone)]
@@ -53,17 +54,19 @@ impl Live {
 
 #[async_trait::async_trait]
 impl SystemPromptService for Live {
-    async fn get_system_prompt(&self, model: &ModelId) -> Result<String> {
+    async fn get_system_prompt(&self, model: &ModelId, vars: TemplateVars) -> Result<String> {
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
         hb.register_escape_fn(|str| str.to_string());
 
         let tool_supported = self.provider.parameters(model).await?.tool_supported;
         info!("Tool support for {}: {}", model.as_str(), tool_supported);
+
         let ctx = Context {
             env: self.env.clone(),
             tool_information: self.tool.usage_prompt(),
             tool_supported,
+            vars,
         };
 
         Ok(hb.render_template(self.template.as_str(), &ctx)?)
@@ -72,6 +75,8 @@ impl SystemPromptService for Live {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use forge_domain::Parameters;
     use insta::assert_snapshot;
 
@@ -99,11 +104,15 @@ mod tests {
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
         );
-
+        let mut vars = HashMap::new();
+        vars.insert(
+            "objective".to_string(),
+            "You're a Expert at Rust Programming Language".to_string(),
+        );
         let prompt = SystemPrompt::new(env, tools, provider)
             .template(include_str!("../prompts/coding/system.md"))
             .build()
-            .get_system_prompt(&ModelId::default())
+            .get_system_prompt(&ModelId::default(), TemplateVars::from(vars))
             .await
             .unwrap();
         assert_snapshot!(prompt);
@@ -119,9 +128,34 @@ mod tests {
         let prompt = SystemPrompt::new(env, tools, provider)
             .template(include_str!("../prompts/coding/system.md"))
             .build()
-            .get_system_prompt(&ModelId::default())
+            .get_system_prompt(&ModelId::default(), TemplateVars::default())
             .await
             .unwrap();
         assert_snapshot!(prompt);
+    }
+
+    #[tokio::test]
+    async fn test_dynamic_var() {
+        let env = test_env();
+        let tools = Arc::new(forge_tool::Service::tool_service());
+        let provider = Arc::new(
+            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
+        );
+        let mut vars = HashMap::new();
+        vars.insert(
+            "objective".to_string(),
+            "You're a Expert at Rust Programming Language".to_string(),
+        );
+        let prompt = SystemPrompt::new(env, tools, provider)
+            .template("Your objective is : {{vars.objective}}")
+            .build()
+            .get_system_prompt(&ModelId::default(), TemplateVars::from(vars))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            prompt,
+            "Your objective is : You're a Expert at Rust Programming Language"
+        );
     }
 }
