@@ -5,6 +5,7 @@ mod routes;
 mod schema;
 mod service;
 mod template;
+mod tools;
 
 pub use error::*;
 pub use routes::API;
