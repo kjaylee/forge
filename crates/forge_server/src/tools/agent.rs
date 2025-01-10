@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{ChatRequest, ChatResponse, Context, ToolCallService, ToolDescription};
+use forge_domain::{ChatRequest, ChatResponse, Context, ModelId, ToolCallService, ToolDescription};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio_stream::StreamExt;
@@ -35,10 +35,13 @@ impl ToolCallService for AgentTool {
     type Input = AgentInput;
     type Output = String;
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        // collect the answer as String.
+        // TODO: take the model as input to either in AgentInput or in the constructor.
         let stream = self
             .chat_svc
-            .chat(ChatRequest::new(input.request), Context::default())
+            .chat(
+                ChatRequest::new(input.request).model(ModelId::new("anthropic/claude-3.5-sonnet")),
+                Context::default(),
+            )
             .await
             .map_err(|e| e.to_string())?;
 
