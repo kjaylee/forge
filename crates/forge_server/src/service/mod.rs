@@ -6,11 +6,11 @@ mod db_service;
 mod env_service;
 mod file_read_service;
 mod root_api_service;
+mod system_prompt_builder;
 mod system_prompt_service;
 mod ui_service;
 mod user_prompt_service;
 mod workflow_title_service;
-mod system_prompt_builder;
 
 pub use chat_service::*;
 pub use completion_service::*;

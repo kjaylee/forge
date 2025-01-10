@@ -3,7 +3,8 @@ use std::sync::Arc;
 use forge_domain::{Environment, ToolService};
 use forge_provider::ProviderService;
 
-use super::{system_prompt_service::SystemPromptService, Service};
+use super::system_prompt_service::SystemPromptService;
+use super::Service;
 
 pub struct SystemPrompt {
     env: Environment,
