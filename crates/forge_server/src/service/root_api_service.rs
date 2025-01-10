@@ -69,27 +69,101 @@ impl Live {
 
         let title_service = Arc::new(Service::title_service(provider.clone()));
 
-        let chat_service = Arc::new(Service::ui_service(
-            storage.clone(),
-            coder.clone(),
-            title_service,
-        ));
+        // let chat_service = Arc::new(Service::ui_service(
+        //     storage.clone(),
+        //     coder.clone(),
+        //     title_service,
+        // ));
         let config_storage = Arc::new(
             Service::config_service(&cwd).expect("Failed to create config storage service"),
         );
 
-        // tools to specific agents.
-        let coder_tool = AgentTool::new(
-            coder,
-            "This is coder agent and can handle any coding related tasks".to_string(),
+        // agents required for agent.
+        let planner_system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/planner.md"))
+                .build(),
         );
-        let orchestrator_tools =
-            Arc::new(forge_tool::Service::from_tools(vec![Tool::new(coder_tool)]));
+        let planner = Arc::new(Service::chat_service(
+            provider.clone(),
+            planner_system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        ));
+
+        let researcher_system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/researcher.md"))
+                .build(),
+        );
+        let researcher = Arc::new(Service::chat_service(
+            provider.clone(),
+            researcher_system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        ));
+
+        let tester_system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/tester.md"))
+                .build(),
+        );
+        let tester = Arc::new(Service::chat_service(
+            provider.clone(),
+            tester_system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        ));
+
+        let reviewer_system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/reviewer.md"))
+                .build(),
+        );
+        let reviewer = Arc::new(Service::chat_service(
+            provider.clone(),
+            reviewer_system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        ));
+
+        // tools to specific agents.
+        let tester_tool = AgentTool::new(tester, include_str!("../tools/descriptions/tester.md"));
+        let reviewer_tool =
+            AgentTool::new(reviewer, include_str!("../tools/descriptions/reviewer.md"));
+        let researcher_tool = AgentTool::new(
+            researcher,
+            include_str!("../tools/descriptions/researcher.md"),
+        );
+        let planner_tool =
+            AgentTool::new(planner, include_str!("../tools/descriptions/planner.md"));
+        let coder_tool = AgentTool::new(coder, include_str!("../tools/descriptions/coder.md"));
+
+        let orchestrator_tools = Arc::new(forge_tool::Service::from_tools(vec![
+            Tool::new(tester_tool),
+            Tool::new(reviewer_tool),
+            Tool::new(researcher_tool),
+            Tool::new(planner_tool),
+            Tool::new(coder_tool),
+        ]));
+
+        //
+        let orchestrator_system_prompt = Arc::new(
+            SystemPrompt::new(env.clone(), tool.clone(), provider.clone())
+                .template(include_str!("../prompts/coding/orchestrator.md"))
+                .build(),
+        );
         let _orchestrator = Arc::new(Service::chat_service(
             provider.clone(),
-            system_prompt.clone(),
+            orchestrator_system_prompt.clone(),
             orchestrator_tools.clone(),
             user_prompt.clone(),
+        ));
+
+        let chat_service = Arc::new(Service::ui_service(
+            storage.clone(),
+            _orchestrator.clone(),
+            title_service,
         ));
 
         Self {
