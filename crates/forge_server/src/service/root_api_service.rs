@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{
     ChatRequest, ChatResponse, Config, Context, Conversation, ConversationId, Environment, Model,
-    ResultStream, ToolDefinition, ToolService,
+    ResultStream, Tool, ToolDefinition, ToolService,
 };
 use forge_provider::ProviderService;
 
@@ -59,18 +59,11 @@ impl Live {
         let storage =
             Arc::new(Service::storage_service(&cwd).expect("Failed to create storage service"));
 
-        let _orchestrator = Arc::new(Service::chat_service(
-            provider.clone(),
-            system_prompt.clone(),
-            tool.clone(),
-            user_prompt.clone(),
-        ));
-
         let coder = Arc::new(Service::chat_service(
             provider.clone(),
             system_prompt.clone(),
             tool.clone(),
-            user_prompt,
+            user_prompt.clone(),
         ));
         let completions = Arc::new(Service::completion_service(cwd.clone()));
 
@@ -86,10 +79,18 @@ impl Live {
         );
 
         // tools to specific agents.
-        let _coder_tool = AgentTool::new(
+        let coder_tool = AgentTool::new(
             coder,
             "This is coder agent and can handle any coding related tasks".to_string(),
         );
+        let orchestrator_tools =
+            Arc::new(forge_tool::Service::from_tools(vec![Tool::new(coder_tool)]));
+        let _orchestrator = Arc::new(Service::chat_service(
+            provider.clone(),
+            system_prompt.clone(),
+            orchestrator_tools.clone(),
+            user_prompt.clone(),
+        ));
 
         Self {
             provider,

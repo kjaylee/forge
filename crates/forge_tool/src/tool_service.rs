@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    Tool, ToolCallFull, ToolCallService, ToolDefinition, ToolDescription, ToolName, ToolResult,
+    ToolService,
+};
+use schemars::JsonSchema;
 use serde_json::Value;
 use tracing::info;
 
@@ -86,7 +90,7 @@ impl ToolService for Live {
 
 impl Service {
     pub fn tool_service() -> impl ToolService {
-        Live::from_iter([
+        Self::from_tools(vec![
             Tool::new(FSRead),
             Tool::new(FSWrite),
             Tool::new(FSList),
@@ -97,6 +101,10 @@ impl Service {
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
         ])
+    }
+
+    pub fn from_tools(tools: Vec<Tool>) -> impl ToolService {
+        Live::from_iter(tools.into_iter())
     }
 }
 

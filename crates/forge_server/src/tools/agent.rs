@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use forge_domain::{ChatRequest, ChatResponse, Context, ToolCallService, ToolDescription};
+use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio_stream::StreamExt;
 
@@ -24,10 +25,9 @@ impl ToolDescription for AgentTool {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, JsonSchema)]
 pub struct AgentInput {
-    pub request: ChatRequest,
-    pub context: Context,
+    pub request: String,
 }
 
 #[async_trait::async_trait]
@@ -38,7 +38,7 @@ impl ToolCallService for AgentTool {
         // collect the answer as String.
         let stream = self
             .chat_svc
-            .chat(input.request, input.context)
+            .chat(ChatRequest::new(input.request), Context::default())
             .await
             .map_err(|e| e.to_string())?;
 
