@@ -38,7 +38,7 @@ fn load_queries() -> HashMap<&'static str, &'static str> {
     queries.insert("javascript", JAVASCRIPT);
     queries.insert("python", PYTHON);
     queries.insert("typescript", TYPESCRIPT);
-    queries.insert("tsx", TYPESCRIPT);  // Use TypeScript query for TSX files
+    queries.insert("tsx", TYPESCRIPT); // Use TypeScript query for TSX files
     queries.insert("css", CSS);
     queries.insert("java", JAVA);
     queries.insert("scala", SCALA);
