@@ -13,12 +13,22 @@ use walkdir::WalkDir;
 const JAVASCRIPT: &str = include_str!("queries/javascript.rkt");
 const PYTHON: &str = include_str!("queries/python.rkt");
 const RUST: &str = include_str!("queries/rust.rkt");
+const TYPESCRIPT: &str = include_str!("queries/typescript.rkt");
+const TSX: &str = include_str!("queries/tsx.rkt");
+const CSS: &str = include_str!("queries/css.rkt");
+const JAVA: &str = include_str!("queries/java.rkt");
+const SCALA: &str = include_str!("queries/scala.rkt");
 
 fn load_language_parser(language_name: &str) -> Result<Language, String> {
     match language_name {
         "rust" => Ok(tree_sitter_rust::LANGUAGE.into()),
         "javascript" => Ok(tree_sitter_javascript::LANGUAGE.into()),
         "python" => Ok(tree_sitter_python::LANGUAGE.into()),
+        "typescript" => Ok(tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()),
+        "tsx" => Ok(tree_sitter_typescript::LANGUAGE_TSX.into()),
+        "css" => Ok(tree_sitter_css::LANGUAGE.into()),
+        "java" => Ok(tree_sitter_java::LANGUAGE.into()),
+        "scala" => Ok(tree_sitter_scala::LANGUAGE.into()),
         x => Err(format!("Unsupported language: {}", x)),
     }
 }
@@ -28,6 +38,11 @@ fn load_queries() -> HashMap<&'static str, &'static str> {
     queries.insert("rust", RUST);
     queries.insert("javascript", JAVASCRIPT);
     queries.insert("python", PYTHON);
+    queries.insert("typescript", TYPESCRIPT);
+    queries.insert("tsx", TSX);
+    queries.insert("css", CSS);
+    queries.insert("java", JAVA);
+    queries.insert("scala", SCALA);
     queries
 }
 
@@ -105,6 +120,10 @@ pub struct OutlineInput {
 /// - Rust (.rs files): structs, traits, impls
 /// - JavaScript (.js files): classes, methods, prototypes
 /// - Python (.py files): classes, decorators, inheritance
+/// - TypeScript (.ts, .tsx files): interfaces, classes, methods
+/// - Scala (.scala files): traits, classes, objects
+/// - Java (.java files): classes, methods, interfaces
+/// - CSS (.css files): classes, ids, pseudo-classes
 ///
 /// Returns a formatted string showing file names and their definitions in a
 /// tree-like structure. Example output:
@@ -124,8 +143,17 @@ impl ToolCallService for Outline {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        let extensions_to_languages =
-            HashMap::from([("rs", "rust"), ("js", "javascript"), ("py", "python")]);
+        let extensions_to_languages = HashMap::from([
+            ("rs", "rust"),
+            ("js", "javascript"),
+            ("py", "python"),
+            ("ts", "typescript"),
+            ("tsx", "tsx"),
+            ("css", "css"),
+            ("scss", "css"),
+            ("java", "java"),
+            ("scala", "scala"),
+        ]);
 
         let queries = load_queries();
         let mut parsers: HashMap<&str, (Parser, Query)> = HashMap::new();
@@ -189,11 +217,12 @@ impl ToolCallService for Outline {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use insta::assert_snapshot;
     use tempfile::TempDir;
     use tokio::fs;
 
-    use super::*;
+
 
     #[tokio::test]
     async fn test_outline_rust() {
