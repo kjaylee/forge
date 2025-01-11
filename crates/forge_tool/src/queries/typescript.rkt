@@ -12,10 +12,22 @@
 (
     [
         (class_declaration
-            name: (type_identifier) @name)
+            name: [(type_identifier) (identifier)] @name)
         (abstract_class_declaration
-            name: (type_identifier) @name)
+            name: [(type_identifier) (identifier)] @name)
     ] @definition.class
+)
+
+;; Capture React Components (Function and Class based)
+(
+    [
+        (function_declaration
+            name: (identifier) @name)
+        (variable_declarator
+            name: (identifier) @name
+            value: [(arrow_function) (function_expression)])
+    ] @definition.component
+    (#match? @name "^[A-Z]")  ;; React components start with capital letter
 )
 
 ;; Capture methods (excluding constructor)

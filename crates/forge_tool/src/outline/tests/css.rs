@@ -1,3 +1,4 @@
+use forge_domain::ToolCallService;
 use insta::assert_snapshot;
 use tempfile::TempDir;
 use tokio::fs;

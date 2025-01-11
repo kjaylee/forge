@@ -14,7 +14,8 @@
 ) @definition.trait
 
 ;; Capture case class declarations
-(case_class_definition
+(class_definition
+    "case"
     name: (identifier) @name.definition.case_class
 ) @definition.case_class
 
