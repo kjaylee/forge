@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use forge_domain::{
     Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-    PermissionService, TestPermissionService,
+    PermissionService,
 };
 use serde_json::Value;
 use tracing::debug;
@@ -17,6 +17,7 @@ use crate::Service;
 
 #[cfg(test)]
 fn default_test_service() -> impl PermissionService {
+    use forge_domain::TestPermissionService;
     TestPermissionService::new()
 }
 
@@ -152,7 +153,7 @@ mod test {
     use insta::assert_snapshot;
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
-    use forge_domain::{Permission, PermissionState, NamedTool, ToolCallId};
+    use forge_domain::{Permission, PermissionState, NamedTool, ToolCallId, TestPermissionService};
 
     #[test]
     fn test_id() {

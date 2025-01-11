@@ -8,10 +8,7 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::tool_name::ToolName;
-use super::{
-    ConfigLoader, Permission, PermissionConfig, PermissionError,
-    PermissionResult, PermissionState,
-};
+use super::{Permission, PermissionConfig, PermissionError, PermissionResult, PermissionState};
 
 /// Service for managing file system permissions.
 #[async_trait]
@@ -135,40 +132,20 @@ impl PermissionService for TestPermissionService {
 /// Live implementation
 struct Live {
     config: Arc<RwLock<PermissionConfig>>,
-    config_loader: ConfigLoader,
 }
 
 impl Live {
     fn new() -> PermissionResult<Self> {
-        let config_loader = ConfigLoader::new()?;
-        let config = config_loader.load()?;
-        
+        let config = PermissionConfig::default();
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
-            config_loader,
         })
     }
 
-    fn with_config<P: AsRef<std::path::Path>>(path: P) -> PermissionResult<Self> {
-        let config_loader = ConfigLoader::with_path(path);
-        let config = config_loader.load()?;
-        
-        Ok(Self {
+    fn with_config(config: PermissionConfig) -> Self {
+        Self {
             config: Arc::new(RwLock::new(config)),
-            config_loader,
-        })
-    }
-
-    async fn save_config(&self) -> PermissionResult<()> {
-        let config = self.config.read().await;
-        self.config_loader.save(&config)
-    }
-
-    async fn reload_config(&self) -> PermissionResult<()> {
-        let new_config = self.config_loader.load()?;
-        let mut config = self.config.write().await;
-        *config = new_config;
-        Ok(())
+        }
     }
 }
 
@@ -291,28 +268,18 @@ impl crate::Service {
         Live::new()
     }
 
-    pub fn permission_service_with_config<P: AsRef<std::path::Path>>(
-        path: P
-    ) -> PermissionResult<impl PermissionService> {
-        Live::with_config(path)
+    pub fn permission_service_with_config(config: PermissionConfig) -> impl PermissionService {
+        Live::with_config(config)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_live_service() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join("test_permissions.yml");
-
-        let config = PermissionConfig::default();
-        let config_loader = ConfigLoader::with_path(&config_path);
-        config_loader.save(&config).unwrap();
-
-        let service = Live::with_config(&config_path).unwrap();
+        let service = Live::new().unwrap();
 
         let result = service
             .check_permission(
@@ -325,21 +292,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_service_reload() {
-        let temp_dir = TempDir::new().unwrap();
-        let config_path = temp_dir.path().join("test_permissions.yml");
-
+    async fn test_config_override() {
         let mut config = PermissionConfig::default();
-        let config_loader = ConfigLoader::with_path(&config_path);
-        config_loader.save(&config).unwrap();
-
-        let service = Live::with_config(&config_path).unwrap();
-
         config.global.max_depth = 20;
-        config_loader.save(&config).unwrap();
 
-        service.reload_config().await.unwrap();
-
+        let service = Live::with_config(config);
         let loaded_config = service.config.read().await;
         assert_eq!(loaded_config.global.max_depth, 20);
     }
