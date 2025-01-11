@@ -1,0 +1,57 @@
+# Advanced permission configuration
+# Example of more complex permission setups
+
+global:
+  strictMode: true
+  maxDepth: 10
+
+tools:
+  fs_read:
+    defaultState: Deny
+    directories:
+      # Source code access
+      - path: /opt/forge/src
+        maxDepth: 3
+        respectGitignore: true
+        includeHidden: false
+      # Documentation access
+      - path: /opt/forge/docs
+        maxDepth: 2
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true
+
+  fs_write:
+    defaultState: Deny
+    directories:
+      # Output directory
+      - path: /opt/forge/output
+        maxDepth: 1
+        respectGitignore: true
+        includeHidden: false
+      # Temporary files
+      - path: /opt/forge/tmp
+        maxDepth: 1
+        respectGitignore: false
+        includeHidden: true
+    requireApprovalOutsideCwd: true
+
+  fs_search:
+    defaultState: Deny
+    directories:
+      # Source search
+      - path: /opt/forge/src
+        maxDepth: 5
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true
+
+  fs_list:
+    defaultState: Deny
+    directories:
+      # Main workspace access
+      - path: /opt/forge
+        maxDepth: 3
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true

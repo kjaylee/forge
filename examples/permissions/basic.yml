@@ -1,0 +1,33 @@
+# Basic permission configuration
+# For getting started with Code-Forge permissions
+
+global:
+  strictMode: true
+  maxDepth: 5
+
+tools:
+  fs_read:
+    defaultState: Deny
+    directories:
+      - path: /workspace/src
+        maxDepth: 2
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true
+
+  fs_write:
+    defaultState: Deny
+    directories:
+      - path: /workspace/output
+        maxDepth: 1
+        respectGitignore: true
+    requireApprovalOutsideCwd: true
+
+  fs_list:
+    defaultState: AllowDirectory
+    directories:
+      - path: /workspace
+        maxDepth: 2
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true

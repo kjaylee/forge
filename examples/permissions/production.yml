@@ -1,0 +1,42 @@
+# Production permission configuration
+# Template for secure production environments
+
+global:
+  strictMode: true
+  maxDepth: 5
+
+tools:
+  fs_read:
+    defaultState: Deny
+    directories:
+      - path: /app/src
+        maxDepth: 2
+        respectGitignore: true
+        includeHidden: false
+      - path: /app/docs
+        maxDepth: 1
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true
+
+  fs_write:
+    defaultState: Deny
+    directories:
+      - path: /app/output
+        maxDepth: 1
+        respectGitignore: true
+        includeHidden: false
+      - path: /app/tmp
+        maxDepth: 1
+        respectGitignore: false
+        includeHidden: true
+    requireApprovalOutsideCwd: true
+
+  fs_list:
+    defaultState: Deny
+    directories:
+      - path: /app
+        maxDepth: 2
+        respectGitignore: true
+        includeHidden: false
+    requireApprovalOutsideCwd: true

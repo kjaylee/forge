@@ -9,6 +9,7 @@ mod errata;
 mod error;
 mod message;
 mod model;
+mod permission;
 mod stream_ext;
 mod tool;
 mod tool_call;
@@ -19,6 +20,9 @@ mod tool_name;
 mod tool_result;
 mod tool_service;
 mod tool_usage;
+
+/// Service factory for creating service instances
+pub struct Service;
 
 pub use chat_request::*;
 pub use chat_response::*;
@@ -31,6 +35,7 @@ pub use errata::*;
 pub use error::*;
 pub use message::*;
 pub use model::*;
+pub use permission::*;
 pub use stream_ext::*;
 pub use tool::*;
 pub use tool_call::*;
