@@ -885,6 +885,7 @@ dependencies = [
  "insta",
  "lazy_static",
  "once_cell",
+ "pretty_assertions",
  "regex",
  "strum",
  "strum_macros",

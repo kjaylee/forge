@@ -1,7 +1,6 @@
 use anyhow::Result;
 use chrono::Local;
 use clap::Parser;
-use colored::Colorize;
 use forge_domain::{ChatRequest, ChatResponse, ModelId};
 use forge_main::{StatusDisplay, StatusKind, UserInput, CONSOLE};
 use forge_server::API;
@@ -12,10 +11,6 @@ struct Cli {
     exec: Option<String>,
     #[arg(long, default_value_t = false)]
     verbose: bool,
-}
-
-fn clear_line() {
-    CONSOLE.write("\r\x1B[K").unwrap(); // Clear the current line
 }
 
 fn get_timestamp() -> String {
@@ -78,35 +73,19 @@ async fn main() -> Result<()> {
                 }
                 ChatResponse::ToolCallStart(tool_call_full) => {
                     let tool_name = tool_call_full.name.as_str();
-                    if cli.verbose {
-                        CONSOLE.writeln(format!(
-                            "\n{} {} {} {}",
-                            "▶".white(),
-                            "TOOL USE DETECTED:".bold().white(),
-                            tool_name,
-                            "◀".white()
-                        ))?;
-                    } else {
-                        if current_tool.is_some() {
-                            clear_line();
-                        } else {
-                            CONSOLE.writeln("")?;
-                        }
-                        let status = StatusDisplay {
-                            kind: StatusKind::Execute,
-                            message: tool_name,
-                            timestamp: Some(get_timestamp()),
-                            error_details: None,
-                        };
-                        CONSOLE.write(status.format())?;
-                        current_tool = Some(tool_name.to_string());
-                    }
+                    let status = StatusDisplay {
+                        kind: StatusKind::Execute,
+                        message: tool_name,
+                        timestamp: Some(get_timestamp()),
+                        error_details: None,
+                    };
+                    CONSOLE.writeln(status.format())?;
+                    current_tool = Some(tool_name.to_string());
                 }
                 ChatResponse::ToolCallEnd(tool_result) => {
                     if cli.verbose {
                         CONSOLE.writeln(tool_result.to_string())?;
                     } else if let Some(tool_name) = &current_tool {
-                        clear_line();
                         let status = if tool_result.is_error {
                             StatusDisplay {
                                 kind: StatusKind::Failed,
