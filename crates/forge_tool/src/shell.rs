@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -123,6 +123,12 @@ impl Shell {
             },
             success: output.status.success(),
         })
+    }
+}
+
+impl NamedTool for Shell {
+    fn tool_name(&self) -> ToolName {
+        ToolName::new("execute_command")
     }
 }
 

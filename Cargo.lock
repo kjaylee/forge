@@ -676,7 +676,16 @@ version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys 0.5.0",
 ]
 
 [[package]]
@@ -687,8 +696,20 @@ checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users",
+ "redox_users 0.4.6",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users 0.5.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -876,12 +897,14 @@ name = "forge_main"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap",
  "colored",
  "forge_domain",
  "forge_server",
  "inquire",
  "insta",
+ "lazy_static",
  "once_cell",
  "regex",
  "strum",
@@ -933,7 +956,7 @@ dependencies = [
  "derive_setters",
  "diesel",
  "diesel_migrations",
- "dirs",
+ "dirs 6.0.0",
  "dotenv",
  "forge_domain",
  "forge_prompt",
@@ -965,13 +988,14 @@ dependencies = [
  "anyhow",
  "async-trait",
  "colorize",
- "dirs",
+ "dirs 5.0.1",
  "dissimilar",
  "forge_domain",
  "forge_tool_macros",
  "forge_walker",
  "fs2",
  "glob",
+ "inquire",
  "insta",
  "pretty_assertions",
  "regex",
@@ -2366,6 +2390,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "redox_users"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd6f9d3d47bdd2ad6945c5015a226ec6155d0bcdfd8f7cd29f86b71f8de99d2b"
+dependencies = [
+ "getrandom",
+ "libredox",
+ "thiserror 2.0.11",
+]
+
+[[package]]
 name = "regex"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3291,9 +3326,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter"
-version = "0.24.6"
+version = "0.24.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f2434c86ba59ed15af56039cc5bf1acf8ba76ce301e32ef08827388ef285ec5"
+checksum = "a5387dffa7ffc7d2dae12b50c6f7aab8ff79d6210147c6613561fc3d474c6f75"
 dependencies = [
  "cc",
  "regex",
@@ -3314,9 +3349,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-css"
-version = "0.23.1"
+version = "0.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25435a275adb3226b6fddab891bbc50d1a500774a44ceb97022a39666ccda75d"
+checksum = "5ad6489794d41350d12a7fbe520e5199f688618f43aace5443980d1ddcf1b29e"
 dependencies = [
  "cc",
  "tree-sitter-language",

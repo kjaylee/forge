@@ -7,10 +7,13 @@ use forge_domain::{
 use serde_json::Value;
 use tracing::debug;
 
+use crate::approve::Approve;
+use crate::fs::*;
 use crate::permission::LivePermissionService;
 use crate::permission::CliPermissionHandler;
 use crate::{fs::*, Service};
 use crate::outline::Outline;
+use crate::select::SelectTool;
 use crate::shell::Shell;
 use crate::think::Think;
 use crate::permission::PermissionResultDisplay;
@@ -48,12 +51,11 @@ impl Live {
 impl FromIterator<Tool> for Live {
     fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
         let live = Self::with_permissions();
-
-        let mut tools = HashMap::new();
-        for tool in iter {
-            tools.insert(tool.definition.name.clone(), tool);
-        }
-        Live {
+        let tools: HashMap<ToolName, Tool> = iter
+            .into_iter()
+            .map(|tool| (tool.definition.name.clone(), tool))
+            .collect::<HashMap<_, _>>();
+        Self {
             tools,
             permission_service: live.permission_service,
             permission_handler: live.permission_handler,
@@ -134,7 +136,7 @@ impl ToolService for Live {
         match output {
             Ok(output) => ToolResult::from(call).content(output),
             Err(error) => {
-                ToolResult::from(call).content(Value::from(format!("<e>{}</e>", error)))
+                ToolResult::from(call).content(Value::from(format!("<error>{}</error>", error)))
             }
         }
     }
@@ -172,6 +174,7 @@ impl ToolService for Live {
 impl Service {
     pub fn tool_service() -> impl ToolService {
         Live::from_iter([
+            Tool::new(Approve),
             Tool::new(FSRead),
             Tool::new(FSWrite),
             Tool::new(FSList),
@@ -179,6 +182,7 @@ impl Service {
             Tool::new(FSFileInfo),
             Tool::new(FSReplace),
             Tool::new(Outline),
+            Tool::new(SelectTool),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
         ])
@@ -261,7 +265,7 @@ mod test {
         // Create service with deny pattern
         let mut config = PermissionConfig::default();
         config.deny_patterns.push("**/secrets/**".to_string());
-        
+
         let service = Live {
             tools: HashMap::new(),
             permission_service: LivePermissionService::new(),
