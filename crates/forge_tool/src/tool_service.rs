@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use forge_domain::{
     Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-    Permission, PermissionError, PermissionConfig
+    Permission
 };
 use serde_json::Value;
 use tracing::debug;
@@ -11,7 +11,7 @@ use crate::approve::Approve;
 use crate::fs::*;
 use crate::permission::LivePermissionService;
 use crate::permission::CliPermissionHandler;
-use crate::{fs::*, Service};
+use crate::Service;
 use crate::outline::Outline;
 use crate::select::SelectTool;
 use crate::shell::Shell;
@@ -81,7 +81,7 @@ impl ToolService for Live {
             };
 
             // First check if we have permission
-            let has_permission = match self.permission_service.check_permission(&path, permission.clone()).await {
+            let has_permission = match self.permission_service.check_permission(&path, permission).await {
                 Ok(true) => true,
                 Ok(false) => {
                     // Ask for permission
@@ -97,7 +97,7 @@ impl ToolService for Live {
                         Err(e) => {
                             let result = PermissionResultDisplay::new(
                                 false,
-                                permission.clone(),
+                                permission,
                                 &path,
                                 Some(format!("Error: {}", e))
                             );
@@ -109,7 +109,7 @@ impl ToolService for Live {
                 Err(e) => {
                     let result = PermissionResultDisplay::new(
                         false,
-                        permission.clone(),
+                        permission,
                         path,
                         Some(format!("Error: {}", e))
                     );
@@ -191,13 +191,13 @@ impl Service {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
+    
 
     use insta::assert_snapshot;
-    use tokio::sync::RwLock;
+    
     use super::*;
-    use crate::{fs::{FSFileInfo, FSSearch}, permission::PathValidator};
-    use forge_domain::{NamedTool, Policy, ToolCallId};
+    use crate::fs::{FSFileInfo, FSSearch};
+    use forge_domain::{NamedTool, PermissionConfig, ToolCallId};
     use crate::Service;
 
     #[test]

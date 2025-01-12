@@ -31,11 +31,6 @@ impl PathValidator {
         }
     }
 
-    /// Returns the working directory this validator is configured for.
-    pub fn cwd(&self) -> &Path {
-        &self.cwd
-    }
-
     /// Validates if a path is accessible and returns its normalized form.
     pub async fn validate_path(&self, path: &Path, max_depth: Option<usize>) -> PermissionResult<PathBuf> {
         // First, try to canonicalize the path
@@ -64,7 +59,7 @@ impl PathValidator {
 
         // Use walker to validate the path exists and is accessible
         let files = walker.get().await
-            .map_err(|e| forge_domain::PermissionError::WalkerError(e))?;
+            .map_err(forge_domain::PermissionError::WalkerError)?;
 
         // Check if the path exists in walker's output
         let relative_path = path.strip_prefix(&self.cwd)
@@ -78,16 +73,18 @@ impl PathValidator {
         }
     }
 
-    /// Checks if a path is within the allowed directory structure.
-    pub fn is_within_cwd(&self, path: &Path) -> bool {
-        path.starts_with(&self.cwd)
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::env;
+
+    impl PathValidator {
+        fn is_within_cwd(&self, path: &Path) -> bool {
+            path.starts_with(&self.cwd)
+        } 
+    }
 
     #[tokio::test]
     async fn test_path_validation() {

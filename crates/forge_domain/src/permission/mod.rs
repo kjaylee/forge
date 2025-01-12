@@ -14,8 +14,8 @@ pub enum PermissionError {
     #[error("Path outside allowed directory: {0}")]
     OutsideAllowedDirectory(std::path::PathBuf),
     
-    #[error("Operation not permitted")]
-    OperationNotPermitted,
+    #[error("Operation not permitted: {0}")]
+    OperationNotPermitted(String),
 
     #[error("Walker error: {0}")]
     WalkerError(#[from] forge_walker::Error),

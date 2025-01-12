@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::sync::RwLock;
-use forge_domain::{Permission, PermissionConfig, Policy, PermissionResult, PermissionError};
+use forge_domain::{Permission, PermissionConfig, Policy, PermissionResult};
 use crate::permission::path_validator::PathValidator;
 
 /// Live permission service implementation
@@ -36,7 +36,7 @@ impl LivePermissionService {
 
         // Check session state
         let state = self.session_state.read().await;
-        if let Some(&allowed) = state.get(&(path.to_path_buf(), perm.clone())) {
+        if let Some(&allowed) = state.get(&(path.to_path_buf(), perm)) {
             return Ok(allowed); 
         }
 

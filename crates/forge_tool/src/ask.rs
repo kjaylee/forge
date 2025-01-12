@@ -54,16 +54,11 @@ impl ToolCallService for AskFollowUpQuestion {
 }
 
 /// Select one option from a list of choices.
-pub async fn select(message: &str, options: &[&str]) -> Result<String, String> {
-    #[cfg(test)]
-    {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        Ok(options[0].to_string())
-    }
+pub async fn select(_message: &str, options: &[&str]) -> Result<String, String> {
     #[cfg(not(test))]
     {
         // Print the message and options
-        println!("\n{}\n", message);
+        println!("\n{}\n", _message);
         for option in options {
             println!("{}", option);
         }
@@ -81,6 +76,11 @@ pub async fn select(message: &str, options: &[&str]) -> Result<String, String> {
         .map_err(|e| e.to_string())??;
 
         Ok(input.trim().to_string())
+    }
+    #[cfg(test)]
+    {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        Ok(options[0].to_string())
     }
 }
 

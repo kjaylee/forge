@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 /// Basic permission types for file system operations

@@ -46,8 +46,8 @@ impl CliPermissionHandler {
                 let input = input.trim().to_uppercase();
                 Ok(input.contains("ALLOW"))
             },
-            Ok(Err(e)) => Err(PermissionError::OperationNotPermitted),
-            Err(_) => Err(PermissionError::OperationNotPermitted),
+            Ok(Err(e)) => Err(PermissionError::OperationNotPermitted(e)),
+            Err(e) => Err(PermissionError::OperationNotPermitted(e.to_string())),
         }
     }
 }
@@ -64,7 +64,7 @@ mod tests {
         let path = PathBuf::from("/test/path");
 
         let result = handler.request_permission(&path).await;
-        assert!(matches!(result, Err(PermissionError::OperationNotPermitted)));
+        assert!(matches!(result, Err(PermissionError::OperationNotPermitted(_))));
     }
 
 }
