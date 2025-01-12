@@ -1,18 +1,25 @@
-mod state;
-mod request;
+//! # Permission System
+//! Simple permission management for file system operations.
+
 mod types;
-mod error;
-mod service;
-mod storage;
-mod interaction;
 
-pub use state::PermissionState;
-pub use request::PermissionRequest;
-pub use types::Permission;
-pub use error::{PermissionError, PermissionResult};
-pub use service::PermissionService;
-pub use storage::{PermissionStorage, StorageError};
-pub use interaction::{PermissionInteraction, DEFAULT_REQUEST_TIMEOUT};
+pub use types::{Permission, Policy, PermissionConfig};
 
-#[cfg(test)]
-pub use service::TestPermissionService;
+/// Error type for permission operations
+#[derive(Debug, thiserror::Error)]
+pub enum PermissionError {
+    #[error("Path not found or inaccessible: {0}")]
+    InvalidPath(String),
+    
+    #[error("Path outside allowed directory: {0}")]
+    OutsideAllowedDirectory(std::path::PathBuf),
+    
+    #[error("Operation not permitted")]
+    OperationNotPermitted,
+
+    #[error("Walker error: {0}")]
+    WalkerError(#[from] forge_walker::Error),
+}
+
+/// Result type for permission operations
+pub type PermissionResult<T> = std::result::Result<T, PermissionError>;

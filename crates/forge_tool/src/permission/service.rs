@@ -1,76 +1,68 @@
-use tokio::sync::RwLock;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::collections::HashMap;
+use tokio::sync::RwLock;
+use forge_domain::{Permission, PermissionConfig, Policy, PermissionResult, PermissionError};
+use crate::permission::path_validator::PathValidator;
 
-use async_trait::async_trait;
-use forge_domain::{Permission, PermissionError, PermissionResult, PermissionService, PermissionRequest};
-
+/// Live permission service implementation
 pub struct LivePermissionService {
-    permissions: RwLock<HashMap<(String, String), Permission>>,
+    config: PermissionConfig,
+    path_validator: PathValidator,
+    session_state: Arc<RwLock<HashMap<(PathBuf, Permission), bool>>>,
 }
 
 impl LivePermissionService {
+    /// Create new service instance
     pub fn new() -> Self {
+        let config = PermissionConfig::default();
+        let cwd = std::env::current_dir().unwrap_or_default();
         Self {
-            permissions: RwLock::new(HashMap::new()),
-        }
-    }
-}
-
-#[async_trait]
-impl PermissionService for LivePermissionService {
-    async fn check_permission(
-        &self,
-        request: &PermissionRequest,
-    ) -> PermissionResult<bool> {
-        let key = (request.path().to_string_lossy().to_string(), request.tool_name().to_string());
-        let permissions = self.permissions.read().await;
-        if permissions.contains_key(&key) {
-            Ok(true)
-        } else {
-            Err(PermissionError::SystemDenied(request.path().to_path_buf()))
+            config,
+            path_validator: PathValidator::new(cwd),
+            session_state: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    async fn grant_permission(
-        &self,
-        permission: Permission,
-    ) -> PermissionResult<()> {
-        let key = (
-            permission.path().to_string_lossy().to_string(),
-            permission.tool_name().to_string(),
-        );
-        let mut permissions = self.permissions.write().await;
-        permissions.insert(key, permission);
+    /// Check if an operation is allowed
+    pub async fn check_permission(&self, path: &Path, perm: Permission) -> PermissionResult<bool> {
+        // First validate the path
+        self.path_validator.validate_path(path, None).await?;
+
+        // Check deny patterns
+        if self.is_denied(path) {
+            return Ok(false);
+        }
+
+        // Check session state
+        let state = self.session_state.read().await;
+        if let Some(&allowed) = state.get(&(path.to_path_buf(), perm.clone())) {
+            return Ok(allowed); 
+        }
+
+        // Check configured policy
+        let policy = self.config.permissions
+            .get(&perm)
+            .unwrap_or(&self.config.default_policy);
+
+        Ok(matches!(policy, Policy::Always))
+    }
+
+    /// Update permission state
+    pub async fn update_permission(&self, path: &Path, perm: Permission, allowed: bool) -> PermissionResult<()> {
+        let mut state = self.session_state.write().await;
+        state.insert((path.to_path_buf(), perm), allowed);
         Ok(())
     }
 
-    async fn revoke_permission(
-        &self,
-        request: &PermissionRequest,
-    ) -> PermissionResult<()> {
-        let key = (request.path().to_string_lossy().to_string(), request.tool_name().to_string());
-        let mut permissions = self.permissions.write().await;
-        if permissions.remove(&key).is_some() {
-            Ok(())
-        } else {
-            Err(PermissionError::SystemDenied(request.path().to_path_buf()))
-        }
-    }
-
-    async fn validate_path_access(
-        &self,
-        request: &PermissionRequest,
-    ) -> PermissionResult<()> {
-        self.check_permission(request)
-            .await
-            .map(|_| ())
-    }
-
-    async fn check_directory_access(
-        &self,
-        request: &PermissionRequest,
-    ) -> PermissionResult<()> {
-        self.validate_path_access(request).await
+    /// Check if path matches deny patterns
+    fn is_denied(&self, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+        self.config.deny_patterns.iter().any(|pattern| {
+            glob::glob(pattern)
+                .map(|mut paths| paths.any(|p| p.map(|p| p.to_string_lossy() == path_str).unwrap_or(false)))
+                .unwrap_or(false)
+        })
     }
 }
 

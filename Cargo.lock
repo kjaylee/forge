@@ -850,6 +850,7 @@ dependencies = [
  "derive_setters",
  "forge_walker",
  "futures",
+ "glob",
  "home",
  "html-escape",
  "insta",

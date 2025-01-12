@@ -1,88 +1,63 @@
 use std::fmt::{self, Display};
-use forge_domain::{PermissionRequest, PermissionState};
+use std::path::{Path, PathBuf};
+use forge_domain::{Permission};
 
-/// Represents a permission request result with human and LLM-friendly formatting.
-/// This type provides context-rich information about permission decisions.
+/// Represents a permission operation result with formatting options.
 #[derive(Debug, Clone)]
 pub struct PermissionResultDisplay {
-    /// The state of the permission (allow/deny/etc)
-    pub state: PermissionState,
-    /// The original request that led to this result
-    pub request: PermissionRequest,
-    /// Optional additional context about the decision
+    pub allowed: bool,
+    pub permission: Permission,
+    pub path: PathBuf,
     pub context: Option<String>,
 }
 
 impl PermissionResultDisplay {
     /// Create a new permission result display
-    pub fn new(
-        state: PermissionState,
-        request: PermissionRequest,
-        context: Option<String>,
-    ) -> Self {
+    pub fn new(allowed: bool, permission: Permission, path: impl AsRef<Path>, context: Option<String>) -> Self {
         Self {
-            state,
-            request,
+            allowed,
+            permission,
+            path: path.as_ref().to_path_buf(),
             context,
         }
     }
 
-    /// Create a new permission result without additional context
-    pub fn simple(
-        state: PermissionState,
-        request: PermissionRequest,
-    ) -> Self {
-        Self::new(state, request, None)
+    /// Create a simple result without context
+    pub fn simple(allowed: bool, permission: Permission, path: impl AsRef<Path>) -> Self {
+        Self::new(allowed, permission, path, None)
     }
 
-    /// Get a human-readable description of the permission scope
-    fn scope_description(&self) -> &'static str {
-        match self.state {
-            PermissionState::Reject => "denied",
-            PermissionState::Allow => "granted (one-time)",
-            PermissionState::AllowSession => "granted (for this session)",
-            PermissionState::AllowForever => "granted (permanently)",
-        }
-    }
-
-    /// Format the result for human readers
+    /// Format result for human readers
     fn format_human(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Permission {} for {} to {} {}",
-            self.scope_description(),
-            self.request.tool_name(),
-            self.request.operation(),
-            self.request.path().display(),
+            "Permission {} for {} access to {}",
+            if self.allowed { "granted" } else { "denied" },
+            match self.permission {
+                Permission::Read => "read",
+                Permission::Write => "write",
+                Permission::Execute => "execute",
+                Permission::Deny => "any",
+            },
+            self.path.display(),
         )?;
 
-        // Add context if available
         if let Some(context) = &self.context {
             write!(f, "\nContext: {}", context)?;
-        }
-
-        // Add request context if available
-        if let Some(req_context) = self.request.context() {
-            write!(f, "\nRequest Context: {}", req_context)?;
         }
 
         Ok(())
     }
 
-    /// Format the result for LLM consumption
+    /// Format result for LLM consumption
     fn format_llm(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "<permission_result>")?;
-        writeln!(f, "  <state>{}</state>", self.scope_description())?;
-        writeln!(f, "  <tool>{}</tool>", self.request.tool_name())?;
-        writeln!(f, "  <operation>{}</operation>", self.request.operation())?;
-        writeln!(f, "  <path>{}</path>", self.request.path().display())?;
-
+        writeln!(f, "  <state>{}</state>", if self.allowed { "granted" } else { "denied" })?;
+        writeln!(f, "  <permission>{:?}</permission>", self.permission)?;
+        writeln!(f, "  <path>{}</path>", self.path.display())?;
+        
         if let Some(context) = &self.context {
             writeln!(f, "  <context>{}</context>", context)?;
-        }
-
-        if let Some(req_context) = self.request.context() {
-            writeln!(f, "  <request_context>{}</request_context>", req_context)?;
         }
 
         write!(f, "</permission_result>")
@@ -92,10 +67,8 @@ impl PermissionResultDisplay {
 impl Display for PermissionResultDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
-            // Use alternate format (#) for LLM output
             self.format_llm(f)
         } else {
-            // Use regular format for human output
             self.format_human(f)
         }
     }
@@ -104,84 +77,71 @@ impl Display for PermissionResultDisplay {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use insta::assert_snapshot;
-
-    fn create_test_request() -> PermissionRequest {
-        PermissionRequest::new(
-            PathBuf::from("/test/path"),
-            "test_tool",
-            "read",
-        )
-    }
-
-    fn create_test_request_with_context() -> PermissionRequest {
-        PermissionRequest::new(
-            PathBuf::from("/test/path"),
-            "test_tool",
-            "write",
-        ).with_context("Important operation")
-    }
 
     #[test]
     fn test_simple_result_display() {
-        let request = create_test_request();
         let result = PermissionResultDisplay::simple(
-            PermissionState::Allow,
-            request,
+            true,
+            Permission::Read,
+            "/test/path",
         );
 
-        assert_snapshot!(result.to_string());
+        let display = result.to_string();
+        assert!(display.contains("Permission granted"));
+        assert!(display.contains("read access"));
+        assert!(display.contains("/test/path"));
     }
 
     #[test]
     fn test_result_with_context() {
-        let request = create_test_request();
         let result = PermissionResultDisplay::new(
-            PermissionState::Reject,
-            request,
+            false,
+            Permission::Write,
+            "/test/path",
             Some("Security policy violation".to_string()),
         );
 
         let display = result.to_string();
         assert!(display.contains("Permission denied"));
+        assert!(display.contains("write access"));
         assert!(display.contains("Security policy violation"));
     }
 
     #[test]
-    fn test_result_with_request_context() {
-        let request = create_test_request_with_context();
+    fn test_deny_permission() {
         let result = PermissionResultDisplay::simple(
-            PermissionState::AllowSession,
-            request,
+            false,
+            Permission::Deny,
+            "/test/path",
         );
 
         let display = result.to_string();
-        assert!(display.contains("granted (for this session)"));
-        assert!(display.contains("Important operation"));
+        assert!(display.contains("Permission denied"));
+        assert!(display.contains("any access"));
+        assert!(display.contains("/test/path"));
     }
 
     #[test]
-    fn test_result_with_all_contexts() {
-        let request = create_test_request_with_context();
-        let result = PermissionResultDisplay::new(
-            PermissionState::AllowForever,
-            request,
-            Some("User approved".to_string()),
+    fn test_execute_permission() {
+        let result = PermissionResultDisplay::simple(
+            true,
+            Permission::Execute,
+            "/test/script.sh",
         );
 
         let display = result.to_string();
-        assert!(display.contains("granted (permanently)"));
-        assert!(display.contains("User approved"));
-        assert!(display.contains("Important operation"));
+        assert!(display.contains("Permission granted"));
+        assert!(display.contains("execute access"));
+        assert!(display.contains("/test/script.sh"));
     }
 
     #[test]
     fn test_llm_format() {
-        let request = create_test_request_with_context();
         let result = PermissionResultDisplay::new(
-            PermissionState::Allow,
-            request,
+            true,
+            Permission::Execute,
+            "/test/path",
             Some("User approved".to_string()),
         );
 
@@ -190,11 +150,12 @@ mod tests {
     }
 
     #[test]
-    fn test_llm_format_minimal() {
-        let request = create_test_request();
-        let result = PermissionResultDisplay::simple(
-            PermissionState::Reject,
-            request,
+    fn test_llm_format_denied() {
+        let result = PermissionResultDisplay::new(
+            false,
+            Permission::Write,
+            "/test/path",
+            Some("In deny list".to_string()),
         );
 
         let display = format!("{:#}", result);
