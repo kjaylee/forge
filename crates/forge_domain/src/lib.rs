@@ -9,7 +9,7 @@ mod errata;
 mod error;
 mod message;
 mod model;
-mod permission;
+pub mod permission;
 mod stream_ext;
 mod tool;
 mod tool_call;

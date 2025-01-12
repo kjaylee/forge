@@ -1,36 +1,38 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-
 use forge_domain::{
     Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-    PermissionService,
+    PermissionRequest, PermissionState,
 };
 use serde_json::Value;
 use tracing::debug;
 
-use crate::fs::*;
+use crate::permission::PermissionManager;
+use crate::permission::{SessionStorage, ConfigStorage};
+use crate::permission::CliPermissionHandler;
+use crate::{fs::*, Service};
 use crate::outline::Outline;
 use crate::shell::Shell;
 use crate::think::Think;
-use crate::Service;
-
-#[cfg(test)]
-fn default_test_service() -> impl PermissionService {
-    use forge_domain::TestPermissionService;
-    TestPermissionService::new()
-}
+use crate::permission::PermissionResultDisplay;
 
 struct Live {
     tools: HashMap<ToolName, Tool>,
-    permission_service: Arc<dyn PermissionService>,
+    permission_manager: PermissionManager,
+    permission_handler: CliPermissionHandler,
 }
 
 impl Live {
-    fn with_permissions(permission_service: impl PermissionService + 'static) -> Self {
+    fn with_permissions() -> Self {
+        let session_storage = SessionStorage::new();
+        let config_storage = ConfigStorage::new(PathBuf::from("."));
+        let permission_manager = PermissionManager::new(session_storage, config_storage);
+        let permission_handler = CliPermissionHandler::default();
         Self {
             tools: HashMap::new(),
-            permission_service: Arc::new(permission_service),
+            permission_manager,
+            permission_handler,
         }
     }
 
@@ -43,20 +45,17 @@ impl Live {
 
 impl FromIterator<Tool> for Live {
     fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
-        #[cfg(test)]
-        let mut live = Self::with_permissions(default_test_service());
+        let live = Self::with_permissions();
 
-        #[cfg(not(test))]
-        let mut live = {
-            use forge_domain::Service;
-            Self::with_permissions(Service::permission_service().unwrap())
-        };
-
-        live.tools = iter
-            .into_iter()
-            .map(|tool| (tool.definition.name.clone(), tool))
-            .collect();
-        live
+        let mut tools = HashMap::new();
+        for tool in iter {
+            tools.insert(tool.definition.name.clone(), tool);
+        }
+        Live {
+            tools,
+            permission_manager: live.permission_manager,
+            permission_handler: live.permission_handler,
+        }
     }
 }
 
@@ -69,12 +68,24 @@ impl ToolService for Live {
 
         // Check permissions if needed
         if let Some(path) = Self::extract_path_from_args(&input) {
-            if let Err(e) = self.permission_service
-                .validate_path_access(path, name.as_str().to_string())
-                .await 
-            {
-                return ToolResult::from(call)
-                    .content(Value::from(format!("<e>{}</e>", e)));
+            let request = PermissionRequest::new(
+                path,
+                name.as_str().to_string(),
+                "execute".to_string()
+            );
+            match self.permission_manager.check_permission(&request).await {
+                Ok(state) => match state {
+                    PermissionState::Allow | PermissionState::AllowSession | PermissionState::AllowForever => {},
+                    PermissionState::Reject => {
+                        let result = PermissionResultDisplay::simple(PermissionState::Reject, request);
+                        return ToolResult::from(call)
+                            .content(Value::from(format!("<e>{}</e>", result)));
+                    }
+                },
+                Err(e) => {
+                    return ToolResult::from(call)
+                        .content(Value::from(format!("<e>{}</e>", e)));
+                }
             }
         }
 
@@ -153,7 +164,8 @@ mod test {
     use insta::assert_snapshot;
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
-    use forge_domain::{Permission, PermissionState, NamedTool, ToolCallId, TestPermissionService};
+    use forge_domain::{Permission, PermissionState, NamedTool, ToolCallId};
+    use crate::Service;
 
     #[test]
     fn test_id() {
@@ -196,16 +208,15 @@ mod test {
         let test_path = PathBuf::from("/test/path");
         let tool_name = FSRead.tool_name().as_str().to_string();
 
-        let permission = Permission::new(
-            PermissionState::AllowOnce,
+        let mut service = Live::with_permissions();
+
+        // Grant permission
+        let request = PermissionRequest::new(
             test_path.clone(),
             tool_name.clone(),
+            "execute".to_string()
         );
-
-        let service = Live::with_permissions(
-            TestPermissionService::new()
-                .with_permission(permission)
-        );
+        let _ = service.permission_manager.handle_request(&request).await;
 
         // Create a tool call with the test path
         let call = ToolCallFull {
@@ -218,12 +229,23 @@ mod test {
 
         let result = service.call(call).await;
         // Error will be from FSRead operation, as permission check passed
-        assert!(!result.content.to_string().contains("Access denied"));
+        assert!(!result.content.to_string().contains("Permission denied"));
+        assert!(!result.content.to_string().contains("System denied"));
     }
 
     #[tokio::test]
     async fn test_permission_denied() {
-        let service = Live::with_permissions(TestPermissionService::new());
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("permissions.yml");
+        let session_storage = SessionStorage::new();
+        let config_storage = ConfigStorage::new(config_path);
+        let permission_manager = PermissionManager::new(session_storage, config_storage);
+        let permission_handler = CliPermissionHandler::default();
+        let service = Live {
+            tools: HashMap::new(),
+            permission_manager,
+            permission_handler,
+        };
 
         let call = ToolCallFull {
             name: FSRead.tool_name(),
@@ -235,6 +257,6 @@ mod test {
 
         let result = service.call(call).await;
         println!("Response: {}", result.content);
-        assert!(result.content.to_string().contains("Access denied"));
+        assert!(result.content.to_string().contains("Permission denied"));
     }
 }

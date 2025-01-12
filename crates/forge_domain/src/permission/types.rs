@@ -1,50 +1,46 @@
-//! Core types for the permission system.
-
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
 use super::PermissionState;
 
-/// Represents a permission for a specific tool and path.
-#[derive(Debug, Clone)]
+/// Represents a permission for a specific path and tool
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Permission {
-    /// The state of the permission (deny, allow once, etc.)
+    /// The state of the permission
     pub state: PermissionState,
     /// The path this permission applies to
-    pub path: PathBuf,
+    path: PathBuf,
     /// The tool this permission applies to
-    pub tool_name: String,
-    /// Indicates if this permission is still active in the current session
-    pub active: bool,
+    tool_name: String,
 }
 
 impl Permission {
-    /// Creates a new permission
+    /// Create a new permission
     pub fn new(
         state: PermissionState,
-        path: PathBuf,
-        tool_name: String,
+        path: impl Into<PathBuf>,
+        tool_name: impl Into<String>,
     ) -> Self {
         Self {
             state,
-            path,
-            tool_name,
-            active: true,
+            path: path.into(),
+            tool_name: tool_name.into(),
         }
     }
 
-    /// Deactivates this permission
-    pub fn deactivate(&mut self) {
-        self.active = false;
+    /// Get the state of this permission
+    pub fn state(&self) -> &PermissionState {
+        &self.state
     }
 
-    /// Returns whether this permission is currently valid
-    pub fn is_valid(&self) -> bool {
-        self.active && match self.state {
-            PermissionState::Deny => false,
-            PermissionState::AllowOnce => true,  // Will be deactivated after use
-            PermissionState::AllowSession => true,
-            PermissionState::AllowDirectory => true,
-        }
+    /// Get the path this permission applies to
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    /// Get the tool name this permission applies to
+    pub fn tool_name(&self) -> &str {
+        &self.tool_name
     }
 }
 
@@ -53,33 +49,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_permission_validity() {
-        let path = PathBuf::from("/test/path");
-        
-        // Test AllowSession permission
+    fn test_permission_creation() {
         let perm = Permission::new(
-            PermissionState::AllowSession,
-            path.clone(),
-            "fs_read".to_string(),
+            PermissionState::Allow,
+            "/test/path",
+            "test_tool",
         );
-        assert!(perm.is_valid());
-        
-        // Test Deny permission
-        let perm = Permission::new(
-            PermissionState::Deny,
-            path.clone(),
-            "fs_read".to_string(),
-        );
-        assert!(!perm.is_valid());
 
-        // Test deactivation
-        let mut perm = Permission::new(
-            PermissionState::AllowSession,
-            path,
-            "fs_read".to_string(),
+        assert!(matches!(perm.state(), PermissionState::Allow));
+        assert_eq!(perm.path().to_str().unwrap(), "/test/path");
+        assert_eq!(perm.tool_name(), "test_tool");
+    }
+
+    #[test]
+    fn test_permission_cloning() {
+        let original = Permission::new(
+            PermissionState::AllowForever,
+            "/test/path",
+            "test_tool",
         );
-        assert!(perm.is_valid());
-        perm.deactivate();
-        assert!(!perm.is_valid());
+
+        let cloned = original.clone();
+
+        assert!(matches!(cloned.state(), PermissionState::AllowForever));
+        assert_eq!(cloned.path(), original.path());
+        assert_eq!(cloned.tool_name(), original.tool_name());
     }
 }

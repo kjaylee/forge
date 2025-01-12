@@ -27,6 +27,16 @@ impl ToolCallService for AskFollowUpQuestion {
     }
 }
 
+/// Select one option from a list of choices.
+pub async fn select(_message: &str, options: &[&str]) -> Result<String, String> {
+    // When running tests, delay to allow timeout testing
+    #[cfg(test)]
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // For testing purposes, simulate a selection
+    Ok(options[0].to_string())
+}
+
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
@@ -47,5 +57,15 @@ mod test {
     #[test]
     fn test_description() {
         assert!(AskFollowUpQuestion.description().len() > 100)
+    }
+
+    #[tokio::test]
+    async fn test_select() {
+        let result = select(
+            "Choose an option:",
+            &["A", "B", "C"]
+        ).await.unwrap();
+        
+        assert_eq!(result, "A");
     }
 }

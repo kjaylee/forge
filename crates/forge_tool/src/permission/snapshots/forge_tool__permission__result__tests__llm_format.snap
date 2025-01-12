@@ -1,0 +1,13 @@
+---
+source: crates/forge_tool/src/permission/result.rs
+assertion_line: 247
+expression: display
+---
+<permission_result>
+  <state>granted (one-time)</state>
+  <tool>test_tool</tool>
+  <operation>write</operation>
+  <path>/test/path</path>
+  <context>User approved</context>
+  <request_context>Important operation</request_context>
+</permission_result>

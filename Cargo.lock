@@ -968,6 +968,7 @@ dependencies = [
  "forge_domain",
  "forge_tool_macros",
  "forge_walker",
+ "fs2",
  "glob",
  "insta",
  "pretty_assertions",
@@ -975,6 +976,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "serde_yaml",
  "streaming-iterator",
  "tempfile",
  "tokio",
@@ -1020,6 +1022,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]

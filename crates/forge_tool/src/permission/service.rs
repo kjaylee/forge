@@ -1,9 +1,8 @@
-use std::path::PathBuf;
-use std::sync::RwLock;
+use tokio::sync::RwLock;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use forge_domain::{Permission, PermissionError, PermissionResult, PermissionService, PermissionState};
+use forge_domain::{Permission, PermissionError, PermissionResult, PermissionService, PermissionRequest};
 
 pub struct LivePermissionService {
     permissions: RwLock<HashMap<(String, String), Permission>>,
@@ -21,61 +20,57 @@ impl LivePermissionService {
 impl PermissionService for LivePermissionService {
     async fn check_permission(
         &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission> {
-        let key = (path.to_string_lossy().to_string(), tool_name.clone());
-        let permissions = self.permissions.read().unwrap();
-        permissions
-            .get(&key)
-            .cloned()
-            .ok_or_else(|| PermissionError::AccessDenied(path))
+        request: &PermissionRequest,
+    ) -> PermissionResult<bool> {
+        let key = (request.path().to_string_lossy().to_string(), request.tool_name().to_string());
+        let permissions = self.permissions.read().await;
+        if permissions.contains_key(&key) {
+            Ok(true)
+        } else {
+            Err(PermissionError::SystemDenied(request.path().to_path_buf()))
+        }
     }
 
     async fn grant_permission(
         &self,
-        state: PermissionState,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission> {
-        let permission = Permission::new(state, path.clone(), tool_name.clone());
-        let key = (path.to_string_lossy().to_string(), tool_name);
-        let mut permissions = self.permissions.write().unwrap();
-        permissions.insert(key, permission.clone());
-        Ok(permission)
+        permission: Permission,
+    ) -> PermissionResult<()> {
+        let key = (
+            permission.path().to_string_lossy().to_string(),
+            permission.tool_name().to_string(),
+        );
+        let mut permissions = self.permissions.write().await;
+        permissions.insert(key, permission);
+        Ok(())
     }
 
     async fn revoke_permission(
         &self,
-        path: PathBuf,
-        tool_name: String,
+        request: &PermissionRequest,
     ) -> PermissionResult<()> {
-        let key = (path.to_string_lossy().to_string(), tool_name);
-        let mut permissions = self.permissions.write().unwrap();
+        let key = (request.path().to_string_lossy().to_string(), request.tool_name().to_string());
+        let mut permissions = self.permissions.write().await;
         if permissions.remove(&key).is_some() {
             Ok(())
         } else {
-            Err(PermissionError::AccessDenied(path))
+            Err(PermissionError::SystemDenied(request.path().to_path_buf()))
         }
     }
 
     async fn validate_path_access(
         &self,
-        path: PathBuf,
-        tool_name: String,
+        request: &PermissionRequest,
     ) -> PermissionResult<()> {
-        self.check_permission(path.clone(), tool_name)
+        self.check_permission(request)
             .await
             .map(|_| ())
     }
 
     async fn check_directory_access(
         &self,
-        path: PathBuf,
-        tool_name: String,
-        _max_depth: Option<usize>,
+        request: &PermissionRequest,
     ) -> PermissionResult<()> {
-        self.validate_path_access(path, tool_name).await
+        self.validate_path_access(request).await
     }
 }
 

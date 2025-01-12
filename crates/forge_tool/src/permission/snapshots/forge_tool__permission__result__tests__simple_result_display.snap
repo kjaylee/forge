@@ -1,0 +1,6 @@
+---
+source: crates/forge_tool/src/permission/result.rs
+assertion_line: 183
+expression: result.to_string()
+---
+Permission granted (one-time) for test_tool to read /test/path
