@@ -38,12 +38,24 @@ impl CliPermissionHandler {
 
     /// Convert user input into permission state
     fn parse_response(input: &str) -> PermissionResult<PermissionState> {
-        match input.trim().to_uppercase().as_str() {
-            "R" => Ok(PermissionState::Reject),
-            "A" => Ok(PermissionState::Allow),
-            "S" => Ok(PermissionState::AllowSession),
-            "F" => Ok(PermissionState::AllowForever),
-            _ => Err(PermissionError::InvalidResponse),
+        let input = input.trim().to_uppercase();
+        if input.starts_with("[R]") {
+            Ok(PermissionState::Reject)
+        } else if input.starts_with("[A]") {
+            Ok(PermissionState::Allow)
+        } else if input.starts_with("[S]") {
+            Ok(PermissionState::AllowSession)
+        } else if input.starts_with("[F]") {
+            Ok(PermissionState::AllowForever)
+        } else {
+            // Also accept single letter responses
+            match input.as_str() {
+                "R" => Ok(PermissionState::Reject),
+                "A" => Ok(PermissionState::Allow),
+                "S" => Ok(PermissionState::AllowSession),
+                "F" => Ok(PermissionState::AllowForever),
+                _ => Err(PermissionError::InvalidResponse),
+            }
         }
     }
 }
@@ -68,13 +80,6 @@ impl PermissionInteraction for CliPermissionHandler {
         
         writeln!(output).unwrap();
         
-        // Options
-        writeln!(output, "Choose an option:").unwrap();
-        writeln!(output, "[R] Reject (deny this time)").unwrap();
-        writeln!(output, "[A] Allow (allow this time)").unwrap();
-        writeln!(output, "[S] Allow for Session (until program exit)").unwrap();
-        writeln!(output, "[F] Allow Forever (save to config)").unwrap();
-
         output
     }
 
@@ -84,7 +89,12 @@ impl PermissionInteraction for CliPermissionHandler {
         timeout_duration: Duration,
     ) -> PermissionResult<PermissionState> {
         let message = self.format_request(request);
-        let options = vec!["R", "A", "S", "F"];
+        let options = vec![
+            "[R] Reject (deny this time)",
+            "[A] Allow (allow this time)",
+            "[S] Allow for Session (until program exit)",
+            "[F] Allow Forever (save to config)",
+        ];
 
         match timeout(
             timeout_duration,
@@ -128,10 +138,6 @@ mod tests {
         assert!(formatted.contains("Permission Required"));
         assert!(formatted.contains("test_tool"));
         assert!(formatted.contains("/test/path"));
-        assert!(formatted.contains("[R]"));
-        assert!(formatted.contains("[A]"));
-        assert!(formatted.contains("[S]"));
-        assert!(formatted.contains("[F]"));
     }
 
     #[test]

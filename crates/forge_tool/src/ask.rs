@@ -23,18 +23,59 @@ impl ToolCallService for AskFollowUpQuestion {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        Ok(format!("Question: {}", input.question))
+        #[cfg(test)]
+        {
+            Ok(format!("Question: {}", input.question))
+        }
+        #[cfg(not(test))]
+        {
+            println!("\n{}\n", input.question);
+            
+            // Use tokio::task::spawn_blocking for blocking I/O
+            let response = tokio::task::spawn_blocking(|| {
+                let mut input = String::new();
+                std::io::stdin()
+                    .read_line(&mut input)
+                    .map(|_| input)
+                    .map_err(|e| e.to_string())
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+
+            Ok(response.trim().to_string())
+        }
     }
 }
 
 /// Select one option from a list of choices.
-pub async fn select(_message: &str, options: &[&str]) -> Result<String, String> {
-    // When running tests, delay to allow timeout testing
+pub async fn select(message: &str, options: &[&str]) -> Result<String, String> {
     #[cfg(test)]
-    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        Ok(options[0].to_string())
+    }
+    #[cfg(not(test))]
+    {
+        // Print the message and options
+        println!("\n{}\n", message);
+        for option in options {
+            println!("{}", option);
+        }
+        println!("\nEnter your choice: ");
 
-    // For testing purposes, simulate a selection
-    Ok(options[0].to_string())
+        // Use tokio::task::spawn_blocking for blocking I/O
+        let input = tokio::task::spawn_blocking(|| {
+            let mut input = String::new();
+            std::io::stdin()
+                .read_line(&mut input)
+                .map(|_| input)
+                .map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| e.to_string())??;
+
+        Ok(input.trim().to_string())
+    }
 }
 
 #[cfg(test)]

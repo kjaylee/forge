@@ -1,5 +1,5 @@
 use crate::permission::storage::{SessionStorage, ConfigStorage};
-use forge_domain::{PermissionRequest, PermissionResult, PermissionState, Permission, PermissionStorage};
+use forge_domain::{PermissionRequest, PermissionResult, PermissionState, Permission, PermissionStorage, PermissionError};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -39,29 +39,31 @@ impl PermissionManager {
             return Ok(permission.state);
         }
 
-        Ok(PermissionState::Reject)
+        Err(PermissionError::SystemDenied(request.path().to_path_buf()))
     }
-    #[cfg(test)]
+    pub async fn save_permission(&self, permission: Permission) -> PermissionResult<()> {
+        match permission.state {
+            PermissionState::AllowSession => {
+                self.session.save(permission).await
+            },
+            PermissionState::AllowForever => {
+                self.config.save(permission).await
+            },
+            _ => Ok(()),
+        }
+    }
+
     pub async fn handle_request(&self, request: &PermissionRequest) -> PermissionResult<bool> {
         let permission_state = self.check_permission(request).await?;
         match permission_state {
             PermissionState::Allow => Ok(true),
-            PermissionState::AllowSession => {
+            PermissionState::AllowSession | PermissionState::AllowForever => {
                 let permission = Permission::new(
-                    PermissionState::AllowSession,
+                    permission_state,
                     request.path().to_path_buf(),
                     request.tool_name().to_string(),
                 );
-                self.session.save(permission).await?;
-                Ok(true)
-            },
-            PermissionState::AllowForever => {
-                 let permission = Permission::new(
-                    PermissionState::AllowForever,
-                    request.path().to_path_buf(),
-                    request.tool_name().to_string(),
-                );
-                self.config.save(permission).await?;
+                self.save_permission(permission).await?;
                 Ok(true)
             },
             PermissionState::Reject => Ok(false),
