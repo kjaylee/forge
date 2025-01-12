@@ -41,7 +41,7 @@ impl PermissionManager {
 
         Ok(PermissionState::Reject)
     }
-
+    #[cfg(test)]
     pub async fn handle_request(&self, request: &PermissionRequest) -> PermissionResult<bool> {
         let permission_state = self.check_permission(request).await?;
         match permission_state {

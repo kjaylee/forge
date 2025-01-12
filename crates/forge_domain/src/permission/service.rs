@@ -43,6 +43,12 @@ pub struct TestPermissionService {
 }
 
 #[cfg(test)]
+impl Default for TestPermissionService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+#[cfg(test)]
 impl TestPermissionService {
     pub fn new() -> Self {
         Self { allow_all: false }

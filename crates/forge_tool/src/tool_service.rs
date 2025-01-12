@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use forge_domain::{
     Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
     PermissionRequest, PermissionState,
@@ -164,7 +163,7 @@ mod test {
     use insta::assert_snapshot;
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
-    use forge_domain::{Permission, PermissionState, NamedTool, ToolCallId};
+    use forge_domain::{NamedTool, ToolCallId};
     use crate::Service;
 
     #[test]
@@ -208,7 +207,7 @@ mod test {
         let test_path = PathBuf::from("/test/path");
         let tool_name = FSRead.tool_name().as_str().to_string();
 
-        let mut service = Live::with_permissions();
+        let service = Live::with_permissions();
 
         // Grant permission
         let request = PermissionRequest::new(

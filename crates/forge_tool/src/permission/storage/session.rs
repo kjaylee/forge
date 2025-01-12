@@ -20,7 +20,9 @@ impl SessionStorage {
         }
     }
 
+    
     /// Clear all stored permissions
+    #[cfg(test)]
     pub async fn clear(&self) -> PermissionResult<()> {
         let mut permissions = self.permissions.write().await;
         permissions.clear();
@@ -28,11 +30,13 @@ impl SessionStorage {
     }
 
     /// Get the number of stored permissions
+    #[cfg(test)]
     pub async fn len(&self) -> usize {
         self.permissions.read().await.len()
     }
 
     /// Check if storage is empty
+    #[cfg(test)]
     pub async fn is_empty(&self) -> bool {
         self.permissions.read().await.is_empty()
     }
@@ -135,11 +139,11 @@ mod tests {
 
         // Read task in main thread
         let read_task = async {
-            let loaded = storage
+            
+            storage
                 .load(Path::new("/test/path"), "test_tool")
                 .await
-                .unwrap();
-            loaded
+                .unwrap()
         };
 
         // Wait for write to complete

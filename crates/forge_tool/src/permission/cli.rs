@@ -31,6 +31,7 @@ impl Default for CliPermissionHandler {
 
 impl CliPermissionHandler {
     /// Create a new CLI permission handler with custom timeout
+    #[cfg(test)]
     pub fn new(timeout: Duration) -> Self {
         Self { timeout }
     }

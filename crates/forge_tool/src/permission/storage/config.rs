@@ -1,12 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
-use std::fs::{self, File};
-use std::io::{self, Read};
-
+use tokio::fs::{self, File as TokioFile};
+use tokio::io::AsyncReadExt;
 use async_trait::async_trait;
-use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use forge_domain::{Permission, PermissionResult, PermissionStorage, PermissionError};
+use std::io::{BufWriter, Write};
 
 /// Storage format for permissions in YAML
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,30 +39,28 @@ impl ConfigStorage {
     }
 
     /// Create storage directory if it doesn't exist
-    fn ensure_storage_dir(&self) -> io::Result<()> {
+    async fn ensure_storage_dir(&self) -> PermissionResult<()> {
         if let Some(parent) = self.config_path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).await?;
         }
         Ok(())
     }
 
     /// Load the storage format from file
-    fn load_storage(&self) -> PermissionResult<StorageFormat> {
+    async fn load_storage(&self) -> PermissionResult<StorageFormat> {
         // Ensure file exists
         if !self.config_path.exists() {
             return Ok(StorageFormat::default());
         }
 
         // Open and lock file
-        let mut file = File::open(&self.config_path)
+        let mut file = TokioFile::open(&self.config_path).await
             .map_err(|e| PermissionError::StorageError(e.to_string()))?;
         
-        file.lock_shared()
-            .map_err(|e| PermissionError::StorageError(e.to_string()))?;
 
         // Read content
         let mut content = String::new();
-        file.read_to_string(&mut content)
+        file.read_to_string(&mut content).await
             .map_err(|e| PermissionError::StorageError(e.to_string()))?;
 
         // Parse YAML
@@ -72,21 +69,22 @@ impl ConfigStorage {
     }
 
     /// Save the storage format to file
-    fn save_storage(&self, storage: &StorageFormat) -> PermissionResult<()> {
+    async fn save_storage(&self, storage: &StorageFormat) -> PermissionResult<()> {
         // Ensure directory exists
-        self.ensure_storage_dir()
+        self.ensure_storage_dir().await
             .map_err(|e| PermissionError::StorageError(e.to_string()))?;
 
         // Create/open file with write permissions
-        let file = File::create(&self.config_path)
+        let file = TokioFile::create(&self.config_path).await
             .map_err(|e| PermissionError::StorageError(e.to_string()))?;
         
-        // Lock file for writing
-        file.lock_exclusive()
-            .map_err(|e| PermissionError::StorageError(e.to_string()))?;
+        let std_file = file.into_std().await;
+        let mut writer = BufWriter::new(std_file);
 
         // Serialize and write
-        serde_yaml::to_writer(file, storage)
+        serde_yaml::to_writer(&mut writer, storage)
+            .map_err(|e| PermissionError::StorageError(e.to_string()))?;
+        writer.flush()
             .map_err(|e| PermissionError::StorageError(e.to_string()))?;
 
         Ok(())
@@ -105,7 +103,7 @@ impl PermissionStorage for ConfigStorage {
         path: &Path,
         tool: &str,
     ) -> PermissionResult<Option<Permission>> {
-        let storage = self.load_storage()?;
+        let storage = self.load_storage().await?;
         let key = Self::make_key(path, tool);
         Ok(storage.permissions.get(&key).cloned())
     }
@@ -115,7 +113,7 @@ impl PermissionStorage for ConfigStorage {
         permission: Permission,
     ) -> PermissionResult<()> {
         // Load existing storage
-        let mut storage = self.load_storage()?;
+        let mut storage = self.load_storage().await?;
 
         // Create key from permission
         let key = Self::make_key(
@@ -127,7 +125,7 @@ impl PermissionStorage for ConfigStorage {
         storage.permissions.insert(key, permission);
 
         // Save back to file
-        self.save_storage(&storage)
+        self.save_storage(&storage).await
     }
 }
 
