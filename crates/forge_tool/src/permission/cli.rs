@@ -5,7 +5,11 @@ use std::time::Duration;
 use forge_domain::{PermissionError, PermissionResult};
 use tokio::time::timeout;
 
-use crate::ask;
+#[cfg(not(test))]
+use {
+    crate::select::{SelectInput, SelectTool},
+    forge_domain::ToolCallService,
+};
 
 /// CLI-based permission handler that interacts with users
 /// through command line interface.
@@ -33,9 +37,25 @@ impl CliPermissionHandler {
         writeln!(message, "Path: {}", path.display()).unwrap();
         writeln!(message).unwrap();
 
-        let options = vec!["Deny (reject)", "Allow"];
+        #[cfg(not(test))]
+        let options = vec!["Deny (reject)".to_string(), "Allow".to_string()];
 
-        match timeout(self.timeout, ask::select(&message, &options)).await {
+        match timeout(self.timeout, async {
+            #[cfg(test)]
+            {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                Ok::<String, String>("Deny (reject)".to_string())
+            }
+            #[cfg(not(test))]
+            {
+                let select = SelectTool;
+                let input = SelectInput {
+                    message,
+                    options,
+                };
+                select.call(input).await
+            }
+        }).await {
             Ok(Ok(input)) => {
                 let input = input.trim().to_uppercase();
                 Ok(input.contains("ALLOW"))

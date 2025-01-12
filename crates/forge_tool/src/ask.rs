@@ -53,37 +53,6 @@ impl ToolCallService for AskFollowUpQuestion {
     }
 }
 
-/// Select one option from a list of choices.
-pub async fn select(_message: &str, options: &[&str]) -> Result<String, String> {
-    #[cfg(not(test))]
-    {
-        // Print the message and options
-        println!("\n{}\n", _message);
-        for option in options {
-            println!("{}", option);
-        }
-        println!("\nEnter your choice: ");
-
-        // Use tokio::task::spawn_blocking for blocking I/O
-        let input = tokio::task::spawn_blocking(|| {
-            let mut input = String::new();
-            std::io::stdin()
-                .read_line(&mut input)
-                .map(|_| input)
-                .map_err(|e| e.to_string())
-        })
-        .await
-        .map_err(|e| e.to_string())??;
-
-        Ok(input.trim().to_string())
-    }
-    #[cfg(test)]
-    {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        Ok(options[0].to_string())
-    }
-}
-
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
@@ -106,10 +75,4 @@ mod test {
         assert!(AskFollowUpQuestion.description().len() > 100)
     }
 
-    #[tokio::test]
-    async fn test_select() {
-        let result = select("Choose an option:", &["A", "B", "C"]).await.unwrap();
-
-        assert_eq!(result, "A");
-    }
 }
