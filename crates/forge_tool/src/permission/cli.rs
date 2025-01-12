@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use forge_domain::{PermissionError, PermissionResult};
 use tokio::time::timeout;
-
 #[cfg(not(test))]
 use {
     crate::select::{SelectInput, SelectTool},
@@ -49,13 +48,12 @@ impl CliPermissionHandler {
             #[cfg(not(test))]
             {
                 let select = SelectTool;
-                let input = SelectInput {
-                    message,
-                    options,
-                };
+                let input = SelectInput { message, options };
                 select.call(input).await
             }
-        }).await {
+        })
+        .await
+        {
             Ok(Ok(input)) => {
                 let input = input.trim().to_uppercase();
                 Ok(input.contains("ALLOW"))

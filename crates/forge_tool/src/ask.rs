@@ -74,5 +74,4 @@ mod test {
     fn test_description() {
         assert!(AskFollowUpQuestion.description().len() > 100)
     }
-
 }
