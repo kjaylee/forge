@@ -1,9 +1,8 @@
-mod service;
 mod cli;
-mod result;
 mod path_validator;
+mod result;
+mod service;
 
-pub use service::LivePermissionService;
 pub use cli::CliPermissionHandler;
 pub use result::PermissionResultDisplay;
-
+pub use service::LivePermissionService;

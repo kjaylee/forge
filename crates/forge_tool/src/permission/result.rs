@@ -1,6 +1,7 @@
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
-use forge_domain::{Permission};
+
+use forge_domain::Permission;
 
 /// Represents a permission operation result with formatting options.
 #[derive(Debug, Clone)]
@@ -13,7 +14,12 @@ pub struct PermissionResultDisplay {
 
 impl PermissionResultDisplay {
     /// Create a new permission result display
-    pub fn new(allowed: bool, permission: Permission, path: impl AsRef<Path>, context: Option<String>) -> Self {
+    pub fn new(
+        allowed: bool,
+        permission: Permission,
+        path: impl AsRef<Path>,
+        context: Option<String>,
+    ) -> Self {
         Self {
             allowed,
             permission,
@@ -52,10 +58,14 @@ impl PermissionResultDisplay {
     /// Format result for LLM consumption
     fn format_llm(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "<permission_result>")?;
-        writeln!(f, "  <state>{}</state>", if self.allowed { "granted" } else { "denied" })?;
+        writeln!(
+            f,
+            "  <state>{}</state>",
+            if self.allowed { "granted" } else { "denied" }
+        )?;
         writeln!(f, "  <permission>{:?}</permission>", self.permission)?;
         writeln!(f, "  <path>{}</path>", self.path.display())?;
-        
+
         if let Some(context) = &self.context {
             writeln!(f, "  <context>{}</context>", context)?;
         }
@@ -76,16 +86,13 @@ impl Display for PermissionResultDisplay {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use insta::assert_snapshot;
+
+    use super::*;
 
     #[test]
     fn test_simple_result_display() {
-        let result = PermissionResultDisplay::simple(
-            true,
-            Permission::Read,
-            "/test/path",
-        );
+        let result = PermissionResultDisplay::simple(true, Permission::Read, "/test/path");
 
         let display = result.to_string();
         assert!(display.contains("Permission granted"));
@@ -110,11 +117,7 @@ mod tests {
 
     #[test]
     fn test_deny_permission() {
-        let result = PermissionResultDisplay::simple(
-            false,
-            Permission::Deny,
-            "/test/path",
-        );
+        let result = PermissionResultDisplay::simple(false, Permission::Deny, "/test/path");
 
         let display = result.to_string();
         assert!(display.contains("Permission denied"));
@@ -124,11 +127,7 @@ mod tests {
 
     #[test]
     fn test_execute_permission() {
-        let result = PermissionResultDisplay::simple(
-            true,
-            Permission::Execute,
-            "/test/script.sh",
-        );
+        let result = PermissionResultDisplay::simple(true, Permission::Execute, "/test/script.sh");
 
         let display = result.to_string();
         assert!(display.contains("Permission granted"));

@@ -36,7 +36,7 @@ impl ToolCallService for AskFollowUpQuestion {
         #[cfg(not(test))]
         {
             println!("\n{}\n", input.question);
-            
+
             // Use tokio::task::spawn_blocking for blocking I/O
             let response = tokio::task::spawn_blocking(|| {
                 let mut input = String::new();
@@ -108,11 +108,8 @@ mod test {
 
     #[tokio::test]
     async fn test_select() {
-        let result = select(
-            "Choose an option:",
-            &["A", "B", "C"]
-        ).await.unwrap();
-        
+        let result = select("Choose an option:", &["A", "B", "C"]).await.unwrap();
+
         assert_eq!(result, "A");
     }
 }

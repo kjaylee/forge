@@ -3,17 +3,17 @@
 
 mod types;
 
-pub use types::{Permission, Policy, PermissionConfig};
+pub use types::{Permission, PermissionConfig, Policy};
 
 /// Error type for permission operations
 #[derive(Debug, thiserror::Error)]
 pub enum PermissionError {
     #[error("Path not found or inaccessible: {0}")]
     InvalidPath(String),
-    
+
     #[error("Path outside allowed directory: {0}")]
     OutsideAllowedDirectory(std::path::PathBuf),
-    
+
     #[error("Operation not permitted: {0}")]
     OperationNotPermitted(String),
 

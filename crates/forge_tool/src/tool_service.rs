@@ -1,27 +1,25 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+
 use forge_domain::{
-    Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-    Permission
+    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
 };
 use serde_json::Value;
 use tracing::debug;
 
 use crate::approve::Approve;
 use crate::fs::*;
-use crate::permission::LivePermissionService;
-use crate::permission::CliPermissionHandler;
-use crate::Service;
 use crate::outline::Outline;
+use crate::permission::{CliPermissionHandler, LivePermissionService, PermissionResultDisplay};
 use crate::select::SelectTool;
 use crate::shell::Shell;
 use crate::think::Think;
-use crate::permission::PermissionResultDisplay;
+use crate::Service;
 
 struct Live {
-   pub tools: HashMap<ToolName, Tool>,
-   pub  permission_service: LivePermissionService,
-   pub permission_handler: CliPermissionHandler,
+    pub tools: HashMap<ToolName, Tool>,
+    pub permission_service: LivePermissionService,
+    pub permission_handler: CliPermissionHandler,
 }
 
 impl Live {
@@ -77,41 +75,49 @@ impl ToolService for Live {
                 "fs_read" => Permission::Read,
                 "fs_write" => Permission::Write,
                 "execute_command" => Permission::Execute,
-                _ => Permission::Read // Default to read permission for other tools
+                _ => Permission::Read, // Default to read permission for other tools
             };
 
             // First check if we have permission
-            let has_permission = match self.permission_service.check_permission(&path, permission).await {
+            let has_permission = match self
+                .permission_service
+                .check_permission(&path, permission)
+                .await
+            {
                 Ok(true) => true,
                 Ok(false) => {
                     // Ask for permission
                     match self.permission_handler.request_permission(&path).await {
                         Ok(true) => {
                             // Grant permission for the session
-                            if let Err(e) = self.permission_service.update_permission(&path, permission, true).await {
+                            if let Err(e) = self
+                                .permission_service
+                                .update_permission(&path, permission, true)
+                                .await
+                            {
                                 tracing::error!("Failed to update permission: {}", e);
                             }
                             true
-                        },
+                        }
                         Ok(false) => false,
                         Err(e) => {
                             let result = PermissionResultDisplay::new(
                                 false,
                                 permission,
                                 &path,
-                                Some(format!("Error: {}", e))
+                                Some(format!("Error: {}", e)),
                             );
                             return ToolResult::from(call)
                                 .content(Value::from(format!("<e>{}</e>", result)));
                         }
                     }
-                },
+                }
                 Err(e) => {
                     let result = PermissionResultDisplay::new(
                         false,
                         permission,
                         path,
-                        Some(format!("Error: {}", e))
+                        Some(format!("Error: {}", e)),
                     );
                     return ToolResult::from(call)
                         .content(Value::from(format!("<e>{}</e>", result)));
@@ -120,8 +126,7 @@ impl ToolService for Live {
 
             if !has_permission {
                 let result = PermissionResultDisplay::simple(false, permission, &path);
-                return ToolResult::from(call)
-                    .content(Value::from(format!("<e>{}</e>", result)));
+                return ToolResult::from(call).content(Value::from(format!("<e>{}</e>", result)));
             }
         }
 
@@ -129,8 +134,17 @@ impl ToolService for Live {
         let output = if let Some(tool) = self.tools.get(&name) {
             tool.executable.call(input).await
         } else {
-            let available = self.tools.keys().map(|n| n.as_str()).collect::<Vec<_>>().join(", ");
-            Err(format!("Tool '{}' not found. Available tools: {}", name.as_str(), available))
+            let available = self
+                .tools
+                .keys()
+                .map(|n| n.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(format!(
+                "Tool '{}' not found. Available tools: {}",
+                name.as_str(),
+                available
+            ))
         };
 
         match output {
@@ -191,13 +205,12 @@ impl Service {
 
 #[cfg(test)]
 mod test {
-    
 
+    use forge_domain::{NamedTool, PermissionConfig, ToolCallId};
     use insta::assert_snapshot;
-    
+
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
-    use forge_domain::{NamedTool, PermissionConfig, ToolCallId};
     use crate::Service;
 
     #[test]

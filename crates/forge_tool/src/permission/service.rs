@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::collections::HashMap;
+
+use forge_domain::{Permission, PermissionConfig, PermissionResult, Policy};
 use tokio::sync::RwLock;
-use forge_domain::{Permission, PermissionConfig, Policy, PermissionResult};
+
 use crate::permission::path_validator::PathValidator;
 
 /// Live permission service implementation
@@ -37,11 +39,13 @@ impl LivePermissionService {
         // Check session state
         let state = self.session_state.read().await;
         if let Some(&allowed) = state.get(&(path.to_path_buf(), perm)) {
-            return Ok(allowed); 
+            return Ok(allowed);
         }
 
         // Check configured policy
-        let policy = self.config.permissions
+        let policy = self
+            .config
+            .permissions
             .get(&perm)
             .unwrap_or(&self.config.default_policy);
 
@@ -49,7 +53,12 @@ impl LivePermissionService {
     }
 
     /// Update permission state
-    pub async fn update_permission(&self, path: &Path, perm: Permission, allowed: bool) -> PermissionResult<()> {
+    pub async fn update_permission(
+        &self,
+        path: &Path,
+        perm: Permission,
+        allowed: bool,
+    ) -> PermissionResult<()> {
         let mut state = self.session_state.write().await;
         state.insert((path.to_path_buf(), perm), allowed);
         Ok(())
@@ -60,7 +69,9 @@ impl LivePermissionService {
         let path_str = path.to_string_lossy();
         self.config.deny_patterns.iter().any(|pattern| {
             glob::glob(pattern)
-                .map(|mut paths| paths.any(|p| p.map(|p| p.to_string_lossy() == path_str).unwrap_or(false)))
+                .map(|mut paths| {
+                    paths.any(|p| p.map(|p| p.to_string_lossy() == path_str).unwrap_or(false))
+                })
                 .unwrap_or(false)
         })
     }

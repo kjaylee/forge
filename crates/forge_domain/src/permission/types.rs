@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 /// Basic permission types for file system operations
@@ -20,7 +21,7 @@ pub enum Policy {
     /// Always allow without asking
     Always,
     /// Allow only once
-    Once,  
+    Once,
     /// Allow for the current session
     Session,
 }
@@ -62,11 +63,19 @@ mod tests {
     fn test_permission_config() {
         let mut config = PermissionConfig::default();
         config.permissions.insert(Permission::Read, Policy::Always);
-        config.permissions.insert(Permission::Write, Policy::Session);
+        config
+            .permissions
+            .insert(Permission::Write, Policy::Session);
         config.deny_patterns.push("**/secrets/**".to_string());
 
-        assert_eq!(config.permissions.get(&Permission::Read), Some(&Policy::Always));
-        assert_eq!(config.permissions.get(&Permission::Write), Some(&Policy::Session));
+        assert_eq!(
+            config.permissions.get(&Permission::Read),
+            Some(&Policy::Always)
+        );
+        assert_eq!(
+            config.permissions.get(&Permission::Write),
+            Some(&Policy::Session)
+        );
         assert_eq!(config.deny_patterns.len(), 1);
     }
 }
