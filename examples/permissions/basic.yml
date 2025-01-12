@@ -1,33 +1,18 @@
 # Basic permission configuration
 # For getting started with Code-Forge permissions
 
-global:
-  strictMode: true
-  maxDepth: 5
+permission_config:
+  # Default policy for unspecified permissions
+  default_policy: Session
 
-tools:
-  fs_read:
-    defaultState: Deny
-    directories:
-      - path: /workspace/src
-        maxDepth: 2
-        respectGitignore: true
-        includeHidden: false
-    requireApprovalOutsideCwd: true
+  # Specific permissions
+  permissions:
+    read: Always    # Always allow read operations
+    write: Session  # Allow write operations for the session
+    execute: Once   # Require approval for each execute operation
 
-  fs_write:
-    defaultState: Deny
-    directories:
-      - path: /workspace/output
-        maxDepth: 1
-        respectGitignore: true
-    requireApprovalOutsideCwd: true
-
-  fs_list:
-    defaultState: AllowDirectory
-    directories:
-      - path: /workspace
-        maxDepth: 2
-        respectGitignore: true
-        includeHidden: false
-    requireApprovalOutsideCwd: true
+  # Patterns for denied paths
+  deny_patterns:
+    - "**/node_modules/**"
+    - "**/target/**"
+    - "**/.git/**"
