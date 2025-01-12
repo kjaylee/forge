@@ -1,49 +1,48 @@
-//! Core types for the permission system.
-
+use std::collections::HashMap;
 use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 
-use super::PermissionState;
-
-/// Represents a permission for a specific tool and path.
-#[derive(Debug, Clone)]
-pub struct Permission {
-    /// The state of the permission (deny, allow once, etc.)
-    pub state: PermissionState,
-    /// The path this permission applies to
-    pub path: PathBuf,
-    /// The tool this permission applies to
-    pub tool_name: String,
-    /// Indicates if this permission is still active in the current session
-    pub active: bool,
+/// Basic permission types for file system operations
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Permission {
+    /// Read file contents
+    Read,
+    /// Write or modify files
+    Write,
+    /// Execute commands or scripts
+    Execute,
+    /// No access allowed
+    Deny,
 }
 
-impl Permission {
-    /// Creates a new permission
-    pub fn new(
-        state: PermissionState,
-        path: PathBuf,
-        tool_name: String,
-    ) -> Self {
+/// Permission policy for decisions
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Policy {
+    /// Always allow without asking
+    Always,
+    /// Allow only once
+    Once,  
+    /// Allow for the current session
+    Session,
+}
+
+/// Global permission configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PermissionConfig {
+    /// Default policy for unspecified permissions
+    pub default_policy: Policy,
+    /// Specific policies for different permission types
+    pub permissions: HashMap<Permission, Policy>,
+    /// Glob patterns for paths that are always denied
+    pub deny_patterns: Vec<String>,
+}
+
+impl Default for PermissionConfig {
+    fn default() -> Self {
         Self {
-            state,
-            path,
-            tool_name,
-            active: true,
-        }
-    }
-
-    /// Deactivates this permission
-    pub fn deactivate(&mut self) {
-        self.active = false;
-    }
-
-    /// Returns whether this permission is currently valid
-    pub fn is_valid(&self) -> bool {
-        self.active && match self.state {
-            PermissionState::Deny => false,
-            PermissionState::AllowOnce => true,  // Will be deactivated after use
-            PermissionState::AllowSession => true,
-            PermissionState::AllowDirectory => true,
+            default_policy: Policy::Session,
+            permissions: HashMap::new(),
+            deny_patterns: vec![],
         }
     }
 }
@@ -53,33 +52,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_permission_validity() {
-        let path = PathBuf::from("/test/path");
-        
-        // Test AllowSession permission
-        let perm = Permission::new(
-            PermissionState::AllowSession,
-            path.clone(),
-            "fs_read".to_string(),
-        );
-        assert!(perm.is_valid());
-        
-        // Test Deny permission
-        let perm = Permission::new(
-            PermissionState::Deny,
-            path.clone(),
-            "fs_read".to_string(),
-        );
-        assert!(!perm.is_valid());
+    fn test_default_config() {
+        let config = PermissionConfig::default();
+        assert_eq!(config.default_policy, Policy::Session);
+        assert!(config.permissions.is_empty());
+        assert!(config.deny_patterns.is_empty());
+    }
 
-        // Test deactivation
-        let mut perm = Permission::new(
-            PermissionState::AllowSession,
-            path,
-            "fs_read".to_string(),
-        );
-        assert!(perm.is_valid());
-        perm.deactivate();
-        assert!(!perm.is_valid());
+    #[test]
+    fn test_permission_config() {
+        let mut config = PermissionConfig::default();
+        config.permissions.insert(Permission::Read, Policy::Always);
+        config.permissions.insert(Permission::Write, Policy::Session);
+        config.deny_patterns.push("**/secrets/**".to_string());
+
+        assert_eq!(config.permissions.get(&Permission::Read), Some(&Policy::Always));
+        assert_eq!(config.permissions.get(&Permission::Write), Some(&Policy::Session));
+        assert_eq!(config.deny_patterns.len(), 1);
     }
 }

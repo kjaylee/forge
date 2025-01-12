@@ -1,275 +1,74 @@
-//! Service trait for the permission system.
-
-use std::path::PathBuf;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use async_trait::async_trait;
 use tokio::sync::RwLock;
+use glob::glob;
 
-use crate::tool_name::ToolName;
-use super::{Permission, PermissionConfig, PermissionError, PermissionResult, PermissionState};
+use super::{Permission, Policy, PermissionConfig, PermissionResult, PermissionError};
+use forge_walker::Walker;
 
-/// Service for managing file system permissions.
-#[async_trait]
-pub trait PermissionService: Send + Sync {
-    /// Check if an operation is allowed for the given path and tool.
-    async fn check_permission(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission>;
-
-    /// Grant a new permission.
-    async fn grant_permission(
-        &self,
-        state: PermissionState,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission>;
-
-    /// Revoke an existing permission.
-    async fn revoke_permission(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<()>;
-
-    /// Validate if a path is accessible based on current permissions.
-    async fn validate_path_access(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<()>;
-
-    /// Check directory access with optional depth limit.
-    async fn check_directory_access(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-        max_depth: Option<usize>,
-    ) -> PermissionResult<()>;
+/// Simple permission service for managing file system access
+pub struct PermissionService {
+    config: PermissionConfig,
+    path_validator: PathValidator,
+    session_state: Arc<RwLock<HashMap<(PathBuf, Permission), bool>>>,
 }
 
-/// Test implementation of PermissionService
-pub struct TestPermissionService {
-    permissions: HashMap<(String, String), Permission>,
-}
-
-impl TestPermissionService {
-    pub fn new() -> Self {
+impl PermissionService {
+    /// Create a new permission service
+    pub fn new(config: PermissionConfig, cwd: PathBuf) -> Self {
         Self {
-            permissions: HashMap::new(),
+            config,
+            path_validator: PathValidator::new(cwd),
+            session_state: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
-    pub fn with_permission(mut self, permission: Permission) -> Self {
-        let key = (
-            permission.path.to_string_lossy().to_string(),
-            permission.tool_name.clone(),
-        );
-        self.permissions.insert(key, permission);
-        self
-    }
-}
+    /// Check if an operation is allowed
+    pub async fn check_permission(&self, path: &Path, permission: Permission) -> PermissionResult<bool> {
+        // First validate the path
+        self.validate_path(path).await?;
 
-#[async_trait]
-impl PermissionService for TestPermissionService {
-    async fn check_permission(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission> {
-        let key = (path.to_string_lossy().to_string(), tool_name.clone());
-        self.permissions
-            .get(&key)
-            .cloned()
-            .ok_or_else(|| PermissionError::AccessDenied(path))
-    }
-
-    async fn grant_permission(
-        &self,
-        state: PermissionState,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission> {
-        Ok(Permission::new(state, path, tool_name))
-    }
-
-    async fn revoke_permission(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<()> {
-        let key = (path.to_string_lossy().to_string(), tool_name);
-        if self.permissions.contains_key(&key) {
-            Ok(())
-        } else {
-            Err(PermissionError::AccessDenied(path))
-        }
-    }
-
-    async fn validate_path_access(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<()> {
-        self.check_permission(path.clone(), tool_name)
-            .await
-            .map(|_| ())
-    }
-
-    async fn check_directory_access(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-        _max_depth: Option<usize>,
-    ) -> PermissionResult<()> {
-        self.validate_path_access(path, tool_name).await
-    }
-}
-
-/// Live implementation
-struct Live {
-    config: Arc<RwLock<PermissionConfig>>,
-}
-
-impl Live {
-    fn new() -> PermissionResult<Self> {
-        let config = PermissionConfig::default();
-        Ok(Self {
-            config: Arc::new(RwLock::new(config)),
-        })
-    }
-
-    fn with_config(config: PermissionConfig) -> Self {
-        Self {
-            config: Arc::new(RwLock::new(config)),
-        }
-    }
-}
-
-#[async_trait]
-impl PermissionService for Live {
-    async fn check_permission(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission> {
-        let config = self.config.read().await;
-        let tool_name = ToolName::new(&tool_name);
-        
-        let tool_config = config.tools
-            .get(&tool_name)
-            .ok_or_else(|| PermissionError::AccessDenied(path.clone()))?;
-
-        for dir_config in &tool_config.directories {
-            if path.starts_with(&dir_config.path) {
-                if let Some(max_depth) = dir_config.max_depth {
-                    let depth = path.components().count().saturating_sub(
-                        dir_config.path.components().count()
-                    );
-                    if depth > max_depth {
-                        return Err(PermissionError::AccessDenied(path));
-                    }
-                }
-                
-                return Ok(Permission::new(
-                    PermissionState::AllowDirectory,
-                    path,
-                    tool_name.as_str().to_string(),
-                ));
-            }
+        // Check deny patterns
+        if self.is_denied(path) {
+            return Ok(false);
         }
 
-        if tool_config.require_approval_outside_cwd {
-            Err(PermissionError::OutsideAllowedDirectory(path))
-        } else {
-            Ok(Permission::new(
-                tool_config.default_state,
-                path,
-                tool_name.as_str().to_string(),
-            ))
+        // Check session state
+        let state = self.session_state.read().await;
+        if let Some(&allowed) = state.get(&(path.to_path_buf(), permission.clone())) {
+            return Ok(allowed);
         }
+
+        // Check configured policy
+        let policy = self.config.permissions
+            .get(&permission)
+            .unwrap_or(&self.config.default_policy);
+
+        Ok(matches!(policy, Policy::Always))
     }
 
-    async fn grant_permission(
-        &self,
-        state: PermissionState,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<Permission> {
-        Ok(Permission::new(state, path, tool_name))
-    }
-
-    async fn revoke_permission(
-        &self,
-        _path: PathBuf,
-        _tool_name: String,
-    ) -> PermissionResult<()> {
+    /// Update permission state
+    pub async fn update_permission(&self, path: &Path, permission: Permission, allowed: bool) -> PermissionResult<()> {
+        let mut state = self.session_state.write().await;
+        state.insert((path.to_path_buf(), permission), allowed);
         Ok(())
     }
 
-    async fn validate_path_access(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-    ) -> PermissionResult<()> {
-        self.check_permission(path, tool_name)
-            .await
-            .map(|_| ())
+    /// Validate if a path is accessible
+    pub async fn validate_path(&self, path: &Path) -> PermissionResult<PathBuf> {
+        self.path_validator.validate_path(path, None).await
     }
 
-    async fn check_directory_access(
-        &self,
-        path: PathBuf,
-        tool_name: String,
-        max_depth: Option<usize>,
-    ) -> PermissionResult<()> {
-        let config = self.config.read().await;
-        let tool_name = ToolName::new(&tool_name);
-        
-        let tool_config = config.tools
-            .get(&tool_name)
-            .ok_or_else(|| PermissionError::AccessDenied(path.clone()))?;
-
-        for dir_config in &tool_config.directories {
-            if path.starts_with(&dir_config.path) {
-                let effective_max_depth = match (max_depth, dir_config.max_depth) {
-                    (Some(a), Some(b)) => Some(a.min(b)),
-                    (Some(a), None) => Some(a),
-                    (None, Some(b)) => Some(b),
-                    (None, None) => None,
-                };
-
-                if let Some(max_depth) = effective_max_depth {
-                    let depth = path.components().count().saturating_sub(
-                        dir_config.path.components().count()
-                    );
-                    if depth > max_depth {
-                        return Err(PermissionError::AccessDenied(path));
-                    }
-                }
-                
-                return Ok(());
-            }
-        }
-
-        if tool_config.require_approval_outside_cwd {
-            Err(PermissionError::OutsideAllowedDirectory(path))
-        } else {
-            Ok(())
-        }
-    }
-}
-
-impl crate::Service {
-    pub fn permission_service() -> PermissionResult<impl PermissionService> {
-        Live::new()
-    }
-
-    pub fn permission_service_with_config(config: PermissionConfig) -> impl PermissionService {
-        Live::with_config(config)
+    /// Check if path matches any deny patterns
+    fn is_denied(&self, path: &Path) -> bool {
+        let path_str = path.to_string_lossy();
+        self.config.deny_patterns.iter().any(|pattern| {
+            glob(pattern)
+                .map(|paths| paths.any(|p| p.map(|p| p.to_string_lossy() == path_str).unwrap_or(false)))
+                .unwrap_or(false)
+        })
     }
 }
 
@@ -278,26 +77,37 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_live_service() {
-        let service = Live::new().unwrap();
+    async fn test_basic_permissions() {
+        let mut config = PermissionConfig::default();
+        config.permissions.insert(Permission::Read, Policy::Always);
+        
+        let cwd = std::env::current_dir().unwrap();
+        let service = PermissionService::new(config, cwd.clone());
 
-        let result = service
-            .check_permission(
-                PathBuf::from("/test/path"),
-                "fs_read".to_string(),
-            )
-            .await;
-
-        assert!(result.is_err());
+        assert!(service.check_permission(&cwd.join("Cargo.toml"), Permission::Read).await.unwrap());
+        assert!(!service.check_permission(&cwd.join("Cargo.toml"), Permission::Write).await.unwrap());
     }
 
     #[tokio::test]
-    async fn test_config_override() {
-        let mut config = PermissionConfig::default();
-        config.global.max_depth = 20;
+    async fn test_session_state() {
+        let config = PermissionConfig::default();
+        let cwd = std::env::current_dir().unwrap();
+        let service = PermissionService::new(config, cwd.clone());
+        let test_path = cwd.join("test.txt");
 
-        let service = Live::with_config(config);
-        let loaded_config = service.config.read().await;
-        assert_eq!(loaded_config.global.max_depth, 20);
+        service.update_permission(&test_path, Permission::Write, true).await.unwrap();
+        assert!(service.check_permission(&test_path, Permission::Write).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_deny_patterns() {
+        let mut config = PermissionConfig::default();
+        config.deny_patterns.push("**/secrets/**".to_string());
+        
+        let cwd = std::env::current_dir().unwrap();
+        let service = PermissionService::new(config, cwd.clone());
+        let secret_path = cwd.join("secrets").join("test.txt");
+
+        assert!(!service.check_permission(&secret_path, Permission::Read).await.unwrap());
     }
 }

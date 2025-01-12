@@ -1,15 +1,25 @@
-//! Permission system for managing file system access.
+//! # Permission System
+//! Simple permission management for file system operations.
 
-mod config;
-mod config_loader;
-mod error;
-mod service;
-mod state;
 mod types;
 
-pub use config::{DirectoryConfig, GlobalConfig, PermissionConfig, ToolPermissionConfig};
-pub use config_loader::{ConfigLoader, FORGE_PERMISSION_CONFIG};
-pub use error::{PermissionError, PermissionResult};
-pub use service::{PermissionService, TestPermissionService};
-pub use state::PermissionState;
-pub use types::Permission;
+pub use types::{Permission, Policy, PermissionConfig};
+
+/// Error type for permission operations
+#[derive(Debug, thiserror::Error)]
+pub enum PermissionError {
+    #[error("Path not found or inaccessible: {0}")]
+    InvalidPath(String),
+    
+    #[error("Path outside allowed directory: {0}")]
+    OutsideAllowedDirectory(std::path::PathBuf),
+    
+    #[error("Operation not permitted")]
+    OperationNotPermitted,
+
+    #[error("Walker error: {0}")]
+    WalkerError(#[from] forge_walker::Error),
+}
+
+/// Result type for permission operations
+pub type PermissionResult<T> = std::result::Result<T, PermissionError>;
