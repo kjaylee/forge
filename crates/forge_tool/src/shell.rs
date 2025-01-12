@@ -86,19 +86,12 @@ impl Shell {
     }
 
     async fn execute_command(&self, command: &str, cwd: PathBuf) -> Result<ShellOutput, String> {
-        // Use shell from current environment
-        let shell_path = if cfg!(target_os = "windows") {
-            std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".to_string())
-        } else {
-            std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
-        };
-
         let mut cmd = if cfg!(target_os = "windows") {
-            let mut c = Command::new(shell_path);
+            let mut c = Command::new("cmd");
             c.args(["/C", command]);
             c
         } else {
-            let mut c = Command::new(shell_path);
+            let mut c = Command::new("sh");
             c.args(["-c", command]);
             c
         };
@@ -243,14 +236,7 @@ mod tests {
     #[tokio::test]
     async fn test_shell_pwd() {
         let shell = Shell::default();
-        
-        // Create a temporary directory and set it as current dir
-        let temp_dir = tempfile::tempdir().unwrap();
-        env::set_current_dir(&temp_dir).unwrap();
-        
-        // Get the canonical path to compare against
-        let temp_path = fs::canonicalize(&temp_dir).unwrap();
-        
+        let current_dir = fs::canonicalize(env::current_dir().unwrap()).unwrap();
         let result = shell
             .call(ShellInput {
                 command: if cfg!(target_os = "windows") {
@@ -258,22 +244,19 @@ mod tests {
                 } else {
                     "pwd".to_string()
                 },
-                cwd: temp_path.clone(),
+                cwd: current_dir.clone(),
             })
             .await
             .unwrap();
 
         assert!(result.success);
+        let output_path = PathBuf::from(result.stdout.as_ref().unwrap().trim());
+        let actual_path = match fs::canonicalize(output_path.clone()) {
+            Ok(path) => path,
+            Err(_) => output_path,
+        };
+        assert_eq!(actual_path, current_dir);
         assert!(result.stderr.is_none());
-        
-        let stdout = result.stdout.as_ref().expect("Expected stdout").trim();
-        
-        // Clean up paths by removing /private prefix (macOS specific)
-        let stdout_path = PathBuf::from(stdout.strip_prefix("/private").unwrap_or(stdout));
-        let temp_path_str = temp_path.to_string_lossy();
-        let temp_path_clean = temp_path_str.strip_prefix("/private").unwrap_or(&temp_path_str);
-        
-        assert_eq!(stdout_path.to_string_lossy(), temp_path_clean);
     }
 
     #[tokio::test]
