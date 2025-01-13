@@ -243,8 +243,7 @@ mod test {
 
     #[tokio::test]
     async fn test_tool_definition() {
-        let service = Live::from_tools([Tool::new(FSRead), Tool::new(FSWrite)]).await;
-        let tools = service.list();
+        let tools = Service::tool_service().await.list();
         assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 
