@@ -37,8 +37,6 @@ impl LivePermissionService {
         }
     }
 
-    /// Create new service instance with a specific base path (for testing)
-
     /// Create new service instance with configuration from file
     pub async fn from_file<P: AsRef<Path>>(
         config_path: P,
