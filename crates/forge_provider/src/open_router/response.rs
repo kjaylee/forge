@@ -23,8 +23,14 @@ pub enum OpenRouterResponse {
         usage: Option<ResponseUsage>,
     },
     Error {
-        error: ErrorResponse,
+        error: OpenRouterErrorResponse,
     },
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct OpenRouterErrorResponse {
+    code: u32,
+    message: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -60,7 +66,6 @@ pub enum Choice {
 pub struct ErrorResponse {
     pub code: u32,
     pub message: String,
-    #[serde(default)]
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
