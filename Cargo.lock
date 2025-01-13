@@ -841,6 +841,8 @@ dependencies = [
 name = "forge_domain"
 version = "0.1.0"
 dependencies = [
+ "Inflector",
+ "anyhow",
  "async-trait",
  "chrono",
  "derive_more",
@@ -861,6 +863,23 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "forge_infra"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "diesel",
+ "forge_domain",
+ "forge_server",
+ "r2d2",
+ "serde",
+ "tokio",
  "tracing",
  "uuid",
 ]
