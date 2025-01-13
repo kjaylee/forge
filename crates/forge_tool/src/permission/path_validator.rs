@@ -73,7 +73,7 @@ impl PathValidator {
             let files = walker
                 .get()
                 .await
-                .map_err(forge_domain::PermissionError::WalkerError)?;
+                .map_err(|e| forge_domain::PermissionError::InvalidPath(e.to_string()))?;
 
             let relative_path = path.strip_prefix(&self.cwd).map_err(|_| {
                 forge_domain::PermissionError::InvalidPath(path.to_string_lossy().to_string())

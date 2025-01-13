@@ -17,8 +17,6 @@ pub enum PermissionError {
     #[error("Operation not permitted: {0}")]
     OperationNotPermitted(String),
 
-    #[error("Walker error: {0}")]
-    WalkerError(#[from] forge_walker::Error),
 }
 
 /// Result type for permission operations
