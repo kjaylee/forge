@@ -31,7 +31,7 @@ pub struct ShellOutput {
 /// controlled access to system shell commands while preventing dangerous
 /// operations through a comprehensive blacklist and validation system.
 /// The tool also enforces a timeout to prevent long-running commands from
-/// blocking the system. default timeout is 30 seconds.
+/// blocking the system.
 #[derive(ToolDescription)]
 pub struct Shell {
     blacklist: HashSet<String>,
