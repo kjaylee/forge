@@ -28,7 +28,7 @@ impl ToolPermissions for FSReplace {
 
 impl NamedTool for FSReplace {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("find_and_replace")
+        ToolName::new("apply_patch")
     }
 }
 
