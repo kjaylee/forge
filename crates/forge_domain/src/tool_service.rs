@@ -1,8 +1,14 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
+use crate::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, Permission};
+
+#[async_trait::async_trait]
+pub trait PermissionChecker: Send + Sync {
+    async fn check_permission(&self, perm: Permission, cmd: Option<&str>) -> Result<bool, String>;
+}
 
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
@@ -11,18 +17,36 @@ pub trait ToolService: Send + Sync {
     fn usage_prompt(&self) -> String;
 }
 
-struct Live {
+pub struct Live {
     tools: HashMap<ToolName, Tool>,
+    permission_checker: Arc<dyn PermissionChecker>,
 }
 
-impl FromIterator<Tool> for Live {
-    fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
-        let tools: HashMap<ToolName, Tool> = iter
+impl Live {
+    pub fn new(tools: impl IntoIterator<Item = Tool>, permission_checker: Arc<dyn PermissionChecker>) -> Self {
+        let tools = tools
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
-            .collect::<HashMap<_, _>>();
+            .collect();
 
-        Self { tools }
+        Self { 
+            tools,
+            permission_checker,
+        }
+    }
+
+    async fn check_permissions(&self, tool: &Tool) -> Result<(), String> {
+        for permission in &tool.definition.required_permissions {
+            let cmd = match permission {
+                Permission::Execute => Some(""), // Default command for execute permission
+                _ => None,
+            };
+
+            if !self.permission_checker.check_permission(*permission, cmd).await? {
+                return Err(format!("Permission denied: {:?}", permission));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -37,8 +61,16 @@ impl ToolService for Live {
             .map(|name| name.as_str())
             .collect::<Vec<_>>()
             .join(", ");
-        let output = match self.tools.get(&name) {
-            Some(tool) => tool.executable.call(input).await,
+
+        let result = match self.tools.get(&name) {
+            Some(tool) => {
+                // Check permissions before executing
+                if let Err(e) = self.check_permissions(tool).await {
+                    Err(e)
+                } else {
+                    tool.executable.call(input).await
+                }
+            }
             None => Err(format!(
                 "No tool with name '{}' was found. Please try again with one of these tools {}",
                 name.as_str(),
@@ -46,11 +78,9 @@ impl ToolService for Live {
             )),
         };
 
-        match output {
+        match result {
             Ok(output) => ToolResult::from(call).content(output),
-            Err(error) => {
-                ToolResult::from(call).content(Value::from(format!("<error>{}</error>", error)))
-            }
+            Err(error) => ToolResult::from(call).content(Value::from(format!("<e>{}</e>", error))),
         }
     }
 

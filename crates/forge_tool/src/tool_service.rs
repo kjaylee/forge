@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService, PermissionChecker
 };
 use serde_json::Value;
 use tracing::debug;
@@ -39,6 +40,34 @@ impl Live {
             return Some(cmd.to_string());
         }
         None
+    }
+
+    async fn check_permissions(&self, tool: &Tool, args: &Value) -> Result<(), String> {
+        for permission in &tool.definition.required_permissions {
+            let cmd = match *permission {
+                Permission::Execute => Self::extract_command_from_args(args),
+                _ => None,
+            };
+            
+            let has_permission = self
+                .permission_service
+                .check_permission(*permission, cmd.as_deref())
+                .await
+                .map_err(|e| format!("Permission check error: {}", e))?;
+
+            if !has_permission {
+                debug!("Permission check failed for {:?}", permission);
+                if !self
+                    .permission_handler
+                    .request_permission(*permission, cmd.as_deref())
+                    .await
+                    .map_err(|e| format!("Permission request error: {}", e))?
+                {
+                    return Err(format!("Permission denied for {:?}", permission));
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -78,46 +107,10 @@ impl ToolService for Live {
             )));
         };
 
-        // Check required permissions
-        for &permission in &tool.definition.required_permissions {
-            // Extract command if this is a shell tool
-            let cmd = if permission == Permission::Execute {
-                Self::extract_command_from_args(&input)
-            } else {
-                None
-            };
-
-            let has_permission = self
-                .permission_service
-                .check_permission(permission, cmd.as_deref())
-                .await;
-
-            // Handle permission check
-            match has_permission {
-                Err(e) => {
-                    return ToolResult::from(call.clone())
-                        .content(Value::from(format!("<e>Permission error: {}</e>", e)));
-                }
-                Ok(false) => {
-                    // Ask for permission
-                    match self
-                        .permission_handler
-                        .request_permission(permission, cmd.as_deref())
-                        .await
-                    {
-                        Ok(true) => {
-                            // Permission was granted, continue
-                        }
-                        Ok(false) | Err(_) => {
-                            return ToolResult::from(call)
-                                .content(Value::from("<e>Permission denied</e>".to_string()));
-                        }
-                    }
-                }
-                Ok(true) => {
-                    // Permission already granted, continue
-                }
-            }
+        // Check permissions with command context
+        if let Err(e) = self.check_permissions(tool, &input).await {
+            return ToolResult::from(call)
+                .content(Value::from(format!("<e>{}</e>", e)));
         }
 
         // Execute the tool
