@@ -1,5 +1,5 @@
 use forge_domain::{
-    Command, Permission, PermissionConfig, PermissionResult,
+    Permission, PermissionConfig, PermissionResult,
     Policy, Whitelisted,
 };
 
@@ -43,6 +43,7 @@ impl Default for LivePermissionService {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    use forge_domain::Command;
 
     #[tokio::test]
     async fn test_once_permissions() {

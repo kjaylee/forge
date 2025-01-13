@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Permission};
@@ -7,7 +6,7 @@ use serde_json::Value;
 use tracing::debug;
 
 use crate::approve::Approve;
-use crate::{fs::*, PermissionResultDisplay};
+use crate::fs::*;
 use crate::outline::Outline;
 use crate::permission::{CliPermissionHandler, LivePermissionService};
 use crate::select::SelectTool;
@@ -36,18 +35,6 @@ impl Live {
         // Check 'command' field first (used by shell tool)
         if let Some(cmd) = args.get("command").and_then(|v| v.as_str()) {
             return Some(cmd.to_string());
-        }
-        None
-    }
-
-    fn extract_path_from_args(args: &Value) -> Option<PathBuf> {
-        // Try "path" field first (used by fs tools)
-        if let Some(path) = args.get("path").and_then(|v| v.as_str()) {
-            return Some(PathBuf::from(path));
-        }
-        // Try "cwd" field (used by shell tool)
-        if let Some(path) = args.get("cwd").and_then(|v| v.as_str()) {
-            return Some(PathBuf::from(path));
         }
         None
     }
@@ -89,57 +76,40 @@ impl ToolService for Live {
             )));
         };
 
-        // Check permissions if path is provided
-        if let Some(path) = Self::extract_path_from_args(&input) {
-            // Check each required permission
-            for &permission in &tool.definition.required_permissions {
-                // Extract command if this is a shell tool
-                let cmd = if permission == Permission::Execute {
-                    Self::extract_command_from_args(&input)
-                } else {
-                    None
-                };
+        // Check required permissions
+        for &permission in &tool.definition.required_permissions {
+            // Extract command if this is a shell tool
+            let cmd = if permission == Permission::Execute {
+                Self::extract_command_from_args(&input)
+            } else {
+                None
+            };
 
-                let has_permission = self
-                    .permission_service
-                    .check_permission(permission, cmd.as_deref())
-                    .await;
+            let has_permission = self
+                .permission_service
+                .check_permission(permission, cmd.as_deref())
+                .await;
 
-                // Handle permission check errors
-                if let Err(e) = has_permission {
-                    let result = PermissionResultDisplay::with_error(
-                        false,
-                        &path,
-                        Some(e.to_string()),
-                    );
+            // Handle permission check
+            match has_permission {
+                Err(e) => {
                     return ToolResult::from(call.clone())
-                        .content(Value::from(format!("<e>{}</e>", result)));
+                        .content(Value::from(format!("<e>Permission error: {}</e>", e)));
                 }
-
-                // Unwrap the Ok value since we've handled the error case
-                let has_permission = has_permission.unwrap();
-
-                if !has_permission {
+                Ok(false) => {
                     // Ask for permission
                     match self.permission_handler.request_permission(permission, cmd.as_deref()).await {
                         Ok(true) => {
                             // Permission was granted, continue
                         }
-                        Ok(false) => {
-                            let result = PermissionResultDisplay::new(false, &path);
+                        Ok(false) | Err(_) => {
                             return ToolResult::from(call)
-                                .content(Value::from(format!("<e>{}</e>", result)));
-                        }
-                        Err(e) => {
-                            let result = PermissionResultDisplay::with_error(
-                                false,
-                                &path,
-                                Some(format!("Error: {}", e)),
-                            );
-                            return ToolResult::from(call)
-                                .content(Value::from(format!("<e>{}</e>", result)));
+                                .content(Value::from("<e>Permission denied</e>".to_string()));
                         }
                     }
+                }
+                Ok(true) => {
+                    // Permission already granted, continue
                 }
             }
         }
