@@ -23,15 +23,8 @@ pub enum OpenRouterResponse {
         usage: Option<ResponseUsage>,
     },
     Error {
-        error: ErrorDetail,
+        error: ErrorResponse,
     },
-}
-
-// TODO: drop this and use ErrorResponse.
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ErrorDetail {
-    pub message: String,
-    pub code: u32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -67,6 +60,7 @@ pub enum Choice {
 pub struct ErrorResponse {
     pub code: u32,
     pub message: String,
+    #[serde(default)]
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
