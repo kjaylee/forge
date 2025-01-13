@@ -98,6 +98,8 @@ impl TitleService for Live {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
+            tx.send(Ok(ChatResponse::Complete)).await.unwrap();
+            drop(tx);
         });
         Ok(Box::pin(ReceiverStream::new(rx)))
     }
