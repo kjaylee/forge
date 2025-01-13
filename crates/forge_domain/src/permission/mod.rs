@@ -16,7 +16,6 @@ pub enum PermissionError {
 
     #[error("Operation not permitted: {0}")]
     OperationNotPermitted(String),
-
 }
 
 /// Result type for permission operations
