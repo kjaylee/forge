@@ -74,7 +74,6 @@ mod tests {
 
     
     use tempfile::TempDir;
-
     use super::*;
 
     fn parse_and_set_config(content: &str) -> TempDir {
