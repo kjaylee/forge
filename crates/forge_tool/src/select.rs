@@ -38,7 +38,6 @@ impl ToolPermissions for SelectTool {
     fn required_permissions(&self) -> Vec<forge_domain::Permission> {
         vec![]
     }
-    
 }
 
 impl NamedTool for SelectTool {

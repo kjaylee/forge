@@ -34,7 +34,7 @@ impl NamedTool for FSList {
 impl ToolPermissions for FSList {
     fn required_permissions(&self) -> Vec<forge_domain::Permission> {
         vec![]
-    }   
+    }
 }
 
 #[async_trait::async_trait]

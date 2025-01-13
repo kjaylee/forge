@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{
+    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -136,12 +138,10 @@ pub struct OutlineInput {
 #[derive(ToolDescription)]
 pub(crate) struct Outline;
 
-
 impl ToolPermissions for Outline {
     fn required_permissions(&self) -> Vec<forge_domain::Permission> {
         vec![Permission::Read]
     }
-    
 }
 
 impl NamedTool for Outline {

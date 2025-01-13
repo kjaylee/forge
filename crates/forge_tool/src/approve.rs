@@ -39,7 +39,7 @@ impl NamedTool for Approve {
 impl ToolPermissions for Approve {
     fn required_permissions(&self) -> Vec<forge_domain::Permission> {
         vec![]
-    } 
+    }
 }
 
 #[async_trait::async_trait]

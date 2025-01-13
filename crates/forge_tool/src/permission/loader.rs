@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::sync::OnceLock;
+
 use forge_domain::{Command, Permission, PermissionConfig, Policy, Whitelisted};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 static CONFIG: OnceLock<PermissionConfig> = OnceLock::new();
 
@@ -105,9 +106,11 @@ fn convert_config(yaml: YamlConfig) -> PermissionConfig {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs;
+
     use tempfile::TempDir;
+
+    use super::*;
 
     #[test]
     fn test_load_default_config() {
@@ -123,7 +126,7 @@ mod tests {
     fn test_load_yaml_config() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yml");
-        
+
         let yaml_content = r#"
 read:
   type: "Once"
@@ -152,7 +155,9 @@ execute:
             Some(Policy::Always(Whitelisted::All))
         ));
 
-        if let Some(Policy::Always(Whitelisted::Some(commands))) = config.policies.get(&Permission::Execute) {
+        if let Some(Policy::Always(Whitelisted::Some(commands))) =
+            config.policies.get(&Permission::Execute)
+        {
             assert_eq!(commands.len(), 2);
             assert_eq!(commands[0].0, "ls");
             assert_eq!(commands[1].0, "git status");
@@ -165,7 +170,7 @@ execute:
     fn test_invalid_config_uses_default() {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yml");
-        
+
         let invalid_yaml = "invalid: - yaml: content";
         fs::write(&config_path, invalid_yaml).unwrap();
         std::env::set_var("FORGE_CONFIG", config_path);

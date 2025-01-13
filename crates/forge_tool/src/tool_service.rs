@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Permission};
+use forge_domain::{
+    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+};
 use serde_json::Value;
 use tracing::debug;
 
@@ -98,7 +100,11 @@ impl ToolService for Live {
                 }
                 Ok(false) => {
                     // Ask for permission
-                    match self.permission_handler.request_permission(permission, cmd.as_deref()).await {
+                    match self
+                        .permission_handler
+                        .request_permission(permission, cmd.as_deref())
+                        .await
+                    {
                         Ok(true) => {
                             // Permission was granted, continue
                         }

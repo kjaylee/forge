@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use colorize::AnsiColor;
-use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{
+    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -44,7 +46,6 @@ impl ToolPermissions for Think {
     fn required_permissions(&self) -> Vec<Permission> {
         vec![]
     }
-    
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]

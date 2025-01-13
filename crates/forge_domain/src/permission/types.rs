@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 /// Basic permission types that tools can request
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -51,20 +52,29 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = Config::default();
-        assert!(matches!(config.policies.get(&Permission::Read), Some(Policy::Once)));
-        assert!(matches!(config.policies.get(&Permission::Write), Some(Policy::Once)));
-        assert!(matches!(config.policies.get(&Permission::Execute), Some(Policy::Once)));
+        assert!(matches!(
+            config.policies.get(&Permission::Read),
+            Some(Policy::Once)
+        ));
+        assert!(matches!(
+            config.policies.get(&Permission::Write),
+            Some(Policy::Once)
+        ));
+        assert!(matches!(
+            config.policies.get(&Permission::Execute),
+            Some(Policy::Once)
+        ));
     }
 
     #[test]
     fn test_allowed_commands() {
         let mut config = Config::default();
-        let whitelist = Whitelisted::Some(vec![
-            Command("ls".to_string()),
-            Command("git".to_string()),
-        ]);
-        config.policies.insert(Permission::Execute, Policy::Always(whitelist));
-        
+        let whitelist =
+            Whitelisted::Some(vec![Command("ls".to_string()), Command("git".to_string())]);
+        config
+            .policies
+            .insert(Permission::Execute, Policy::Always(whitelist));
+
         match config.policies.get(&Permission::Execute) {
             Some(Policy::Always(Whitelisted::Some(commands))) => {
                 assert_eq!(commands.len(), 2);
@@ -78,8 +88,10 @@ mod tests {
     #[test]
     fn test_allow_all_reads() {
         let mut config = Config::default();
-        config.policies.insert(Permission::Read, Policy::Always(Whitelisted::All));
-        
+        config
+            .policies
+            .insert(Permission::Read, Policy::Always(Whitelisted::All));
+
         match config.policies.get(&Permission::Read) {
             Some(Policy::Always(Whitelisted::All)) => (),
             _ => panic!("Expected Always policy with All whitelist"),
