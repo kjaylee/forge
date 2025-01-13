@@ -22,7 +22,7 @@ struct Live {
 }
 
 impl Live {
-    async fn with_permissions() -> Self {
+    fn with_permissions() -> Self {
         let permission_service = Arc::new(LivePermissionService::default());
         let permission_handler = CliPermissionHandler::default();
         Self {
@@ -54,8 +54,8 @@ impl Live {
 }
 
 impl Live {
-    pub async fn from_tools<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
-        let mut live = Self::with_permissions().await;
+    pub fn from_tools<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
+        let mut live = Self::with_permissions();
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
@@ -182,7 +182,7 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub async fn tool_service() -> impl ToolService {
+    pub fn tool_service() -> impl ToolService {
         Live::from_tools([
             Tool::new(Approve),
             Tool::new(FSRead),
@@ -196,7 +196,6 @@ impl Service {
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
         ])
-        .await
     }
 }
 
@@ -232,23 +231,23 @@ mod test {
             .ends_with("file_information"));
     }
 
-    #[tokio::test]
-    async fn test_usage_prompt() {
-        let docs = Service::tool_service().await.usage_prompt();
+    #[test]
+    fn test_usage_prompt() {
+        let docs = Service::tool_service().usage_prompt();
 
         assert_snapshot!(docs);
     }
 
-    #[tokio::test]
-    async fn test_tool_definition() {
-        let tools = Service::tool_service().await.list();
+    #[test]
+    fn test_tool_definition() {
+        let tools = Service::tool_service().list();
         assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 
     #[tokio::test]
     async fn test_permission_denied() {
         // Create service with no permissions
-        let service = Live::from_tools([Tool::new(FSRead)]).await;
+        let service = Live::from_tools([Tool::new(FSRead)]);
 
         let call = ToolCallFull {
             name: FSRead.tool_name(),
@@ -268,7 +267,7 @@ mod test {
         let secret_path = temp_dir.path().join("secrets").join("test.txt");
 
         // Create service with deny pattern
-        let service = Live::from_tools([Tool::new(FSRead)]).await;
+        let service = Live::from_tools([Tool::new(FSRead)]);
 
         let call = ToolCallFull {
             name: FSRead.tool_name(),

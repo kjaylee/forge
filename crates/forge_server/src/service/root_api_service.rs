@@ -25,8 +25,8 @@ pub trait RootAPIService: Send + Sync {
 }
 
 impl Service {
-    pub async fn root_api_service(env: Environment) -> impl RootAPIService {
-        Live::new(env).await
+    pub fn root_api_service(env: Environment) -> impl RootAPIService {
+        Live::new(env)
     }
 }
 
@@ -41,10 +41,10 @@ struct Live {
 }
 
 impl Live {
-    async fn new(env: Environment) -> Self {
+    fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
-        let tool = Arc::new(forge_tool::Service::tool_service().await);
+        let tool = Arc::new(forge_tool::Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
 
         let system_prompt = Arc::new(Service::system_prompt(
