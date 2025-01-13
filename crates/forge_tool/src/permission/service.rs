@@ -72,9 +72,9 @@ impl Default for LivePermissionService {
 mod tests {
     use std::fs;
 
-    
     use loader::config::YamlConfig;
     use tempfile::TempDir;
+
     use super::*;
 
     fn parse_and_set_config(content: &str) -> TempDir {

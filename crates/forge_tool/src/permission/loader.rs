@@ -37,7 +37,6 @@ use std::sync::OnceLock;
 
 use forge_domain::{Command, Permission, PermissionConfig, Policy, Whitelisted};
 
-
 // Thread-local storage for test configuration
 #[cfg(test)]
 thread_local! {
