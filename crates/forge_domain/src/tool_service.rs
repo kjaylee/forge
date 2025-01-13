@@ -66,7 +66,7 @@ impl ToolService for Live {
             .collect::<Vec<_>>()
             .join(", ");
 
-        let result = match self.tools.get(&name) {
+        let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Check permissions before executing
                 if let Err(e) = self.check_permissions(tool).await {
@@ -82,9 +82,11 @@ impl ToolService for Live {
             )),
         };
 
-        match result {
+        match output {
             Ok(output) => ToolResult::from(call).content(output),
-            Err(error) => ToolResult::from(call).content(Value::from(format!("<e>{}</e>", error))),
+            Err(error) => {
+                ToolResult::from(call).content(Value::from(format!("<error>{}</error>", error)))
+            }
         }
     }
 
