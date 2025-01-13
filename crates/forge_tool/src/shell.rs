@@ -35,7 +35,6 @@ pub struct ShellOutput {
 #[derive(ToolDescription)]
 pub struct Shell {
     blacklist: HashSet<String>,
-    /// Optional timeout in seconds. Default is 30 seconds.
     timeout_secs: u64,
 }
 
