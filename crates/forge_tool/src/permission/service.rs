@@ -73,6 +73,7 @@ mod tests {
     use std::fs;
 
     
+    use loader::config::YamlConfig;
     use tempfile::TempDir;
     use super::*;
 
@@ -83,7 +84,7 @@ mod tests {
         std::env::set_var("FORGE_CONFIG", config_path);
 
         // Parse and set the config directly
-        let yaml: loader::YamlConfig = serde_yaml::from_str(content).unwrap();
+        let yaml: YamlConfig = serde_yaml::from_str(content).unwrap();
         let config = loader::convert_config(yaml);
         loader::set_test_config(Some(config));
 

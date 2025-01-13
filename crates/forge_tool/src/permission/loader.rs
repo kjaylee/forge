@@ -1,8 +1,4 @@
-// Expose YamlConfig for testing
-#[cfg(test)]
-pub(crate) use self::config::YamlConfig;
-
-mod config {
+pub(crate) mod config {
     use serde::{Deserialize, Serialize};
 
     /// YAML configuration format
@@ -109,7 +105,7 @@ fn load_config() -> PermissionConfig {
 
     match resolved_path {
         Some(path) => match std::fs::read_to_string(&path) {
-            Ok(content) => match serde_yaml::from_str::<YamlConfig>(&content) {
+            Ok(content) => match serde_yaml::from_str::<config::YamlConfig>(&content) {
                 Ok(yaml_config) => convert_config(yaml_config),
                 Err(e) => {
                     eprintln!("Error parsing config file {}: {}", path.display(), e);
@@ -146,7 +142,7 @@ pub fn get_config() -> &'static PermissionConfig {
     Box::leak(Box::new(load_config()))
 }
 
-pub(crate) fn convert_config(yaml: YamlConfig) -> PermissionConfig {
+pub(crate) fn convert_config(yaml: config::YamlConfig) -> PermissionConfig {
     let mut policies = HashMap::new();
 
     // Convert read policy
@@ -243,7 +239,7 @@ execute:
         let (_temp_dir, config_path) = setup_test_config(yaml_content);
         std::env::set_var("FORGE_CONFIG", config_path);
 
-        let yaml: YamlConfig = serde_yaml::from_str(yaml_content).unwrap();
+        let yaml: config::YamlConfig = serde_yaml::from_str(yaml_content).unwrap();
         let config = convert_config(yaml);
 
         // Use the test helper to set the config directly
@@ -315,7 +311,7 @@ write:
 execute:
   type: "Always"
 "#;
-        let yaml: YamlConfig = serde_yaml::from_str(yaml_str).unwrap();
+        let yaml: config::YamlConfig = serde_yaml::from_str(yaml_str).unwrap();
         let config = convert_config(yaml);
 
         set_test_config(Some(config));
