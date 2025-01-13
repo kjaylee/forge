@@ -1,49 +1,46 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
-/// Basic permission types for file system operations
+/// Basic permission types that tools can request
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Permission {
-    /// Read file contents
     Read,
-    /// Write or modify files
     Write,
-    /// Execute commands or scripts
     Execute,
-    /// No access allowed
-    Deny,
 }
 
-/// Permission policy for decisions
+/// Policy for permission decisions
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum Policy {
-    /// Always allow without asking
-    Always,
-    /// Allow only once
+pub enum Policy<T> {
     Once,
-    /// Allow for the current session
-    Session,
+    Always(Whitelisted<T>),
 }
+
+/// Whitelist configuration for allowed operations
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum Whitelisted<T> {
+    Some(Vec<T>),
+    All,
+}
+
+/// Command type for executable permissions
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Command(pub String);
 
 /// Global permission configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PermissionConfig {
-    /// Default policy for unspecified permissions
-    pub default_policy: Policy,
-    /// Specific policies for different permission types
-    pub permissions: HashMap<Permission, Policy>,
-    /// Glob patterns for paths that are always denied
-    pub deny_patterns: Vec<String>,
+pub struct Config {
+    /// Permission policies by type
+    pub policies: HashMap<Permission, Policy<Command>>,
 }
 
-impl Default for PermissionConfig {
+impl Default for Config {
     fn default() -> Self {
-        Self {
-            default_policy: Policy::Session,
-            permissions: HashMap::new(),
-            deny_patterns: vec![],
-        }
+        let mut policies = HashMap::new();
+        policies.insert(Permission::Read, Policy::Once);
+        policies.insert(Permission::Write, Policy::Once);
+        policies.insert(Permission::Execute, Policy::Once);
+        Self { policies }
     }
 }
 
@@ -53,29 +50,39 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        let config = PermissionConfig::default();
-        assert_eq!(config.default_policy, Policy::Session);
-        assert!(config.permissions.is_empty());
-        assert!(config.deny_patterns.is_empty());
+        let config = Config::default();
+        assert!(matches!(config.policies.get(&Permission::Read), Some(Policy::Once)));
+        assert!(matches!(config.policies.get(&Permission::Write), Some(Policy::Once)));
+        assert!(matches!(config.policies.get(&Permission::Execute), Some(Policy::Once)));
     }
 
     #[test]
-    fn test_permission_config() {
-        let mut config = PermissionConfig::default();
-        config.permissions.insert(Permission::Read, Policy::Always);
-        config
-            .permissions
-            .insert(Permission::Write, Policy::Session);
-        config.deny_patterns.push("**/secrets/**".to_string());
+    fn test_allowed_commands() {
+        let mut config = Config::default();
+        let whitelist = Whitelisted::Some(vec![
+            Command("ls".to_string()),
+            Command("git".to_string()),
+        ]);
+        config.policies.insert(Permission::Execute, Policy::Always(whitelist));
+        
+        match config.policies.get(&Permission::Execute) {
+            Some(Policy::Always(Whitelisted::Some(commands))) => {
+                assert_eq!(commands.len(), 2);
+                assert_eq!(commands[0].0, "ls");
+                assert_eq!(commands[1].0, "git");
+            }
+            _ => panic!("Expected Always policy with Some whitelist"),
+        }
+    }
 
-        assert_eq!(
-            config.permissions.get(&Permission::Read),
-            Some(&Policy::Always)
-        );
-        assert_eq!(
-            config.permissions.get(&Permission::Write),
-            Some(&Policy::Session)
-        );
-        assert_eq!(config.deny_patterns.len(), 1);
+    #[test]
+    fn test_allow_all_reads() {
+        let mut config = Config::default();
+        config.policies.insert(Permission::Read, Policy::Always(Whitelisted::All));
+        
+        match config.policies.get(&Permission::Read) {
+            Some(Policy::Always(Whitelisted::All)) => (),
+            _ => panic!("Expected Always policy with All whitelist"),
+        }
     }
 }

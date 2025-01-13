@@ -1,18 +1,17 @@
 # Basic permission configuration
-# For getting started with Code-Forge permissions
+read:
+  type: "Once"  # Ask for each read operation
 
-permission_config:
-  # Default policy for unspecified permissions
-  default_policy: Session
+write:
+  type: "Once"  # Ask for each write operation
 
-  # Specific permissions
-  permissions:
-    read: Always    # Always allow read operations
-    write: Session  # Allow write operations for the session
-    execute: Once   # Require approval for each execute operation
-
-  # Patterns for denied paths
-  deny_patterns:
-    - "**/node_modules/**"
-    - "**/target/**"
-    - "**/.git/**"
+execute:
+  type: "Always"
+  whitelist:
+    type: "Some"
+    commands:
+      - "ls"
+      - "git status"
+      - "git diff"
+      - "git log"
+      - "git show"

@@ -1,8 +1,7 @@
 use std::fmt::Write;
-use std::path::Path;
 use std::time::Duration;
 
-use forge_domain::{PermissionError, PermissionResult};
+use forge_domain::{Permission, PermissionError, PermissionResult};
 use tokio::time::timeout;
 #[cfg(not(test))]
 use {
@@ -29,11 +28,14 @@ impl CliPermissionHandler {
         Self { timeout }
     }
 
-    pub async fn request_permission(&self, path: &Path) -> PermissionResult<bool> {
+    pub async fn request_permission(&self, perm: Permission, cmd: Option<&str>) -> PermissionResult<bool> {
         let mut message = String::new();
         writeln!(message, "Permission Required").unwrap();
         writeln!(message).unwrap();
-        writeln!(message, "Path: {}", path.display()).unwrap();
+        writeln!(message, "Operation: {:?}", perm).unwrap();
+        if let Some(cmd) = cmd {
+            writeln!(message, "Command: {}", cmd).unwrap();
+        }
         writeln!(message).unwrap();
 
         #[cfg(not(test))]
@@ -66,21 +68,33 @@ impl CliPermissionHandler {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
-    use forge_domain::PermissionError;
-
     use super::*;
 
     #[tokio::test]
     async fn test_timeout() {
         let handler = CliPermissionHandler::new(Duration::from_millis(1));
-        let path = PathBuf::from("/test/path");
-
-        let result = handler.request_permission(&path).await;
+        let result = handler.request_permission(Permission::Read, None).await;
         assert!(matches!(
             result,
             Err(PermissionError::OperationNotPermitted(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn test_request_with_command() {
+        let handler = CliPermissionHandler::new(Duration::from_secs(1));
+        let result = handler
+            .request_permission(Permission::Execute, Some("ls -la"))
+            .await;
+        // In test mode, this always returns false (deny)
+        assert!(matches!(result, Ok(false)));
+    }
+
+    #[tokio::test]
+    async fn test_request_without_command() {
+        let handler = CliPermissionHandler::new(Duration::from_secs(1));
+        let result = handler.request_permission(Permission::Read, None).await;
+        // In test mode, this always returns false (deny)
+        assert!(matches!(result, Ok(false)));
     }
 }

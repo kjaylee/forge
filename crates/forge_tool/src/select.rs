@@ -1,5 +1,5 @@
 use anyhow::Result;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use inquire::Select as InquireSelect;
 use schemars::JsonSchema;
@@ -33,6 +33,13 @@ pub struct SelectInput {
 /// - Best used with multiple options to provide meaningful choices
 #[derive(ToolDescription)]
 pub struct SelectTool;
+
+impl ToolPermissions for SelectTool {
+    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
+        vec![]
+    }
+    
+}
 
 impl NamedTool for SelectTool {
     fn tool_name(&self) -> ToolName {

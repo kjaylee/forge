@@ -1,4 +1,4 @@
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,12 @@ pub struct FSWriteInput {
 /// directories needed to write the file.
 #[derive(ToolDescription)]
 pub struct FSWrite;
+
+impl ToolPermissions for FSWrite {
+    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
+        vec![Permission::Write]
+    } 
+}
 
 impl NamedTool for FSWrite {
     fn tool_name(&self) -> ToolName {

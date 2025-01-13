@@ -1,8 +1,9 @@
 mod cli;
-mod path_validator;
+mod loader;
 mod result;
 mod service;
 
 pub use cli::CliPermissionHandler;
-pub use result::PermissionResultDisplay;
+pub use loader::get_config;
 pub use service::LivePermissionService;
+pub use result::PermissionResultDisplay;

@@ -1,200 +1,101 @@
-# Permission System Usage Guide
+# Permission System Configuration Guide
 
-## Overview
-The permission system provides file system access control for Code-Forge tools. It implements a straightforward permission model focused on basic access control and path validation.
+The permission system uses YAML configuration files to define access policies for different operations. This guide explains how to configure the permissions for your environment.
 
-## Core Concepts
+## Configuration Location
 
-### 1. Permission Types
-The system supports four basic permission types:
+The system looks for configuration in the following order:
+1. Path specified in `FORGE_CONFIG` environment variable
+2. `config.yml` in the current directory
+3. Falls back to default configuration (all operations require confirmation)
 
-- `read`: Permission to read file contents
-- `write`: Permission to modify files
-- `execute`: Permission to run commands or scripts
-- `deny`: Access is explicitly denied
+## Basic Structure
 
-### 2. Policy Types
-Each permission can be governed by one of three policies:
+The configuration file has three main sections:
+- `read`: File read operations
+- `write`: File write operations
+- `execute`: Command execution operations
 
-- `always`: Permission is always granted without asking
-- `once`: Permission is granted for a single operation
-- `session`: Permission is granted for the current session
+### Permission Types
 
-### 3. Configuration Structure
+Each operation can be configured with one of two types:
+- `Once`: Ask for permission each time
+- `Always`: Either allow all or use whitelist
 
-Basic configuration structure in YAML:
-
-```yaml
-permission_config:
-  # Default policy for unspecified permissions
-  default_policy: session
-
-  # Permission-specific policies
-  permissions:
-    read: always
-    write: session
-    execute: once
-
-  # Patterns for denied paths
-  deny_patterns:
-    - "**/secrets/**"
-    - "**/*.env"
-```
-
-## Configuration Details
-
-### 1. Default Configuration
-
-A minimal configuration provides session-level access:
+### Example Configuration
 
 ```yaml
-permission_config:
-  default_policy: session
-  permissions: {}
-  deny_patterns: []
+# Read operations
+read:
+  type: "Once"  # Ask for each read
+
+# Write operations
+write:
+  type: "Once"  # Ask for each write
+
+# Execute operations
+execute:
+  type: "Always"
+  whitelist:
+    type: "Some"  # or "All"
+    commands:
+      - "ls"
+      - "git status"
 ```
 
-### 2. Path Control
+## Detailed Options
 
-The system enforces several path-related security features:
-- All paths must be within the working directory
-- Maximum depth restrictions prevent deep traversal
-- Path existence and accessibility validation
-- Pattern-based path denial
-
-## Configuration Examples
-
-### 1. Basic Development Setup
-
+### Read and Write Operations
 ```yaml
-permission_config:
-  default_policy: session
-  
-  permissions:
-    read: always    # Always allow reading files
-    write: session  # Allow writing for the session
-    execute: once   # Require approval for each execution
-  
-  deny_patterns:
-    - "**/node_modules/**"
-    - "**/target/**"
-    - "**/.git/**"
+read:  # or write:
+  type: "Once"   # Ask each time
+  # or
+  type: "Always" # Always allow
 ```
 
-### 2. Secure Production Setup
-
+### Execute Operations
 ```yaml
-permission_config:
-  default_policy: once  # Default to requiring approval
-  
-  permissions:
-    read: session
-    write: once
-    execute: deny    # Prevent execution entirely
-  
-  deny_patterns:
-    # Security-sensitive files
-    - "**/*.env"
-    - "**/*.key"
-    - "**/*.pem"
-    - "**/secrets/**"
-    - "**/security/**"
-    
-    # Build artifacts and dependencies
-    - "**/node_modules/**"
-    - "**/target/**"
-    - "**/.git/**"
-    
-    # Temporary and cache files
-    - "**/tmp/**"
-    - "**/cache/**"
+execute:
+  type: "Once"   # Ask for each command
+  # or
+  type: "Always"
+  whitelist:
+    type: "All"   # Allow all commands
+  # or
+  type: "Always"
+  whitelist:
+    type: "Some"
+    commands:     # List specific allowed commands
+      - "ls"
+      - "git status"
 ```
 
-## Common Error Messages
+## Command Matching
 
-When using the permission system, you may encounter these messages:
+For execute permissions with a whitelist:
+- Commands are matched using substring comparison
+- For example, if "git" is whitelisted, all git commands will be allowed
+- Be specific to avoid unintended permissions (use "git status" instead of just "git")
 
-1. Path Access Denied:
-```
-Access denied to path: /path/to/file
-```
+## Default Behavior
 
-2. Path Outside Working Directory:
-```
-Path outside current working directory: /some/external/path
-```
+If no configuration is found or if there are parsing errors:
+- All operations default to "Once" (ask each time)
+- No commands are whitelisted
+- Each operation requires explicit permission
 
-3. Invalid Path:
-```
-Invalid path: path/does/not/exist
-```
+## Security Considerations
 
-## Best Practices
+1. Whitelist Specificity:
+   - Be specific with command whitelisting
+   - Use full command names when possible
+   - Avoid overly broad permissions
 
-1. **Path Security**
-   - Use deny patterns for sensitive directories
-   - Keep paths within the working directory
-   - Use specific patterns rather than broad denials
+2. File Operations:
+   - Consider using "Once" for write operations
+   - Use "Always" carefully with file operations
 
-2. **Permission Configuration**
-   - Start with restrictive defaults
-   - Grant minimal necessary permissions
-   - Use deny patterns for sensitive paths
-
-3. **Policy Usage**
-   - Use `once` for sensitive operations
-   - Use `session` for repeated safe operations
-   - Use `always` sparingly and only for safe operations
-   - Use `deny` for high-risk operations
-
-## Deny Pattern Examples
-
-Common patterns to consider denying:
-
-```yaml
-deny_patterns:
-  # Security
-  - "**/*.env"
-  - "**/*.key"
-  - "**/*.pem"
-  - "**/secrets/**"
-  - "**/security/**"
-  
-  # Build artifacts
-  - "**/node_modules/**"
-  - "**/target/**"
-  - "**/dist/**"
-  - "**/build/**"
-  
-  # Version control
-  - "**/.git/**"
-  - "**/.svn/**"
-  
-  # Temporary files
-  - "**/tmp/**"
-  - "**/temp/**"
-  - "**/cache/**"
-  
-  # Logs
-  - "**/logs/**"
-  - "**/*.log"
-  
-  # System files
-  - "**/.DS_Store"
-  - "**/Thumbs.db"
-```
-
-## Note on Usage
-
-The permission system focuses on basic access control and path validation through:
-
-- Permission types (read, write, execute)
-- Policy-based access control (always, once, session)
-- Path pattern denial
-- Working directory enforcement
-
-Future enhancements may include:
-- Directory-specific configurations
-- More granular permission controls
-- Enhanced pattern matching
-- Additional policy types
+3. Configuration Protection:
+   - Protect the configuration file from unauthorized modifications
+   - Use version control for configuration changes
+   - Review configurations regularly

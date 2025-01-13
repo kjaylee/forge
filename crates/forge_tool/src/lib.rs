@@ -3,7 +3,6 @@ mod ask;
 mod fs;
 mod outline;
 mod permission;
-mod permissions;
 mod select;
 mod shell;
 mod think;

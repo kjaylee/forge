@@ -1,5 +1,5 @@
 use anyhow::Result;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use inquire::Confirm;
 use schemars::JsonSchema;
@@ -34,6 +34,12 @@ impl NamedTool for Approve {
     fn tool_name(&self) -> ToolName {
         ToolName::new("user_confirmation")
     }
+}
+
+impl ToolPermissions for Approve {
+    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
+        vec![]
+    } 
 }
 
 #[async_trait::async_trait]

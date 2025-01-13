@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use regex::Regex;
@@ -26,6 +26,13 @@ pub struct FSSearchInput {
 /// context.
 #[derive(ToolDescription)]
 pub struct FSSearch;
+
+
+impl ToolPermissions for FSSearch {
+    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
+        vec![Permission::Read]
+    }  
+}
 
 impl NamedTool for FSSearch {
     fn tool_name(&self) -> ToolName {

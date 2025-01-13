@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Permission};
 use serde_json::Value;
 use tracing::debug;
 
 use crate::approve::Approve;
-use crate::fs::*;
+use crate::{fs::*, PermissionResultDisplay};
 use crate::outline::Outline;
-use crate::permission::{CliPermissionHandler, LivePermissionService, PermissionResultDisplay};
+use crate::permission::{CliPermissionHandler, LivePermissionService};
 use crate::select::SelectTool;
 use crate::shell::Shell;
 use crate::think::Think;
@@ -23,13 +23,21 @@ struct Live {
 
 impl Live {
     async fn with_permissions() -> Self {
-        let permission_service = Arc::new(LivePermissionService::new().await);
+        let permission_service = Arc::new(LivePermissionService::default());
         let permission_handler = CliPermissionHandler::default();
         Self {
             tools: HashMap::new(),
             permission_service,
             permission_handler,
         }
+    }
+
+    fn extract_command_from_args(args: &Value) -> Option<String> {
+        // Check 'command' field first (used by shell tool)
+        if let Some(cmd) = args.get("command").and_then(|v| v.as_str()) {
+            return Some(cmd.to_string());
+        }
+        None
     }
 
     fn extract_path_from_args(args: &Value) -> Option<PathBuf> {
@@ -85,18 +93,24 @@ impl ToolService for Live {
         if let Some(path) = Self::extract_path_from_args(&input) {
             // Check each required permission
             for &permission in &tool.definition.required_permissions {
+                // Extract command if this is a shell tool
+                let cmd = if permission == Permission::Execute {
+                    Self::extract_command_from_args(&input)
+                } else {
+                    None
+                };
+
                 let has_permission = self
                     .permission_service
-                    .check_permission(&path, permission)
+                    .check_permission(permission, cmd.as_deref())
                     .await;
 
                 // Handle permission check errors
                 if let Err(e) = has_permission {
-                    let result = PermissionResultDisplay::new(
+                    let result = PermissionResultDisplay::with_error(
                         false,
-                        permission,
-                        path.clone(),
-                        Some(format!("Error: {}", e)),
+                        &path,
+                        Some(e.to_string()),
                     );
                     return ToolResult::from(call.clone())
                         .content(Value::from(format!("<e>{}</e>", result)));
@@ -107,34 +121,18 @@ impl ToolService for Live {
 
                 if !has_permission {
                     // Ask for permission
-                    match self.permission_handler.request_permission(&path).await {
+                    match self.permission_handler.request_permission(permission, cmd.as_deref()).await {
                         Ok(true) => {
-                            // Grant permission for the session
-                            if let Err(e) = self
-                                .permission_service
-                                .update_permission(&path, permission, true)
-                                .await
-                            {
-                                tracing::error!("Failed to update permission: {}", e);
-                                let result = PermissionResultDisplay::new(
-                                    false,
-                                    permission,
-                                    &path,
-                                    Some(format!("Error: {}", e)),
-                                );
-                                return ToolResult::from(call)
-                                    .content(Value::from(format!("<e>{}</e>", result)));
-                            }
+                            // Permission was granted, continue
                         }
                         Ok(false) => {
-                            let result = PermissionResultDisplay::simple(false, permission, &path);
+                            let result = PermissionResultDisplay::new(false, &path);
                             return ToolResult::from(call)
                                 .content(Value::from(format!("<e>{}</e>", result)));
                         }
                         Err(e) => {
-                            let result = PermissionResultDisplay::new(
+                            let result = PermissionResultDisplay::with_error(
                                 false,
-                                permission,
                                 &path,
                                 Some(format!("Error: {}", e)),
                             );

@@ -77,9 +77,7 @@ snapshot_kind: text
       "title": "String",
       "type": "string"
     },
-    "required_permissions": [
-      "Read"
-    ]
+    "required_permissions": []
   },
   {
     "name": "find_and_replace",
@@ -163,9 +161,7 @@ snapshot_kind: text
         "type": "string"
       }
     },
-    "required_permissions": [
-      "Read"
-    ]
+    "required_permissions": []
   },
   {
     "name": "outline",

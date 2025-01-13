@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use colorize::AnsiColor;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -38,6 +38,13 @@ pub struct Think {
     thought_history: Vec<ThoughtInput>,
     branches: HashMap<String, Vec<ThoughtInput>>,
     solution_reached: bool,
+}
+
+impl ToolPermissions for Think {
+    fn required_permissions(&self) -> Vec<Permission> {
+        vec![]
+    }
+    
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]

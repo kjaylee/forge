@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -29,6 +29,12 @@ impl NamedTool for FSList {
     fn tool_name(&self) -> ToolName {
         ToolName::new("list_directory_content")
     }
+}
+
+impl ToolPermissions for FSList {
+    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
+        vec![]
+    }   
 }
 
 #[async_trait::async_trait]

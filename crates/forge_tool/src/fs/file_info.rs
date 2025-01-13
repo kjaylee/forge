@@ -1,4 +1,4 @@
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -16,6 +16,13 @@ pub struct FSFileInfoInput {
 /// understand file characteristics without reading the actual content.
 #[derive(ToolDescription)]
 pub struct FSFileInfo;
+
+impl ToolPermissions for FSFileInfo {
+    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
+        vec![]
+    }
+    
+}
 
 impl NamedTool for FSFileInfo {
     fn tool_name(&self) -> ToolName {

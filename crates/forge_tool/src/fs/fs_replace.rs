@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use dissimilar::Chunk;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -19,6 +19,12 @@ pub struct FSReplaceInput {
 }
 
 pub struct FSReplace;
+
+impl ToolPermissions for FSReplace {
+    fn required_permissions(&self) -> Vec<Permission> {
+        vec![Permission::Read, Permission::Write]
+    }
+}
 
 impl NamedTool for FSReplace {
     fn tool_name(&self) -> ToolName {

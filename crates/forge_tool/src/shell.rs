@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -125,6 +125,12 @@ impl NamedTool for Shell {
     }
 }
 
+impl ToolPermissions for Shell {
+    fn required_permissions(&self) -> Vec<Permission> {
+        vec![Permission::Execute]
+    }
+}
+
 #[async_trait::async_trait]
 impl ToolCallService for Shell {
     type Input = ShellInput;
@@ -143,6 +149,14 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn test_required_permissions() {
+        let shell = Shell::default();
+        let perms = shell.required_permissions();
+        assert_eq!(perms.len(), 1);
+        assert!(matches!(perms[0], Permission::Execute));
+    }
 
     #[tokio::test]
     async fn test_shell_echo() {
