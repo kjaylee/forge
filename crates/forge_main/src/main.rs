@@ -102,7 +102,13 @@ async fn main() -> Result<()> {
                             ChatResponse::ModifyContext(_) => {}
                             ChatResponse::Complete => {}
                             ChatResponse::Error(err) => {
-                                return Err(anyhow::anyhow!("Chat error: {:?}", err));
+                                let status = StatusDisplay {
+                                    kind: StatusKind::Failed,
+                                    message: &err.to_string(),
+                                    timestamp: Some(get_timestamp()),
+                                    error_details: None,
+                                };
+                                CONSOLE.writeln(status.format())?;
                             }
                             ChatResponse::PartialTitle(_) => {}
                             ChatResponse::CompleteTitle(title) => {
