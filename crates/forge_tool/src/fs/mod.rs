@@ -5,6 +5,7 @@ mod fs_read;
 mod fs_replace;
 mod fs_replace_marker;
 mod fs_write;
+mod permissions;
 mod syn;
 
 pub use file_info::*;

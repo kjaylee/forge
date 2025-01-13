@@ -38,7 +38,7 @@ impl API {
     pub async fn init() -> Result<Self> {
         crate::log::init_logger();
         let env = Service::environment_service().get().await?;
-        let api = Arc::new(Service::root_api_service(env.clone()));
+        let api = Arc::new(Service::root_api_service(env.clone()).await);
 
         Ok(Self { api, env })
     }

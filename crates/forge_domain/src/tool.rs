@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde_json::Value;
 
-use crate::{NamedTool, ToolCallService, ToolDefinition, ToolDescription};
+use crate::{NamedTool, ToolCallService, ToolDefinition, ToolDescription, ToolPermissions};
 
 struct JsonTool<T>(T);
 
@@ -35,13 +35,20 @@ pub struct Tool {
 impl Tool {
     pub fn new<T>(tool: T) -> Tool
     where
-        T: ToolCallService + ToolDescription + NamedTool + Send + Sync + 'static,
+        T: ToolCallService + ToolDescription + NamedTool + ToolPermissions + Send + Sync + 'static,
         T::Input: serde::de::DeserializeOwned + JsonSchema,
         T::Output: serde::Serialize + JsonSchema,
     {
         let definition = ToolDefinition::new(&tool);
+        let required_permissions = tool.required_permissions();
         let executable = Box::new(JsonTool::new(tool));
 
-        Tool { executable, definition }
+        Tool {
+            executable,
+            definition: ToolDefinition {
+                required_permissions,
+                ..definition
+            },
+        }
     }
 }

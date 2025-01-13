@@ -25,21 +25,33 @@ impl PathValidator {
         Self { cwd, walker: Arc::new(RwLock::new(None)) }
     }
 
+    /// Get the current working directory
+    pub fn cwd(&self) -> PathBuf {
+        self.cwd.clone()
+    }
+
     /// Validates if a path is accessible and returns its normalized form.
     pub async fn validate_path(
         &self,
         path: &Path,
         max_depth: Option<usize>,
     ) -> PermissionResult<PathBuf> {
-        // First, try to canonicalize the path
-        let path = path.canonicalize().map_err(|_| {
-            forge_domain::PermissionError::InvalidPath(path.to_string_lossy().to_string())
-        })?;
+        tracing::debug!("Validating path: {}", path.display());
+        // For existing paths, use canonicalize
+        let path = if path.exists() {
+            path.canonicalize().map_err(|_| {
+                forge_domain::PermissionError::InvalidPath(path.to_string_lossy().to_string())
+            })?
+        } else {
+            // For non-existent paths, use absolute path
+            if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                self.cwd.join(path)
+            }
+        };
 
-        // Check if the path is within CWD
-        if !path.starts_with(&self.cwd) {
-            return Err(forge_domain::PermissionError::OutsideAllowedDirectory(path));
-        }
+        // Paths outside CWD are allowed but will require permission
 
         let mut walker_guard = self.walker.write().await;
         if walker_guard.is_none() {
@@ -56,23 +68,37 @@ impl PathValidator {
             walker
         };
 
-        // Use walker to validate the path exists and is accessible
-        let files = walker
-            .get()
-            .await
-            .map_err(forge_domain::PermissionError::WalkerError)?;
+        // For paths within CWD, verify they exist in the walker's output
+        if path.exists() && path.starts_with(&self.cwd) {
+            let files = walker.get()
+                .await
+                .map_err(forge_domain::PermissionError::WalkerError)?;
 
-        // Check if the path exists in walker's output
-        let relative_path = path.strip_prefix(&self.cwd).map_err(|_| {
-            forge_domain::PermissionError::InvalidPath(path.to_string_lossy().to_string())
-        })?;
-        let path_str = relative_path.to_string_lossy().to_string();
+            let relative_path = path.strip_prefix(&self.cwd).map_err(|_| {
+                forge_domain::PermissionError::InvalidPath(path.to_string_lossy().to_string())
+            })?;
+            let path_str = relative_path.to_string_lossy().to_string();
 
-        if files.iter().any(|f| f.path == path_str) {
-            Ok(path)
-        } else {
-            Err(forge_domain::PermissionError::InvalidPath(path_str))
+            if !files.iter().any(|f| f.path == path_str) {
+                return Err(forge_domain::PermissionError::InvalidPath(path_str));
+            }
+        } else if !path.exists() {
+            // For new files, just check if parent exists
+            let parent = path.parent().ok_or_else(|| {
+                forge_domain::PermissionError::InvalidPath("No parent directory".to_string())
+            })?;
+            if !parent.exists() {
+                std::fs::create_dir_all(parent).map_err(|e| {
+                    forge_domain::PermissionError::InvalidPath(format!(
+                        "Failed to create parent directory {}: {}",
+                        parent.display(),
+                        e
+                    ))
+                })?;
+            }
         }
+
+        Ok(path)
     }
 }
 
@@ -103,10 +129,10 @@ mod tests {
         let result = validator.validate_path(&path, None).await;
         assert!(result.is_err());
 
-        // Test path outside CWD
+        // Test path outside CWD is now allowed
         let path = cwd.join("..").canonicalize().unwrap();
         let result = validator.validate_path(&path, None).await;
-        assert!(result.is_err());
+        assert!(result.is_ok());
     }
 
     #[test]

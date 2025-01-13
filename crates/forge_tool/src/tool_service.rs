@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use forge_domain::{
-    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
 };
 use serde_json::Value;
 use tracing::debug;
@@ -18,13 +19,13 @@ use crate::Service;
 
 struct Live {
     pub tools: HashMap<ToolName, Tool>,
-    pub permission_service: LivePermissionService,
+    pub permission_service: Arc<LivePermissionService>,
     pub permission_handler: CliPermissionHandler,
 }
 
 impl Live {
-    fn with_permissions() -> Self {
-        let permission_service = LivePermissionService::new();
+    async fn with_permissions() -> Self {
+        let permission_service = Arc::new(LivePermissionService::new().await);
         let permission_handler = CliPermissionHandler::default();
         Self {
             tools: HashMap::new(),
@@ -46,18 +47,15 @@ impl Live {
     }
 }
 
-impl FromIterator<Tool> for Live {
-    fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
-        let live = Self::with_permissions();
+impl Live {
+    pub async fn from_tools<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
+        let mut live = Self::with_permissions().await;
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
             .collect::<HashMap<_, _>>();
-        Self {
-            tools,
-            permission_service: live.permission_service,
-            permission_handler: live.permission_handler,
-        }
+        live.tools = tools;
+        live
     }
 }
 
@@ -68,24 +66,48 @@ impl ToolService for Live {
         let input = call.arguments.clone();
         debug!("Calling tool: {}", name.as_str());
 
-        // Check permissions if needed
-        if let Some(path) = Self::extract_path_from_args(&input) {
-            // Map tool name to permission type
-            let permission = match name.as_str() {
-                "fs_read" => Permission::Read,
-                "fs_write" => Permission::Write,
-                "execute_command" => Permission::Execute,
-                _ => Permission::Read, // Default to read permission for other tools
-            };
+        // Get tool definition
+        let tool = if let Some(tool) = self.tools.get(&name) {
+            tool
+        } else {
+            let available = self
+                .tools
+                .keys()
+                .map(|n| n.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return ToolResult::from(call).content(Value::from(format!(
+                "<e>Tool '{}' not found. Available tools: {}</e>",
+                name.as_str(),
+                available
+            )));
+        };
 
-            // First check if we have permission
-            let has_permission = match self
-                .permission_service
-                .check_permission(&path, permission)
-                .await
-            {
-                Ok(true) => true,
-                Ok(false) => {
+        // Check permissions if path is provided
+        if let Some(path) = Self::extract_path_from_args(&input) {
+            // Check each required permission
+            for &permission in &tool.definition.required_permissions {
+                let has_permission = self
+                    .permission_service
+                    .check_permission(&path, permission)
+                    .await;
+
+                // Handle permission check errors
+                if let Err(e) = has_permission {
+                    let result = PermissionResultDisplay::new(
+                        false,
+                        permission,
+                        path.clone(),
+                        Some(format!("Error: {}", e)),
+                    );
+                    return ToolResult::from(call.clone())
+                        .content(Value::from(format!("<e>{}</e>", result)));
+                }
+
+                // Unwrap the Ok value since we've handled the error case
+                let has_permission = has_permission.unwrap();
+
+                if !has_permission {
                     // Ask for permission
                     match self.permission_handler.request_permission(&path).await {
                         Ok(true) => {
@@ -96,10 +118,21 @@ impl ToolService for Live {
                                 .await
                             {
                                 tracing::error!("Failed to update permission: {}", e);
+                                let result = PermissionResultDisplay::new(
+                                    false,
+                                    permission,
+                                    &path,
+                                    Some(format!("Error: {}", e)),
+                                );
+                                return ToolResult::from(call)
+                                    .content(Value::from(format!("<e>{}</e>", result)));
                             }
-                            true
                         }
-                        Ok(false) => false,
+                        Ok(false) => {
+                            let result = PermissionResultDisplay::simple(false, permission, &path);
+                            return ToolResult::from(call)
+                                .content(Value::from(format!("<e>{}</e>", result)));
+                        }
                         Err(e) => {
                             let result = PermissionResultDisplay::new(
                                 false,
@@ -112,45 +145,14 @@ impl ToolService for Live {
                         }
                     }
                 }
-                Err(e) => {
-                    let result = PermissionResultDisplay::new(
-                        false,
-                        permission,
-                        path,
-                        Some(format!("Error: {}", e)),
-                    );
-                    return ToolResult::from(call)
-                        .content(Value::from(format!("<e>{}</e>", result)));
-                }
-            };
-
-            if !has_permission {
-                let result = PermissionResultDisplay::simple(false, permission, &path);
-                return ToolResult::from(call).content(Value::from(format!("<e>{}</e>", result)));
             }
         }
 
         // Execute the tool
-        let output = if let Some(tool) = self.tools.get(&name) {
-            tool.executable.call(input).await
-        } else {
-            let available = self
-                .tools
-                .keys()
-                .map(|n| n.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
-            Err(format!(
-                "Tool '{}' not found. Available tools: {}",
-                name.as_str(),
-                available
-            ))
-        };
-
-        match output {
+        match tool.executable.call(input).await {
             Ok(output) => ToolResult::from(call).content(output),
             Err(error) => {
-                ToolResult::from(call).content(Value::from(format!("<error>{}</error>", error)))
+                ToolResult::from(call).content(Value::from(format!("<e>{}</e>", error)))
             }
         }
     }
@@ -186,8 +188,8 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub fn tool_service() -> impl ToolService {
-        Live::from_iter([
+    pub async fn tool_service() -> impl ToolService {
+        Live::from_tools([
             Tool::new(Approve),
             Tool::new(FSRead),
             Tool::new(FSWrite),
@@ -200,18 +202,17 @@ impl Service {
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
         ])
+        .await
     }
 }
 
 #[cfg(test)]
 mod test {
-
-    use forge_domain::{NamedTool, PermissionConfig, ToolCallId};
+    use forge_domain::{NamedTool, ToolCallId};
     use insta::assert_snapshot;
 
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
-    use crate::Service;
 
     #[test]
     fn test_id() {
@@ -237,26 +238,30 @@ mod test {
             .ends_with("file_information"));
     }
 
-    #[test]
-    fn test_usage_prompt() {
-        let docs = Service::tool_service().usage_prompt();
-        assert_snapshot!(docs);
+    #[tokio::test]
+    async fn test_usage_prompt() {
+        let service = Live::from_tools([
+            Tool::new(FSRead),
+            Tool::new(FSWrite),
+        ]).await;
+        let prompt = service.usage_prompt();
+        assert_snapshot!(prompt);
     }
 
-    #[test]
-    fn test_tool_definition() {
-        let tools = Service::tool_service().list();
+    #[tokio::test]
+    async fn test_tool_definition() {
+        let service = Live::from_tools([
+            Tool::new(FSRead),
+            Tool::new(FSWrite),
+        ]).await;
+        let tools = service.list();
         assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 
     #[tokio::test]
     async fn test_permission_denied() {
         // Create service with no permissions
-        let service = Live {
-            tools: HashMap::new(),
-            permission_service: LivePermissionService::new(),
-            permission_handler: CliPermissionHandler::default(),
-        };
+        let service = Live::from_tools([Tool::new(FSRead)]).await;
 
         let call = ToolCallFull {
             name: FSRead.tool_name(),
@@ -276,14 +281,7 @@ mod test {
         let secret_path = temp_dir.path().join("secrets").join("test.txt");
 
         // Create service with deny pattern
-        let mut config = PermissionConfig::default();
-        config.deny_patterns.push("**/secrets/**".to_string());
-
-        let service = Live {
-            tools: HashMap::new(),
-            permission_service: LivePermissionService::new(),
-            permission_handler: CliPermissionHandler::default(),
-        };
+        let service = Live::from_tools([Tool::new(FSRead)]).await;
 
         let call = ToolCallFull {
             name: FSRead.tool_name(),

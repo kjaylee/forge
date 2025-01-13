@@ -1,8 +1,8 @@
-//! # Permission System
-//! Simple permission management for file system operations.
-
 mod types;
+mod loader;
 
+// Re-export all public items
+pub use loader::{load_config, LoadError, load_or_default};
 pub use types::{Permission, PermissionConfig, Policy};
 
 /// Error type for permission operations
