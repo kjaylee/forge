@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use forge_domain::{
-    Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-};
+use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
 use serde_json::Value;
 use tracing::debug;
 
@@ -151,9 +149,7 @@ impl ToolService for Live {
         // Execute the tool
         match tool.executable.call(input).await {
             Ok(output) => ToolResult::from(call).content(output),
-            Err(error) => {
-                ToolResult::from(call).content(Value::from(format!("<e>{}</e>", error)))
-            }
+            Err(error) => ToolResult::from(call).content(Value::from(format!("<e>{}</e>", error))),
         }
     }
 
@@ -240,20 +236,14 @@ mod test {
 
     #[tokio::test]
     async fn test_usage_prompt() {
-        let service = Live::from_tools([
-            Tool::new(FSRead),
-            Tool::new(FSWrite),
-        ]).await;
+        let service = Live::from_tools([Tool::new(FSRead), Tool::new(FSWrite)]).await;
         let prompt = service.usage_prompt();
         assert_snapshot!(prompt);
     }
 
     #[tokio::test]
     async fn test_tool_definition() {
-        let service = Live::from_tools([
-            Tool::new(FSRead),
-            Tool::new(FSWrite),
-        ]).await;
+        let service = Live::from_tools([Tool::new(FSRead), Tool::new(FSWrite)]).await;
         let tools = service.list();
         assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }

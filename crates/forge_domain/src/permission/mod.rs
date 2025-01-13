@@ -1,8 +1,8 @@
-mod types;
 mod loader;
+mod types;
 
 // Re-export all public items
-pub use loader::{load_config, LoadError, load_or_default};
+pub use loader::{load_config, load_or_default, LoadError};
 pub use types::{Permission, PermissionConfig, Policy};
 
 /// Error type for permission operations

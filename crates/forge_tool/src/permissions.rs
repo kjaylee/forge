@@ -1,9 +1,10 @@
 use forge_domain::{Permission, ToolPermissions};
-use crate::shell::Shell;
+
 use crate::approve::Approve;
 use crate::ask::AskFollowUpQuestion;
 use crate::outline::Outline;
 use crate::select::SelectTool;
+use crate::shell::Shell;
 use crate::think::Think;
 
 // No permissions needed for Think
@@ -26,7 +27,6 @@ impl ToolPermissions for Shell {
     fn required_permissions(&self) -> Vec<Permission> {
         vec![Permission::Execute]
     }
-    
 }
 
 impl ToolPermissions for AskFollowUpQuestion {
@@ -34,4 +34,3 @@ impl ToolPermissions for AskFollowUpQuestion {
         vec![]
     }
 }
-

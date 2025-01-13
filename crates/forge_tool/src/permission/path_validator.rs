@@ -70,7 +70,8 @@ impl PathValidator {
 
         // For paths within CWD, verify they exist in the walker's output
         if path.exists() && path.starts_with(&self.cwd) {
-            let files = walker.get()
+            let files = walker
+                .get()
                 .await
                 .map_err(forge_domain::PermissionError::WalkerError)?;
 

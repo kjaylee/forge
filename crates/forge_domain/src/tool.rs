@@ -45,10 +45,7 @@ impl Tool {
 
         Tool {
             executable,
-            definition: ToolDefinition {
-                required_permissions,
-                ..definition
-            },
+            definition: ToolDefinition { required_permissions, ..definition },
         }
     }
 }

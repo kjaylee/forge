@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -16,7 +17,7 @@ pub struct PermissionConfigFile {
 pub enum LoadError {
     #[error("Failed to read config file: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Failed to parse YAML: {0}")]
     YamlError(#[from] serde_yaml::Error),
 }
@@ -38,7 +39,8 @@ pub async fn load_config<P: AsRef<Path>>(path: P) -> Result<PermissionConfig, Lo
     Ok(config_file.permission_config)
 }
 
-/// Attempt to load config from .code-forge/permissions.yml, falling back to defaults
+/// Attempt to load config from .code-forge/permissions.yml, falling back to
+/// defaults
 pub async fn load_or_default() -> PermissionConfig {
     if let Some(path) = find_config_file().await {
         let path_display = path.display().to_string();
@@ -52,26 +54,30 @@ pub async fn load_or_default() -> PermissionConfig {
             }
         }
     }
-    tracing::info!("Using default permissions (no config file found at .code-forge/permissions.yml)");
+    tracing::info!(
+        "Using default permissions (no config file found at .code-forge/permissions.yml)"
+    );
     PermissionConfig::default()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use tempfile::TempDir;
     use std::fs;
     use std::io::Write;
+
+    use tempfile::TempDir;
+
+    use super::*;
 
     // Helper function to create test config - modified to return both paths
     async fn setup_test_config(dir: &TempDir, content: &str) -> (PathBuf, PathBuf) {
         let config_dir = dir.path().join(".code-forge");
         fs::create_dir_all(&config_dir).unwrap();
         let config_path = config_dir.join("permissions.yml");
-        
+
         let mut file = fs::File::create(&config_path).unwrap();
         write!(file, "{}", content).unwrap();
-        
+
         (dir.path().to_path_buf(), config_path)
     }
 
@@ -88,7 +94,7 @@ permission_config:
     - "**/node_modules/**"
 "#;
         let (_, config_path) = setup_test_config(&temp, config_yaml).await;
-        
+
         // No more directory changing, just load the config directly
         let config = load_config(config_path).await.unwrap();
         assert_eq!(config.default_policy, super::super::types::Policy::Session);
@@ -99,7 +105,7 @@ permission_config:
         let temp = TempDir::new().unwrap();
         let config_yaml = "invalid: yaml: content";
         let (_, config_path) = setup_test_config(&temp, config_yaml).await;
-        
+
         assert!(load_config(config_path).await.is_err());
     }
 
@@ -116,12 +122,12 @@ permission_config:
     #[tokio::test]
     async fn test_load_or_default() {
         let temp = TempDir::new().unwrap();
-        
+
         // Test with no config
         let config = load_or_default().await;
         assert_eq!(config.default_policy, super::super::types::Policy::Session);
         assert!(config.permissions.is_empty());
-        
+
         // Create valid config and test again
         let config_yaml = r#"
 permission_config:
@@ -131,7 +137,7 @@ permission_config:
   deny_patterns: []
 "#;
         let (base_path, _) = setup_test_config(&temp, config_yaml).await;
-        
+
         // Mock the find_config_file function for testing
         let found_config = test_find_config_file(&base_path).await.unwrap();
         let config = load_config(found_config).await.unwrap();
