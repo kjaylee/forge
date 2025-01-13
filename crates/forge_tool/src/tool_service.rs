@@ -236,9 +236,9 @@ mod test {
 
     #[tokio::test]
     async fn test_usage_prompt() {
-        let service = Live::from_tools([Tool::new(FSRead), Tool::new(FSWrite)]).await;
-        let prompt = service.usage_prompt();
-        assert_snapshot!(prompt);
+        let docs = Service::tool_service().await.usage_prompt();
+
+        assert_snapshot!(docs);
     }
 
     #[tokio::test]
