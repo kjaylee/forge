@@ -326,7 +326,6 @@ mod tests {
 
         let result = handle.await.unwrap();
 
-        println!("{:?}", result);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("timed out after 30 seconds"));
     }
