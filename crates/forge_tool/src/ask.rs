@@ -29,27 +29,7 @@ impl ToolCallService for AskFollowUpQuestion {
     type Output = String;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        #[cfg(test)]
-        {
-            Ok(format!("Question: {}", input.question))
-        }
-        #[cfg(not(test))]
-        {
-            println!("\n{}\n", input.question);
-
-            // Use tokio::task::spawn_blocking for blocking I/O
-            let response = tokio::task::spawn_blocking(|| {
-                let mut input = String::new();
-                std::io::stdin()
-                    .read_line(&mut input)
-                    .map(|_| input)
-                    .map_err(|e| e.to_string())
-            })
-            .await
-            .map_err(|e| e.to_string())??;
-
-            Ok(response.trim().to_string())
-        }
+        Ok(format!("Question: {}", input.question))
     }
 }
 
