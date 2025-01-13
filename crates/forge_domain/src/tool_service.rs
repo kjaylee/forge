@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use crate::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, Permission};
+use crate::{Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
 
 #[async_trait::async_trait]
 pub trait PermissionChecker: Send + Sync {
@@ -23,16 +23,16 @@ pub struct Live {
 }
 
 impl Live {
-    pub fn new(tools: impl IntoIterator<Item = Tool>, permission_checker: Arc<dyn PermissionChecker>) -> Self {
+    pub fn new(
+        tools: impl IntoIterator<Item = Tool>,
+        permission_checker: Arc<dyn PermissionChecker>,
+    ) -> Self {
         let tools = tools
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
             .collect();
 
-        Self { 
-            tools,
-            permission_checker,
-        }
+        Self { tools, permission_checker }
     }
 
     async fn check_permissions(&self, tool: &Tool) -> Result<(), String> {
@@ -42,7 +42,11 @@ impl Live {
                 _ => None,
             };
 
-            if !self.permission_checker.check_permission(*permission, cmd).await? {
+            if !self
+                .permission_checker
+                .check_permission(*permission, cmd)
+                .await?
+            {
                 return Err(format!("Permission denied: {:?}", permission));
             }
         }

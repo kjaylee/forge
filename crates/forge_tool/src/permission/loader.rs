@@ -36,11 +36,11 @@ mod config {
 }
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use forge_domain::{Command, Permission, PermissionConfig, Policy, Whitelisted};
-use self::config::*;
+
 
 // Thread-local storage for test configuration
 #[cfg(test)]
@@ -108,21 +108,19 @@ fn load_config() -> PermissionConfig {
     let resolved_path = resolve_config_path(&config_path);
 
     match resolved_path {
-        Some(path) => {
-            match std::fs::read_to_string(&path) {
-                Ok(content) => match serde_yaml::from_str::<YamlConfig>(&content) {
-                    Ok(yaml_config) => convert_config(yaml_config),
-                    Err(e) => {
-                        eprintln!("Error parsing config file {}: {}", path.display(), e);
-                        PermissionConfig::default()
-                    }
-                },
+        Some(path) => match std::fs::read_to_string(&path) {
+            Ok(content) => match serde_yaml::from_str::<YamlConfig>(&content) {
+                Ok(yaml_config) => convert_config(yaml_config),
                 Err(e) => {
-                    eprintln!("Error reading config file {}: {}", path.display(), e);
+                    eprintln!("Error parsing config file {}: {}", path.display(), e);
                     PermissionConfig::default()
                 }
+            },
+            Err(e) => {
+                eprintln!("Error reading config file {}: {}", path.display(), e);
+                PermissionConfig::default()
             }
-        }
+        },
         None => {
             eprintln!("Config file not found: {}", config_path.display());
             PermissionConfig::default()
@@ -278,7 +276,7 @@ execute:
         let temp_dir = TempDir::new().unwrap();
         let abs_path = temp_dir.path().join("config.yml");
         fs::write(&abs_path, "dummy").unwrap();
-        
+
         let resolved = resolve_config_path(&abs_path);
         assert!(resolved.is_some(), "Should resolve absolute path");
         assert_eq!(resolved.unwrap(), abs_path);
@@ -287,7 +285,7 @@ execute:
         let current_dir = std::env::current_dir().unwrap();
         let test_path = current_dir.join("test_config.yml");
         fs::write(&test_path, "dummy").unwrap();
-        
+
         let relative_path = Path::new("test_config.yml");
         let resolved = resolve_config_path(relative_path);
         assert!(resolved.is_some(), "Should resolve relative path");

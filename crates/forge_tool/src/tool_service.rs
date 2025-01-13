@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
-    ToolService, PermissionChecker
+    Permission, PermissionChecker, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService,
 };
 use serde_json::Value;
 use tracing::debug;
@@ -25,7 +25,7 @@ struct Live {
 
 impl Live {
     fn with_permissions() -> Self {
-        let permission_service = Arc::new(LivePermissionService::default());
+        let permission_service = Arc::new(LivePermissionService);
         let permission_handler = CliPermissionHandler::default();
         Self {
             tools: HashMap::new(),
@@ -48,7 +48,7 @@ impl Live {
                 Permission::Execute => Self::extract_command_from_args(args),
                 _ => None,
             };
-            
+
             let has_permission = self
                 .permission_service
                 .check_permission(*permission, cmd.as_deref())
@@ -109,8 +109,7 @@ impl ToolService for Live {
 
         // Check permissions with command context
         if let Err(e) = self.check_permissions(tool, &input).await {
-            return ToolResult::from(call)
-                .content(Value::from(format!("<e>{}</e>", e)));
+            return ToolResult::from(call).content(Value::from(format!("<e>{}</e>", e)));
         }
 
         // Execute the tool
