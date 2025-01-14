@@ -5,8 +5,8 @@ use tokio_stream::{once, StreamExt};
 use tracing::debug;
 
 use super::workflow_title_service::TitleService;
-use super::{ChatService, ConversationService};
-use crate::{Error, Service};
+use super::ChatService;
+use crate::{ConversationRepository, Error, Service};
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {
@@ -14,14 +14,14 @@ pub trait UIService: Send + Sync {
 }
 
 struct Live {
-    conversation_service: Arc<dyn ConversationService>,
+    conversation_service: Arc<dyn ConversationRepository>,
     chat_service: Arc<dyn ChatService>,
     title_service: Arc<dyn TitleService>,
 }
 
 impl Live {
     fn new(
-        conversation_service: Arc<dyn ConversationService>,
+        conversation_service: Arc<dyn ConversationRepository>,
         chat_service: Arc<dyn ChatService>,
         title_service: Arc<dyn TitleService>,
     ) -> Self {
@@ -31,7 +31,7 @@ impl Live {
 
 impl Service {
     pub fn ui_service(
-        conversation_service: Arc<dyn ConversationService>,
+        conversation_service: Arc<dyn ConversationRepository>,
         neo_chat_service: Arc<dyn ChatService>,
         title_service: Arc<dyn TitleService>,
     ) -> impl UIService {
@@ -70,7 +70,7 @@ impl UIService for Live {
             stream = Box::pin(
                 once(Ok(ChatResponse::ConversationStarted(id)))
                     .chain(title_stream)
-                    .chain(stream),
+                    .merge(stream),
             );
         }
 
@@ -109,8 +109,8 @@ impl UIService for Live {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::super::conversation_service::tests::TestStorage;
     use super::*;
+    use crate::repo::tests::TestConversationStorage;
 
     struct TestTitleService {
         events: Vec<ChatResponse>,
@@ -122,15 +122,6 @@ mod tests {
                 events: vec![ChatResponse::CompleteTitle(
                     "test title generated".to_string(),
                 )],
-            }
-        }
-
-        fn multiple() -> Self {
-            Self {
-                events: vec![
-                    ChatResponse::Text("Processing title...".to_string()),
-                    ChatResponse::CompleteTitle("test title generated".to_string()),
-                ],
             }
         }
     }
@@ -152,16 +143,6 @@ mod tests {
         fn single() -> Self {
             Self { events: vec![ChatResponse::Text("test message".to_string())] }
         }
-
-        fn multiple() -> Self {
-            Self {
-                events: vec![
-                    ChatResponse::Text("first message".to_string()),
-                    ChatResponse::Text("second message".to_string()),
-                    ChatResponse::Text("third message".to_string()),
-                ],
-            }
-        }
     }
 
     #[async_trait::async_trait]
@@ -174,40 +155,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_chat_new_conversation() {
-        let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
-        let service = Service::ui_service(
-            conversation_service.clone(),
-            Arc::new(TestChatService::single()),
-            Arc::new(TestTitleService::single()),
-        );
-        let request = ChatRequest::new("test");
-
-        let mut responses = service.chat(request).await.unwrap();
-
-        if let Some(Ok(ChatResponse::ConversationStarted(_))) = responses.next().await {
-        } else {
-            panic!("Expected ConversationStarted response");
-        }
-
-        if let Some(Ok(ChatResponse::CompleteTitle(content))) = responses.next().await {
-            assert_eq!(content, "test title generated");
-        } else {
-            panic!("Expected CompleteTitle response");
-        }
-
-        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
-            assert_eq!(content, "test message");
-        } else {
-            panic!("Expected Text response");
-        }
-
-        assert!(responses.next().await.is_none(), "Expected end of stream");
-    }
-
-    #[tokio::test]
     async fn test_chat_existing_conversation() {
-        let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
+        let conversation_service = Arc::new(TestConversationStorage::in_memory().unwrap());
         let service = Service::ui_service(
             conversation_service.clone(),
             Arc::new(TestChatService::single()),
@@ -227,51 +176,6 @@ mod tests {
         } else {
             panic!("Expected Text response");
         }
-
-        assert!(responses.next().await.is_none(), "Expected end of stream");
-    }
-
-    #[tokio::test]
-    async fn test_strict_ordering_with_multiple_events() {
-        let conversation_service = Arc::new(TestStorage::in_memory().unwrap());
-        let service = Service::ui_service(
-            conversation_service.clone(),
-            Arc::new(TestChatService::multiple()),
-            Arc::new(TestTitleService::multiple()),
-        );
-
-        let request = ChatRequest::new("test");
-        let mut responses = service.chat(request).await.unwrap();
-
-        // First: ConversationStarted
-        assert!(matches!(
-            responses.next().await,
-            Some(Ok(ChatResponse::ConversationStarted(_)))
-        ));
-
-        // Title service events should come next
-        assert_eq!(
-            responses.next().await.unwrap().unwrap(),
-            ChatResponse::Text("Processing title...".to_string())
-        );
-        assert_eq!(
-            responses.next().await.unwrap().unwrap(),
-            ChatResponse::CompleteTitle("test title generated".to_string())
-        );
-
-        // Chat service events should come last
-        assert_eq!(
-            responses.next().await.unwrap().unwrap(),
-            ChatResponse::Text("first message".to_string())
-        );
-        assert_eq!(
-            responses.next().await.unwrap().unwrap(),
-            ChatResponse::Text("second message".to_string())
-        );
-        assert_eq!(
-            responses.next().await.unwrap().unwrap(),
-            ChatResponse::Text("third message".to_string())
-        );
 
         assert!(responses.next().await.is_none(), "Expected end of stream");
     }

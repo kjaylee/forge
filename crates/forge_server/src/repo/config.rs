@@ -5,10 +5,10 @@ use diesel::sql_types::{Text, Timestamp};
 use forge_domain::Config;
 use serde::{Deserialize, Serialize};
 
-use super::Service;
 use crate::error::Result;
 use crate::schema::configuration_table::{self};
-use crate::service::db_service::DBService;
+use crate::service::Service;
+use crate::sqlite::Sqlite;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigId(String);
@@ -45,7 +45,7 @@ impl TryFrom<RawConfig> for Config {
 }
 
 #[async_trait::async_trait]
-pub trait ConfigService: Send + Sync {
+pub trait ConfigRepository: Send + Sync {
     async fn get(&self) -> Result<Config>;
     async fn set(&self, config: Config) -> Result<Config>;
 }
@@ -54,14 +54,14 @@ pub struct Live<P> {
     pool_service: P,
 }
 
-impl<P: DBService> Live<P> {
+impl<P: Sqlite> Live<P> {
     pub fn new(pool_service: P) -> Self {
         Self { pool_service }
     }
 }
 
 #[async_trait::async_trait]
-impl<P: DBService + Send + Sync> ConfigService for Live<P> {
+impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
     async fn get(&self) -> Result<Config> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
@@ -101,7 +101,7 @@ impl<P: DBService + Send + Sync> ConfigService for Live<P> {
 }
 
 impl Service {
-    pub fn config_service(database_url: &str) -> Result<impl ConfigService> {
+    pub fn config_service(database_url: &str) -> Result<impl ConfigRepository> {
         Ok(Live::new(Service::db_pool_service(database_url)?))
     }
 }
@@ -110,19 +110,19 @@ impl Service {
 pub mod tests {
     use forge_domain::{ApiKey, ModelConfig, ModelId, Permissions, ProviderId};
 
-    use super::super::db_service::tests::TestDbPool;
     use super::*;
+    use crate::sqlite::tests::TestSqlite;
 
     pub struct TestStorage;
 
     impl TestStorage {
-        pub fn in_memory() -> Result<impl ConfigService> {
-            let pool_service = TestDbPool::new()?;
+        pub fn in_memory() -> Result<impl ConfigRepository> {
+            let pool_service = TestSqlite::new()?;
             Ok(Live::new(pool_service))
         }
     }
 
-    async fn setup_storage() -> Result<impl ConfigService> {
+    async fn setup_storage() -> Result<impl ConfigRepository> {
         TestStorage::in_memory()
     }
 

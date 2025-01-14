@@ -8,8 +8,8 @@ use forge_provider::ProviderService;
 
 use super::chat_service::ConversationHistory;
 use super::completion_service::CompletionService;
-use super::{ConfigService, ConversationService, File, Service, UIService};
-use crate::{Error, Result};
+use super::{File, Service, UIService};
+use crate::{ConfigRepository, ConversationRepository, Error, Result};
 
 #[async_trait::async_trait]
 pub trait RootAPIService: Send + Sync {
@@ -36,8 +36,8 @@ struct Live {
     tool: Arc<dyn ToolService>,
     completions: Arc<dyn CompletionService>,
     ui_service: Arc<dyn UIService>,
-    storage: Arc<dyn ConversationService>,
-    config_storage: Arc<dyn ConfigService>,
+    storage: Arc<dyn ConversationRepository>,
+    config_storage: Arc<dyn ConfigRepository>,
 }
 
 impl Live {
