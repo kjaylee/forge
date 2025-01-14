@@ -1,4 +1,5 @@
-use std::{fs, path::PathBuf};
+use std::fs;
+use std::path::PathBuf;
 
 use anyhow::Error;
 use forge_domain::{Permission, PermissionConfig, Policy};
@@ -66,10 +67,12 @@ impl PermissionLoader {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::fs;
+
     use forge_domain::{Permission, Policy, Whitelisted};
     use tempfile::TempDir;
-    use std::fs;
+
+    use super::*;
 
     fn setup_test_config(content: &str) -> (TempDir, PathBuf) {
         let temp_dir = TempDir::new().unwrap();
@@ -90,9 +93,18 @@ mod tests {
         let loader = PermissionLoader::new(config_path);
         let config = loader.load().unwrap();
 
-        assert!(matches!(config.policies.get(&Permission::Read), Some(Policy::Once)));
-        assert!(matches!(config.policies.get(&Permission::Write), Some(Policy::Once)));
-        assert!(matches!(config.policies.get(&Permission::Execute), Some(Policy::Once)));
+        assert!(matches!(
+            config.policies.get(&Permission::Read),
+            Some(Policy::Once)
+        ));
+        assert!(matches!(
+            config.policies.get(&Permission::Write),
+            Some(Policy::Once)
+        ));
+        assert!(matches!(
+            config.policies.get(&Permission::Execute),
+            Some(Policy::Once)
+        ));
     }
 
     #[test]
@@ -127,7 +139,10 @@ mod tests {
                 assert_eq!(cmds[0].0, "ls");
                 assert_eq!(cmds[1].0, "git status");
             }
-            other => panic!("Expected execute policy Always(Some([...])) got {:?}", other),
+            other => panic!(
+                "Expected execute policy Always(Some([...])) got {:?}",
+                other
+            ),
         }
     }
 

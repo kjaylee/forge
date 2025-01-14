@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
-    ToolService,
+    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
 };
 use serde_json::Value;
 use tracing::debug;

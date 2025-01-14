@@ -1,5 +1,8 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use forge_domain::{Permission, PermissionChecker, PermissionConfig, Policy};
+
 use crate::Service;
 
 pub trait PermissionService: Send + Sync + PermissionChecker {
@@ -23,29 +26,26 @@ impl PermissionChecker for Live {
 
         match config {
             Policy::Once => Ok(false),
-            Policy::Always(whitelist) => {
-                match whitelist {
-                    forge_domain::Whitelisted::All => Ok(true),
-                    forge_domain::Whitelisted::Some(commands) => {
-                        if let Some(cmd) = cmd {
-                            Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
-                        } else {
-                            Ok(false)
-                        }
+            Policy::Always(whitelist) => match whitelist {
+                forge_domain::Whitelisted::All => Ok(true),
+                forge_domain::Whitelisted::Some(commands) => {
+                    if let Some(cmd) = cmd {
+                        Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
+                    } else {
+                        Ok(false)
                     }
                 }
-            }
+            },
         }
     }
 }
 
 impl PermissionService for Live {
     fn get_policy(&self, permission: Permission) -> &Policy {
-        self.config.policies.get(&permission)
-            .unwrap_or({
-                // Default to most restrictive policy
-                &Policy::Once
-            })
+        self.config.policies.get(&permission).unwrap_or({
+            // Default to most restrictive policy
+            &Policy::Once
+        })
     }
 }
 
@@ -62,14 +62,14 @@ impl Service {
     }
 }
 
-
-
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use forge_domain::Whitelisted;
     use std::fs;
+
+    use forge_domain::Whitelisted;
     use tempfile::TempDir;
+
+    use super::*;
 
     pub struct TestPermissionService {
         config: PermissionConfig,
@@ -86,30 +86,33 @@ pub mod tests {
     }
     #[async_trait::async_trait]
     impl PermissionChecker for TestPermissionService {
-        async fn check_permission(&self, perm: Permission, cmd: Option<&str>) -> Result<bool, String> {
+        async fn check_permission(
+            &self,
+            perm: Permission,
+            cmd: Option<&str>,
+        ) -> Result<bool, String> {
             let config = self.get_policy(perm);
             match config {
                 Policy::Once => Ok(false),
-                Policy::Always(whitelist) => {
-                    match whitelist {
-                        Whitelisted::All => Ok(true),
-                        Whitelisted::Some(commands) => {
-                            if let Some(cmd) = cmd {
-                                Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
-                            } else {
-                                Ok(false)
-                            }
+                Policy::Always(whitelist) => match whitelist {
+                    Whitelisted::All => Ok(true),
+                    Whitelisted::Some(commands) => {
+                        if let Some(cmd) = cmd {
+                            Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
+                        } else {
+                            Ok(false)
                         }
                     }
-                }
+                },
             }
         }
-        
     }
 
     impl PermissionService for TestPermissionService {
         fn get_policy(&self, permission: Permission) -> &Policy {
-            self.config.policies.get(&permission)
+            self.config
+                .policies
+                .get(&permission)
                 .unwrap_or(&Policy::Once)
         }
     }
@@ -122,7 +125,7 @@ pub mod tests {
     }
 
     #[test]
-    fn test_load_minimal_config()  {
+    fn test_load_minimal_config() {
         let yaml_content = r#"
             read: once
             write: once
@@ -130,16 +133,13 @@ pub mod tests {
         "#;
         let (_temp_dir, config_path) = setup_test_config(yaml_content);
         std::env::set_var("FORGE_CONFIG", config_path);
-        
+
         let service = Service::permission_service();
-        assert!(matches!(
-            service.get_policy(Permission::Read),
-            Policy::Once
-        ));
+        assert!(matches!(service.get_policy(Permission::Read), Policy::Once));
     }
 
     #[test]
-    fn test_load_full_config(){
+    fn test_load_full_config() {
         let yaml_content = r#"
             read: "Always: all"
             write: always
@@ -149,7 +149,7 @@ pub mod tests {
         "#;
         let (_temp_dir, config_path) = setup_test_config(yaml_content);
         std::env::set_var("FORGE_CONFIG", config_path);
-        
+
         let service = Service::permission_service();
 
         assert!(matches!(
@@ -157,7 +157,8 @@ pub mod tests {
             Policy::Always(Whitelisted::All)
         ));
 
-        if let Policy::Always(Whitelisted::Some(commands)) = service.get_policy(Permission::Execute) {
+        if let Policy::Always(Whitelisted::Some(commands)) = service.get_policy(Permission::Execute)
+        {
             assert_eq!(commands.len(), 2);
             assert_eq!(commands[0].0, "ls");
             assert_eq!(commands[1].0, "git status");
@@ -178,9 +179,9 @@ pub mod tests {
         "#;
         let (_temp_dir, config_path) = setup_test_config(yaml_content);
         std::env::set_var("FORGE_CONFIG", config_path);
-        
+
         let service = Service::permission_service();
-        
+
         assert!(matches!(
             service.get_policy(Permission::Read),
             Policy::Always(Whitelisted::All)
@@ -190,14 +191,14 @@ pub mod tests {
             Policy::Always(Whitelisted::All)
         ));
 
-        if let Policy::Always(Whitelisted::Some(commands)) = service.get_policy(Permission::Execute) {
+        if let Policy::Always(Whitelisted::Some(commands)) = service.get_policy(Permission::Execute)
+        {
             assert_eq!(commands.len(), 1);
             assert_eq!(commands[0].0, "ls");
         } else {
             panic!("Expected Some whitelist for execute permission");
         }
     }
-
 
     #[test]
     fn test_default_policy_for_missing_permission() {
@@ -208,7 +209,7 @@ pub mod tests {
         "#;
         let (_temp_dir, config_path) = setup_test_config(yaml_content);
         std::env::set_var("FORGE_CONFIG", config_path);
-        
+
         let service = Service::permission_service();
         assert!(matches!(
             service.get_policy(Permission::Write),
