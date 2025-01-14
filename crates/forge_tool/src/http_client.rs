@@ -1,6 +1,5 @@
-use reqwest::{Client, Request};
-use anyhow;
 use bytes::Bytes;
+use reqwest::{Client, Request};
 
 #[async_trait::async_trait]
 pub trait HttpIO: Send + Sync + 'static {
@@ -11,11 +10,9 @@ pub struct ReqwestClient {
     client: Client,
 }
 
-impl Default for ReqwestClient { 
+impl Default for ReqwestClient {
     fn default() -> Self {
-        Self {
-            client: Client::new(),
-        }
+        Self { client: Client::new() }
     }
 }
 
@@ -29,8 +26,9 @@ impl HttpIO for ReqwestClient {
 
 #[cfg(test)]
 pub mod test_utils {
-    use super::*;
     use std::sync::Mutex;
+
+    use super::*;
 
     pub struct MockHttpIO {
         responses: Mutex<Vec<Bytes>>,

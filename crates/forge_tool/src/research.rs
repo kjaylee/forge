@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
-use reqwest::{header::HeaderMap, Request};
+use reqwest::header::HeaderMap;
+use reqwest::Request;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -176,7 +177,8 @@ impl ToolCallService for ResearchTool {
             .await
             .map_err(|e| e.to_string())?;
 
-        let response: PerplexityResponse = serde_json::from_slice(&response_bytes).map_err(|e| e.to_string())?;
+        let response: PerplexityResponse =
+            serde_json::from_slice(&response_bytes).map_err(|e| e.to_string())?;
 
         match response {
             PerplexityResponse::Success { choices, .. } => {
@@ -196,9 +198,10 @@ impl ToolCallService for ResearchTool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use super::*;
     use crate::http_client::test_utils::MockHttpIO;
-    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_research_tool_success() {
