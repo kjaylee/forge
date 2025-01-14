@@ -7,10 +7,10 @@ mod conversation;
 mod environment;
 mod errata;
 mod error;
+mod learning;
 mod message;
 mod model;
 mod permission;
-mod repository;
 mod stream_ext;
 mod tool;
 mod tool_call;
@@ -27,6 +27,7 @@ mod tool_usage;
 
 /// Service factory for creating service instances
 pub struct Service;
+mod user_interaction;
 
 pub use chat_request::*;
 pub use chat_response::*;
@@ -37,10 +38,10 @@ pub use conversation::*;
 pub use environment::*;
 pub use errata::*;
 pub use error::*;
+pub use learning::*;
 pub use message::*;
 pub use model::*;
 pub use permission::*;
-pub use repository::*;
 pub use stream_ext::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -51,3 +52,4 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
+pub use user_interaction::*;

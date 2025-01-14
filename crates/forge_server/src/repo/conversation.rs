@@ -3,10 +3,10 @@ use diesel::prelude::*;
 use diesel::sql_types::{Bool, Nullable, Text, Timestamp};
 use forge_domain::{Context, Conversation, ConversationId, ConversationMeta};
 
-use super::Service;
+use crate::error::Result;
 use crate::schema::conversations;
-use crate::service::db_service::DBService;
-use crate::Result;
+use crate::service::Service;
+use crate::sqlite::Sqlite;
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
 #[diesel(table_name = conversations)]
@@ -43,7 +43,7 @@ impl TryFrom<RawConversation> for Conversation {
 }
 
 #[async_trait::async_trait]
-pub trait ConversationService: Send + Sync {
+pub trait ConversationRepository: Send + Sync {
     async fn set_conversation(
         &self,
         request: &Context,
@@ -59,18 +59,18 @@ pub trait ConversationService: Send + Sync {
     ) -> Result<Conversation>;
 }
 
-pub struct Live<P: DBService> {
+pub struct Live<P: Sqlite> {
     pool_service: P,
 }
 
-impl<P: DBService> Live<P> {
+impl<P: Sqlite> Live<P> {
     pub fn new(pool_service: P) -> Self {
         Self { pool_service }
     }
 }
 
 #[async_trait::async_trait]
-impl<P: DBService + Send + Sync> ConversationService for Live<P> {
+impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
     async fn set_conversation(
         &self,
         request: &Context,
@@ -162,7 +162,7 @@ impl<P: DBService + Send + Sync> ConversationService for Live<P> {
 }
 
 impl Service {
-    pub fn storage_service(database_url: &str) -> Result<impl ConversationService> {
+    pub fn storage_service(database_url: &str) -> Result<impl ConversationRepository> {
         let pool_service = Service::db_pool_service(database_url)?;
         Ok(Live::new(pool_service))
     }
@@ -173,23 +173,23 @@ pub mod tests {
     use forge_domain::ModelId;
     use pretty_assertions::assert_eq;
 
-    use super::super::db_service::tests::TestDbPool;
     use super::*;
+    use crate::sqlite::tests::TestSqlite;
 
     pub struct TestStorage;
     impl TestStorage {
-        pub fn in_memory() -> Result<impl ConversationService> {
-            let pool_service = TestDbPool::new()?;
+        pub fn in_memory() -> Result<impl ConversationRepository> {
+            let pool_service = TestSqlite::new()?;
             Ok(Live::new(pool_service))
         }
     }
 
-    async fn setup_storage() -> Result<impl ConversationService> {
+    async fn setup_storage() -> Result<impl ConversationRepository> {
         TestStorage::in_memory()
     }
 
     async fn create_conversation(
-        storage: &impl ConversationService,
+        storage: &impl ConversationRepository,
         id: Option<ConversationId>,
     ) -> Result<Conversation> {
         let request = Context::new(ModelId::default());
