@@ -23,7 +23,12 @@ strum_macros = "0.26.4"
 thiserror = "1.0.39"
 tokio = { version = "1.42.0", features = ["full", "test-util"] }
 tokio-stream = "0.1.17"
-uuid = { version = "1.11.0", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
+uuid = { version = "1.11.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+    "serde",
+] }
 tracing = "0.1.26"
 
 [dev-dependencies]
