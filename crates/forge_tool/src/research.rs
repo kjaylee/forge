@@ -131,7 +131,8 @@ struct Detail {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ResearchInput {
-    /// The question or task for which we want to use internet to find the most relevant information.
+    /// The question or task for which we want to use internet to find the most
+    /// relevant information.
     question: String,
 }
 
