@@ -47,6 +47,10 @@ impl API {
         &self.env
     }
 
+    pub async fn conversations(&self) -> Result<Vec<Conversation>> {
+        self.api.conversations().await
+    }
+
     pub async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
         self.api.chat(chat).await
     }

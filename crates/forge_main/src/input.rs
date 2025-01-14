@@ -27,6 +27,9 @@ pub enum UserInput {
     /// A regular text message from the user to be processed by the chat system.
     /// Any input that doesn't start with '/' is treated as a message.
     Message(String),
+    /// Lists the available conversations that user had with the agent.
+    /// This can be triggered with the '/list' command.
+    List,
 }
 
 /// Internal representation of input types including system commands.
@@ -110,6 +113,7 @@ impl InputKind {
             "/new".to_string(),
             "/reload".to_string(),
             "/help".to_string(),
+            "/list".to_string(),
         ]
     }
 
@@ -130,6 +134,7 @@ impl InputKind {
             "/new" => Ok(InputKind::User(UserInput::New)),
             "/reload" => Ok(InputKind::User(UserInput::Reload)),
             "/help" => Ok(InputKind::Help),
+            "/list" => Ok(InputKind::User(UserInput::List)),
             cmd if cmd.starts_with('/') => {
                 let available_commands = Self::available_commands();
                 Err(anyhow::anyhow!(
@@ -160,6 +165,8 @@ impl InputKind {
 
 /end    - End the current conversation and exit the application.
 
+/list   - List all the conversations that user had with agent.
+
 Other Usage:
 - Type your message directly to chat with the AI
 - Commands are case-sensitive and must start with '/'
@@ -169,7 +176,8 @@ Other Usage:
 Quick Guide:
 - Use /new when you want to start a completely fresh conversation
 - Use /reload when you want to retry the current task from the beginning
-- Use /end when you're finished with all conversations"
+- Use /end when you're finished with all conversations
+- Use /list when you want to list the conversations you have had with the agent"
             .to_string()
     }
 }

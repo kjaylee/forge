@@ -4,6 +4,7 @@ use colored::Colorize;
 use forge_app::API;
 use forge_domain::{ChatRequest, ChatResponse, ModelId};
 use forge_main::{StatusDisplay, UserInput, CONSOLE};
+use inquire::Select;
 use tokio_stream::StreamExt;
 
 /// Command line arguments for the application
@@ -137,6 +138,44 @@ async fn main() -> Result<()> {
                     }
                 }
 
+                input = UserInput::prompt(current_title.as_deref(), None)?;
+            }
+            UserInput::List => {
+                let conversation_history = api.conversations().await.unwrap_or_default();
+                if conversation_history.is_empty() {
+                    CONSOLE.writeln("No conversations found.")?;
+                } else {
+                    // Format conversations for display
+                    let options: Vec<String> = conversation_history
+                        .iter()
+                        .map(|conv| {
+                            let title = conv.title.as_deref().unwrap_or("Untitled");
+                            let id = conv.id.into_string();
+                            format!("({}) - {}", id, title)
+                        })
+                        .collect();
+
+                    // Display conversations and get user selection
+                    if let Ok(selection) =
+                        Select::new("Select a conversation to resume:", options.clone()).prompt()
+                    {
+                        // Extract conversation ID from selection
+                        if let Some(selected_conv) = conversation_history.iter().find(|conv| {
+                            let title = conv.title.as_deref().unwrap_or("Untitled");
+                            let id = conv.id.into_string();
+                            selection == format!("({}) - {}", id, title)
+                        }) {
+                            current_conversation_id = Some(selected_conv.id.clone());
+                            current_title = selected_conv.title.clone();
+                            CONSOLE.writeln(&format!("Selected conversation: {}", selection))?;
+                        } else {
+                            CONSOLE.writeln(&format!(
+                                "Failed to select the conversation {}, please retry.",
+                                selection
+                            ))?;
+                        }
+                    }
+                }
                 input = UserInput::prompt(current_title.as_deref(), None)?;
             }
         }
