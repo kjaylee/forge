@@ -165,11 +165,11 @@ async fn main() -> Result<()> {
                             let id = conv.id.into_string();
                             selection == format!("({}) - {}", id, title)
                         }) {
-                            current_conversation_id = Some(selected_conv.id.clone());
+                            current_conversation_id = Some(selected_conv.id);
                             current_title = selected_conv.title.clone();
-                            CONSOLE.writeln(&format!("Selected conversation: {}", selection))?;
+                            CONSOLE.writeln(format!("Selected conversation: {}", selection))?;
                         } else {
-                            CONSOLE.writeln(&format!(
+                            CONSOLE.writeln(format!(
                                 "Failed to select the conversation {}, please retry.",
                                 selection
                             ))?;
