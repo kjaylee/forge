@@ -1,0 +1,10 @@
+read: Always
+write: Once
+execute:
+  Always:
+    Some:
+      - "ls"
+      - "git status"
+      - "git diff"
+      - "git log"
+      - "git show"

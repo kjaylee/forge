@@ -1,7 +1,7 @@
-mod cli;
 mod loader;
 mod service;
+mod cli;
 
+pub use loader::PermissionLoader;
+pub use service::PermissionService;
 pub use cli::CliPermissionHandler;
-pub use loader::get_config;
-pub use service::LivePermissionService;

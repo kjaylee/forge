@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    Permission, PermissionChecker, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    Permission, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
     ToolService,
 };
 use serde_json::Value;
@@ -11,7 +11,7 @@ use tracing::debug;
 use crate::approve::Approve;
 use crate::fs::*;
 use crate::outline::Outline;
-use crate::permission::{CliPermissionHandler, LivePermissionService};
+use crate::permission::{CliPermissionHandler, PermissionService};
 use crate::select::SelectTool;
 use crate::shell::Shell;
 use crate::think::Think;
@@ -19,13 +19,13 @@ use crate::Service;
 
 struct Live {
     pub tools: HashMap<ToolName, Tool>,
-    pub permission_service: Arc<LivePermissionService>,
+    pub permission_service: Arc<dyn PermissionService>,
     pub permission_handler: CliPermissionHandler,
 }
 
 impl Live {
     fn with_permissions() -> Self {
-        let permission_service = Arc::new(LivePermissionService);
+        let permission_service = Service::permission_service();
         let permission_handler = CliPermissionHandler::default();
         Self {
             tools: HashMap::new(),
@@ -47,7 +47,6 @@ impl Live {
                 .check_permission(*permission, cmd.as_deref())
                 .await
                 .map_err(|e| format!("Permission check error: {}", e))?;
-
             if !has_permission {
                 debug!("Permission check failed for {:?}", permission);
                 if !self

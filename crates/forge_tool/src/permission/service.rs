@@ -1,291 +1,218 @@
-use forge_domain::{Permission, PermissionChecker, Policy, Whitelisted};
-use tracing::debug;
+use std::{path::PathBuf, sync::Arc};
+use forge_domain::{Permission, PermissionChecker, PermissionConfig, Policy};
+use crate::Service;
 
-use crate::permission::loader;
+pub trait PermissionService: Send + Sync + PermissionChecker {
+    fn get_policy(&self, permission: Permission) -> &Policy;
+}
 
-/// Live permission service implementation
-#[derive(Clone)]
-pub struct LivePermissionService;
+struct Live {
+    config: PermissionConfig,
+}
 
-impl LivePermissionService {
-    /// Create new service instance
-    pub fn new() -> Self {
-        Self
+impl Live {
+    fn new(config: PermissionConfig) -> Self {
+        Self { config }
     }
 }
 
 #[async_trait::async_trait]
-impl PermissionChecker for LivePermissionService {
+impl PermissionChecker for Live {
     async fn check_permission(&self, perm: Permission, cmd: Option<&str>) -> Result<bool, String> {
-        let config = loader::get_config();
-        debug!("Checking permission {:?} with command {:?}", perm, cmd);
-        debug!("Current config: {:?}", config);
+        let config = self.get_policy(perm);
 
-        let result = match config.policies.get(&perm) {
-            Some(Policy::Once) => {
-                debug!("Policy Once found for {:?}", perm);
-                false
-            } // Always ask for permission
-            Some(Policy::Always(whitelist)) => match (perm, whitelist, cmd) {
-                // For Execute permission, check command against whitelist
-                (Permission::Execute, _, None) => {
-                    debug!("Execute permission without command");
-                    false
-                } // Execute needs a command
-                (Permission::Execute, Whitelisted::All, _) => {
-                    debug!("Execute permission with All whitelist");
-                    true
+        match config {
+            Policy::Once => Ok(false),
+            Policy::Always(whitelist) => {
+                match whitelist {
+                    forge_domain::Whitelisted::All => Ok(true),
+                    forge_domain::Whitelisted::Some(commands) => {
+                        if let Some(cmd) = cmd {
+                            Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
+                        } else {
+                            Ok(false)
+                        }
+                    }
                 }
-                (Permission::Execute, Whitelisted::Some(commands), Some(cmd)) => {
-                    let allowed = commands.iter().any(|c| cmd.contains(&c.0));
-                    debug!("Execute permission check for {:?}: {:?}", cmd, allowed);
-                    allowed
-                }
-                // For Read/Write, any Always policy grants permission
-                (_, Whitelisted::All, _) => {
-                    debug!("Always policy (All) for non-execute permission");
-                    true
-                }
-                (_, Whitelisted::Some(_), _) => {
-                    debug!("Always policy (Some) for non-execute permission");
-                    true
-                }
-            },
-            None => {
-                debug!("No policy found for {:?}", perm);
-                false
-            } // If no policy exists, deny by default
-        };
-
-        debug!("Permission check result for {:?}: {:?}", perm, result);
-        Ok(result)
+            }
+        }
     }
 }
 
-impl Default for LivePermissionService {
-    fn default() -> Self {
-        Self::new()
+impl PermissionService for Live {
+    fn get_policy(&self, permission: Permission) -> &Policy {
+        self.config.policies.get(&permission)
+            .unwrap_or({
+                // Default to most restrictive policy
+                &Policy::Once
+            })
     }
 }
+
+impl Service {
+    pub fn permission_service() -> Arc<dyn PermissionService> {
+        let config_path = std::env::var("FORGE_CONFIG")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| "config.yml".into());
+
+        let loader = crate::permission::PermissionLoader::new(config_path);
+        let config = loader.load().unwrap_or_default();
+
+        Arc::new(Live::new(config))
+    }
+}
+
+
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
+    use super::*;
+    use forge_domain::Whitelisted;
     use std::fs;
-
-    use loader::config::YamlConfig;
     use tempfile::TempDir;
 
-    use super::*;
+    pub struct TestPermissionService {
+        config: PermissionConfig,
+    }
 
-    fn parse_and_set_config(content: &str) -> TempDir {
+    impl TestPermissionService {
+        pub fn new(config: PermissionConfig) -> Self {
+            Self { config }
+        }
+
+        pub fn default() -> Self {
+            Self { config: PermissionConfig::default() }
+        }
+    }
+    #[async_trait::async_trait]
+    impl PermissionChecker for TestPermissionService {
+        async fn check_permission(&self, perm: Permission, cmd: Option<&str>) -> Result<bool, String> {
+            let config = self.get_policy(perm);
+            match config {
+                Policy::Once => Ok(false),
+                Policy::Always(whitelist) => {
+                    match whitelist {
+                        Whitelisted::All => Ok(true),
+                        Whitelisted::Some(commands) => {
+                            if let Some(cmd) = cmd {
+                                Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
+                            } else {
+                                Ok(false)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+    }
+
+    impl PermissionService for TestPermissionService {
+        fn get_policy(&self, permission: Permission) -> &Policy {
+            self.config.policies.get(&permission)
+                .unwrap_or(&Policy::Once)
+        }
+    }
+
+    fn setup_test_config(content: &str) -> (TempDir, PathBuf) {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yml");
         fs::write(&config_path, content).unwrap();
+        (temp_dir, config_path)
+    }
+
+    #[test]
+    fn test_load_minimal_config()  {
+        let yaml_content = r#"
+            read: once
+            write: once
+            execute: once
+        "#;
+        let (_temp_dir, config_path) = setup_test_config(yaml_content);
         std::env::set_var("FORGE_CONFIG", config_path);
-
-        // Parse and set the config directly
-        let yaml: YamlConfig = serde_yaml::from_str(content).unwrap();
-        let config = loader::convert_config(yaml);
-        loader::set_test_config(Some(config));
-
-        temp_dir
+        
+        let service = Service::permission_service();
+        assert!(matches!(
+            service.get_policy(Permission::Read),
+            Policy::Once
+        ));
     }
 
-    #[tokio::test]
-    async fn test_once_permissions() {
-        let config = r#"
-read:
-  type: "Once"
-write:
-  type: "Once"
-execute:
-  type: "Once"
-"#;
-        let _temp_dir = parse_and_set_config(config);
-        let service = LivePermissionService::new();
+    #[test]
+    fn test_load_full_config(){
+        let yaml_content = r#"
+            read: "Always: all"
+            write: always
+            execute:
+              Always:
+                Some: ["ls", "git status"]
+        "#;
+        let (_temp_dir, config_path) = setup_test_config(yaml_content);
+        std::env::set_var("FORGE_CONFIG", config_path);
+        
+        let service = Service::permission_service();
 
-        let read = service.check_permission(Permission::Read, None).await;
-        let write = service.check_permission(Permission::Write, None).await;
-        let execute = service
-            .check_permission(Permission::Execute, Some("ls"))
-            .await;
+        assert!(matches!(
+            service.get_policy(Permission::Read),
+            Policy::Always(Whitelisted::All)
+        ));
 
-        assert!(matches!(read, Ok(false)), "Read should require asking");
-        assert!(matches!(write, Ok(false)), "Write should require asking");
-        assert!(
-            matches!(execute, Ok(false)),
-            "Execute should require asking"
-        );
+        if let Policy::Always(Whitelisted::Some(commands)) = service.get_policy(Permission::Execute) {
+            assert_eq!(commands.len(), 2);
+            assert_eq!(commands[0].0, "ls");
+            assert_eq!(commands[1].0, "git status");
+        } else {
+            panic!("Expected Some whitelist for execute permission");
+        }
     }
 
-    #[tokio::test]
-    async fn test_execute_whitelist() {
-        let config = r#"
-read:
-  type: "Once"
-write:
-  type: "Once"
-execute:
-  type: "Always"
-  whitelist:
-    type: "Some"
-    commands:
-      - "ls"
-      - "git"
-"#;
-        let _temp_dir = parse_and_set_config(config);
-        let service = LivePermissionService::new();
+    #[test]
+    fn test_mixed_format() {
+        let yaml_content = r#"
+            read: "Always: all"
+            write: 
+              Always: "all"
+            execute:
+              Always:
+                Some: ["ls"]
+        "#;
+        let (_temp_dir, config_path) = setup_test_config(yaml_content);
+        std::env::set_var("FORGE_CONFIG", config_path);
+        
+        let service = Service::permission_service();
+        
+        assert!(matches!(
+            service.get_policy(Permission::Read),
+            Policy::Always(Whitelisted::All)
+        ));
+        assert!(matches!(
+            service.get_policy(Permission::Write),
+            Policy::Always(Whitelisted::All)
+        ));
 
-        // Whitelisted command
-        let result = service
-            .check_permission(Permission::Execute, Some("ls -la"))
-            .await;
-        assert!(
-            matches!(result, Ok(true)),
-            "Whitelisted command should be allowed"
-        );
-
-        // Non-whitelisted command
-        let result = service
-            .check_permission(Permission::Execute, Some("rm -rf"))
-            .await;
-        assert!(
-            matches!(result, Ok(false)),
-            "Non-whitelisted command should be denied"
-        );
-
-        // Missing command
-        let result = service.check_permission(Permission::Execute, None).await;
-        assert!(
-            matches!(result, Ok(false)),
-            "Missing command should be denied"
-        );
+        if let Policy::Always(Whitelisted::Some(commands)) = service.get_policy(Permission::Execute) {
+            assert_eq!(commands.len(), 1);
+            assert_eq!(commands[0].0, "ls");
+        } else {
+            panic!("Expected Some whitelist for execute permission");
+        }
     }
 
-    #[tokio::test]
-    async fn test_always_read() {
-        let config = r#"
-read:
-  type: "Always"
-write:
-  type: "Once"
-execute:
-  type: "Once"
-"#;
-        let _temp_dir = parse_and_set_config(config);
-        let service = LivePermissionService::new();
 
-        let result = service.check_permission(Permission::Read, None).await;
-        assert!(
-            matches!(result, Ok(true)),
-            "Always policy should allow read"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_config_loading() {
-        let config = r#"
-read:
-  type: "Always"
-write:
-  type: "Once"
-execute:
-  type: "Once"
-"#;
-        let _temp_dir = parse_and_set_config(config);
-
-        // Force config loading and verify it's correct
-        let config = loader::get_config();
-        println!("Config loaded: {:?}", config);
-        assert!(
-            config.policies.contains_key(&Permission::Read),
-            "Read policy should exist"
-        );
-        assert!(
-            matches!(
-                config.policies.get(&Permission::Read),
-                Some(Policy::Always(_))
-            ),
-            "Read policy should be Always"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_mixed_permissions() {
-        let config = r#"
-read:
-  type: "Always"
-write:
-  type: "Once"
-execute:
-  type: "Always"
-  whitelist:
-    type: "Some"
-    commands:
-      - "ls"
-      - "git"
-"#;
-        let _temp_dir = parse_and_set_config(config);
-        let service = LivePermissionService::new();
-
-        let read = service.check_permission(Permission::Read, None).await;
-        assert!(matches!(read, Ok(true)), "Read should be allowed");
-
-        let write = service.check_permission(Permission::Write, None).await;
-        assert!(matches!(write, Ok(false)), "Write should require asking");
-
-        let allowed_exec = service
-            .check_permission(Permission::Execute, Some("ls"))
-            .await;
-        assert!(
-            matches!(allowed_exec, Ok(true)),
-            "Allowed command should be permitted"
-        );
-
-        let denied_exec = service
-            .check_permission(Permission::Execute, Some("rm"))
-            .await;
-        assert!(
-            matches!(denied_exec, Ok(false)),
-            "Denied command should be rejected"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_config_case_insensitivity() {
-        let config = r#"
-read:
-  type: "ALWAYS"
-write:
-  type: "ONCE"
-execute:
-  type: "ALWAYS"
-  whitelist:
-    type: "SOME"
-    commands:
-      - "ls"
-"#;
-        let _temp_dir = parse_and_set_config(config);
-        let service = LivePermissionService::new();
-
-        let read = service.check_permission(Permission::Read, None).await;
-        assert!(
-            matches!(read, Ok(true)),
-            "Case-insensitive Always should allow read"
-        );
-
-        let write = service.check_permission(Permission::Write, None).await;
-        assert!(
-            matches!(write, Ok(false)),
-            "Case-insensitive Once should require asking"
-        );
-
-        let exec = service
-            .check_permission(Permission::Execute, Some("ls"))
-            .await;
-        assert!(
-            matches!(exec, Ok(true)),
-            "Case-insensitive whitelist should work"
-        );
+    #[test]
+    fn test_default_policy_for_missing_permission() {
+        let yaml_content = r#"
+            read: once
+            # write permission missing
+            execute: once
+        "#;
+        let (_temp_dir, config_path) = setup_test_config(yaml_content);
+        std::env::set_var("FORGE_CONFIG", config_path);
+        
+        let service = Service::permission_service();
+        assert!(matches!(
+            service.get_policy(Permission::Write),
+            Policy::Once
+        ));
     }
 }

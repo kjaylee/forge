@@ -1,101 +1,54 @@
-# Permission System Configuration Guide
+# Permission System
 
-The permission system uses YAML configuration files to define access policies for different operations. This guide explains how to configure the permissions for your environment.
+## Configuration Modes
 
-## Configuration Location
+The permission system supports three primary modes for different operations:
 
-The system looks for configuration in the following order:
-1. Path specified in `FORGE_CONFIG` environment variable
-2. `config.yml` in the current directory
-3. Falls back to default configuration (all operations require confirmation)
+### 1. `Once`
+- Prompts for confirmation on each operation
+- Useful for sensitive or infrequent actions
+- Default fallback mode
 
-## Basic Structure
-
-The configuration file has three main sections:
-- `read`: File read operations
-- `write`: File write operations
-- `execute`: Command execution operations
-
-### Permission Types
-
-Each operation can be configured with one of two types:
-- `Once`: Ask for permission each time
-- `Always`: Either allow all or use whitelist
-
-### Example Configuration
-
+### 2. `Always`
+#### Global Allow
 ```yaml
-# Read operations
-read:
-  type: "Once"  # Ask for each read
-
-# Write operations
-write:
-  type: "Once"  # Ask for each write
-
-# Execute operations
-execute:
-  type: "Always"
-  whitelist:
-    type: "Some"  # or "All"
-    commands:
-      - "ls"
-      - "git status"
+read: Always    # Always allow without prompting
+write: Always   # Always allow without prompting
 ```
 
-## Detailed Options
-
-### Read and Write Operations
-```yaml
-read:  # or write:
-  type: "Once"   # Ask each time
-  # or
-  type: "Always" # Always allow
-```
-
-### Execute Operations
+#### Selective Whitelist
 ```yaml
 execute:
-  type: "Once"   # Ask for each command
-  # or
-  type: "Always"
-  whitelist:
-    type: "All"   # Allow all commands
-  # or
-  type: "Always"
-  whitelist:
-    type: "Some"
-    commands:     # List specific allowed commands
+  Always:
+    Some:       # Allow only specific commands
       - "ls"
       - "git status"
+      - "git diff"
 ```
 
-## Command Matching
+## Example Configuration
 
-For execute permissions with a whitelist:
-- Commands are matched using substring comparison
-- For example, if "git" is whitelisted, all git commands will be allowed
-- Be specific to avoid unintended permissions (use "git status" instead of just "git")
+```yaml
+read: Always    # Unrestricted read access
+write: Once     # Confirm before each write operation
+execute:        # Selective execute permissions
+  Always:
+    Some:
+      - "ls"
+      - "git status"
+      - "git diff"
+```
 
-## Default Behavior
+## Interaction Flow
 
-If no configuration is found or if there are parsing errors:
-- All operations default to "Once" (ask each time)
-- No commands are whitelisted
-- Each operation requires explicit permission
+- For `Once` permissions: Interactive selection prompt
+- For `Always` with whitelist: 
+  - Automatically allow whitelisted commands
+  - Prompt for non-whitelisted commands
+- For `Always` global: Automatic permission granted
 
-## Security Considerations
+## Best Practices
 
-1. Whitelist Specificity:
-   - Be specific with command whitelisting
-   - Use full command names when possible
-   - Avoid overly broad permissions
-
-2. File Operations:
-   - Consider using "Once" for write operations
-   - Use "Always" carefully with file operations
-
-3. Configuration Protection:
-   - Protect the configuration file from unauthorized modifications
-   - Use version control for configuration changes
-   - Review configurations regularly
+- Use `Once` for sensitive operations
+- Use whitelisting for controlled execute permissions
+- Regularly review and update your permission configuration
