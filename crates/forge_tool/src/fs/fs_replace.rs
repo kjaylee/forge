@@ -2,7 +2,8 @@ use std::path::Path;
 
 use dissimilar::Chunk;
 use forge_domain::{
-    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
+    ToolPermissions,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

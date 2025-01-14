@@ -1,4 +1,6 @@
-use forge_domain::{NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -27,7 +29,6 @@ impl ToolPermissions for AskFollowUpQuestion {
     fn required_permissions(&self) -> Vec<forge_domain::Permission> {
         vec![]
     }
-    
 }
 
 #[async_trait::async_trait]

@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use forge_domain::{
-    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
+    ToolPermissions,
 };
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;

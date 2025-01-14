@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 use colorize::AnsiColor;
 use forge_domain::{
-    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
+    ToolPermissions,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;

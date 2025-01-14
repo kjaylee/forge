@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use forge_domain::{NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;

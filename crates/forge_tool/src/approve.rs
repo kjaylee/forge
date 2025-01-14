@@ -1,5 +1,7 @@
 use anyhow::Result;
-use forge_domain::{NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+};
 use forge_tool_macros::ToolDescription;
 use inquire::Confirm;
 use schemars::JsonSchema;
@@ -44,8 +46,6 @@ impl ToolPermissions for Approve {
 
 #[async_trait::async_trait]
 impl ToolCallService for Approve {
-    
-
     type Input = ApproveInput;
     type Output = bool;
     async fn call(&self, input: ApproveInput) -> Result<bool, String> {
@@ -55,7 +55,7 @@ impl ToolCallService for Approve {
             .map_err(|e| e.to_string())?;
         Ok(ans)
     }
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest<> {
+    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
         PermissionRequest::new(vec![], None)
     }
 }

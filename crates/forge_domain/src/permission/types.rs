@@ -17,19 +17,15 @@ pub enum Policy<T> {
     Always(Whitelisted<T>),
 }
 
-pub struct  PermissionRequest{
+pub struct PermissionRequest {
     pub permissions: Vec<Permission>,
     pub cmd: Option<String>,
 }
 
-impl  PermissionRequest{
+impl PermissionRequest {
     pub fn new(permissions: Vec<Permission>, cmd: Option<String>) -> Self {
-        Self {
-            permissions,
-            cmd
-        }
+        Self { permissions, cmd }
     }
-    
 }
 
 /// Whitelist configuration for allowed operations
