@@ -69,54 +69,6 @@ pub mod tests {
     use forge_domain::Whitelisted;
     use tempfile::TempDir;
 
-    use super::*;
-
-    pub struct TestPermissionService {
-        config: PermissionConfig,
-    }
-
-    impl TestPermissionService {
-        pub fn new(config: PermissionConfig) -> Self {
-            Self { config }
-        }
-
-        pub fn default() -> Self {
-            Self { config: PermissionConfig::default() }
-        }
-    }
-    #[async_trait::async_trait]
-    impl PermissionChecker for TestPermissionService {
-        async fn check_permission(
-            &self,
-            perm: Permission,
-            cmd: Option<&str>,
-        ) -> Result<bool, String> {
-            let config = self.get_policy(perm);
-            match config {
-                Policy::Once => Ok(false),
-                Policy::Always(whitelist) => match whitelist {
-                    Whitelisted::All => Ok(true),
-                    Whitelisted::Some(commands) => {
-                        if let Some(cmd) = cmd {
-                            Ok(commands.iter().any(|c| c.0.starts_with(cmd)))
-                        } else {
-                            Ok(false)
-                        }
-                    }
-                },
-            }
-        }
-    }
-
-    impl PermissionService for TestPermissionService {
-        fn get_policy(&self, permission: Permission) -> &Policy {
-            self.config
-                .policies
-                .get(&permission)
-                .unwrap_or(&Policy::Once)
-        }
-    }
-
     fn setup_test_config(content: &str) -> (TempDir, PathBuf) {
         let temp_dir = TempDir::new().unwrap();
         let config_path = temp_dir.path().join("config.yml");
