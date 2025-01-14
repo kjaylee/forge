@@ -9,7 +9,7 @@ pub enum Error {
     EmptyContent,
     ModelNotFound(ModelId),
     #[from(ignore)]
-    #[display("Upstream: {}", 1)]
+    #[display("Upstream error (code: {code}): message: {message}")]
     Upstream {
         code: u32,
         message: String,
