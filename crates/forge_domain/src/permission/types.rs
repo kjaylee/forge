@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize, Deserializer};
 use serde_yaml::Value;
 
 /// Basic permission types that tools can request
@@ -38,9 +37,8 @@ impl<'de> Deserialize<'de> for Policy {
             Value::String(s) => {
                 let lower = s.to_lowercase();
                 if lower.contains("always") || lower.contains("all") {
-                    let whitelisted =
-                        Whitelisted::<Command>::deserialize(Value::String("All".to_string()))
-                            .map_err(serde::de::Error::custom)?;
+                    let whitelisted = Whitelisted::<Command>::deserialize(Value::String("All".to_string()))
+                        .map_err(serde::de::Error::custom)?;
                     Ok(Policy::Always(whitelisted))
                 } else {
                     Err(serde::de::Error::custom(
@@ -55,17 +53,15 @@ impl<'de> Deserialize<'de> for Policy {
                 let always_keys = ["Always", "always", "All", "all"];
 
                 for key in always_keys.iter() {
-                    if let Some(inner_val) = map.get(Value::String(key.to_string())) {
+                    if let Some(inner_val) = map.get(&Value::String(key.to_string())) {
                         let whitelisted = match inner_val {
                             // Simple "All"
                             Value::String(s) if s.to_lowercase() == "all" => {
                                 Whitelisted::<Command>::All
                             }
                             // Nested mapping
-                            Value::Mapping(_) => {
-                                Whitelisted::<Command>::deserialize(inner_val.clone())
-                                    .map_err(serde::de::Error::custom)?
-                            }
+                            Value::Mapping(_) => Whitelisted::<Command>::deserialize(inner_val.clone())
+                                .map_err(serde::de::Error::custom)?,
                             // Default to All for other cases
                             _ => Whitelisted::<Command>::All,
                         };
@@ -115,9 +111,8 @@ pub enum Whitelisted<T> {
 
 // -- CUSTOM DESERIALIZE IMPL --
 //
-// We manually implement Deserialize so that a YAML string "All" becomes
-// `Whitelisted::All`, and a YAML map with `Some: [...]` becomes
-// `Whitelisted::Some(Vec<T>)`.
+// We manually implement Deserialize so that a YAML string "All" becomes `Whitelisted::All`,
+// and a YAML map with `Some: [...]` becomes `Whitelisted::Some(Vec<T>)`.
 //
 // Example valid YAML shapes:
 //   "All"
@@ -143,26 +138,25 @@ where
             // If it's a mapping with "All" or "Something"
             Value::Mapping(ref map) => {
                 // If there's a direct match with "All"
-                if map.get(Value::String("All".to_string())).is_some() {
+                if map.get(&Value::String("All".to_string())).is_some() {
                     return Ok(Whitelisted::All);
                 }
 
                 // If there's a "Some" key
-                if let Some(some_val) = map.get(Value::String("Some".to_string())) {
+                if let Some(some_val) = map.get(&Value::String("Some".to_string())) {
                     let items = Vec::<T>::deserialize(some_val.clone())
                         .map_err(serde::de::Error::custom)?;
                     return Ok(Whitelisted::Some(items));
                 }
 
                 // Special handling for nested Always
-                if let Some(inner_val) = map.get(Value::String("Always".to_string())) {
+                if let Some(inner_val) = map.get(&Value::String("Always".to_string())) {
                     match inner_val {
                         Value::String(s) if s.to_lowercase() == "all" => {
                             return Ok(Whitelisted::All);
                         }
                         Value::Mapping(inner_map) => {
-                            if let Some(some_val) = inner_map.get(Value::String("Some".to_string()))
-                            {
+                            if let Some(some_val) = inner_map.get(&Value::String("Some".to_string())) {
                                 let items = Vec::<T>::deserialize(some_val.clone())
                                     .map_err(serde::de::Error::custom)?;
                                 return Ok(Whitelisted::Some(items));
@@ -220,28 +214,19 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = PermissionConfig::default();
-        assert!(matches!(
-            config.policies.get(&Permission::Read),
-            Some(Policy::Once)
-        ));
-        assert!(matches!(
-            config.policies.get(&Permission::Write),
-            Some(Policy::Once)
-        ));
-        assert!(matches!(
-            config.policies.get(&Permission::Execute),
-            Some(Policy::Once)
-        ));
+        assert!(matches!(config.policies.get(&Permission::Read), Some(Policy::Once)));
+        assert!(matches!(config.policies.get(&Permission::Write), Some(Policy::Once)));
+        assert!(matches!(config.policies.get(&Permission::Execute), Some(Policy::Once)));
     }
 
     #[test]
     fn test_allowed_commands() {
         let mut config = PermissionConfig::default();
-        let whitelist =
-            Whitelisted::Some(vec![Command("ls".to_string()), Command("git".to_string())]);
-        config
-            .policies
-            .insert(Permission::Execute, Policy::Always(whitelist));
+        let whitelist = Whitelisted::Some(vec![
+            Command("ls".to_string()),
+            Command("git".to_string()),
+        ]);
+        config.policies.insert(Permission::Execute, Policy::Always(whitelist));
 
         match config.policies.get(&Permission::Execute) {
             Some(Policy::Always(Whitelisted::Some(commands))) => {

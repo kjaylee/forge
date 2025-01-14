@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-Inflector = "0.11.4"
 anyhow = "1.0"
 async-trait = "0.1.84"
 chrono = { version = "0.4.39", features = ["serde"] }
@@ -29,7 +28,6 @@ uuid = { version = "1.11.0", features = [
     "macro-diagnostics",
     "serde",
 ] }
-tracing = "0.1.26"
 
 [dev-dependencies]
 insta = { version = "1.34.0", features = ["json"] }

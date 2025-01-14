@@ -877,7 +877,6 @@ dependencies = [
 name = "forge_domain"
 version = "0.1.0"
 dependencies = [
- "Inflector",
  "anyhow",
  "async-trait",
  "chrono",
@@ -899,7 +898,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
- "tracing",
  "uuid",
 ]
 
