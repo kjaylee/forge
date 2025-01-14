@@ -161,8 +161,7 @@ where
                             return Ok(Whitelisted::All);
                         }
                         Value::Mapping(inner_map) => {
-                            if let Some(some_val) =
-                                inner_map.get(Value::String("Some".to_string()))
+                            if let Some(some_val) = inner_map.get(Value::String("Some".to_string()))
                             {
                                 let items = Vec::<T>::deserialize(some_val.clone())
                                     .map_err(serde::de::Error::custom)?;
