@@ -91,7 +91,10 @@ impl ToolService for Live {
 }
 
 impl Service {
-    pub fn tool_service(learning_repository: Arc<dyn LearningRepository>) -> impl ToolService {
+    pub fn tool_service(
+        current_working_dir: impl ToString,
+        learning_repository: Arc<dyn LearningRepository>,
+    ) -> impl ToolService {
         Live::from_iter([
             Tool::new(Approve),
             Tool::new(FSRead),
@@ -104,7 +107,10 @@ impl Service {
             Tool::new(SelectTool),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
-            Tool::new(Learning::new(learning_repository)),
+            Tool::new(Learning::new(
+                current_working_dir.to_string(),
+                learning_repository,
+            )),
         ])
     }
 }

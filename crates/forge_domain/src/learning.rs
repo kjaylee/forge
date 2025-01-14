@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{ConversationId, Error};
+use crate::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct LearningId(pub Uuid);
@@ -42,16 +42,16 @@ impl fmt::Display for LearningId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Learning {
     pub id: LearningId,
-    pub conversation_id: ConversationId,
+    pub current_working_directory: String,
     pub learnings: Vec<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl Learning {
-    pub fn new(conversation_id: ConversationId, learnings: Vec<String>) -> Self {
+    pub fn new(current_working_directory: String, learnings: Vec<String>) -> Self {
         Self {
             id: LearningId::new(),
-            conversation_id,
+            current_working_directory,
             learnings,
             created_at: chrono::Utc::now(),
         }
@@ -64,7 +64,7 @@ pub trait LearningRepository: Send + Sync {
     async fn list_learnings(&self) -> anyhow::Result<Vec<Learning>>;
 
     /// Get 'N' recent learning of conversations.
-    async fn get_recent_learnings(&self, n: usize) -> anyhow::Result<Vec<Learning>>;
+    async fn recent_learnings(&self, n: usize) -> anyhow::Result<Vec<Learning>>;
 
     /// Save Learnings from the conversation
     async fn save(&self, learning: Learning) -> anyhow::Result<()>;

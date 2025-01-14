@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp};
-use forge_domain::{ConversationId, Learning, LearningId, LearningRepository};
+use forge_domain::{Learning, LearningId, LearningRepository};
 
 use crate::error::Result;
 use crate::schema::learning_table;
@@ -14,7 +14,7 @@ struct RawLearning {
     #[diesel(sql_type = Text)]
     id: String,
     #[diesel(sql_type = Text)]
-    conversation_id: String,
+    cwd: String,
     #[diesel(sql_type = Text)]
     learnings: String,
     #[diesel(sql_type = Timestamp)]
@@ -26,7 +26,7 @@ impl TryFrom<RawLearning> for Learning {
     fn try_from(raw: RawLearning) -> Result<Self> {
         Ok(Learning {
             id: LearningId::parse(&raw.id)?,
-            conversation_id: ConversationId::parse(raw.conversation_id)?,
+            current_working_directory: raw.cwd,
             learnings: serde_json::from_str(&raw.learnings)?,
             created_at: DateTime::from_naive_utc_and_offset(raw.created_at, Utc),
         })
@@ -66,7 +66,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
         Ok(learnings)
     }
 
-    async fn get_recent_learnings(&self, n: usize) -> anyhow::Result<Vec<Learning>> {
+    async fn recent_learnings(&self, n: usize) -> anyhow::Result<Vec<Learning>> {
         let pool = self
             .pool_service
             .pool()
@@ -98,7 +98,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 
         let raw = RawLearning {
             id: learning.id.to_string(),
-            conversation_id: learning.conversation_id.to_string(),
+            cwd: learning.current_working_directory.to_string(),
             learnings: serde_json::to_string(&learning.learnings)?,
             created_at: learning.created_at.naive_utc(),
         };
@@ -120,6 +120,8 @@ impl Service {
 
 #[cfg(test)]
 pub mod tests {
+    use tempfile::TempDir;
+
     use super::*;
     use crate::sqlite::tests::TestSqlite;
 
@@ -136,13 +138,17 @@ pub mod tests {
         TestStorage::in_memory()
     }
 
+    fn test_cwd() -> TempDir {
+        TempDir::new().unwrap()
+    }
+
     #[tokio::test]
     async fn test_save_and_retrieve_learnings() {
         let storage = setup_storage().await.unwrap();
-        let conversation_id = ConversationId::generate();
+        let cwd = test_cwd().path().to_string_lossy().to_string();
 
         let learning = Learning::new(
-            conversation_id,
+            cwd.clone(),
             vec!["test learning 1".to_string(), "test learning 2".to_string()],
         );
 
@@ -150,7 +156,7 @@ pub mod tests {
 
         let learnings = storage.list_learnings().await.unwrap();
         assert_eq!(learnings.len(), 1);
-        assert_eq!(learnings[0].conversation_id, conversation_id);
+        assert_eq!(learnings[0].current_working_directory, cwd);
         assert_eq!(
             learnings[0].learnings,
             vec!["test learning 1", "test learning 2"]
@@ -160,14 +166,14 @@ pub mod tests {
     #[tokio::test]
     async fn test_get_recent_learnings() {
         let storage = setup_storage().await.unwrap();
-        let conversation_id = ConversationId::generate();
+        let cwd = test_cwd().path().to_string_lossy().to_string();
 
         for i in 0..5 {
-            let learning = Learning::new(conversation_id, vec![format!("learning {}", i)]);
+            let learning = Learning::new(cwd.clone(), vec![format!("learning {}", i)]);
             storage.save(learning).await.unwrap();
         }
 
-        let recent = storage.get_recent_learnings(3).await.unwrap();
+        let recent = storage.recent_learnings(3).await.unwrap();
         assert_eq!(recent.len(), 3);
         assert_eq!(recent[0].learnings, vec!["learning 4"]);
         assert_eq!(recent[1].learnings, vec!["learning 3"]);

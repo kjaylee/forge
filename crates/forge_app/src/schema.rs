@@ -22,12 +22,14 @@ diesel::table! {
 diesel::table! {
     learning_table (id) {
         id -> Text,
-        conversation_id -> Text,
+        cwd -> Text,
         learnings -> Text,
         created_at -> Timestamp,
     }
 }
 
-diesel::joinable!(learning_table -> conversations (conversation_id));
-
-diesel::allow_tables_to_appear_in_same_query!(configuration_table, conversations, learning_table,);
+diesel::allow_tables_to_appear_in_same_query!(
+    configuration_table,
+    conversations,
+    learning_table,
+);
