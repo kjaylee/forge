@@ -121,6 +121,32 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
     }
   },
   {
+    "name": "learning",
+    "description": "Whenever the agent learns something new, agent should call learning tool\n so that learning can be stored and referred for future conversations.\n Each learning represents a piece of information that was discovered or\n clarified during the conversation, such as:\n - User\\'s coding style preferences\n - Project-specific requirements or constraints\n - Technical decisions and their rationale\n - Important context about the codebase\n\nParameters:\n- learnings (required): List of learnings to store. Each string should be a clear and concise statement capturing a single piece of information learned during the conversation.",
+    "input_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LearningInput",
+      "type": "object",
+      "required": [
+        "learnings"
+      ],
+      "properties": {
+        "learnings": {
+          "description": "List of learnings to store. Each string should be a clear and concise statement capturing a single piece of information learned during the conversation.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "output_schema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "String",
+      "type": "string"
+    }
+  },
+  {
     "name": "list_directory_content",
     "description": "Request to list files and directories within the specified directory. If\n recursive is true, it will list all files and directories recursively. If\n recursive is false or not provided, it will only list the top-level\n contents. Do not use this tool to confirm the existence of files you may\n have created, as the user will let you know if the files were created\n successfully or not.\n\nParameters:\n- path (required): The path of the directory to list contents for (relative to the current working directory)\n- recursive: Whether to list files recursively. Use true for recursive listing, false or omit for top-level only.",
     "input_schema": {
