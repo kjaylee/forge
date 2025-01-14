@@ -83,7 +83,7 @@ After completing a task, generate a Learnings section in <learnings> tags that i
 4. Recommendations for similar tasks in the future
 
 {{#if learnings}}
-Our Past Learnings are wrapped in <past_learnings> tags.
+Past Learnings are wrapped in <past_learnings> tags.
 <past_learnings>
 {{#each learnings}} - {{this}}
 {{/each}}
