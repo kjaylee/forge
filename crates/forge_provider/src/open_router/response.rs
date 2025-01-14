@@ -22,7 +22,7 @@ pub enum OpenRouterResponse {
         system_fingerprint: Option<String>,
         usage: Option<ResponseUsage>,
     },
-    Error {
+    Failure {
         error: OpenRouterErrorResponse,
     },
 }
@@ -159,9 +159,9 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                     Err(Error::EmptyContent)
                 }
             }
-            OpenRouterResponse::Error { error } => Err(Error::Upstream(
-                serde_json::json!({ "message": error.message, "code": error.code }),
-            )),
+            OpenRouterResponse::Failure { error } => {
+                Err(Error::Upstream { message: error.message, code: error.code })
+            }
         }
     }
 }

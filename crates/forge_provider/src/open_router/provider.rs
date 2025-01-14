@@ -176,6 +176,6 @@ mod tests {
             .map_err(Error::from)
             .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
 
-        assert!(matches!(message, Err(Error::Upstream(_))));
+        assert!(matches!(message, Err(Error::Upstream { .. })));
     }
 }
