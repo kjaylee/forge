@@ -1,10 +1,10 @@
 use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use reqwest::Client;
-use serde_json;
 
-/// Request to research about a topic. The tool will use the internet to find the most relevant information about the topic
-/// and return the information in a readable format.
+/// Request to research about a topic. The tool will use the internet to find
+/// the most relevant information about the topic and return the information in
+/// a readable format.
 #[derive(Clone, Debug, ToolDescription)]
 pub struct ResearchTool {
     api_key: String,
