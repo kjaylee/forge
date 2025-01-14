@@ -24,11 +24,11 @@ pub struct ShellOutput {
     pub success: bool,
 }
 
-
 /// A tool to execute shell commands on the host system.
 ///
 /// ## Use Cases
-/// - **System Operations**: Manage resources, monitor processes, or run administrative tasks.
+/// - **System Operations**: Manage resources, monitor processes, or run
+///   administrative tasks.
 /// - **File Management**: Create, modify, or organize files and directories.
 /// - **Integration**: Invoke external tools or scripts.
 /// - **Automation**: Automate repetitive shell-level tasks.
@@ -190,7 +190,7 @@ mod tests {
 
         assert!(result.success);
         let output_path = PathBuf::from(result.stdout.as_ref().unwrap().trim());
-        let actual_path = fs::canonicalize(output_path.clone()).unwrap_or_else(|_| output_path);
+        let actual_path = fs::canonicalize(output_path.clone()).unwrap_or(output_path);
         assert_eq!(actual_path, current_dir);
         assert!(result.stderr.is_none());
     }
