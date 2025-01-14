@@ -161,9 +161,8 @@ impl From<OpenRouterModel> for Model {
 
 #[cfg(test)]
 mod tests {
-    use crate::open_router::response::MetaDataError;
-
     use super::*;
+    use crate::open_router::response::MetaDataError;
 
     #[test]
     fn test_error_without_metadata() {
@@ -219,10 +218,7 @@ mod tests {
             assert!(metadata.is_some());
             let provider_error =
                 serde_json::from_value::<MetaDataError>(metadata.unwrap()).unwrap();
-            assert!(matches!(
-                provider_error,
-                MetaDataError::ProviderError { .. }
-            ));
+            assert!(matches!(provider_error, MetaDataError::Provider { .. }));
         }
     }
 
@@ -253,10 +249,34 @@ mod tests {
             assert!(metadata.is_some());
             let moderation_error =
                 serde_json::from_value::<MetaDataError>(metadata.unwrap()).unwrap();
-            assert!(matches!(
-                moderation_error,
-                MetaDataError::ModerationError { .. }
-            ));
+            assert!(matches!(moderation_error, MetaDataError::Moderation { .. }));
+        }
+    }
+
+    #[test]
+    fn test_error_with_metadata_other_error() {
+        let content = serde_json::to_string(&serde_json::json!({
+            "error": {
+                "message": "Credits ran out.",
+                "code": 402,
+                "metadata": {
+                    "failure": "Credits ran out"
+                }
+            }
+        }))
+        .unwrap();
+        let message = serde_json::from_str::<OpenRouterResponse>(&content)
+            .map_err(Error::from)
+            .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
+
+        assert!(matches!(message, Err(Error::Upstream { .. })));
+        if let Err(Error::Upstream { message, code, metadata }) = message {
+            assert_eq!(message, "Credits ran out.");
+            assert_eq!(code, 402);
+            assert!(metadata.is_some());
+            let moderation_error =
+                serde_json::from_value::<MetaDataError>(metadata.unwrap()).unwrap();
+            assert!(matches!(moderation_error, MetaDataError::Other { .. }));
         }
     }
 }

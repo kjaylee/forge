@@ -67,17 +67,17 @@ pub struct ErrorResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum MetaDataError {
-    ModerationError {
+    Moderation {
         reasons: Vec<String>,
         flagged_input: String,
         provider_name: String,
         model_slug: String,
     },
-    ProviderError {
+    Provider {
         provider_name: String,
         raw: Value,
     },
-    OtherError(Value),
+    Other(Value),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -173,7 +173,8 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
             OpenRouterResponse::Failure { error } => Err(Error::Upstream {
                 message: error.message,
                 code: error.code,
-                metadata: error.metadata
+                metadata: error
+                    .metadata
                     .and_then(|m| serde_json::to_value(m).ok())
                     .filter(|v| !v.is_null()),
             }),
