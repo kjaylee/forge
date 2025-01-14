@@ -7,32 +7,19 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// A framework for iterative reasoning in problem-solving.
-///
-/// Purpose:
-/// Tracks reasoning steps ("thoughts") to solve complex problems:
-/// - Breaks tasks into steps
-/// - Supports revisions and branching
-/// - Tracks confidence and verifies solutions
-///
-/// Key Features:
-/// - Adjust `total_thoughts` for complexity
-/// - Link revisions with `revises_thought`
-/// - Branch paths via `branch_from_thought`
-/// - Update `solution_confidence`
-/// - Mark completion with `solution_reached`
-///
-/// Workflow:
-/// 1. Initialize `Think` with `total_thoughts`.
-/// 2. Add steps to `thought_history`.
-/// 3. Revise or branch as needed.
-/// 4. Update confidence and validate.
-/// 5. Mark `solution_reached` when done.
-///
-/// Fields:
-/// - `thought_history`: Steps taken.
-/// - `branches`: Alternate paths.
-/// - `solution_reached`: Final solution.
+/// This framework supports iterative reasoning by tracking steps ("thoughts")
+/// to solve complex problems. It breaks tasks into smaller steps, allows
+/// revisions, branches paths, tracks confidence, and marks solutions. Users can
+/// adjust `total_thoughts` to match task complexity, link revisions with
+/// `revises_thought`, and create branches using `branch_from_thought`.
+/// Confidence levels can be updated with `solution_confidence`, and the process
+/// is completed by marking `solution_reached`. The workflow involves
+/// initializing the framework with `total_thoughts`, adding steps to
+/// `thought_history`, revising or branching as needed, updating confidence, and
+/// validating the solution. Key fields include `thought_history` for tracking
+/// steps, `branches` for alternate paths, and `solution_reached` to mark
+/// completion. This structured approach is ideal for managing complex
+/// problem-solving by tracking progress, revisions, and outcomes.
 #[derive(Clone, Default, ToolDescription)]
 pub struct Think {
     thought_history: Vec<ThoughtInput>,

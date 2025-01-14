@@ -11,7 +11,7 @@ impl Display for UsagePrompt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.tool_name)?;
         f.write_str("\n")?;
-        f.write_str(&self.description)?;
+        f.write_str(&self.description.replace("\n", " "))?;
 
         f.write_str("\n\nUsage:\n")?;
         f.write_str("<")?;

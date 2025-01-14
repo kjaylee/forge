@@ -49,6 +49,11 @@ impl ToolDefinition {
             })
             .unwrap_or_default();
 
+        assert!(
+            self.description.len() < 1024,
+            "Description len for tool: {}",
+            self.name.as_str()
+        );
         UsagePrompt {
             tool_name: self.name.clone().into_string(),
             input_parameters,
