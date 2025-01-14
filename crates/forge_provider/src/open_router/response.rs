@@ -23,14 +23,8 @@ pub enum OpenRouterResponse {
         usage: Option<ResponseUsage>,
     },
     Failure {
-        error: OpenRouterErrorResponse,
+        error: ErrorResponse,
     },
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OpenRouterErrorResponse {
-    code: u32,
-    message: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -66,6 +60,7 @@ pub enum Choice {
 pub struct ErrorResponse {
     pub code: u32,
     pub message: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
@@ -160,7 +155,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                 }
             }
             OpenRouterResponse::Failure { error } => {
-                Err(Error::Upstream { message: error.message, code: error.code })
+                Err(Error::Upstream { message: error.message, code: error.code, metadata: error.metadata })
             }
         }
     }
