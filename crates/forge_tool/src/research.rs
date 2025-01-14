@@ -169,7 +169,9 @@ impl ToolCallService for ResearchTool {
                     Err("Empty Response returned by researcher.".to_string())
                 }
             }
-            PerplexityResponse::Failure { detail } => Err(detail.msg),
+            PerplexityResponse::Failure { detail } => {
+                Err(serde_json::to_string(&detail).map_err(|e| e.to_string())?)
+            }
         }
     }
 }
