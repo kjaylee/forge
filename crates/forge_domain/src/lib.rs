@@ -16,6 +16,7 @@ mod tool;
 mod tool_call;
 mod tool_call_parser;
 mod tool_call_service;
+mod tool_choice;
 mod tool_definition;
 mod tool_name;
 
@@ -45,6 +46,7 @@ pub use tool::*;
 pub use tool_call::*;
 pub use tool_call_parser::*;
 pub use tool_call_service::*;
+pub use tool_choice::*;
 pub use tool_definition::*;
 pub use tool_name::*;
 pub use tool_result::*;

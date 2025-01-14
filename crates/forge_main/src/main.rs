@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use colored::Colorize;
 use forge_app::API;
 use forge_domain::{ChatRequest, ChatResponse, ModelId};
 use forge_main::{StatusDisplay, UserInput, CONSOLE};
@@ -80,6 +81,15 @@ async fn main() -> Result<()> {
                                         CONSOLE.newline()?;
                                         CONSOLE
                                             .writeln(StatusDisplay::execute(tool_name).format())?;
+
+                                        // Convert to JSON and apply dimmed style
+                                        let json =
+                                            serde_json::to_string_pretty(&tool_call_full.arguments)
+                                                .unwrap_or_else(|_| {
+                                                    "Failed to serialize arguments".to_string()
+                                                });
+
+                                        CONSOLE.writeln(format!("{}", json.dimmed()))?;
                                     }
                                     ChatResponse::ToolCallEnd(tool_result) => {
                                         if cli.verbose {
