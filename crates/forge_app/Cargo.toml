@@ -30,6 +30,7 @@ handlebars = "6.2.0"
 r2d2 = "0.8.10"
 forge_domain = { path = "../forge_domain" }
 dirs = "6.0.0"
+anyhow = "1.0"
 
 [dev-dependencies]
 insta = "1.41.1"

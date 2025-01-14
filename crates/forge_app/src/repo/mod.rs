@@ -1,5 +1,6 @@
 mod config;
 mod conversation;
+mod learning;
 
 pub use config::{ConfigRepository, Live as ConfigRepositoryLive};
 pub use conversation::{ConversationRepository, Live as ConversationRepositoryLive};
