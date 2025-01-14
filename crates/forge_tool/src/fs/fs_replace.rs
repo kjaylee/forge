@@ -618,7 +618,7 @@ mod test {
             r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
         write_test_file(&file_path, file_content).await.unwrap();
 
-        // want to replace '' with '--'.
+        // want to replace ' ' with '--'.
         let diff = format!("{}\n {}\n--{}", SEARCH, DIVIDER, REPLACE);
 
         let res = FSReplace
