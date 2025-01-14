@@ -70,7 +70,7 @@ After completing a task, generate a Learnings section in <learnings> tags that i
 3. Any challenges encountered and how they were overcome
 4. Recommendations for similar tasks in the future
 
-Our Past Learnings are wrapped in <past_learnings> tags.
+Past Learnings are wrapped in <past_learnings> tags.
 <past_learnings>
  - Always write unit tests to ensure the correctness.
  - Once the task is complete, run tests to ensure the changes are correctly integrated.
