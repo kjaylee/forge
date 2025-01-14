@@ -66,8 +66,10 @@ impl Service {
 pub mod tests {
     use std::fs;
     use std::path::PathBuf;
+
     use forge_domain::{Permission, Policy, Whitelisted};
     use tempfile::TempDir;
+
     use crate::Service;
 
     fn setup_test_config(content: &str) -> (TempDir, PathBuf) {
