@@ -5,6 +5,7 @@ use forge_domain::{ConversationId, Learning, LearningId, LearningRepository};
 
 use crate::error::Result;
 use crate::schema::learning_table;
+use crate::service::Service;
 use crate::sqlite::Sqlite;
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
@@ -110,8 +111,15 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
     }
 }
 
+impl Service {
+    pub fn learning_service(database_url: &str) -> Result<impl LearningRepository> {
+        let pool_service = Service::db_pool_service(database_url)?;
+        Ok(Live::new(pool_service))
+    }
+}
+
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::sqlite::tests::TestSqlite;
 

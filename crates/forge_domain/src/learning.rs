@@ -59,7 +59,7 @@ impl Learning {
 }
 
 #[async_trait]
-pub trait LearningRepository {
+pub trait LearningRepository: Send + Sync {
     /// List all learning entries
     async fn list_learnings(&self) -> anyhow::Result<Vec<Learning>>;
 

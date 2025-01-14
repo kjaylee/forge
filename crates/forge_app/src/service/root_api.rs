@@ -43,8 +43,11 @@ struct Live {
 impl Live {
     fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
+        let learning_storage = Arc::new(
+            Service::learning_service(&cwd).expect("Failed to create learning storage service"),
+        );
         let provider = Arc::new(forge_provider::Service::open_router(env.api_key.clone()));
-        let tool = Arc::new(forge_tool::Service::tool_service());
+        let tool = Arc::new(forge_tool::Service::tool_service(learning_storage.clone()));
         let file_read = Arc::new(Service::file_read_service());
 
         let system_prompt = Arc::new(Service::system_prompt(

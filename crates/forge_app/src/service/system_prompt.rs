@@ -75,7 +75,7 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::service::tests::TestProvider;
+    use crate::{service::tests::TestProvider, tests::TestLearningStorage};
 
     fn test_env() -> Environment {
         Environment {
@@ -93,7 +93,8 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
+        let learning_storage = Arc::new(TestLearningStorage::in_memory().unwrap());
+        let tools = Arc::new(forge_tool::Service::tool_service(learning_storage));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
         );
@@ -107,7 +108,8 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
+        let learning_storage = Arc::new(TestLearningStorage::in_memory().unwrap());
+        let tools = Arc::new(forge_tool::Service::tool_service(learning_storage));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
         );
