@@ -7,5 +7,6 @@ mod select;
 mod shell;
 mod think;
 mod tool_service;
+mod http_client;
 
 pub struct Service;

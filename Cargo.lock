@@ -959,6 +959,7 @@ dependencies = [
  "Inflector",
  "anyhow",
  "async-trait",
+ "bytes",
  "colorize",
  "dissimilar",
  "forge_domain",

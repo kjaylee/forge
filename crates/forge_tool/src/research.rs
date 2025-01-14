@@ -1,25 +1,29 @@
+use std::sync::Arc;
+
 use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
-use reqwest::Client;
+use reqwest::{header::HeaderMap, Request};
 use schemars::JsonSchema;
 use serde::Deserialize;
+
+use crate::http_client::HttpIO;
 
 /// Request to research about a topic. The tool will use the internet to find
 /// the most relevant information about the topic and return the information in
 /// a readable format.
-#[derive(Clone, Debug, ToolDescription)]
+#[derive(Clone, ToolDescription)]
 pub struct ResearchTool {
     api_key: String,
     model: String,
-    client: Client,
+    client: Arc<dyn HttpIO>,
 }
 
 impl ResearchTool {
-    pub fn new(api_key: impl ToString, model: impl ToString) -> Self {
+    pub fn new(api_key: impl ToString, model: impl ToString, client: Arc<dyn HttpIO>) -> Self {
         Self {
             api_key: api_key.to_string(),
             model: model.to_string(),
-            client: Client::new(),
+            client,
         }
     }
 }
@@ -32,19 +36,19 @@ impl NamedTool for ResearchTool {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum Role {
+pub enum Role {
     System,
     User,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Message {
+pub struct Message {
     role: Role,
     content: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct PerplexityRequest {
+pub struct PerplexityRequest {
     model: String,
     messages: Vec<Message>,
     max_tokens: Option<i32>,
@@ -78,27 +82,23 @@ impl PerplexityRequest {
             frequency_penalty: 1,
         }
     }
-
-    pub fn json(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string(self)
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Delta {
+pub struct Delta {
     role: Role,
     content: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Usage {
+pub struct Usage {
     prompt_tokens: u64,
     completion_tokens: u64,
     total_tokens: u64,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Choice {
+pub struct Choice {
     index: u64,
     finish_reason: String,
     message: Message,
@@ -107,7 +107,7 @@ struct Choice {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
-enum PerplexityResponse {
+pub enum PerplexityResponse {
     Success {
         id: String,
         model: String,
@@ -123,7 +123,7 @@ enum PerplexityResponse {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct Detail {
+pub struct Detail {
     loc: Vec<String>,
     msg: String,
     r#type: String,
@@ -154,21 +154,30 @@ impl ToolCallService for ResearchTool {
                 },
                 Message { role: Role::User, content: input.question },
             ],
-        )
-        .json()
-        .map_err(|e| e.to_string())?;
+        );
 
-        let response = self
+        // request creation
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            format!("Bearer {}", self.api_key).parse().unwrap(),
+        );
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+        let url = reqwest::Url::parse("https://api.perplexity.ai/chat/completions")
+            .map_err(|e| e.to_string())?;
+        let body = serde_json::to_vec(&request_body).map_err(|e| e.to_string())?;
+        let mut request = Request::new(reqwest::Method::POST, url);
+        *request.headers_mut() = headers;
+        *request.body_mut() = Some(body.into());
+
+        let response_bytes = self
             .client
-            .post("https://api.perplexity.ai/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("Content-Type", "application/json")
-            .body(request_body)
-            .send()
+            .execute(request)
             .await
             .map_err(|e| e.to_string())?;
 
-        let response: PerplexityResponse = response.json().await.map_err(|e| e.to_string())?;
+        let response: PerplexityResponse = serde_json::from_slice(&response_bytes).map_err(|e| e.to_string())?;
+
         match response {
             PerplexityResponse::Success { choices, .. } => {
                 if let Some(choice) = choices.first() {
@@ -188,23 +197,69 @@ impl ToolCallService for ResearchTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http_client::test_utils::MockHttpIO;
+    use std::sync::Arc;
 
-    #[test]
-    fn test_deserialize_perplexity_request() {
-        let request_body = PerplexityRequest::new(
-            "llama-3.1-sonar-small-128k-online".to_string(),
-            vec![
-                Message {
-                    role: Role::System,
-                    content: "Be precise and concise.".to_string(),
-                },
-                Message {
-                    role: Role::User,
-                    content: "How many stars are there in our galaxy?".to_string(),
-                },
-            ],
-        );
+    #[tokio::test]
+    async fn test_research_tool_success() {
+        let success_response = PerplexityResponse::Success {
+            id: "test-id".to_string(),
+            model: "test-model".to_string(),
+            object: "chat.completion".to_string(),
+            created: 1234567890,
+            citations: vec![],
+            choices: vec![Choice {
+                index: 0,
+                finish_reason: "stop".to_string(),
+                message: Message { role: Role::User, content: "Test response".to_string() },
+                delta: Delta { role: Role::User, content: "Test response".to_string() },
+            }],
+            usage: Usage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+        };
 
-        println!("{}", serde_json::to_string_pretty(&request_body).unwrap());
+        let response_bytes = serde_json::to_vec(&success_response).unwrap();
+        let mock_client = Arc::new(MockHttpIO::new(vec![response_bytes]));
+        let research_tool = ResearchTool::new("test-key", "test-model", mock_client);
+
+        let result = research_tool
+            .call(ResearchInput { question: "test question".to_string() })
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Test response");
+    }
+
+    #[tokio::test]
+    async fn test_research_tool_failure() {
+        let failure_response = PerplexityResponse::Failure {
+            detail: Detail {
+                loc: vec!["test".to_string()],
+                msg: "error message".to_string(),
+                r#type: "error".to_string(),
+            },
+        };
+
+        let response_bytes = serde_json::to_vec(&failure_response).unwrap();
+        let mock_client = Arc::new(MockHttpIO::new(vec![response_bytes]));
+        let research_tool = ResearchTool::new("test-key", "test-model", mock_client);
+
+        let result = research_tool
+            .call(ResearchInput { question: "test question".to_string() })
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_research_tool_empty_question() {
+        let mock_client = Arc::new(MockHttpIO::new(vec![]));
+        let research_tool = ResearchTool::new("test-key", "test-model", mock_client);
+
+        let result = research_tool
+            .call(ResearchInput { question: "".to_string() })
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Missing parameter: question");
     }
 }
