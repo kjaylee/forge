@@ -1,8 +1,7 @@
 mod types;
 
+use derive_more::{Display, From};
 pub use types::*;
-
-use derive_more::{Display,From};
 
 /// Error type for permission operations
 #[derive(From, Debug, Display)]
