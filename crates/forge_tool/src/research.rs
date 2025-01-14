@@ -1,6 +1,8 @@
 use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use reqwest::Client;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 /// Request to research about a topic. The tool will use the internet to find
 /// the most relevant information about the topic and return the information in
@@ -127,12 +129,18 @@ struct Detail {
     r#type: String,
 }
 
+#[derive(Deserialize, JsonSchema)]
+pub struct ResearchInput {
+    /// The question or task for which we want to use internet to find the most relevant information.
+    question: String,
+}
+
 #[async_trait::async_trait]
 impl ToolCallService for ResearchTool {
-    type Input = String;
+    type Input = ResearchInput;
     type Output = String;
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        if input.is_empty() {
+        if input.question.is_empty() {
             return Err("Missing parameter: question".to_string());
         }
 
@@ -143,7 +151,7 @@ impl ToolCallService for ResearchTool {
                     role: Role::System,
                     content: "Be precise and concise.".to_string(),
                 },
-                Message { role: Role::User, content: input },
+                Message { role: Role::User, content: input.question },
             ],
         )
         .json()
