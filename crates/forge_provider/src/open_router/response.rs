@@ -154,9 +154,11 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                     Err(Error::EmptyContent)
                 }
             }
-            OpenRouterResponse::Failure { error } => {
-                Err(Error::Upstream { message: error.message, code: error.code, metadata: error.metadata })
-            }
+            OpenRouterResponse::Failure { error } => Err(Error::Upstream {
+                message: error.message,
+                code: error.code,
+                metadata: error.metadata,
+            }),
         }
     }
 }
