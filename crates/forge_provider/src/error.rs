@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use derive_more::derive::Display;
 use forge_domain::ModelId;
+use serde_json::Value;
 
 #[derive(Debug, Display, derive_more::From)]
 pub enum Error {
@@ -14,7 +14,7 @@ pub enum Error {
     Upstream {
         code: u32,
         message: String,
-        metadata: HashMap<String, serde_json::Value>,
+        metadata: Option<Value>,
     },
     Reqwest(#[from] reqwest::Error),
     SerdeJson(#[from] serde_json::Error),

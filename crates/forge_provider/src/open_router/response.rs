@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use forge_domain::{
@@ -6,6 +5,7 @@ use forge_domain::{
     ToolCallPart, ToolName,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::error::Error;
 
@@ -60,8 +60,24 @@ pub enum Choice {
 pub struct ErrorResponse {
     pub code: u32,
     pub message: String,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub metadata: HashMap<String, serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<MetaDataError>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum MetaDataError {
+    ModerationError {
+        reasons: Vec<String>,
+        flagged_input: String,
+        provider_name: String,
+        model_slug: String,
+    },
+    ProviderError {
+        provider_name: String,
+        raw: Value,
+    },
+    OtherError(Value),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -157,7 +173,9 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
             OpenRouterResponse::Failure { error } => Err(Error::Upstream {
                 message: error.message,
                 code: error.code,
-                metadata: error.metadata,
+                metadata: error.metadata
+                    .and_then(|m| serde_json::to_value(m).ok())
+                    .filter(|v| !v.is_null()),
             }),
         }
     }

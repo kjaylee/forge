@@ -161,10 +161,12 @@ impl From<OpenRouterModel> for Model {
 
 #[cfg(test)]
 mod tests {
+    use crate::open_router::response::MetaDataError;
+
     use super::*;
 
     #[test]
-    fn test_error_deserialization() {
+    fn test_error_without_metadata() {
         let content = serde_json::to_string(&serde_json::json!({
           "error": {
             "message": "This endpoint's maximum context length is 16384 tokens",
@@ -177,5 +179,84 @@ mod tests {
             .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
 
         assert!(matches!(message, Err(Error::Upstream { .. })));
+        if let Err(Error::Upstream { message, code, metadata }) = message {
+            assert_eq!(
+                message,
+                "This endpoint's maximum context length is 16384 tokens"
+            );
+            assert_eq!(code, 400);
+            assert!(metadata.is_none());
+        }
+    }
+
+    #[test]
+    fn test_error_with_metadata_provider_error() {
+        let content = serde_json::to_string(&serde_json::json!({
+          "error": {
+            "message": "This endpoint's maximum context length is 16384 tokens",
+            "code": 400,
+            "metadata": {
+                "provider_name": "OpenAI",
+                "raw": {
+                    "__kind": "OK",
+                    "data": "{\n  \"error\": {\n    \"message\": \"Invalid 'tools[4].function.description': string too long. Expected a string with maximum length 1024, but got a string with length 1392 instead.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"tools[4].function.description\",\n    \"code\": \"string_above_max_length\"\n  }\n}"
+                }
+            }
+          }
+        }))
+        .unwrap();
+        let message = serde_json::from_str::<OpenRouterResponse>(&content)
+            .map_err(Error::from)
+            .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
+
+        assert!(matches!(message, Err(Error::Upstream { .. })));
+        if let Err(Error::Upstream { message, code, metadata }) = message {
+            assert_eq!(
+                message,
+                "This endpoint's maximum context length is 16384 tokens"
+            );
+            assert_eq!(code, 400);
+            assert!(metadata.is_some());
+            let provider_error =
+                serde_json::from_value::<MetaDataError>(metadata.unwrap()).unwrap();
+            assert!(matches!(
+                provider_error,
+                MetaDataError::ProviderError { .. }
+            ));
+        }
+    }
+
+    #[test]
+    fn test_error_with_metadata_moderation_error() {
+        let content = serde_json::to_string(&serde_json::json!({
+            "error": {
+                "message": "Your input was flagged for moderation.",
+                "code": 403,
+                "metadata": {
+                    "type": "moderation",
+                    "reasons": ["offensive_language"],
+                    "flagged_input": "This is flagged text...",
+                    "provider_name": "OpenAI",
+                    "model_slug": "gpt-4"
+                }
+            }
+        }))
+        .unwrap();
+        let message = serde_json::from_str::<OpenRouterResponse>(&content)
+            .map_err(Error::from)
+            .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
+
+        assert!(matches!(message, Err(Error::Upstream { .. })));
+        if let Err(Error::Upstream { message, code, metadata }) = message {
+            assert_eq!(message, "Your input was flagged for moderation.");
+            assert_eq!(code, 403);
+            assert!(metadata.is_some());
+            let moderation_error =
+                serde_json::from_value::<MetaDataError>(metadata.unwrap()).unwrap();
+            assert!(matches!(
+                moderation_error,
+                MetaDataError::ModerationError { .. }
+            ));
+        }
     }
 }
