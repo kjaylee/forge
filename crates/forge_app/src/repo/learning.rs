@@ -142,7 +142,7 @@ pub mod tests {
         let conversation_id = ConversationId::generate();
 
         let learning = Learning::new(
-            conversation_id.clone(),
+            conversation_id,
             vec!["test learning 1".to_string(), "test learning 2".to_string()],
         );
 
@@ -163,7 +163,7 @@ pub mod tests {
         let conversation_id = ConversationId::generate();
 
         for i in 0..5 {
-            let learning = Learning::new(conversation_id.clone(), vec![format!("learning {}", i)]);
+            let learning = Learning::new(conversation_id, vec![format!("learning {}", i)]);
             storage.save(learning).await.unwrap();
         }
 

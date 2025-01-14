@@ -52,10 +52,7 @@ impl ToolCallService for Learning {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let _ = self
             .learning_repository
-            .save(LearningModel::new(
-                self.conversation_id.clone(),
-                input.learnings,
-            ))
+            .save(LearningModel::new(self.conversation_id, input.learnings))
             .await
             .map_err(|e| e.to_string())?;
         Ok("Learnings stored successfully".to_string())
@@ -102,10 +99,7 @@ mod tests {
     async fn test_save_learnings() {
         let repo = Arc::new(TestLearningRepository::new());
         let conversation_id = ConversationId::generate();
-        let tool = Learning {
-            conversation_id: conversation_id.clone(),
-            learning_repository: repo.clone(),
-        };
+        let tool = Learning { conversation_id, learning_repository: repo.clone() };
 
         let input = LearningInput {
             learnings: vec!["learning1".to_string(), "learning2".to_string()],
@@ -126,10 +120,7 @@ mod tests {
     async fn test_get_recent_learnings() {
         let repo = Arc::new(TestLearningRepository::new());
         let conversation_id = ConversationId::generate();
-        let tool = Learning {
-            conversation_id: conversation_id.clone(),
-            learning_repository: repo.clone(),
-        };
+        let tool = Learning { conversation_id, learning_repository: repo.clone() };
 
         // Save multiple learnings
         for i in 0..5 {

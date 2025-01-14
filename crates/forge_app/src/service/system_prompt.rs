@@ -75,7 +75,8 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::{service::tests::TestProvider, tests::TestLearningStorage};
+    use crate::service::tests::TestProvider;
+    use crate::tests::TestLearningStorage;
 
     fn test_env() -> Environment {
         Environment {

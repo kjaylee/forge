@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{ConversationId, LearningRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    ConversationId, LearningRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService,
+};
 use serde_json::Value;
 use tracing::debug;
 
@@ -102,14 +105,16 @@ impl Service {
             Tool::new(SelectTool),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
-            Tool::new(Learning::new(ConversationId::generate(), learning_repository))
+            Tool::new(Learning::new(
+                ConversationId::generate(),
+                learning_repository,
+            )),
         ])
     }
 }
 
 #[cfg(test)]
 mod test {
-    use insta::assert_snapshot;
 
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
