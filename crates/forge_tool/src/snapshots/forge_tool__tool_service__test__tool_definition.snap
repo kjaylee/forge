@@ -52,7 +52,7 @@ snapshot_kind: text
   },
   {
     "name": "execute_command",
-    "description": "Execute shell commands with safety checks and validation. This tool provides\n controlled access to system shell commands while preventing dangerous\n operations through a comprehensive blacklist and validation system.\n\nParameters:\n- command (required): The shell command to execute.\n- cwd (required): The working directory where the command should be executed.",
+    "description": "A tool to execute shell commands on the host system.\n ## Use Cases\n - **System Operations**: Manage resources, monitor processes, or run administrative tasks.\n - **File Management**: Create, modify, or organize files and directories.\n - **Integration**: Invoke external tools or scripts.\n - **Automation**: Automate repetitive shell-level tasks.\n\nParameters:\n- command (required): The shell command to execute.\n- cwd (required): The working directory where the command should be executed.",
     "input_schema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ShellInput",

@@ -101,9 +101,12 @@ Usage:
 </apply_patch>
 
 2. execute_command
-Execute shell commands with safety checks and validation. This tool provides
- controlled access to system shell commands while preventing dangerous
- operations through a comprehensive blacklist and validation system.
+A tool to execute shell commands on the host system.
+ ## Use Cases
+ - **System Operations**: Manage resources, monitor processes, or run administrative tasks.
+ - **File Management**: Create, modify, or organize files and directories.
+ - **Integration**: Invoke external tools or scripts.
+ - **Automation**: Automate repetitive shell-level tasks.
 
 Parameters:
 - command (required): The shell command to execute.

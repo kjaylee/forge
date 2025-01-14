@@ -98,7 +98,7 @@ impl Service {
             Tool::new(FSReplace),
             Tool::new(Outline),
             Tool::new(SelectTool),
-            Tool::new(Shell::default()),
+            Tool::new(Shell),
             Tool::new(Think::default()),
         ])
     }

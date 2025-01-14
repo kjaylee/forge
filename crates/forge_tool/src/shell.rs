@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -25,66 +24,18 @@ pub struct ShellOutput {
     pub success: bool,
 }
 
-/// Execute shell commands with safety checks and validation. This tool provides
-/// controlled access to system shell commands while preventing dangerous
-/// operations through a comprehensive blacklist and validation system.
+
+/// A tool to execute shell commands on the host system.
+///
+/// ## Use Cases
+/// - **System Operations**: Manage resources, monitor processes, or run administrative tasks.
+/// - **File Management**: Create, modify, or organize files and directories.
+/// - **Integration**: Invoke external tools or scripts.
+/// - **Automation**: Automate repetitive shell-level tasks.
 #[derive(ToolDescription)]
-pub struct Shell {
-    blacklist: HashSet<String>,
-}
-
-impl Default for Shell {
-    fn default() -> Self {
-        let mut blacklist = HashSet::new();
-        // File System Destruction Commands
-        blacklist.insert("rm".to_string());
-        blacklist.insert("rmdir".to_string());
-        blacklist.insert("del".to_string());
-
-        // Disk/Filesystem Commands
-        blacklist.insert("format".to_string());
-        blacklist.insert("mkfs".to_string());
-        blacklist.insert("dd".to_string());
-
-        // Permission/Ownership Commands
-        blacklist.insert("chmod".to_string());
-        blacklist.insert("chown".to_string());
-
-        // Privilege Escalation Commands
-        blacklist.insert("sudo".to_string());
-        blacklist.insert("su".to_string());
-
-        // Code Execution Commands
-        blacklist.insert("exec".to_string());
-        blacklist.insert("eval".to_string());
-
-        // System Communication Commands
-        blacklist.insert("write".to_string());
-        blacklist.insert("wall".to_string());
-
-        // System Control Commands
-        blacklist.insert("shutdown".to_string());
-        blacklist.insert("reboot".to_string());
-        blacklist.insert("init".to_string());
-
-        Shell { blacklist }
-    }
-}
+pub struct Shell;
 
 impl Shell {
-    fn validate_command(&self, command: &str) -> Result<(), String> {
-        let base_command = command
-            .split_whitespace()
-            .next()
-            .ok_or_else(|| "Empty command".to_string())?;
-
-        if self.blacklist.contains(base_command) {
-            return Err(format!("Command '{}' is not allowed", base_command));
-        }
-
-        Ok(())
-    }
-
     async fn execute_command(&self, command: &str, cwd: PathBuf) -> Result<ShellOutput, String> {
         let mut cmd = if cfg!(target_os = "windows") {
             let mut c = Command::new("cmd");
@@ -131,7 +82,9 @@ impl ToolCallService for Shell {
     type Output = ShellOutput;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-        self.validate_command(&input.command)?;
+        if input.command.trim().is_empty() {
+            return Err("Empty command".to_string());
+        }
         self.execute_command(&input.command, input.cwd).await
     }
 }
@@ -146,7 +99,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::default();
+        let shell = Shell;
         let result = shell
             .call(ShellInput {
                 command: "echo 'Hello, World!'".to_string(),
@@ -162,7 +115,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::default();
+        let shell = Shell;
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
@@ -195,7 +148,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::default();
+        let shell = Shell;
         let result = shell
             .call(ShellInput {
                 command: "nonexistentcommand".to_string(),
@@ -209,22 +162,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_shell_blacklisted_command() {
-        let shell = Shell::default();
-        let result = shell
-            .call(ShellInput {
-                command: "rm -rf /".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
-            .await;
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("not allowed"));
-    }
-
-    #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::default();
+        let shell = Shell;
         let result = shell
             .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
@@ -235,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_pwd() {
-        let shell = Shell::default();
+        let shell = Shell;
         let current_dir = fs::canonicalize(env::current_dir().unwrap()).unwrap();
         let result = shell
             .call(ShellInput {
@@ -251,17 +190,14 @@ mod tests {
 
         assert!(result.success);
         let output_path = PathBuf::from(result.stdout.as_ref().unwrap().trim());
-        let actual_path = match fs::canonicalize(output_path.clone()) {
-            Ok(path) => path,
-            Err(_) => output_path,
-        };
+        let actual_path = fs::canonicalize(output_path.clone()).unwrap_or_else(|_| output_path);
         assert_eq!(actual_path, current_dir);
         assert!(result.stderr.is_none());
     }
 
     #[tokio::test]
     async fn test_shell_multiple_commands() {
-        let shell = Shell::default();
+        let shell = Shell;
         let result = shell
             .call(ShellInput {
                 command: "echo 'first' && echo 'second'".to_string(),
@@ -278,7 +214,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
-        let shell = Shell::default();
+        let shell = Shell;
         let result = shell
             .call(ShellInput {
                 command: "echo $PATH".to_string(),
@@ -294,6 +230,6 @@ mod tests {
 
     #[test]
     fn test_description() {
-        assert!(Shell::default().description().len() > 100)
+        assert!(Shell.description().len() > 100)
     }
 }
