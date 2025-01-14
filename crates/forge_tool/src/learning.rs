@@ -8,7 +8,8 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-/// A tool that stores important information learned during conversations.
+/// Whenever the agent learns something new, agent should call learning tool
+/// so that learning can be stored and referred for future conversations.
 /// Each learning represents a piece of information that was discovered or
 /// clarified during the conversation, such as:
 /// - User's coding style preferences
