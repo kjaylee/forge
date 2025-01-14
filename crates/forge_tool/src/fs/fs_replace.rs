@@ -608,4 +608,24 @@ mod test {
         let expected = r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\nempty-space-replaced"#;
         assert_eq!(res.content, expected);
     }
+
+    #[tokio::test]
+    async fn test_match_empty_white_space() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.md");
+        // Create test file with content
+        let file_content = r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
+        write_test_file(&file_path, file_content).await.unwrap();
+
+        // want to replace '' with '--'.
+        let diff = format!("{}\n {}\n--{}", SEARCH, DIVIDER, REPLACE);
+
+        let res = FSReplace
+            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
+            .await
+            .unwrap();
+
+        let expected = r#"fn--test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
+        assert_eq!(res.content, expected);
+    }
 }
