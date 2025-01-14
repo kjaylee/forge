@@ -1,18 +1,18 @@
-mod chat_service;
-mod completion_service;
-mod env_service;
-mod file_read_service;
-mod root_api_service;
-mod system_prompt_service;
-mod ui_service;
-mod user_prompt_service;
-mod workflow_title_service;
+mod chat;
+mod completion;
+mod env;
+mod file_read;
+mod root_api;
+mod system_prompt;
+mod ui;
+mod user_prompt;
+mod workflow_title;
 
-pub use chat_service::*;
-pub use completion_service::*;
-pub use env_service::*;
-pub use root_api_service::*;
-pub use ui_service::*;
+pub use chat::*;
+pub use completion::*;
+pub use env::*;
+pub use root_api::*;
+pub use ui::*;
 
 pub struct Service;
 
@@ -23,10 +23,9 @@ mod tests {
     use derive_setters::Setters;
     use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
     use forge_provider::ProviderService;
-    use serde_json::json;
     use tokio_stream::StreamExt;
 
-    use super::system_prompt_service::SystemPromptService;
+    use super::system_prompt::SystemPromptService;
     use crate::Result;
 
     pub struct TestSystemPrompt {
@@ -86,9 +85,7 @@ mod tests {
 
         async fn parameters(&self, model: &ModelId) -> forge_provider::Result<Parameters> {
             match self.parameters.iter().find(|(id, _)| id == model) {
-                None => Err(forge_provider::Error::Upstream(
-                    json!({"error": "Model not found"}),
-                )),
+                None => Err(forge_provider::Error::ModelNotFound(model.clone())),
                 Some((_, parameter)) => Ok(parameter.clone()),
             }
         }
