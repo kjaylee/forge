@@ -3,7 +3,6 @@ use std::path::Path;
 
 use forge_domain::{
     NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
-    ToolPermissions,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -139,12 +138,6 @@ pub struct OutlineInput {
 #[derive(ToolDescription)]
 pub(crate) struct Outline;
 
-impl ToolPermissions for Outline {
-    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
-        vec![Permission::Read]
-    }
-}
-
 impl NamedTool for Outline {
     fn tool_name(&self) -> ToolName {
         ToolName::new("outline")
@@ -228,8 +221,8 @@ impl ToolCallService for Outline {
         }
     }
 
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
-        PermissionRequest::new(self.required_permissions(), None)
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(vec![Permission::Read], None)
     }
 }
 

@@ -19,8 +19,6 @@ mod tool_call_service;
 mod tool_definition;
 mod tool_name;
 
-mod tool_permissions;
-pub use tool_permissions::ToolPermissions;
 mod tool_result;
 mod tool_service;
 mod tool_usage;

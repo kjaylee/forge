@@ -35,7 +35,7 @@ impl Live {
     }
 
     async fn check_permissions(&self, tool: &Tool, args: &Value) -> Result<(), String> {
-        let request = tool.executable.permission_check(args.clone()).await;
+        let request = tool.executable.permission_check(args.clone());
         for permission in &request.permissions {
             let cmd = match *permission {
                 Permission::Execute => request.cmd.clone(),

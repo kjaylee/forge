@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use colorize::AnsiColor;
 use forge_domain::{
-    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
-    ToolPermissions,
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -41,12 +40,6 @@ pub struct Think {
     thought_history: Vec<ThoughtInput>,
     branches: HashMap<String, Vec<ThoughtInput>>,
     solution_reached: bool,
-}
-
-impl ToolPermissions for Think {
-    fn required_permissions(&self) -> Vec<Permission> {
-        vec![]
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
@@ -219,7 +212,7 @@ impl ToolCallService for Think {
         Ok(thought_result)
     }
 
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
-        PermissionRequest::new(self.required_permissions(), None)
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(vec![], None)
     }
 }

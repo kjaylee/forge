@@ -47,11 +47,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
           ]
         }
       }
-    },
-    "required_permissions": [
-      "Read",
-      "Write"
-    ]
+    }
   },
   {
     "name": "execute_command",
@@ -99,10 +95,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
           "type": "boolean"
         }
       }
-    },
-    "required_permissions": [
-      "Execute"
-    ]
+    }
   },
   {
     "name": "file_information",
@@ -125,8 +118,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "String",
       "type": "string"
-    },
-    "required_permissions": []
+    }
   },
   {
     "name": "list_directory_content",
@@ -159,8 +151,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "items": {
         "type": "string"
       }
-    },
-    "required_permissions": []
+    }
   },
   {
     "name": "outline",
@@ -183,10 +174,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "String",
       "type": "string"
-    },
-    "required_permissions": [
-      "Read"
-    ]
+    }
   },
   {
     "name": "read_file",
@@ -209,10 +197,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "String",
       "type": "string"
-    },
-    "required_permissions": [
-      "Read"
-    ]
+    }
   },
   {
     "name": "search_in_files",
@@ -250,10 +235,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "items": {
         "type": "string"
       }
-    },
-    "required_permissions": [
-      "Read"
-    ]
+    }
   },
   {
     "name": "think_step",
@@ -378,8 +360,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
           "format": "int32"
         }
       }
-    },
-    "required_permissions": []
+    }
   },
   {
     "name": "user_confirmation",
@@ -403,8 +384,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Boolean",
       "type": "boolean"
-    },
-    "required_permissions": []
+    }
   },
   {
     "name": "user_options",
@@ -436,8 +416,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "String",
       "type": "string"
-    },
-    "required_permissions": []
+    }
   },
   {
     "name": "write_file",
@@ -483,9 +462,6 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
           ]
         }
       }
-    },
-    "required_permissions": [
-      "Write"
-    ]
+    }
   }
 ]

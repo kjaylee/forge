@@ -36,7 +36,7 @@ impl Live {
     }
 
     async fn check_permissions(&self, tool: &Tool) -> Result<(), String> {
-        let request = tool.executable.permission_check(Value::Null).await;
+        let request = tool.executable.permission_check(Value::Null);
         for permission in &request.permissions {
             let cmd = match permission {
                 Permission::Execute => Some(""), // Default command for execute permission

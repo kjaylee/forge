@@ -1,14 +1,14 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::{PermissionRequest, ToolPermissions};
+use crate::PermissionRequest;
 
 #[async_trait::async_trait]
-pub trait ToolCallService: ToolPermissions {
+pub trait ToolCallService {
     type Input: DeserializeOwned;
     type Output: Serialize;
 
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String>;
 
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest;
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest;
 }

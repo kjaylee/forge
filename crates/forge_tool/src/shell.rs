@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use forge_domain::{
-    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, Permission, ToolCallService, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -127,12 +127,6 @@ impl NamedTool for Shell {
     }
 }
 
-impl ToolPermissions for Shell {
-    fn required_permissions(&self) -> Vec<Permission> {
-        vec![Permission::Execute]
-    }
-}
-
 #[async_trait::async_trait]
 impl ToolCallService for Shell {
     type Input = ShellInput;
@@ -143,8 +137,8 @@ impl ToolCallService for Shell {
         self.execute_command(&input.command, input.cwd).await
     }
 
-    async fn permission_check(&self, input: Self::Input) -> forge_domain::PermissionRequest {
-        forge_domain::PermissionRequest::new(self.required_permissions(), Some(input.command))
+    fn permission_check(&self, input: Self::Input) -> forge_domain::PermissionRequest {
+        forge_domain::PermissionRequest::new(vec![Permission::Execute], Some(input.command))
     }
 }
 
@@ -159,9 +153,12 @@ mod tests {
     #[test]
     fn test_required_permissions() {
         let shell = Shell::default();
-        let perms = shell.required_permissions();
-        assert_eq!(perms.len(), 1);
-        assert!(matches!(perms[0], Permission::Execute));
+        let perms = shell.permission_check(ShellInput {
+            command: "echo 'Hello, World!'".to_string(),
+            cwd: env::current_dir().unwrap(),
+        });
+        assert_eq!(perms.permissions, vec![Permission::Execute]);
+        
     }
 
     #[tokio::test]

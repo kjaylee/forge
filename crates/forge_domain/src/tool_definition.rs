@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    NamedTool, Permission, ToolCallService, ToolName, ToolPermissions, UsageParameterPrompt,
+    NamedTool, ToolCallService, ToolName, UsageParameterPrompt,
     UsagePrompt,
 };
 
@@ -18,13 +18,12 @@ pub struct ToolDefinition {
     pub description: String,
     pub input_schema: RootSchema,
     pub output_schema: Option<RootSchema>,
-    pub required_permissions: Vec<Permission>,
 }
 
 impl ToolDefinition {
     pub fn new<T>(t: &T) -> Self
     where
-        T: NamedTool + ToolCallService + ToolDescription + ToolPermissions + Send + Sync + 'static,
+        T: NamedTool + ToolCallService + ToolDescription + Send + Sync + 'static,
         T::Input: serde::de::DeserializeOwned + JsonSchema,
         T::Output: serde::Serialize + JsonSchema,
     {
@@ -77,7 +76,6 @@ impl ToolDefinition {
             description: full_description,
             input_schema: input,
             output_schema: Some(output),
-            required_permissions: t.required_permissions(),
         }
     }
 

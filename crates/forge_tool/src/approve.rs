@@ -1,6 +1,6 @@
 use anyhow::Result;
 use forge_domain::{
-    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use inquire::Confirm;
@@ -38,12 +38,6 @@ impl NamedTool for Approve {
     }
 }
 
-impl ToolPermissions for Approve {
-    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
-        vec![]
-    }
-}
-
 #[async_trait::async_trait]
 impl ToolCallService for Approve {
     type Input = ApproveInput;
@@ -55,7 +49,7 @@ impl ToolCallService for Approve {
             .map_err(|e| e.to_string())?;
         Ok(ans)
     }
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+     fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
         PermissionRequest::new(vec![], None)
     }
 }

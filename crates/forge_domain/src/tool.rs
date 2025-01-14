@@ -1,22 +1,13 @@
 use schemars::JsonSchema;
 use serde_json::Value;
 
-use crate::{NamedTool, ToolCallService, ToolDefinition, ToolDescription, ToolPermissions};
+use crate::{NamedTool, ToolCallService, ToolDefinition, ToolDescription};
 
 struct JsonTool<T>(T);
 
 impl<T> JsonTool<T> {
     pub fn new(tool: T) -> Self {
         Self(tool)
-    }
-}
-
-impl<T> ToolPermissions for JsonTool<T>
-where
-    T: ToolPermissions,
-{
-    fn required_permissions(&self) -> Vec<crate::Permission> {
-        self.0.required_permissions()
     }
 }
 
@@ -35,11 +26,11 @@ where
         Ok(serde_json::to_value(output).map_err(|e| e.to_string())?)
     }
 
-    async fn permission_check(&self, input: Self::Input) -> crate::PermissionRequest {
+    fn permission_check(&self, input: Self::Input) -> crate::PermissionRequest {
         let input: T::Input = serde_json::from_value(input)
             .map_err(|e| e.to_string())
             .expect("Failed to deserialize input for permission check");
-        self.0.permission_check(input).await
+        self.0.permission_check(input)
     }
 }
 
@@ -51,17 +42,16 @@ pub struct Tool {
 impl Tool {
     pub fn new<T>(tool: T) -> Tool
     where
-        T: ToolCallService + ToolDescription + NamedTool + ToolPermissions + Send + Sync + 'static,
+        T: ToolCallService + ToolDescription + NamedTool + Send + Sync + 'static,
         T::Input: serde::de::DeserializeOwned + JsonSchema,
         T::Output: serde::Serialize + JsonSchema,
     {
         let definition = ToolDefinition::new(&tool);
-        let required_permissions = tool.required_permissions();
         let executable = Box::new(JsonTool::new(tool));
 
         Tool {
             executable,
-            definition: ToolDefinition { required_permissions, ..definition },
+            definition,
         }
     }
 }

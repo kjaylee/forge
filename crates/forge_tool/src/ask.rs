@@ -1,5 +1,5 @@
 use forge_domain::{
-    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -25,12 +25,6 @@ impl NamedTool for AskFollowUpQuestion {
     }
 }
 
-impl ToolPermissions for AskFollowUpQuestion {
-    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
-        vec![]
-    }
-}
-
 #[async_trait::async_trait]
 impl ToolCallService for AskFollowUpQuestion {
     type Input = AskFollowUpQuestionInput;
@@ -39,8 +33,8 @@ impl ToolCallService for AskFollowUpQuestion {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         Ok(format!("Question: {}", input.question))
     }
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
-        PermissionRequest::new(self.required_permissions(), None)
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(vec![], None)
     }
 }
 

@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use forge_domain::{
-    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
@@ -30,12 +30,6 @@ pub struct FSList;
 impl NamedTool for FSList {
     fn tool_name(&self) -> ToolName {
         ToolName::new("list_directory_content")
-    }
-}
-
-impl ToolPermissions for FSList {
-    fn required_permissions(&self) -> Vec<forge_domain::Permission> {
-        vec![]
     }
 }
 
@@ -72,8 +66,8 @@ impl ToolCallService for FSList {
         Ok(paths)
     }
 
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
-        PermissionRequest::new(self.required_permissions(), None)
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(vec![], None)
     }
 }
 

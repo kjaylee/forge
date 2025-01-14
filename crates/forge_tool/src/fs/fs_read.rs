@@ -1,6 +1,5 @@
 use forge_domain::{
     NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
-    ToolPermissions,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -27,12 +26,6 @@ impl NamedTool for FSRead {
     }
 }
 
-impl ToolPermissions for FSRead {
-    fn required_permissions(&self) -> Vec<Permission> {
-        vec![Permission::Read]
-    }
-}
-
 #[async_trait::async_trait]
 impl ToolCallService for FSRead {
     type Input = FSReadInput;
@@ -44,8 +37,8 @@ impl ToolCallService for FSRead {
             .map_err(|e| e.to_string())?;
         Ok(content)
     }
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
-        PermissionRequest::new(self.required_permissions(), None)
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(vec![Permission::Read], None)
     }
 }
 
@@ -60,9 +53,8 @@ mod test {
     #[test]
     fn test_required_permissions() {
         let fs_read = FSRead;
-        let perms = fs_read.required_permissions();
-        assert_eq!(perms.len(), 1);
-        assert!(matches!(perms[0], Permission::Read));
+        let perms = fs_read.permission_check(FSReadInput { path: "test.txt".to_string() });
+        assert_eq!(perms.permissions, vec![Permission::Read]);
     }
 
     #[tokio::test]

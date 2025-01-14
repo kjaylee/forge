@@ -3,7 +3,6 @@ use std::path::Path;
 use dissimilar::Chunk;
 use forge_domain::{
     NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName,
-    ToolPermissions,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -22,12 +21,6 @@ pub struct FSReplaceInput {
 }
 
 pub struct FSReplace;
-
-impl ToolPermissions for FSReplace {
-    fn required_permissions(&self) -> Vec<Permission> {
-        vec![Permission::Read, Permission::Write]
-    }
-}
 
 impl NamedTool for FSReplace {
     fn tool_name(&self) -> ToolName {
@@ -239,8 +232,8 @@ impl ToolCallService for FSReplace {
         Ok(FSReplaceOutput { path: input.path, content, syntax_checker })
     }
 
-    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
-        PermissionRequest::new(self.required_permissions(), None)
+    fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(vec![Permission::Read, Permission::Write], None)
     }
 }
 
