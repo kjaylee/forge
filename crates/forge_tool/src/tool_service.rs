@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    ConversationId, LearningRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
-    ToolService,
+    LearningRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
 };
 use serde_json::Value;
 use tracing::debug;
@@ -105,10 +104,7 @@ impl Service {
             Tool::new(SelectTool),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
-            Tool::new(Learning::new(
-                ConversationId::generate(),
-                learning_repository,
-            )),
+            Tool::new(Learning::new(learning_repository)),
         ])
     }
 }
@@ -118,6 +114,7 @@ mod test {
 
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
+    use crate::learning::tests::TestLearningRepository;
 
     #[test]
     fn test_id() {
@@ -143,17 +140,17 @@ mod test {
             .ends_with("file_information"));
     }
 
-    // #[test]
-    // fn test_usage_prompt() {
-    //     let docs = Service::tool_service().usage_prompt();
+    #[test]
+    fn test_usage_prompt() {
+        let learning_repository = Arc::new(TestLearningRepository::new());
+        let docs = Service::tool_service(learning_repository).usage_prompt();
+        insta::assert_snapshot!(docs);
+    }
 
-    //     assert_snapshot!(docs);
-    // }
-
-    // #[test]
-    // fn test_tool_definition() {
-    //     let tools = Service::tool_service().list();
-
-    //     assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
-    // }
+    #[test]
+    fn test_tool_definition() {
+        let learning_repository = Arc::new(TestLearningRepository::new());
+        let tools = Service::tool_service(learning_repository).list();
+        insta::assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
+    }
 }

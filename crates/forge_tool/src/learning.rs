@@ -18,7 +18,6 @@ use serde::Deserialize;
 /// - Important context about the codebase
 #[derive(ToolDescription)]
 pub struct Learning {
-    conversation_id: ConversationId,
     learning_repository: Arc<dyn LearningRepository + Send + Sync>,
 }
 
@@ -29,11 +28,8 @@ impl NamedTool for Learning {
 }
 
 impl Learning {
-    pub fn new(
-        conversation_id: ConversationId,
-        learning_repository: Arc<dyn LearningRepository + Send + Sync>,
-    ) -> Self {
-        Self { conversation_id, learning_repository }
+    pub fn new(learning_repository: Arc<dyn LearningRepository + Send + Sync>) -> Self {
+        Self { learning_repository }
     }
 }
 
@@ -43,6 +39,8 @@ pub struct LearningInput {
     /// statement capturing a single piece of information learned during the
     /// conversation.
     pub learnings: Vec<String>,
+    #[schemars(skip)]
+    pub conversation_id: ConversationId,
 }
 
 #[async_trait::async_trait]
@@ -52,7 +50,7 @@ impl ToolCallService for Learning {
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let _ = self
             .learning_repository
-            .save(LearningModel::new(self.conversation_id, input.learnings))
+            .save(LearningModel::new(input.conversation_id, input.learnings))
             .await
             .map_err(|e| e.to_string())?;
         Ok("Learnings stored successfully".to_string())
@@ -60,7 +58,7 @@ impl ToolCallService for Learning {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::sync::Mutex;
 
     use anyhow::Result;
@@ -68,12 +66,12 @@ mod tests {
 
     use super::*;
 
-    struct TestLearningRepository {
+    pub struct TestLearningRepository {
         learnings: Arc<Mutex<Vec<LearningModel>>>,
     }
 
     impl TestLearningRepository {
-        fn new() -> Self {
+        pub fn new() -> Self {
             Self { learnings: Arc::new(Mutex::new(Vec::new())) }
         }
     }
@@ -99,9 +97,10 @@ mod tests {
     async fn test_save_learnings() {
         let repo = Arc::new(TestLearningRepository::new());
         let conversation_id = ConversationId::generate();
-        let tool = Learning { conversation_id, learning_repository: repo.clone() };
+        let tool = Learning { learning_repository: repo.clone() };
 
         let input = LearningInput {
+            conversation_id,
             learnings: vec!["learning1".to_string(), "learning2".to_string()],
         };
 
@@ -120,11 +119,12 @@ mod tests {
     async fn test_get_recent_learnings() {
         let repo = Arc::new(TestLearningRepository::new());
         let conversation_id = ConversationId::generate();
-        let tool = Learning { conversation_id, learning_repository: repo.clone() };
+        let tool = Learning { learning_repository: repo.clone() };
 
         // Save multiple learnings
         for i in 0..5 {
-            let input = LearningInput { learnings: vec![format!("learning{}", i)] };
+            let input =
+                LearningInput { conversation_id, learnings: vec![format!("learning{}", i)] };
             tool.call(input).await.unwrap();
         }
 
