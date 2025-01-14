@@ -49,9 +49,6 @@ impl Tool {
         let definition = ToolDefinition::new(&tool);
         let executable = Box::new(JsonTool::new(tool));
 
-        Tool {
-            executable,
-            definition,
-        }
+        Tool { executable, definition }
     }
 }

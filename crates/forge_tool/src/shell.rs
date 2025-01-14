@@ -2,9 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{
-    NamedTool, Permission, ToolCallService, ToolDescription, ToolName,
-};
+use forge_domain::{NamedTool, Permission, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -158,7 +156,6 @@ mod tests {
             cwd: env::current_dir().unwrap(),
         });
         assert_eq!(perms.permissions, vec![Permission::Execute]);
-        
     }
 
     #[tokio::test]

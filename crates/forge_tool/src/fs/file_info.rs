@@ -1,6 +1,4 @@
-use forge_domain::{
-    NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName,
-};
+use forge_domain::{NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
