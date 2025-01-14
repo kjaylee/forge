@@ -593,7 +593,8 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.md");
         // Create test file with content
-        let file_content = r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
+        let file_content =
+            r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
         write_test_file(&file_path, file_content).await.unwrap();
 
         // want to replace '' with 'empty-space-replaced'.
