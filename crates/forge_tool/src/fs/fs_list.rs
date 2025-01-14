@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -68,6 +68,10 @@ impl ToolCallService for FSList {
         }
 
         Ok(paths)
+    }
+
+    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(self.required_permissions(), None)
     }
 }
 

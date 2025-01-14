@@ -1,4 +1,4 @@
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName, ToolPermissions};
+use forge_domain::{NamedTool, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -39,6 +39,9 @@ impl ToolCallService for FSFileInfo {
             .await
             .map_err(|e| e.to_string())?;
         Ok(format!("{:?}", meta))
+    }
+    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(self.required_permissions(), None)
     }
 }
 

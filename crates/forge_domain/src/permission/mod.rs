@@ -1,6 +1,6 @@
 mod types;
 
-pub use types::{Command, Config as PermissionConfig, Permission, Policy, Whitelisted};
+pub use types::*;
 
 /// Error type for permission operations
 #[derive(Debug, thiserror::Error)]

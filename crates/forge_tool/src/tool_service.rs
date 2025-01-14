@@ -34,18 +34,11 @@ impl Live {
         }
     }
 
-    fn extract_command_from_args(args: &Value) -> Option<String> {
-        // Check 'command' field first (used by shell tool)
-        if let Some(cmd) = args.get("command").and_then(|v| v.as_str()) {
-            return Some(cmd.to_string());
-        }
-        None
-    }
-
     async fn check_permissions(&self, tool: &Tool, args: &Value) -> Result<(), String> {
-        for permission in &tool.definition.required_permissions {
+        let request = tool.executable.permission_check(args.clone()).await;
+        for permission in &request.permissions {
             let cmd = match *permission {
-                Permission::Execute => Self::extract_command_from_args(args),
+                Permission::Execute => request.cmd.clone(),
                 _ => None,
             };
 

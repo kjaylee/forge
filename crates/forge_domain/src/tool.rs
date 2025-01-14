@@ -11,6 +11,16 @@ impl<T> JsonTool<T> {
     }
 }
 
+impl <T> ToolPermissions for JsonTool<T>
+where
+    T: ToolPermissions,
+{
+    fn required_permissions(&self) -> Vec<crate::Permission> {
+        self.0.required_permissions()
+    }
+    
+}
+
 #[async_trait::async_trait]
 impl<T: ToolCallService + Sync> ToolCallService for JsonTool<T>
 where
@@ -24,6 +34,12 @@ where
         let input: T::Input = serde_json::from_value(input).map_err(|e| e.to_string())?;
         let output: T::Output = self.0.call(input).await?;
         Ok(serde_json::to_value(output).map_err(|e| e.to_string())?)
+    }
+
+    async fn permission_check(&self, input: Self::Input) -> crate::PermissionRequest {
+        let input: T::Input = serde_json::from_value(input).map_err(|e| e.to_string())
+            .expect("Failed to deserialize input for permission check");
+        self.0.permission_check(input).await
     }
 }
 

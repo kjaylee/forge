@@ -2,7 +2,7 @@ use std::path::Path;
 
 use dissimilar::Chunk;
 use forge_domain::{
-    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -236,6 +236,10 @@ impl ToolCallService for FSReplace {
         let content = apply_changes(&input.path, blocks).await?;
         let syntax_checker = syn::validate(&input.path, &content).err();
         Ok(FSReplaceOutput { path: input.path, content, syntax_checker })
+    }
+
+    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(self.required_permissions(), None)
     }
 }
 

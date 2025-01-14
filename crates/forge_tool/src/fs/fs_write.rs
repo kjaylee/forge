@@ -1,5 +1,5 @@
 use forge_domain::{
-    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -52,6 +52,10 @@ impl ToolCallService for FSWrite {
             .map_err(|e| e.to_string())?;
 
         Ok(FSWriteOutput { path: input.path, syntax_checker, content: input.content })
+    }
+
+    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(self.required_permissions(), None)
     }
 }
 

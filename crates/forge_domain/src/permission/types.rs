@@ -17,6 +17,21 @@ pub enum Policy<T> {
     Always(Whitelisted<T>),
 }
 
+pub struct  PermissionRequest{
+    pub permissions: Vec<Permission>,
+    pub cmd: Option<String>,
+}
+
+impl  PermissionRequest{
+    pub fn new(permissions: Vec<Permission>, cmd: Option<String>) -> Self {
+        Self {
+            permissions,
+            cmd
+        }
+    }
+    
+}
+
 /// Whitelist configuration for allowed operations
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Whitelisted<T> {
@@ -30,12 +45,12 @@ pub struct Command(pub String);
 
 /// Global permission configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
+pub struct PermissionConfig {
     /// Permission policies by type
     pub policies: HashMap<Permission, Policy<Command>>,
 }
 
-impl Default for Config {
+impl Default for PermissionConfig {
     fn default() -> Self {
         let mut policies = HashMap::new();
         policies.insert(Permission::Read, Policy::Once);
@@ -51,7 +66,7 @@ mod tests {
 
     #[test]
     fn test_default_config() {
-        let config = Config::default();
+        let config = PermissionConfig::default();
         assert!(matches!(
             config.policies.get(&Permission::Read),
             Some(Policy::Once)
@@ -68,7 +83,7 @@ mod tests {
 
     #[test]
     fn test_allowed_commands() {
-        let mut config = Config::default();
+        let mut config = PermissionConfig::default();
         let whitelist =
             Whitelisted::Some(vec![Command("ls".to_string()), Command("git".to_string())]);
         config
@@ -87,7 +102,7 @@ mod tests {
 
     #[test]
     fn test_allow_all_reads() {
-        let mut config = Config::default();
+        let mut config = PermissionConfig::default();
         config
             .policies
             .insert(Permission::Read, Policy::Always(Whitelisted::All));

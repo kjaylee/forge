@@ -5,8 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    NamedTool, Permission, ToolCallService, ToolName, ToolPermissions, UsageParameterPrompt,
-    UsagePrompt,
+    NamedTool, Permission, ToolCallService, ToolName, ToolPermissions, UsageParameterPrompt, UsagePrompt
 };
 
 ///

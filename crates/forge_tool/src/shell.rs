@@ -142,6 +142,10 @@ impl ToolCallService for Shell {
         self.validate_command(&input.command)?;
         self.execute_command(&input.command, input.cwd).await
     }
+
+    async fn permission_check(&self, input: Self::Input) -> forge_domain::PermissionRequest {
+        forge_domain::PermissionRequest::new(self.required_permissions(), Some(input.command))
+    }
 }
 
 #[cfg(test)]

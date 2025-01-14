@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use colorize::AnsiColor;
 use forge_domain::{
-    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -216,5 +216,9 @@ impl ToolCallService for Think {
         let mut thinker = self.clone();
         let thought_result = thinker.process_thought(input).map_err(|e| e.to_string())?;
         Ok(thought_result)
+    }
+
+    async fn permission_check(&self, _input: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(self.required_permissions(), None)
     }
 }

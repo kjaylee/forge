@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use forge_domain::{
-    NamedTool, Permission, ToolCallService, ToolDescription, ToolName, ToolPermissions,
+    NamedTool, Permission, PermissionRequest, ToolCallService, ToolDescription, ToolName, ToolPermissions
 };
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
@@ -118,6 +118,10 @@ impl ToolCallService for FSSearch {
         } else {
             Ok(matches)
         }
+    }
+
+    async fn permission_check(&self, _: Self::Input) -> PermissionRequest {
+        PermissionRequest::new(self.required_permissions(), None)
     }
 }
 
