@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{Environment, ModelId, ToolService};
+use forge_domain::{Environment, LearningRepository, ModelId, ToolService};
 use forge_provider::ProviderService;
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -8,6 +8,9 @@ use tracing::debug;
 
 use super::Service;
 use crate::Result;
+
+// Number of recent learnings to show in the prompt
+const RECENT_LEARNING_COUNT: usize = 5;
 
 #[async_trait::async_trait]
 pub trait SystemPromptService: Send + Sync {
@@ -19,8 +22,9 @@ impl Service {
         env: Environment,
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
+        learning_repository: Arc<dyn LearningRepository>,
     ) -> impl SystemPromptService {
-        Live::new(env, tool, provider)
+        Live::new(env, tool, provider, learning_repository)
     }
 }
 
@@ -29,6 +33,7 @@ struct Context {
     env: Environment,
     tool_information: String,
     tool_supported: bool,
+    learnings: Option<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -36,6 +41,7 @@ struct Live {
     env: Environment,
     tool: Arc<dyn ToolService>,
     provider: Arc<dyn ProviderService>,
+    learning_repository: Arc<dyn LearningRepository>,
 }
 
 impl Live {
@@ -43,8 +49,9 @@ impl Live {
         env: Environment,
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
+        learning_repository: Arc<dyn LearningRepository>,
     ) -> Self {
-        Self { env, tool, provider }
+        Self { env, tool, provider, learning_repository }
     }
 }
 
@@ -59,10 +66,26 @@ impl SystemPromptService for Live {
 
         let tool_supported = self.provider.parameters(model).await?.tool_supported;
         debug!("Tool support for {}: {}", model.as_str(), tool_supported);
+
+        let learnings = self
+            .learning_repository
+            .recent_learnings(RECENT_LEARNING_COUNT)
+            .await
+            .ok()
+            .and_then(|mut recent_learnings| {
+                recent_learnings.reverse();
+                recent_learnings
+                    .into_iter()
+                    .flat_map(|l| l.learnings)
+                    .collect::<Vec<_>>()
+                    .into()
+            });
+
         let ctx = Context {
             env: self.env.clone(),
             tool_information: self.tool.usage_prompt(),
             tool_supported,
+            learnings,
         };
 
         Ok(hb.render_template(template, &ctx)?)
@@ -71,7 +94,7 @@ impl SystemPromptService for Live {
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::Parameters;
+    use forge_domain::{Learning, Parameters};
     use insta::assert_snapshot;
 
     use super::*;
@@ -94,15 +117,15 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let learning_storage = Arc::new(TestLearningStorage::in_memory().unwrap());
+        let learning_repository = Arc::new(TestLearningStorage::in_memory().unwrap());
         let tools = Arc::new(forge_tool::Service::tool_service(
             env.cwd.clone(),
-            learning_storage,
+            learning_repository.clone(),
         ));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
         );
-        let prompt = Live::new(env, tools, provider)
+        let prompt = Live::new(env, tools, provider, learning_repository)
             .get_system_prompt(&ModelId::default())
             .await
             .unwrap();
@@ -112,18 +135,56 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let learning_storage = Arc::new(TestLearningStorage::in_memory().unwrap());
+        let learning_repository = Arc::new(TestLearningStorage::in_memory().unwrap());
         let tools = Arc::new(forge_tool::Service::tool_service(
             env.cwd.clone(),
-            learning_storage,
+            learning_repository.clone(),
         ));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
         );
-        let prompt = Live::new(env, tools, provider)
+        let prompt = Live::new(env, tools, provider, learning_repository)
             .get_system_prompt(&ModelId::default())
             .await
             .unwrap();
         assert_snapshot!(prompt);
+    }
+
+    #[tokio::test]
+    async fn test_recent_learnings() {
+        let env = test_env();
+        let learning_repository = Arc::new(TestLearningStorage::in_memory().unwrap());
+
+        // Add some test learnings
+        learning_repository
+            .save(Learning::new(
+                "/test/dir".to_string(),
+                vec!["Always write unit tests to ensure the correctness.".to_string(),
+                 "Once the task is complete, run tests to ensure the changes are correctly integrated.".to_string()],
+            ))
+            .await
+            .unwrap();
+
+        learning_repository
+            .save(Learning::new(
+                "/test/dir2".to_string(),
+                vec!["Avoid Hardcoding things in the code.".to_string()],
+            ))
+            .await
+            .unwrap();
+
+        let tools = Arc::new(forge_tool::Service::tool_service(
+            env.cwd.clone(),
+            learning_repository.clone(),
+        ));
+        let provider = Arc::new(
+            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
+        );
+
+        let prompt = Live::new(env, tools, provider, learning_repository)
+            .get_system_prompt(&ModelId::default())
+            .await
+            .unwrap();
+        insta::assert_snapshot!(prompt);
     }
 }

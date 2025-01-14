@@ -82,4 +82,12 @@ After completing a task, generate a Learnings section in <learnings> tags that i
 3. Any challenges encountered and how they were overcome
 4. Recommendations for similar tasks in the future
 
+{{#if learnings}}
+Our Past Learnings are wrapped in <past_learnings> tags.
+<past_learnings>
+{{#each learnings}} - {{this}}
+{{/each}}
+</past_learnings>
+{{/if}}
+
 Remember to always think step-by-step and provide high-quality, efficient solutions to the given tasks. It's OK for the task analysis section to be quite long.

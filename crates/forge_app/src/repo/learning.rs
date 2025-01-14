@@ -73,7 +73,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
             .map_err(|e| anyhow::anyhow!(e))?;
         let mut conn = pool.get().map_err(|e| anyhow::anyhow!(e))?;
         let raw_learnings = learning_table::table
-            .order_by(learning_table::created_at.desc())
+            .order_by(learning_table::updated_at.desc())
             .limit(n as i64)
             .load::<RawLearning>(&mut conn)?;
 
@@ -229,5 +229,12 @@ pub mod tests {
             learnings[0].learnings,
             vec!["first learning", "second learning"]
         );
+    }
+
+    #[tokio::test]
+    async fn test_return_empty_list_when_recent_learnings_not_present() {
+        let storage = setup_storage().await.unwrap();
+        let recent = storage.recent_learnings(3).await.unwrap();
+        assert_eq!(recent.len(), 0);
     }
 }
