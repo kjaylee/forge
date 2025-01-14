@@ -155,6 +155,12 @@ async fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<St
 
     // Apply each block sequentially
     for block in blocks {
+        // For empty search string, append the replacement text at the end of file.
+        if block.search.is_empty() {
+            result.push_str(&block.replace);
+            continue;
+        }
+
         // For exact matching, first try to find the exact string
         if let Some(start_idx) = result.find(&block.search) {
             let end_idx = start_idx + block.search.len();
@@ -587,7 +593,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.md");
         // Create test file with content
-        let file_content = r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }}\n"#;
+        let file_content = r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
         write_test_file(&file_path, file_content).await.unwrap();
 
         // want to replace '' with 'empty-space-replaced'.
@@ -597,7 +603,8 @@ mod test {
             .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
             .await
             .unwrap();
-        let expected = r#"empty-space-replacedfn test(){\n    let x = 42;\n    {\n        // test block-1    }}\n"#;
+
+        let expected = r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\nempty-space-replaced"#;
         assert_eq!(res.content, expected);
     }
 }
