@@ -2,10 +2,11 @@ mod types;
 
 pub use types::*;
 
+use derive_more::{Display,From};
+
 /// Error type for permission operations
-#[derive(Debug, thiserror::Error)]
+#[derive(From, Debug, Display)]
 pub enum PermissionError {
-    #[error("Operation not permitted: {0}")]
     OperationNotPermitted(String),
 }
 
