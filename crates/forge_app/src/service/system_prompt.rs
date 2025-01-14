@@ -95,7 +95,10 @@ mod tests {
     async fn test_tool_supported() {
         let env = test_env();
         let learning_storage = Arc::new(TestLearningStorage::in_memory().unwrap());
-        let tools = Arc::new(forge_tool::Service::tool_service(learning_storage));
+        let tools = Arc::new(forge_tool::Service::tool_service(
+            env.cwd.clone(),
+            learning_storage,
+        ));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
         );
@@ -110,7 +113,10 @@ mod tests {
     async fn test_tool_unsupported() {
         let env = test_env();
         let learning_storage = Arc::new(TestLearningStorage::in_memory().unwrap());
-        let tools = Arc::new(forge_tool::Service::tool_service(learning_storage));
+        let tools = Arc::new(forge_tool::Service::tool_service(
+            env.cwd.clone(),
+            learning_storage,
+        ));
         let provider = Arc::new(
             TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
         );

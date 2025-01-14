@@ -45,6 +45,7 @@ pub struct Learning {
     pub current_working_directory: String,
     pub learnings: Vec<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
+    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl Learning {
@@ -54,6 +55,7 @@ impl Learning {
             current_working_directory,
             learnings,
             created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
         }
     }
 }

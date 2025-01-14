@@ -92,7 +92,7 @@ impl ToolService for Live {
 
 impl Service {
     pub fn tool_service(
-        current_working_dir: impl ToString,
+        current_working_dir: String,
         learning_repository: Arc<dyn LearningRepository>,
     ) -> impl ToolService {
         Live::from_iter([
@@ -117,6 +117,8 @@ impl Service {
 
 #[cfg(test)]
 mod test {
+
+    use tempfile::TempDir;
 
     use super::*;
     use crate::fs::{FSFileInfo, FSSearch};
@@ -146,17 +148,23 @@ mod test {
             .ends_with("file_information"));
     }
 
+    fn test_cwd() -> TempDir {
+        TempDir::new().unwrap()
+    }
+
     #[test]
     fn test_usage_prompt() {
+        let cwd = test_cwd().path().to_string_lossy().to_string();
         let learning_repository = Arc::new(TestLearningRepository::new());
-        let docs = Service::tool_service(learning_repository).usage_prompt();
+        let docs = Service::tool_service(cwd, learning_repository).usage_prompt();
         insta::assert_snapshot!(docs);
     }
 
     #[test]
     fn test_tool_definition() {
+        let cwd = test_cwd().path().to_string_lossy().to_string();
         let learning_repository = Arc::new(TestLearningRepository::new());
-        let tools = Service::tool_service(learning_repository).list();
+        let tools = Service::tool_service(cwd, learning_repository).list();
         insta::assert_snapshot!(serde_json::to_string_pretty(&tools).unwrap());
     }
 }

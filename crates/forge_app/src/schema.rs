@@ -25,6 +25,7 @@ diesel::table! {
         cwd -> Text,
         learnings -> Text,
         created_at -> Timestamp,
+        updated_at -> Timestamp,
     }
 }
 

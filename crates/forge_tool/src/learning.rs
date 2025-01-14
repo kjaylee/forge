@@ -49,6 +49,10 @@ impl ToolCallService for Learning {
     type Input = LearningInput;
     type Output = String;
     async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+        if input.learnings.is_empty() {
+            return Err("No learnings provided".to_string());
+        }
+
         let _ = self
             .learning_repository
             .save(LearningModel::new(
@@ -143,5 +147,16 @@ pub mod tests {
         assert_eq!(recent[0].learnings, vec!["learning4"]);
         assert_eq!(recent[1].learnings, vec!["learning3"]);
         assert_eq!(recent[2].learnings, vec!["learning2"]);
+    }
+
+    #[tokio::test]
+    async fn test_raise_error_when_empty_learnings_provided() {
+        let repo = Arc::new(TestLearningRepository::new());
+        let current_working_directory = test_cwd().path().to_string_lossy().to_string();
+        let tool = Learning { current_working_directory, learning_repository: repo.clone() };
+
+        let input = LearningInput { learnings: vec![] };
+        let result = tool.call(input).await.unwrap_err();
+        assert_eq!(result, "No learnings provided");
     }
 }
