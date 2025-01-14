@@ -122,7 +122,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
   },
   {
     "name": "learning",
-    "description": "Whenever the agent learns something new, agent should call learning tool\n so that learning can be stored and referred for future conversations.\n Each learning represents a piece of information that was discovered or\n clarified during the conversation, such as:\n - User\\'s coding style preferences\n - Project-specific requirements or constraints\n - Technical decisions and their rationale\n - Important context about the codebase\n\nParameters:\n- learnings (required): List of learnings to store. Each string should be a clear and concise statement capturing a single piece of information learned during the conversation.",
+    "description": "When new information is discovered, use this tool to store\n and preserve it for future conversations. Each stored learning captures\n a piece of information that emerged during the conversation, including:\n - User\\'s coding style preferences\n - Project-specific requirements or constraints\n - Technical decisions and their rationale\n - Important context about the codebase\n\nParameters:\n- learnings (required): List of learnings to store. Each string should be a clear and concise statement capturing a single piece of information learned during the conversation.",
     "input_schema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LearningInput",

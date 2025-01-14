@@ -71,10 +71,9 @@ Usage:
 </file_information>
 
 4. learning
-Whenever the agent learns something new, agent should call learning tool
- so that learning can be stored and referred for future conversations.
- Each learning represents a piece of information that was discovered or
- clarified during the conversation, such as:
+When new information is discovered, use this tool to store
+ and preserve it for future conversations. Each stored learning captures
+ a piece of information that emerged during the conversation, including:
  - User\'s coding style preferences
  - Project-specific requirements or constraints
  - Technical decisions and their rationale

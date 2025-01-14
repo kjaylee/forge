@@ -151,11 +151,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_recent_learnings() {
+    async fn test_render_recent_learnings_when_present() {
         let env = test_env();
         let learning_repository = Arc::new(TestLearningStorage::in_memory().unwrap());
 
-        // Add some test learnings
         learning_repository
             .save(Learning::new(
                 "/test/dir".to_string(),
