@@ -66,7 +66,8 @@ impl ToolCallService for Learning {
 
 #[cfg(test)]
 pub mod tests {
-    use std::{collections::HashMap, sync::Mutex};
+    use std::collections::HashMap;
+    use std::sync::Mutex;
 
     use anyhow::Result;
     use tempfile::TempDir;
@@ -91,8 +92,7 @@ pub mod tests {
                 .lock()
                 .unwrap()
                 .values()
-                .cloned()
-                .flatten()
+                .flatten().cloned()
                 .collect();
             Ok(values)
         }
