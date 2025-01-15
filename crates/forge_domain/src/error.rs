@@ -7,6 +7,7 @@ pub enum Error {
     ToolCallMissingName,
     Serde(serde_json::Error),
     Uuid(uuid::Error),
+    InvalidUserCommand(String),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;
