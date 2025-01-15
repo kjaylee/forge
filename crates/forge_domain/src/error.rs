@@ -1,3 +1,4 @@
+use std::error::Error as StdError;
 use std::pin::Pin;
 
 use derive_more::derive::{Display, From};
@@ -15,3 +16,5 @@ pub type BoxStream<A, E> =
     Pin<Box<dyn tokio_stream::Stream<Item = std::result::Result<A, E>> + Send>>;
 
 pub type ResultStream<A, E> = std::result::Result<BoxStream<A, E>, E>;
+
+impl StdError for Error {}

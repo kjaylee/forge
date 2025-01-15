@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::API;
-use forge_domain::{ChatRequest, ChatResponse, ModelId};
-use forge_main::{StatusDisplay, UserInput, CONSOLE};
+use forge_domain::{ChatRequest, ChatResponse, Input, ModelId, UserInput};
+use forge_main::{Console, StatusDisplay, CONSOLE};
 use tokio_stream::StreamExt;
 
 /// Command line arguments for the application
@@ -30,31 +30,31 @@ async fn main() -> Result<()> {
 
     // Get initial input from file or prompt
     let mut input = match &cli.exec {
-        Some(ref path) => UserInput::from_file(path).await?,
-        None => UserInput::prompt(None, None)?,
+        Some(ref path) => Console::from_file(path).await?,
+        None => Console::prompt(None, None).await?,
     };
     let model = ModelId::from_env(api.env());
     loop {
         match input {
-            UserInput::End => break,
-            UserInput::New => {
+            Input::End => break,
+            Input::New => {
                 CONSOLE.writeln("Starting fresh conversation...")?;
                 current_conversation_id = None;
                 current_title = None;
-                input = UserInput::prompt(None, None)?;
+                input = Console::prompt(None, None).await?;
                 continue;
             }
-            UserInput::Reload => {
+            Input::Reload => {
                 CONSOLE.writeln("Reloading conversation with original prompt...")?;
                 current_conversation_id = None;
                 current_title = None;
                 input = match cli.exec {
-                    Some(ref path) => UserInput::from_file(path).await?,
-                    None => UserInput::prompt(None, current_content.as_deref())?,
+                    Some(ref path) => Console::from_file(path).await?,
+                    None => Console::prompt(None, current_content.as_deref()).await?,
                 };
                 continue;
             }
-            UserInput::Message(ref content) => {
+            Input::Message(ref content) => {
                 current_content = Some(content.clone());
                 let chat = ChatRequest {
                     content: content.clone(),
@@ -137,7 +137,7 @@ async fn main() -> Result<()> {
                     }
                 }
 
-                input = UserInput::prompt(current_title.as_deref(), None)?;
+                input = Console::prompt(current_title.as_deref(), None).await?;
             }
         }
     }
