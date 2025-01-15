@@ -70,7 +70,7 @@ impl Autocomplete for CommandCompleter {
 
 #[async_trait]
 impl UserInput for Console {
-    async fn from_file<P: Into<PathBuf> + Send>(path: P) -> Result<Input> {
+    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> Result<Input> {
         let path = path.into();
         let content = fs::read_to_string(&path)
             .await
@@ -86,7 +86,7 @@ impl UserInput for Console {
         Ok(Input::Message(content))
     }
 
-    async fn prompt(help_text: Option<&str>, initial_text: Option<&str>) -> Result<Input> {
+    async fn prompt(&self, help_text: Option<&str>, initial_text: Option<&str>) -> Result<Input> {
         loop {
             CONSOLE.writeln("").map_err(|e| {
                 Error::InvalidUserCommand(format!("Failed to write to console: {}", e))

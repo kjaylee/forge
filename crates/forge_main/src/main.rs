@@ -28,10 +28,13 @@ async fn main() -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize API: {}", e))?;
 
+    // Create a Console instance
+    let console = Console::default();
+
     // Get initial input from file or prompt
     let mut input = match &cli.exec {
-        Some(ref path) => Console::from_file(path).await?,
-        None => Console::prompt(None, None).await?,
+        Some(ref path) => console.upload(path).await?,
+        None => console.prompt(None, None).await?,
     };
     let model = ModelId::from_env(api.env());
     loop {
@@ -41,7 +44,7 @@ async fn main() -> Result<()> {
                 CONSOLE.writeln("Starting fresh conversation...")?;
                 current_conversation_id = None;
                 current_title = None;
-                input = Console::prompt(None, None).await?;
+                input = console.prompt(None, None).await?;
                 continue;
             }
             Input::Reload => {
@@ -49,8 +52,8 @@ async fn main() -> Result<()> {
                 current_conversation_id = None;
                 current_title = None;
                 input = match cli.exec {
-                    Some(ref path) => Console::from_file(path).await?,
-                    None => Console::prompt(None, current_content.as_deref()).await?,
+                    Some(ref path) => console.upload(path).await?,
+                    None => console.prompt(None, current_content.as_deref()).await?,
                 };
                 continue;
             }
@@ -137,7 +140,7 @@ async fn main() -> Result<()> {
                     }
                 }
 
-                input = Console::prompt(current_title.as_deref(), None).await?;
+                input = console.prompt(current_title.as_deref(), None).await?;
             }
         }
     }

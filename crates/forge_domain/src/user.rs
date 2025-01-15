@@ -78,7 +78,7 @@ pub trait UserInput {
     /// # Returns
     /// * `Ok(Input)` - Successfully read and parsed file content
     /// * `Err` - Failed to read or parse file
-    async fn from_file<P: Into<PathBuf> + Send>(path: P) -> Result<Input>;
+    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> Result<Input>;
 
     /// Prompts for user input with optional help text and initial value.
     ///
@@ -89,5 +89,5 @@ pub trait UserInput {
     /// # Returns
     /// * `Ok(Input)` - Successfully processed input
     /// * `Err` - An error occurred during input processing
-    async fn prompt(help_text: Option<&str>, initial_text: Option<&str>) -> Result<Input>;
+    async fn prompt(&self, help_text: Option<&str>, initial_text: Option<&str>) -> Result<Input>;
 }
