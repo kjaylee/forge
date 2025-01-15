@@ -1,10 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-mod model;
-mod provider;
-mod request;
-mod response;
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ParameterData {
     pub model: String,

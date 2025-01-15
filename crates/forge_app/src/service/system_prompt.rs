@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use forge_domain::{Environment, ModelId, ToolService};
-use forge_provider::ProviderService;
+use anyhow::Result;
+use forge_domain::{Environment, ModelId, ProviderService, ToolService};
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
 use super::Service;
-use crate::Result;
 
 #[async_trait::async_trait]
 pub trait SystemPromptService: Send + Sync {

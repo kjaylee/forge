@@ -1,17 +1,17 @@
-use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
+use anyhow::{Context as _, Result};
+use forge_domain::{
+    self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters,
+    ProviderService, ResultStream,
+};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
 use tokio_stream::StreamExt;
 
 use super::model::{ListModelResponse, OpenRouterModel};
+use super::parameters::ParameterResponse;
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
-use super::ParameterResponse;
-use crate::error::Result;
-use crate::provider::ProviderService;
-use crate::{Error, Live, Service};
-
 #[derive(Debug, Clone)]
 struct Config {
     api_key: String,
@@ -38,13 +38,13 @@ impl Config {
 }
 
 #[derive(Clone)]
-struct OpenRouter {
+pub struct OpenRouter {
     client: Client,
     config: Config,
 }
 
 impl OpenRouter {
-    fn new(api_key: impl ToString) -> Self {
+    pub fn new(api_key: impl ToString) -> Self {
         let config = Config { api_key: api_key.to_string() };
 
         let client = Client::builder().build().unwrap();
@@ -55,7 +55,10 @@ impl OpenRouter {
 
 #[async_trait::async_trait]
 impl ProviderService for OpenRouter {
-    async fn chat(&self, request: Context) -> ResultStream<ChatCompletionMessage, Error> {
+    async fn chat(
+        &self,
+        request: ChatContext,
+    ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let mut request = OpenRouterRequest::from(request);
         request.stream = Some(true);
         let request = serde_json::to_string(&request)?;
@@ -79,20 +82,24 @@ impl ProviderService for OpenRouter {
                         }
 
                         let message = serde_json::from_str::<OpenRouterResponse>(&event.data)
-                            .map_err(Error::from)
-                            .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
-
+                            .with_context(|| "Failed to parse OpenRouter response")
+                            .and_then(|message| {
+                                Ok(ChatCompletionMessage::try_from(message.clone())?)
+                            });
                         Some(message)
                     }
                 },
-                Err(err) => Some(Err(err.into())),
+                Err(err) => Some(Err(anyhow::anyhow!("EventSource error: {}", err))),
             })
-            .take_while(|message| {
-                !matches!(
-                    message,
-                    Err(Error::EventSource(reqwest_eventsource::Error::StreamEnded))
-                )
-            });
+            .take_while(
+                |message: &Result<ChatCompletionMessage, anyhow::Error>| match message {
+                    Err(e) => !e
+                        .downcast_ref::<reqwest_eventsource::Error>()
+                        .map(|e| matches!(e, reqwest_eventsource::Error::StreamEnded))
+                        .unwrap_or(false),
+                    _ => true,
+                },
+            );
 
         Ok(Box::pin(Box::new(stream)))
     }
@@ -143,12 +150,6 @@ impl ProviderService for OpenRouter {
     }
 }
 
-impl Service {
-    pub fn open_router(api_key: impl ToString) -> impl ProviderService {
-        Live::new(OpenRouter::new(api_key))
-    }
-}
-
 impl From<OpenRouterModel> for Model {
     fn from(value: OpenRouterModel) -> Self {
         Model {
@@ -161,10 +162,12 @@ impl From<OpenRouterModel> for Model {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Context;
+
     use super::*;
 
     #[test]
-    fn test_error_deserialization() {
+    fn test_error_deserialization() -> Result<()> {
         let content = serde_json::to_string(&serde_json::json!({
           "error": {
             "message": "This endpoint's maximum context length is 16384 tokens",
@@ -173,9 +176,10 @@ mod tests {
         }))
         .unwrap();
         let message = serde_json::from_str::<OpenRouterResponse>(&content)
-            .map_err(Error::from)
-            .and_then(|message| ChatCompletionMessage::try_from(message.clone()));
+            .context("Failed to parse response")?;
+        let message = ChatCompletionMessage::try_from(message.clone());
 
-        assert!(matches!(message, Err(Error::Upstream { .. })));
+        assert!(message.is_err());
+        Ok(())
     }
 }

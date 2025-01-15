@@ -833,6 +833,7 @@ checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 name = "forge_app"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "axum",
  "chrono",
@@ -844,12 +845,13 @@ dependencies = [
  "dirs",
  "dotenv",
  "forge_domain",
+ "forge_open_router",
  "forge_prompt",
- "forge_provider",
  "forge_tool",
  "forge_walker",
  "handlebars",
  "insta",
+ "moka2",
  "pretty_assertions",
  "pulldown-cmark",
  "r2d2",
@@ -895,6 +897,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "tempfile",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "uuid",
@@ -905,6 +908,7 @@ name = "forge_main"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "colored",
@@ -919,22 +923,16 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
 ]
 
 [[package]]
-name = "forge_prompt"
+name = "forge_open_router"
 version = "0.1.0"
 dependencies = [
- "nom",
- "pretty_assertions",
-]
-
-[[package]]
-name = "forge_provider"
-version = "0.1.0"
-dependencies = [
+ "anyhow",
  "async-trait",
  "derive_more",
  "derive_setters",
@@ -948,9 +946,18 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "forge_prompt"
+version = "0.1.0"
+dependencies = [
+ "nom",
+ "pretty_assertions",
 ]
 
 [[package]]
@@ -1005,9 +1012,9 @@ dependencies = [
 name = "forge_walker"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ignore",
  "pretty_assertions",
- "thiserror 2.0.11",
  "tokio",
 ]
 

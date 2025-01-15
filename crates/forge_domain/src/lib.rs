@@ -11,6 +11,7 @@ mod learning;
 mod message;
 mod model;
 mod permission;
+mod provider;
 mod stream_ext;
 mod tool;
 mod tool_call;
@@ -26,6 +27,7 @@ mod tool_usage;
 
 /// Service factory for creating service instances
 pub struct Service;
+mod user;
 mod user_interaction;
 
 pub use chat_request::*;
@@ -41,6 +43,7 @@ pub use learning::*;
 pub use message::*;
 pub use model::*;
 pub use permission::*;
+pub use provider::*;
 pub use stream_ext::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -52,4 +55,5 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
+pub use user::*;
 pub use user_interaction::*;

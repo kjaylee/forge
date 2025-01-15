@@ -26,3 +26,4 @@ Cargo.lock
 .tasks
 *.new
 .code-forge
+.vscode/
