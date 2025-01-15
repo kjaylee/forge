@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Failed to initialize API: {}", e))?;
 
     // Create a Console instance
-    let console = Console::default();
+    let console = Console;
 
     // Get initial input from file or prompt
     let mut input = match &cli.exec {
