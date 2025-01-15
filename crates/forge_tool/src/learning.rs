@@ -92,7 +92,8 @@ pub mod tests {
                 .lock()
                 .unwrap()
                 .values()
-                .flatten().cloned()
+                .flatten()
+                .cloned()
                 .collect();
             Ok(values)
         }

@@ -57,7 +57,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
         let raw_learnings = learning_table::table.load::<RawLearning>(&mut conn)?;
         let learnings: Vec<Learning> = raw_learnings
             .into_iter()
-            .map(|raw_learning| Learning::try_from(raw_learning))
+            .map(Learning::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
         Ok(learnings)
     }
@@ -78,7 +78,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 
         let mut learnings: Vec<Learning> = raw_learnings
             .into_iter()
-            .map(|raw_learning| Learning::try_from(raw_learning))
+            .map(Learning::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
 
         learnings.sort_by(|a, b| a.created_at.cmp(&b.created_at));
