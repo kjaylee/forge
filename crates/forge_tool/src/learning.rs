@@ -66,7 +66,7 @@ impl ToolCallService for Learning {
 
 #[cfg(test)]
 pub mod tests {
-    use std::sync::Mutex;
+    use std::{collections::HashMap, sync::Mutex};
 
     use anyhow::Result;
     use tempfile::TempDir;
@@ -74,28 +74,45 @@ pub mod tests {
     use super::*;
 
     pub struct TestLearningRepository {
-        learnings: Arc<Mutex<Vec<LearningModel>>>,
+        learnings: Arc<Mutex<HashMap<String, Vec<LearningModel>>>>,
     }
 
     impl TestLearningRepository {
         pub fn new() -> Self {
-            Self { learnings: Arc::new(Mutex::new(Vec::new())) }
+            Self { learnings: Arc::new(Mutex::new(HashMap::default())) }
         }
     }
 
     #[async_trait::async_trait]
     impl LearningRepository for TestLearningRepository {
         async fn list_learnings(&self) -> Result<Vec<LearningModel>> {
-            Ok(self.learnings.lock().unwrap().clone())
+            let values = self
+                .learnings
+                .lock()
+                .unwrap()
+                .values()
+                .cloned()
+                .flatten()
+                .collect();
+            Ok(values)
         }
 
-        async fn recent_learnings(&self, n: usize) -> Result<Vec<LearningModel>> {
+        async fn recent_learnings(&self, cwd: &str, n: usize) -> Result<Vec<LearningModel>> {
             let learnings = self.learnings.lock().unwrap();
-            Ok(learnings.iter().rev().take(n).cloned().collect())
+            let mut recent_learnings = learnings.get(cwd).map_or(vec![], |learnings| {
+                learnings.iter().rev().take(n).cloned().collect()
+            });
+            recent_learnings.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            Ok(recent_learnings)
         }
 
         async fn save(&self, learning: LearningModel) -> Result<()> {
-            self.learnings.lock().unwrap().push(learning);
+            self.learnings
+                .lock()
+                .unwrap()
+                .entry(learning.current_working_directory.clone())
+                .or_default()
+                .push(learning);
             Ok(())
         }
     }
@@ -132,7 +149,10 @@ pub mod tests {
     async fn test_get_recent_learnings() {
         let repo = Arc::new(TestLearningRepository::new());
         let current_working_directory = test_cwd().path().to_string_lossy().to_string();
-        let tool = Learning { current_working_directory, learning_repository: repo.clone() };
+        let tool = Learning {
+            current_working_directory: current_working_directory.clone(),
+            learning_repository: repo.clone(),
+        };
 
         // Save multiple learnings
         for i in 0..5 {
@@ -141,11 +161,14 @@ pub mod tests {
         }
 
         // Get recent learnings
-        let recent = repo.recent_learnings(3).await.unwrap();
+        let recent = repo
+            .recent_learnings(current_working_directory.as_str(), 3)
+            .await
+            .unwrap();
         assert_eq!(recent.len(), 3);
-        assert_eq!(recent[0].learnings, vec!["learning4"]);
+        assert_eq!(recent[0].learnings, vec!["learning2"]);
         assert_eq!(recent[1].learnings, vec!["learning3"]);
-        assert_eq!(recent[2].learnings, vec!["learning2"]);
+        assert_eq!(recent[2].learnings, vec!["learning4"]);
     }
 
     #[tokio::test]

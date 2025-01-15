@@ -65,8 +65,8 @@ pub trait LearningRepository: Send + Sync {
     /// List all learning entries
     async fn list_learnings(&self) -> anyhow::Result<Vec<Learning>>;
 
-    /// Get 'N' recent learning of conversations.
-    async fn recent_learnings(&self, n: usize) -> anyhow::Result<Vec<Learning>>;
+    /// Get 'N' recent learning based on `cwd`.
+    async fn recent_learnings(&self, cwd: &str, n: usize) -> anyhow::Result<Vec<Learning>>;
 
     /// Save Learnings from the conversation
     async fn save(&self, learning: Learning) -> anyhow::Result<()>;

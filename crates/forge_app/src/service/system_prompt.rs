@@ -69,11 +69,10 @@ impl SystemPromptService for Live {
 
         let learnings = self
             .learning_repository
-            .recent_learnings(RECENT_LEARNING_COUNT)
+            .recent_learnings(&self.env.cwd, RECENT_LEARNING_COUNT)
             .await
             .ok()
-            .and_then(|mut recent_learnings| {
-                recent_learnings.reverse();
+            .and_then(|recent_learnings| {
                 recent_learnings
                     .into_iter()
                     .flat_map(|l| l.learnings)
@@ -157,7 +156,7 @@ mod tests {
 
         learning_repository
             .save(Learning::new(
-                "/test/dir".to_string(),
+                env.cwd.clone(),
                 vec!["Always write unit tests to ensure the correctness.".to_string(),
                  "Once the task is complete, run tests to ensure the changes are correctly integrated.".to_string()],
             ))
@@ -166,7 +165,7 @@ mod tests {
 
         learning_repository
             .save(Learning::new(
-                "/test/dir2".to_string(),
+                env.cwd.clone(),
                 vec!["Avoid Hardcoding things in the code.".to_string()],
             ))
             .await
