@@ -41,6 +41,7 @@ impl Input {
             "/end".to_string(),
             "/new".to_string(),
             "/reload".to_string(),
+            "/list".to_string(),
         ]
     }
 
