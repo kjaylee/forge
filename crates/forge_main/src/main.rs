@@ -151,29 +151,51 @@ async fn main() -> Result<()> {
                     // Format conversations for display
                     let options: Vec<String> = conversation_history
                         .iter()
-                        .map(|conv| {
+                        .enumerate()
+                        .map(|(index, conv)| {
                             let title = conv.title.as_deref().unwrap_or("Untitled");
                             let id = conv.id.into_string();
-                            format!("({}) - {}", id, title)
+                            if let Some(meta) = &conv.meta {
+                                let created_at = meta.created_at;
+                                format!("{} - ({}) - {} - {}", index + 1, id, title, created_at)
+                            } else {
+                                format!("{} - ({}) - {}", index + 1, id, title)
+                            }
                         })
                         .collect();
 
                     // Display conversations and get user selection
                     if let Ok(selection) =
-                        Select::new("Select a conversation to resume:", options.clone()).prompt()
+                        Select::new("Select a conversation to resume:", options).prompt()
                     {
                         // Extract conversation ID from selection
-                        if let Some(selected_conv) = conversation_history.iter().find(|conv| {
-                            let title = conv.title.as_deref().unwrap_or("Untitled");
-                            let id = conv.id.into_string();
-                            selection == format!("({}) - {}", id, title)
-                        }) {
+                        if let Some((_, selected_conv)) = conversation_history
+                            .iter()
+                            .enumerate()
+                            .find(|(index, conv)| {
+                                let title = conv.title.as_deref().unwrap_or("Untitled");
+                                let id = conv.id.into_string();
+                                if let Some(meta) = &conv.meta {
+                                    let created_at = meta.created_at;
+                                    selection
+                                        == format!(
+                                            "{} - ({}) - {} - {}",
+                                            index + 1,
+                                            id,
+                                            title,
+                                            created_at
+                                        )
+                                } else {
+                                    selection == format!("{} - ({}) - {}", index + 1, id, title)
+                                }
+                            })
+                        {
                             current_conversation_id = Some(selected_conv.id);
                             current_title = selected_conv.title.clone();
                             CONSOLE.writeln(format!("Selected conversation: {}", selection))?;
                         } else {
                             CONSOLE.writeln(format!(
-                                "Failed to select the conversation {}, please retry.",
+                                "Failed to load the conversation {}, please retry.",
                                 selection
                             ))?;
                         }
