@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use forge_domain::{Error, Input, Result, UserInput};
+use forge_domain::{Input, UserInput};
 use inquire::Autocomplete;
 use tokio::fs;
 
@@ -70,27 +70,21 @@ impl Autocomplete for CommandCompleter {
 
 #[async_trait]
 impl UserInput for Console {
-    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> Result<Input> {
+    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Input> {
         let path = path.into();
-        let content = fs::read_to_string(&path)
-            .await
-            .map_err(|e| {
-                Error::InvalidUserCommand(format!("Failed to read file {}: {}", path.display(), e))
-            })?
-            .trim()
-            .to_string();
+        let content = fs::read_to_string(&path).await?.trim().to_string();
 
-        CONSOLE
-            .writeln(content.clone())
-            .map_err(|e| Error::InvalidUserCommand(format!("Failed to write to console: {}", e)))?;
+        CONSOLE.writeln(content.clone())?;
         Ok(Input::Message(content))
     }
 
-    async fn prompt(&self, help_text: Option<&str>, initial_text: Option<&str>) -> Result<Input> {
+    async fn prompt(
+        &self,
+        help_text: Option<&str>,
+        initial_text: Option<&str>,
+    ) -> anyhow::Result<Input> {
         loop {
-            CONSOLE.writeln("").map_err(|e| {
-                Error::InvalidUserCommand(format!("Failed to write to console: {}", e))
-            })?;
+            CONSOLE.writeln("")?;
             let help = help_text.map(|a| a.to_string()).unwrap_or(format!(
                 "How can I help? Available commands: {}",
                 Input::available_commands().join(", ")
@@ -104,17 +98,11 @@ impl UserInput for Console {
                 text = text.with_initial_value(initial_text);
             }
 
-            let text = text.prompt().map_err(|e| {
-                Error::InvalidUserCommand(format!("Failed to read user input: {}", e))
-            })?;
+            let text = text.prompt()?;
             match Input::parse(&text) {
                 Ok(input) => return Ok(input),
                 Err(e) => {
-                    CONSOLE
-                        .writeln(StatusDisplay::failed(e.to_string()).format())
-                        .map_err(|e| {
-                            Error::InvalidUserCommand(format!("Failed to write to console: {}", e))
-                        })?;
+                    CONSOLE.writeln(StatusDisplay::failed(e.to_string()).format())?;
                 }
             }
         }

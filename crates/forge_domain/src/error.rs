@@ -1,13 +1,20 @@
-use std::error::Error as StdError;
 use std::pin::Pin;
 
-use derive_more::derive::{Display, From};
+use derive_more::derive::From;
+use thiserror::Error;
 
-#[derive(From, Debug, Display)]
+#[derive(From, Debug, Error)]
 pub enum Error {
+    #[error("Tool name was not provided")]
     ToolCallMissingName,
+    
+    #[error("Serde Error: {0}")]
     Serde(serde_json::Error),
-    Uuid(uuid::Error),
+
+    #[error("Invalid UUID: {0}")]
+    InvalidUuid(uuid::Error),
+
+    #[error("Invalid user command: {0}")]
     InvalidUserCommand(String),
 }
 
@@ -16,5 +23,3 @@ pub type BoxStream<A, E> =
     Pin<Box<dyn tokio_stream::Stream<Item = std::result::Result<A, E>> + Send>>;
 
 pub type ResultStream<A, E> = std::result::Result<BoxStream<A, E>, E>;
-
-impl StdError for Error {}
