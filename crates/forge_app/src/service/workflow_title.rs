@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, ResultStream, ToolCall, ToolCallFull,
-    ToolChoice, ToolDefinition,
+    ChatRequest, ChatResponse, Context, ContextMessage, ProviderService, ResultStream, ToolCall,
+    ToolCallFull, ToolChoice, ToolDefinition,
 };
-use forge_provider::ProviderService;
 use handlebars::Handlebars;
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,6 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use super::Service;
-use crate::{Error, Result};
 
 impl Service {
     /// Creates a new title service with the specified provider
@@ -29,7 +28,7 @@ impl Service {
 #[async_trait::async_trait]
 pub trait TitleService: Send + Sync {
     /// Generates a title for the given chat request
-    async fn get_title(&self, content: ChatRequest) -> ResultStream<ChatResponse, Error>;
+    async fn get_title(&self, content: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
 }
 
 #[derive(Clone)]
@@ -47,13 +46,8 @@ impl Live {
         Self { provider }
     }
 
-    fn system_prompt(&self) -> Result<String> {
-        let template = include_str!("../prompts/title/system.md");
-        Ok(template.to_string())
-    }
-
-    fn user_prompt(&self, task: &str) -> Result<String> {
-        let template = include_str!("../prompts/title/user_task.md");
+    fn prompt(&self, task: &str) -> Result<String> {
+        let template = include_str!("../prompts/title.md");
 
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -93,28 +87,25 @@ impl Live {
 
 #[derive(JsonSchema, Deserialize, Debug)]
 struct Title {
-    /// The title selected for the provided text
+    /// Actual title content
     text: String,
 }
 
 impl Title {
     fn definition() -> ToolDefinition {
         ToolDefinition::new("generate_title")
-            .description("Generate a concise, descriptive title that captures the essence of the task or conversation")
+            .description("Receives a title that can be shown to the user")
             .input_schema(schema_for!(Title))
     }
 }
 
 #[async_trait::async_trait]
 impl TitleService for Live {
-    async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, Error> {
-        let system_prompt = self.system_prompt()?;
-        let user_prompt = self.user_prompt(&chat.content)?;
-
+    async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
+        let user_prompt = self.prompt(&chat.content)?;
         let tool = Title::definition();
 
         let request = Context::default()
-            .set_system_message(system_prompt)
             .add_message(ContextMessage::user(user_prompt))
             .add_tool(tool.clone())
             .tool_choice(ToolChoice::Call(tool.name))
@@ -200,15 +191,7 @@ mod tests {
         let chat = Live::new(provider);
 
         insta::assert_snapshot!(chat
-            .user_prompt("write an rust program to generate an fibo seq.")
+            .prompt("write an rust program to generate an fibo seq.")
             .unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_system_prompt() {
-        let provider = Arc::new(TestProvider::default());
-        let chat = Live::new(provider);
-
-        insta::assert_snapshot!(chat.system_prompt().unwrap());
     }
 }

@@ -3,7 +3,6 @@ use diesel::prelude::*;
 use diesel::sql_types::{Text, Timestamp};
 use forge_domain::{Learning, LearningId, LearningRepository};
 
-use crate::error::Result;
 use crate::schema::learning_table;
 use crate::service::Service;
 use crate::sqlite::Sqlite;
@@ -24,8 +23,8 @@ struct RawLearning {
 }
 
 impl TryFrom<RawLearning> for Learning {
-    type Error = crate::error::Error;
-    fn try_from(raw: RawLearning) -> Result<Self> {
+    type Error = anyhow::Error;
+    fn try_from(raw: RawLearning) -> anyhow::Result<Self> {
         Ok(Learning {
             id: LearningId::parse(&raw.id)?,
             current_working_directory: raw.cwd,
@@ -58,9 +57,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
         let raw_learnings = learning_table::table.load::<RawLearning>(&mut conn)?;
         let learnings: Vec<Learning> = raw_learnings
             .into_iter()
-            .map(|raw_learning| {
-                Learning::try_from(raw_learning).map_err(|e: crate::Error| anyhow::anyhow!(e))
-            })
+            .map(|raw_learning| Learning::try_from(raw_learning))
             .collect::<anyhow::Result<Vec<_>>>()?;
         Ok(learnings)
     }
@@ -81,9 +78,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 
         let mut learnings: Vec<Learning> = raw_learnings
             .into_iter()
-            .map(|raw_learning| {
-                Learning::try_from(raw_learning).map_err(|e: crate::Error| anyhow::anyhow!(e))
-            })
+            .map(|raw_learning| Learning::try_from(raw_learning))
             .collect::<anyhow::Result<Vec<_>>>()?;
 
         learnings.sort_by(|a, b| a.created_at.cmp(&b.created_at));
@@ -115,7 +110,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 }
 
 impl Service {
-    pub fn learning_service(database_url: &str) -> Result<impl LearningRepository> {
+    pub fn learning_service(database_url: &str) -> anyhow::Result<impl LearningRepository> {
         let pool_service = Service::db_pool_service(database_url)?;
         Ok(Live::new(pool_service))
     }
@@ -133,13 +128,13 @@ pub mod tests {
     pub struct TestStorage;
 
     impl TestStorage {
-        pub fn in_memory() -> Result<impl LearningRepository> {
+        pub fn in_memory() -> anyhow::Result<impl LearningRepository> {
             let pool_service = TestSqlite::new()?;
             Ok(Live::new(pool_service))
         }
     }
 
-    async fn setup_storage() -> Result<impl LearningRepository> {
+    async fn setup_storage() -> anyhow::Result<impl LearningRepository> {
         TestStorage::in_memory()
     }
 

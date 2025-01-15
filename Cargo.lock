@@ -845,12 +845,13 @@ dependencies = [
  "dirs",
  "dotenv",
  "forge_domain",
+ "forge_open_router",
  "forge_prompt",
- "forge_provider",
  "forge_tool",
  "forge_walker",
  "handlebars",
  "insta",
+ "moka2",
  "pretty_assertions",
  "pulldown-cmark",
  "r2d2",
@@ -895,6 +896,7 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "uuid",
@@ -905,6 +907,7 @@ name = "forge_main"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "clap",
  "colored",
@@ -919,22 +922,16 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
 ]
 
 [[package]]
-name = "forge_prompt"
+name = "forge_open_router"
 version = "0.1.0"
 dependencies = [
- "nom",
- "pretty_assertions",
-]
-
-[[package]]
-name = "forge_provider"
-version = "0.1.0"
-dependencies = [
+ "anyhow",
  "async-trait",
  "derive_more",
  "derive_setters",
@@ -948,9 +945,18 @@ dependencies = [
  "serde_json",
  "strum",
  "strum_macros",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "forge_prompt"
+version = "0.1.0"
+dependencies = [
+ "nom",
+ "pretty_assertions",
 ]
 
 [[package]]
@@ -1004,9 +1010,9 @@ dependencies = [
 name = "forge_walker"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ignore",
  "pretty_assertions",
- "thiserror 2.0.11",
  "tokio",
 ]
 
@@ -3485,9 +3491,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b913a3b5fe84142e269d63cc62b64319ccaf89b748fc31fe025177f767a756c4"
+checksum = "744018581f9a3454a9e15beb8a33b017183f1e7c0cd170232a2d1453b23a51c4"
 dependencies = [
  "getrandom",
  "rand",
@@ -3497,9 +3503,9 @@ dependencies = [
 
 [[package]]
 name = "uuid-macro-internal"
-version = "1.11.1"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c91084647266237a48351d05d55dee65bba9e1b597f555fcf54680f820284a1c"
+checksum = "144b419c512fdd5eaa4c2998813e32aaab2b257746ee038de93985a99635501d"
 dependencies = [
  "proc-macro2",
  "quote",

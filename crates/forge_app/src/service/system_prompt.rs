@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use forge_domain::{Environment, LearningRepository, ModelId, ToolService};
-use forge_provider::ProviderService;
+use anyhow::Result;
+use forge_domain::{Environment, LearningRepository, ModelId, ProviderService, ToolService};
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
 use super::Service;
-use crate::Result;
 
 // Number of recent learnings to show in the prompt
 const RECENT_LEARNING_COUNT: usize = 5;
