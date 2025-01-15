@@ -188,7 +188,7 @@ impl From<Context> for OpenRouterRequest {
                     .map(OpenRouterMessage::from)
                     .collect::<Vec<_>>();
 
-                Some(insert_cache(messages))
+                Some(insert_cache(request.model.as_str(), messages))
             },
             tools: {
                 let tools = request
@@ -262,14 +262,19 @@ impl From<ContextMessage> for OpenRouterMessage {
 
 /// Inserts cache control information into system messages
 /// NOTE: We need to add more caching as the context grows larger
-fn insert_cache(mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
-    for message in message.iter_mut() {
-        if message.role == OpenRouterRole::System {
-            message.content = message.content.clone().map(|a| a.cached());
+fn insert_cache(model_id: &str, mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
+    if model_id.contains("anthropic") {
+        // NOTE: some of the anthropic models doesn't support caching, hence disabling
+        // caching for anthropic models for now.
+        message
+    } else {
+        for message in message.iter_mut() {
+            if message.role == OpenRouterRole::System {
+                message.content = message.content.clone().map(|a| a.cached());
+            }
         }
+        message
     }
-
-    message
 }
 
 impl From<Role> for OpenRouterRole {
