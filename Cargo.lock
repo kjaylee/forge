@@ -1007,9 +1007,9 @@ dependencies = [
 name = "forge_walker"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ignore",
  "pretty_assertions",
- "thiserror 2.0.11",
  "tokio",
 ]
 
