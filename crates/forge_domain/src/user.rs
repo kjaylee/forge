@@ -89,5 +89,9 @@ pub trait UserInput {
     /// # Returns
     /// * `Ok(Input)` - Successfully processed input
     /// * `Err` - An error occurred during input processing
-    async fn prompt(&self, help_text: Option<&str>, initial_text: Option<&str>) -> anyhow::Result<Input>;
+    async fn prompt(
+        &self,
+        help_text: Option<&str>,
+        initial_text: Option<&str>,
+    ) -> anyhow::Result<Input>;
 }

@@ -7,7 +7,7 @@ use thiserror::Error;
 pub enum Error {
     #[error("Tool name was not provided")]
     ToolCallMissingName,
-    
+
     #[error("Serde Error: {0}")]
     Serde(serde_json::Error),
 
