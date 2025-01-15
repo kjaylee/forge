@@ -107,10 +107,7 @@ impl Service {
             Tool::new(SelectTool),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
-            Tool::new(Learning::new(
-                current_working_dir.to_string(),
-                learning_repository,
-            )),
+            Tool::new(Learning::new(current_working_dir, learning_repository)),
         ])
     }
 }

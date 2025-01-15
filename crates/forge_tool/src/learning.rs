@@ -100,10 +100,10 @@ pub mod tests {
 
         async fn recent_learnings(&self, cwd: &str, n: usize) -> Result<Vec<LearningModel>> {
             let learnings = self.learnings.lock().unwrap();
-            let mut recent_learnings = learnings.get(cwd).map_or(vec![], |learnings| {
-                learnings.iter().rev().take(n).cloned().collect()
+            let recent_learnings = learnings.get(cwd).map_or(vec![], |learnings| {
+                let start_idx = std::cmp::max(0, learnings.len() as isize - n as isize) as usize;
+                learnings[start_idx..].to_vec()
             });
-            recent_learnings.sort_by(|a, b| a.created_at.cmp(&b.created_at));
             Ok(recent_learnings)
         }
 
