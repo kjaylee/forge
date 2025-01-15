@@ -55,7 +55,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
             .map_err(|e| anyhow::anyhow!(e))?;
         let mut conn = pool.get().map_err(|e| anyhow::anyhow!(e))?;
         let raw_learnings = learning_table::table.load::<RawLearning>(&mut conn)?;
-        let learnings: Vec<Learning> = raw_learnings
+        let learnings = raw_learnings
             .into_iter()
             .map(Learning::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -74,14 +74,13 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
             .filter(learning_table::cwd.eq(cwd))
             .order_by(learning_table::updated_at.desc())
             .limit(n as i64)
+            .order_by(learning_table::created_at.asc())
             .load::<RawLearning>(&mut conn)?;
 
-        let mut learnings: Vec<Learning> = raw_learnings
+        let learnings = raw_learnings
             .into_iter()
             .map(Learning::try_from)
             .collect::<anyhow::Result<Vec<_>>>()?;
-
-        learnings.sort_by(|a, b| a.created_at.cmp(&b.created_at));
         Ok(learnings)
     }
 
