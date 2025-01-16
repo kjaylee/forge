@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{Environment, LearningRepository, ModelId, ProviderService};
-use super::tool_service::ToolService;
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
+use super::tool_service::ToolService;
 use super::Service;
 
 // Number of recent learnings to show in the prompt

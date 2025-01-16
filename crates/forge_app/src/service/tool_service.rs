@@ -1,4 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use forge_domain::{LearningRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
 use tracing::debug;
@@ -98,9 +99,8 @@ mod test {
     use forge_domain::{Tool, ToolCallId, ToolDefinition};
     use serde_json::{json, Value};
 
-    use crate::tests::TestLearningStorage;
-
     use super::*;
+    use crate::tests::TestLearningStorage;
 
     // Mock tool that always succeeds
     struct SuccessTool;
