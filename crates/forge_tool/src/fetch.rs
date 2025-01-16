@@ -40,16 +40,16 @@ fn default_raw() -> Option<bool> {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FetchInput {
-    // URL to fetch
+    /// URL to fetch
     url: String,
-    // Maximum number of characters to return (default: 5000)
+    /// Maximum number of characters to return (default: 5000)
     #[serde(default = "default_max_length")]
     max_length: Option<usize>,
-    // Start content from this character index (default: 0),
-    // On return output starting at this character index, useful if a previous fetch was truncated and more context is required.
+    /// Start content from this character index (default: 0),
+    /// On return output starting at this character index, useful if a previous fetch was truncated and more context is required.
     #[serde(default = "default_start_index")]
     start_index: Option<usize>,
-    // Get raw content without any markdown conversion (default: false)
+    /// Get raw content without any markdown conversion (default: false)
     #[serde(default = "default_raw")]
     raw: Option<bool>,
 }
