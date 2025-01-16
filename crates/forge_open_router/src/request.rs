@@ -272,7 +272,9 @@ impl From<ContextMessage> for OpenRouterMessage {
 /// NOTE: We need to add more caching as the context grows larger
 fn insert_cache(model_id: &str, mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
     let caching_supported = if model_id.contains("anthropic") {
-        CLAUDE_CACHE_SUPPORTED_MODELS.contains(&model_id)
+        CLAUDE_CACHE_SUPPORTED_MODELS
+            .iter()
+            .any(|supported_model| model_id.contains(supported_model))
     } else {
         true
     };
