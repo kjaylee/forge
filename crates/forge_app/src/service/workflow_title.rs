@@ -106,7 +106,11 @@ impl TitleService for Live {
         let tool = Title::definition();
 
         let request = Context::default()
-            .add_message(ContextMessage::user(user_prompt))
+            .add_message(ContextMessage::system(user_prompt))
+            .add_message(ContextMessage::user(format!(
+                "<technical_content>{}</technical_content>",
+                chat.content
+            )))
             .add_tool(tool.clone())
             .tool_choice(ToolChoice::Call(tool.name))
             .model(chat.model);
