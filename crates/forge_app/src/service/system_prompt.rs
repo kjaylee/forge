@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::collections::HashSet;
 
 use anyhow::Result;
 use forge_domain::{Environment, LearningRepository, ModelId, ProviderService};
@@ -73,11 +74,14 @@ impl SystemPromptService for Live {
             .await
             .ok()
             .and_then(|recent_learnings| {
-                recent_learnings
+                let mut seen = HashSet::with_capacity(recent_learnings.len());
+                let mut learnings = recent_learnings
                     .into_iter()
                     .flat_map(|l| l.learnings)
-                    .collect::<Vec<_>>()
-                    .into()
+                    .collect::<Vec<_>>();
+                // dedupe learnings if there are any duplicates to save tokens.
+                learnings.retain(|x| seen.insert(x.clone()));
+                Some(learnings)
             });
 
         let ctx = Context {
@@ -166,7 +170,10 @@ mod tests {
         learning_repository
             .save(Learning::new(
                 env.cwd.clone(),
-                vec!["Avoid Hardcoding things in the code.".to_string()],
+                vec![
+                    "Avoid Hardcoding things in the code.".to_string(),
+                    "Always write unit tests to ensure the correctness.".to_string(),
+                ],
             ))
             .await
             .unwrap();
