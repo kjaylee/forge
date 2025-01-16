@@ -1,8 +1,8 @@
 ---
 source: crates/forge_tool/src/fetch.rs
-expression: result
+expression: normalized_result
 ---
-Contents of http://127.0.0.1:62101/test.html:
+Contents of http://127.0.0.1:PORT/test.html:
 Test Title
 ==========
 

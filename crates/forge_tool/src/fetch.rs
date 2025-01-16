@@ -48,31 +48,43 @@ struct FetchInput {
 }
 
 impl Fetch {
-    async fn fetch_url(&self, url: &Url, force_raw: bool) -> Result<(String, String)> {
-        // Check robots.txt first
+    async fn check_robots_txt(&self, url: &Url) -> Result<()> {
         let robots_url = format!(
             "{}://{}/robots.txt",
             url.scheme(),
-            url.host_str().unwrap_or("")
+            url.authority()
         );
         let robots_response = self.client.get(&robots_url).send().await;
-
+        
         if let Ok(robots) = robots_response {
             if robots.status().is_success() {
                 let robots_content = robots.text().await.unwrap_or_default();
-                if robots_content.contains("Disallow: ") {
-                    let path = url.path();
-                    for line in robots_content.lines() {
-                        if line.starts_with("Disallow: ") {
-                            let disallowed = line["Disallow: ".len()..].trim();
-                            if path.starts_with(disallowed) {
-                                return Err(anyhow!("URL cannot be fetched due to robots.txt"));
-                            }
+                let path = url.path();
+                for line in robots_content.lines() {
+                    if line.starts_with("Disallow: ") {
+                        let disallowed = line["Disallow: ".len()..].trim();
+                        let disallowed = if !disallowed.starts_with('/') {
+                            format!("/{}", disallowed)
+                        } else {
+                            disallowed.to_string()
+                        };
+                        let path = if !path.starts_with('/') {
+                            format!("/{}", path)
+                        } else {
+                            path.to_string()
+                        };
+                        if path.starts_with(&disallowed) {
+                            return Err(anyhow!("URL cannot be fetched due to robots.txt"));
                         }
                     }
                 }
             }
         }
+        Ok(())
+    }
+
+    async fn fetch_url(&self, url: &Url, force_raw: bool) -> Result<(String, String)> {
+        self.check_robots_txt(url).await?;
 
         let response = self
             .client
@@ -155,22 +167,24 @@ impl ToolCallService for Fetch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[allow(unused_imports)]
-    use pretty_assertions::assert_eq;
+    use regex::Regex;
     use tokio::runtime::Runtime;
 
-    fn setup() -> (Fetch, mockito::Server, Runtime) {
-        let rt = Runtime::new().unwrap();
-        let mut opts = mockito::ServerOpts::default();
-        opts.port = 62101;
-        let server = mockito::Server::new_with_opts(opts);
+    async fn setup() -> (Fetch, mockito::ServerGuard) {
+        let server = mockito::Server::new_async().await;
         let fetch = Fetch { client: Client::new() };
-        (fetch, server, rt)
+        (fetch, server)
     }
 
-    #[test]
-    fn test_fetch_html_content() {
-        let (fetch, mut server, rt) = setup();
+    fn normalize_port(content: String) -> String {
+        let re = Regex::new(r"http://127\.0\.0\.1:\d+").unwrap();
+        re.replace_all(&content, "http://127.0.0.1:PORT")
+            .to_string()
+    }
+
+    #[tokio::test]
+    async fn test_fetch_html_content() {
+        let (fetch, mut server) = setup().await;
 
         server
             .mock("GET", "/test.html")
@@ -191,6 +205,7 @@ mod tests {
         server
             .mock("GET", "/robots.txt")
             .with_status(200)
+            .with_header("content-type", "text/plain")
             .with_body("User-agent: *\nAllow: /")
             .create();
 
@@ -201,13 +216,14 @@ mod tests {
             raw: Some(false),
         };
 
-        let result = rt.block_on(fetch.call(input)).unwrap();
-        insta::assert_snapshot!(result);
+        let result = fetch.call(input).await.unwrap();
+        let normalized_result = normalize_port(result);
+        insta::assert_snapshot!(normalized_result);
     }
 
-    #[test]
-    fn test_fetch_raw_content() {
-        let (fetch, mut server, rt) = setup();
+    #[tokio::test]
+    async fn test_fetch_raw_content() {
+        let (fetch, mut server) = setup().await;
 
         let raw_content = "This is raw text content";
         server
@@ -220,6 +236,7 @@ mod tests {
         server
             .mock("GET", "/robots.txt")
             .with_status(200)
+            .with_header("content-type", "text/plain")
             .with_body("User-agent: *\nAllow: /")
             .create();
 
@@ -230,18 +247,29 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = rt.block_on(fetch.call(input)).unwrap();
-        insta::assert_snapshot!(result);
+        let result = fetch.call(input).await.unwrap();
+        let normalized_result = normalize_port(result);
+        insta::assert_snapshot!(normalized_result);
     }
 
-    #[test]
-    fn test_fetch_with_robots_txt_denied() {
-        let (fetch, mut server, rt) = setup();
+    #[tokio::test]
+    async fn test_fetch_with_robots_txt_denied() {
+        let (fetch, mut server) = setup().await;
 
+        // Mock robots.txt request
         server
             .mock("GET", "/robots.txt")
             .with_status(200)
+            .with_header("content-type", "text/plain")
             .with_body("User-agent: *\nDisallow: /test")
+            .create();
+
+        // Mock the actual page request (though it shouldn't get this far)
+        server
+            .mock("GET", "/test/page.html")
+            .with_status(200)
+            .with_header("content-type", "text/html")
+            .with_body("<html><body>Test page</body></html>")
             .create();
 
         let input = FetchInput {
@@ -251,16 +279,17 @@ mod tests {
             raw: None,
         };
 
-        let result = rt.block_on(fetch.call(input));
+        let result = fetch.call(input).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("robots.txt"));
+        let err = result.unwrap_err();
+        assert!(err.contains("robots.txt"), "Expected error containing 'robots.txt', got: {}", err);
     }
 
-    #[test]
-    fn test_fetch_with_pagination() {
-        let (fetch, mut server, rt) = setup();
+    #[tokio::test]
+    async fn test_fetch_with_pagination() {
+        let (fetch, mut server) = setup().await;
 
-        let long_content = format!("{}{}","A".repeat(5000),"B".repeat(5000));
+        let long_content = format!("{}{}", "A".repeat(5000), "B".repeat(5000));
         server
             .mock("GET", "/long.txt")
             .with_status(200)
@@ -271,6 +300,7 @@ mod tests {
         server
             .mock("GET", "/robots.txt")
             .with_status(200)
+            .with_header("content-type", "text/plain")
             .with_body("User-agent: *\nAllow: /")
             .create();
 
@@ -282,9 +312,10 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = rt.block_on(fetch.call(input)).unwrap();
-        assert!(result.contains("A".repeat(5000).as_str()));
-        assert!(result.contains("start_index of 5000"));
+        let result = fetch.call(input).await.unwrap();
+        let normalized_result = normalize_port(result);
+        assert!(normalized_result.contains("A".repeat(5000).as_str()));
+        assert!(normalized_result.contains("start_index of 5000"));
 
         // Second page
         let input = FetchInput {
@@ -294,8 +325,9 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = rt.block_on(fetch.call(input)).unwrap();
-        assert!(result.contains("B".repeat(5000).as_str()));
+        let result = fetch.call(input).await.unwrap();
+        let normalized_result = normalize_port(result);
+        assert!(normalized_result.contains("B".repeat(5000).as_str()));
     }
 
     #[test]
@@ -315,15 +347,16 @@ mod tests {
         assert!(result.unwrap_err().contains("parse"));
     }
 
-    #[test]
-    fn test_fetch_404() {
-        let (fetch, mut server, rt) = setup();
+    #[tokio::test]
+    async fn test_fetch_404() {
+        let (fetch, mut server) = setup().await;
 
         server.mock("GET", "/not-found").with_status(404).create();
 
         server
             .mock("GET", "/robots.txt")
             .with_status(200)
+            .with_header("content-type", "text/plain")
             .with_body("User-agent: *\nAllow: /")
             .create();
 
@@ -334,7 +367,7 @@ mod tests {
             raw: None,
         };
 
-        let result = rt.block_on(fetch.call(input));
+        let result = fetch.call(input).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("404"));
     }
