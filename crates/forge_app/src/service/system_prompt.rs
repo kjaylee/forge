@@ -95,7 +95,8 @@ mod tests {
         let env = test_env();
         let tools = Arc::new(Service::tool_service());
         let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
+            TestProvider::default()
+                .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let prompt = Live::new(env, tools, provider)
             .get_system_prompt(&ModelId::new("gpt-3.5-turbo"))
@@ -108,9 +109,10 @@ mod tests {
     async fn test_tool_unsupported() {
         let env = test_env();
         let tools = Arc::new(Service::tool_service());
-        let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(false))]),
-        );
+        let provider = Arc::new(TestProvider::default().parameters(vec![(
+            ModelId::new("gpt-3.5-turbo"),
+            Parameters::new(false),
+        )]));
         let prompt = Live::new(env, tools, provider)
             .get_system_prompt(&ModelId::new("gpt-3.5-turbo"))
             .await

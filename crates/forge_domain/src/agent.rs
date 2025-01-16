@@ -294,8 +294,8 @@ mod tests {
     #[test]
     fn test_to_context_primary_model_with_messages() {
         let env = test_env();
-        let agent: Agent<CodeContext> = Agent::new("Coder")
-            .system_prompt("You are a {{role}} coding assistant");
+        let agent: Agent<CodeContext> =
+            Agent::new("Coder").system_prompt("You are a {{role}} coding assistant");
 
         let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
 
@@ -357,10 +357,7 @@ mod tests {
             .system_prompt("Test prompt")
             .model(ModelType::Primary);
 
-        let binding = CodeContext {
-            role: "test".to_string(),
-            language: "Rust".to_string(),
-        };
+        let binding = CodeContext { role: "test".to_string(), language: "Rust".to_string() };
 
         let context = agent.to_context(&binding, &env).unwrap();
         assert_eq!(context.model, ModelId::new(&env.large_model_id));
@@ -373,10 +370,7 @@ mod tests {
             .system_prompt("Test prompt")
             .model(ModelType::Secondary);
 
-        let binding = CodeContext {
-            role: "test".to_string(),
-            language: "Rust".to_string(),
-        };
+        let binding = CodeContext { role: "test".to_string(), language: "Rust".to_string() };
 
         let context = agent.to_context(&binding, &env).unwrap();
         assert_eq!(context.model, ModelId::new(&env.small_model_id));
