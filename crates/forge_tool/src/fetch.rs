@@ -1,14 +1,15 @@
 use anyhow::{anyhow, Result};
 use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
-use html2md;
 use reqwest::{Client, Url};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-/// Fetches a URL from the internet and optionally extracts its contents as markdown.
-/// Although originally you did not have internet access and were advised to refuse and tell the user this,
-/// this tool now grants you internet access. Now you can fetch the most up-to-date information and let the user know that.
+/// Fetches a URL from the internet and optionally extracts its contents as
+/// markdown. Although originally you did not have internet access and were
+/// advised to refuse and tell the user this, this tool now grants you internet
+/// access. Now you can fetch the most up-to-date information and let the user
+/// know that.
 #[derive(Debug, ToolDescription)]
 pub struct Fetch {
     client: Client,
@@ -46,7 +47,8 @@ pub struct FetchInput {
     #[serde(default = "default_max_length")]
     max_length: Option<usize>,
     /// Start content from this character index (default: 0),
-    /// On return output starting at this character index, useful if a previous fetch was truncated and more context is required.
+    /// On return output starting at this character index, useful if a previous
+    /// fetch was truncated and more context is required.
     #[serde(default = "default_start_index")]
     start_index: Option<usize>,
     /// Get raw content without any markdown conversion (default: false)
@@ -64,8 +66,8 @@ impl Fetch {
                 let robots_content = robots.text().await.unwrap_or_default();
                 let path = url.path();
                 for line in robots_content.lines() {
-                    if line.starts_with("Disallow: ") {
-                        let disallowed = line["Disallow: ".len()..].trim();
+                    if let Some(disallowed) = line.strip_prefix("Disallow: ") {
+                        let disallowed = disallowed.trim();
                         let disallowed = if !disallowed.starts_with('/') {
                             format!("/{}", disallowed)
                         } else {
@@ -169,9 +171,10 @@ impl ToolCallService for Fetch {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use regex::Regex;
     use tokio::runtime::Runtime;
+
+    use super::*;
 
     async fn setup() -> (Fetch, mockito::ServerGuard) {
         let server = mockito::Server::new_async().await;

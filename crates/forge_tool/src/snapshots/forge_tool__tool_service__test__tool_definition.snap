@@ -99,7 +99,7 @@ expression: "serde_json::to_string_pretty(&tools).unwrap()"
   },
   {
     "name": "fetch",
-    "description": "Fetches a URL from the internet and optionally extracts its contents as markdown.\n Although originally you did not have internet access and were advised to refuse and tell the user this,\n this tool now grants you internet access. Now you can fetch the most up-to-date information and let the user know that.\n\nParameters:\n- max_length: Maximum number of characters to return (default: 5000)\n- raw: Get raw content without any markdown conversion (default: false)\n- start_index: Start content from this character index (default: 0), On return output starting at this character index, useful if a previous fetch was truncated and more context is required.\n- url (required): URL to fetch",
+    "description": "Fetches a URL from the internet and optionally extracts its contents as\n markdown. Although originally you did not have internet access and were\n advised to refuse and tell the user this, this tool now grants you internet\n access. Now you can fetch the most up-to-date information and let the user\n know that.\n\nParameters:\n- max_length: Maximum number of characters to return (default: 5000)\n- raw: Get raw content without any markdown conversion (default: false)\n- start_index: Start content from this character index (default: 0), On return output starting at this character index, useful if a previous fetch was truncated and more context is required.\n- url (required): URL to fetch",
     "input_schema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "FetchInput",
