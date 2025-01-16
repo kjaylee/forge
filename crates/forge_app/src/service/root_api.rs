@@ -48,7 +48,7 @@ impl Live {
             Service::learning_service(&cwd).expect("Failed to create learning storage service"),
         );
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
-        let tool = Arc::new(forge_tool::Service::tool_service(
+        let tool = Arc::new(Service::tool_service(
             cwd.clone(),
             learning_repository.clone(),
         ));

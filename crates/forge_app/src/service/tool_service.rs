@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
+use forge_domain::{LearningRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
 use tracing::debug;
 
 use super::Service;
@@ -13,8 +13,11 @@ pub trait ToolService: Send + Sync {
 }
 
 impl Service {
-    pub fn tool_service() -> impl ToolService {
-        Live::from_iter(forge_tool::tools())
+    pub fn tool_service(
+        cwd: String,
+        learning_repo: Arc<dyn LearningRepository>,
+    ) -> impl ToolService {
+        Live::from_iter(forge_tool::tools(cwd, learning_repo))
     }
 }
 
@@ -94,6 +97,8 @@ impl ToolService for Live {
 mod test {
     use forge_domain::{Tool, ToolCallId, ToolDefinition};
     use serde_json::{json, Value};
+
+    use crate::tests::TestLearningStorage;
 
     use super::*;
 
@@ -186,7 +191,10 @@ mod test {
 
     #[test]
     fn test_tool_ids() {
-        let service = Service::tool_service();
+        let service = Service::tool_service(
+            "/Users/codeforge".to_string(),
+            Arc::new(TestLearningStorage::in_memory().unwrap()),
+        );
         let tools = service.list();
         let names: Vec<_> = tools.iter().map(|t| t.name.as_str()).collect();
 
@@ -199,7 +207,10 @@ mod test {
 
     #[test]
     fn test_usage_prompt() {
-        let service = Service::tool_service();
+        let service = Service::tool_service(
+            "/Users/codeforge".to_string(),
+            Arc::new(TestLearningStorage::in_memory().unwrap()),
+        );
         let prompt = service.usage_prompt();
 
         assert!(!prompt.is_empty());

@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{Environment, LearningRepository, ModelId, ProviderService, ToolService};
+use forge_domain::{Environment, LearningRepository, ModelId, ProviderService};
+use super::tool_service::ToolService;
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
-use super::tool_service::ToolService;
 use super::Service;
 
 // Number of recent learnings to show in the prompt
@@ -117,7 +117,7 @@ mod tests {
     async fn test_tool_supported() {
         let env = test_env();
         let learning_repository = Arc::new(TestLearningStorage::in_memory().unwrap());
-        let tools = Arc::new(forge_tool::Service::tool_service(
+        let tools = Arc::new(Service::tool_service(
             env.cwd.clone(),
             learning_repository.clone(),
         ));
@@ -135,7 +135,7 @@ mod tests {
     async fn test_tool_unsupported() {
         let env = test_env();
         let learning_repository = Arc::new(TestLearningStorage::in_memory().unwrap());
-        let tools = Arc::new(forge_tool::Service::tool_service(
+        let tools = Arc::new(Service::tool_service(
             env.cwd.clone(),
             learning_repository.clone(),
         ));
@@ -171,7 +171,7 @@ mod tests {
             .await
             .unwrap();
 
-        let tools = Arc::new(forge_tool::Service::tool_service(
+        let tools = Arc::new(Service::tool_service(
             env.cwd.clone(),
             learning_repository.clone(),
         ));
