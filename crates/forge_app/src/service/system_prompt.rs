@@ -95,10 +95,10 @@ mod tests {
         let env = test_env();
         let tools = Arc::new(Service::tool_service());
         let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
+            TestProvider::default().parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let prompt = Live::new(env, tools, provider)
-            .get_system_prompt(&ModelId::default())
+            .get_system_prompt(&ModelId::new("gpt-3.5-turbo"))
             .await
             .unwrap();
         assert_snapshot!(prompt);
@@ -109,10 +109,10 @@ mod tests {
         let env = test_env();
         let tools = Arc::new(Service::tool_service());
         let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
+            TestProvider::default().parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(false))]),
         );
         let prompt = Live::new(env, tools, provider)
-            .get_system_prompt(&ModelId::default())
+            .get_system_prompt(&ModelId::new("gpt-3.5-turbo"))
             .await
             .unwrap();
         assert_snapshot!(prompt);
