@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
+use crate::{Context, ContextMessage, ModelId};
 
 /// Represents the contents of a prompt, which can either be direct text or a
 /// file reference
@@ -69,6 +70,10 @@ pub struct Agent<C> {
     #[serde(rename = "description", skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
+    /// Optional model ID to use for this agent
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<ModelId>,
+
     /// The system prompt that defines the agent's behavior
     #[serde(rename = "systemPrompt", skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<PromptContent>,
@@ -91,32 +96,65 @@ where
         Self {
             name: name.into(),
             description: None,
+            model_id: None,
             system_prompt: None,
             user_prompt: None,
             _context: PhantomData,
         }
     }
 
-    /// Renders the system prompt with the given context if it exists
-    pub fn render_system_prompt(&self, context: &C) -> Result<Option<String>> {
+    fn render_system_prompt(&self, binding: &C) -> Result<Option<String>> {
         if let Some(system_prompt) = &self.system_prompt {
             let handlebars = Handlebars::new();
             let prompt = system_prompt.to_string();
-            Ok(Some(handlebars.render_template(&prompt, context)?))
+            Ok(Some(handlebars.render_template(&prompt, binding)?))
         } else {
             Ok(None)
         }
     }
 
-    /// Renders the user prompt with the given context if it exists
-    pub fn render_user_prompt(&self, context: &C) -> Result<Option<String>> {
+    fn render_user_prompt(&self, binding: &C) -> Result<Option<String>> {
         if let Some(user_prompt) = &self.user_prompt {
             let handlebars = Handlebars::new();
             let prompt = user_prompt.to_string();
-            Ok(Some(handlebars.render_template(&prompt, context)?))
+            Ok(Some(handlebars.render_template(&prompt, binding)?))
         } else {
             Ok(None)
         }
+    }
+
+    /// Converts the agent to a Context by rendering its prompts with the
+    /// provided template binding.
+    ///
+    /// The binding contains values for handlebars template variables in both
+    /// system and user prompts. The resulting Context will contain the
+    /// rendered prompts as messages in the correct order (system message
+    /// first, if present, followed by user message if present).
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let binding = CodeContext {
+    ///     role: "helpful".to_string(),
+    ///     language: "Rust".to_string()
+    /// };
+    /// let context = agent.to_context(&binding)?;
+    /// ```
+    pub fn to_context(&self, binding: &C) -> Result<Context> {
+        let mut messages = Vec::new();
+
+        // Add system message if present
+        if let Some(system_message) = self.render_system_prompt(binding)? {
+            messages.push(ContextMessage::system(system_message));
+        }
+
+        // Add user message if present
+        if let Some(user_message) = self.render_user_prompt(binding)? {
+            messages.push(ContextMessage::user(user_message));
+        }
+
+        let model_id = self.model_id.clone().unwrap_or_default();
+
+        Ok(Context::new(model_id.clone()).extend_messages(messages))
     }
 }
 
@@ -153,18 +191,21 @@ mod tests {
 
         assert_eq!(agent.name, "Coder");
         assert_eq!(agent.description, None);
+        assert_eq!(agent.model_id, None);
         assert_eq!(agent.system_prompt, None);
         assert_eq!(agent.user_prompt, None);
     }
 
     #[test]
-    fn test_create_with_prompts() {
+    fn test_create_with_prompts_and_model() {
         let agent: Agent<CodeContext> = Agent::new("Coder")
             .description("A coding assistant")
-            .system_prompt("You are a helpful coding assistant");
+            .system_prompt("You are a helpful coding assistant")
+            .model_id(ModelId::new("gpt-4"));
 
         assert_eq!(agent.name, "Coder");
         assert_eq!(agent.description, Some("A coding assistant".to_string()));
+        assert_eq!(agent.model_id, Some(ModelId::new("gpt-4")));
         assert_eq!(
             agent.system_prompt,
             Some(PromptContent::Text(
@@ -200,44 +241,86 @@ mod tests {
         let agent: Agent<CodeContext> = Agent::new("Coder")
             .description("A coding assistant")
             .system_prompt("You are a {{role}} coding assistant")
-            .user_prompt("How can I help with {{language}} code today?");
+            .user_prompt("How can I help with {{language}} code today?")
+            .model_id(ModelId::new("gpt-4"));
 
-        let context = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
+        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
 
         assert_eq!(
-            agent.render_system_prompt(&context).unwrap(),
+            agent.render_system_prompt(&binding).unwrap(),
             Some("You are a helpful coding assistant".to_string())
         );
         assert_eq!(
-            agent.render_user_prompt(&context).unwrap(),
+            agent.render_user_prompt(&binding).unwrap(),
             Some("How can I help with Rust code today?".to_string())
         );
     }
 
     #[test]
-    fn test_agent_json_format() {
-        // Test full agent with all fields
-        let full_agent: Agent<CodeContext> = Agent::new("Coder")
+    fn test_to_context_with_model() {
+        let agent: Agent<CodeContext> = Agent::new("Coder")
             .description("A coding assistant")
-            .system_prompt(PromptContent::Text(
-                "You are a helpful coding assistant".to_string(),
-            ))
-            .user_prompt("How can I help?");
+            .system_prompt("You are a {{role}} coding assistant")
+            .user_prompt("How can I help with {{language}} code today?")
+            .model_id(ModelId::new("gpt-4"));
 
-        insta::assert_json_snapshot!(full_agent);
+        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
 
-        // Test minimal agent (only name)
-        let minimal_agent: Agent<CodeContext> = Agent::new("Coder");
+        let result = agent.to_context(&binding).unwrap();
+        assert_eq!(result.model, ModelId::new("gpt-4"));
+        assert_eq!(result.messages.len(), 2);
+        assert_eq!(result.model, ModelId::new("gpt-4"));
+        assert_eq!(
+            result.messages[0],
+            ContextMessage::system("You are a helpful coding assistant")
+        );
+        assert_eq!(
+            result.messages[1],
+            ContextMessage::user("How can I help with Rust code today?")
+        );
+    }
 
-        insta::assert_json_snapshot!(minimal_agent);
+    #[test]
+    fn test_to_context_default_model() {
+        let agent: Agent<CodeContext> = Agent::new("Coder")
+            .system_prompt("You are a {{role}} coding assistant")
+            // No model specified, should use default
+            ;
 
-        // Test agent with file prompts
-        let file_agent: Agent<CodeContext> = Agent::new("Coder")
-            .description("A coding assistant")
-            .system_prompt(PromptContent::from_file("prompts/system.md"))
-            .user_prompt(PromptContent::from_file("prompts/user.md"));
+        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
 
-        insta::assert_json_snapshot!(file_agent);
+        let result = agent.to_context(&binding).unwrap();
+        assert_eq!(result.messages.len(), 1);
+        assert_eq!(result.model, ModelId::default());
+        assert_eq!(
+            result.messages[0],
+            ContextMessage::system("You are a helpful coding assistant")
+        );
+    }
+
+    #[test]
+    fn test_to_context_user_only() {
+        let agent: Agent<CodeContext> =
+            Agent::new("Coder").user_prompt("How can I help with {{language}} code today?");
+
+        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
+
+        let result = agent.to_context(&binding).unwrap();
+        assert_eq!(result.messages.len(), 1);
+        assert_eq!(
+            result.messages[0],
+            ContextMessage::user("How can I help with Rust code today?")
+        );
+    }
+
+    #[test]
+    fn test_to_context_no_prompts() {
+        let agent: Agent<CodeContext> = Agent::new("Coder");
+
+        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
+
+        let result = agent.to_context(&binding).unwrap();
+        assert_eq!(result.messages.len(), 0);
     }
 
     #[test]

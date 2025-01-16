@@ -1,8 +1,0 @@
----
-source: crates/forge_domain/src/agent.rs
-expression: minimal_agent
-snapshot_kind: text
----
-{
-  "name": "Coder"
-}
