@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{Environment, LearningRepository, ModelId, ProviderService};
@@ -73,7 +73,7 @@ impl SystemPromptService for Live {
             .recent_learnings(&self.env.cwd, RECENT_LEARNING_COUNT)
             .await
             .ok()
-            .and_then(|recent_learnings| {
+            .map(|recent_learnings| {
                 let mut seen = HashSet::with_capacity(recent_learnings.len());
                 let mut learnings = recent_learnings
                     .into_iter()
@@ -81,7 +81,7 @@ impl SystemPromptService for Live {
                     .collect::<Vec<_>>();
                 // dedupe learnings if there are any duplicates to save tokens.
                 learnings.retain(|x| seen.insert(x.clone()));
-                Some(learnings)
+                learnings
             });
 
         let ctx = Context {
