@@ -113,7 +113,8 @@ impl TitleService for Live {
             )))
             .add_tool(tool.clone())
             .tool_choice(ToolChoice::Call(tool.name))
-            .model(chat.model);
+            .model(chat.model)
+            .max_tokens(200 as u32);
 
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 

@@ -41,8 +41,7 @@ pub struct ResponseUsage {
     pub total_tokens: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(untagged)]
+#[derive(Debug, Serialize, Clone)]
 pub enum Choice {
     NonChat {
         finish_reason: Option<String>,
@@ -50,8 +49,6 @@ pub enum Choice {
         error: Option<ErrorResponse>,
     },
     NonStreaming {
-        logprobs: Option<serde_json::Value>,
-        index: u32,
         finish_reason: Option<String>,
         message: ResponseMessage,
         error: Option<ErrorResponse>,
@@ -61,6 +58,81 @@ pub enum Choice {
         delta: ResponseMessage,
         error: Option<ErrorResponse>,
     },
+}
+
+// note:
+// Custom deserialization is needed for the Choice enum because:
+// 1. The streaming response JSON contains overlapping fields (text, finish_reason) that exist in multiple variants
+// 2. Using #[serde(untagged)] causes serde to match the first variant whose fields are all present in the JSON
+// 3. Since both NonChat and Streaming variants have 'error' and 'finish_reason', untagged deserialization 
+//    incorrectly chooses NonChat even when 'delta' field is present
+impl<'de> Deserialize<'de> for Choice {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "lowercase")]
+        enum Field {
+            Text,
+            FinishReason,
+            Delta,
+            Message,
+            Error,
+            #[serde(other)]
+            Other,
+        }
+
+        let value = serde_json::Value::deserialize(deserializer)?;
+        let obj = value.as_object().ok_or_else(|| serde::de::Error::custom("expected an object"))?;
+
+        if obj.contains_key("delta") {
+            // Parse as Streaming variant
+            Ok(Choice::Streaming {
+                finish_reason: obj.get("finish_reason")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                delta: serde_json::from_value(obj.get("delta")
+                    .ok_or_else(|| serde::de::Error::custom("missing delta field"))?
+                    .clone())
+                    .map_err(serde::de::Error::custom)?,
+                error: obj.get("error")
+                    .map(|v| serde_json::from_value(v.clone()))
+                    .transpose()
+                    .map_err(serde::de::Error::custom)?,
+            })
+        } else if obj.contains_key("message") {
+            // Parse as NonStreaming variant
+            Ok(Choice::NonStreaming {
+                finish_reason: obj.get("finish_reason")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                message: serde_json::from_value(obj.get("message")
+                    .ok_or_else(|| serde::de::Error::custom("missing message field"))?
+                    .clone())
+                    .map_err(serde::de::Error::custom)?,
+                error: obj.get("error")
+                    .map(|v| serde_json::from_value(v.clone()))
+                    .transpose()
+                    .map_err(serde::de::Error::custom)?,
+            })
+        } else {
+            // Parse as NonChat variant
+            Ok(Choice::NonChat {
+                finish_reason: obj.get("finish_reason")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                text: obj.get("text")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| serde::de::Error::custom("missing text field"))?
+                    .to_string(),
+                error: obj.get("error")
+                    .map(|v| serde_json::from_value(v.clone()))
+                    .transpose()
+                    .map_err(serde::de::Error::custom)?,
+            })
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -89,7 +161,7 @@ pub struct OpenRouterToolCall {
 pub struct FunctionCall {
     // Only the first event typically has the name of the function call
     pub name: Option<ToolName>,
-    pub arguments: String,
+    pub arguments: Option<String>,
 }
 
 impl TryFrom<OpenRouterResponse> for ModelResponse {
@@ -126,7 +198,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                                             .clone()
                                             .ok_or(Error::ToolCallMissingName)?,
                                         arguments: serde_json::from_str(
-                                            &tool_call.function.arguments,
+                                            &tool_call.function.arguments.clone().unwrap_or_default(),
                                         )?,
                                     });
                                 }
@@ -147,7 +219,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                                     resp = resp.add_tool_call(ToolCallPart {
                                         call_id: tool_call.id.clone(),
                                         name: tool_call.function.name.clone(),
-                                        arguments_part: tool_call.function.arguments.clone(),
+                                        arguments_part: tool_call.function.arguments.clone().unwrap_or_default(),
                                     });
                                 }
                             }

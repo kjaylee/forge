@@ -88,6 +88,7 @@ pub struct Context {
     pub tools: Vec<ToolDefinition>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
+    pub max_tokens: Option<u32>,
 }
 
 impl Context {
@@ -97,6 +98,7 @@ impl Context {
             tools: vec![],
             model: id,
             tool_choice: None,
+            max_tokens: None
         }
     }
 
