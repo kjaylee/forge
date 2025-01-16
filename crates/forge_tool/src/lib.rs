@@ -8,6 +8,7 @@ mod shell;
 mod think;
 
 use approve::Approve;
+use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
 use outline::Outline;
@@ -28,5 +29,6 @@ pub fn tools() -> Vec<Tool> {
         SelectTool.into(),
         Shell::default().into(),
         Think::default().into(),
+        Fetch::default().into(),
     ]
 }
