@@ -1,0 +1,15 @@
+---
+source: crates/forge_domain/src/agent.rs
+expression: full_agent
+snapshot_kind: text
+---
+{
+  "name": "Coder",
+  "description": "A coding assistant",
+  "systemPrompt": {
+    "text": "You are a helpful coding assistant"
+  },
+  "userPrompt": {
+    "text": "How can I help?"
+  }
+}
