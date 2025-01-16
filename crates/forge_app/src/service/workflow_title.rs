@@ -102,11 +102,11 @@ impl Title {
 #[async_trait::async_trait]
 impl TitleService for Live {
     async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
-        let user_prompt = self.prompt(&chat.content)?;
+        let system_prompt = self.prompt(&chat.content)?;
         let tool = Title::definition();
 
         let request = Context::default()
-            .add_message(ContextMessage::system(user_prompt))
+            .add_message(ContextMessage::system(system_prompt))
             .add_message(ContextMessage::user(format!(
                 "<technical_content>{}</technical_content>",
                 chat.content
