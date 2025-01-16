@@ -45,7 +45,7 @@ impl Live {
     fn new(env: Environment) -> Self {
         let cwd: String = env.cwd.clone();
         let learning_repository = Arc::new(
-            Service::learning_service(&cwd).expect("Failed to create learning storage service"),
+            Service::learning_service(&cwd).expect("Failed to create learning repository"),
         );
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
         let tool = Arc::new(Service::tool_service(
@@ -58,7 +58,7 @@ impl Live {
             env.clone(),
             tool.clone(),
             provider.clone(),
-            learning_repository.clone(),
+            learning_repository,
         ));
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
