@@ -110,7 +110,7 @@ pub struct OutlineInput {
 /// most programming languages, it enhances productivity in complex projects and
 /// notifies users when encountering unsupported languages.
 #[derive(ToolDescription)]
-pub(crate) struct Outline;
+pub struct Outline;
 
 impl NamedTool for Outline {
     fn tool_name(&self) -> ToolName {

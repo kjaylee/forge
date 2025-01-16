@@ -20,6 +20,9 @@ struct Cli {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Display the banner in dimmed colors
+    forge_main::banner::display()?;
+
     let mut current_conversation_id = None;
     let mut current_title = None;
     let mut current_content = None;
