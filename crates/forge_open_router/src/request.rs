@@ -5,6 +5,14 @@ use serde::{Deserialize, Serialize};
 use super::response::{FunctionCall, OpenRouterToolCall};
 use super::tool_choice::{FunctionType, ToolChoice};
 
+// NOTE: only some of the anthropic models support caching.
+const CLAUDE_CACHE_SUPPORTED_MODELS: &[&str] = &[
+    "anthropic/claude-3.5-sonnet",
+    "anthropic/claude-3.5-haiku",
+    "anthropic/claude-3-haiku",
+    "anthropic/claude-3-opus",
+];
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
     // TODO: could be an enum
@@ -263,18 +271,21 @@ impl From<ContextMessage> for OpenRouterMessage {
 /// Inserts cache control information into system messages
 /// NOTE: We need to add more caching as the context grows larger
 fn insert_cache(model_id: &str, mut message: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
-    if model_id.contains("anthropic") {
-        // NOTE: some of the anthropic models doesn't support caching, hence disabling
-        // caching for anthropic models for now.
-        message
+    let caching_supported = if model_id.contains("anthropic") {
+        CLAUDE_CACHE_SUPPORTED_MODELS.contains(&model_id)
     } else {
+        true
+    };
+
+    if caching_supported {
         for message in message.iter_mut() {
             if message.role == OpenRouterRole::System {
                 message.content = message.content.clone().map(|a| a.cached());
             }
         }
-        message
     }
+
+    message
 }
 
 impl From<Role> for OpenRouterRole {
