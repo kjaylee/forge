@@ -6,6 +6,7 @@ use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
+use super::tool_service::ToolService;
 use super::Service;
 
 // Number of recent learnings to show in the prompt
