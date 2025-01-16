@@ -1,16 +1,23 @@
 use anyhow::{anyhow, Result};
-use forge_domain::{ToolCallService, ToolDescription};
+use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use html2md;
 use reqwest::{Client, Url};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 /// Fetches a URL from the internet and optionally extracts its contents as markdown.
 /// Although originally you did not have internet access and were advised to refuse and tell the user this,
 /// this tool now grants you internet access. Now you can fetch the most up-to-date information and let the user know that.
 #[derive(Debug, ToolDescription)]
-struct Fetch {
+pub struct Fetch {
     client: Client,
+}
+
+impl NamedTool for Fetch {
+    fn tool_name(&self) -> forge_domain::ToolName {
+        forge_domain::ToolName::new("fetch")
+    }
 }
 
 impl Default for Fetch {
@@ -31,8 +38,8 @@ fn default_raw() -> Option<bool> {
     Some(false)
 }
 
-#[derive(Deserialize)]
-struct FetchInput {
+#[derive(Deserialize, JsonSchema)]
+pub struct FetchInput {
     // URL to fetch
     url: String,
     // Maximum number of characters to return (default: 5000)
@@ -49,13 +56,9 @@ struct FetchInput {
 
 impl Fetch {
     async fn check_robots_txt(&self, url: &Url) -> Result<()> {
-        let robots_url = format!(
-            "{}://{}/robots.txt",
-            url.scheme(),
-            url.authority()
-        );
+        let robots_url = format!("{}://{}/robots.txt", url.scheme(), url.authority());
         let robots_response = self.client.get(&robots_url).send().await;
-        
+
         if let Ok(robots) = robots_response {
             if robots.status().is_success() {
                 let robots_content = robots.text().await.unwrap_or_default();
@@ -282,7 +285,11 @@ mod tests {
         let result = fetch.call(input).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.contains("robots.txt"), "Expected error containing 'robots.txt', got: {}", err);
+        assert!(
+            err.contains("robots.txt"),
+            "Expected error containing 'robots.txt', got: {}",
+            err
+        );
     }
 
     #[tokio::test]

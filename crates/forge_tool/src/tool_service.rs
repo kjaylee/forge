@@ -5,6 +5,7 @@ use serde_json::Value;
 use tracing::debug;
 
 use crate::approve::Approve;
+use crate::fetch::Fetch;
 use crate::fs::*;
 use crate::outline::Outline;
 use crate::select::SelectTool;
@@ -100,6 +101,7 @@ impl Service {
             Tool::new(SelectTool),
             Tool::new(Shell::default()),
             Tool::new(Think::default()),
+            Tool::new(Fetch::default()),
         ])
     }
 }
