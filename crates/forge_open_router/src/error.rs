@@ -7,11 +7,14 @@ use thiserror::Error;
 pub enum Error {
     EmptyContent,
     #[from(ignore)]
-    #[display("Upstream: {}", message)]
+    #[display("Upstream: {}{}", message, match metadata.is_empty() {
+        true => String::new(),
+        false => format!(" (metadata: {:?})", metadata)
+    })]
     Upstream {
         code: u32,
         message: String,
-        metadata: HashMap<String, String>,
+        metadata: HashMap<String, serde_json::Value>,
     },
     SerdeJson(serde_json::Error),
     ToolCallMissingName,

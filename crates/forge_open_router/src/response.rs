@@ -61,7 +61,7 @@ pub struct ErrorResponse {
     pub code: u32,
     pub message: String,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub metadata: HashMap<String, String>,
+    pub metadata: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
