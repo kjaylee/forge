@@ -142,3 +142,33 @@ impl APIService for Live {
         Ok(self.environment.clone())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use forge_domain::ModelId;
+    use insta::assert_snapshot;
+    use tokio_stream::StreamExt;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_e2e() {
+        let api = Live::new().await.unwrap();
+        let task = include_str!("./api_task.md");
+        let request = ChatRequest::new(ModelId::new("anthropic/claude-3.5-sonnet"), task);
+        let response = api
+            .chat(request)
+            .await
+            .unwrap()
+            .filter_map(|message| match message.unwrap() {
+                ChatResponse::Text(text) => Some(text),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .await
+            .join("")
+            .trim()
+            .to_string();
+        assert_snapshot!(response);
+    }
+}
