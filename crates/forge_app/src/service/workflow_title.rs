@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, ProviderService, ResultStream, ToolCall,
-    ToolCallFull, ToolChoice, ToolDefinition,
+    schema_without_meta, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
+    ResultStream, ToolCall, ToolCallFull, ToolChoice, ToolDefinition,
 };
 use handlebars::Handlebars;
-use schemars::{schema_for, JsonSchema};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
@@ -87,15 +87,18 @@ impl Live {
 
 #[derive(JsonSchema, Deserialize, Debug)]
 struct Title {
-    /// The generated title text Should be clear, concise and technically accurate
+    /// The generated title text Should be clear, concise and technically
+    /// accurate
     text: String,
 }
 
 impl Title {
     fn definition() -> ToolDefinition {
+        let schema = schema_without_meta!(Title);
+
         ToolDefinition::new("generate_title")
             .description("Receives a title that can be shown to the user")
-            .input_schema(schema_for!(Title))
+            .input_schema(schema)
     }
 }
 
@@ -114,7 +117,7 @@ impl TitleService for Live {
             .add_tool(tool.clone())
             .tool_choice(ToolChoice::Call(tool.name))
             .model(chat.model)
-            .max_tokens(200 as u32);
+            .max_tokens(200_u32);
 
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 

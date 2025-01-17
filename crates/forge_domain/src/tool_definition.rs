@@ -5,7 +5,9 @@ use schemars::schema::RootSchema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{NamedTool, ToolCallService, ToolName, UsageParameterPrompt, UsagePrompt};
+use crate::{
+    schema_without_meta, NamedTool, ToolCallService, ToolName, UsageParameterPrompt, UsagePrompt,
+};
 
 ///
 /// Refer to the specification over here:
@@ -69,8 +71,9 @@ where
     T::Output: serde::Serialize + JsonSchema,
 {
     fn from(t: &T) -> Self {
-        let input: RootSchema = schemars::schema_for!(T::Input);
-        let output: RootSchema = schemars::schema_for!(T::Output);
+        let input = schema_without_meta!(T::Input);
+        let output = schema_without_meta!(T::Output);
+
         let mut full_description = t.description();
 
         full_description.push_str("\n\nParameters:");

@@ -98,7 +98,7 @@ impl Context {
             tools: vec![],
             model: id,
             tool_choice: None,
-            max_tokens: None
+            max_tokens: None,
         }
     }
 
