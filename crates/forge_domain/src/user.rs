@@ -21,6 +21,9 @@ pub enum Input {
     /// Reload the conversation with the original prompt.
     /// This can be triggered with the '/reload' command.
     Reload,
+    /// Display system environment information.
+    /// This can be triggered with the '/info' command.
+    Info,
     /// A regular text message from the user to be processed by the chat system.
     /// Any input that doesn't start with '/' is treated as a message.
     Message(String),
@@ -38,6 +41,7 @@ impl Input {
             "/end".to_string(),
             "/new".to_string(),
             "/reload".to_string(),
+            "/info".to_string(),
         ]
     }
 
@@ -57,6 +61,7 @@ impl Input {
             "/end" => Ok(Input::End),
             "/new" => Ok(Input::New),
             "/reload" => Ok(Input::Reload),
+            "/info" => Ok(Input::Info),
             cmd if cmd.starts_with('/') => Err(Error::InvalidUserCommand(cmd.to_string())),
             text => Ok(Input::Message(text.to_string())),
         }
