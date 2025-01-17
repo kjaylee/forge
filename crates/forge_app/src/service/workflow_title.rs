@@ -63,7 +63,7 @@ impl Live {
         request: Context,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
     ) -> Result<()> {
-        let mut response = self.provider.chat(request).await?;
+        let mut response = self.provider.chat(&request.model, request.clone()).await?;
         let mut parts = Vec::new();
 
         while let Some(chunk) = response.next().await {

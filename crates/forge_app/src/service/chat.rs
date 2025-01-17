@@ -64,7 +64,7 @@ impl Live {
             let mut some_tool_result = None;
             let mut assistant_message_content = String::new();
 
-            let mut response = self.provider.chat(request.clone()).await?;
+            let mut response = self.provider.chat(&request.model, request.clone()).await?;
 
             while let Some(chunk) = response.next().await {
                 let message = chunk?;

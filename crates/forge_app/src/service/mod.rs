@@ -70,6 +70,7 @@ mod tests {
     impl ProviderService for TestProvider {
         async fn chat(
             &self,
+            _model_id: &ModelId,
             request: Context,
         ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
             self.calls.lock().unwrap().push(request);

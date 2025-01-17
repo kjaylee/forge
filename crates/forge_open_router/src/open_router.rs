@@ -57,6 +57,7 @@ impl OpenRouter {
 impl ProviderService for OpenRouter {
     async fn chat(
         &self,
+        model_id: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let mut request = OpenRouterRequest::from(request);
