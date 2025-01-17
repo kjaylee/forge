@@ -1,0 +1,16 @@
+---
+source: crates/forge_domain/src/schema.rs
+expression: "serde_json::to_string_pretty(&json_schema!(Test)).unwrap()"
+---
+{
+  "title": "Test",
+  "type": "object",
+  "required": [
+    "_name"
+  ],
+  "properties": {
+    "_name": {
+      "type": "string"
+    }
+  }
+}
