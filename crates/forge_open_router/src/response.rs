@@ -50,7 +50,7 @@ pub enum Choice {
     },
     NonStreaming {
         logprobs: Option<serde_json::Value>,
-        index: u32,
+        index: Option<u32>,
         finish_reason: Option<String>,
         message: ResponseMessage,
         error: Option<ErrorResponse>,
@@ -103,6 +103,11 @@ impl<'de> Deserialize<'de> for Choice {
         } else if obj.contains_key("message") {
             // Parse as NonStreaming variant
             Ok(Choice::NonStreaming {
+                logprobs: obj.get("logprobs").cloned(),
+                index: obj
+                    .get("index")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32),
                 finish_reason: obj
                     .get("finish_reason")
                     .and_then(|v| v.as_str())
