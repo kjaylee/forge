@@ -63,7 +63,7 @@ impl ProviderService for OpenRouter {
         let mut request = OpenRouterRequest::from(request);
 
         // Use the passed model_id
-        request.model = model_id.clone();
+        request.model = Some(model_id.clone());
 
         request.stream = Some(true);
         let request = serde_json::to_string(&request)?;
