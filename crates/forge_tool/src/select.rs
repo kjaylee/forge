@@ -36,18 +36,18 @@ pub struct SelectTool;
 
 impl NamedTool for SelectTool {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("user_options")
+        ToolName::new("tool.forge.ui.select")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for SelectTool {
+    type Input = SelectInput;
+
     async fn call(&self, input: SelectInput) -> Result<String, String> {
         let ans = InquireSelect::new(&input.message, input.options)
             .prompt()
             .map_err(|e| e.to_string())?;
         Ok(ans)
     }
-    type Input = SelectInput;
-    type Output = String;
 }

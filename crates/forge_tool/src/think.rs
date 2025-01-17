@@ -195,18 +195,16 @@ impl Think {
 
 impl NamedTool for Think {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("think_step")
+        ToolName::new("tool.forge.process.think")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for Think {
     type Input = ThoughtInput;
-    type Output = ThoughtResult;
-
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+    async fn call(&self, input: Self::Input) -> Result<String, String> {
         let mut thinker = self.clone();
         let thought_result = thinker.process_thought(input).map_err(|e| e.to_string())?;
-        Ok(thought_result)
+        serde_json::to_string(&thought_result).map_err(|e| e.to_string())
     }
 }

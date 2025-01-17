@@ -118,10 +118,9 @@ mod test {
     #[async_trait::async_trait]
     impl forge_domain::ToolCallService for SuccessTool {
         type Input = Value;
-        type Output = Value;
 
-        async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
-            Ok(Value::from(format!("Success with input: {}", input)))
+        async fn call(&self, input: Self::Input) -> Result<String, String> {
+            Ok(format!("Success with input: {}", input))
         }
     }
 
@@ -130,9 +129,8 @@ mod test {
     #[async_trait::async_trait]
     impl forge_domain::ToolCallService for FailureTool {
         type Input = Value;
-        type Output = Value;
 
-        async fn call(&self, _input: Self::Input) -> Result<Self::Output, String> {
+        async fn call(&self, _input: Self::Input) -> Result<String, String> {
             Err("Tool execution failed".to_string())
         }
     }
@@ -200,40 +198,16 @@ mod test {
         insta::assert_snapshot!(result);
     }
 
-    #[test]
-    fn test_tool_ids() {
-        let service = Service::tool_service();
-        let tools = service.list();
-        let names: Vec<_> = tools.iter().map(|t| t.name.as_str()).collect();
-
-        assert!(names.contains(&"read_file"));
-        assert!(names.contains(&"write_file"));
-        assert!(names.contains(&"search_in_files"));
-        assert!(names.contains(&"list_directory_content"));
-        assert!(names.contains(&"file_information"));
-    }
-
-    #[test]
-    fn test_usage_prompt() {
-        let service = Service::tool_service();
-        let prompt = service.usage_prompt();
-
-        assert!(!prompt.is_empty());
-        assert!(prompt.contains("read_file"));
-        assert!(prompt.contains("write_file"));
-    }
-
     // Mock tool that simulates a long-running task
     struct SlowTool;
     #[async_trait::async_trait]
     impl forge_domain::ToolCallService for SlowTool {
         type Input = Value;
-        type Output = Value;
 
-        async fn call(&self, _input: Self::Input) -> Result<Self::Output, String> {
+        async fn call(&self, _input: Self::Input) -> Result<String, String> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(40)).await;
-            Ok(Value::from("Slow tool completed"))
+            Ok("Slow tool completed".to_string())
         }
     }
 

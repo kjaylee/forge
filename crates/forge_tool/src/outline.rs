@@ -138,16 +138,15 @@ pub struct Outline;
 
 impl NamedTool for Outline {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("outline")
+        ToolName::new("tool.forge.code.outline")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for Outline {
     type Input = OutlineInput;
-    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+    async fn call(&self, input: Self::Input) -> Result<String, String> {
         let extensions_to_languages = HashMap::from([
             ("rs", "rust"),
             ("js", "javascript"),
