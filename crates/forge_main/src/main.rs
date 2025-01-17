@@ -2,11 +2,11 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::API;
-use forge_domain::{ChatRequest, ChatResponse, Input, ModelId, UserInput};
+use forge_domain::{ChatRequest, ChatResponse, Command, ModelId, UserInput};
 use forge_main::{display_info, Console, StatusDisplay, CONSOLE};
 use tokio_stream::StreamExt;
 
-fn context_reset_message(_: &Input) -> String {
+fn context_reset_message(_: &Command) -> String {
     "All context was cleared, and we're starting fresh. Please re-add files and details so we can get started.".to_string()
         .yellow()
         .bold()
@@ -49,15 +49,15 @@ async fn main() -> Result<()> {
     let model = ModelId::from_env(api.env());
     loop {
         match input {
-            Input::End => break,
-            Input::New => {
+            Command::End => break,
+            Command::New => {
                 CONSOLE.writeln(context_reset_message(&input))?;
                 current_conversation_id = None;
                 current_title = None;
                 input = console.prompt(None, None).await?;
                 continue;
             }
-            Input::Reload => {
+            Command::Reload => {
                 CONSOLE.writeln(context_reset_message(&input))?;
                 current_conversation_id = None;
                 current_title = None;
@@ -67,12 +67,12 @@ async fn main() -> Result<()> {
                 };
                 continue;
             }
-            Input::Info => {
+            Command::Info => {
                 display_info(api.env())?;
                 input = console.prompt(current_title.as_deref(), None).await?;
                 continue;
             }
-            Input::Message(ref content) => {
+            Command::Message(ref content) => {
                 current_content = Some(content.clone());
                 let chat = ChatRequest {
                     content: content.clone(),

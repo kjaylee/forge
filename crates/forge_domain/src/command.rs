@@ -11,7 +11,7 @@ use crate::error::{Error, Result};
 /// - Regular chat messages
 /// - File content
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Input {
+pub enum Command {
     /// End the current session and exit the application.
     /// This can be triggered with the '/end' command.
     End,
@@ -21,15 +21,15 @@ pub enum Input {
     /// Reload the conversation with the original prompt.
     /// This can be triggered with the '/reload' command.
     Reload,
-    /// Display system environment information.
-    /// This can be triggered with the '/info' command.
-    Info,
     /// A regular text message from the user to be processed by the chat system.
     /// Any input that doesn't start with '/' is treated as a message.
     Message(String),
+    /// Display system environment information.
+    /// This can be triggered with the '/info' command.
+    Info,
 }
 
-impl Input {
+impl Command {
     /// Returns a list of all available command strings.
     ///
     /// These commands are used for:
@@ -58,12 +58,11 @@ impl Input {
     pub fn parse(input: &str) -> Result<Self> {
         let trimmed = input.trim();
         match trimmed {
-            "/end" => Ok(Input::End),
-            "/new" => Ok(Input::New),
-            "/reload" => Ok(Input::Reload),
-            "/info" => Ok(Input::Info),
+            "/end" => Ok(Command::End),
+            "/new" => Ok(Command::New),
+            "/reload" => Ok(Command::Reload),
             cmd if cmd.starts_with('/') => Err(Error::InvalidUserCommand(cmd.to_string())),
-            text => Ok(Input::Message(text.to_string())),
+            text => Ok(Command::Message(text.to_string())),
         }
     }
 }
@@ -83,7 +82,7 @@ pub trait UserInput {
     /// # Returns
     /// * `Ok(Input)` - Successfully read and parsed file content
     /// * `Err` - Failed to read or parse file
-    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Input>;
+    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command>;
 
     /// Prompts for user input with optional help text and initial value.
     ///
@@ -98,5 +97,5 @@ pub trait UserInput {
         &self,
         help_text: Option<&str>,
         initial_text: Option<&str>,
-    ) -> anyhow::Result<Input>;
+    ) -> anyhow::Result<Command>;
 }
