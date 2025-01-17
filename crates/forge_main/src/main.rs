@@ -3,7 +3,7 @@ use clap::Parser;
 use colored::Colorize;
 use forge_app::API;
 use forge_domain::{ChatRequest, ChatResponse, Input, ModelId, UserInput};
-use forge_main::{Console, StatusDisplay, CONSOLE};
+use forge_main::{display_info, Console, StatusDisplay, CONSOLE};
 use tokio_stream::StreamExt;
 
 fn context_reset_message(_: &Input) -> String {
@@ -65,6 +65,11 @@ async fn main() -> Result<()> {
                     Some(ref path) => console.upload(path).await?,
                     None => console.prompt(None, current_content.as_deref()).await?,
                 };
+                continue;
+            }
+            Input::Info => {
+                display_info(api.env())?;
+                input = console.prompt(current_title.as_deref(), None).await?;
                 continue;
             }
             Input::Message(ref content) => {
