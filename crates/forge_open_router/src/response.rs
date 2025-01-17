@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::str::FromStr;
 
 use forge_domain::{
@@ -63,6 +64,18 @@ pub struct ErrorResponse {
     pub message: String,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub metadata: HashMap<String, serde_json::Value>,
+}
+
+impl Display for ErrorResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Upstream: message: {}", self.message)?;
+        if !self.metadata.is_empty() {
+            if let Ok(str_repr) = serde_json::to_string(&self.metadata) {
+                write!(f, ", details: {}", str_repr)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -155,11 +168,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                     Err(Error::EmptyContent)
                 }
             }
-            OpenRouterResponse::Failure { error } => Err(Error::Upstream {
-                message: error.message,
-                code: error.code,
-                metadata: error.metadata,
-            }),
+            OpenRouterResponse::Failure { error } => Err(Error::Upstream(error)),
         }
     }
 }
