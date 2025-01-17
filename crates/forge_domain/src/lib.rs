@@ -38,7 +38,6 @@ pub use learning::*;
 pub use message::*;
 pub use model::*;
 pub use provider::*;
-pub use schema::*;
 pub use stream_ext::*;
 pub use tool::*;
 pub use tool_call::*;
