@@ -158,7 +158,6 @@ mod tests {
     use anyhow::Context;
 
     use super::*;
-    use crate::open_router::response::MetaDataError;
 
     #[test]
     fn test_error_deserialization() -> Result<()> {

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use derive_more::derive::Display;
 use thiserror::Error;
 
@@ -5,10 +7,11 @@ use thiserror::Error;
 pub enum Error {
     EmptyContent,
     #[from(ignore)]
-    #[display("Upstream: {}", 1)]
+    #[display("Upstream: {}", message)]
     Upstream {
         code: u32,
         message: String,
+        metadata: HashMap<String, String>,
     },
     SerdeJson(serde_json::Error),
     ToolCallMissingName,
