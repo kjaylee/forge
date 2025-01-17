@@ -76,6 +76,7 @@ impl Live {
         // Extract title from parts if present
         let tool_call = ToolCallFull::try_from_parts(&parts)?;
         let title: Title = serde_json::from_value(tool_call.arguments)?;
+
         tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
             .await
             .unwrap();
