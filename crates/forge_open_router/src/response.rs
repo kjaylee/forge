@@ -68,7 +68,7 @@ pub struct ErrorResponse {
 
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Upstream: message: {}", self.message)?;
+        write!(f, "message: {}", self.message)?;
         if !self.metadata.is_empty() {
             if let Ok(str_repr) = serde_json::to_string(&self.metadata) {
                 write!(f, ", details: {}", str_repr)?;

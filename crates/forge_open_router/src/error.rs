@@ -6,6 +6,7 @@ use crate::response::ErrorResponse;
 #[derive(Debug, Display, derive_more::From, Error)]
 pub enum Error {
     EmptyContent,
+    #[display("Upstream: {_0}")]
     Upstream(ErrorResponse),
     SerdeJson(serde_json::Error),
     ToolCallMissingName,
