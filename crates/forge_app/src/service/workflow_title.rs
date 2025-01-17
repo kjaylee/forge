@@ -5,7 +5,7 @@ use forge_domain::{
     schema_without_meta, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
     ResultStream, ToolCall, ToolCallFull, ToolChoice, ToolDefinition,
 };
-use schemars::{schema_for, JsonSchema};
+use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
@@ -103,8 +103,7 @@ impl TitleService for Live {
             )))
             .add_tool(tool.clone())
             .tool_choice(ToolChoice::Call(tool.name))
-            .model(chat.model)
-            .max_tokens(200_u32);
+            .model(chat.model);
 
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 

@@ -211,11 +211,11 @@ impl From<Context> for OpenRouterRequest {
                 }
             },
             model: request.model,
-            max_tokens: request.max_tokens,
             prompt: Default::default(),
             response_format: Default::default(),
             stop: Default::default(),
             stream: Default::default(),
+            max_tokens: Default::default(),
             temperature: Default::default(),
             tool_choice: request.tool_choice.map(|tc| tc.into()),
             seed: Default::default(),
