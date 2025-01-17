@@ -178,12 +178,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_user_prompt() {
+    async fn test_system_prompt() {
         let provider = Arc::new(TestProvider::default());
         let chat = Live::new(provider);
-
-        insta::assert_snapshot!(chat
-            .system_prompt("write an rust program to generate an fibo seq.")
-            .unwrap());
+        insta::assert_snapshot!(chat.system_prompt().unwrap());
     }
 }
