@@ -44,6 +44,15 @@ pub fn derive_description(input: TokenStream) -> TokenStream {
     }
     let doc_string = doc_lines.join("\n").trim().to_string();
 
+    // ensure the description is within the limits.
+    if doc_string.len() > 1024 {
+        panic!(
+            "Tool description for '{}' exceeds maximum length of 1024 characters (current: {}). Please make the documentation more concise.",
+            name,
+            doc_string.len()
+        );
+    }
+
     // Generate an implementation of `ToolDescription` that returns the doc string
     let expanded = quote! {
         impl ToolDescription for #name {

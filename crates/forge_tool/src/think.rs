@@ -7,19 +7,12 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// This framework supports iterative reasoning by tracking steps ("thoughts")
-/// to solve complex problems. It breaks tasks into smaller steps, allows
-/// revisions, branches paths, tracks confidence, and marks solutions. Users can
-/// adjust `total_thoughts` to match task complexity, link revisions with
-/// `revises_thought`, and create branches using `branch_from_thought`.
-/// Confidence levels can be updated with `solution_confidence`, and the process
-/// is completed by marking `solution_reached`. The workflow involves
-/// initializing the framework with `total_thoughts`, adding steps to
-/// `thought_history`, revising or branching as needed, updating confidence, and
-/// validating the solution. Key fields include `thought_history` for tracking
-/// steps, `branches` for alternate paths, and `solution_reached` to mark
-/// completion. This structured approach is ideal for managing complex
-/// problem-solving by tracking progress, revisions, and outcomes.
+/// Framework for tracking and managing problem-solving steps. Supports
+/// step-by-step task breakdown, revisions, branching, and confidence tracking.
+/// Use `total_thoughts` for complexity, `revises_thought` for revisions,
+/// `branch_from_thought` for branching, and `solution_confidence` for progress.
+/// Track steps in `thought_history`, manage alternate paths in `branches`, mark
+/// completion with `solution_reached`
 #[derive(Clone, Default, ToolDescription)]
 pub struct Think {
     thought_history: Vec<ThoughtInput>,
@@ -29,32 +22,30 @@ pub struct Think {
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ThoughtInput {
-    /// The description of the current thought or reasoning step.
+    /// Description of current thought/reasoning step
     pub thought: String,
-    /// Whether another thought is needed to reach a solution.
+    /// Indicates if another thought is needed
     pub next_thought_needed: bool,
-    /// The number of the current thought or reasoning step.
+    /// Number of current thought/step
     pub thought_number: i32,
-    /// The total number of thoughts or reasoning steps expected to reach a
-    /// solution.
+    /// Total thoughts/steps expected for solution
     pub total_thoughts: i32,
-    /// Whether this thought is a revision of a previous thought.
+    /// Indicates if this is a revision
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_revision: Option<bool>,
-    /// The number of the thought being revised, if this is a revision.
+    /// Number of thought being revised
     #[serde(skip_serializing_if = "Option::is_none")]
     pub revises_thought: Option<i32>,
-    /// The number of the thought from which this thought branches, if this is a
-    /// branch.
+    /// Parent thought number for this branch
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_from_thought: Option<i32>,
-    /// A unique identifier for the branch, if this is a branch.
+    /// Unique branch identifier
     #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<String>,
-    /// Whether additional thoughts are needed to reach a solution.
+    /// Indicates if more thoughts needed
     #[serde(skip_serializing_if = "Option::is_none")]
     pub needs_more_thoughts: Option<bool>,
-    /// The current confidence in the solution, ranging from 0.0 to 1.0.
+    /// Solution confidence (0.0-1.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub solution_confidence: Option<f32>,
 }
