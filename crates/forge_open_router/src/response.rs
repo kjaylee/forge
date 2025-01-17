@@ -62,11 +62,11 @@ pub enum Choice {
 
 // note:
 // Custom deserialization is needed for the Choice enum because:
-// 1. The streaming response JSON contains overlapping fields (text,
+// 1. The streaming response JSON contains overlapping fields (error,
 //    finish_reason) that exist in multiple variants
 // 2. Using #[serde(untagged)] causes serde to match the first variant whose
 //    fields are all present in the JSON
-// 3. Since both NonChat and Streaming variants have 'error' and
+// 3. Since all variants have 'error' and
 //    'finish_reason', untagged deserialization incorrectly chooses NonChat even
 //    when 'delta' field is present
 impl<'de> Deserialize<'de> for Choice {
