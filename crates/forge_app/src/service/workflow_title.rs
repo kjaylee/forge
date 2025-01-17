@@ -87,7 +87,8 @@ impl Live {
 
 #[derive(JsonSchema, Deserialize, Debug)]
 struct Title {
-    /// The generated title text Should be clear, concise and technically accurate
+    /// The generated title text Should be clear, concise and technically
+    /// accurate
     text: String,
 }
 
