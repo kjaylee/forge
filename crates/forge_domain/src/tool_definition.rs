@@ -5,9 +5,7 @@ use schemars::schema::RootSchema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    json_schema, NamedTool, ToolCallService, ToolName, UsageParameterPrompt, UsagePrompt,
-};
+use crate::{json_schema, NamedTool, ToolCallService, ToolName, UsageParameterPrompt, UsagePrompt};
 
 ///
 /// Refer to the specification over here:

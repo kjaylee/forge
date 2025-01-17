@@ -9,13 +9,12 @@ macro_rules! json_schema {
     }};
 }
 
-
 #[cfg(test)]
 mod tests {
     use schemars::JsonSchema;
 
     #[test]
-    fn test(){
+    fn test() {
         #[derive(JsonSchema)]
         struct Test {
             _name: String,

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    json_schema, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
-    ResultStream, ToolCall, ToolCallFull, ToolChoice, ToolDefinition,
+    json_schema, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService, ResultStream,
+    ToolCall, ToolCallFull, ToolChoice, ToolDefinition,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;

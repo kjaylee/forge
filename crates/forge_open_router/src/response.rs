@@ -104,10 +104,7 @@ impl<'de> Deserialize<'de> for Choice {
             // Parse as NonStreaming variant
             Ok(Choice::NonStreaming {
                 logprobs: obj.get("logprobs").cloned(),
-                index: obj
-                    .get("index")
-                    .and_then(|v| v.as_u64())
-                    .map(|v| v as u32),
+                index: obj.get("index").and_then(|v| v.as_u64()).map(|v| v as u32),
                 finish_reason: obj
                     .get("finish_reason")
                     .and_then(|v| v.as_str())
