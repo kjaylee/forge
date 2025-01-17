@@ -171,6 +171,20 @@ mod tests {
 
     use super::*;
 
+    /// Platform-specific error message patterns for command not found errors
+    #[cfg(target_os = "windows")]
+    const COMMAND_NOT_FOUND_PATTERNS: [&str; 2] = [
+        "is not recognized",             // cmd.exe
+        "'non_existent_command' is not", // PowerShell
+    ];
+
+    #[cfg(target_family = "unix")]
+    const COMMAND_NOT_FOUND_PATTERNS: [&str; 3] = [
+        "command not found",               // bash/sh
+        "non_existent_command: not found", // bash/sh (Alternative Unix error)
+        "No such file or directory",       // Alternative Unix error
+    ];
+
     #[tokio::test]
     async fn test_shell_echo() {
         let shell = Shell::default();
@@ -223,14 +237,24 @@ mod tests {
         let shell = Shell::default();
         let result = shell
             .call(ShellInput {
-                command: "nonexistentcommand".to_string(),
+                command: "non_existent_command".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
             .await;
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.contains("command not found") || err.contains("not recognized"));
+
+        // Check if any of the platform-specific patterns match
+        let matches_pattern = COMMAND_NOT_FOUND_PATTERNS
+            .iter()
+            .any(|&pattern| err.contains(pattern));
+
+        assert!(
+            matches_pattern,
+            "Error message '{}' did not match any expected patterns for this platform: {:?}",
+            err, COMMAND_NOT_FOUND_PATTERNS
+        );
     }
 
     #[tokio::test]
