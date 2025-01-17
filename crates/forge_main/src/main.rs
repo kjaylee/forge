@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
         Some(ref path) => console.upload(path).await?,
         None => console.prompt(None, None).await?,
     };
-    let model = ModelId::from_env(api.env());
+    let model = ModelId::from_env(&api.environment().await?);
     loop {
         match input {
             Command::End => break,
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
                 continue;
             }
             Command::Info => {
-                display_info(api.env())?;
+                display_info(&api.environment().await?)?;
                 input = console.prompt(current_title.as_deref(), None).await?;
                 continue;
             }

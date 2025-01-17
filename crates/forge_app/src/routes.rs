@@ -18,12 +18,11 @@ use tower_http::cors::{Any, CorsLayer};
 use tracing::debug;
 
 use crate::context::ContextEngine;
-use crate::service::{ConversationHistory, EnvironmentService, File};
+use crate::service::{ConversationHistory, File};
 use crate::{RootAPIService, Service};
 
 pub struct API {
     api: Arc<dyn RootAPIService>,
-    env: Environment,
 }
 
 async fn context_html_handler(
@@ -38,14 +37,12 @@ async fn context_html_handler(
 impl API {
     pub async fn init() -> Result<Self> {
         crate::log::init_logger();
-        let env = Service::environment_service().get().await?;
-        let api = Arc::new(Service::root_api_service(env.clone()));
-
-        Ok(Self { api, env })
+        let api = Arc::new(Service::root_api_service().await?);
+        Ok(Self { api })
     }
 
-    pub fn env(&self) -> &Environment {
-        &self.env
+    pub async fn environment(&self) -> Result<Environment> {
+        self.api.environment().await
     }
 
     pub async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {

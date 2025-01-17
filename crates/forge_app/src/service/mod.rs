@@ -12,7 +12,6 @@ mod workflow_title;
 
 pub use chat::*;
 pub use completion::*;
-pub use env::*;
 pub use root_api::*;
 pub use ui::*;
 
