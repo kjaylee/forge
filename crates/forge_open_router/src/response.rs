@@ -74,18 +74,6 @@ impl<'de> Deserialize<'de> for Choice {
     where
         D: serde::Deserializer<'de>,
     {
-        #[derive(Deserialize)]
-        #[serde(field_identifier, rename_all = "lowercase")]
-        enum Field {
-            Text,
-            FinishReason,
-            Delta,
-            Message,
-            Error,
-            #[serde(other)]
-            Other,
-        }
-
         let value = serde_json::Value::deserialize(deserializer)?;
         let obj = value
             .as_object()
