@@ -94,9 +94,7 @@ impl Routes {
     }
 }
 
-async fn completions_handler(
-    State(state): State<Arc<dyn APIService>>,
-) -> axum::Json<Vec<File>> {
+async fn completions_handler(State(state): State<Arc<dyn APIService>>) -> axum::Json<Vec<File>> {
     let files = state
         .completions()
         .await
