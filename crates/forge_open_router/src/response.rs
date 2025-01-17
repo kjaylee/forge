@@ -49,6 +49,8 @@ pub enum Choice {
         error: Option<ErrorResponse>,
     },
     NonStreaming {
+        logprobs: Option<serde_json::Value>,
+        index: u32,
         finish_reason: Option<String>,
         message: ResponseMessage,
         error: Option<ErrorResponse>,
