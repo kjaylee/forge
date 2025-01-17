@@ -7,9 +7,9 @@ use thiserror::Error;
 pub enum Error {
     EmptyContent,
     #[from(ignore)]
-    #[display("Upstream: {}{}", message, match metadata.is_empty() {
+    #[display("Upstream: message: {},{}", message, match metadata.is_empty() {
         true => String::new(),
-        false => format!(" (metadata: {:?})", metadata)
+        false => format!("details: {:?}", metadata)
     })]
     Upstream {
         code: u32,
