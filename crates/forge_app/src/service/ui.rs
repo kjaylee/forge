@@ -6,11 +6,11 @@ use tracing::debug;
 
 use super::chat::ChatService;
 use super::workflow_title::TitleService;
-use crate::{ConversationRepository, Error, Service};
+use crate::{ConversationRepository, Service};
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {
-    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error>;
+    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
 }
 
 struct Live {
@@ -41,7 +41,7 @@ impl Service {
 
 #[async_trait::async_trait]
 impl UIService for Live {
-    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, Error> {
+    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self
                 .conversation_service
@@ -49,9 +49,10 @@ impl UIService for Live {
                 .await?;
             (context, false)
         } else {
+            let model = request.model.clone();
             let conversation = self
                 .conversation_service
-                .set_conversation(&Context::default(), None)
+                .set_conversation(&Context::new(model), None)
                 .await?;
             (conversation, true)
         };
@@ -107,6 +108,7 @@ impl UIService for Live {
 
 #[cfg(test)]
 mod tests {
+    use forge_domain::ModelId;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -128,7 +130,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl TitleService for TestTitleService {
-        async fn get_title(&self, _: ChatRequest) -> ResultStream<ChatResponse, Error> {
+        async fn get_title(&self, _: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
             Ok(Box::pin(tokio_stream::iter(
                 self.events.clone().into_iter().map(Ok),
             )))
@@ -147,7 +149,11 @@ mod tests {
 
     #[async_trait::async_trait]
     impl ChatService for TestChatService {
-        async fn chat(&self, _: ChatRequest, _: Context) -> ResultStream<ChatResponse, Error> {
+        async fn chat(
+            &self,
+            _: ChatRequest,
+            _: Context,
+        ) -> ResultStream<ChatResponse, anyhow::Error> {
             Ok(Box::pin(tokio_stream::iter(
                 self.events.clone().into_iter().map(Ok),
             )))
@@ -163,12 +169,13 @@ mod tests {
             Arc::new(TestTitleService::single()),
         );
 
+        let model_id = ModelId::new("gpt-3.5-turbo");
         let conversation = conversation_service
-            .set_conversation(&Context::default(), None)
+            .set_conversation(&Context::new(model_id.clone()), None)
             .await
             .unwrap();
 
-        let request = ChatRequest::new("test").conversation_id(conversation.id);
+        let request = ChatRequest::new(model_id, "test").conversation_id(conversation.id);
         let mut responses = service.chat(request).await.unwrap();
 
         if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {

@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use forge_domain::{Environment, ModelId, ToolService};
-use forge_provider::ProviderService;
+use anyhow::Result;
+use forge_domain::{Environment, ModelId, ProviderService};
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
+use super::tool_service::ToolService;
 use super::Service;
-use crate::Result;
 
 #[async_trait::async_trait]
 pub trait SystemPromptService: Send + Sync {
@@ -93,12 +93,13 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
+        let tools = Arc::new(Service::tool_service());
         let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(true))]),
+            TestProvider::default()
+                .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let prompt = Live::new(env, tools, provider)
-            .get_system_prompt(&ModelId::default())
+            .get_system_prompt(&ModelId::new("gpt-3.5-turbo"))
             .await
             .unwrap();
         assert_snapshot!(prompt);
@@ -107,12 +108,13 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let tools = Arc::new(forge_tool::Service::tool_service());
-        let provider = Arc::new(
-            TestProvider::default().parameters(vec![(ModelId::default(), Parameters::new(false))]),
-        );
+        let tools = Arc::new(Service::tool_service());
+        let provider = Arc::new(TestProvider::default().parameters(vec![(
+            ModelId::new("gpt-3.5-turbo"),
+            Parameters::new(false),
+        )]));
         let prompt = Live::new(env, tools, provider)
-            .get_system_prompt(&ModelId::default())
+            .get_system_prompt(&ModelId::new("gpt-3.5-turbo"))
             .await
             .unwrap();
         assert_snapshot!(prompt);

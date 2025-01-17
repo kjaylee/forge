@@ -2,8 +2,10 @@ mod chat;
 mod completion;
 mod env;
 mod file_read;
+mod provider;
 mod root_api;
 mod system_prompt;
+mod tool_service;
 mod ui;
 mod user_prompt;
 mod workflow_title;
@@ -20,13 +22,14 @@ pub struct Service;
 mod tests {
     use std::sync::Mutex;
 
+    use anyhow::{bail, Result};
     use derive_setters::Setters;
-    use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
-    use forge_provider::ProviderService;
+    use forge_domain::{
+        ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
+    };
     use tokio_stream::StreamExt;
 
     use super::system_prompt::SystemPromptService;
-    use crate::Result;
 
     pub struct TestSystemPrompt {
         prompt: String,
@@ -68,7 +71,7 @@ mod tests {
         async fn chat(
             &self,
             request: Context,
-        ) -> ResultStream<ChatCompletionMessage, forge_provider::Error> {
+        ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
             self.calls.lock().unwrap().push(request);
             let mut guard = self.messages.lock().unwrap();
             if guard.is_empty() {
@@ -79,13 +82,13 @@ mod tests {
             }
         }
 
-        async fn models(&self) -> forge_provider::Result<Vec<Model>> {
+        async fn models(&self) -> Result<Vec<Model>> {
             Ok(self.models.clone())
         }
 
-        async fn parameters(&self, model: &ModelId) -> forge_provider::Result<Parameters> {
+        async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
             match self.parameters.iter().find(|(id, _)| id == model) {
-                None => Err(forge_provider::Error::ModelNotFound(model.clone())),
+                None => bail!("Model not found: {}", model),
                 Some((_, parameter)) => Ok(parameter.clone()),
             }
         }

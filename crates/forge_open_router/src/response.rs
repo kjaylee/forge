@@ -7,6 +7,7 @@ use forge_domain::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use super::tool_choice::FunctionType;
 use crate::error::Error;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -91,7 +92,7 @@ pub struct ResponseMessage {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterToolCall {
     pub id: Option<ToolCallId>,
-    pub r#type: String,
+    pub r#type: FunctionType,
     pub function: FunctionCall,
 }
 

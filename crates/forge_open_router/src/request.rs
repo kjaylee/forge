@@ -3,6 +3,7 @@ use forge_domain::{Context, ContextMessage, ModelId, Role, ToolCallId, ToolDefin
 use serde::{Deserialize, Serialize};
 
 use super::response::{FunctionCall, OpenRouterToolCall};
+use super::tool_choice::{FunctionType, ToolChoice};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -91,15 +92,8 @@ pub struct FunctionDescription {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OpenRouterTool {
     // TODO: should be an enum
-    pub r#type: String,
+    pub r#type: FunctionType,
     pub function: FunctionDescription,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum ToolChoice {
-    None,
-    Auto,
-    Function { name: String },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -174,7 +168,7 @@ pub struct OpenRouterRequest {
 impl From<ToolDefinition> for OpenRouterTool {
     fn from(value: ToolDefinition) -> Self {
         OpenRouterTool {
-            r#type: "function".to_string(),
+            r#type: FunctionType,
             function: FunctionDescription {
                 description: Some(value.description),
                 name: value.name.into_string(),
@@ -247,7 +241,7 @@ impl From<ContextMessage> for OpenRouterMessage {
                     // FIXME: All the tool_calls should be added, instead of just one of them
                     vec![OpenRouterToolCall {
                         id: tool_call.call_id,
-                        r#type: "function".to_string(),
+                        r#type: FunctionType,
                         function: FunctionCall {
                             arguments: serde_json::to_string(&tool_call.arguments).unwrap(),
                             name: Some(tool_call.name),
@@ -295,18 +289,6 @@ pub enum OpenRouterRole {
     User,
     Assistant,
     Tool,
-}
-
-impl From<forge_domain::ToolChoice> for ToolChoice {
-    fn from(value: forge_domain::ToolChoice) -> Self {
-        match value {
-            forge_domain::ToolChoice::None => ToolChoice::None,
-            forge_domain::ToolChoice::Auto => ToolChoice::Auto,
-            forge_domain::ToolChoice::Call(tool_name) => {
-                ToolChoice::Function { name: tool_name.into_string() }
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -372,11 +354,13 @@ mod tests {
     fn test_tool_message_conversion() {
         let tool_result = ToolResult::new(ToolName::new("test_tool"))
             .call_id(ToolCallId::new("123"))
-            .content(json!({
+            .content(
+                r#"{
                "user": "John",
                "age": 30,
                "address": [{"city": "New York"}, {"city": "San Francisco"}]
-            }));
+            }"#,
+            );
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);
@@ -387,14 +371,16 @@ mod tests {
     fn test_tool_message_with_special_chars() {
         let tool_result = ToolResult::new(ToolName::new("html_tool"))
             .call_id(ToolCallId::new("456"))
-            .content(json!({
+            .content(
+                r#"{
                 "html": "<div class=\"container\"><p>Hello <World></p></div>",
                 "elements": ["<span>", "<br/>", "<hr>"],
                 "attributes": {
                     "style": "color: blue; font-size: 12px;",
                     "data-test": "<test>&value</test>"
                 }
-            }));
+            }"#,
+            );
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);
@@ -405,9 +391,7 @@ mod tests {
     fn test_tool_message_typescript_code() {
         let tool_result = ToolResult::new(ToolName::new("rust_tool"))
             .call_id(ToolCallId::new("456"))
-            .content(json!({
-                "code": "fn main<T>(gt: T) {let b = &gt; }",
-            }));
+            .content(r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#);
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);
