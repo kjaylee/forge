@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// Use `total_thoughts` for complexity, `revises_thought` for revisions,
 /// `branch_from_thought` for branching, and `solution_confidence` for progress.
 /// Track steps in `thought_history`, manage alternate paths in `branches`, mark
-/// completion with `solution_reached
+/// completion with `solution_reached`
 #[derive(Clone, Default, ToolDescription)]
 pub struct Think {
     thought_history: Vec<ThoughtInput>,

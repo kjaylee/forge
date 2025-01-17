@@ -5,9 +5,8 @@ use forge_domain::{
     schema_without_meta, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
     ResultStream, ToolCall, ToolCallFull, ToolChoice, ToolDefinition,
 };
-use handlebars::Handlebars;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use schemars::{schema_for, JsonSchema};
+use serde::Deserialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
@@ -36,26 +35,14 @@ struct Live {
     provider: Arc<dyn ProviderService>,
 }
 
-#[derive(Serialize)]
-struct UserPromptContext {
-    task: String,
-}
-
 impl Live {
     fn new(provider: Arc<dyn ProviderService>) -> Self {
         Self { provider }
     }
 
-    fn prompt(&self, task: &str) -> Result<String> {
-        let template = include_str!("../prompts/title.md");
-
-        let mut hb = Handlebars::new();
-        hb.set_strict_mode(true);
-        hb.register_escape_fn(|str| str.to_string());
-
-        let ctx = UserPromptContext { task: task.to_string() };
-
-        Ok(hb.render_template(template, &ctx)?)
+    fn system_prompt(&self) -> Result<String> {
+        let system_prompt = include_str!("../prompts/title.md");
+        Ok(system_prompt.to_owned())
     }
 
     async fn execute(
@@ -87,7 +74,7 @@ impl Live {
 
 #[derive(JsonSchema, Deserialize, Debug)]
 struct Title {
-    /// The generated title text Should be clear, concise and technically
+    /// The generated title text should be clear, concise and technically
     /// accurate
     text: String,
 }
@@ -105,7 +92,7 @@ impl Title {
 #[async_trait::async_trait]
 impl TitleService for Live {
     async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
-        let system_prompt = self.prompt(&chat.content)?;
+        let system_prompt = self.system_prompt()?;
         let tool = Title::definition();
 
         let request = Context::default()
@@ -194,12 +181,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_user_prompt() {
+    async fn test_system_prompt() {
         let provider = Arc::new(TestProvider::default());
         let chat = Live::new(provider);
-
-        insta::assert_snapshot!(chat
-            .prompt("write an rust program to generate an fibo seq.")
-            .unwrap());
+        insta::assert_snapshot!(chat.system_prompt().unwrap());
     }
 }
