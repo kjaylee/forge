@@ -14,7 +14,7 @@ use super::{File, Service, UIService};
 use crate::{ConfigRepository, ConversationRepository};
 
 #[async_trait::async_trait]
-pub trait RootAPIService: Send + Sync {
+pub trait APIService: Send + Sync {
     async fn completions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
     async fn context(&self, conversation_id: ConversationId) -> Result<Context>;
@@ -28,7 +28,7 @@ pub trait RootAPIService: Send + Sync {
 }
 
 impl Service {
-    pub async fn root_api_service() -> Result<impl RootAPIService> {
+    pub async fn api_service() -> Result<impl APIService> {
         Live::new().await
     }
 }
@@ -92,7 +92,7 @@ impl Live {
 }
 
 #[async_trait::async_trait]
-impl RootAPIService for Live {
+impl APIService for Live {
     async fn completions(&self) -> Result<Vec<File>> {
         self.completions.list().await
     }

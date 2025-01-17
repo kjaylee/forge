@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
-use forge_app::API;
+use forge_app::Routes;
 use forge_domain::{ChatRequest, ChatResponse, Command, ModelId, UserInput};
 use forge_main::{display_info, Console, StatusDisplay, CONSOLE};
 use tokio_stream::StreamExt;
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
     let mut current_title = None;
     let mut current_content = None;
 
-    let api = API::init()
+    let api = Routes::init()
         .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize API: {}", e))?;
 
