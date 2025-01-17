@@ -113,7 +113,10 @@ async fn main() -> Result<()> {
                                         let tool_name = tool_result.name.as_str();
                                         // Always show result content for errors, or in verbose mode
                                         if tool_result.is_error || cli.verbose {
-                                            CONSOLE.writeln(format!("{}", tool_result.to_string().dimmed()))?;
+                                            CONSOLE.writeln(format!(
+                                                "{}",
+                                                tool_result.to_string().dimmed()
+                                            ))?;
                                         }
                                         let status = if tool_result.is_error {
                                             StatusDisplay::failed(tool_name)
