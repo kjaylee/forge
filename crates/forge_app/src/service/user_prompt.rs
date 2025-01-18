@@ -60,7 +60,6 @@ impl UserPromptService for Live {
         let ctx = Context { task: task.to_string(), files: file_contents };
         let mut ans = hb.render_template(template, &ctx)?;
         if let Ok(paths) = self.all_ides.active_files() {
-            ans.push('\n');
             ans.push_str(paths.join("\n").as_str());
         }
 

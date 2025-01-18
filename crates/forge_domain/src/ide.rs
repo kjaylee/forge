@@ -30,7 +30,7 @@ pub trait CodeInfo {
     /// fails
     ///
     /// # Examples
-    fn hash_path(&self, folder_path: &str) -> anyhow::Result<String>;
+    fn hash_path(&self, folder_path: &str, try_ceil: bool) -> anyhow::Result<String>;
 
     /// Retrieves the installation path of Visual Studio Code
     ///

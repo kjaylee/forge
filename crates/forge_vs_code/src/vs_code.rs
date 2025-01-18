@@ -13,10 +13,16 @@ pub struct ForgeVsCode {
 
 impl ActiveFiles for ForgeVsCode {
     fn active_files(&self) -> anyhow::Result<Vec<String>> {
+        self.active_files_inner(false, 0)
+    }
+}
+
+impl ForgeVsCode {
+    fn active_files_inner(&self, try_ceil: bool, i: i8) -> anyhow::Result<Vec<String>> {
         if !self.code_info.is_running() {
             return Ok(vec![]);
         }
-        let hash = self.code_info.hash_path(&self.cwd)?;
+        let hash = self.code_info.hash_path(&self.cwd, try_ceil)?;
         let vs_code_path = self
             .code_info
             .vs_code_path()
@@ -26,7 +32,11 @@ impl ActiveFiles for ForgeVsCode {
             vs_code_path, hash
         );
 
-        let conn = Connection::open(db_path)?;
+        let conn = Connection::open(db_path);
+        if conn.is_err() && i == 0 {
+            return self.active_files_inner(true, 1);
+        }
+        let conn = conn?;
         let key = "memento/workbench.parts.editor";
 
         let mut stmt = conn.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;

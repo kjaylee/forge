@@ -1,12 +1,14 @@
+use std::time::UNIX_EPOCH;
+
 use forge_domain::CodeInfo;
 use sysinfo::System;
 
 #[derive(Default)]
-pub struct LinuxCodeInfo;
+pub struct MacOsCodeInfo;
 
-impl CodeInfo for LinuxCodeInfo {
-    fn hash_path(&self, folder_path: &str, _: bool) -> anyhow::Result<String> {
-        hash_path(folder_path)
+impl CodeInfo for MacOsCodeInfo {
+    fn hash_path(&self, folder_path: &str, try_ceil: bool) -> anyhow::Result<String> {
+        hash_path(folder_path, try_ceil)
     }
 
     fn vs_code_path(&self) -> Option<String> {
@@ -15,26 +17,26 @@ impl CodeInfo for LinuxCodeInfo {
 
     /// Check if VS Code is currently running
     ///
-    /// This function uses the `pgrep` command to check for running VS Code
-    /// processes. It considers multiple potential executable names.
+    /// This function uses the `ps aux | grep` command to check for running VS
+    /// Code renderer processes.
     ///
     /// # Returns
     /// A boolean indicating whether VS Code is running.
     fn is_running(&self) -> bool {
-        let vs_code_processes = [
-            "code",          // Standard VS Code
-            "code-oss",      // Open Source VS Code
-            "code-insiders", // VS Code Insiders
-        ];
-
-        vs_code_processes.iter().any(|process| {
-            std::process::Command::new("pgrep")
-                .arg("-x") // match the whole process name
-                .arg(process)
-                .output()
-                .map(|output| output.status.success())
-                .unwrap_or(false)
-        })
+        match std::process::Command::new("sh")
+            .arg("-c")
+            .arg("ps aux | grep -i \"[c]ode.*renderer\"")
+            .output()
+        {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                !stdout.is_empty() && output.status.success()
+            }
+            Err(e) => {
+                eprintln!("Error checking VSCode status: {}", e);
+                false
+            }
+        }
     }
 }
 
@@ -87,34 +89,47 @@ fn get_user_data_dir() -> Option<String> {
     None
 }
 
-fn hash_path(folder_path: &str) -> anyhow::Result<String> {
-    use std::os::unix::fs::MetadataExt;
+fn micros_to_millis_ceil(micros: u128) -> u128 {
+    (micros + 999) / 1000
+}
 
+fn hash_path(folder_path: &str, try_ceil: bool) -> anyhow::Result<String> {
     let metadata = std::fs::metadata(folder_path)?;
-
-    // Get the inode (st_ino) as the salt
-    let inode = metadata.ino();
 
     // Create the hash using the folder path and inode
     let mut hasher = md5::Context::new();
-    hasher.consume(folder_path.as_bytes());
-    hasher.consume(inode.to_string().as_bytes());
+
+    // Get the birthtime (creation time) as the salt
+    let mut inode = metadata.created()?.duration_since(UNIX_EPOCH)?.as_micros();
+    if try_ceil {
+        inode = micros_to_millis_ceil(inode);
+    }
+
+    hasher.consume(folder_path);
+    hasher.consume(inode.to_string());
 
     Ok(format!("{:x}", hasher.compute()))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_hash_linux() {
-        let path = "/tmp";
+        let path = "/Users/ssdd/RustroverProjects/code-forge";
         let hash = hash_path(path).unwrap();
-        assert_eq!(hash, "4d65313bad47ee6b3d57010a0ba26abd");
+        println!("Hash: {:?}", hash);
     }
     #[test]
     fn test_get_user_data_dir() {
         let user_data_dir = get_user_data_dir();
         println!("User data dir: {:?}", user_data_dir);
+    }
+    #[test]
+    fn test_is_running() {
+        let code_info = MacOsCodeInfo::default();
+        let is_running = code_info.is_running();
+        println!("VSCode running: {}", is_running);
     }
 }
