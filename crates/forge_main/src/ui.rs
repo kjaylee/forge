@@ -101,7 +101,7 @@ impl UI {
         let chat = ChatRequest {
             content,
             model: model.clone(),
-            conversation_id: self.current_conversation_id.clone(),
+            conversation_id: self.current_conversation_id,
         };
 
         match self.api.chat(chat).await {
