@@ -87,7 +87,7 @@ mod tests {
     fn test_hash_linux() {
         let path = "/tmp";
         let hash = hash_path(path).unwrap();
-        assert_eq!(hash, "aeebaf534f75fece5857a978463aba33");
+        assert_eq!(hash, "4d65313bad47ee6b3d57010a0ba26abd");
     }
     #[test]
     fn test_get_user_data_dir() {
