@@ -79,7 +79,7 @@ impl UI {
                     crate::display_info(&self.api.environment().await?, &self.usage)?;
                     input = self
                         .console
-                        .prompt(self.current_title.as_deref(), None)
+                        .prompt(self.current_title().as_deref(), None)
                         .await?;
                     continue;
                 }
@@ -88,7 +88,7 @@ impl UI {
                     self.handle_message(content.clone(), &model).await?;
                     input = self
                         .console
-                        .prompt(self.current_title.as_deref(), None)
+                        .prompt(self.current_title().as_deref(), None)
                         .await?;
                 }
             }
@@ -179,14 +179,19 @@ impl UI {
             }
             ChatResponse::PartialTitle(_) => {}
             ChatResponse::CompleteTitle(title) => {
-                self.current_title = Some(StatusDisplay::task(title, self.usage.clone()).format());
+                self.current_title = Some(title);
             }
             ChatResponse::FinishReason(_) => {}
             ChatResponse::Usage(u) => {
-                dbg!("Usage: {:?}", &u);
                 self.usage = u;
             }
         }
         Ok(())
+    }
+
+    fn current_title(&self) -> Option<String> {
+        self.current_title
+            .as_ref()
+            .map(|title| StatusDisplay::task(title, self.usage.clone()).format())
     }
 }

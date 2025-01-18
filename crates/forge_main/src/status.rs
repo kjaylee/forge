@@ -126,14 +126,16 @@ impl StatusDisplay {
         let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
         let mut result = format!("{} {} {} {}", timestamp.dimmed(), icon, label, message);
 
-        result.push_str(
-            &format!(
-                " [tokens {}/{}/{}]",
-                self.usage.prompt_tokens, self.usage.completion_tokens, self.usage.total_tokens
-            )
-            .dimmed()
-            .to_string(),
-        );
+        if self.usage.total_tokens > 0 {
+            result.push_str(
+                &format!(
+                    " [tokens {}/{}/{}]",
+                    self.usage.prompt_tokens, self.usage.completion_tokens, self.usage.total_tokens
+                )
+                .dimmed()
+                .to_string(),
+            );
+        }
 
         result
     }
