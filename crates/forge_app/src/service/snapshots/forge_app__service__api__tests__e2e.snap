@@ -1,8 +1,0 @@
----
-source: crates/forge_app/src/service/api.rs
-expression: response
-snapshot_kind: text
----
-<crates>
-<crate>forge_app</crate>
-</crates>

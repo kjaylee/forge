@@ -146,7 +146,6 @@ impl APIService for Live {
 #[cfg(test)]
 mod tests {
     use forge_domain::ModelId;
-    use insta::assert_snapshot;
     use tokio_stream::StreamExt;
 
     use super::*;
@@ -169,6 +168,26 @@ mod tests {
             .join("")
             .trim()
             .to_string();
-        assert_snapshot!(response);
+
+        // Check for expected crates
+        let expected_crates = [
+            "forge_app",
+            "forge_ci",
+            "forge_domain",
+            "forge_main",
+            "forge_open_router",
+            "forge_prompt",
+            "forge_tool",
+            "forge_tool_macros",
+            "forge_walker",
+        ];
+
+        for crate_name in expected_crates {
+            assert!(
+                response.contains(&format!("<crate>{}</crate>", crate_name)),
+                "Missing crate: {}",
+                crate_name
+            );
+        }
     }
 }
