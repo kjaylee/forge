@@ -2,69 +2,58 @@ use std::path::Path;
 
 use dissimilar::Chunk;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
+use thiserror::Error;
 use tokio::fs;
 use tracing::{debug, error};
 
-use super::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
 use crate::fs::syn;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReplaceInput {
-    /// File path relative to the current working directory
+    /// The path of the file to modify (relative to the current working
+    /// directory)
     pub path: String,
-    /// SEARCH/REPLACE blocks defining changes
-    pub diff: String,
+    /// Optional content to find in the file. Can be multiple lines.
+    /// If None or Some(""), the replacement text will be appended to the end of
+    /// the file.
+    pub search: Option<String>,
+    /// The new content to replace the matched text with. Can be multiple lines.
+    /// If empty, the matched text will be deleted.
+    pub replace: String,
+    /// Whether to replace all occurrences (true) or just the first one (false).
+    /// Defaults to false if not specified.
+    pub replace_all: Option<bool>,
 }
 
+/// Replace or delete content in a file, with support for:
+/// - Exact and fuzzy matching for search patterns
+/// - Replacing matched content with new content
+/// - Deleting matched content (using empty replacement)
+/// - Appending content when no search pattern is provided
+///
+/// For supported file types (.rs, .js, .py, etc.), performs syntax validation
+/// on the modified content and returns warnings for invalid syntax.
+#[derive(ToolDescription)]
 pub struct FSReplace;
+
+#[derive(Debug, Error, PartialEq)]
+pub enum Error {
+    #[error("No matching content found to replace")]
+    NoMatch,
+
+    #[error("Invalid replacement: {0}")]
+    InvalidReplacement(String),
+
+    #[error("I/O error: {0}")]
+    IO(String),
+}
 
 impl NamedTool for FSReplace {
     fn tool_name(&self) -> ToolName {
         ToolName::new("tool_forge_fs_replace")
-    }
-}
-
-struct Block {
-    search: String,
-    replace: String,
-}
-
-impl ToolDescription for FSReplace {
-    fn description(&self) -> String {
-        format!(
-            r#"        
-Replace sections in a file using SEARCH/REPLACE blocks for precise
-modifications.
-
-{}
-[exact content to find]
-{}
-[new content to replace with]
-{}
-
-Rules:
-1. SEARCH must match exactly (whitespace, indentation, line endings)
-2. Each block replaces first match only
-3. Keep blocks minimal - include only changing lines plus needed context
-4. Complete lines only - no truncation
-5. For moves: use 2 blocks (delete + insert)
-6. For deletes: use empty REPLACE section
-
-Example:
-{}
-def old_function(x):
-    return x + 1
-{}
-def new_function(x, y=0):
-    return x + y
-{}
-        "#,
-            SEARCH, DIVIDER, REPLACE, SEARCH, DIVIDER, REPLACE
-        )
-        .trim()
-        .to_string()
     }
 }
 
@@ -75,7 +64,7 @@ fn normalize_line_endings(text: &str) -> String {
 
     while let Some(c) = chars.next() {
         if c == '\r' && chars.peek() == Some(&'\n') {
-            chars.next(); // Skip the \n since we'll add it below
+            chars.next(); // Skip the \n since well add it below
             result.push('\n');
         } else {
             result.push(c);
@@ -84,108 +73,49 @@ fn normalize_line_endings(text: &str) -> String {
     result
 }
 
-fn parse_blocks(diff: &str) -> Result<Vec<Block>, String> {
-    let mut blocks = Vec::new();
-    let mut pos = 0;
+fn replace_text(
+    content: &str,
+    search: &str,
+    replace: &str,
+    replace_all: bool,
+) -> Result<(String, usize), Error> {
+    let mut replacements = 0;
+    let normalized_search = normalize_line_endings(search);
+    let mut current_text = content.to_string();
 
-    // Normalize line endings in the diff string while preserving original newlines
-    let diff = normalize_line_endings(diff);
-
-    while let Some(search_start) = diff[pos..].find(SEARCH) {
-        let search_start = pos + search_start + SEARCH.len();
-
-        // Include the newline after SEARCH marker in the position
-        let search_start = match diff[search_start..].find('\n') {
-            Some(nl) => search_start + nl + 1,
-            None => {
-                return Err("Invalid diff format: Missing newline after SEARCH marker".to_string())
+    loop {
+        // Try exact match first
+        if let Some(start_idx) = current_text.find(&normalized_search) {
+            let end_idx = start_idx + normalized_search.len();
+            current_text.replace_range(start_idx..end_idx, replace);
+            replacements += 1;
+            if !replace_all {
+                break;
             }
-        };
-
-        let Some(separator) = diff[search_start..].find(DIVIDER) else {
-            return Err("Invalid diff format: Missing separator".to_string());
-        };
-        let separator = search_start + separator;
-
-        // Include the newline after separator in the position
-        let separator_end = separator + DIVIDER.len();
-        let separator_end = match diff[separator_end..].find('\n') {
-            Some(nl) => separator_end + nl + 1,
-            None => return Err("Invalid diff format: Missing newline after separator".to_string()),
-        };
-
-        let Some(replace_end) = diff[separator_end..].find(REPLACE) else {
-            return Err("Invalid diff format: Missing end marker".to_string());
-        };
-        let replace_end = separator_end + replace_end;
-
-        let search = &diff[search_start..separator];
-        let replace = &diff[separator_end..replace_end];
-
-        blocks.push(Block { search: search.to_string(), replace: replace.to_string() });
-
-        pos = replace_end + REPLACE.len();
-        // Move past the newline after REPLACE if it exists
-        if let Some(nl) = diff[pos..].find('\n') {
-            pos += nl + 1;
-        }
-    }
-
-    if blocks.is_empty() {
-        return Err("Invalid diff format: No valid blocks found".to_string());
-    }
-
-    Ok(blocks)
-}
-
-/// Apply changes to file content based on search/replace blocks.
-/// Changes are only written to disk if all replacements are successful.
-async fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<String, String> {
-    // Initialize content based on whether file exists
-    let mut result = if path.as_ref().exists() {
-        fs::read_to_string(&path).await.map_err(|e| {
-            error!("Failed to read file content: {}", e);
-            e.to_string()
-        })?
-    } else if !blocks[0].search.is_empty() {
-        return Err("File does not exist and search pattern is not empty".to_string());
-    } else {
-        String::new()
-    };
-
-    // Apply each block sequentially
-    for block in blocks {
-        // For empty search string, append the replacement text at the end of file.
-        if block.search.is_empty() {
-            result.push_str(&block.replace);
-            continue;
-        }
-
-        // For exact matching, first try to find the exact string
-        if let Some(start_idx) = result.find(&block.search) {
-            let end_idx = start_idx + block.search.len();
-            result.replace_range(start_idx..end_idx, &block.replace);
             continue;
         }
 
         // If exact match fails, try fuzzy matching
-        let normalized_search = block.search.replace("\r\n", "\n").replace('\r', "\n");
-        let normalized_result = result.replace("\r\n", "\n").replace('\r', "\n");
-
-        if let Some(start_idx) = normalized_result.find(&normalized_search) {
-            result.replace_range(start_idx..start_idx + block.search.len(), &block.replace);
+        let normalized_text = normalize_line_endings(&current_text);
+        if let Some(start_idx) = normalized_text.find(&normalized_search) {
+            let end_idx = start_idx + normalized_search.len();
+            current_text.replace_range(start_idx..end_idx, replace);
+            replacements += 1;
+            if !replace_all {
+                break;
+            }
             continue;
         }
 
         // If still no match, try more aggressive fuzzy matching
-        let chunks = dissimilar::diff(&result, &block.search);
+        let chunks = dissimilar::diff(&current_text, &normalized_search);
         let mut best_match = None;
         let mut best_score = 0.0;
         let mut current_pos = 0;
 
         for chunk in chunks.iter() {
             if let Chunk::Equal(text) = chunk {
-                let score = text.len() as f64 / block.search.len() as f64;
+                let score = text.len() as f64 / normalized_search.len() as f64;
                 if score > best_score {
                     best_score = score;
                     best_match = Some((current_pos, text.len()));
@@ -201,19 +131,44 @@ async fn apply_changes<P: AsRef<Path>>(path: P, blocks: Vec<Block>) -> Result<St
         if let Some((start_idx, len)) = best_match {
             if best_score > 0.7 {
                 // Threshold for fuzzy matching
-                result.replace_range(start_idx..start_idx + len, &block.replace);
+                current_text.replace_range(start_idx..start_idx + len, replace);
+                replacements += 1;
+                if !replace_all {
+                    break;
+                }
+                continue;
+            }
+        }
+
+        // No more matches found
+        break;
+    }
+
+    Ok((current_text, replacements))
+}
+
+fn replace_content(
+    content: &str,
+    search: Option<&str>,
+    replace: &str,
+    replace_all: bool,
+) -> Result<String, Error> {
+    // Handle append mode (no search pattern)
+    match search {
+        None | Some("") => {
+            let mut result = content.to_string();
+            result.push_str(replace);
+            Ok(result)
+        }
+        Some(search_str) => {
+            let (result, replacements) = replace_text(content, search_str, replace, replace_all)?;
+            if replacements == 0 {
+                Err(Error::NoMatch)
+            } else {
+                Ok(result)
             }
         }
     }
-
-    // Write the modified content
-    fs::write(&path, &result).await.map_err(|e| {
-        error!("Failed to write file: {}", e);
-        e.to_string()
-    })?;
-    debug!("Successfully wrote changes to {:?}", path.as_ref());
-
-    Ok(result)
 }
 
 #[async_trait::async_trait]
@@ -221,15 +176,45 @@ impl ToolCallService for FSReplace {
     type Input = FSReplaceInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
-        let blocks = parse_blocks(&input.diff)?;
-        let blocks_len = blocks.len();
-        let content = apply_changes(&input.path, blocks).await?;
-        let syntax_warning = syn::validate(&input.path, &content);
+        let replace_all = input.replace_all.unwrap_or(false);
 
-        let mut result = format!(
-            "Successfully applied {} patch(es) to {}",
-            blocks_len, input.path
-        );
+        // Read existing content or use empty string for new files
+        let current_content = if Path::new(&input.path).exists() {
+            fs::read_to_string(&input.path).await.map_err(|e| {
+                error!("Failed to read file content: {}", e);
+                Error::IO(format!("Failed to read file: {}", e)).to_string()
+            })?
+        } else if input.search.as_ref().is_some_and(|s| !s.is_empty()) {
+            return Err(Error::InvalidReplacement(
+                "File does not exist and search pattern is not empty".to_string(),
+            )
+            .to_string());
+        } else {
+            String::new()
+        };
+
+        // Apply replacements
+        let new_content = match replace_content(
+            &current_content,
+            input.search.as_deref(),
+            &input.replace,
+            replace_all,
+        ) {
+            Ok(content) => content,
+            Err(e) => return Err(e.to_string()),
+        };
+
+        // Write the modified content
+        fs::write(&input.path, &new_content).await.map_err(|e| {
+            error!("Failed to write file: {}", e);
+            Error::IO(format!("Failed to write file: {}", e)).to_string()
+        })?;
+
+        debug!("Successfully wrote changes to {:?}", &input.path);
+
+        // Check syntax and build response
+        let syntax_warning = syn::validate(&input.path, &new_content);
+        let mut result = format!("Successfully applied changes to {}", input.path);
         if let Some(warning) = syntax_warning {
             result.push_str("\nWarning: ");
             result.push_str(&warning.to_string());
@@ -249,11 +234,101 @@ mod test {
         fs::write(&path, content).await.map_err(|e| e.to_string())
     }
 
+    #[test]
+    fn test_replace_content_exact_match() {
+        let content = "Hello World\nTest Line\nHello World\n";
+        let result = replace_content(content, Some("Hello World"), "Hi World", false);
+        assert_eq!(
+            result.unwrap(),
+            "Hi World\nTest Line\nHello World\n".to_string()
+        );
+    }
+
+    #[test]
+    fn test_replace_content_all() {
+        let content = "Hello World\nTest Line\nHello World\n";
+        let result = replace_content(content, Some("Hello World"), "Hi World", true);
+        assert_eq!(
+            result.unwrap(),
+            "Hi World\nTest Line\nHi World\n".to_string()
+        );
+    }
+
+    #[test]
+    fn test_replace_content_empty_search() {
+        let content = "Hello World\n";
+        let result = replace_content(content, None, "New Content", false);
+        assert_eq!(result.unwrap(), "Hello World\nNew Content".to_string());
+    }
+
+    #[test]
+    fn test_replace_content_no_match() {
+        let content = "Hello World\n";
+        let result = replace_content(content, Some("Non-existent"), "New Content", false);
+        assert_eq!(result.unwrap_err(), Error::NoMatch);
+    }
+
+    #[test]
+    fn test_replace_content_fuzzy_match() {
+        let content = "function test() {\n  let x = 1;\n  return x;\n}\n";
+        let result = replace_content(
+            content,
+            Some("let x = 1;\n  return x;"),
+            "let x = 2;\n  return x + 1;",
+            false,
+        );
+        assert_eq!(
+            result.unwrap(),
+            "function test() {\n  let x = 2;\n  return x + 1;\n}\n".to_string()
+        );
+    }
+
+    #[test]
+    fn test_replace_content_with_whitespace() {
+        let content = "    Hello World    \n  Test Line  \n";
+        let result = replace_content(
+            content,
+            Some("    Hello World    "),
+            "    Hi World    ",
+            false,
+        );
+        assert_eq!(
+            result.unwrap(),
+            "    Hi World    \n  Test Line  \n".to_string()
+        );
+    }
+
+    #[test]
+    fn test_replace_content_error_handling() {
+        let content = "Hello World\n";
+
+        // Test no matches
+        let result = replace_content(content, Some("Non-existent"), "New Content", false);
+        assert_eq!(result.unwrap_err(), Error::NoMatch);
+
+        // Test empty string search (should work, appends to end)
+        let result = replace_content(content, Some(""), "append this", false);
+        assert_eq!(result.unwrap(), "Hello World\nappend this");
+    }
+
+    #[test]
+    fn test_replace_content_deletion() {
+        let content = "Hello World\nTest Line\nHello World\n";
+        
+        // Test single deletion
+        let result = replace_content(content, Some("Hello World\n"), "", false);
+        assert_eq!(result.unwrap(), "Test Line\nHello World\n");
+
+        // Test all deletions
+        let result = replace_content(content, Some("Hello World\n"), "", true);
+        assert_eq!(result.unwrap(), "Test Line\n");
+    }
+
     #[tokio::test]
     async fn test_whitespace_preservation() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "    Hello World    \n  Test Line  \n   Goodbye World   \n";
+        let content = "    Hello World    \n  Test Line  \n    Hello World    \n";
 
         write_test_file(&file_path, content).await.unwrap();
 
@@ -261,11 +336,9 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!(
-                    "{}\n    Hello World    \n{}\n    Hi World    \n{}\n",
-                    SEARCH, DIVIDER, REPLACE
-                )
-                .to_string(),
+                search: Some("    Hello World    ".to_string()),
+                replace: "    Hi World    ".to_string(),
+                replace_all: None,
             })
             .await
             .unwrap();
@@ -285,7 +358,9 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\n{}\nNew content\n{}\n", SEARCH, DIVIDER, REPLACE).to_string(),
+                search: None,
+                replace: "New content\n".to_string(),
+                replace_all: None,
             })
             .await
             .unwrap();
@@ -295,101 +370,53 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_multiple_blocks() {
+    async fn test_replace_all() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
+        let content = "let x = 1;\nlet y = 1;\nlet z = 1;\n";
 
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let diff = format!("{}\n    First Line    \n{}\n    New First    \n{}\n{}\n    Last Line    \n{}\n    New Last    \n{}\n",
-            SEARCH, DIVIDER, REPLACE, SEARCH, DIVIDER, REPLACE).to_string();
-
         let result = fs_replace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                search: Some(" = 1;".to_string()),
+                replace: " = 2;".to_string(),
+                replace_all: Some(true),
+            })
             .await
             .unwrap();
 
-        assert!(result.contains("Successfully applied 2 patch(es)"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
+        assert!(result.contains("Successfully applied"));
+
+        let content = fs::read_to_string(&file_path).await.unwrap();
+        assert_eq!(content, "let x = 2;\nlet y = 2;\nlet z = 2;\n");
     }
 
     #[tokio::test]
-    async fn test_empty_block() {
+    async fn test_replace_first_only() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let content = "    First Line    \n  Middle Line  \n    Last Line    \n";
+        let content = "let x = 1;\nlet y = 1;\nlet z = 1;\n";
 
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        let diff = format!("{}\n  Middle Line  \n{}\n{}\n", SEARCH, DIVIDER, REPLACE);
-        let result = fs_replace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
-            .await
-            .unwrap();
-
-        assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
-    }
-
-    #[tokio::test]
-    async fn test_complex_newline_preservation() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Test file with various newline patterns
-        let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
-        write_test_file(&file_path, content).await.unwrap();
-
-        let fs_replace = FSReplace;
-
-        // Test 1: Replace content while preserving surrounding newlines
-        // Test 1: Replace content while preserving surrounding newlines
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\n    let x = 1;\n\n\n    console.log(x);\n{}\n    let y = 2;\n\n\n    console.log(y);\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
+                search: Some(" = 1;".to_string()),
+                replace: " = 2;".to_string(),
+                replace_all: Some(false),
             })
             .await
             .unwrap();
 
         assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
 
-        // Test 2: Replace block with different newline pattern
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: format!(
-                    "{}\n\n// Footer comment\n\n\n{}\n\n\n\n// Updated footer\n\n{}\n",
-                    SEARCH, DIVIDER, REPLACE
-                )
-                .to_string(),
-            })
-            .await
-            .unwrap();
-
-        assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
-
-        // Test 3: Replace with empty lines preservation
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: format!(
-                    "{}\n\n\n// Header comment\n\n\n{}\n\n\n\n// New header\n\n\n\n{}\n",
-                    SEARCH, DIVIDER, REPLACE
-                )
-                .to_string(),
-            })
-            .await
-            .unwrap();
-
-        assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
+        let content = fs::read_to_string(&file_path).await.unwrap();
+        assert_eq!(content, "let x = 2;\nlet y = 1;\nlet z = 1;\n");
     }
 
     #[tokio::test]
@@ -397,7 +424,6 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
 
-        // Test file with typos and variations
         let content = r#"function calculateTotal(items) {
   let total = 0;
   for (const itm of items) {
@@ -409,75 +435,19 @@ mod test {
         write_test_file(&file_path, content).await.unwrap();
 
         let fs_replace = FSReplace;
-        // Search with different casing, spacing, and variable names
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\n  for (const itm of items) {{\n    total += itm.price;\n{}\n  for (const item of items) {{\n    total += item.price * item.quantity;\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
+                search: Some("  for (const itm of items) {\n    total += itm.price;".to_string()),
+                replace: "  for (const item of items) {\n    total += item.price * item.quantity;"
+                    .to_string(),
+                replace_all: None,
             })
             .await
             .unwrap();
 
         assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
-
-        // Test fuzzy matching with more variations
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\nfunction calculateTotal(items) {{\n  let total = 0;\n{}\nfunction computeTotal(items, tax = 0) {{\n  let total = 0.0;\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
-            })
-            .await
-            .unwrap();
-
-        assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
-    }
-
-    #[tokio::test]
-    async fn test_fuzzy_search_advanced() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Test file with more complex variations
-        let content = r#"class UserManager {
-  async getUserById(userId) {
-    const user = await db.findOne({ id: userId });
-    if (!user) throw new Error('User not found');
-    return user;
-  }
-}
-"#;
-        write_test_file(&file_path, content).await.unwrap();
-
-        let fs_replace = FSReplace;
-        // Search with structural similarities but different variable names and spacing
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\n  async getUserById(userId) {{\n    const user = await db.findOne({{ id: userId }});\n{}\n  async findUser(id, options = {{}}) {{\n    const user = await this.db.findOne({{ userId: id, ...options }});\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
-            })
-            .await
-            .unwrap();
-
-        assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
-
-        // Test fuzzy matching with error handling changes
-        let result = fs_replace
-            .call(FSReplaceInput {
-                path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\n    if (!user) throw new Error('User not found');\n    return user;\n{}\n    if (!user) {{\n      throw new UserNotFoundError(id);\n    }}\n    return this.sanitizeUser(user);\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
-            })
-            .await
-            .unwrap();
-
-        assert!(result.contains("Successfully applied"));
-        assert!(result.contains(&*file_path.to_string_lossy()));
+        assert!(result.contains(&file_path.display().to_string()));
     }
 
     #[tokio::test]
@@ -492,11 +462,9 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!(
-                    "{}\nfn main() {{ let x = 42; }}\n{}\nfn main() {{ let x = \n{}\n",
-                    SEARCH, DIVIDER, REPLACE
-                )
-                .to_string(),
+                search: Some("fn main() { let x = 42; }".to_string()),
+                replace: "fn main() { let x = ".to_string(),
+                replace_all: None,
             })
             .await
             .unwrap();
@@ -518,8 +486,9 @@ mod test {
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
-                diff: format!("{}\nfn main() {{ let x = 42; }}\n{}\nfn main() {{ let x = 42; let y = x * 2; }}\n{}\n",
-                    SEARCH, DIVIDER, REPLACE).to_string(),
+                search: Some("fn main() { let x = 42; }".to_string()),
+                replace: "fn main() { let x = 42; let y = x * 2; }".to_string(),
+                replace_all: None,
             })
             .await
             .unwrap();
@@ -529,63 +498,24 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_replace_curly_brace_with_double_curly_brace() {
+    async fn test_no_match_found() {
         let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.md");
-        // Create test file with content
-        let file_content = "fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n }\n";
-        write_test_file(&file_path, file_content).await.unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        let content = "Hello World";
 
-        // want to replace '}' with '}}'.
-        let diff = format!("{}\n}}{}\n}}}}\n{}", SEARCH, DIVIDER, REPLACE);
-        let res = FSReplace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
-            .await
-            .unwrap();
+        write_test_file(&file_path, content).await.unwrap();
 
-        assert!(res.contains("Successfully applied"));
-        assert!(res.contains(&file_path.display().to_string()));
-    }
+        let fs_replace = FSReplace;
+        let result = fs_replace
+            .call(FSReplaceInput {
+                path: file_path.to_string_lossy().to_string(),
+                search: Some("Non-existent content".to_string()),
+                replace: "New content".to_string(),
+                replace_all: None,
+            })
+            .await;
 
-    #[tokio::test]
-    async fn test_empty_search_block() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.md");
-        // Create test file with content
-        let file_content =
-            r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
-        write_test_file(&file_path, file_content).await.unwrap();
-
-        // want to replace '' with 'empty-space-replaced'.
-        let diff = format!("{}\n{}\nempty-space-replaced{}", SEARCH, DIVIDER, REPLACE);
-
-        let res = FSReplace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
-            .await
-            .unwrap();
-
-        assert!(res.contains("Successfully applied"));
-        assert!(res.contains(&file_path.display().to_string()));
-    }
-
-    #[tokio::test]
-    async fn test_match_empty_white_space() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.md");
-        // Create test file with content
-        let file_content =
-            r#"fn test(){\n    let x = 42;\n    {\n        // test block-1    }\n}\n"#;
-        write_test_file(&file_path, file_content).await.unwrap();
-
-        // want to replace ' ' with '--'.
-        let diff = format!("{}\n {}\n--{}", SEARCH, DIVIDER, REPLACE);
-
-        let res = FSReplace
-            .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
-            .await
-            .unwrap();
-
-        assert!(res.contains("Successfully applied"));
-        assert!(res.contains(&file_path.display().to_string()));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("No matching content found"));
     }
 }

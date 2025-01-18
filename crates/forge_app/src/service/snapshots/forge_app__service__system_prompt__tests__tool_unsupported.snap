@@ -154,40 +154,23 @@ Usage:
 </tool_forge_fs_read>
 
 5. tool_forge_fs_replace
-Replace sections in a file using SEARCH/REPLACE blocks for precise
-modifications.
-
-<<<<<<< SEARCH
-[exact content to find]
-=======
-[new content to replace with]
->>>>>>> REPLACE
-
-Rules:
-1. SEARCH must match exactly (whitespace, indentation, line endings)
-2. Each block replaces first match only
-3. Keep blocks minimal - include only changing lines plus needed context
-4. Complete lines only - no truncation
-5. For moves: use 2 blocks (delete + insert)
-6. For deletes: use empty REPLACE section
-
-Example:
-<<<<<<< SEARCH
-def old_function(x):
-    return x + 1
-=======
-def new_function(x, y=0):
-    return x + y
->>>>>>> REPLACE
+Replace content in a file, with support for exact and fuzzy matching,
+ or append content to the end of file when no search pattern is provided.
+ For supported file types (.rs, .js, .py, etc.), performs syntax validation
+ on the modified content and returns warnings for invalid syntax.
 
 Parameters:
-- diff (required): SEARCH/REPLACE blocks defining changes
-- path (required): File path relative to the current working directory
+- path (required): The path of the file to modify (relative to the current working directory)
+- replace (required): The new content to replace the matched text with. Can be multiple lines. Must not be empty.
+- replace_all: Whether to replace all occurrences (true) or just the first one (false). Defaults to false if not specified.
+- search: Optional content to find in the file. Can be multiple lines. If None or Some(""), the replacement text will be appended to the end of the file.
 
 Usage:
 <tool_forge_fs_replace>
-<diff>...</diff>
 <path>...</path>
+<replace>...</replace>
+<replace_all>...</replace_all>
+<search>...</search>
 </tool_forge_fs_replace>
 
 6. tool_forge_fs_search

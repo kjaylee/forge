@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+thiserror = "1.0"
 dissimilar = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -19,7 +20,6 @@ regex = "1.10.2"
 walkdir = "2.4.0"
 glob = "0.3.1"
 tree-sitter = "0.24"
-derive_more = { version = "1.0.0", features = ["display"] }
 tree-sitter-rust = "0.23"
 tree-sitter-javascript = "0.23"
 tree-sitter-python = "0.23"
