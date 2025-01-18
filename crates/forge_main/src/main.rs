@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::Routes;
-use forge_domain::{ChatRequest, ChatResponse, Command, ModelId, Usage, UserInput};
+use forge_domain::{ChatRequest, ChatResponse, Command, ModelId, UserInput};
 use forge_main::{display_info, Console, StatusDisplay, CONSOLE};
 use tokio_stream::StreamExt;
 
@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     let mut current_conversation_id = None;
     let mut current_title = None;
     let mut current_content = None;
-    let mut usage = Usage::default();
+    let mut usage = Default::default();
 
     let api = Routes::init()
         .await
@@ -99,8 +99,7 @@ async fn main() -> Result<()> {
                                         let tool_name = tool_call_full.name.as_str();
                                         CONSOLE.newline()?;
                                         CONSOLE.writeln(
-                                            StatusDisplay::execute(tool_name, Usage::default())
-                                                .usage(usage.clone())
+                                            StatusDisplay::execute(tool_name, usage.clone())
                                                 .format(),
                                         )?;
 
@@ -122,12 +121,12 @@ async fn main() -> Result<()> {
                                                 tool_result.to_string().dimmed()
                                             ))?;
                                         }
-                                        let mut status = if tool_result.is_error {
-                                            StatusDisplay::failed(tool_name, Usage::default())
+                                        let status = if tool_result.is_error {
+                                            StatusDisplay::failed(tool_name, usage.clone())
                                         } else {
-                                            StatusDisplay::success(tool_name, Usage::default())
+                                            StatusDisplay::success(tool_name, usage.clone())
                                         };
-                                        status = status.usage(usage.clone());
+
                                         CONSOLE.write(status.format())?;
                                     }
                                     ChatResponse::ConversationStarted(conversation_id) => {
@@ -137,18 +136,13 @@ async fn main() -> Result<()> {
                                     ChatResponse::Complete => {}
                                     ChatResponse::Error(err) => {
                                         CONSOLE.writeln(
-                                            StatusDisplay::failed(err.to_string(), Usage::default())
-                                                .usage(usage.clone())
+                                            StatusDisplay::failed(err.to_string(), usage.clone())
                                                 .format(),
                                         )?;
                                     }
                                     ChatResponse::PartialTitle(_) => {}
                                     ChatResponse::CompleteTitle(title) => {
-                                        current_title = Some(
-                                            StatusDisplay::title(title, Usage::default())
-                                                .usage(usage.clone())
-                                                .format(),
-                                        );
+                                        current_title = Some(title);
                                     }
                                     ChatResponse::FinishReason(_) => {}
                                     ChatResponse::Usage(u) => {
@@ -156,8 +150,10 @@ async fn main() -> Result<()> {
                                     }
                                 },
                                 Err(err) => {
-                                    CONSOLE
-                                        .writeln(StatusDisplay::failed(err.to_string(), Usage::default()).format())?;
+                                    CONSOLE.writeln(
+                                        StatusDisplay::failed(err.to_string(), usage.clone())
+                                            .format(),
+                                    )?;
                                 }
                             }
                         }
@@ -165,11 +161,10 @@ async fn main() -> Result<()> {
                     Err(err) => {
                         CONSOLE.writeln(
                             StatusDisplay::failed_with(
-                                err.to_string(),
+                                err.to_string().as_str(),
                                 "Failed to establish chat stream",
-                                Usage::default(),
+                                usage.clone(),
                             )
-                            .usage(usage.clone())
                             .format(),
                         )?;
                     }

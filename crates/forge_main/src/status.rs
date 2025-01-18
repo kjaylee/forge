@@ -1,5 +1,4 @@
 use colored::Colorize;
-use derive_setters::Setters;
 use forge_domain::Usage;
 
 #[derive(Clone)]
@@ -70,7 +69,11 @@ impl StatusDisplay {
     }
 
     /// Create a failure status with additional details
-    pub fn failed_with(message: impl Into<String>, details: impl Into<String>, usage: Usage) -> Self {
+    pub fn failed_with(
+        message: impl Into<String>,
+        details: impl Into<String>,
+        usage: Usage,
+    ) -> Self {
         Self {
             kind: Kind::Failed,
             message: message.into(),
