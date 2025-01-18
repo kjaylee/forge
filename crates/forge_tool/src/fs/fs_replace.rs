@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use thiserror::Error;
 use tokio::fs;
+
 use super::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
 use crate::fs::syn;
 
@@ -13,22 +14,22 @@ use crate::fs::syn;
 pub enum Error {
     #[error("File not found at path: {0}")]
     FileNotFound(PathBuf),
-    
+
     #[error("File operation failed: {0}")]
     FileRead(#[from] std::io::Error),
-    
+
     #[error("No search/replace blocks found in diff")]
     NoBlocks,
-    
+
     #[error("Invalid diff: missing newline after SEARCH marker")]
     MissingSearchNewline,
-    
+
     #[error("Invalid diff: missing separator between search and replace content")]
     MissingSeparator,
-    
+
     #[error("Invalid diff: missing newline after separator")]
     MissingSeparatorNewline,
-    
+
     #[error("Invalid diff: missing REPLACE marker")]
     MissingReplaceMarker,
 }
@@ -121,7 +122,7 @@ fn parse_blocks(diff: &str) -> Result<Vec<Block>, Error> {
         // Include the newline after SEARCH marker in the position
         let search_start = match diff[search_start..].find('\n') {
             Some(nl) => search_start + nl + 1,
-            None => return Err(Error::MissingSearchNewline)
+            None => return Err(Error::MissingSearchNewline),
         };
 
         let Some(separator) = diff[search_start..].find(DIVIDER) else {
@@ -258,7 +259,8 @@ impl ToolCallService for FSReplace {
             }
 
             Ok(output)
-        }.await;
+        }
+        .await;
 
         result.map_err(|e| e.to_string())
     }
@@ -273,7 +275,6 @@ mod test {
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content).await.map_err(Error::FileRead)
     }
-
 
     #[test]
     fn test_parse_blocks_missing_separator() {
@@ -293,7 +294,10 @@ mod test {
     fn test_parse_blocks_missing_separator_newline() {
         let diff = format!("{}\nsearch content\n{}content", SEARCH, DIVIDER);
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::MissingSeparatorNewline));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::MissingSeparatorNewline
+        ));
     }
 
     #[test]
@@ -308,7 +312,7 @@ mod test {
         // Test both an empty string and random content
         let empty_result = parse_blocks("");
         assert!(matches!(empty_result.unwrap_err(), Error::NoBlocks));
-        
+
         let random_result = parse_blocks("some random content");
         assert!(matches!(random_result.unwrap_err(), Error::NoBlocks));
     }
@@ -322,7 +326,7 @@ mod test {
                 diff: format!("{}\nHello\n{}\nWorld\n{}\n", SEARCH, DIVIDER, REPLACE),
             })
             .await;
-        
+
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("File not found"));
     }
