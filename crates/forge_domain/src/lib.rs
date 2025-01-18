@@ -24,6 +24,7 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod user_interaction;
+mod ide;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -51,3 +52,4 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
+pub use ide::*;

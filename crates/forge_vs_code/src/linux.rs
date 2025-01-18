@@ -13,6 +13,30 @@ impl CodeInfo for LinuxCodeInfo {
     fn vs_code_path(&self) -> Option<String> {
         get_user_data_dir()
     }
+
+    /// Check if VS Code is currently running
+    ///
+    /// This function uses the `pgrep` command to check for running VS Code processes.
+    /// It considers multiple potential executable names.
+    ///
+    /// # Returns
+    /// A boolean indicating whether VS Code is running.
+    fn is_running(&self) -> bool {
+        let vs_code_processes = [
+            "code",       // Standard VS Code
+            "code-oss",   // Open Source VS Code
+            "code-insiders" // VS Code Insiders
+        ];
+
+        vs_code_processes.iter().any(|process| {
+            std::process::Command::new("pgrep")
+                .arg("-x")  // match the whole process name
+                .arg(process)
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false)
+        })
+    }
 }
 
 fn find_arg_value(cmd: &[String], key: &str) -> Option<String> {
