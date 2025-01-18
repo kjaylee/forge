@@ -34,8 +34,9 @@ impl NamedTool for FSList {
 #[async_trait::async_trait]
 impl ToolCallService for FSList {
     type Input = FSListInput;
+    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let dir = Path::new(&input.path);
         if !dir.exists() {
             return Err("Directory does not exist".to_string());

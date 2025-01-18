@@ -131,8 +131,9 @@ impl NamedTool for Shell {
 #[async_trait::async_trait]
 impl ToolCallService for Shell {
     type Input = ShellInput;
+    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         self.validate_command(&input.command)?;
 
         let mut cmd = if cfg!(target_os = "windows") {

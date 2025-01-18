@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::{ToolCallFull, ToolCallId, ToolName};
 
@@ -37,8 +38,11 @@ impl ToolResult {
         }
     }
 
-    pub fn success(mut self, content: impl Into<String>) -> Self {
-        self.content = content.into();
+    pub fn success(mut self, content: Value) -> Self {
+        self.content = match content {
+            Value::String(s) => s,
+            _ => content.to_string(),
+        };
         self.is_error = false;
         self
     }
@@ -104,15 +108,12 @@ mod tests {
 
     #[test]
     fn test_snapshot_with_special_chars() {
-        let result = ToolResult::new(ToolName::new("xml_tool")).success(
-            json!({
-                "text": "Special chars: < > & ' \"",
-                "nested": {
-                    "html": "<div>Test</div>"
-                }
-            })
-            .to_string(),
-        );
+        let result = ToolResult::new(ToolName::new("xml_tool")).success(json!({
+            "text": "Special chars: < > & ' \"",
+            "nested": {
+                "html": "<div>Test</div>"
+            }
+        }));
         assert_snapshot!(result);
     }
 
@@ -126,34 +127,28 @@ mod tests {
     fn test_display_full() {
         let result = ToolResult::new(ToolName::new("complex_tool"))
             .call_id(ToolCallId::new("123"))
-            .success(
-                json!({
-                    "user": "John Doe",
-                    "age": 42,
-                    "address": [{"city": "New York"}, {"city": "Los Angeles"}]
-                })
-                .to_string(),
-            );
+            .success(json!({
+                "user": "John Doe",
+                "age": 42,
+                "address": [{"city": "New York"}, {"city": "Los Angeles"}]
+            }));
         assert_snapshot!(result.to_string());
     }
 
     #[test]
     fn test_display_special_chars() {
-        let result = ToolResult::new(ToolName::new("xml_tool")).success(
-            json!({
-                "text": "Special chars: < > & ' \"",
-                "nested": {
-                    "html": "<div>Test</div>"
-                }
-            })
-            .to_string(),
-        );
+        let result = ToolResult::new(ToolName::new("xml_tool")).success(json!({
+            "text": "Special chars: < > & ' \"",
+            "nested": {
+                "html": "<div>Test</div>"
+            }
+        }));
         assert_snapshot!(result.to_string());
     }
 
     #[test]
     fn test_success_and_failure_content() {
-        let success = ToolResult::new(ToolName::new("test_tool")).success("success message");
+        let success = ToolResult::new(ToolName::new("test_tool")).success(json!("success message"));
         assert!(!success.is_error);
         assert_eq!(success.content, "success message");
 

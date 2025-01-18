@@ -33,8 +33,9 @@ impl NamedTool for FSWrite {
 #[async_trait::async_trait]
 impl ToolCallService for FSWrite {
     type Input = FSWriteInput;
+    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         // Check if file already exists
         if tokio::fs::metadata(&input.path).await.is_ok() {
             return Err(format!(

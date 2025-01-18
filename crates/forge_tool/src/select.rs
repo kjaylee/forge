@@ -43,8 +43,9 @@ impl NamedTool for SelectTool {
 #[async_trait::async_trait]
 impl ToolCallService for SelectTool {
     type Input = SelectInput;
+    type Output = String;
 
-    async fn call(&self, input: SelectInput) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let ans = InquireSelect::new(&input.message, input.options)
             .prompt()
             .map_err(|e| e.to_string())?;

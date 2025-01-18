@@ -225,8 +225,9 @@ async fn apply_changes(content: String, blocks: Vec<Block>) -> Result<String, Er
 #[async_trait::async_trait]
 impl ToolCallService for FSReplace {
     type Input = FSReplaceInput;
+    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let path = Path::new(&input.path);
         if !path.exists() {
             return Err(Error::FileNotFound(path.to_path_buf()).to_string());

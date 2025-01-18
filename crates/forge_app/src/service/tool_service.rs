@@ -118,9 +118,10 @@ mod test {
     #[async_trait::async_trait]
     impl forge_domain::ToolCallService for SuccessTool {
         type Input = Value;
+        type Output = Value;
 
-        async fn call(&self, input: Self::Input) -> Result<String, String> {
-            Ok(format!("Success with input: {}", input))
+        async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+            Ok(json!(format!("Success with input: {}", input)))
         }
     }
 
@@ -129,8 +130,9 @@ mod test {
     #[async_trait::async_trait]
     impl forge_domain::ToolCallService for FailureTool {
         type Input = Value;
+        type Output = Value;
 
-        async fn call(&self, _input: Self::Input) -> Result<String, String> {
+        async fn call(&self, _input: Self::Input) -> Result<Self::Output, String> {
             Err("Tool execution failed".to_string())
         }
     }
@@ -203,11 +205,12 @@ mod test {
     #[async_trait::async_trait]
     impl forge_domain::ToolCallService for SlowTool {
         type Input = Value;
+        type Output = Value;
 
-        async fn call(&self, _input: Self::Input) -> Result<String, String> {
+        async fn call(&self, _input: Self::Input) -> Result<Self::Output, String> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(40)).await;
-            Ok("Slow tool completed".to_string())
+            Ok(json!("Slow tool completed"))
         }
     }
 

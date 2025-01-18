@@ -39,8 +39,9 @@ impl NamedTool for Approve {
 #[async_trait::async_trait]
 impl ToolCallService for Approve {
     type Input = ApproveInput;
+    type Output = String;
 
-    async fn call(&self, input: ApproveInput) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let ans = Confirm::new(&input.message)
             .with_default(true)
             .prompt()

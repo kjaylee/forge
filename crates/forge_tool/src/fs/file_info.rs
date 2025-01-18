@@ -26,8 +26,9 @@ impl NamedTool for FSFileInfo {
 #[async_trait::async_trait]
 impl ToolCallService for FSFileInfo {
     type Input = FSFileInfoInput;
+    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let meta = tokio::fs::metadata(input.path)
             .await
             .map_err(|e| e.to_string())?;

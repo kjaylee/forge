@@ -36,8 +36,9 @@ impl NamedTool for FSSearch {
 #[async_trait::async_trait]
 impl ToolCallService for FSSearch {
     type Input = FSSearchInput;
+    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
         let dir = Path::new(&input.path);
         if !dir.exists() {
             return Err(format!("Directory '{}' does not exist", input.path));
