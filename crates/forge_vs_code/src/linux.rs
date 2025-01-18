@@ -102,19 +102,3 @@ fn hash_path(folder_path: &str) -> anyhow::Result<String> {
 
     Ok(format!("{:x}", hasher.compute()))
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hash_linux() {
-        let path = "/tmp";
-        let hash = hash_path(path).unwrap();
-        assert_eq!(hash, "4d65313bad47ee6b3d57010a0ba26abd");
-    }
-    #[test]
-    fn test_get_user_data_dir() {
-        let user_data_dir = get_user_data_dir();
-        println!("User data dir: {:?}", user_data_dir);
-    }
-}

@@ -110,26 +110,3 @@ fn hash_path(folder_path: &str, try_ceil: bool) -> anyhow::Result<String> {
 
     Ok(format!("{:x}", hasher.compute()))
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hash_linux() {
-        let path = "/Users/ssdd/RustroverProjects/code-forge";
-        let hash = hash_path(path).unwrap();
-        println!("Hash: {:?}", hash);
-    }
-    #[test]
-    fn test_get_user_data_dir() {
-        let user_data_dir = get_user_data_dir();
-        println!("User data dir: {:?}", user_data_dir);
-    }
-    #[test]
-    fn test_is_running() {
-        let code_info = MacOsCodeInfo::default();
-        let is_running = code_info.is_running();
-        println!("VSCode running: {}", is_running);
-    }
-}

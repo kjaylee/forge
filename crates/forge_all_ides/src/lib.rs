@@ -18,12 +18,18 @@ impl ForgeAllIdes {
 
 impl ActiveFiles for ForgeAllIdes {
     fn active_files(&self) -> anyhow::Result<Vec<String>> {
-        let mut files = vec!["The active files are:".to_string()];
+        let mut files = vec![];
         for ide in &self.ides {
             if let Ok(ide_files) = ide.active_files() {
                 files.extend(ide_files);
             }
         }
+        if !files.is_empty() {
+            files = vec![vec!["The active files are:".to_string()], files]
+                .into_iter()
+                .flatten()
+                .collect();
+        };
         Ok(files)
     }
 }
