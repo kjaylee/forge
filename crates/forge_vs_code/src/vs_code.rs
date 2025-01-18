@@ -37,7 +37,7 @@ impl ForgeVsCode {
             return self.active_files_inner(true, 1);
         }
         let conn = conn?;
-        let key = "memento/workbench.parts.editor";
+        let key = "workbench.explorer.treeViewState";
 
         let mut stmt = conn.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
         let value: Option<String> = stmt
@@ -89,46 +89,35 @@ impl<T: ToString> From<T> for ForgeVsCode {
 }
 
 impl ForgeVsCode {
-    fn extract_fspaths(json_data: &str) -> anyhow::Result<Vec<String>> {
-        let parsed: Value = serde_json::from_str(json_data).expect("Invalid JSON");
+    fn extract_fspaths(json_data: &str) -> anyhow::Result<Option<String>> {
+        // Parse the input JSON into a `serde_json::Value`
+        let data: Value = serde_json::from_str(json_data)?;
 
-        let mut fspaths = vec![];
+        // Extract the "focus" array, if it exists
+        let focus_array = match data.get("focus") {
+            Some(Value::Array(arr)) => arr,
+            _ => return Ok(None), // "focus" key not found or not an array
+        };
 
-        // Recursively search for "fsPath" keys
-        fn find_fspaths(
-            value: &Value,
-            fspaths: &mut Vec<String>,
-            possible_value: bool,
-        ) -> anyhow::Result<()> {
-            match value {
-                Value::Object(map) => {
-                    for (key, val) in map {
-                        if key == "fsPath" {
-                            if let Value::String(path) = val {
-                                fspaths.push(path.clone());
-                            }
-                        } else {
-                            find_fspaths(val, fspaths, key == "value" || possible_value)?;
-                        }
-                    }
-                    Ok(())
-                }
-                Value::Array(arr) => {
-                    for item in arr {
-                        find_fspaths(item, fspaths, false)?;
-                    }
-                    Ok(())
-                }
-                Value::String(v) if possible_value => {
-                    let new_value: Value = serde_json::from_str(v)?;
-                    find_fspaths(&new_value, fspaths, false)
-                }
-                _ => Ok(()),
-            }
+        // Get the first item from "focus", ensuring it's a string
+        if let Some(Value::String(item)) = focus_array.first() {
+            // The string looks like "file://...::file://..."
+            // If you want the second half (the actual file path), split by "::"
+            return if let Some(idx) = item.find("::") {
+                let second_part = &item[idx + 2..]; // after the "::"
+                Ok(Some(
+                    second_part
+                        .strip_prefix("file://")
+                        .unwrap_or(second_part)
+                        .to_string(),
+                ))
+            } else {
+                // If there's no "::", just return the entire string
+                Ok(Some(item.clone()))
+            };
         }
 
-        find_fspaths(&parsed, &mut fspaths, false)?;
-
-        Ok(fspaths)
+        // No first item in the array or it's not a string
+        Ok(None)
     }
 }
