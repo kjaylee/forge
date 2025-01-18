@@ -82,8 +82,8 @@ impl StatusDisplay {
         }
     }
 
-    /// Create a title status
-    pub fn title(message: impl Into<String>, usage: Usage) -> Self {
+    /// Create a task status
+    pub fn task(message: impl Into<String>, usage: Usage) -> Self {
         Self {
             kind: Kind::Task,
             message: message.into(),
