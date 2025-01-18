@@ -1,7 +1,8 @@
 use std::path::PathBuf;
+
+use forge_domain::{ActiveFiles, CodeInfo};
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
-use forge_domain::{ActiveFiles, CodeInfo};
 pub struct ForgeVsCode {
     cwd: String,
     code_info: Box<dyn CodeInfo>,
@@ -13,8 +14,14 @@ impl ActiveFiles for ForgeVsCode {
             return Ok(vec![]);
         }
         let hash = self.code_info.hash_path(&self.cwd)?;
-        let vs_code_path = self.code_info.vs_code_path().ok_or(anyhow::anyhow!("No VS Code path found"))?;
-        let db_path = format!("{}/User/workspaceStorage/{}/state.vscdb", vs_code_path, hash);
+        let vs_code_path = self
+            .code_info
+            .vs_code_path()
+            .ok_or(anyhow::anyhow!("No VS Code path found"))?;
+        let db_path = format!(
+            "{}/User/workspaceStorage/{}/state.vscdb",
+            vs_code_path, hash
+        );
 
         let conn = Connection::open(db_path)?;
         let key = "memento/workbench.parts.editor";
@@ -36,10 +43,14 @@ impl<T: ToString> From<T> for ForgeVsCode {
 
         // VS code stores the path without any trailing slashes.
         // We need to canonicalize the path to remove any trailing slashes.
-        let cwd = PathBuf::from(&cwd).canonicalize().ok().and_then(|p| p.to_str().map(|s| s.to_string())).unwrap_or(cwd);
+        let cwd = PathBuf::from(&cwd)
+            .canonicalize()
+            .ok()
+            .and_then(|p| p.to_str().map(|s| s.to_string()))
+            .unwrap_or(cwd);
 
         #[cfg(target_os = "linux")]
-            let code_info = crate::linux::LinuxCodeInfo;
+        let code_info = crate::linux::LinuxCodeInfo;
 
         Self { cwd, code_info: Box::new(code_info) }
     }
@@ -52,7 +63,11 @@ impl ForgeVsCode {
         let mut fspaths = vec![];
 
         // Recursively search for "fsPath" keys
-        fn find_fspaths(value: &Value, fspaths: &mut Vec<String>, possible_value: bool) -> anyhow::Result<()> {
+        fn find_fspaths(
+            value: &Value,
+            fspaths: &mut Vec<String>,
+            possible_value: bool,
+        ) -> anyhow::Result<()> {
             match value {
                 Value::Object(map) => {
                     for (key, val) in map {
