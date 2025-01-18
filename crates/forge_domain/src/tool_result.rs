@@ -87,44 +87,76 @@ impl Display for ToolResult {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
+    use std::fmt::Display;
+
     use serde_json::json;
 
     use super::*;
 
-    #[test]
-    fn test_snapshot_minimal() {
-        let result = ToolResult::new(ToolName::new("test_tool"));
-        assert_snapshot!(result);
+    fn assert_xml_eq(actual: impl Display, expected: impl Display) {
+        pretty_assertions::assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    fn xml(name: &str, content: Option<(&str, &str)>) -> String {
+        match content {
+            Some((tag, value)) => format!(
+                "<tool_result>\
+                    <tool_name>{name}</tool_name>\
+                    <{tag}>{value}</{tag}>\
+                </tool_result>"
+            ),
+            None => format!(
+                "<tool_result>\
+                    <tool_name>{name}</tool_name>\
+                    <success/>\
+                </tool_result>"
+            ),
+        }
     }
 
     #[test]
-    fn test_snapshot_full() {
+    fn test_minimal() {
+        let result = ToolResult::new(ToolName::new("test_tool"));
+        assert_xml_eq(result, xml("test_tool", None));
+    }
+
+    #[test]
+    fn test_full() {
         let result = ToolResult::new(ToolName::new("complex_tool"))
             .call_id(ToolCallId::new("123"))
             .failure(json!({"key": "value", "number": 42}).to_string());
-        assert_snapshot!(result);
+
+        let expected = xml(
+            "complex_tool",
+            Some(("error", "{\"key\":\"value\",\"number\":42}")),
+        );
+
+        assert_xml_eq(result, expected);
     }
 
     #[test]
-    fn test_snapshot_with_special_chars() {
+    fn test_with_special_chars() {
         let result = ToolResult::new(ToolName::new("xml_tool")).success(json!({
             "text": "Special chars: < > & ' \"",
             "nested": {
                 "html": "<div>Test</div>"
             }
         }));
-        assert_snapshot!(result);
+
+        let expected = xml(
+            "xml_tool",
+            Some((
+                "success",
+                "{\"nested\":{\"html\":\"&lt;div&gt;Test&lt;/div&gt;\"},\
+             \"text\":\"Special chars: &lt; &gt; &amp; ' \\\"\"}",
+            )),
+        );
+
+        assert_xml_eq(result, expected);
     }
 
     #[test]
-    fn test_display_minimal() {
-        let result = ToolResult::new(ToolName::new("test_tool"));
-        assert_snapshot!(result.to_string());
-    }
-
-    #[test]
-    fn test_display_full() {
+    fn test_display_with_complex_json() {
         let result = ToolResult::new(ToolName::new("complex_tool"))
             .call_id(ToolCallId::new("123"))
             .success(json!({
@@ -132,7 +164,17 @@ mod tests {
                 "age": 42,
                 "address": [{"city": "New York"}, {"city": "Los Angeles"}]
             }));
-        assert_snapshot!(result.to_string());
+
+        let expected = xml(
+            "complex_tool",
+            Some((
+                "success",
+                "{\"address\":[{\"city\":\"New York\"},{\"city\":\"Los Angeles\"}],\
+              \"age\":42,\"user\":\"John Doe\"}",
+            )),
+        );
+
+        assert_xml_eq(result, expected);
     }
 
     #[test]
@@ -143,7 +185,17 @@ mod tests {
                 "html": "<div>Test</div>"
             }
         }));
-        assert_snapshot!(result.to_string());
+
+        let expected = xml(
+            "xml_tool",
+            Some((
+                "success",
+                "{\"nested\":{\"html\":\"&lt;div&gt;Test&lt;/div&gt;\"},\
+              \"text\":\"Special chars: &lt; &gt; &amp; ' \\\"\"}",
+            )),
+        );
+
+        assert_xml_eq(result, expected);
     }
 
     #[test]
