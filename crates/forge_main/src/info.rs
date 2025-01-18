@@ -38,9 +38,21 @@ pub fn display_info(env: &Environment, usage: &Usage) -> io::Result<()> {
         env.small_model_id
     ))?;
     CONSOLE.newline()?;
-    CONSOLE.writeln(format!("{} {}", "Prompt:".bold().bright_yellow(), usage.prompt_tokens))?;
-    CONSOLE.writeln(format!("{} {}", "Completion:".bold().bright_yellow(), usage.completion_tokens))?;
-    CONSOLE.writeln(format!("{} {}", "Total:".bold().bright_yellow(), usage.total_tokens))?;
+    CONSOLE.writeln(format!(
+        "{} {}",
+        "Prompt:".bold().bright_yellow(),
+        usage.prompt_tokens
+    ))?;
+    CONSOLE.writeln(format!(
+        "{} {}",
+        "Completion:".bold().bright_yellow(),
+        usage.completion_tokens
+    ))?;
+    CONSOLE.writeln(format!(
+        "{} {}",
+        "Total:".bold().bright_yellow(),
+        usage.total_tokens
+    ))?;
     CONSOLE.newline()?;
     Ok(())
 }

@@ -1,6 +1,8 @@
 use serde::Serialize;
 
-use crate::{Context, ConversationId, Errata, FinishReason, ToolCallFull, ToolName, ToolResult, Usage};
+use crate::{
+    Context, ConversationId, Errata, FinishReason, ToolCallFull, ToolName, ToolResult, Usage,
+};
 
 /// Events that are emitted by the agent for external consumption. This includes
 /// events for all internal state changes.
