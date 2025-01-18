@@ -11,7 +11,7 @@ use super::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
 use crate::fs::syn;
 
 #[derive(Debug, Error)]
-pub enum Error {
+enum Error {
     #[error("File not found at path: {0}")]
     FileNotFound(PathBuf),
 
