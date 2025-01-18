@@ -7,3 +7,4 @@ edition = "2021"
 forge_domain = { path = "../forge_domain" }
 forge_code = { path = "../forge_code" }
 anyhow = "1.0.95"
+async-trait = "0.1.85"

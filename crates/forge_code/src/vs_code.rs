@@ -1,6 +1,8 @@
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use forge_domain::{ActiveFiles, CodeInfo};
+use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
 
@@ -11,46 +13,89 @@ pub struct Code {
     code_info: Platforms,
 }
 
+#[async_trait::async_trait]
 impl ActiveFiles for Code {
-    fn active_files(&self) -> anyhow::Result<Vec<String>> {
-        self.active_files_inner(false, 0)
+    async fn active_files(&self) -> anyhow::Result<Vec<String>> {
+        self.active_files_inner().await
     }
 }
 
 impl Code {
-    fn active_files_inner(&self, try_ceil: bool, i: i8) -> anyhow::Result<Vec<String>> {
+    async fn active_files_inner(&self) -> anyhow::Result<Vec<String>> {
+        let mut ans = vec![];
         if !self.code_info.is_running() {
-            return Ok(vec![]);
+            return Ok(ans);
         }
-        let hash = self.code_info.hash_path(&self.cwd, try_ceil)?;
-        let vs_code_path = self
+
+        let vs_code_paths = self
             .code_info
             .vs_code_path()
             .ok_or(anyhow::anyhow!("No VS Code path found"))?;
-        let db_path = format!(
-            "{}/User/workspaceStorage/{}/state.vscdb",
-            vs_code_path, hash
-        );
 
-        let conn = Connection::open(db_path);
-        if conn.is_err() && i == 0 {
-            return self.active_files_inner(true, 1);
-        }
-        let conn = conn?;
-        let key = "workbench.explorer.treeViewState";
+        for vs_code_path in vs_code_paths {
+            let workspace_storage_path = Path::new(&vs_code_path).join("User/workspaceStorage");
+            let walker = Walker::new(workspace_storage_path.clone());
+            let dirs = walker
+                .get()
+                .await?
+                .into_iter()
+                .map(|mut v| {
+                    v.path = workspace_storage_path
+                        .join(v.path)
+                        .to_string_lossy()
+                        .to_string();
+                    v
+                })
+                .collect::<HashSet<_>>();
 
-        let mut stmt = conn.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
-        let value: Option<String> = stmt
-            .query_row(rusqlite::params![key], |row| row.get(0))
-            .optional()?;
-        if let Some(value) = value {
-            return Self::extract_fspaths(&value).map(|v| {
-                v.into_iter()
-                    .map(|v| format!("<vs_code_active_file>{v}</vs_code_active_file>"))
-                    .collect()
-            });
+            if let Some(project_hash) = dirs
+                .into_iter()
+                .find(|v| Self::process_workflow_file(Path::new(&v.path), &self.cwd))
+            {
+                let conn = Connection::open(format!("{}/state.vscdb", project_hash.path))?;
+                let key = "workbench.explorer.treeViewState";
+                let mut stmt = conn.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
+                let value: Option<String> = stmt
+                    .query_row(rusqlite::params![key], |row| row.get(0))
+                    .optional()?;
+
+                if let Some(value) = value {
+                    ans.extend(Self::extract_fspaths(&value).map(|v| {
+                        v.into_iter()
+                            .fold(HashSet::new(), |mut acc, v| {
+                                acc.insert(v);
+                                acc
+                            })
+                            .into_iter()
+                            .collect()
+                    }));
+                }
+            }
         }
-        Ok(vec![])
+
+        Ok(ans)
+    }
+
+    fn process_workflow_file(path: &Path, cwd: &str) -> bool {
+        let path = path.join("workspace.json");
+        let cwd = Path::new(cwd);
+
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            let workflow_json: Value = serde_json::from_str(&content).unwrap_or_default();
+
+            if let Some(folder) = workflow_json.get("folder").and_then(|v| v.as_str()) {
+                // Remove "file://" prefix
+                let project_path = folder.strip_prefix("file://").unwrap_or(folder);
+
+                // Check if the project path matches or is a parent of the current working
+                // directory
+                if cwd.starts_with(project_path) {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }
 

@@ -1,5 +1,8 @@
+use async_trait::async_trait;
+
+#[async_trait]
 pub trait ActiveFiles {
-    fn active_files(&self) -> anyhow::Result<Vec<String>>;
+    async fn active_files(&self) -> anyhow::Result<Vec<String>>;
 }
 
 /// Represents functionality for interacting with IDEs
@@ -16,22 +19,6 @@ pub trait ActiveFiles {
 /// The `CodeInfo` trait abstracts IDE-specific operations, enabling
 /// cross-platform and flexible interactions with IDEs.
 pub trait CodeInfo {
-    /// Generates a unique hash for a given folder path
-    ///
-    /// This method creates a consistent, reproducible hash representing
-    /// a specific folder path. Useful for tracking or identifying workspace
-    /// locations.
-    ///
-    /// # Arguments
-    /// * `folder_path` - A string slice representing the path to be hashed
-    ///
-    /// # Returns
-    /// A `Result` containing the generated hash string, or an error if hashing
-    /// fails
-    ///
-    /// # Examples
-    fn hash_path(&self, folder_path: &str, try_ceil: bool) -> anyhow::Result<String>;
-
     /// Retrieves the installation path of Visual Studio Code
     ///
     /// # Returns
@@ -41,7 +28,7 @@ pub trait CodeInfo {
     /// # Platform Considerations
     /// - The returned path may vary depending on the operating system
     /// - Returns `None` if VS Code is not installed or path is not discoverable
-    fn vs_code_path(&self) -> Option<String>;
+    fn vs_code_path(&self) -> Option<Vec<String>>;
 
     /// Check if IDE is currently running
     ///

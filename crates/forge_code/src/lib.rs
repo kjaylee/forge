@@ -1,7 +1,6 @@
-#[cfg(target_os = "linux")]
-mod linux;
-#[cfg(target_os = "macos")]
-mod macos;
+#[cfg(unix)]
+mod unix;
+
 mod platform;
 mod vs_code;
 

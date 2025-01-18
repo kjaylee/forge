@@ -903,6 +903,7 @@ name = "forge_all_ides"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "forge_code",
  "forge_domain",
 ]
@@ -959,8 +960,10 @@ name = "forge_code"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode",
  "forge_domain",
+ "forge_walker",
  "md5",
  "rusqlite",
  "serde_json",

@@ -16,11 +16,12 @@ impl ForgeAllIdes {
     }
 }
 
+#[async_trait::async_trait]
 impl ActiveFiles for ForgeAllIdes {
-    fn active_files(&self) -> anyhow::Result<Vec<String>> {
+    async fn active_files(&self) -> anyhow::Result<Vec<String>> {
         let mut files = vec![];
         for ide in &self.ides {
-            if let Ok(ide_files) = ide.active_files() {
+            if let Ok(ide_files) = ide.active_files().await {
                 files.extend(ide_files);
             }
         }
@@ -34,10 +35,11 @@ impl ActiveFiles for ForgeAllIdes {
     }
 }
 
+#[async_trait::async_trait]
 impl ActiveFiles for IDEs {
-    fn active_files(&self) -> anyhow::Result<Vec<String>> {
+    async fn active_files(&self) -> anyhow::Result<Vec<String>> {
         match self {
-            IDEs::VsCode(ide) => ide.active_files(),
+            IDEs::VsCode(ide) => ide.active_files().await,
         }
     }
 }

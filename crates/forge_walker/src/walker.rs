@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use ignore::WalkBuilder;
 use tokio::task::spawn_blocking;
 
+#[derive(Debug, Hash, Eq, PartialEq)]
 pub struct File {
     pub path: String,
     pub is_dir: bool,
