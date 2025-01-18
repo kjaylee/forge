@@ -118,7 +118,8 @@ pub struct OpenRouterRequest {
     pub messages: Option<Vec<OpenRouterMessage>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
-    pub model: ModelId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<ModelId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -202,7 +203,7 @@ impl From<Context> for OpenRouterRequest {
                     Some(tools)
                 }
             },
-            model: request.model,
+            model: None,
             prompt: Default::default(),
             response_format: Default::default(),
             stop: Default::default(),
@@ -354,7 +355,7 @@ mod tests {
     fn test_tool_message_conversion() {
         let tool_result = ToolResult::new(ToolName::new("test_tool"))
             .call_id(ToolCallId::new("123"))
-            .content(
+            .success(
                 r#"{
                "user": "John",
                "age": 30,
@@ -371,7 +372,7 @@ mod tests {
     fn test_tool_message_with_special_chars() {
         let tool_result = ToolResult::new(ToolName::new("html_tool"))
             .call_id(ToolCallId::new("456"))
-            .content(
+            .success(
                 r#"{
                 "html": "<div class=\"container\"><p>Hello <World></p></div>",
                 "elements": ["<span>", "<br/>", "<hr>"],
@@ -391,7 +392,7 @@ mod tests {
     fn test_tool_message_typescript_code() {
         let tool_result = ToolResult::new(ToolName::new("rust_tool"))
             .call_id(ToolCallId::new("456"))
-            .content(r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#);
+            .success(r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#);
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
         let router_message = OpenRouterMessage::from(tool_message);
