@@ -1,4 +1,6 @@
 use colored::Colorize;
+use derive_setters::Setters;
+use forge_domain::Usage;
 
 #[derive(Clone)]
 enum Kind {
@@ -33,51 +35,57 @@ pub struct StatusDisplay {
     kind: Kind,
     message: String,
     error_details: Option<String>,
+    usage: Usage, // (prompt, completion, total)
 }
 
 impl StatusDisplay {
     /// Create a status for executing a tool
-    pub fn execute(message: impl Into<String>) -> Self {
+    pub fn execute(message: impl Into<String>, usage: Usage) -> Self {
         Self {
             kind: Kind::Execute,
             message: message.into(),
             error_details: None,
+            usage,
         }
     }
 
     /// Create a success status
-    pub fn success(message: impl Into<String>) -> Self {
+    pub fn success(message: impl Into<String>, usage: Usage) -> Self {
         Self {
             kind: Kind::Success,
             message: message.into(),
             error_details: None,
+            usage,
         }
     }
 
     /// Create a failure status
-    pub fn failed(message: impl Into<String>) -> Self {
+    pub fn failed(message: impl Into<String>, usage: Usage) -> Self {
         Self {
             kind: Kind::Failed,
             message: message.into(),
             error_details: None,
+            usage,
         }
     }
 
     /// Create a failure status with additional details
-    pub fn failed_with(message: impl Into<String>, details: impl Into<String>) -> Self {
+    pub fn failed_with(message: impl Into<String>, details: impl Into<String>, usage: Usage) -> Self {
         Self {
             kind: Kind::Failed,
             message: message.into(),
             error_details: Some(details.into()),
+            usage,
         }
     }
 
     /// Create a title status
-    pub fn title(message: impl Into<String>) -> Self {
+    pub fn title(message: impl Into<String>, usage: Usage) -> Self {
         Self {
             kind: Kind::Task,
             message: message.into(),
             error_details: None,
+            usage,
         }
     }
 
@@ -113,7 +121,18 @@ impl StatusDisplay {
         };
 
         let timestamp = chrono::Local::now().format("%H:%M:%S%.3f").to_string();
-        format!("{} {} {} {}", timestamp.dimmed(), icon, label, message)
+        let mut result = format!("{} {} {} {}", timestamp.dimmed(), icon, label, message);
+
+        result.push_str(
+            &format!(
+                " [tokens {}/{}/{}]",
+                self.usage.prompt_tokens, self.usage.completion_tokens, self.usage.total_tokens
+            )
+            .dimmed()
+            .to_string(),
+        );
+
+        result
     }
 
     fn icon(&self) -> &'static str {
