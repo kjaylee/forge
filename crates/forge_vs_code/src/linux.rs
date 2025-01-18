@@ -1,6 +1,5 @@
 use sysinfo::System;
-
-use crate::CodeInfo;
+use forge_domain::CodeInfo;
 
 #[derive(Default)]
 pub struct LinuxCodeInfo;
@@ -39,14 +38,14 @@ impl CodeInfo for LinuxCodeInfo {
     }
 }
 
+
 fn find_arg_value(cmd: &[String], key: &str) -> Option<String> {
     for arg in cmd {
         if let Some(pos) = arg.find(key) {
             // Extract the substring starting after the key
             let value_with_rest = &arg[pos + key.len()..];
 
-            // Check if the extracted value starts and ends cleanly (handle multi-word
-            // paths)
+            // Check if the extracted value starts and ends cleanly (handle multi-word paths)
             if value_with_rest.contains(" --") {
                 // Extract up to the first occurrence of " --"
                 if let Some(end_pos) = value_with_rest.find(" --") {
@@ -69,10 +68,7 @@ fn get_user_data_dir() -> Option<String> {
     // Iterate over all processes
     for process in system.processes().values() {
         let cmd = process.cmd();
-        let cmd = cmd
-            .iter()
-            .map(|v| v.to_string_lossy().to_string())
-            .collect::<Vec<_>>();
+        let cmd = cmd.iter().map(|v| v.to_string_lossy().to_string()).collect::<Vec<_>>();
 
         // Check if the process contains "code" and "vscode-window-config"
         if cmd.iter().any(|arg| arg.contains("code"))
@@ -87,6 +83,7 @@ fn get_user_data_dir() -> Option<String> {
 
     None
 }
+
 
 fn hash_path(folder_path: &str) -> anyhow::Result<String> {
     use std::os::unix::fs::MetadataExt;

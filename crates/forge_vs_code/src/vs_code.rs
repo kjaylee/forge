@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
-use forge_domain::ActiveFiles;
-use crate::CodeInfo;
-
+use forge_domain::{ActiveFiles, CodeInfo};
 pub struct ForgeVsCode {
     cwd: String,
     code_info: Box<dyn CodeInfo>,
@@ -41,7 +39,7 @@ impl<T: ToString> From<T> for ForgeVsCode {
         let cwd = PathBuf::from(&cwd).canonicalize().ok().and_then(|p| p.to_str().map(|s| s.to_string())).unwrap_or(cwd);
 
         #[cfg(target_os = "linux")]
-            let code_info = crate::linux::LinuxCodeInfo::default();
+            let code_info = crate::linux::LinuxCodeInfo;
 
         Self { cwd, code_info: Box::new(code_info) }
     }
