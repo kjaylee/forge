@@ -899,6 +899,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
+name = "forge_all_ides"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "forge_domain",
+ "forge_vs_code",
+]
+
+[[package]]
 name = "forge_app"
 version = "0.1.0"
 dependencies = [
@@ -913,6 +922,7 @@ dependencies = [
  "diesel_migrations",
  "dirs",
  "dotenv",
+ "forge_all_ides",
  "forge_domain",
  "forge_open_router",
  "forge_prompt",

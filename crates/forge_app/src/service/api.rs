@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use forge_all_ides::ForgeAllIdes;
 use forge_domain::{
     ChatRequest, ChatResponse, Config, Context, Conversation, ConversationId, Environment, Model,
     ProviderService, ResultStream, ToolDefinition,
@@ -49,6 +50,8 @@ impl Live {
         let env = Service::environment_service().get().await?;
 
         let cwd: String = env.cwd.clone();
+        let all_ides = ForgeAllIdes::new(&cwd);
+
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
         let tool = Arc::new(Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
@@ -59,7 +62,7 @@ impl Live {
             provider.clone(),
         ));
 
-        let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
+        let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone(), all_ides));
         let storage = Arc::new(Service::storage_service(&cwd)?);
 
         let chat_service = Arc::new(Service::chat_service(

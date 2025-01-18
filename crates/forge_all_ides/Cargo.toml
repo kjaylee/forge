@@ -1,0 +1,9 @@
+[package]
+name = "forge_all_ides"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+forge_domain = { path = "../forge_domain" }
+forge_vs_code = { path = "../forge_vs_code" }
+anyhow = "1.0.95"

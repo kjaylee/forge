@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use forge_all_ides::ForgeAllIdes;
+use forge_domain::ActiveFiles;
 use forge_prompt::Prompt;
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -14,13 +16,17 @@ pub trait UserPromptService: Send + Sync {
 }
 
 impl Service {
-    pub fn user_prompt_service(file_read: Arc<dyn FileReadService>) -> impl UserPromptService {
-        Live { file_read }
+    pub fn user_prompt_service(
+        file_read: Arc<dyn FileReadService>,
+        all_ides: ForgeAllIdes,
+    ) -> impl UserPromptService {
+        Live { file_read, all_ides }
     }
 }
 
 struct Live {
     file_read: Arc<dyn FileReadService>,
+    all_ides: ForgeAllIdes,
 }
 
 #[derive(Serialize)]
@@ -52,8 +58,13 @@ impl UserPromptService for Live {
         hb.register_escape_fn(|str| str.to_string());
 
         let ctx = Context { task: task.to_string(), files: file_contents };
+        let mut ans = hb.render_template(template, &ctx)?;
+        if let Ok(paths) = self.all_ides.active_files() {
+            ans.push('\n');
+            ans.push_str(paths.join("\n").as_str());
+        }
 
-        Ok(hb.render_template(template, &ctx)?)
+        Ok(ans)
     }
 }
 
@@ -80,7 +91,7 @@ pub mod tests {
         file_map.insert("bar.txt".to_string(), "Hello World - Bar".to_string());
 
         let file_read = Arc::new(TestFileReadService::new(file_map));
-        let rendered_prompt = Service::user_prompt_service(file_read)
+        let rendered_prompt = Service::user_prompt_service(file_read, ForgeAllIdes::new("."))
             .get_user_prompt("read this file content from @foo.txt and @bar.txt")
             .await
             .unwrap();

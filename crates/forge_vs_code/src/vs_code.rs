@@ -3,9 +3,12 @@ use std::path::PathBuf;
 use forge_domain::{ActiveFiles, CodeInfo};
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
+
+use crate::platform::Platforms;
+
 pub struct ForgeVsCode {
     cwd: String,
-    code_info: Box<dyn CodeInfo>,
+    code_info: Platforms,
 }
 
 impl ActiveFiles for ForgeVsCode {
@@ -31,7 +34,11 @@ impl ActiveFiles for ForgeVsCode {
             .query_row(rusqlite::params![key], |row| row.get(0))
             .optional()?;
         if let Some(value) = value {
-            return Self::extract_fspaths(&value);
+            return Self::extract_fspaths(&value).map(|v| {
+                v.into_iter()
+                    .map(|v| format!("<vs_code_active_file>{v}</vs_code_active_file>"))
+                    .collect()
+            });
         }
         Ok(vec![])
     }
@@ -49,10 +56,25 @@ impl<T: ToString> From<T> for ForgeVsCode {
             .and_then(|p| p.to_str().map(|s| s.to_string()))
             .unwrap_or(cwd);
 
-        #[cfg(target_os = "linux")]
-        let code_info = crate::linux::LinuxCodeInfo;
+        // Find git root directory
+        let git_root = std::process::Command::new("git")
+            .arg("rev-parse")
+            .arg("--show-toplevel")
+            .current_dir(&cwd)
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    String::from_utf8(output.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(cwd.clone());
 
-        Self { cwd, code_info: Box::new(code_info) }
+        Self { cwd: git_root, code_info: Platforms::default() }
     }
 }
 
