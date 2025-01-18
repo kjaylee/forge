@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 forge_domain = { path = "../forge_domain" }
-forge_vs_code = { path = "../forge_vs_code" }
+forge_code = { path = "../forge_code" }
 anyhow = "1.0.95"

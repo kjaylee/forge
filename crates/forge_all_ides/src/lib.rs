@@ -1,17 +1,17 @@
+use forge_code::Code;
 use forge_domain::ActiveFiles;
-use forge_vs_code::ForgeVsCode;
 
 pub struct ForgeAllIdes {
     ides: Vec<IDEs>,
 }
 
 enum IDEs {
-    VsCode(ForgeVsCode),
+    VsCode(Code),
 }
 
 impl ForgeAllIdes {
     pub fn new<T: ToString>(cwd: T) -> Self {
-        let ides: Vec<IDEs> = vec![IDEs::VsCode(ForgeVsCode::from(cwd.to_string()))];
+        let ides: Vec<IDEs> = vec![IDEs::VsCode(Code::from(cwd.to_string()))];
         Self { ides }
     }
 }

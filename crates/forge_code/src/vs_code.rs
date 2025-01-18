@@ -6,18 +6,18 @@ use serde_json::Value;
 
 use crate::platform::Platforms;
 
-pub struct ForgeVsCode {
+pub struct Code {
     cwd: String,
     code_info: Platforms,
 }
 
-impl ActiveFiles for ForgeVsCode {
+impl ActiveFiles for Code {
     fn active_files(&self) -> anyhow::Result<Vec<String>> {
         self.active_files_inner(false, 0)
     }
 }
 
-impl ForgeVsCode {
+impl Code {
     fn active_files_inner(&self, try_ceil: bool, i: i8) -> anyhow::Result<Vec<String>> {
         if !self.code_info.is_running() {
             return Ok(vec![]);
@@ -54,7 +54,7 @@ impl ForgeVsCode {
     }
 }
 
-impl<T: ToString> From<T> for ForgeVsCode {
+impl<T: ToString> From<T> for Code {
     fn from(value: T) -> Self {
         let cwd = value.to_string();
 
@@ -88,7 +88,7 @@ impl<T: ToString> From<T> for ForgeVsCode {
     }
 }
 
-impl ForgeVsCode {
+impl Code {
     fn extract_fspaths(json_data: &str) -> anyhow::Result<Option<String>> {
         // Parse the input JSON into a `serde_json::Value`
         let data: Value = serde_json::from_str(json_data)?;
