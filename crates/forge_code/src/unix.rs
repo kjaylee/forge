@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use forge_domain::CodeInfo;
+use forge_domain::Ide;
 use sysinfo::System;
 
 #[derive(Default)]
 pub struct UnixCodeInfo;
 
-impl CodeInfo for UnixCodeInfo {
-    fn vs_code_path(&self) -> Option<Vec<String>> {
+impl Ide for UnixCodeInfo {
+    fn installation_path(&self) -> Option<Vec<String>> {
         get_user_data_dir()
     }
 

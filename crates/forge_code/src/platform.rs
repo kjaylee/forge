@@ -1,15 +1,15 @@
-use forge_domain::CodeInfo;
+use forge_domain::Ide;
 
 pub enum Platforms {
     #[cfg(unix)]
     Unix(crate::unix::UnixCodeInfo),
 }
 
-impl CodeInfo for Platforms {
-    fn vs_code_path(&self) -> Option<Vec<String>> {
+impl Ide for Platforms {
+    fn installation_path(&self) -> Option<Vec<String>> {
         match self {
             #[cfg(unix)]
-            Platforms::Unix(info) => info.vs_code_path(),
+            Platforms::Unix(info) => info.installation_path(),
         }
     }
 

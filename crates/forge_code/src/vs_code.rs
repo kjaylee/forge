@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use forge_domain::{ActiveFiles, CodeInfo};
+use forge_domain::{ActiveFiles, Ide};
 use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
@@ -29,7 +29,7 @@ impl Code {
 
         let vs_code_paths = self
             .code_info
-            .vs_code_path()
+            .installation_path()
             .ok_or(anyhow::anyhow!("No VS Code path found"))?;
 
         for vs_code_path in vs_code_paths {
