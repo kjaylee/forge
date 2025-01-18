@@ -19,16 +19,17 @@ pub trait CodeInfo {
     /// Generates a unique hash for a given folder path
     ///
     /// This method creates a consistent, reproducible hash representing
-    /// a specific folder path. Useful for tracking or identifying workspace locations.
+    /// a specific folder path. Useful for tracking or identifying workspace
+    /// locations.
     ///
     /// # Arguments
     /// * `folder_path` - A string slice representing the path to be hashed
     ///
     /// # Returns
-    /// A `Result` containing the generated hash string, or an error if hashing fails
+    /// A `Result` containing the generated hash string, or an error if hashing
+    /// fails
     ///
     /// # Examples
-    /// 
     fn hash_path(&self, folder_path: &str) -> anyhow::Result<String>;
 
     /// Retrieves the installation path of Visual Studio Code
