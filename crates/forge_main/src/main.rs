@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
-use forge_app::API;
+use forge_app::Routes;
 use forge_domain::{ChatRequest, ChatResponse, Command, ModelId, UserInput};
 use forge_main::{display_info, Console, StatusDisplay, CONSOLE};
 use tokio_stream::StreamExt;
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
     let mut current_title = None;
     let mut current_content = None;
 
-    let api = API::init()
+    let api = Routes::init()
         .await
         .map_err(|e| anyhow::anyhow!("Failed to initialize API: {}", e))?;
 
@@ -46,7 +46,7 @@ async fn main() -> Result<()> {
         Some(ref path) => console.upload(path).await?,
         None => console.prompt(None, None).await?,
     };
-    let model = ModelId::from_env(api.env());
+    let model = ModelId::from_env(&api.environment().await?);
     loop {
         match input {
             Command::End => break,
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
                 continue;
             }
             Command::Info => {
-                display_info(api.env())?;
+                display_info(&api.environment().await?)?;
                 input = console.prompt(current_title.as_deref(), None).await?;
                 continue;
             }
@@ -110,10 +110,14 @@ async fn main() -> Result<()> {
                                         CONSOLE.writeln(format!("{}", json.dimmed()))?;
                                     }
                                     ChatResponse::ToolCallEnd(tool_result) => {
-                                        if cli.verbose {
-                                            CONSOLE.writeln(tool_result.to_string())?;
-                                        }
                                         let tool_name = tool_result.name.as_str();
+                                        // Always show result content for errors, or in verbose mode
+                                        if tool_result.is_error || cli.verbose {
+                                            CONSOLE.writeln(format!(
+                                                "{}",
+                                                tool_result.to_string().dimmed()
+                                            ))?;
+                                        }
                                         let status = if tool_result.is_error {
                                             StatusDisplay::failed(tool_name)
                                         } else {
