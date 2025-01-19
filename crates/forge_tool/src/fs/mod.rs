@@ -1,13 +1,11 @@
-mod diff;
 mod file_info;
 mod fs_find;
 mod fs_list;
 mod fs_read;
-mod fs_replace_marker;
+pub(crate) mod fs_replace_marker;
 mod fs_write;
-mod syn;
+pub(crate) mod syn;
 
-pub use diff::*;
 pub use file_info::*;
 pub use fs_find::*;
 pub use fs_list::*;
