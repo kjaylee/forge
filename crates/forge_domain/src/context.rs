@@ -132,6 +132,12 @@ impl Context {
 }
 
 #[async_trait]
+pub trait ContextCompression {
+    /// Compress the given context to reduce its size while maintaining important information
+    async fn compress(&self, context: Context) -> anyhow::Result<Context>;
+}
+
+#[async_trait]
 pub trait ContextRepository {
     /// Get the context for the current path
     async fn get_context(&self, path: &str) -> anyhow::Result<Context>;
