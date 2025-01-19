@@ -65,30 +65,10 @@ Available tools:
 <tool_list>
 
 1. tool_forge_code_outline
-List definition names (classes, functions, methods, etc.) in source code
- files. This tool is particularly useful when you need to:
- - Map relationships between types, traits, and interfaces
-   - See inheritance hierarchies in object-oriented code
-   - Identify trait implementations in Rust
-   - Understand class composition patterns
- - Analyze architectural patterns:
-   - Discover service/component dependencies
-   - Find implementation details of interfaces
-   - Track type usage across modules
- - Navigate large codebases:
-   - Quickly find relevant type definitions
-   - Understand module organization
-   - Locate specific implementations
- Supports multiple programming languages:
- - Rust (.rs files): structs, traits, impls
- - JavaScript (.js files): classes, methods, prototypes
- - Python (.py files): classes, decorators, inheritance
- - TypeScript (.ts, .tsx files): interfaces, classes, methods
- - Scala (.scala files): traits, classes, objects
- - Java (.java files): classes, methods, interfaces
- - CSS (.css files): classes, ids, pseudo-classes
- Returns a formatted string showing file names and their definitions in a
- tree-like structure. Example output:
+List definitions (classes, functions, methods, types etc.) in source code
+ with their relationships. Helps navigate and understand code structure
+ within a folder across multiple files. Returns a formatted string showing
+ file names and their definitions in a tree-like structure. Example output:
  ```text
  models.rs
  │trait Repository<T>
@@ -154,9 +134,7 @@ Usage:
 </tool_forge_fs_read>
 
 5. tool_forge_fs_replace
-Replace sections in a file using multiple SEARCH/REPLACE blocks for precise
-modifications. Multiple blocks are supported and recommended for complex changes.
-
+Replace sections in a file using multiple SEARCH/REPLACE blocks. Example:
 <<<<<<< SEARCH
 [exact content to find]
 =======
@@ -164,10 +142,10 @@ modifications. Multiple blocks are supported and recommended for complex changes
 >>>>>>> REPLACE
 
 Rules:
-1. SEARCH must match exactly (whitespace, indentation, line endings)
+1. SEARCH must exactly match whitespace, indentation & line endings
 2. Each block replaces first match only
 3. Keep blocks minimal - include only changing lines plus needed context
-4. Complete lines only - no truncation
+4. Provide complete lines only - no truncation
 5. Use multiple blocks for multiple changes in the same file
 6. For moves: use 2 blocks (delete block + insert block)
 7. For deletes: use empty REPLACE section
@@ -187,7 +165,7 @@ def new_function(x, y=0):
 >>>>>>> REPLACE
 
 Parameters:
-- diff (required): Multiple SEARCH/REPLACE blocks defining changes to make to the file. Using multiple blocks is recommended for making related changes in a single operation. This allows for coordinated changes across different parts of the file.
+- diff (required): Multiple SEARCH/REPLACE blocks separated by newlines, defining changes to make to the file.
 - path (required): File path relative to the current working directory
 
 Usage:
@@ -268,28 +246,8 @@ Usage:
 </tool_forge_process_shell>
 
 10. tool_forge_process_think
-A framework for iterative reasoning in problem-solving.
- Purpose:
- Tracks reasoning steps (\"thoughts\") to solve complex problems:
- - Breaks tasks into steps
- - Supports revisions and branching
- - Tracks confidence and verifies solutions
- Key Features:
- - Adjust `total_thoughts` for complexity
- - Link revisions with `revises_thought`
- - Branch paths via `branch_from_thought`
- - Update `solution_confidence`
- - Mark completion with `solution_reached`
- Workflow:
- 1. Initialize `Think` with `total_thoughts`.
- 2. Add steps to `thought_history`.
- 3. Revise or branch as needed.
- 4. Update confidence and validate.
- 5. Mark `solution_reached` when done.
- Fields:
- - `thought_history`: Steps taken.
- - `branches`: Alternate paths.
- - `solution_reached`: Final solution.
+Problem-solving framework that breaks down tasks into tracked \"thoughts\".
+ Supports revisions, alternative branches, and solution confidence tracking.
 
 Parameters:
 - branch_from_thought: The number of the thought from which this thought branches, if this is a branch.
