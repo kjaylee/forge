@@ -19,9 +19,9 @@ pub enum Error {
 
     #[error("Template rendering error: {0}")]
     Template(handlebars::RenderError),
-
-    #[error("IDE was not recognized: {0}")]
-    UnknownIde(String),
+    //
+    // #[error("IDE was not recognized: {0}")]
+    // UnknownIde(String),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;

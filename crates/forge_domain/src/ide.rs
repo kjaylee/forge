@@ -14,11 +14,14 @@ pub struct Workspace {
     pub focused_file: PathBuf,
 }
 
-pub struct ProcessId(u16);
+#[derive(Debug, derive_more::From)]
+pub struct ProcessId(u32);
 
+#[derive(Debug, derive_more::From)]
 pub struct WorkspaceId(String);
 
 /// Represents an IDE. Contains meta information about the IDE.
+#[derive(Debug)]
 pub struct Ide {
     pub name: String,
     pub version: Option<String>,
