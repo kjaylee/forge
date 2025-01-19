@@ -39,27 +39,31 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
     // Not sure if matching index is good idea.
     let search_dir = if json
         .windows_state
-        .last_active_window
-        .folder
-        .strip_prefix("file://")
-        .unwrap_or_default()
-        .eq(cwd)
-        && index == 0
-    {
-        cwd
-    } else if json
-        .windows_state
         .opened_windows
         .iter()
         .enumerate()
         .any(|(i, folder)| {
             i == index
                 && folder
-                    .folder
-                    .strip_prefix("file://")
-                    .unwrap_or_default()
-                    .eq(cwd)
+                .folder
+                .strip_prefix("file://")
+                .unwrap_or_default()
+                .eq(cwd)
         })
+    {
+        cwd
+    } else if json
+        .windows_state
+        .last_active_window
+        .folder
+        .strip_prefix("file://")
+        .unwrap_or_default()
+        .eq(cwd)
+        && index == 0
+        && json
+        .windows_state
+        .opened_windows
+        .is_empty()
     {
         cwd
     } else {
@@ -262,7 +266,7 @@ mod tests {
     async fn test_find_arg_value() {
         println!(
             "{:#?}",
-            get_all_ides("/Users/ssdd/RustroverProjects/code-forge")
+            get_all_ides("/home/ssdd/RustroverProjects/code-forge")
                 .await
                 .unwrap()
         );
