@@ -1,3 +1,3 @@
 mod apply;
 
-pub use apply::{FSReplace, FSReplaceInput};
+pub use apply::FSReplace;
