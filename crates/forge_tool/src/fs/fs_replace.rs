@@ -25,13 +25,13 @@ enum Error {
 #[derive(Debug, Error)]
 enum Kind {
     #[error("Missing newline after SEARCH marker")]
-    MissingSearchNewline,
+    SearchNewline,
     #[error("Missing separator between search and replace content")]
-    MissingSeparator,
+    Separator,
     #[error("Missing newline after separator")]
-    MissingSeparatorNewline,
+    SeparatorNewline,
     #[error("Missing REPLACE marker")]
-    MissingReplaceMarker,
+    ReplaceMarker,
 }
 
 #[derive(Debug)]
@@ -133,16 +133,11 @@ fn parse_blocks(diff: &str) -> Result<Vec<SearchReplaceBlock>, Error> {
         // Include the newline after SEARCH marker in the position
         let search_start = match diff[search_start..].find('\n') {
             Some(nl) => search_start + nl + 1,
-            None => {
-                return Err(Error::Block {
-                    position: block_count,
-                    kind: Kind::MissingSearchNewline,
-                })
-            }
+            None => return Err(Error::Block { position: block_count, kind: Kind::SearchNewline }),
         };
 
         let Some(separator) = diff[search_start..].find(DIVIDER) else {
-            return Err(Error::Block { position: block_count, kind: Kind::MissingSeparator });
+            return Err(Error::Block { position: block_count, kind: Kind::Separator });
         };
         let separator = search_start + separator;
 
@@ -151,15 +146,12 @@ fn parse_blocks(diff: &str) -> Result<Vec<SearchReplaceBlock>, Error> {
         let separator_end = match diff[separator_end..].find('\n') {
             Some(nl) => separator_end + nl + 1,
             None => {
-                return Err(Error::Block {
-                    position: block_count,
-                    kind: Kind::MissingSeparatorNewline,
-                })
+                return Err(Error::Block { position: block_count, kind: Kind::SeparatorNewline })
             }
         };
 
         let Some(replace_end) = diff[separator_end..].find(REPLACE) else {
-            return Err(Error::Block { position: block_count, kind: Kind::MissingReplaceMarker });
+            return Err(Error::Block { position: block_count, kind: Kind::ReplaceMarker });
         };
         let replace_end = separator_end + replace_end;
 
@@ -306,7 +298,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: Kind::MissingSeparator }
+            Error::Block { position: 1, kind: Kind::Separator }
         ));
     }
 
@@ -316,7 +308,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: Kind::MissingSearchNewline }
+            Error::Block { position: 1, kind: Kind::SearchNewline }
         ));
     }
 
@@ -326,7 +318,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: Kind::MissingSeparatorNewline }
+            Error::Block { position: 1, kind: Kind::SeparatorNewline }
         ));
     }
 
@@ -336,7 +328,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: Kind::MissingReplaceMarker }
+            Error::Block { position: 1, kind: Kind::ReplaceMarker }
         ));
     }
 
@@ -358,7 +350,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 2, kind: Kind::MissingSeparatorNewline }
+            Error::Block { position: 2, kind: Kind::SeparatorNewline }
         ));
     }
 
