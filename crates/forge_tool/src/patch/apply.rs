@@ -8,8 +8,7 @@ use tokio::fs;
 
 use crate::fs::fs_replace_marker::{SEARCH, DIVIDER, REPLACE};
 use crate::syn;
-
-use super::parse::{self, PatchBlock};
+use super::parse::{self, PatchBlock, Error};
 
 /// Input parameters for the fs_replace tool.
 #[derive(Deserialize, JsonSchema)]
@@ -70,7 +69,7 @@ def new_function(x, y=0):
 
 /// Apply changes to file content based on search/replace blocks.
 /// Changes are only written to disk if all replacements are successful.
-async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<String, parse::Error> {
+async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<String, Error> {
     let mut result = content;
 
     // Apply each block sequentially
@@ -136,22 +135,22 @@ impl ToolCallService for FSReplace {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);
         if !path.exists() {
-            return Err(parse::Error::FileNotFound(path.to_path_buf()).to_string());
+            return Err(Error::FileNotFound(path.to_path_buf()).to_string());
         }
 
         let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
         let blocks_len = blocks.len();
 
-        let result: Result<_, parse::Error> = async {
+        let result: Result<_, Error> = async {
             let content = fs::read_to_string(&input.path)
                 .await
-                .map_err(parse::Error::FileOperation)?;
+                .map_err(Error::FileOperation)?;
 
             let modified = apply_patches(content, blocks).await?;
 
             fs::write(&input.path, &modified)
                 .await
-                .map_err(parse::Error::FileOperation)?;
+                .map_err(Error::FileOperation)?;
 
             let syntax_warning = syn::validate(&input.path, &modified);
 
@@ -179,10 +178,10 @@ mod test {
 
     use super::*;
 
-    async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), parse::Error> {
+    async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content)
             .await
-            .map_err(parse::Error::FileOperation)
+            .map_err(Error::FileOperation)
     }
 
     #[tokio::test]

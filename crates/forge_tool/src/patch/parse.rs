@@ -1,4 +1,12 @@
 use std::path::PathBuf;
+
+use nom::{
+    bytes::complete::{tag, take_until},
+    character::complete::line_ending,
+    combinator::{map, opt},
+    sequence::{terminated, tuple},
+    Err, IResult,
+};
 use thiserror::Error;
 
 use crate::fs::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
@@ -11,8 +19,10 @@ pub enum Error {
     FileNotFound(PathBuf),
     #[error("File operation failed: {0}")]
     FileOperation(#[from] std::io::Error),
-    #[error("No search/replace blocks found in diff")]
+    #[error("No search/replace blocks found in content")]
     NoBlocks,
+    #[error("Parse error: {0}")]
+    Parse(String),
 }
 
 #[derive(Debug, Error)]
@@ -25,76 +35,107 @@ pub enum Kind {
     SeparatorNewline,
     #[error("Missing REPLACE marker")]
     ReplaceMarker,
+    #[error("Incomplete block")]
+    Incomplete,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct PatchBlock {
     pub search: String,
     pub replace: String,
 }
 
-pub fn normalize_line_endings(text: &str) -> String {
-    // Only normalize CRLF to LF while preserving the original line endings
-    let mut result = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '\r' && chars.peek() == Some(&'\n') {
-            chars.next(); // Skip the \n since we'll add it below
-            result.push('\n');
-        } else {
-            result.push(c);
-        }
-    }
-    result
+fn parse_search_marker(input: &str) -> IResult<&str, ()> {
+    map(
+        terminated(tag(SEARCH), opt(line_ending)),
+        |_| ()
+    )(input)
 }
 
-pub fn parse_blocks(diff: &str) -> Result<Vec<PatchBlock>, Error> {
+fn parse_search_content(input: &str) -> IResult<&str, String> {
+    map(
+        take_until(DIVIDER),
+        |s: &str| s.to_string()
+    )(input)
+}
+
+fn parse_divider(input: &str) -> IResult<&str, ()> {
+    map(
+        terminated(tag(DIVIDER), opt(line_ending)),
+        |_| ()
+    )(input)
+}
+
+fn parse_replace_content(input: &str) -> IResult<&str, String> {
+    map(
+        take_until(REPLACE),
+        |s: &str| s.to_string()
+    )(input)
+}
+
+fn parse_replace_marker(input: &str) -> IResult<&str, ()> {
+    map(
+        terminated(tag(REPLACE), opt(line_ending)),
+        |_| ()
+    )(input)
+}
+
+fn parse_patch_block(input: &str) -> IResult<&str, PatchBlock> {
+    map(
+        tuple((
+            parse_search_marker,
+            parse_search_content,
+            parse_divider,
+            parse_replace_content,
+            parse_replace_marker,
+        )),
+        |(_, search, _, replace, _)| PatchBlock { search, replace }
+    )(input)
+}
+
+/// Parse the input string into a series of patch blocks
+pub fn parse_blocks(input: &str) -> Result<Vec<PatchBlock>, Error> {
+    if !input.contains(SEARCH) {
+        return Err(Error::NoBlocks);
+    }
+
     let mut blocks = Vec::new();
-    let mut pos = 0;
-    let mut block_count = 0;
+    let mut remaining = input;
+    let mut position = 1;
 
-    // Normalize line endings in the diff string while preserving original newlines
-    let diff = normalize_line_endings(diff);
+    while !remaining.trim().is_empty() {
+        if !remaining.contains(SEARCH) {
+            break;
+        }
 
-    while let Some(search_start) = diff[pos..].find(SEARCH) {
-        block_count += 1;
-        let search_start = pos + search_start + SEARCH.len();
-
-        // Include the newline after SEARCH marker in the position
-        let search_start = match diff[search_start..].find('\n') {
-            Some(nl) => search_start + nl + 1,
-            None => return Err(Error::Block { position: block_count, kind: Kind::SearchNewline }),
-        };
-
-        let Some(separator) = diff[search_start..].find(DIVIDER) else {
-            return Err(Error::Block { position: block_count, kind: Kind::Separator });
-        };
-        let separator = search_start + separator;
-
-        // Include the newline after separator in the position
-        let separator_end = separator + DIVIDER.len();
-        let separator_end = match diff[separator_end..].find('\n') {
-            Some(nl) => separator_end + nl + 1,
-            None => {
-                return Err(Error::Block { position: block_count, kind: Kind::SeparatorNewline })
+        match parse_patch_block(remaining) {
+            Ok((rest, block)) => {
+                blocks.push(block);
+                remaining = rest;
+                position += 1;
             }
-        };
-
-        let Some(replace_end) = diff[separator_end..].find(REPLACE) else {
-            return Err(Error::Block { position: block_count, kind: Kind::ReplaceMarker });
-        };
-        let replace_end = separator_end + replace_end;
-
-        let search = &diff[search_start..separator];
-        let replace = &diff[separator_end..replace_end];
-
-        blocks.push(PatchBlock { search: search.to_string(), replace: replace.to_string() });
-
-        pos = replace_end + REPLACE.len();
-        // Move past the newline after REPLACE if it exists
-        if let Some(nl) = diff[pos..].find('\n') {
-            pos += nl + 1;
+            Err(Err::Error(_)) => {
+                // Enhanced error handling
+                if remaining.contains(SEARCH) && !remaining.contains(DIVIDER) {
+                    return Err(Error::Block { position, kind: Kind::Separator });
+                } else if remaining.contains(DIVIDER) && !remaining.contains(REPLACE) {
+                    return Err(Error::Block { position, kind: Kind::ReplaceMarker });
+                } else if remaining.contains(SEARCH) && remaining.contains(DIVIDER) {
+                    let search_idx = remaining.find(SEARCH).unwrap();
+                    let divider_idx = remaining.find(DIVIDER).unwrap();
+                    if divider_idx - search_idx < SEARCH.len() + 1 {
+                        return Err(Error::Block { position, kind: Kind::SearchNewline });
+                    }
+                    return Err(Error::Block { position, kind: Kind::SeparatorNewline });
+                }
+                return Err(Error::Parse("Invalid patch format".to_string()));
+            }
+            Err(Err::Incomplete(_)) => {
+                return Err(Error::Block { position, kind: Kind::Incomplete });
+            }
+            Err(e) => {
+                return Err(Error::Parse(e.to_string()));
+            }
         }
     }
 
@@ -125,7 +166,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: Kind::SearchNewline }
+            Error::Block { position: 1, kind: Kind::Separator }
         ));
     }
 
@@ -135,7 +176,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: Kind::SeparatorNewline }
+            Error::Block { position: 1, kind: Kind::ReplaceMarker }
         ));
     }
 
@@ -167,7 +208,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 2, kind: Kind::SeparatorNewline }
+            Error::Block { position: 2, kind: Kind::ReplaceMarker }
         ));
     }
 
@@ -178,15 +219,64 @@ mod test {
         let err = parse_blocks(&diff).unwrap_err();
         assert_eq!(
             err.to_string(),
-            "Error in block 1: Missing newline after SEARCH marker"
+            "Error in block 1: Missing separator between search and replace content"
         );
 
         // Test error message for no blocks
         let err = parse_blocks("").unwrap_err();
-        assert_eq!(err.to_string(), "No search/replace blocks found in diff");
+        assert_eq!(err.to_string(), "No search/replace blocks found in content");
 
         // Test file not found error
         let err = Error::FileNotFound(PathBuf::from("nonexistent.txt"));
         assert_eq!(err.to_string(), "File not found at path: nonexistent.txt");
+    }
+
+    #[test]
+    fn test_valid_single_block() {
+        let diff = format!("{SEARCH}\nold code\n{DIVIDER}\nnew code\n{REPLACE}\n");
+        let result = parse_blocks(&diff).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].search, "old code\n");
+        assert_eq!(result[0].replace, "new code\n");
+    }
+
+    #[test]
+    fn test_valid_multiple_blocks() {
+        let diff = format!(
+            "{SEARCH}\nfirst old\n{DIVIDER}\nfirst new\n{REPLACE}\n{SEARCH}\nsecond old\n{DIVIDER}\nsecond new\n{REPLACE}\n"
+        );
+        let result = parse_blocks(&diff).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].search, "first old\n");
+        assert_eq!(result[0].replace, "first new\n");
+        assert_eq!(result[1].search, "second old\n");
+        assert_eq!(result[1].replace, "second new\n");
+    }
+
+    #[test]
+    fn test_empty_sections() {
+        let diff = format!("{SEARCH}\n{DIVIDER}\n{REPLACE}\n");
+        let result = parse_blocks(&diff).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].search, "");
+        assert_eq!(result[0].replace, "");
+    }
+
+    #[test]
+    fn test_whitespace_preservation() {
+        let diff = format!("{SEARCH}\n    indented\n\n  spaces  \n{DIVIDER}\n\tindented\n\n\ttabbed\n{REPLACE}\n");
+        let result = parse_blocks(&diff).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].search, "    indented\n\n  spaces  \n");
+        assert_eq!(result[0].replace, "\tindented\n\n\ttabbed\n");
+    }
+
+    #[test]
+    fn test_unicode_content() {
+        let diff = format!("{SEARCH}\n🦀 Rust\n{DIVIDER}\n📦 Crate\n{REPLACE}\n");
+        let result = parse_blocks(&diff).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].search, "🦀 Rust\n");
+        assert_eq!(result[0].replace, "📦 Crate\n");
     }
 }

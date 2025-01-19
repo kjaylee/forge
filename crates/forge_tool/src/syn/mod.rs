@@ -1,3 +1,3 @@
 mod validate;
 
-pub use validate::{validate, Error};
+pub use validate::validate;

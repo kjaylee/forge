@@ -1014,6 +1014,7 @@ dependencies = [
  "inquire",
  "insta",
  "mockito",
+ "nom",
  "pretty_assertions",
  "regex",
  "reqwest",
