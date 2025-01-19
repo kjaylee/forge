@@ -1,14 +1,13 @@
-use std::collections::HashSet;
-use std::ffi::OsString;
-use std::path::{Path, PathBuf};
 use anyhow::anyhow;
+use forge_domain::Ide;
+use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use sysinfo::System;
-use forge_domain::Ide;
-use forge_walker::Walker;
-
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -29,7 +28,6 @@ struct LastActiveWindow {
     folder: String,
 }
 
-
 async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyhow::Result<String> {
     let code_dir = extract_storage_dir(args).ok_or(anyhow!("foo"))?;
     let storage_file = PathBuf::from(format!("{}/User/globalStorage/storage.json", code_dir));
@@ -38,9 +36,30 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
     let path_buf = PathBuf::from(code_dir.clone()).join("User/workspaceStorage");
 
     // Not sure if matching index is good idea.
-    let search_dir = if json.windows_state.last_active_window.folder.strip_prefix("file://").unwrap_or_default().eq(cwd) && index == 0 {
+    let search_dir = if json
+        .windows_state
+        .last_active_window
+        .folder
+        .strip_prefix("file://")
+        .unwrap_or_default()
+        .eq(cwd)
+        && index == 0
+    {
         cwd
-    } else if json.windows_state.opened_windows.iter().enumerate().any(|(i,folder)| i == index && folder.folder.strip_prefix("file://").unwrap_or_default().eq(cwd)) {
+    } else if json
+        .windows_state
+        .opened_windows
+        .iter()
+        .enumerate()
+        .any(|(i, folder)| {
+            i == index
+                && folder
+                    .folder
+                    .strip_prefix("file://")
+                    .unwrap_or_default()
+                    .eq(cwd)
+        })
+    {
         cwd
     } else {
         return Err(anyhow!("Project not active in VS code"));
@@ -48,11 +67,17 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
 
     let hash_file = get_hash(Walker::new(path_buf.clone()), search_dir, path_buf).await?;
 
-    Ok(hash_file.path.split('/').last().unwrap_or_default().to_string())
+    Ok(hash_file
+        .path
+        .split('/')
+        .last()
+        .unwrap_or_default()
+        .to_string())
 }
 
 fn extract_storage_dir(args: &[String]) -> Option<String> {
-    args.iter().find(|v| v.contains("vscode-window-config")).and_then(|v| find_arg_value(&[v.clone()], "--user-data-dir="))
+    args.iter()
+        .find_map(|v| find_arg_value(&[v.clone()], "--user-data-dir="))
 }
 
 async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
@@ -60,18 +85,37 @@ async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
     let mut system = System::new_all();
     system.refresh_all();
 
-    for (i, v) in system.processes()
+    for (i, v) in system
+        .processes()
         .values()
-        .filter(|process| process.name().to_ascii_lowercase() == "electron")
-        .filter(|process| process.cmd().iter().any(|arg| arg.to_string_lossy().contains("vscode-window-config")))
-        .enumerate()  {
-        let cmd = v.cmd().iter().map(|v| v.to_string_lossy().to_string()).collect::<Vec<_>>();
+        .filter(|process| {
+            process.name().to_ascii_lowercase() == "electron" // for linux
+                || process.name().to_ascii_lowercase() == "code helper (renderer)" // for macos
+        })
+        .filter(|process| {
+            process
+                .cmd()
+                .iter()
+                .any(|arg| arg.to_string_lossy().contains("vscode-window-config"))
+        })
+        .enumerate()
+    {
+        let cmd = v
+            .cmd()
+            .iter()
+            .map(|v| v.to_string_lossy().to_string())
+            .collect::<Vec<_>>();
         if let Ok(workspace_id) = extract_workspace_id(&cmd, cwd, i).await {
             ans.push(Ide {
                 name: "VS Code".to_string(),
                 version: None,
                 process: (v.pid().as_u32()).into(),
-                working_directory: v.cwd().unwrap_or(Path::new("")).to_string_lossy().to_string().into(),
+                working_directory: v
+                    .cwd()
+                    .unwrap_or(Path::new(""))
+                    .to_string_lossy()
+                    .to_string()
+                    .into(),
                 workspace_id: workspace_id.into(),
             });
         }
@@ -80,7 +124,11 @@ async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
     Ok(ans)
 }
 
-async fn get_hash(walker: Walker, cwd: &str, workspace_storage_path: PathBuf) -> anyhow::Result<forge_walker::File> {
+async fn get_hash(
+    walker: Walker,
+    cwd: &str,
+    workspace_storage_path: PathBuf,
+) -> anyhow::Result<forge_walker::File> {
     let dirs = walker
         .with_max_depth(1)
         .get()
@@ -96,15 +144,14 @@ async fn get_hash(walker: Walker, cwd: &str, workspace_storage_path: PathBuf) ->
         .filter(|v| v.is_dir)
         .collect::<HashSet<_>>();
 
-    dirs
-        .into_iter()
-        .find(|v| process_workflow_file(Path::new(&v.path), cwd)).ok_or(anyhow!("foo"))
+    dirs.into_iter()
+        .find(|v| process_workflow_file(Path::new(&v.path), cwd))
+        .ok_or(anyhow!("foo"))
 }
 
 async fn active_files_inner(vs_code_path: &str, cwd: &str) -> anyhow::Result<Vec<String>> {
     let workspace_storage_path = Path::new(&vs_code_path).join("User/workspaceStorage");
     let walker = Walker::new(workspace_storage_path.clone());
-
 
     if let Ok(project_hash) = get_hash(walker, cwd, workspace_storage_path).await {
         let conn = Connection::open(format!("{}/state.vscdb", project_hash.path))?;
@@ -205,14 +252,17 @@ fn find_arg_value(cmd: &[String], key: &str) -> Option<String> {
     None
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn test_find_arg_value() {
-        println!("{:#?}", get_all_ides("/home/ssdd/RustroverProjects/code-forge").await.unwrap());
+        println!(
+            "{:#?}",
+            get_all_ides("/Users/ssdd/RustroverProjects/code-forge")
+                .await
+                .unwrap()
+        );
     }
 }
-
