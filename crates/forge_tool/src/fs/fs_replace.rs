@@ -13,10 +13,7 @@ use crate::fs::syn;
 #[derive(Debug, Error)]
 enum Error {
     #[error("Error in block {position}: {kind}")]
-    Block {
-        position: usize,
-        kind: BlockErrorKind,
-    },
+    Block { position: usize, kind: Kind },
     #[error("File not found at path: {0}")]
     FileNotFound(PathBuf),
     #[error("File operation failed: {0}")]
@@ -26,7 +23,7 @@ enum Error {
 }
 
 #[derive(Debug, Error)]
-enum BlockErrorKind {
+enum Kind {
     #[error("Missing newline after SEARCH marker")]
     MissingSearchNewline,
     #[error("Missing separator between search and replace content")]
@@ -139,16 +136,13 @@ fn parse_blocks(diff: &str) -> Result<Vec<SearchReplaceBlock>, Error> {
             None => {
                 return Err(Error::Block {
                     position: block_count,
-                    kind: BlockErrorKind::MissingSearchNewline,
+                    kind: Kind::MissingSearchNewline,
                 })
             }
         };
 
         let Some(separator) = diff[search_start..].find(DIVIDER) else {
-            return Err(Error::Block {
-                position: block_count,
-                kind: BlockErrorKind::MissingSeparator,
-            });
+            return Err(Error::Block { position: block_count, kind: Kind::MissingSeparator });
         };
         let separator = search_start + separator;
 
@@ -159,16 +153,13 @@ fn parse_blocks(diff: &str) -> Result<Vec<SearchReplaceBlock>, Error> {
             None => {
                 return Err(Error::Block {
                     position: block_count,
-                    kind: BlockErrorKind::MissingSeparatorNewline,
+                    kind: Kind::MissingSeparatorNewline,
                 })
             }
         };
 
         let Some(replace_end) = diff[separator_end..].find(REPLACE) else {
-            return Err(Error::Block {
-                position: block_count,
-                kind: BlockErrorKind::MissingReplaceMarker,
-            });
+            return Err(Error::Block { position: block_count, kind: Kind::MissingReplaceMarker });
         };
         let replace_end = separator_end + replace_end;
 
@@ -315,7 +306,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: BlockErrorKind::MissingSeparator }
+            Error::Block { position: 1, kind: Kind::MissingSeparator }
         ));
     }
 
@@ -325,7 +316,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: BlockErrorKind::MissingSearchNewline }
+            Error::Block { position: 1, kind: Kind::MissingSearchNewline }
         ));
     }
 
@@ -335,7 +326,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: BlockErrorKind::MissingSeparatorNewline }
+            Error::Block { position: 1, kind: Kind::MissingSeparatorNewline }
         ));
     }
 
@@ -345,7 +336,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 1, kind: BlockErrorKind::MissingReplaceMarker }
+            Error::Block { position: 1, kind: Kind::MissingReplaceMarker }
         ));
     }
 
@@ -367,7 +358,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Block { position: 2, kind: BlockErrorKind::MissingSeparatorNewline }
+            Error::Block { position: 2, kind: Kind::MissingSeparatorNewline }
         ));
     }
 
