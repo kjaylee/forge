@@ -1,16 +1,14 @@
 use std::collections::HashSet;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
+use async_trait::async_trait;
+use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::System;
-
-use async_trait::async_trait;
-use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 
 /// Represents Visual Studio Code IDE interaction
 pub struct Code {
@@ -83,7 +81,8 @@ struct LastActiveWindow {
 }
 
 async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyhow::Result<String> {
-    let code_dir = extract_storage_dir(args).ok_or(anyhow!("Failed to extract storage directory"))?;
+    let code_dir =
+        extract_storage_dir(args).ok_or(anyhow!("Failed to extract storage directory"))?;
     let storage_file = PathBuf::from(format!("{}/User/globalStorage/storage.json", code_dir));
     let storage_json = std::fs::read_to_string(storage_file)?;
     let json: Storage = serde_json::from_str(&storage_json)?;
@@ -93,30 +92,7 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
     let cwd = convert_path(cwd);
 
     // Not sure if matching index is good idea.
-    let search_dir = if json
-        .windows_state
-        .opened_windows
-        .iter()
-        .enumerate()
-        .any(|(i, folder)| {
-            i == index
-                && folder
-                .folder
-                .strip_prefix("file://")
-                .map(convert_path)
-                .unwrap_or_default()
-                .eq(&cwd)
-        }) {
-        cwd
-    } else if json
-        .windows_state
-        .last_active_window
-        .folder
-        .strip_prefix("file://")
-        .map(convert_path)
-        .unwrap_or_default()
-        .eq(&cwd)
-    {
+    let search_dir = if check_search_dir_condition(json, &cwd, index) {
         cwd
     } else {
         return Err(anyhow!("Project not active in VS code"));
@@ -124,12 +100,31 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
 
     let hash_file = get_hash(Walker::new(path_buf.clone()), &search_dir, path_buf).await?;
 
-    Ok(hash_file
-        .path
-        .split('/')
-        .last()
-        .unwrap_or_default()
-        .to_string())
+    Ok(hash_file.path)
+}
+
+fn check_search_dir_condition(json: Storage, cwd: &str, index: usize) -> bool {
+    json.windows_state
+        .opened_windows
+        .iter()
+        .enumerate()
+        .any(|(i, folder)| {
+            i == index
+                && folder
+                    .folder
+                    .strip_prefix("file://")
+                    .map(convert_path)
+                    .unwrap_or_default()
+                    .eq(&cwd)
+        })
+        || json
+            .windows_state
+            .last_active_window
+            .folder
+            .strip_prefix("file://")
+            .map(convert_path)
+            .unwrap_or_default()
+            .eq(&cwd)
 }
 
 fn convert_path(v: &str) -> String {
@@ -160,9 +155,9 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
         .processes()
         .values()
         .filter(|process| {
-            process.name().to_ascii_lowercase() == "electron" // for linux
-                || process.name().to_ascii_lowercase() == "code helper (renderer)"  // for macos
-                || process.name().to_ascii_lowercase() == "code.exe" // for windows
+            process.name().eq_ignore_ascii_case("electron") // for linux
+                || process.name().eq_ignore_ascii_case("code helper (renderer)")  // for macos
+                || process.name().eq_ignore_ascii_case("code.exe") // for windows
         })
         .filter(|process| {
             process
@@ -221,12 +216,15 @@ async fn get_hash(
         .ok_or(anyhow!("Project not found"))
 }
 
-async fn get_workspace_inner(workspace_id: WorkspaceId, vs_code_path: &str, cwd: &str) -> anyhow::Result<Workspace> {
+async fn get_workspace_inner(
+    workspace_id: WorkspaceId,
+    vs_code_path: &str,
+    cwd: &str,
+) -> anyhow::Result<Workspace> {
     let mut ans = Workspace::default().workspace_id(workspace_id);
 
-    let workspace_storage_path = Path::new(vs_code_path)
-        .join("User")
-        .join("workspaceStorage");
+    let workspace_storage_path = PathBuf::from(vs_code_path);
+
     let walker = Walker::new(workspace_storage_path.clone());
 
     if let Ok(project_hash) = get_hash(walker, cwd, workspace_storage_path).await {
@@ -251,7 +249,7 @@ fn extract_active_files(conn: &Connection) -> anyhow::Result<Vec<PathBuf>> {
         .optional()?;
 
     if let Some(value) = value {
-        return Ok(active_files_path(&value)?);
+        return active_files_path(&value);
     }
 
     Err(anyhow!("Focused file not found"))
@@ -300,7 +298,7 @@ fn active_files_path(json_data: &str) -> anyhow::Result<Vec<PathBuf>> {
     Ok(fspaths)
 }
 
-fn extract_focused_file(connection:& Connection) -> anyhow::Result<PathBuf> {
+fn extract_focused_file(connection: &Connection) -> anyhow::Result<PathBuf> {
     let key = "workbench.explorer.treeViewState";
     let mut stmt = connection.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
     let value: Option<String> = stmt
@@ -310,10 +308,9 @@ fn extract_focused_file(connection:& Connection) -> anyhow::Result<PathBuf> {
     if let Some(value) = value {
         return Ok(PathBuf::from(focused_file_path(&value)?));
     }
-    
+
     Err(anyhow!("Focused file not found"))
 }
-
 
 fn process_workflow_file(path: &Path, cwd: &str) -> bool {
     let path = path.join("workspace.json");

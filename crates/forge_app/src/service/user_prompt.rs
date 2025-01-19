@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_all_ides::ForgeAllIdes;
-use forge_domain::ActiveFiles;
+use forge_domain::IdeRepository;
 use forge_prompt::Prompt;
 use handlebars::Handlebars;
 use serde::Serialize;
@@ -59,13 +59,17 @@ impl UserPromptService for Live {
 
         let ctx = Context { task: task.to_string(), files: file_contents };
         let mut ans = hb.render_template(template, &ctx)?;
-        if let Ok(paths) = self.all_ides.active_files().await {
-            if !paths.is_empty() {
-                ans.push_str(paths.join("\n").as_str());
+        if let Ok(ides) = self.all_ides.get_active_ides().await {
+            for ide in ides {
+                if let Ok(workspace) = self.all_ides.get_workspace(&ide.workspace_id).await {
+                    ans.push_str("Focused File:\n");
+                    ans.push_str(&workspace.focused_file_xml(&ide.name));
+
+                    ans.push_str("\nOpened Files:\n");
+                    ans.push_str(&workspace.opened_files_xml(&ide.name));
+                }
             }
         }
-
-        println!("{}", ans);
 
         Ok(ans)
     }
