@@ -6,6 +6,10 @@ use streaming_iterator::StreamingIterator;
 use crate::error::Error;
 use crate::symbol::{Symbol, SymbolKind, Location};
 
+/// Functions for getting language-specific tree-sitter parsers.
+/// These functions initialize the appropriate tree-sitter language parser
+/// for each supported programming language.
+
 fn language_rust() -> Language {
     tree_sitter_rust::LANGUAGE.into()
 }
@@ -23,8 +27,15 @@ fn language_typescript() -> Language {
     tree_sitter_javascript::LANGUAGE.into()
 }
 
+/// Parser responsible for analyzing source code and extracting symbols.
+/// 
+/// The Parser uses tree-sitter to parse source code and extract information about
+/// defined symbols such as functions, classes, and variables. It maintains separate
+/// parsers and queries for each supported programming language.
 pub struct Parser {
+    /// Tree-sitter language parsers for each supported language
     parsers: HashMap<String, Language>,
+    /// Tree-sitter queries for extracting symbols from each language
     queries: HashMap<String, Query>,
 }
 

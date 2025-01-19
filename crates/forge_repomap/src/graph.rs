@@ -3,8 +3,17 @@ use std::path::{Path, PathBuf};
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
+/// Represents a graph of dependencies between files in a codebase.
+/// 
+/// This graph tracks relationships between files where one file depends on another
+/// through imports, references, or other relationships. The graph is used to:
+/// - Calculate file importance based on their connections
+/// - Find related files for context expansion
+/// - Identify dependency chains
 pub struct DependencyGraph {
+    /// The underlying graph structure where nodes are file paths
     graph: Graph<PathBuf, ()>,
+    /// Mapping of file paths to their corresponding node indices for quick lookup
     node_indices: HashMap<PathBuf, NodeIndex>,
 }
 

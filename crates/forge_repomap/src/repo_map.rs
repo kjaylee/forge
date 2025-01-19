@@ -6,11 +6,37 @@ use crate::graph::DependencyGraph;
 use crate::parser::Parser;
 use crate::symbol::Symbol;
 
+/// A map of a repository's code structure and relationships.
+///
+/// RepoMap analyzes a repository to build a comprehensive understanding of its:
+/// - Defined symbols (functions, classes, etc.)
+/// - File dependencies and relationships
+/// - Code structure and organization
+///
+/// This information is used to provide relevant context to LLMs when they need to
+/// understand or modify code in the repository.
+///
+/// # Example
+/// ```no_run
+/// use std::path::PathBuf;
+/// use forge_repomap::RepoMap;
+///
+/// let mut repo_map = RepoMap::new(PathBuf::from("./"), 1000).unwrap();
+/// repo_map.analyze().unwrap();
+///
+/// // Get context about specific files
+/// let context = repo_map.get_context(&[PathBuf::from("src/main.rs")]);
+/// ```
 pub struct RepoMap {
+    /// Root path of the repository being analyzed
     root_path: PathBuf,
+    /// Map of file paths to their contained symbols
     files: HashMap<PathBuf, Vec<Symbol>>,
+    /// Graph representing relationships between files
     graph: DependencyGraph,
+    /// Parser for analyzing source code
     parser: Parser,
+    /// Maximum number of tokens to include in context
     token_budget: usize,
 }
 
