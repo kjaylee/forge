@@ -6,6 +6,7 @@ mod outline;
 mod patch;
 mod select;
 mod shell;
+mod syn;
 mod think;
 
 use approve::Approve;

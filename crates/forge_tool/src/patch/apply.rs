@@ -7,7 +7,7 @@ use serde::Deserialize;
 use tokio::fs;
 
 use crate::fs::fs_replace_marker::{SEARCH, DIVIDER, REPLACE};
-use crate::fs::syn;
+use crate::syn;
 
 use super::parse::{self, PatchBlock};
 
