@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 
 /// Status of the current workspace in the IDE
+#[derive(Debug, Default, derive_setters::Setters)]
 pub struct Workspace {
     /// ID of the workspace
     pub workspace_id: WorkspaceId,
@@ -17,8 +18,14 @@ pub struct Workspace {
 #[derive(Debug, derive_more::From)]
 pub struct ProcessId(u32);
 
-#[derive(Debug, derive_more::From)]
+#[derive(Debug, Default, Clone, derive_more::From)]
 pub struct WorkspaceId(String);
+
+impl WorkspaceId {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
 
 /// Represents an IDE. Contains meta information about the IDE.
 #[derive(Debug)]
