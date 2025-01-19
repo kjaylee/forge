@@ -1,4 +1,3 @@
-#[cfg(unix)]
 mod unix;
 
 mod platform;

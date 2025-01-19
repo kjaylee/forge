@@ -1,3 +1,4 @@
+use std::ascii::AsciiExt;
 use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -34,7 +35,10 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
     let storage_file = PathBuf::from(format!("{}/User/globalStorage/storage.json", code_dir));
     let storage_json = std::fs::read_to_string(storage_file)?;
     let json: Storage = serde_json::from_str(&storage_json)?;
-    let path_buf = PathBuf::from(code_dir.clone()).join("User/workspaceStorage");
+    let path_buf = PathBuf::from(code_dir.clone())
+        .join("User")
+        .join("workspaceStorage");
+    let cwd = convert_path(cwd);
 
     // Not sure if matching index is good idea.
     let search_dir = if json
@@ -45,32 +49,28 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
         .any(|(i, folder)| {
             i == index
                 && folder
-                .folder
-                .strip_prefix("file://")
-                .unwrap_or_default()
-                .eq(cwd)
-        })
-    {
+                    .folder
+                    .strip_prefix("file://")
+                    .map(convert_path)
+                    .unwrap_or_default()
+                    .eq(&cwd)
+        }) {
         cwd
     } else if json
         .windows_state
         .last_active_window
         .folder
         .strip_prefix("file://")
+        .map(convert_path)
         .unwrap_or_default()
-        .eq(cwd)
-        && index == 0
-        && json
-        .windows_state
-        .opened_windows
-        .is_empty()
+        .eq(&cwd)
     {
         cwd
     } else {
         return Err(anyhow!("Project not active in VS code"));
     };
 
-    let hash_file = get_hash(Walker::new(path_buf.clone()), search_dir, path_buf).await?;
+    let hash_file = get_hash(Walker::new(path_buf.clone()), &search_dir, path_buf).await?;
 
     Ok(hash_file
         .path
@@ -78,6 +78,20 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
         .last()
         .unwrap_or_default()
         .to_string())
+}
+
+fn convert_path(v: &str) -> String {
+    if std::env::consts::OS == "windows" {
+        let v = urlencoding::decode(v)
+            .map(|v| v.to_string())
+            .unwrap_or(v.to_string());
+        let v = v.split(":").last().unwrap_or(&v);
+        typed_path::WindowsPath::new(v)
+            .with_unix_encoding()
+            .to_string()
+    } else {
+        v.to_string()
+    }
 }
 
 fn extract_storage_dir(args: &[String]) -> Option<String> {
@@ -95,8 +109,8 @@ async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
         .values()
         .filter(|process| {
             process.name().to_ascii_lowercase() == "electron" // for linux
-                || process.name().to_ascii_lowercase() == "code helper (renderer)"
-            // for macos
+                || process.name().to_ascii_lowercase() == "code helper (renderer)"  // for macos
+                || process.name().to_ascii_lowercase() == "code.exe" // for windows
         })
         .filter(|process| {
             process
@@ -152,15 +166,23 @@ async fn get_hash(
 
     dirs.into_iter()
         .find(|v| process_workflow_file(Path::new(&v.path), cwd))
-        .ok_or(anyhow!("foo"))
+        .ok_or(anyhow!("xfoo"))
 }
 
 async fn active_files_inner(vs_code_path: &str, cwd: &str) -> anyhow::Result<Vec<String>> {
-    let workspace_storage_path = Path::new(&vs_code_path).join("User/workspaceStorage");
+    let workspace_storage_path = Path::new(&vs_code_path)
+        .join("User")
+        .join("workspaceStorage");
     let walker = Walker::new(workspace_storage_path.clone());
 
     if let Ok(project_hash) = get_hash(walker, cwd, workspace_storage_path).await {
-        let conn = Connection::open(format!("{}/state.vscdb", project_hash.path))?;
+        let conn = Connection::open(
+            PathBuf::from(project_hash.path)
+                .join("state.vscdb")
+                .to_string_lossy()
+                .to_string(),
+        );
+        let conn = conn?;
         let key = "workbench.explorer.treeViewState";
         let mut stmt = conn.prepare("SELECT value FROM ItemTable WHERE key = ?1")?;
         let value: Option<String> = stmt
@@ -191,11 +213,11 @@ fn process_workflow_file(path: &Path, cwd: &str) -> bool {
 
         if let Some(folder) = workflow_json.get("folder").and_then(|v| v.as_str()) {
             // Remove "file://" prefix
-            let project_path = folder.strip_prefix("file://").unwrap_or(folder);
+            let project_path = convert_path(folder.strip_prefix("file://").unwrap_or(folder));
 
             // Check if the project path matches or is a parent of the current working
             // directory
-            if cwd.starts_with(project_path) {
+            if cwd.starts_with(&project_path) {
                 return true;
             }
         }
@@ -264,11 +286,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_arg_value() {
-        println!(
-            "{:#?}",
-            get_all_ides("/home/ssdd/RustroverProjects/code-forge")
-                .await
-                .unwrap()
-        );
+        let x = "C:\\Users\\sr480\\RustroverProjects\\code-forge";
+        // let x = convert_to_file_url(x).unwrap();
+        println!("{:#?}", get_all_ides(&x).await.unwrap());
     }
 }
