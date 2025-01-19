@@ -1,12 +1,13 @@
+use std::collections::HashSet;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+
 use anyhow::anyhow;
 use forge_domain::Ide;
 use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashSet;
-use std::ffi::OsString;
-use std::path::{Path, PathBuf};
 use sysinfo::System;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -90,7 +91,8 @@ async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
         .values()
         .filter(|process| {
             process.name().to_ascii_lowercase() == "electron" // for linux
-                || process.name().to_ascii_lowercase() == "code helper (renderer)" // for macos
+                || process.name().to_ascii_lowercase() == "code helper (renderer)"
+            // for macos
         })
         .filter(|process| {
             process
@@ -109,7 +111,7 @@ async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
             ans.push(Ide {
                 name: "VS Code".to_string(),
                 version: None,
-                process: (v.pid().as_u32()).into(),
+                process: v.pid().as_u32().into(),
                 working_directory: v
                     .cwd()
                     .unwrap_or(Path::new(""))
