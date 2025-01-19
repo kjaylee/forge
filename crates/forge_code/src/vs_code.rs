@@ -57,7 +57,7 @@ impl IdeRepository for Code {
     }
 
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
-        get_workspace_inner(ide.clone(), ide.as_str(), &self.cwd).await
+        get_workspace_inner(ide.clone()).await
     }
 }
 
@@ -104,31 +104,37 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
 }
 
 fn check_search_dir_condition(json: Storage, cwd: &str, index: usize) -> bool {
-    json.windows_state
+    let a = json.windows_state
         .opened_windows
         .iter()
         .enumerate()
         .any(|(i, folder)| {
             i == index
                 && folder
-                    .folder
-                    .strip_prefix("file://")
-                    .map(convert_path)
-                    .unwrap_or_default()
-                    .eq(&cwd)
-        })
-        || json
+                .folder
+                .strip_prefix("file://")
+                .map(convert_path)
+                .unwrap_or_default()
+                .eq(&cwd)
+        });
+    
+        let b = json
             .windows_state
             .last_active_window
             .folder
             .strip_prefix("file://")
             .map(convert_path)
             .unwrap_or_default()
-            .eq(&cwd)
+            .eq(&cwd);
+    a || b
 }
 
 fn convert_path(v: &str) -> String {
-    if std::env::consts::OS == "windows" {
+    convert_path_inner(v, std::env::consts::OS)
+}
+
+fn convert_path_inner(v: &str, os: &str) -> String {
+    if os == "windows" {
         let v = urlencoding::decode(v)
             .map(|v| v.to_string())
             .unwrap_or(v.to_string());
@@ -218,26 +224,17 @@ async fn get_hash(
 
 async fn get_workspace_inner(
     workspace_id: WorkspaceId,
-    vs_code_path: &str,
-    cwd: &str,
 ) -> anyhow::Result<Workspace> {
-    let mut ans = Workspace::default().workspace_id(workspace_id);
+    let mut ans = Workspace::default().workspace_id(workspace_id.clone());
+    let conn = Connection::open(
+        PathBuf::from(workspace_id.as_str())
+            .join("state.vscdb")
+            .to_string_lossy()
+            .to_string(),
+    )?;
 
-    let workspace_storage_path = PathBuf::from(vs_code_path);
-
-    let walker = Walker::new(workspace_storage_path.clone());
-
-    if let Ok(project_hash) = get_hash(walker, cwd, workspace_storage_path).await {
-        let conn = Connection::open(
-            PathBuf::from(project_hash.path)
-                .join("state.vscdb")
-                .to_string_lossy()
-                .to_string(),
-        )?;
-
-        ans = ans.focused_file(extract_focused_file(&conn)?);
-        ans = ans.opened_files(extract_active_files(&conn)?);
-    }
+    ans = ans.focused_file(extract_focused_file(&conn)?);
+    ans = ans.opened_files(extract_active_files(&conn)?);
     Ok(ans)
 }
 
@@ -324,7 +321,7 @@ fn process_workflow_file(path: &Path, cwd: &str) -> bool {
 
             // Check if the project path matches or is a parent of the current working
             // directory
-            if cwd.starts_with(&project_path) {
+            if cwd.eq(&project_path) {
                 return true;
             }
         }
@@ -355,12 +352,15 @@ fn focused_file_path(json_data: &str) -> anyhow::Result<String> {
                 .to_string())
         } else {
             // If there's no "::", just return the entire string
-            Ok(item.clone())
+            Ok(item
+                .strip_prefix("file://")
+                .unwrap_or(item)
+                .to_string())
         };
     }
 
     // No first item in the array or it's not a string
-    Err(anyhow!("Invalid 'focus' array"))
+    Ok("".to_string())
 }
 
 fn find_arg_value(cmd: &[String], key: &str) -> Option<String> {
@@ -383,4 +383,100 @@ fn find_arg_value(cmd: &[String], key: &str) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_arg_value() {
+        let cmd1 = vec![
+            "--user-data-dir=/path/to/vscode".to_string(),
+            "--another-arg".to_string(),
+        ];
+        assert_eq!(
+            find_arg_value(&cmd1, "--user-data-dir="),
+            Some("/path/to/vscode".to_string())
+        );
+
+        let cmd2 = vec![
+            "some-other-arg".to_string(),
+            "--user-data-dir=/another/path --some-other-flag".to_string(),
+        ];
+        assert_eq!(
+            find_arg_value(&cmd2, "--user-data-dir="),
+            Some("/another/path".to_string())
+        );
+
+        let cmd3 = vec!["--no-matching-arg".to_string()];
+        assert_eq!(find_arg_value(&cmd3, "--user-data-dir="), None);
+    }
+
+    #[test]
+    fn test_convert_path_windows() {
+        let test_paths = vec![
+            ("file://C%3A/Users/test", "/Users/test"),
+            ("/path/to/file", "/path/to/file"),
+        ];
+        for (input, expected) in test_paths {
+            assert_eq!(convert_path_inner(input, "windows"), expected);
+        }
+    }
+
+    #[test]
+    fn test_convert_path_unix() {
+        assert_eq!(convert_path("/path/to/file"), "/path/to/file");
+    }
+
+    #[test]
+    fn test_process_workflow_file() {
+        // Create a temporary directory
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp directory");
+        let workspace_path = temp_dir.path().join("workspace.json");
+
+        // Valid workspace JSON
+        {
+            std::fs::write(
+                &workspace_path,
+                r#"{"folder": "file:///home/user/project"}"#,
+            ).expect("Failed to write workspace JSON");
+
+            assert!(process_workflow_file(temp_dir.path(), "/home/user/project/src"));
+            assert!(process_workflow_file(temp_dir.path(), "/home/user/project"));
+        }
+
+        // Invalid workspace JSON
+        {
+            std::fs::write(
+                &workspace_path,
+                r#"{"folder": "file:///unrelated/project"}"#,
+            ).expect("Failed to write invalid workspace JSON");
+
+            assert!(!process_workflow_file(temp_dir.path(), "/home/user/project"));
+        }
+    }
+
+    #[test]
+    fn test_focused_file_path() {
+        let valid_json1 = r#"{
+            "focus": ["file:///home/user/project/main.rs::file:///home/user/project/lib.rs"]
+        }"#;
+        let valid_json2 = r#"{
+            "focus": ["file:///home/user/project/main.rs"]
+        }"#;
+        let invalid_json = r#"{
+            "focus": []
+        }"#;
+
+        assert_eq!(
+            focused_file_path(valid_json1).unwrap(),
+            "/home/user/project/lib.rs"
+        );
+        assert_eq!(
+            focused_file_path(valid_json2).unwrap(),
+            "/home/user/project/main.rs"
+        );
+        assert!(focused_file_path(invalid_json).is_err());
+    }
 }
