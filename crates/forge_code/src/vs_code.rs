@@ -104,28 +104,29 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
 }
 
 fn check_search_dir_condition(json: Storage, cwd: &str, index: usize) -> bool {
-    let a = json.windows_state
+    let a = json
+        .windows_state
         .opened_windows
         .iter()
         .enumerate()
         .any(|(i, folder)| {
             i == index
                 && folder
-                .folder
-                .strip_prefix("file://")
-                .map(convert_path)
-                .unwrap_or_default()
-                .eq(&cwd)
+                    .folder
+                    .strip_prefix("file://")
+                    .map(convert_path)
+                    .unwrap_or_default()
+                    .eq(&cwd)
         });
-    
-        let b = json
-            .windows_state
-            .last_active_window
-            .folder
-            .strip_prefix("file://")
-            .map(convert_path)
-            .unwrap_or_default()
-            .eq(&cwd);
+
+    let b = json
+        .windows_state
+        .last_active_window
+        .folder
+        .strip_prefix("file://")
+        .map(convert_path)
+        .unwrap_or_default()
+        .eq(&cwd);
     a || b
 }
 
@@ -222,9 +223,7 @@ async fn get_hash(
         .ok_or(anyhow!("Project not found"))
 }
 
-async fn get_workspace_inner(
-    workspace_id: WorkspaceId,
-) -> anyhow::Result<Workspace> {
+async fn get_workspace_inner(workspace_id: WorkspaceId) -> anyhow::Result<Workspace> {
     let mut ans = Workspace::default().workspace_id(workspace_id.clone());
     let conn = Connection::open(
         PathBuf::from(workspace_id.as_str())
@@ -352,10 +351,7 @@ fn focused_file_path(json_data: &str) -> anyhow::Result<String> {
                 .to_string())
         } else {
             // If there's no "::", just return the entire string
-            Ok(item
-                .strip_prefix("file://")
-                .unwrap_or(item)
-                .to_string())
+            Ok(item.strip_prefix("file://").unwrap_or(item).to_string())
         };
     }
 
@@ -440,9 +436,13 @@ mod tests {
             std::fs::write(
                 &workspace_path,
                 r#"{"folder": "file:///home/user/project"}"#,
-            ).expect("Failed to write workspace JSON");
+            )
+            .expect("Failed to write workspace JSON");
 
-            assert!(process_workflow_file(temp_dir.path(), "/home/user/project/src"));
+            assert!(process_workflow_file(
+                temp_dir.path(),
+                "/home/user/project/src"
+            ));
             assert!(process_workflow_file(temp_dir.path(), "/home/user/project"));
         }
 
@@ -451,9 +451,13 @@ mod tests {
             std::fs::write(
                 &workspace_path,
                 r#"{"folder": "file:///unrelated/project"}"#,
-            ).expect("Failed to write invalid workspace JSON");
+            )
+            .expect("Failed to write invalid workspace JSON");
 
-            assert!(!process_workflow_file(temp_dir.path(), "/home/user/project"));
+            assert!(!process_workflow_file(
+                temp_dir.path(),
+                "/home/user/project"
+            ));
         }
     }
 
