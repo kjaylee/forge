@@ -7,7 +7,7 @@ use nom::sequence::{delimited, tuple};
 use nom::{Err, IResult};
 use thiserror::Error;
 
-use crate::fs::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
+use super::marker::{DIVIDER, REPLACE, SEARCH};
 
 #[derive(Debug, Error)]
 pub enum Error {

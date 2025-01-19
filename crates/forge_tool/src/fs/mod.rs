@@ -2,7 +2,6 @@ mod file_info;
 mod fs_find;
 mod fs_list;
 mod fs_read;
-pub(crate) mod fs_replace_marker;
 mod fs_write;
 
 pub use file_info::*;

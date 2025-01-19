@@ -1,4 +1,5 @@
 mod apply;
+mod marker;
 mod parse;
 
-pub use apply::FSReplace;
+pub use apply::Patch;

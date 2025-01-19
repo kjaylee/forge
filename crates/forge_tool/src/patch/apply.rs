@@ -6,8 +6,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::fs;
 
+use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, Error, PatchBlock};
-use crate::fs::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
 use crate::syn;
 
 /// Input parameters for the fs_replace tool.
@@ -20,15 +20,15 @@ pub struct FSReplaceInput {
     pub diff: String,
 }
 
-pub struct FSReplace;
+pub struct Patch;
 
-impl NamedTool for FSReplace {
+impl NamedTool for Patch {
     fn tool_name(&self) -> ToolName {
         ToolName::new("tool_forge_fs_replace")
     }
 }
 
-impl ToolDescription for FSReplace {
+impl ToolDescription for Patch {
     fn description(&self) -> String {
         format!(
             r#"Replace sections in a file using multiple SEARCH/REPLACE blocks. Example:
@@ -129,7 +129,7 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for FSReplace {
+impl ToolCallService for Patch {
     type Input = FSReplaceInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
@@ -186,7 +186,7 @@ mod test {
 
     #[tokio::test]
     async fn test_file_not_found() {
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let result = fs_replace
             .call(FSReplaceInput {
                 path: "nonexistent.txt".to_string(),
@@ -206,7 +206,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -229,7 +229,7 @@ mod test {
 
         write_test_file(&file_path, "").await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -250,7 +250,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let diff = format!("{SEARCH}\n    First Line    \n{DIVIDER}\n    New First    \n{REPLACE}\n{SEARCH}\n    Last Line    \n{DIVIDER}\n    New Last    \n{REPLACE}\n").to_string();
 
         let result = fs_replace
@@ -270,7 +270,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let diff = format!("{SEARCH}\n  Middle Line  \n{DIVIDER}\n{REPLACE}\n");
         let result = fs_replace
             .call(FSReplaceInput { path: file_path.to_string_lossy().to_string(), diff })
@@ -290,7 +290,7 @@ mod test {
         let content = "\n\n// Header comment\n\n\nfunction test() {\n    // Inside comment\n\n    let x = 1;\n\n\n    console.log(x);\n}\n\n// Footer comment\n\n\n";
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
 
         // Test 1: Replace content while preserving surrounding newlines
         let result = fs_replace
@@ -351,7 +351,7 @@ mod test {
 "#;
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         // Search with different casing, spacing, and variable names
         let result = fs_replace
             .call(FSReplaceInput {
@@ -393,7 +393,7 @@ mod test {
 "#;
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         // Search with structural similarities but different variable names and spacing
         let result = fs_replace
             .call(FSReplaceInput {
@@ -427,7 +427,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
@@ -452,7 +452,7 @@ mod test {
 
         write_test_file(&file_path, content).await.unwrap();
 
-        let fs_replace = FSReplace;
+        let fs_replace = Patch;
         let result = fs_replace
             .call(FSReplaceInput {
                 path: file_path.to_string_lossy().to_string(),
