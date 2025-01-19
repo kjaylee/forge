@@ -6,9 +6,9 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::fs;
 
-use crate::fs::fs_replace_marker::{SEARCH, DIVIDER, REPLACE};
+use super::parse::{self, Error, PatchBlock};
+use crate::fs::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
 use crate::syn;
-use super::parse::{self, PatchBlock, Error};
 
 /// Input parameters for the fs_replace tool.
 #[derive(Deserialize, JsonSchema)]

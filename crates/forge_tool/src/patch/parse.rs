@@ -1,12 +1,10 @@
 use std::path::PathBuf;
 
-use nom::{
-    bytes::complete::{tag, take_until},
-    character::complete::line_ending,
-    combinator::{map, verify},
-    sequence::{delimited, tuple},
-    Err, IResult,
-};
+use nom::bytes::complete::{tag, take_until};
+use nom::character::complete::line_ending;
+use nom::combinator::{map, verify};
+use nom::sequence::{delimited, tuple};
+use nom::{Err, IResult};
 use thiserror::Error;
 
 use crate::fs::fs_replace_marker::{DIVIDER, REPLACE, SEARCH};
@@ -57,17 +55,14 @@ fn parse_search_marker(input: &str) -> IResult<&str, ()> {
         delimited(
             verify(take_until(SEARCH), ensure_line_start),
             tag(SEARCH),
-            line_ending
+            line_ending,
         ),
-        |_| ()
+        |_| (),
     )(input)
 }
 
 fn parse_search_content(input: &str) -> IResult<&str, String> {
-    map(
-        take_until(DIVIDER),
-        |s: &str| s.to_string()
-    )(input)
+    map(take_until(DIVIDER), |s: &str| s.to_string())(input)
 }
 
 fn parse_divider(input: &str) -> IResult<&str, ()> {
@@ -75,17 +70,14 @@ fn parse_divider(input: &str) -> IResult<&str, ()> {
         delimited(
             verify(take_until(DIVIDER), ensure_line_start),
             tag(DIVIDER),
-            line_ending
+            line_ending,
         ),
-        |_| ()
+        |_| (),
     )(input)
 }
 
 fn parse_replace_content(input: &str) -> IResult<&str, String> {
-    map(
-        take_until(REPLACE),
-        |s: &str| s.to_string()
-    )(input)
+    map(take_until(REPLACE), |s: &str| s.to_string())(input)
 }
 
 fn parse_replace_marker(input: &str) -> IResult<&str, ()> {
@@ -93,9 +85,9 @@ fn parse_replace_marker(input: &str) -> IResult<&str, ()> {
         delimited(
             verify(take_until(REPLACE), ensure_line_start),
             tag(REPLACE),
-            line_ending
+            line_ending,
         ),
-        |_| ()
+        |_| (),
     )(input)
 }
 
@@ -108,7 +100,7 @@ fn parse_patch_block(input: &str) -> IResult<&str, PatchBlock> {
             parse_replace_content,
             parse_replace_marker,
         )),
-        |(_, search, _, replace, _)| PatchBlock { search, replace }
+        |(_, search, _, replace, _)| PatchBlock { search, replace },
     )(input)
 }
 
@@ -307,7 +299,9 @@ mod test {
 
     #[test]
     fn test_whitespace_preservation() {
-        let diff = format!("{SEARCH}\n    indented\n\n  spaces  \n{DIVIDER}\n\tindented\n\n\ttabbed\n{REPLACE}\n");
+        let diff = format!(
+            "{SEARCH}\n    indented\n\n  spaces  \n{DIVIDER}\n\tindented\n\n\ttabbed\n{REPLACE}\n"
+        );
         let result = parse_blocks(&diff).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].search, "    indented\n\n  spaces  \n");
