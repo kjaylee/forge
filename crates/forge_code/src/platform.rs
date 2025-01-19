@@ -1,8 +1,8 @@
 use forge_domain::Ide;
 
 pub enum Platforms {
-    #[cfg(unix)]
-    Unix(crate::unix::UnixCodeInfo),
+    // #[cfg(unix)]
+    // Unix(crate::unix::UnixCodeInfo),
 }
 
 // impl Ide for Platforms {
@@ -21,9 +21,9 @@ pub enum Platforms {
 //     }
 // }
 
-impl Default for Platforms {
-    fn default() -> Self {
-        #[cfg(unix)]
-        return Platforms::Unix(crate::unix::UnixCodeInfo);
-    }
-}
+// impl Default for Platforms {
+//     fn default() -> Self {
+//         #[cfg(unix)]
+//         return Platforms::Unix(crate::unix::UnixCodeInfo);
+//     }
+// }

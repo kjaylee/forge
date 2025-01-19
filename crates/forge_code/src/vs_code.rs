@@ -6,11 +6,8 @@ use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde_json::Value;
 
-use crate::platform::Platforms;
-
 pub struct Code {
     cwd: String,
-    code_info: Platforms,
 }
 
 #[async_trait::async_trait]
@@ -54,6 +51,6 @@ impl<T: ToString> From<T> for Code {
             })
             .unwrap_or(cwd.clone());
 
-        Self { cwd: git_root, code_info: Platforms::default() }
+        Self { cwd: git_root }
     }
 }

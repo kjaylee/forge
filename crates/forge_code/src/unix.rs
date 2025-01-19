@@ -1,9 +1,11 @@
 use std::collections::HashSet;
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use anyhow::anyhow;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sysinfo::System;
 use forge_domain::Ide;
 use forge_walker::Walker;
 
@@ -55,22 +57,21 @@ fn extract_storage_dir(args: &[String]) -> Option<String> {
 
 async fn get_all_ides(cwd: &str) -> anyhow::Result<Vec<Ide>> {
     let mut ans = vec![];
+    let mut system = System::new_all();
+    system.refresh_all();
 
-    for (i, v) in procfs::process::all_processes()?
-        .filter_map(|v| v.ok())
-        .filter(|v| v.status().is_ok())
-        .filter(|v| v.status().as_ref().unwrap().name == "electron")
-        .filter(|v| v.cmdline().is_ok())
-        .filter(|v| v.cwd().is_ok())
-        .filter(|v| v.cmdline().unwrap().iter().any(|v| v.contains("vscode-window-config")))
-        .enumerate() {
-
-        if let Ok(workspace_id) = extract_workspace_id(&v.cmdline().unwrap_or_default(), cwd, i).await {
+    for (i, v) in system.processes()
+        .values()
+        .filter(|process| process.name().to_ascii_lowercase() == "electron")
+        .filter(|process| process.cmd().iter().any(|arg| arg.to_string_lossy().contains("vscode-window-config")))
+        .enumerate()  {
+        let cmd = v.cmd().iter().map(|v| v.to_string_lossy().to_string()).collect::<Vec<_>>();
+        if let Ok(workspace_id) = extract_workspace_id(&cmd, cwd, i).await {
             ans.push(Ide {
                 name: "VS Code".to_string(),
                 version: None,
-                process: (v.pid() as u32).into(),
-                working_directory: v.cwd().unwrap_or_default().into(),
+                process: (v.pid().as_u32()).into(),
+                working_directory: v.cwd().unwrap_or(Path::new("")).to_string_lossy().to_string().into(),
                 workspace_id: workspace_id.into(),
             });
         }
