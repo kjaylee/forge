@@ -3,13 +3,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use async_trait::async_trait;
+use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
+use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::System;
-
-use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
-use forge_walker::Walker;
 
 /// Represents Visual Studio Code IDE interaction
 pub struct Code {
@@ -200,7 +199,13 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
     Ok(ans)
 }
 
-async fn get_vscode_instance(cmd: Vec<String>, pid: u32, working_directory: String, cwd: &str, index: usize) -> Option<Ide> {
+async fn get_vscode_instance(
+    cmd: Vec<String>,
+    pid: u32,
+    working_directory: String,
+    cwd: &str,
+    index: usize,
+) -> Option<Ide> {
     if let Ok(workspace_id) = extract_workspace_id(&cmd, cwd, index).await {
         return Some(Ide {
             name: "VS Code".to_string(),
@@ -499,8 +504,9 @@ mod tests {
 
 #[cfg(test)]
 mod partial_integration_tests {
-    use tempfile::TempDir;
     use forge_domain::IdeRepository;
+    use tempfile::TempDir;
+
     use crate::vs_code::get_vscode_instance;
 
     #[tokio::test]
@@ -536,20 +542,26 @@ mod partial_integration_tests {
         });
         std::fs::write(
             dir.path().join("User/globalStorage/storage.json"),
-            serde_json::to_string_pretty(&storage_json).unwrap()
-        ).unwrap();
+            serde_json::to_string_pretty(&storage_json).unwrap(),
+        )
+        .unwrap();
 
         // Create workspace.json
         let workspace_json = serde_json::json!({
             "folder": "file:///home/ssdd/RustroverProjects/code-forge"
         });
         std::fs::write(
-            dir.path().join("User/workspaceStorage/some_hash/workspace.json"),
-            serde_json::to_string_pretty(&workspace_json).unwrap()
-        ).unwrap();
+            dir.path()
+                .join("User/workspaceStorage/some_hash/workspace.json"),
+            serde_json::to_string_pretty(&workspace_json).unwrap(),
+        )
+        .unwrap();
 
         let cmd = vec![
-            format!("/usr/lib/electron32/electron --user-data-dir={}", dir.path().display()),
+            format!(
+                "/usr/lib/electron32/electron --user-data-dir={}",
+                dir.path().display()
+            ),
             "--vscode-window-config".to_string(), // Simulate VSCode window config
         ];
 
@@ -560,17 +572,17 @@ mod partial_integration_tests {
 
         // Assertions
         assert!(ans.is_some(), "Expected Some(Ide), but got None");
-        
+
         let ide = ans.unwrap();
         assert_eq!(ide.name, "VS Code", "IDE name mismatch");
         assert_eq!(ide.process.as_u32(), 269427, "PID mismatch");
         assert_eq!(
-            ide.working_directory.to_string_lossy(), 
-            "/home/ssdd/RustroverProjects/code-forge", 
+            ide.working_directory.to_string_lossy(),
+            "/home/ssdd/RustroverProjects/code-forge",
             "Working directory mismatch"
         );
         assert!(
-            ide.workspace_id.as_str().contains("some_hash"), 
+            ide.workspace_id.as_str().contains("some_hash"),
             "Workspace ID should contain hash directory name"
         );
         assert!(ide.version.is_none(), "Version should be None");
@@ -599,20 +611,26 @@ mod partial_integration_tests {
         });
         std::fs::write(
             dir.path().join("User/globalStorage/storage.json"),
-            serde_json::to_string_pretty(&storage_json).unwrap()
-        ).unwrap();
+            serde_json::to_string_pretty(&storage_json).unwrap(),
+        )
+        .unwrap();
 
         // Create workspace.json for a different project
         let workspace_json = serde_json::json!({
             "folder": "file:///home/ssdd/OtherProject"
         });
         std::fs::write(
-            dir.path().join("User/workspaceStorage/another_hash/workspace.json"),
-            serde_json::to_string_pretty(&workspace_json).unwrap()
-        ).unwrap();
+            dir.path()
+                .join("User/workspaceStorage/another_hash/workspace.json"),
+            serde_json::to_string_pretty(&workspace_json).unwrap(),
+        )
+        .unwrap();
 
         let cmd = vec![
-            format!("/usr/lib/electron32/electron --user-data-dir={}", dir.path().display()),
+            format!(
+                "/usr/lib/electron32/electron --user-data-dir={}",
+                dir.path().display()
+            ),
             "--vscode-window-config".to_string(),
         ];
 
