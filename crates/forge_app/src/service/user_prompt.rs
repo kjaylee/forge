@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -32,6 +33,8 @@ struct Live {
 struct Context {
     task: String,
     files: Vec<FileRead>,
+    focused_files: Vec<String>,
+    opened_files: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -52,25 +55,56 @@ impl UserPromptService for Live {
             file_contents.push(FileRead { path: file, content });
         }
 
-        let mut hb = Handlebars::new();
-        hb.set_strict_mode(true);
-        hb.register_escape_fn(|str| str.to_string());
+        let mut focused_files = vec![];
+        let mut opened_files = vec![];
 
-        let ctx = Context { task: task.to_string(), files: file_contents };
-        let mut ans = hb.render_template(template, &ctx)?;
         if let Ok(ides) = self.all_ides.get_active_ides().await {
             for ide in ides {
                 if let Ok(workspace) = self.all_ides.get_workspace(&ide.workspace_id).await {
-                    ans.push_str("Focused File:\n");
-                    ans.push_str(&workspace.focused_file_xml(&ide.name));
-
-                    ans.push_str("\nOpened Files:\n");
-                    ans.push_str(&workspace.opened_files_xml(&ide.name));
+                    opened_files.push(Self::opened_files_xml(&workspace.opened_files, &ide.name));
+                    focused_files.push(Self::focused_file_xml(
+                        workspace.focused_file.to_string_lossy(),
+                        &ide.name,
+                    ));
                 }
             }
         }
 
-        Ok(ans)
+        let mut hb = Handlebars::new();
+        hb.set_strict_mode(true);
+        hb.register_escape_fn(|str| str.to_string());
+
+        let ctx = Context {
+            task: task.to_string(),
+            files: file_contents,
+            focused_files,
+            opened_files,
+        };
+
+        Ok(hb.render_template(template, &ctx)?)
+    }
+}
+
+impl Live {
+    pub fn opened_files_xml(opened_files: &[PathBuf], ide: &str) -> String {
+        opened_files
+            .iter()
+            .map(|f| f.to_string_lossy())
+            .map(|v| Self::enclose_in_xml_tag(ide, v.as_ref()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn enclose_in_xml_tag(ide: &str, value: &str) -> String {
+        let tag = match ide {
+            "VS Code" => "vs_code_active_file",
+            _ => "",
+        };
+        format!("<{}>{}</{}>", tag, value, tag)
+    }
+
+    pub fn focused_file_xml<T: AsRef<str>>(focused_file: T, ide: &str) -> String {
+        Self::enclose_in_xml_tag(ide, focused_file.as_ref())
     }
 }
 

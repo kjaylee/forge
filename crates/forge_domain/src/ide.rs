@@ -15,29 +15,6 @@ pub struct Workspace {
     pub focused_file: PathBuf,
 }
 
-impl Workspace {
-    pub fn opened_files_xml(&self, ide: &str) -> String {
-        self.opened_files
-            .iter()
-            .map(|f| f.to_string_lossy())
-            .map(|v| Self::enclose_in_xml_tag(ide, v.as_ref()))
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    fn enclose_in_xml_tag(ide: &str, value: &str) -> String {
-        let tag = match ide {
-            "VS Code" => "vs_code_active_file",
-            _ => "",
-        };
-        format!("<{}>{}</{}>", tag, value, tag)
-    }
-
-    pub fn focused_file_xml(&self, ide: &str) -> String {
-        Self::enclose_in_xml_tag(ide, self.focused_file.to_string_lossy().as_ref())
-    }
-}
-
 #[derive(Debug, derive_more::From)]
 pub struct ProcessId(u32);
 

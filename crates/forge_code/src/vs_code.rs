@@ -28,26 +28,7 @@ impl Code {
             .and_then(|p| p.to_str().map(|s| s.to_string()))
             .unwrap_or(cwd);
 
-        // Find git root directory
-        let git_root = tokio::process::Command::new("git")
-            .arg("rev-parse")
-            .arg("--show-toplevel")
-            .current_dir(&cwd)
-            .output()
-            .await
-            .ok()
-            .and_then(|output| {
-                if output.status.success() {
-                    String::from_utf8(output.stdout)
-                        .ok()
-                        .map(|s| s.trim().to_string())
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(cwd.clone());
-
-        Self { cwd: git_root }
+        Self { cwd }
     }
 }
 
