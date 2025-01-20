@@ -17,7 +17,7 @@ pub struct Code {
 
 impl Code {
     /// Create a new Code instance with a custom working directory
-    pub async fn new<T: ToString>(cwd: T) -> Self {
+    pub fn new<T: ToString>(cwd: T) -> Self {
         let cwd = cwd.to_string();
 
         // VS code stores the path without any trailing slashes.
