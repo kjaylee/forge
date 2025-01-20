@@ -1,7 +1,7 @@
 //! A library for analyzing and understanding code repositories.
 //!
-//! The forge_repomap crate provides tools for building a comprehensive map of a code
-//! repository, including:
+//! The forge_repomap crate provides tools for building a comprehensive map of a
+//! code repository, including:
 //! - Symbol extraction (functions, classes, etc.)
 //! - Dependency tracking between files
 //! - Importance scoring for code elements
@@ -30,12 +30,11 @@
 mod error;
 mod graph;
 mod parser;
-pub mod ranking;  // Make the ranking module public
+pub mod ranking; // Make the ranking module public
 mod repo_map;
 mod symbol;
-mod token;
 
 pub use error::Error;
 pub use ranking::{PageRank, PageRankConfig, SymbolReference};
 pub use repo_map::RepoMap;
-pub use symbol::{Symbol, SymbolKind, Location};
+pub use symbol::{Location, Symbol, SymbolKind};

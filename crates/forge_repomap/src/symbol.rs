@@ -1,8 +1,10 @@
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
 use std::fmt;
+use std::path::PathBuf;
 
-/// Represents a location in a source file, including the file path and position information.
+use serde::{Deserialize, Serialize};
+
+/// Represents a location in a source file, including the file path and position
+/// information.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Location {
     /// The path to the source file
@@ -48,17 +50,17 @@ impl SymbolKind {
     /// Get the base weight for this symbol kind for importance calculations
     pub fn base_weight(&self) -> f64 {
         match self {
-            SymbolKind::Module => 1.5,       // Highest weight for modules
-            SymbolKind::Trait => 1.4,        // Traits are important for Rust
-            SymbolKind::Interface => 1.4,    // Interfaces are important
-            SymbolKind::Class => 1.3,        // Classes define major structures
-            SymbolKind::Struct => 1.3,       // Structs are like classes
-            SymbolKind::Enum => 1.2,         // Enums define important types
-            SymbolKind::Function => 1.1,     // Functions are common but important
-            SymbolKind::Method => 1.1,       // Methods are like functions
+            SymbolKind::Module => 1.5,         // Highest weight for modules
+            SymbolKind::Trait => 1.4,          // Traits are important for Rust
+            SymbolKind::Interface => 1.4,      // Interfaces are important
+            SymbolKind::Class => 1.3,          // Classes define major structures
+            SymbolKind::Struct => 1.3,         // Structs are like classes
+            SymbolKind::Enum => 1.2,           // Enums define important types
+            SymbolKind::Function => 1.1,       // Functions are common but important
+            SymbolKind::Method => 1.1,         // Methods are like functions
             SymbolKind::Implementation => 1.1, // Implementations are important
-            SymbolKind::Constant => 0.9,     // Constants are referenced but simple
-            SymbolKind::Variable => 0.8,     // Variables have lowest weight
+            SymbolKind::Constant => 0.9,       // Constants are referenced but simple
+            SymbolKind::Variable => 0.8,       // Variables have lowest weight
         }
     }
 }
@@ -81,7 +83,8 @@ impl fmt::Display for SymbolKind {
     }
 }
 
-/// Represents a symbol found in the source code, such as a function, class, or variable.
+/// Represents a symbol found in the source code, such as a function, class, or
+/// variable.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Symbol {
     /// The name of the symbol
@@ -92,18 +95,15 @@ pub struct Symbol {
     pub signature: Option<String>,
     /// The location where this symbol is defined
     pub location: Location,
-    /// A score indicating the symbol's importance in the codebase (higher is more important)
+    /// A score indicating the symbol's importance in the codebase (higher is
+    /// more important)
     pub importance: f64,
     /// Locations where this symbol is referenced
     pub references: Vec<Location>,
 }
 
 impl Symbol {
-    pub fn new(
-        name: String,
-        kind: SymbolKind,
-        location: Location,
-    ) -> Self {
+    pub fn new(name: String, kind: SymbolKind, location: Location) -> Self {
         let base_weight = kind.base_weight();
         Self {
             name,
@@ -134,7 +134,7 @@ impl Symbol {
         // - Small bonus for having a signature
         let reference_multiplier = 1.0 + (self.references.len() as f64).ln().max(0.0) * 0.2;
         let signature_bonus = if self.signature.is_some() { 0.1 } else { 0.0 };
-        
+
         self.importance = self.kind.base_weight() * reference_multiplier + signature_bonus;
     }
 }
@@ -147,7 +147,10 @@ mod tests {
     fn test_symbol_weights() {
         assert!(SymbolKind::Module.base_weight() > SymbolKind::Variable.base_weight());
         assert!(SymbolKind::Class.base_weight() > SymbolKind::Constant.base_weight());
-        assert_eq!(SymbolKind::Function.base_weight(), SymbolKind::Method.base_weight());
+        assert_eq!(
+            SymbolKind::Function.base_weight(),
+            SymbolKind::Method.base_weight()
+        );
     }
 
     #[test]
@@ -159,20 +162,16 @@ mod tests {
             start_col: 0,
             end_col: 0,
         };
-        
-        let mut symbol = Symbol::new(
-            "test".to_string(),
-            SymbolKind::Function,
-            location.clone(),
-        );
-        
+
+        let mut symbol = Symbol::new("test".to_string(), SymbolKind::Function, location.clone());
+
         let initial_importance = symbol.importance;
-        
+
         // Add some references
         for _ in 0..5 {
             symbol.add_reference(location.clone());
         }
-        
+
         assert!(symbol.importance > initial_importance);
     }
 
@@ -185,18 +184,13 @@ mod tests {
             start_col: 0,
             end_col: 0,
         };
-        
-        let base_symbol = Symbol::new(
-            "test".to_string(),
-            SymbolKind::Function,
-            location,
-        );
+
+        let base_symbol = Symbol::new("test".to_string(), SymbolKind::Function, location);
 
         let base_importance = base_symbol.importance;
-        
-        let symbol_with_sig = base_symbol
-            .with_signature("fn test(x: i32) -> i32".to_string());
-        
+
+        let symbol_with_sig = base_symbol.with_signature("fn test(x: i32) -> i32".to_string());
+
         assert!(symbol_with_sig.importance > base_importance,
             "Symbol with signature (importance: {}) should have higher importance than base symbol (importance: {})",
             symbol_with_sig.importance,

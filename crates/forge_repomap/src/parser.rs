@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 use std::path::Path;
-use tree_sitter::{Language, Parser as TsParser, Query};
+
 use streaming_iterator::StreamingIterator;
+use tree_sitter::{Language, Parser as TsParser, Query};
 
 use crate::error::Error;
-use crate::symbol::{Symbol, SymbolKind, Location};
+use crate::symbol::{Location, Symbol, SymbolKind};
 
 /// Functions for getting language-specific tree-sitter parsers.
 /// These functions initialize the appropriate tree-sitter language parser
 /// for each supported programming language.
-
 fn language_rust() -> Language {
     tree_sitter_rust::LANGUAGE.into()
 }
@@ -28,10 +28,11 @@ fn language_typescript() -> Language {
 }
 
 /// Parser responsible for analyzing source code and extracting symbols.
-/// 
-/// The Parser uses tree-sitter to parse source code and extract information about
-/// defined symbols such as functions, classes, and variables. It maintains separate
-/// parsers and queries for each supported programming language.
+///
+/// The Parser uses tree-sitter to parse source code and extract information
+/// about defined symbols such as functions, classes, and variables. It
+/// maintains separate parsers and queries for each supported programming
+/// language.
 pub struct Parser {
     /// Tree-sitter language parsers for each supported language
     parsers: HashMap<String, Language>,
@@ -52,17 +53,26 @@ impl Parser {
 
         // Load queries from embedded files in the lang directory
         Self::load_query(&mut queries, "rust", include_str!("lang/rust.scm"))?;
-        Self::load_query(&mut queries, "javascript", include_str!("lang/javascript.scm"))?;
+        Self::load_query(
+            &mut queries,
+            "javascript",
+            include_str!("lang/javascript.scm"),
+        )?;
         Self::load_query(&mut queries, "python", include_str!("lang/python.scm"))?;
-        Self::load_query(&mut queries, "typescript", include_str!("lang/typescript.scm"))?;
+        Self::load_query(
+            &mut queries,
+            "typescript",
+            include_str!("lang/typescript.scm"),
+        )?;
 
-        Ok(Self {
-            parsers,
-            queries,
-        })
+        Ok(Self { parsers, queries })
     }
 
-    fn load_query(queries: &mut HashMap<String, Query>, language: &str, query_source: &str) -> Result<(), Error> {
+    fn load_query(
+        queries: &mut HashMap<String, Query>,
+        language: &str,
+        query_source: &str,
+    ) -> Result<(), Error> {
         if let Some(lang) = get_language(language) {
             let query = Query::new(&lang, query_source)
                 .map_err(|e| Error::Parse(format!("Failed to parse {} query: {}", language, e)))?;
@@ -75,18 +85,23 @@ impl Parser {
 
     pub fn parse_file(&self, path: &Path, content: &str) -> Result<Vec<Symbol>, Error> {
         let language = self.detect_language(path)?;
-        let lang = self.parsers.get(language)
+        let lang = self
+            .parsers
+            .get(language)
             .ok_or_else(|| Error::UnsupportedLanguage(language.to_string()))?;
 
         let mut parser = TsParser::new();
-        parser.set_language(lang)
+        parser
+            .set_language(lang)
             .map_err(|e| Error::TreeSitter(e.to_string()))?;
 
-        let tree = parser.parse(content, None)
+        let tree = parser
+            .parse(content, None)
             .ok_or_else(|| Error::Parse("Failed to parse file".to_string()))?;
 
-        let query = self.queries.get(language)
-            .ok_or_else(|| Error::Parse(format!("No query available for language: {}", language)))?;
+        let query = self.queries.get(language).ok_or_else(|| {
+            Error::Parse(format!("No query available for language: {}", language))
+        })?;
 
         let mut symbols = Vec::new();
 
@@ -113,7 +128,10 @@ impl Parser {
             Some("js") => Ok("javascript"),
             Some("py") => Ok("python"),
             Some("ts") | Some("tsx") => Ok("typescript"),
-            _ => Err(Error::UnsupportedLanguage(format!("Unsupported file extension: {:?}", path.extension()))),
+            _ => Err(Error::UnsupportedLanguage(format!(
+                "Unsupported file extension: {:?}",
+                path.extension()
+            ))),
         }
     }
 
@@ -124,7 +142,8 @@ impl Parser {
         file_path: &Path,
         source: &str,
     ) -> Result<Option<Symbol>, Error> {
-        let name = node.utf8_text(source.as_bytes())
+        let name = node
+            .utf8_text(source.as_bytes())
             .map_err(|e| Error::Parse(e.to_string()))?
             .to_string();
 

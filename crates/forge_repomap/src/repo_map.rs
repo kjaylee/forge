@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use tokenizers::models::bpe::BPE;
+use tokenizers::Model;
+
 use crate::error::Error;
-use crate::token;
 use crate::graph::DependencyGraph;
 use crate::parser::Parser;
 use crate::ranking::{PageRankConfig, SymbolReference};
@@ -45,16 +47,18 @@ impl RepoMap {
     }
 
     pub fn analyze(&mut self) -> Result<(), Error> {
-        let parser = self.parser.as_ref()
-            .ok_or_else(|| Error::Parse("Parser not initialized. Call with_parser() first".to_string()))?;
-            
+        let parser = self.parser.as_ref().ok_or_else(|| {
+            Error::Parse("Parser not initialized. Call with_parser() first".to_string())
+        })?;
+
         let walker = forge_walker::Walker::new(self.root_path.clone());
-        let entries = futures::executor::block_on(walker.get())
-            .map_err(|e| Error::Io(std::io::Error::new(
+        let entries = futures::executor::block_on(walker.get()).map_err(|e| {
+            Error::Io(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 e.to_string(),
-            )))?;
-        
+            ))
+        })?;
+
         for entry in entries {
             let path = Path::new(&entry.path);
             if !entry.is_dir && self.is_supported_file(path) {
@@ -74,9 +78,10 @@ impl RepoMap {
     }
 
     fn process_file(&mut self, path: &Path) -> Result<(), Error> {
-        let parser = self.parser.as_ref()
-            .ok_or_else(|| Error::Parse("Parser not initialized. Call with_parser() first".to_string()))?;
-            
+        let parser = self.parser.as_ref().ok_or_else(|| {
+            Error::Parse("Parser not initialized. Call with_parser() first".to_string())
+        })?;
+
         let content = std::fs::read_to_string(path)?;
         let symbols = parser.parse_file(path, &content)?;
         self.files.insert(path.to_path_buf(), symbols);
@@ -96,13 +101,14 @@ impl RepoMap {
                         kind: symbol.kind.clone(),
                         count: 1, // For now, we count each reference as 1
                     };
-                    self.graph.add_symbol_reference(file_path, &reference.path, symbol_ref);
+                    self.graph
+                        .add_symbol_reference(file_path, &reference.path, symbol_ref);
                 }
             }
         }
     }
 
-    pub fn get_context(&self, focused_paths: &[PathBuf]) -> String {
+    pub fn get_context(&self, focused_paths: &[PathBuf]) -> anyhow::Result<String> {
         let importance_scores = self.graph.calculate_importance_with_focus(focused_paths);
         let mut context = String::new();
 
@@ -114,7 +120,9 @@ impl RepoMap {
         }
 
         // Add other important files until we hit the token budget
-        let mut other_files: Vec<_> = self.files.iter()
+        let mut other_files: Vec<_> = self
+            .files
+            .iter()
             .filter(|(path, _)| !focused_paths.contains(path))
             .collect();
 
@@ -125,13 +133,19 @@ impl RepoMap {
         });
 
         for (path, symbols) in other_files {
-            if self.estimate_tokens(&context) >= self.token_budget {
+            let len = BPE::builder()
+                .build()
+                .map_err(|e| anyhow::anyhow!(e))?
+                .tokenize(&context)
+                .map_err(|e| anyhow::anyhow!(e))?
+                .len();
+            if len >= self.token_budget {
                 break;
             }
             self.append_file_context(&mut context, path, symbols);
         }
 
-        context
+        Ok(context)
     }
 
     fn append_file_context(&self, context: &mut String, path: &Path, symbols: &[Symbol]) {
@@ -139,9 +153,9 @@ impl RepoMap {
             context.push_str("\n\n");
         }
 
-        if let Some(rel_path) = path.strip_prefix(&self.root_path).ok() {
+        if let Ok(rel_path) = path.strip_prefix(&self.root_path) {
             context.push_str(&format!("{}:\n", rel_path.display()));
-            
+
             // Sort symbols by importance
             let mut symbols = symbols.to_vec();
             symbols.sort_by(|a, b| b.importance.partial_cmp(&a.importance).unwrap());
@@ -153,10 +167,6 @@ impl RepoMap {
         }
     }
 
-    fn estimate_tokens(&self, text: &str) -> usize {
-        token::estimate_tokens(text)
-    }
-
     pub fn update_file(&mut self, path: &Path) -> Result<(), Error> {
         self.process_file(path)?;
         self.build_dependency_graph();
@@ -166,5 +176,5 @@ impl RepoMap {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 }
