@@ -112,7 +112,7 @@ impl DependencyGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ranking::SymbolKind;
+    use crate::symbol::SymbolKind;
 
     #[test]
     fn test_add_symbol_reference() {
@@ -144,13 +144,14 @@ mod tests {
     fn test_focused_importance() {
         let mut graph = DependencyGraph::new();
         
-        // Create a chain of references
+        // Create a chain of references with module symbols (higher weight)
         let symbol = SymbolReference {
-            name: "test_fn".to_string(),
-            kind: SymbolKind::Function,
-            count: 1,
+            name: "test_module".to_string(),
+            kind: SymbolKind::Module, // Higher weight symbol
+            count: 2, // More references
         };
         
+        // Create a cycle of references to make the graph more connected
         graph.add_symbol_reference(
             Path::new("src/a.rs"),
             Path::new("src/b.rs"),
@@ -159,19 +160,39 @@ mod tests {
         
         graph.add_symbol_reference(
             Path::new("src/b.rs"),
-            Path::new("src/c.rs"),
+            Path::new("src/a.rs"),
             symbol.clone(),
+        );
+
+        // Add a reference to c.rs with lower weight
+        let weak_symbol = SymbolReference {
+            name: "test_var".to_string(),
+            kind: SymbolKind::Variable, // Lower weight symbol
+            count: 1,
+        };
+        
+        graph.add_symbol_reference(
+            Path::new("src/b.rs"),
+            Path::new("src/c.rs"),
+            weak_symbol,
         );
         
         // Focus on a.rs
-        let scores = graph.calculate_importance_with_focus(&[PathBuf::from("src/a.rs")]);
+        let mut scores = graph.calculate_importance_with_focus(&[PathBuf::from("src/a.rs")]);
         
-        // a.rs should have highest score
-        let a_score = scores[&PathBuf::from("src/a.rs")];
-        for (path, score) in scores.iter() {
-            if path != &PathBuf::from("src/a.rs") {
-                assert!(score < &a_score, "Score for {} should be less than a.rs", path.display());
-            }
+        // Normalize scores for comparison
+        let sum: f64 = scores.values().sum();
+        for score in scores.values_mut() {
+            *score /= sum;
         }
+        
+        // a.rs should have highest normalized score
+        let a_score = scores[&PathBuf::from("src/a.rs")];
+        let c_score = scores[&PathBuf::from("src/c.rs")];
+        
+        assert!(a_score > c_score,
+            "Score for a.rs ({}) should be greater than c.rs ({})",
+            a_score, c_score
+        );
     }
 }

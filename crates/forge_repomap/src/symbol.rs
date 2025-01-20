@@ -110,13 +110,15 @@ impl Symbol {
             kind,
             signature: None,
             location,
-            importance: base_weight, // Use the base weight as initial importance
+            importance: base_weight,
             references: Vec::new(),
         }
     }
 
     pub fn with_signature(mut self, signature: String) -> Self {
+        let signature_bonus = 0.1;
         self.signature = Some(signature);
+        self.importance += signature_bonus;
         self
     }
 
@@ -184,12 +186,21 @@ mod tests {
             end_col: 0,
         };
         
-        let symbol = Symbol::new(
+        let base_symbol = Symbol::new(
             "test".to_string(),
             SymbolKind::Function,
             location,
-        ).with_signature("fn test(x: i32) -> i32".to_string());
+        );
+
+        let base_importance = base_symbol.importance;
         
-        assert!(symbol.importance > SymbolKind::Function.base_weight());
+        let symbol_with_sig = base_symbol
+            .with_signature("fn test(x: i32) -> i32".to_string());
+        
+        assert!(symbol_with_sig.importance > base_importance,
+            "Symbol with signature (importance: {}) should have higher importance than base symbol (importance: {})",
+            symbol_with_sig.importance,
+            base_importance
+        );
     }
 }

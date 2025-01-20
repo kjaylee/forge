@@ -4,15 +4,28 @@ A Rust library for building comprehensive maps of code repositories to provide c
 
 ## Features
 
-- **Symbol Extraction**: Identifies functions, classes, methods, and other code elements
-- **Dependency Tracking**: Maps relationships between files and symbols
-- **Smart Context**: Generates LLM-friendly context optimized for token limits
-- **Multi-Language Support**: Works with:
-  - Rust
-  - JavaScript
-  - Python
-  - TypeScript
-- **Token Budget Management**: Efficiently manages context size for LLM interactions
+### Core Features
+- **Smart Symbol Analysis**: Identifies and ranks code elements based on their type and usage
+- **PageRank-Based Importance**: Uses a modified PageRank algorithm for context relevance
+- **Precise Token Estimation**: Code-aware token counting for accurate LLM context management
+- **Type-Safe Implementation**: Strong compile-time guarantees and Rust's type system benefits
+
+### Symbol Hierarchy
+Automatically weights different types of symbols:
+- Modules (1.5x) - Highest importance for structural elements
+- Traits/Interfaces (1.4x) - Core abstractions
+- Classes/Structs (1.3x) - Major data structures
+- Enums (1.2x) - Type definitions
+- Functions/Methods (1.1x) - Behavioral elements
+- Constants (0.9x) - Named values
+- Variables (0.8x) - Basic elements
+
+### Language Support
+Currently supports:
+- Rust (.rs)
+- JavaScript (.js)
+- Python (.py)
+- TypeScript (.ts, .tsx)
 
 ## Installation
 
@@ -27,13 +40,15 @@ forge_repomap = { path = "../forge_repomap" }
 
 ```rust
 use std::path::PathBuf;
-use forge_repomap::RepoMap;
+use forge_repomap::{RepoMap, PageRankConfig};
 
-// Create a new repo map with a token budget
-let mut repo_map = RepoMap::new(
-    PathBuf::from("./"), // Repository root path
-    1000,               // Token budget for context
-)?;
+// Create a new repo map with custom PageRank settings
+let mut repo_map = RepoMap::new(PathBuf::from("./"), 1000)?
+    .with_page_rank_config(PageRankConfig {
+        damping_factor: 0.85,
+        max_iterations: 100,
+        tolerance: 1e-6,
+    });
 
 // Analyze the repository
 repo_map.analyze()?;
@@ -47,23 +62,32 @@ let context = repo_map.get_context(&[
 
 ## How It Works
 
-### 1. Repository Analysis
+### 1. Symbol Analysis and Ranking
 
-The RepoMap analyzes your repository in several stages:
+#### Symbol Extraction
+- Parses code using tree-sitter
+- Identifies symbols and their relationships
+- Tracks references and dependencies
 
-1. **File Discovery**: Traverses the repository to find source files
-2. **Symbol Extraction**: Uses tree-sitter to parse files and extract symbols
-3. **Dependency Analysis**: Builds a graph of file and symbol relationships
-4. **Importance Scoring**: Ranks code elements by their significance
+#### Importance Calculation
+Uses a sophisticated ranking system:
+1. **Base Weights**: Different weights for different symbol types
+2. **Reference Impact**: Logarithmic scaling of reference counts
+3. **Signature Bonus**: Additional weight for well-documented symbols
+4. **PageRank Integration**: Modified PageRank algorithm for global importance
 
 ### 2. Context Generation
 
-When providing context to LLMs, RepoMap:
+The context generation process:
 
-1. Prioritizes directly relevant files
-2. Includes important related symbols
-3. Optimizes output for the token budget
-4. Formats context in a clear, LLM-friendly way
+1. **Focus Prioritization**: 
+   - Directly referenced files get highest priority
+   - Uses PageRank with personalization for focus files
+
+2. **Smart Token Management**:
+   - Code-aware token estimation
+   - Handles special programming patterns
+   - Accounts for structure and syntax
 
 Example context output:
 ```text
@@ -78,61 +102,71 @@ src/lib.rs:
 │----impl Repository<User> for UserRepository
 ```
 
-### 3. Symbol Types
+### 3. Dependency Graph
 
-RepoMap tracks various types of code symbols:
-
-- Functions and Methods
-- Classes and Structs
-- Interfaces and Traits
-- Variables and Constants
-- Modules and Namespaces
+- Tracks file and symbol relationships
+- Weighted edges based on symbol importance
+- Reference counting and relationship strength
+- PageRank-based importance propagation
 
 ## Advanced Usage
 
-### Custom Token Budgets
+### Custom PageRank Configuration
 
-Adjust context size based on your LLM's requirements:
+Fine-tune the importance calculation:
 
 ```rust
-// More context for GPT-4
-let mut large_map = RepoMap::new(root_path, 2000)?;
+use forge_repomap::PageRankConfig;
 
-// Less context for smaller models
-let mut small_map = RepoMap::new(root_path, 500)?;
+let config = PageRankConfig {
+    damping_factor: 0.85,  // Balance between global and local importance
+    max_iterations: 100,   // Maximum convergence attempts
+    tolerance: 1e-6,       // Convergence threshold
+};
+
+let repo_map = RepoMap::new(root_path, token_budget)?
+    .with_page_rank_config(config);
 ```
 
-### Focus on Specific Files
+### Focus-Based Context
 
-Get context about particular files and their dependencies:
+Get context with emphasis on specific files:
 
 ```rust
+// Files in the Vec get higher importance in the context
 let context = repo_map.get_context(&[
-    PathBuf::from("src/important_module.rs"),
-    PathBuf::from("src/related_code.rs"),
+    PathBuf::from("src/important.rs"),
+    PathBuf::from("src/related.rs"),
 ]);
-```
-
-### File Updates
-
-Update the map when files change:
-
-```rust
-repo_map.update_file(PathBuf::from("src/modified_file.rs"))?;
 ```
 
 ## Architecture
 
-RepoMap consists of several key components:
+### Core Components
 
-- **Parser**: Uses tree-sitter for accurate code analysis
-- **DependencyGraph**: Tracks relationships between files
-- **SymbolExtractor**: Identifies and categorizes code elements
-- **TokenBudget**: Manages context size optimization
+1. **Symbol System**
+   - Hierarchical symbol types
+   - Reference tracking
+   - Importance calculation
+
+2. **Ranking System**
+   - PageRank-based algorithm
+   - Symbol weight integration
+   - Focus file personalization
+
+3. **Token Management**
+   - Code-aware estimation
+   - Pattern recognition
+   - Structure awareness
+
+### Technical Details
+
+- **Graph Implementation**: Uses `petgraph` for dependency tracking
+- **Parser**: Tree-sitter integration for accurate parsing
+- **Memory Efficiency**: Smart ownership and reference management
+- **Error Handling**: Comprehensive error types and handling
 
 ## Error Handling
-
-RepoMap provides detailed error information:
 
 ```rust
 use forge_repomap::Error;
@@ -149,14 +183,22 @@ match repo_map.analyze() {
 }
 ```
 
+## Future Improvements
+
+Planned enhancements:
+1. Disk-based caching system
+2. Additional language support
+3. Incremental updates
+4. Performance optimizations
+5. Parallel processing
+
 ## Contributing
 
 Key areas for contribution:
-
-1. Additional language support
-2. Performance optimizations
-3. Enhanced symbol detection
-4. Improved importance scoring algorithms
+1. Language support expansion
+2. Caching implementation
+3. Performance optimization
+4. Testing and benchmarks
 
 ## License
 
