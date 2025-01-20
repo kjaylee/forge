@@ -75,6 +75,13 @@ pub mod tests {
     }
 
     impl TestSqlite {
+        // complete path of the database
+        pub fn path(&self) -> String {
+            let db_path = self._temp_dir.path().to_str().unwrap().to_string();
+            let db_path = format!("{}/{}", db_path, DB_NAME);
+            db_path
+        }
+
         pub fn new() -> Result<Self> {
             let temp_dir = TempDir::new().unwrap();
             let db_path = temp_dir.path().to_str().unwrap().to_string();

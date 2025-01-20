@@ -116,6 +116,10 @@ pub mod tests {
                 .push(learning);
             Ok(())
         }
+
+        async fn search(&self, _query: &str, _sz: usize) -> Result<Vec<LearningModel>> {
+            todo!("Not implemented yet!")
+        }
     }
 
     fn test_cwd() -> TempDir {

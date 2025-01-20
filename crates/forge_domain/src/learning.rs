@@ -70,4 +70,6 @@ pub trait LearningRepository: Send + Sync {
 
     /// Save Learnings from the conversation
     async fn save(&self, learning: Learning) -> anyhow::Result<()>;
+
+    async fn search(&self, query: &str, sz: usize) -> anyhow::Result<Vec<Learning>>;
 }
