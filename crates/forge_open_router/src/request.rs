@@ -1,9 +1,18 @@
 use derive_more::derive::Display;
+use derive_setters::Setters;
 use forge_domain::{Context, ContextMessage, ModelId, Role, ToolCallId, ToolDefinition, ToolName};
 use serde::{Deserialize, Serialize};
 
 use super::response::{FunctionCall, OpenRouterToolCall};
 use super::tool_choice::{FunctionType, ToolChoice};
+
+// NOTE: only some of the anthropic models support caching.
+const CLAUDE_CACHE_SUPPORTED_MODELS: &[&str] = &[
+    "anthropic/claude-3.5-sonnet",
+    "anthropic/claude-3.5-haiku",
+    "anthropic/claude-3-haiku",
+    "anthropic/claude-3-opus",
+];
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -112,7 +121,8 @@ pub struct ProviderPreferences {
     // Define fields as necessary
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Setters)]
+#[setters(strip_option)]
 pub struct OpenRouterRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub messages: Option<Vec<OpenRouterMessage>>,
@@ -258,6 +268,30 @@ impl From<ContextMessage> for OpenRouterMessage {
                 tool_calls: None,
             },
         }
+    }
+}
+
+impl OpenRouterRequest {
+    // caches the user or system message if the model supports it.
+    pub fn cache(mut self) -> Self {
+        if self.messages.is_none() || self.model.is_none() {
+            return self;
+        }
+
+        if let Some(model) = &self.model {
+            let model_id = model.as_str();
+            let caching_supported = if model_id.contains("anthropic") {
+                CLAUDE_CACHE_SUPPORTED_MODELS
+                    .iter()
+                    .any(|supported_model| model_id.contains(supported_model))
+            } else {
+                true
+            };
+            if caching_supported {
+                self.messages = Some(insert_cache(self.messages.unwrap()));
+            }
+        }
+        self
     }
 }
 
