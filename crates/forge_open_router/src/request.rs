@@ -272,9 +272,11 @@ impl From<ContextMessage> for OpenRouterMessage {
 }
 
 impl OpenRouterRequest {
-    // caches the user or system message if the model supports it.
+    /// Inserts cache control information into the last system or user message if model supports it.
+    /// NOTE: This helps reduce context window usage by caching only the most recent
+    /// system/user message
     pub fn cache(mut self) -> Self {
-        if let (Some(messages), Some(model)) = (self.messages.take(), self.model.take()) {
+        if let (Some(mut messages), Some(model)) = (self.messages.take(), self.model.take()) {
             let model_id = model.as_str();
             let should_cache = !model_id.contains("anthropic")
                 || CLAUDE_CACHE_SUPPORTED_MODELS
@@ -282,7 +284,16 @@ impl OpenRouterRequest {
                     .any(|m| model_id.contains(m));
 
             self.messages = Some(if should_cache {
-                insert_cache(messages)
+                if let Some(last_system_or_user) = messages.iter_mut().rev().find(|msg| {
+                    msg.role == OpenRouterRole::System || msg.role == OpenRouterRole::User
+                }) {
+                    // Avoid cloning the entire content - take ownership and transform
+                    last_system_or_user.content = last_system_or_user
+                        .content
+                        .take()
+                        .map(|content| content.cached());
+                }
+                messages
             } else {
                 messages
             });
@@ -290,24 +301,6 @@ impl OpenRouterRequest {
         }
         self
     }
-}
-
-/// Inserts cache control information into the last system or user message
-/// NOTE: This helps reduce context window usage by caching only the most recent
-/// system/user message
-fn insert_cache(mut messages: Vec<OpenRouterMessage>) -> Vec<OpenRouterMessage> {
-    if let Some(last_system_or_user) = messages
-        .iter_mut()
-        .rev()
-        .find(|msg| msg.role == OpenRouterRole::System || msg.role == OpenRouterRole::User)
-    {
-        // Avoid cloning the entire content - take ownership and transform
-        last_system_or_user.content = last_system_or_user
-            .content
-            .take()
-            .map(|content| content.cached());
-    }
-    messages
 }
 
 impl From<Role> for OpenRouterRole {
