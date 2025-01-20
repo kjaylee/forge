@@ -249,7 +249,9 @@ fn extract_active_files(conn: &Connection) -> anyhow::Result<Vec<PathBuf>> {
         .optional()?;
 
     if let Some(value) = value {
-        return active_files_path(&value);
+        let x = active_files_path(&value);
+        dbg!(&x);
+        return x;
     }
 
     Err(anyhow!("Focused file not found"))
@@ -257,45 +259,28 @@ fn extract_active_files(conn: &Connection) -> anyhow::Result<Vec<PathBuf>> {
 
 fn active_files_path(json_data: &str) -> anyhow::Result<Vec<PathBuf>> {
     let parsed: Value = serde_json::from_str(json_data).expect("Invalid JSON");
+    let values = jsonpath_lib::Selector::new()
+        .str_path("$['editorpart.state'].serializedGrid.root.data[0].data.editors[*].value")?
+        .value(&parsed)
+        .select()?
+        .into_iter()
+        .filter_map(|v| v.as_str());
+    let mut final_selector = jsonpath_lib::Selector::new();
+    let final_selector = final_selector.str_path("$.resourceJSON.fsPath")?;
 
-    let mut fspaths = vec![];
+    let value = values
+        .map(serde_json::from_str)
+        .filter_map(|v: serde_json::Result<Value>| v.ok())
+        .collect::<Vec<_>>();
+    let mut ans = vec![];
 
-    // Recursively search for "fsPath" keys
-    fn find_fspaths(
-        value: &Value,
-        fspaths: &mut Vec<PathBuf>,
-        possible_value: bool,
-    ) -> anyhow::Result<()> {
-        match value {
-            Value::Object(map) => {
-                for (key, val) in map {
-                    if key == "fsPath" {
-                        if let Value::String(path) = val {
-                            fspaths.push(PathBuf::from(path));
-                        }
-                    } else {
-                        find_fspaths(val, fspaths, key == "value" || possible_value)?;
-                    }
-                }
-                Ok(())
-            }
-            Value::Array(arr) => {
-                for item in arr {
-                    find_fspaths(item, fspaths, false)?;
-                }
-                Ok(())
-            }
-            Value::String(v) if possible_value => {
-                let new_value: Value = serde_json::from_str(v)?;
-                find_fspaths(&new_value, fspaths, false)
-            }
-            _ => Ok(()),
+    for v in value.iter() {
+        for v in final_selector.value(v).select()? {
+            let val = v.as_str().ok_or(anyhow!("Invalid JSON"))?;
+            ans.push(PathBuf::from(val));
         }
     }
-
-    find_fspaths(&parsed, &mut fspaths, false)?;
-
-    Ok(fspaths)
+    Ok(ans)
 }
 
 fn extract_focused_file(connection: &Connection) -> anyhow::Result<PathBuf> {
