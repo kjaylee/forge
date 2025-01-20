@@ -2,4 +2,4 @@ mod apply;
 mod marker;
 mod parse;
 
-pub use apply::Patch;
+pub use apply::ApplyPatch;

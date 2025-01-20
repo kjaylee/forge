@@ -14,7 +14,7 @@ use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
 use outline::Outline;
-use patch::Patch;
+use patch::ApplyPatch;
 use select::SelectTool;
 use shell::Shell;
 use think::Think;
@@ -27,7 +27,7 @@ pub fn tools() -> Vec<Tool> {
         FSList.into(),
         FSSearch.into(),
         FSFileInfo.into(),
-        Patch.into(),
+        ApplyPatch.into(),
         Outline.into(),
         SelectTool.into(),
         Shell::default().into(),
