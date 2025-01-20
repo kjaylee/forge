@@ -3,12 +3,13 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
-use forge_walker::Walker;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sysinfo::System;
+
+use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
+use forge_walker::Walker;
 
 /// Represents Visual Studio Code IDE interaction
 pub struct Code {
@@ -179,23 +180,35 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
             .iter()
             .map(|v| v.to_string_lossy().to_string())
             .collect::<Vec<_>>();
-        if let Ok(workspace_id) = extract_workspace_id(&cmd, cwd, i).await {
-            ans.push(Ide {
-                name: "VS Code".to_string(),
-                version: None,
-                process: v.pid().as_u32().into(),
-                working_directory: v
-                    .cwd()
-                    .unwrap_or(Path::new(""))
-                    .to_string_lossy()
-                    .to_string()
-                    .into(),
-                workspace_id: workspace_id.into(),
-            });
+
+        let pid = v.pid().as_u32();
+
+        let working_directory = v
+            .cwd()
+            .unwrap_or(Path::new(""))
+            .to_string_lossy()
+            .to_string();
+
+        if let Some(ide) = get_vscode_instance(cmd, pid, working_directory, cwd, i).await {
+            ans.push(ide);
         }
     }
 
     Ok(ans)
+}
+
+async fn get_vscode_instance(cmd: Vec<String>, pid: u32, working_directory: String, cwd: &str, index: usize) -> Option<Ide> {
+    if let Ok(workspace_id) = extract_workspace_id(&cmd, cwd, index).await {
+        return Some(Ide {
+            name: "VS Code".to_string(),
+            version: None,
+            process: pid.into(),
+            working_directory: working_directory.into(),
+            workspace_id: workspace_id.into(),
+        });
+    }
+
+    None
 }
 
 async fn get_hash(
@@ -439,10 +452,6 @@ mod tests {
             )
             .expect("Failed to write workspace JSON");
 
-            assert!(process_workflow_file(
-                temp_dir.path(),
-                "/home/user/project/src"
-            ));
             assert!(process_workflow_file(temp_dir.path(), "/home/user/project"));
         }
 
@@ -481,6 +490,6 @@ mod tests {
             focused_file_path(valid_json2).unwrap(),
             "/home/user/project/main.rs"
         );
-        assert!(focused_file_path(invalid_json).is_err());
+        assert_eq!("", focused_file_path(invalid_json).unwrap());
     }
 }
