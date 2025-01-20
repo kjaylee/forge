@@ -188,19 +188,27 @@ impl Parser {
             .map_err(|e| Error::Parse(e.to_string()))?
             .to_string();
 
-        let kind = match capture_name {
-            "function" => SymbolKind::Function,
-            "method" => SymbolKind::Method,
-            "class" => SymbolKind::Class,
-            "interface" => SymbolKind::Interface,
-            "struct" => SymbolKind::Struct,
-            "enum" => SymbolKind::Enum,
-            "constant" => SymbolKind::Constant,
-            "variable" => SymbolKind::Variable,
-            "module" => SymbolKind::Module,
-            "trait" => SymbolKind::Trait,
-            "implementation" => SymbolKind::Implementation,
-            _ => return Ok(None),
+        let kind = if capture_name.starts_with("name.definition.") {
+            match &capture_name["name.definition.".len()..] {
+                "function" => Some(SymbolKind::Function),
+                "method" => Some(SymbolKind::Method),
+                "class" => Some(SymbolKind::Class),
+                "interface" => Some(SymbolKind::Interface),
+                "struct" => Some(SymbolKind::Struct),
+                "enum" => Some(SymbolKind::Enum),
+                "constant" => Some(SymbolKind::Constant),
+                "variable" => Some(SymbolKind::Variable),
+                "module" => Some(SymbolKind::Module),
+                "trait" => Some(SymbolKind::Trait),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        let kind = match kind {
+            Some(k) => k,
+            None => return Ok(None),
         };
 
         let location = Location {
