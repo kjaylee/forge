@@ -49,7 +49,7 @@ impl Live {
         let env = Service::environment_service().get().await?;
 
         let cwd: String = env.cwd.clone();
-        let ide = Arc::new(Service::ide_service(&cwd));
+        let ide = Arc::new(Service::ide_service(cwd.clone()));
 
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
         let tool = Arc::new(Service::tool_service());
@@ -61,10 +61,7 @@ impl Live {
             provider.clone(),
         ));
 
-        let user_prompt = Arc::new(Service::user_prompt_service(
-            file_read.clone(),
-            Arc::new(ide),
-        ));
+        let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone(), ide.clone()));
         let storage = Arc::new(Service::storage_service(&cwd)?);
 
         let chat_service = Arc::new(Service::chat_service(

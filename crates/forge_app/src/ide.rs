@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use forge_code::Code;
 use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 
