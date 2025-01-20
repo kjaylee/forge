@@ -274,27 +274,21 @@ impl From<ContextMessage> for OpenRouterMessage {
 impl OpenRouterRequest {
     // caches the user or system message if the model supports it.
     pub fn cache(mut self) -> Self {
-        match (self.messages.take(), self.model.take()) {
-            (Some(messages), Some(model)) => {
-                let model_id = model.as_str();
-                let caching_supported = if model_id.contains("anthropic") {
-                    CLAUDE_CACHE_SUPPORTED_MODELS
-                        .iter()
-                        .any(|supported_model| model_id.contains(supported_model))
-                } else {
-                    true
-                };
-                self.model = Some(model);
+        if let (Some(messages), Some(model)) = (self.messages.take(), self.model.take()) {
+            let model_id = model.as_str();
+            let should_cache = !model_id.contains("anthropic")
+                || CLAUDE_CACHE_SUPPORTED_MODELS
+                    .iter()
+                    .any(|m| model_id.contains(m));
 
-                if caching_supported {
-                    self.messages = Some(insert_cache(messages));
-                } else {
-                    self.messages = Some(messages);
-                }
-                self
-            }
-            _ => self,
+            self.messages = Some(if should_cache {
+                insert_cache(messages)
+            } else {
+                messages
+            });
+            self.model = Some(model);
         }
+        self
     }
 }
 
