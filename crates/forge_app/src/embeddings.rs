@@ -7,15 +7,15 @@ pub fn get_embedding(text: String) -> Result<Vec<f32>> {
         InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
     )?;
     let embeddings = model.embed(vec![text], None)?;
-    Ok(embeddings[0].clone())
+    embeddings.into_iter().next().ok_or_else(|| anyhow::anyhow!("No embedding was generated"))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_get_embedding() {
+    #[test]
+    fn test_get_embedding() {
         let embedding = get_embedding("Hello, world!".to_string()).unwrap();
         assert_eq!(embedding.len(), 384);
     }
