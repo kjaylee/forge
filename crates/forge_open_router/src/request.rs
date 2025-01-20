@@ -199,7 +199,7 @@ impl From<Context> for OpenRouterRequest {
                     .map(OpenRouterMessage::from)
                     .collect::<Vec<_>>();
 
-                Some(insert_cache(messages))
+                Some(messages)
             },
             tools: {
                 let tools = request
@@ -274,24 +274,27 @@ impl From<ContextMessage> for OpenRouterMessage {
 impl OpenRouterRequest {
     // caches the user or system message if the model supports it.
     pub fn cache(mut self) -> Self {
-        if self.messages.is_none() || self.model.is_none() {
-            return self;
-        }
+        match (self.messages.take(), self.model.take()) {
+            (Some(messages), Some(model)) => {
+                let model_id = model.as_str();
+                let caching_supported = if model_id.contains("anthropic") {
+                    CLAUDE_CACHE_SUPPORTED_MODELS
+                        .iter()
+                        .any(|supported_model| model_id.contains(supported_model))
+                } else {
+                    true
+                };
+                self.model = Some(model);
 
-        if let Some(model) = &self.model {
-            let model_id = model.as_str();
-            let caching_supported = if model_id.contains("anthropic") {
-                CLAUDE_CACHE_SUPPORTED_MODELS
-                    .iter()
-                    .any(|supported_model| model_id.contains(supported_model))
-            } else {
-                true
-            };
-            if caching_supported {
-                self.messages = Some(insert_cache(self.messages.unwrap()));
+                if caching_supported {
+                    self.messages = Some(insert_cache(messages));
+                } else {
+                    self.messages = Some(messages);
+                }
+                self
             }
+            _ => self,
         }
-        self
     }
 }
 
@@ -463,7 +466,9 @@ mod tests {
             tool_choice: None,
         };
 
-        let request = OpenRouterRequest::from(context);
+        let request = OpenRouterRequest::from(context)
+            .model(ModelId::new("anthropic/claude-3.5-sonnet"))
+            .cache();
         let messages = request.messages.unwrap();
 
         // Verify first system message is NOT cached (it's not the last system/user
@@ -510,7 +515,9 @@ mod tests {
             tool_choice: None,
         };
 
-        let request = OpenRouterRequest::from(context_system_only);
+        let request = OpenRouterRequest::from(context_system_only)
+            .model(ModelId::new("anthropic/claude-3.5-sonnet"))
+            .cache();
         let messages = request.messages.unwrap();
 
         // Verify first system message is NOT cached
@@ -528,6 +535,43 @@ mod tests {
             ));
         } else {
             panic!("Last system message should be cached");
+        }
+    }
+
+    #[test]
+    fn test_should_not_cache_when_model_doesnt_support() {
+        let context = Context {
+            messages: vec![
+                ContextMessage::ContentMessage(ContentMessage {
+                    role: Role::System,
+                    content: "First system message".to_string(),
+                    tool_call: None,
+                }),
+                ContextMessage::ContentMessage(ContentMessage {
+                    role: Role::User,
+                    content: "Last user message".to_string(),
+                    tool_call: None,
+                }),
+            ],
+            tools: vec![],
+            tool_choice: None,
+        };
+
+        let request = OpenRouterRequest::from(context)
+            .model(ModelId::new("anthropic/claude-3-sonnet"))
+            .cache();
+
+        let messages = request.messages.unwrap();
+        for msg in messages {
+            match msg.content {
+                Some(MessageContent::Parts(parts)) => {
+                    assert!(matches!(
+                        parts[0],
+                        ContentPart::Text { cache_control: None, .. }
+                    ));
+                }
+                _ => {}
+            }
         }
     }
 }
