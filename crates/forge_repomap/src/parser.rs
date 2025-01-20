@@ -87,17 +87,61 @@ impl Parser {
         parsers.insert("php".to_string(), language_php());
 
         // Load queries from embedded files in the lang directory
-        Self::load_query(&mut queries, "rust", include_str!("lang/tree-sitter-rust-tags.scm"))?;
-        Self::load_query(&mut queries, "javascript", include_str!("lang/tree-sitter-javascript-tags.scm"))?;
-        Self::load_query(&mut queries, "python", include_str!("lang/tree-sitter-python-tags.scm"))?;
-        Self::load_query(&mut queries, "typescript", include_str!("lang/tree-sitter-typescript-tags.scm"))?;
-        Self::load_query(&mut queries, "c", include_str!("lang/tree-sitter-c-tags.scm"))?;
-        Self::load_query(&mut queries, "cpp", include_str!("lang/tree-sitter-cpp-tags.scm"))?;
-        Self::load_query(&mut queries, "csharp", include_str!("lang/tree-sitter-c_sharp-tags.scm"))?;
-        Self::load_query(&mut queries, "java", include_str!("lang/tree-sitter-java-tags.scm"))?;
-        Self::load_query(&mut queries, "go", include_str!("lang/tree-sitter-go-tags.scm"))?;
-        Self::load_query(&mut queries, "ruby", include_str!("lang/tree-sitter-ruby-tags.scm"))?;
-        Self::load_query(&mut queries, "php", include_str!("lang/tree-sitter-php-tags.scm"))?;
+        Self::load_query(
+            &mut queries,
+            "rust",
+            include_str!("lang/tree-sitter-rust-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "javascript",
+            include_str!("lang/tree-sitter-javascript-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "python",
+            include_str!("lang/tree-sitter-python-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "typescript",
+            include_str!("lang/tree-sitter-typescript-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "c",
+            include_str!("lang/tree-sitter-c-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "cpp",
+            include_str!("lang/tree-sitter-cpp-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "csharp",
+            include_str!("lang/tree-sitter-c_sharp-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "java",
+            include_str!("lang/tree-sitter-java-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "go",
+            include_str!("lang/tree-sitter-go-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "ruby",
+            include_str!("lang/tree-sitter-ruby-tags.scm"),
+        )?;
+        Self::load_query(
+            &mut queries,
+            "php",
+            include_str!("lang/tree-sitter-php-tags.scm"),
+        )?;
 
         Ok(Self { parsers, queries })
     }

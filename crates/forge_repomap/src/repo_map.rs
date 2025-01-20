@@ -165,7 +165,7 @@ impl RepoMap {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{fs, path::PathBuf};
 
     use super::*;
 
@@ -235,6 +235,42 @@ mod tests {
         // Verify the unsupported file was not processed
         assert!(!repo_map.files.contains_key(&root.join("test.txt")));
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_directory_context_snapshot() -> anyhow::Result<()> {
+        use insta::assert_snapshot;
+        
+        let test_root = PathBuf::from("/test/workspace");
+        let mut repo_map = RepoMap::new(test_root.clone(), 10000)?;
+        
+        let src_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut source_files = Vec::new();
+        let mut entries = tokio::fs::read_dir(&src_dir).await?;
+        
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            if path.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| matches!(ext, "rs"))
+                .unwrap_or(false) 
+            {
+                let relative_path = path.strip_prefix(&src_dir).unwrap();
+                let test_path = test_root.join("src").join(relative_path);
+                let content = tokio::fs::read_to_string(&path).await?;
+                source_files.push(SourceFile {
+                    path: test_path,
+                    content,
+                });
+            }
+        }
+            
+        source_files.sort_by(|a, b| a.path.cmp(&b.path));
+        repo_map.process_files(source_files)?;
+        let context = repo_map.get_context(&[])?;
+        assert_snapshot!(context);
+        
         Ok(())
     }
 }
