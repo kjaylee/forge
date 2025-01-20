@@ -1,7 +1,10 @@
 use anyhow::Result;
 use colored::Colorize;
 use forge_app::Routes;
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_domain::{
+    ChatRequest, ChatResponse, Command, Conversation, ConversationId, ModelId, Usage, UserInput,
+};
+use inquire::Select;
 use tokio_stream::StreamExt;
 
 use crate::{Console, StatusDisplay, CONSOLE};
@@ -75,6 +78,57 @@ impl UI {
                     };
                     continue;
                 }
+                Command::List => {
+                    let conversation_history = self.api.conversations().await?;
+                    if conversation_history.is_empty() {
+                        CONSOLE.writeln("No conversations found.")?;
+                    } else {
+                        // Format and display conversations
+                        let options: Vec<String> = conversation_history
+                            .iter()
+                            .enumerate()
+                            .map(|(index, conv)| Self::format_conversation_entry(index, conv))
+                            .collect();
+
+                        // Get user selection
+                        if let Ok(selection) =
+                            Select::new("Select a conversation to resume:", options).prompt()
+                        {
+                            // Extract index from selection (first number in the string)
+                            if let Some(index) = selection
+                                .split('.')
+                                .next()
+                                .and_then(|s| s.trim().parse::<usize>().ok())
+                            {
+                                if let Some(selected_conv) = conversation_history.get(index - 1) {
+                                    self.state.current_conversation_id = Some(selected_conv.id);
+                                    self.state.current_title = selected_conv.title.clone();
+                                    CONSOLE.writeln(
+                                        format!(
+                                            "Resumed conversation: {}",
+                                            selected_conv.title.as_deref().unwrap_or("Untitled")
+                                        )
+                                        .green()
+                                        .bold()
+                                        .to_string(),
+                                    )?;
+                                }
+                            } else {
+                                CONSOLE.writeln(
+                                    "Failed to parse selection, please try again."
+                                        .red()
+                                        .bold()
+                                        .to_string(),
+                                )?;
+                            }
+                        }
+                    }
+
+                    input = self
+                        .console
+                        .prompt(self.format_title().as_deref(), None)
+                        .await?;
+                }
                 Command::Info => {
                     crate::display_info(&self.api.environment().await?, &self.state.usage)?;
                     input = self
@@ -95,6 +149,22 @@ impl UI {
         }
 
         Ok(())
+    }
+
+    fn format_conversation_entry(index: usize, conv: &Conversation) -> String {
+        let title = conv.title.as_deref().unwrap_or("Untitled");
+        let id = conv.id.into_string();
+        if let Some(meta) = &conv.meta {
+            format!(
+                "{}. {} - {} ({})",
+                index + 1,
+                title,
+                id,
+                meta.created_at.format("%Y-%m-%d %H:%M")
+            )
+        } else {
+            format!("{}. {} - {}", index + 1, title, id)
+        }
     }
 
     async fn handle_message(&mut self, content: String, model: &ModelId) -> Result<()> {
