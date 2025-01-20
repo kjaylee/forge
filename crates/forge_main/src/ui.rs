@@ -81,7 +81,7 @@ impl UI {
                 Command::List => {
                     let conversation_history = self.api.conversations().await?;
                     if conversation_history.is_empty() {
-                        CONSOLE.writeln("No conversations found.")?;
+                        CONSOLE.writeln("No conversations found.".yellow().to_string())?;
                     } else {
                         // Format and display conversations
                         let options: Vec<String> = conversation_history
