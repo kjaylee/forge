@@ -249,9 +249,7 @@ fn extract_active_files(conn: &Connection) -> anyhow::Result<Vec<PathBuf>> {
         .optional()?;
 
     if let Some(value) = value {
-        let x = active_files_path(&value);
-        dbg!(&x);
-        return x;
+        return active_files_path(&value);
     }
 
     Err(anyhow!("Focused file not found"))
