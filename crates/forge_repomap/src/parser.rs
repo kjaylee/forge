@@ -27,6 +27,34 @@ fn language_typescript() -> Language {
     tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
 }
 
+fn language_c() -> Language {
+    tree_sitter_c::LANGUAGE.into()
+}
+
+fn language_cpp() -> Language {
+    tree_sitter_cpp::LANGUAGE.into()
+}
+
+fn language_csharp() -> Language {
+    tree_sitter_c_sharp::LANGUAGE.into()
+}
+
+fn language_java() -> Language {
+    tree_sitter_java::LANGUAGE.into()
+}
+
+fn language_go() -> Language {
+    tree_sitter_go::LANGUAGE.into()
+}
+
+fn language_ruby() -> Language {
+    tree_sitter_ruby::LANGUAGE.into()
+}
+
+fn language_php() -> Language {
+    tree_sitter_php::LANGUAGE_PHP.into()
+}
+
 /// Parser responsible for analyzing source code and extracting symbols.
 ///
 /// The Parser uses tree-sitter to parse source code and extract information
@@ -50,20 +78,26 @@ impl Parser {
         parsers.insert("javascript".to_string(), language_javascript());
         parsers.insert("python".to_string(), language_python());
         parsers.insert("typescript".to_string(), language_typescript());
+        parsers.insert("c".to_string(), language_c());
+        parsers.insert("cpp".to_string(), language_cpp());
+        parsers.insert("csharp".to_string(), language_csharp());
+        parsers.insert("java".to_string(), language_java());
+        parsers.insert("go".to_string(), language_go());
+        parsers.insert("ruby".to_string(), language_ruby());
+        parsers.insert("php".to_string(), language_php());
 
         // Load queries from embedded files in the lang directory
-        Self::load_query(&mut queries, "rust", include_str!("lang/rust.scm"))?;
-        Self::load_query(
-            &mut queries,
-            "javascript",
-            include_str!("lang/javascript.scm"),
-        )?;
-        Self::load_query(&mut queries, "python", include_str!("lang/python.scm"))?;
-        Self::load_query(
-            &mut queries,
-            "typescript",
-            include_str!("lang/typescript.scm"),
-        )?;
+        Self::load_query(&mut queries, "rust", include_str!("lang/tree-sitter-rust-tags.scm"))?;
+        Self::load_query(&mut queries, "javascript", include_str!("lang/tree-sitter-javascript-tags.scm"))?;
+        Self::load_query(&mut queries, "python", include_str!("lang/tree-sitter-python-tags.scm"))?;
+        Self::load_query(&mut queries, "typescript", include_str!("lang/tree-sitter-typescript-tags.scm"))?;
+        Self::load_query(&mut queries, "c", include_str!("lang/tree-sitter-c-tags.scm"))?;
+        Self::load_query(&mut queries, "cpp", include_str!("lang/tree-sitter-cpp-tags.scm"))?;
+        Self::load_query(&mut queries, "csharp", include_str!("lang/tree-sitter-c_sharp-tags.scm"))?;
+        Self::load_query(&mut queries, "java", include_str!("lang/tree-sitter-java-tags.scm"))?;
+        Self::load_query(&mut queries, "go", include_str!("lang/tree-sitter-go-tags.scm"))?;
+        Self::load_query(&mut queries, "ruby", include_str!("lang/tree-sitter-ruby-tags.scm"))?;
+        Self::load_query(&mut queries, "php", include_str!("lang/tree-sitter-php-tags.scm"))?;
 
         Ok(Self { parsers, queries })
     }
@@ -128,6 +162,13 @@ impl Parser {
             Some("js") => Ok("javascript"),
             Some("py") => Ok("python"),
             Some("ts") | Some("tsx") => Ok("typescript"),
+            Some("c") | Some("h") => Ok("c"),
+            Some("cpp") | Some("hpp") | Some("cc") | Some("hh") => Ok("cpp"),
+            Some("cs") => Ok("csharp"),
+            Some("java") => Ok("java"),
+            Some("go") => Ok("go"),
+            Some("rb") => Ok("ruby"),
+            Some("php") => Ok("php"),
             _ => Err(Error::UnsupportedLanguage(format!(
                 "Unsupported file extension: {:?}",
                 path.extension()
@@ -180,6 +221,13 @@ fn get_language(language: &str) -> Option<Language> {
         "javascript" => Some(language_javascript()),
         "python" => Some(language_python()),
         "typescript" => Some(language_typescript()),
+        "c" => Some(language_c()),
+        "cpp" => Some(language_cpp()),
+        "csharp" => Some(language_csharp()),
+        "java" => Some(language_java()),
+        "go" => Some(language_go()),
+        "ruby" => Some(language_ruby()),
+        "php" => Some(language_php()),
         _ => None,
     }
 }
