@@ -101,7 +101,7 @@ fn parse_patch_block(input: &str) -> IResult<&str, PatchBlock> {
 
 fn parse_one_block(input: &str, position: usize) -> Result<(&str, PatchBlock), Error> {
     if !input.contains(SEARCH) {
-        return Err(Error::Parse("No search marker remaining".to_string()));
+        return Err(Error::NoBlocks);
     }
 
     if let Some(divider_idx) = input.find(DIVIDER) {
@@ -130,7 +130,7 @@ fn parse_one_block(input: &str, position: usize) -> Result<(&str, PatchBlock), E
             } else if input.contains(DIVIDER) && !input.contains(REPLACE) {
                 Err(Error::Block { position, kind: Kind::ReplaceMarker })
             } else {
-                Err(Error::Parse("Invalid patch format".to_string()))
+                Err(Error::Block { position, kind: Kind::Incomplete })
             }
         }
         Err(NomErr::Incomplete(_)) => Err(Error::Block { position, kind: Kind::Incomplete }),
@@ -147,7 +147,7 @@ fn parse_one_block_nom(position: &mut usize) -> impl FnMut(&str) -> IResult<&str
                 *position += 1;
                 Ok((rest, block))
             }
-            Err(Error::Parse(msg)) if msg.contains("No search marker remaining") => {
+            Err(Error::NoBlocks) => {
                 // This signals “no more blocks” -> a soft error so `many0` stops
                 Err(NomErr::Error(nom::error::Error::new(input, ErrorKind::Eof)))
             }
@@ -211,7 +211,7 @@ pub fn parse_blocks(input: &str) -> Result<Vec<PatchBlock>, Error> {
             match parse_one_block(input, position) {
                 Err(e) => Err(e),
                 // If it unexpectedly succeeds, we just fallback:
-                Ok(_) => Err(Error::Parse("Invalid patch format".to_string())),
+                Ok(_) => Err(Error::Block { position, kind: Kind::SeparatorNewline }),
             }
         }
     }
@@ -277,9 +277,10 @@ mod test {
             "{SEARCH}\nfirst block\n{DIVIDER}\nreplacement\n{REPLACE}\n{SEARCH}\nsecond block\n{DIVIDER}missing_newline"
         );
         let result = parse_blocks(&diff);
+        println!("{:?}", result);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Parse(msg) if msg.eq("Invalid patch format")
+            Error::Block { position: 2, kind: Kind::SeparatorNewline }
         ));
     }
 
