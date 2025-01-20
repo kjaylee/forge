@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use dissimilar::Chunk;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
@@ -187,6 +186,7 @@ mod test {
     use tempfile::TempDir;
 
     use super::*;
+    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content)
