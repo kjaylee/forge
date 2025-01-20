@@ -245,8 +245,11 @@ mod tests {
 
     #[test]
     fn test_symbol_weights() {
-        let module_ref =
-            SymbolReference { name: Rc::new("test".to_string()), kind: SymbolKind::Module, count: 1 };
+        let module_ref = SymbolReference {
+            name: Rc::new("test".to_string()),
+            kind: SymbolKind::Module,
+            count: 1,
+        };
         let variable_ref = SymbolReference {
             name: Rc::new("test".to_string()),
             kind: SymbolKind::Variable,
