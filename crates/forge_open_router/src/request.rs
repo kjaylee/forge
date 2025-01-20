@@ -563,14 +563,11 @@ mod tests {
 
         let messages = request.messages.unwrap();
         for msg in messages {
-            match msg.content {
-                Some(MessageContent::Parts(parts)) => {
-                    assert!(matches!(
-                        parts[0],
-                        ContentPart::Text { cache_control: None, .. }
-                    ));
-                }
-                _ => {}
+            if let Some(MessageContent::Parts(parts)) = msg.content {
+                assert!(matches!(
+                    parts[0],
+                    ContentPart::Text { cache_control: None, .. }
+                ));
             }
         }
     }
