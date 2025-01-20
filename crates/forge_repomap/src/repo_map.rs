@@ -12,7 +12,7 @@ use crate::symbol::Symbol;
 
 /// A map of a repository's code structure and relationships.
 pub struct RepoMap {
-    /// Root path of the repository being analyzed
+    /// Root path used for relative path resolution
     root_path: PathBuf,
     /// Map of file paths to their contained symbols
     files: HashMap<PathBuf, Vec<Symbol>>,
@@ -22,6 +22,14 @@ pub struct RepoMap {
     parser: Option<Parser>,
     /// Maximum number of tokens to include in context
     token_budget: usize,
+}
+
+/// Represents a source file with its content
+pub struct SourceFile {
+    /// Path to the file, used for symbol resolution
+    pub path: PathBuf,
+    /// Raw content of the file
+    pub content: String,
 }
 
 impl RepoMap {
@@ -46,27 +54,32 @@ impl RepoMap {
         self
     }
 
-    pub fn analyze(&mut self) -> Result<(), Error> {
+    /// Process a batch of source files
+    pub fn process_files(&mut self, source_files: Vec<SourceFile>) -> Result<(), Error> {
         let parser = self.parser.as_ref().ok_or_else(|| {
             Error::Parse("Parser not initialized. Call with_parser() first".to_string())
         })?;
 
-        let walker = forge_walker::Walker::new(self.root_path.clone());
-        let entries = futures::executor::block_on(walker.get()).map_err(|e| {
-            Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
-
-        for entry in entries {
-            let path = Path::new(&entry.path);
-            if !entry.is_dir && self.is_supported_file(path) {
-                self.process_file(path)?;
+        for source_file in source_files {
+            if self.is_supported_file(&source_file.path) {
+                self.process_file_content(&source_file.path, &source_file.content, parser)?;
             }
         }
 
         self.build_dependency_graph();
+        Ok(())
+    }
+
+    /// Process a single source file
+    pub fn process_file(&mut self, source_file: SourceFile) -> Result<(), Error> {
+        let parser = self.parser.as_ref().ok_or_else(|| {
+            Error::Parse("Parser not initialized. Call with_parser() first".to_string())
+        })?;
+
+        if self.is_supported_file(&source_file.path) {
+            self.process_file_content(&source_file.path, &source_file.content, parser)?;
+            self.build_dependency_graph();
+        }
         Ok(())
     }
 
@@ -77,13 +90,13 @@ impl RepoMap {
             .unwrap_or(false)
     }
 
-    fn process_file(&mut self, path: &Path) -> Result<(), Error> {
-        let parser = self.parser.as_ref().ok_or_else(|| {
-            Error::Parse("Parser not initialized. Call with_parser() first".to_string())
-        })?;
-
-        let content = std::fs::read_to_string(path)?;
-        let symbols = parser.parse_file(path, &content)?;
+    fn process_file_content(
+        &mut self,
+        path: &Path,
+        content: &str,
+        parser: &Parser,
+    ) -> Result<(), Error> {
+        let symbols = parser.parse_file(path, content)?;
         self.files.insert(path.to_path_buf(), symbols);
         Ok(())
     }
@@ -166,15 +179,78 @@ impl RepoMap {
             }
         }
     }
-
-    pub fn update_file(&mut self, path: &Path) -> Result<(), Error> {
-        self.process_file(path)?;
-        self.build_dependency_graph();
-        Ok(())
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_process_single_file() -> Result<(), Error> {
+        let root = PathBuf::from("/test");
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?.with_parser()?;
+
+        let source = SourceFile {
+            path: root.join("test.rs"),
+            content: r#"
+                fn test_function() {
+                    println!("Hello");
+                }
+            "#.to_string(),
+        };
+
+        repo_map.process_file(source)?;
+        
+        // Verify the file was processed
+        assert!(repo_map.files.contains_key(&root.join("test.rs")));
+        let symbols = repo_map.files.get(&root.join("test.rs")).unwrap();
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(symbols[0].name, "test_function");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_process_multiple_files() -> Result<(), Error> {
+        let root = PathBuf::from("/test");
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?.with_parser()?;
+
+        let sources = vec![
+            SourceFile {
+                path: root.join("file1.rs"),
+                content: "fn function1() {}".to_string(),
+            },
+            SourceFile {
+                path: root.join("file2.rs"),
+                content: "fn function2() {}".to_string(),
+            },
+        ];
+
+        repo_map.process_files(sources)?;
+        
+        // Verify both files were processed
+        assert!(repo_map.files.contains_key(&root.join("file1.rs")));
+        assert!(repo_map.files.contains_key(&root.join("file2.rs")));
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_unsupported_file_type() -> Result<(), Error> {
+        let root = PathBuf::from("/test");
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?.with_parser()?;
+
+        let source = SourceFile {
+            path: root.join("test.txt"),
+            content: "Some text content".to_string(),
+        };
+
+        repo_map.process_file(source)?;
+        
+        // Verify the unsupported file was not processed
+        assert!(!repo_map.files.contains_key(&root.join("test.txt")));
+        
+        Ok(())
+    }
 }

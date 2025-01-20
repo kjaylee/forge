@@ -40,24 +40,37 @@ forge_repomap = { path = "../forge_repomap" }
 
 ```rust
 use std::path::PathBuf;
-use forge_repomap::{RepoMap, PageRankConfig};
+use forge_repomap::{RepoMap, PageRankConfig, SourceFile};
 
-// Create a new repo map with custom PageRank settings
+// Create a new repo map
 let mut repo_map = RepoMap::new(PathBuf::from("./"), 1000)?
+    .with_parser()?
     .with_page_rank_config(PageRankConfig {
         damping_factor: 0.85,
         max_iterations: 100,
         tolerance: 1e-6,
     });
 
-// Analyze the repository
-repo_map.analyze()?;
+// Process source files
+let sources = vec![
+    SourceFile {
+        path: PathBuf::from("src/main.rs"),
+        content: std::fs::read_to_string("src/main.rs")?,
+    },
+    SourceFile {
+        path: PathBuf::from("src/lib.rs"),
+        content: std::fs::read_to_string("src/lib.rs")?,
+    },
+];
+
+// Process all files
+repo_map.process_files(sources)?;
 
 // Get context about specific files
 let context = repo_map.get_context(&[
     PathBuf::from("src/main.rs"),
     PathBuf::from("src/lib.rs"),
-]);
+])?;
 ```
 
 ## How It Works
@@ -128,6 +141,38 @@ let repo_map = RepoMap::new(root_path, token_budget)?
     .with_page_rank_config(config);
 ```
 
+### Process Individual Files
+
+Process files one at a time:
+
+```rust
+let source = SourceFile {
+    path: PathBuf::from("src/important.rs"),
+    content: String::from("// Source code content here"),
+};
+
+repo_map.process_file(source)?;
+```
+
+### Batch Processing
+
+Process multiple files at once:
+
+```rust
+let sources = vec![
+    SourceFile {
+        path: PathBuf::from("src/file1.rs"),
+        content: String::from("// Content 1"),
+    },
+    SourceFile {
+        path: PathBuf::from("src/file2.rs"),
+        content: String::from("// Content 2"),
+    },
+];
+
+repo_map.process_files(sources)?;
+```
+
 ### Focus-Based Context
 
 Get context with emphasis on specific files:
@@ -137,7 +182,7 @@ Get context with emphasis on specific files:
 let context = repo_map.get_context(&[
     PathBuf::from("src/important.rs"),
     PathBuf::from("src/related.rs"),
-]);
+])?;
 ```
 
 ## Architecture
@@ -171,8 +216,8 @@ let context = repo_map.get_context(&[
 ```rust
 use forge_repomap::Error;
 
-match repo_map.analyze() {
-    Ok(_) => println!("Analysis complete"),
+match repo_map.process_files(sources) {
+    Ok(_) => println!("Processing complete"),
     Err(Error::UnsupportedLanguage(lang)) => {
         eprintln!("Unsupported language: {}", lang)
     }
@@ -186,19 +231,19 @@ match repo_map.analyze() {
 ## Future Improvements
 
 Planned enhancements:
-1. Disk-based caching system
+1. Parallel file processing
 2. Additional language support
 3. Incremental updates
 4. Performance optimizations
-5. Parallel processing
+5. Caching system for parsed symbols
 
 ## Contributing
 
 Key areas for contribution:
 1. Language support expansion
-2. Caching implementation
-3. Performance optimization
-4. Testing and benchmarks
+2. Performance optimization
+3. Testing and benchmarks
+4. Documentation improvements
 
 ## License
 
