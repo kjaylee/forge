@@ -1,7 +1,7 @@
 ; ADT definitions
 
 (struct_item
-    name: (type_identifier) @name.definition.class) @definition.class
+    name: (type_identifier) @name.definition.struct) @definition.struct
 
 (enum_item
     name: (type_identifier) @name.definition.class) @definition.class
