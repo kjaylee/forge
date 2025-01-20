@@ -123,7 +123,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 
     async fn search(&self, query: &str, sz: usize) -> anyhow::Result<Vec<Learning>> {
         let embedding = embeddings::get_embedding(query.to_string())?;
-        let result = self.learning_idx.lock().unwrap().search(&embedding, sz)?;
+        let search_results = self.learning_idx.lock().unwrap().search(&embedding, sz)?;
 
         // Now get the pool connection
         let pool = self
@@ -133,18 +133,27 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
             .map_err(|e| anyhow::anyhow!(e))?;
         let mut conn = pool.get().map_err(|e| anyhow::anyhow!(e))?;
 
-        // Fetch learnings by IDs
-        let mut learnings = Vec::with_capacity(result.len());
-        for res in result {
-            if let Ok(raw) = learning_table::table
-                .find(res.id)
-                .first::<RawLearning>(&mut conn)
-            {
-                if let Ok(learning) = Learning::try_from(raw) {
-                    learnings.push(learning);
-                }
-            }
-        }
+        // Get all IDs from search results and use them for both filtering and ordering
+        let ids: Vec<String> = search_results.iter().map(|r| r.id.to_owned()).collect();
+
+        // Fetch all learnings in one query
+        let raw_learnings = learning_table::table
+            .filter(learning_table::id.eq_any(&ids))
+            .load::<RawLearning>(&mut conn)?;
+
+        // Create a map of id -> Learning for quick lookup
+        let learning_map: std::collections::HashMap<String, Learning> = raw_learnings
+            .into_iter()
+            .filter_map(|raw| Learning::try_from(raw).ok())
+            .map(|learning| (learning.id.to_string(), learning))
+            .collect();
+
+        // Preserve order from search results
+        let learnings = ids
+            .into_iter()
+            .filter_map(|id| learning_map.get(&id).cloned())
+            .collect();
+
         Ok(learnings)
     }
 }
