@@ -154,6 +154,15 @@ mod tests {
     async fn test_e2e() {
         const MAX_RETRIES: usize = 3;
         const MATCH_THRESHOLD: f64 = 0.7; // 70% of crates must be found
+        const SUPPORTED_MODELS: &[&str] = &[
+            "anthropic/claude-3.5-sonnet:beta",
+            "openai/gpt-4o-2024-11-20",
+            "anthropic/claude-3.5-sonnet",
+            "openai/gpt-4o",
+            "openai/gpt-4o-mini",
+            "google/gemini-flash-1.5",
+            "anthropic/claude-3-sonnet",
+        ];
 
         let api = Live::new().await.unwrap();
         let task = include_str!("./api_task.md");
