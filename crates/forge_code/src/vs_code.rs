@@ -189,6 +189,9 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
             .to_string_lossy()
             .to_string();
 
+        dbg!(&cmd);
+        dbg!(&working_directory);
+
         if let Some(ide) = get_vscode_instance(cmd, pid, working_directory, cwd, i).await {
             ans.push(ide);
         }
@@ -491,5 +494,134 @@ mod tests {
             "/home/user/project/main.rs"
         );
         assert_eq!("", focused_file_path(invalid_json).unwrap());
+    }
+}
+
+#[cfg(test)]
+mod partial_integration_tests {
+    use tempfile::TempDir;
+    use forge_domain::IdeRepository;
+    use crate::vs_code::get_vscode_instance;
+
+    #[tokio::test]
+    async fn test_() {
+        let code = super::Code::new("/home/ssdd/RustroverProjects/code-forge");
+        let ides = code.get_active_ides().await.unwrap();
+        for ide in ides {
+            let workspace = code.get_workspace(&ide.workspace_id).await.unwrap();
+            dbg!(workspace);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_vscode_instance() {
+        let dir = TempDir::new().unwrap();
+
+        // Create User directory structure
+        std::fs::create_dir_all(dir.path().join("User/globalStorage")).unwrap();
+        std::fs::create_dir_all(dir.path().join("User/workspaceStorage/some_hash")).unwrap();
+
+        // Create storage.json
+        let storage_json = serde_json::json!({
+            "windowsState": {
+                "lastActiveWindow": {
+                    "folder": "file:///home/ssdd/RustroverProjects/code-forge"
+                },
+                "openedWindows": [
+                    {
+                        "folder": "file:///home/ssdd/RustroverProjects/code-forge"
+                    }
+                ]
+            }
+        });
+        std::fs::write(
+            dir.path().join("User/globalStorage/storage.json"),
+            serde_json::to_string_pretty(&storage_json).unwrap()
+        ).unwrap();
+
+        // Create workspace.json
+        let workspace_json = serde_json::json!({
+            "folder": "file:///home/ssdd/RustroverProjects/code-forge"
+        });
+        std::fs::write(
+            dir.path().join("User/workspaceStorage/some_hash/workspace.json"),
+            serde_json::to_string_pretty(&workspace_json).unwrap()
+        ).unwrap();
+
+        let cmd = vec![
+            format!("/usr/lib/electron32/electron --user-data-dir={}", dir.path().display()),
+            "--vscode-window-config".to_string(), // Simulate VSCode window config
+        ];
+
+        let pid = 269427;
+        let working_directory = "/home/ssdd/RustroverProjects/code-forge".to_string();
+        let cwd = "/home/ssdd/RustroverProjects/code-forge";
+        let ans = get_vscode_instance(cmd, pid, working_directory, cwd, 0).await;
+
+        // Assertions
+        assert!(ans.is_some(), "Expected Some(Ide), but got None");
+        
+        let ide = ans.unwrap();
+        assert_eq!(ide.name, "VS Code", "IDE name mismatch");
+        assert_eq!(ide.process.as_u32(), 269427, "PID mismatch");
+        assert_eq!(
+            ide.working_directory.to_string_lossy(), 
+            "/home/ssdd/RustroverProjects/code-forge", 
+            "Working directory mismatch"
+        );
+        assert!(
+            ide.workspace_id.as_str().contains("some_hash"), 
+            "Workspace ID should contain hash directory name"
+        );
+        assert!(ide.version.is_none(), "Version should be None");
+    }
+
+    #[tokio::test]
+    async fn test_get_vscode_instance_different_project() {
+        let dir = TempDir::new().unwrap();
+
+        // Create User directory structure
+        std::fs::create_dir_all(dir.path().join("User/globalStorage")).unwrap();
+        std::fs::create_dir_all(dir.path().join("User/workspaceStorage/another_hash")).unwrap();
+
+        // Create storage.json with a different project
+        let storage_json = serde_json::json!({
+            "windowsState": {
+                "lastActiveWindow": {
+                    "folder": "file:///home/ssdd/OtherProject"
+                },
+                "openedWindows": [
+                    {
+                        "folder": "file:///home/ssdd/OtherProject"
+                    }
+                ]
+            }
+        });
+        std::fs::write(
+            dir.path().join("User/globalStorage/storage.json"),
+            serde_json::to_string_pretty(&storage_json).unwrap()
+        ).unwrap();
+
+        // Create workspace.json for a different project
+        let workspace_json = serde_json::json!({
+            "folder": "file:///home/ssdd/OtherProject"
+        });
+        std::fs::write(
+            dir.path().join("User/workspaceStorage/another_hash/workspace.json"),
+            serde_json::to_string_pretty(&workspace_json).unwrap()
+        ).unwrap();
+
+        let cmd = vec![
+            format!("/usr/lib/electron32/electron --user-data-dir={}", dir.path().display()),
+            "--vscode-window-config".to_string(),
+        ];
+
+        let pid = 269428;
+        let working_directory = "/home/ssdd/OtherProject".to_string();
+        let cwd = "/home/ssdd/RustroverProjects/code-forge";
+        let ans = get_vscode_instance(cmd, pid, working_directory, cwd, 0).await;
+
+        // Assertions
+        assert!(ans.is_none(), "Expected None for a different project");
     }
 }

@@ -39,8 +39,13 @@ impl Workspace {
 }
 
 #[derive(Debug, derive_more::From)]
-#[allow(dead_code)]
 pub struct ProcessId(u32);
+
+impl ProcessId {
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+}
 
 #[derive(Debug, Default, Clone, derive_more::From)]
 pub struct WorkspaceId(String);
