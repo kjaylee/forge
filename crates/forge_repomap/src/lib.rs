@@ -15,16 +15,22 @@
 //! # Example
 //! ```no_run
 //! use std::path::PathBuf;
-//! use forge_repomap::RepoMap;
+//! use forge_repomap::{RepoMap, SourceFile};
 //!
 //! // Create a new repo map with a token budget
 //! let mut repo_map = RepoMap::new(PathBuf::from("./"), 1000).unwrap();
 //!
-//! // Analyze the repository
-//! repo_map.analyze().unwrap();
+//! // Process source files
+//! let source_files = vec![
+//!     SourceFile {
+//!         path: PathBuf::from("src/main.rs"),
+//!         content: String::from("fn main() { println!(\"Hello\"); }")
+//!     }
+//! ];
+//! repo_map.process_files(source_files).unwrap();
 //!
 //! // Get context about specific files
-//! let context = repo_map.get_context(&[PathBuf::from("src/main.rs")]);
+//! let context = repo_map.get_context(&[PathBuf::from("src/main.rs")]).unwrap();
 //! ```
 
 mod error;
@@ -36,5 +42,5 @@ mod symbol;
 
 pub use error::Error;
 pub use ranking::{PageRank, PageRankConfig, SymbolReference};
-pub use repo_map::RepoMap;
+pub use repo_map::{RepoMap, SourceFile};
 pub use symbol::{Location, Symbol, SymbolKind};

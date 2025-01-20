@@ -49,15 +49,6 @@ impl DependencyGraph {
         }
     }
 
-    pub fn add_edge(&mut self, from: &Path, to: &Path) {
-        let from_idx = self.add_node(from.to_path_buf());
-        let to_idx = self.add_node(to.to_path_buf());
-
-        if !self.graph.contains_edge(from_idx, to_idx) {
-            self.graph.add_edge(from_idx, to_idx, EdgeWeight::default());
-        }
-    }
-
     /// Add a symbol reference between two files
     pub fn add_symbol_reference(&mut self, from: &Path, to: &Path, symbol: SymbolReference) {
         let from_idx = self.add_node(from.to_path_buf());
@@ -79,17 +70,8 @@ impl DependencyGraph {
         }
     }
 
-    /// Calculate importance scores for all files using PageRank
-    pub fn calculate_importance(&self) -> HashMap<PathBuf, f64> {
-        let page_rank = PageRank::new(self.page_rank_config.clone());
-        page_rank.calculate(&self.graph, None)
-    }
-
     /// Calculate importance scores with emphasized files
-    pub fn calculate_importance_with_focus(
-        &self,
-        focused_files: &[PathBuf],
-    ) -> HashMap<PathBuf, f64> {
+    pub fn calculate_importance(&self, focused_files: &[PathBuf]) -> HashMap<PathBuf, f64> {
         let mut personalization = HashMap::new();
         let default_weight = 1.0 / self.graph.node_count() as f64;
         let focus_weight = 4.0 * default_weight; // Focused files get 4x weight
@@ -102,6 +84,7 @@ impl DependencyGraph {
         page_rank.calculate(&self.graph, Some(&personalization))
     }
 
+    /// Get files that depend on a specific file
     pub fn get_dependent_files(&self, path: &Path) -> Vec<PathBuf> {
         let mut result = Vec::new();
 
@@ -122,6 +105,8 @@ impl DependencyGraph {
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
     use super::*;
     use crate::symbol::SymbolKind;
 
@@ -129,7 +114,7 @@ mod tests {
     fn test_add_symbol_reference() {
         let mut graph = DependencyGraph::new();
         let symbol = SymbolReference {
-            name: "test_fn".to_string(),
+            name: Rc::new("test_fn".to_string()),
             kind: SymbolKind::Function,
             count: 1,
         };
@@ -153,7 +138,7 @@ mod tests {
 
         // Create a chain of references with module symbols (higher weight)
         let symbol = SymbolReference {
-            name: "test_module".to_string(),
+            name: Rc::new("test_module".to_string()),
             kind: SymbolKind::Module, // Higher weight symbol
             count: 2,                 // More references
         };
@@ -165,7 +150,7 @@ mod tests {
 
         // Add a reference to c.rs with lower weight
         let weak_symbol = SymbolReference {
-            name: "test_var".to_string(),
+            name: Rc::new("test_var".to_string()),
             kind: SymbolKind::Variable, // Lower weight symbol
             count: 1,
         };
@@ -173,7 +158,7 @@ mod tests {
         graph.add_symbol_reference(Path::new("src/b.rs"), Path::new("src/c.rs"), weak_symbol);
 
         // Focus on a.rs
-        let mut scores = graph.calculate_importance_with_focus(&[PathBuf::from("src/a.rs")]);
+        let mut scores = graph.calculate_importance(&[PathBuf::from("src/a.rs")]);
 
         // Normalize scores for comparison
         let sum: f64 = scores.values().sum();

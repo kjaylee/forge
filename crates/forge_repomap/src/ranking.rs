@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use petgraph::graph::{Graph, NodeIndex};
 use petgraph::visit::EdgeRef;
@@ -42,7 +43,7 @@ impl Default for EdgeWeight {
 #[derive(Debug, Clone)]
 pub struct SymbolReference {
     /// Name of the symbol
-    pub name: String,
+    pub name: Rc<String>,
     /// Kind of symbol (function, class, etc.)
     pub kind: symbol::SymbolKind,
     /// Number of times this symbol is referenced
@@ -245,9 +246,9 @@ mod tests {
     #[test]
     fn test_symbol_weights() {
         let module_ref =
-            SymbolReference { name: "test".to_string(), kind: SymbolKind::Module, count: 1 };
+            SymbolReference { name: Rc::new("test".to_string()), kind: SymbolKind::Module, count: 1 };
         let variable_ref = SymbolReference {
-            name: "test".to_string(),
+            name: Rc::new("test".to_string()),
             kind: SymbolKind::Variable,
             count: 1,
         };
@@ -258,12 +259,12 @@ mod tests {
     #[test]
     fn test_reference_count_weight() {
         let ref1 = SymbolReference {
-            name: "test".to_string(),
+            name: Rc::new("test".to_string()),
             kind: SymbolKind::Function,
             count: 1,
         };
         let ref2 = SymbolReference {
-            name: "test".to_string(),
+            name: Rc::new("test".to_string()),
             kind: SymbolKind::Function,
             count: 10,
         };

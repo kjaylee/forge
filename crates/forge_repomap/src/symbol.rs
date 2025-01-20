@@ -1,14 +1,15 @@
 use std::fmt;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
 /// Represents a location in a source file, including the file path and position
 /// information.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Location {
     /// The path to the source file
-    pub path: PathBuf,
+    pub path: Rc<PathBuf>,
     /// Starting line number (1-based)
     pub start_line: usize,
     /// Ending line number (1-based)
@@ -85,14 +86,14 @@ impl fmt::Display for SymbolKind {
 
 /// Represents a symbol found in the source code, such as a function, class, or
 /// variable.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Symbol {
     /// The name of the symbol
-    pub name: String,
+    pub name: Rc<String>,
     /// The kind of symbol (e.g., function, class, etc.)
     pub kind: SymbolKind,
     /// Optional signature for functions and methods
-    pub signature: Option<String>,
+    pub signature: Option<Rc<String>>,
     /// The location where this symbol is defined
     pub location: Location,
     /// A score indicating the symbol's importance in the codebase (higher is
@@ -106,7 +107,7 @@ impl Symbol {
     pub fn new(name: String, kind: SymbolKind, location: Location) -> Self {
         let base_weight = kind.base_weight();
         Self {
-            name,
+            name: Rc::new(name),
             kind,
             signature: None,
             location,
@@ -117,7 +118,7 @@ impl Symbol {
 
     pub fn with_signature(mut self, signature: String) -> Self {
         let signature_bonus = 0.1;
-        self.signature = Some(signature);
+        self.signature = Some(Rc::new(signature));
         self.importance += signature_bonus;
         self
     }
@@ -156,7 +157,7 @@ mod tests {
     #[test]
     fn test_importance_calculation() {
         let location = Location {
-            path: PathBuf::from("test.rs"),
+            path: Rc::new(PathBuf::from("test.rs")),
             start_line: 1,
             end_line: 1,
             start_col: 0,
@@ -178,7 +179,7 @@ mod tests {
     #[test]
     fn test_symbol_with_signature() {
         let location = Location {
-            path: PathBuf::from("test.rs"),
+            path: Rc::new(PathBuf::from("test.rs")),
             start_line: 1,
             end_line: 1,
             start_col: 0,

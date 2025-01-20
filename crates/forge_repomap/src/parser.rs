@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::rc::Rc;
 
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Language, Parser as TsParser, Query};
@@ -23,8 +24,7 @@ fn language_python() -> Language {
 }
 
 fn language_typescript() -> Language {
-    // Use JavaScript for TypeScript as they share similar syntax
-    tree_sitter_javascript::LANGUAGE.into()
+    tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
 }
 
 /// Parser responsible for analyzing source code and extracting symbols.
@@ -163,7 +163,7 @@ impl Parser {
         };
 
         let location = Location {
-            path: file_path.to_path_buf(),
+            path: Rc::new(file_path.to_path_buf()),
             start_line: node.start_position().row + 1,
             end_line: node.end_position().row + 1,
             start_col: node.start_position().column,

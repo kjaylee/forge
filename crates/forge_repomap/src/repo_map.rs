@@ -19,7 +19,7 @@ pub struct RepoMap {
     /// Graph representing relationships between files
     graph: DependencyGraph,
     /// Parser for analyzing source code
-    parser: Option<Parser>,
+    parser: Parser,
     /// Maximum number of tokens to include in context
     token_budget: usize,
 }
@@ -38,14 +38,9 @@ impl RepoMap {
             root_path,
             files: HashMap::new(),
             graph: DependencyGraph::new(),
-            parser: None,
+            parser: Parser::new()?,
             token_budget,
         })
-    }
-
-    pub fn with_parser(mut self) -> Result<Self, Error> {
-        self.parser = Some(Parser::new()?);
-        Ok(self)
     }
 
     /// Configure PageRank parameters for importance calculation
@@ -56,13 +51,9 @@ impl RepoMap {
 
     /// Process a batch of source files
     pub fn process_files(&mut self, source_files: Vec<SourceFile>) -> Result<(), Error> {
-        let parser = self.parser.as_ref().ok_or_else(|| {
-            Error::Parse("Parser not initialized. Call with_parser() first".to_string())
-        })?;
-
         for source_file in source_files {
             if self.is_supported_file(&source_file.path) {
-                self.process_file_content(&source_file.path, &source_file.content, parser)?;
+                self.process_file_content(&source_file.path, &source_file.content)?;
             }
         }
 
@@ -72,12 +63,8 @@ impl RepoMap {
 
     /// Process a single source file
     pub fn process_file(&mut self, source_file: SourceFile) -> Result<(), Error> {
-        let parser = self.parser.as_ref().ok_or_else(|| {
-            Error::Parse("Parser not initialized. Call with_parser() first".to_string())
-        })?;
-
         if self.is_supported_file(&source_file.path) {
-            self.process_file_content(&source_file.path, &source_file.content, parser)?;
+            self.process_file_content(&source_file.path, &source_file.content)?;
             self.build_dependency_graph();
         }
         Ok(())
@@ -90,13 +77,8 @@ impl RepoMap {
             .unwrap_or(false)
     }
 
-    fn process_file_content(
-        &mut self,
-        path: &Path,
-        content: &str,
-        parser: &Parser,
-    ) -> Result<(), Error> {
-        let symbols = parser.parse_file(path, content)?;
+    fn process_file_content(&mut self, path: &Path, content: &str) -> Result<(), Error> {
+        let symbols = self.parser.parse_file(path, content)?;
         self.files.insert(path.to_path_buf(), symbols);
         Ok(())
     }
@@ -122,7 +104,7 @@ impl RepoMap {
     }
 
     pub fn get_context(&self, focused_paths: &[PathBuf]) -> anyhow::Result<String> {
-        let importance_scores = self.graph.calculate_importance_with_focus(focused_paths);
+        let importance_scores = self.graph.calculate_importance(focused_paths);
         let mut context = String::new();
 
         // Add focused files first
@@ -183,13 +165,14 @@ impl RepoMap {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
+    use super::*;
 
     #[test]
     fn test_process_single_file() -> Result<(), Error> {
         let root = PathBuf::from("/test");
-        let mut repo_map = RepoMap::new(root.clone(), 1000)?.with_parser()?;
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?;
 
         let source = SourceFile {
             path: root.join("test.rs"),
@@ -197,16 +180,17 @@ mod tests {
                 fn test_function() {
                     println!("Hello");
                 }
-            "#.to_string(),
+            "#
+            .to_string(),
         };
 
         repo_map.process_file(source)?;
-        
+
         // Verify the file was processed
         assert!(repo_map.files.contains_key(&root.join("test.rs")));
         let symbols = repo_map.files.get(&root.join("test.rs")).unwrap();
         assert_eq!(symbols.len(), 1);
-        assert_eq!(symbols[0].name, "test_function");
+        assert_eq!(symbols[0].name.as_str(), "test_function");
 
         Ok(())
     }
@@ -214,7 +198,7 @@ mod tests {
     #[test]
     fn test_process_multiple_files() -> Result<(), Error> {
         let root = PathBuf::from("/test");
-        let mut repo_map = RepoMap::new(root.clone(), 1000)?.with_parser()?;
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?;
 
         let sources = vec![
             SourceFile {
@@ -228,18 +212,18 @@ mod tests {
         ];
 
         repo_map.process_files(sources)?;
-        
+
         // Verify both files were processed
         assert!(repo_map.files.contains_key(&root.join("file1.rs")));
         assert!(repo_map.files.contains_key(&root.join("file2.rs")));
-        
+
         Ok(())
     }
 
     #[test]
     fn test_unsupported_file_type() -> Result<(), Error> {
         let root = PathBuf::from("/test");
-        let mut repo_map = RepoMap::new(root.clone(), 1000)?.with_parser()?;
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?;
 
         let source = SourceFile {
             path: root.join("test.txt"),
@@ -247,10 +231,10 @@ mod tests {
         };
 
         repo_map.process_file(source)?;
-        
+
         // Verify the unsupported file was not processed
         assert!(!repo_map.files.contains_key(&root.join("test.txt")));
-        
+
         Ok(())
     }
 }

@@ -5,44 +5,31 @@
 (method_definition
   name: (property_identifier) @method)
 
-(arrow_function
-  parameter: (identifier) @parameter)
+(arrow_function 
+  parameter: [(identifier) (formal_parameters)] @parameter)
 
 ;; Classes and Interfaces
 (class_declaration
-  name: (identifier) @class)
+  name: (type_identifier) @class)
 
-[
-  (interface_declaration
-    name: (type_identifier) @interface.name)
-  (type_alias_declaration
-    name: (type_identifier) @type.alias)
-] @type.declaration
+;; Changed: Using correct TypeScript node types
+(interface_declaration 
+  name: (type_identifier) @interface)
+
+(type_alias_declaration 
+  name: (type_identifier) @type.alias)
 
 ;; Variables and Constants
 (variable_declarator
   name: (identifier) @variable)
 
+;; Changed: Simplified constant detection
 ((identifier) @constant
   (#match? @constant "^[A-Z][A-Z_]*$"))
 
-;; TypeScript specific nodes
-(property_signature
-  name: (property_identifier) @property)
-
-(method_signature
-  name: (property_identifier) @method_signature)
-
-(enum_declaration
-  name: (identifier) @enum)
-
-;; Type Parameters
-(type_parameter
-  name: (type_identifier) @type_parameter)
-
 ;; Export/Import
 (export_statement
-  declaration: (_) @exported_declaration)
+  (declaration) @exported_declaration)
 
-(import_statement
-  source: (_) @import_source)
+(import_statement 
+  (string) @import_source)
