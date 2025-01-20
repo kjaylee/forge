@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use async_trait::async_trait;
 use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 use forge_walker::Walker;
@@ -17,7 +17,7 @@ pub struct Code {
 
 impl Code {
     /// Create a new Code instance with a custom working directory
-    pub fn new<T: ToString>(cwd: T) -> Self {
+    pub async fn new<T: ToString>(cwd: T) -> Self {
         let cwd = cwd.to_string();
 
         // VS code stores the path without any trailing slashes.
@@ -29,11 +29,12 @@ impl Code {
             .unwrap_or(cwd);
 
         // Find git root directory
-        let git_root = std::process::Command::new("git")
+        let git_root = tokio::process::Command::new("git")
             .arg("rev-parse")
             .arg("--show-toplevel")
             .current_dir(&cwd)
             .output()
+            .await
             .ok()
             .and_then(|output| {
                 if output.status.success() {
@@ -84,7 +85,7 @@ async fn extract_workspace_id(args: &[String], cwd: &str, index: usize) -> anyho
     let code_dir =
         extract_storage_dir(args).ok_or(anyhow!("Failed to extract storage directory"))?;
     let storage_file = PathBuf::from(format!("{}/User/globalStorage/storage.json", code_dir));
-    let storage_json = std::fs::read_to_string(storage_file)?;
+    let storage_json = tokio::fs::read_to_string(storage_file).await?;
     let json: Storage = serde_json::from_str(&storage_json)?;
     let path_buf = PathBuf::from(code_dir.clone())
         .join("User")
@@ -236,9 +237,13 @@ async fn get_hash(
         .filter(|v| v.is_dir)
         .collect::<HashSet<_>>();
 
-    dirs.into_iter()
-        .find(|v| process_workflow_file(Path::new(&v.path), cwd))
-        .ok_or(anyhow!("Project not found"))
+    for dir in dirs {
+        if process_workflow_file(Path::new(&dir.path), cwd).await {
+            return Ok(dir);
+        }
+    }
+
+    bail!("Project not found")
 }
 
 async fn get_workspace_inner(workspace_id: WorkspaceId) -> anyhow::Result<Workspace> {
@@ -326,10 +331,10 @@ fn extract_focused_file(connection: &Connection) -> anyhow::Result<PathBuf> {
     Err(anyhow!("Focused file not found"))
 }
 
-fn process_workflow_file(path: &Path, cwd: &str) -> bool {
+async fn process_workflow_file(path: &Path, cwd: &str) -> bool {
     let path = path.join("workspace.json");
 
-    if let Ok(content) = std::fs::read_to_string(&path) {
+    if let Ok(content) = tokio::fs::read_to_string(&path).await {
         let workflow_json: Value = serde_json::from_str(&content).unwrap_or_default();
 
         if let Some(folder) = workflow_json.get("folder").and_then(|v| v.as_str()) {
@@ -443,8 +448,8 @@ mod tests {
         assert_eq!(convert_path("/path/to/file"), "/path/to/file");
     }
 
-    #[test]
-    fn test_process_workflow_file() {
+    #[tokio::test]
+    async fn test_process_workflow_file() {
         // Create a temporary directory
         let temp_dir = tempfile::tempdir().expect("Failed to create temp directory");
         let workspace_path = temp_dir.path().join("workspace.json");
@@ -457,7 +462,7 @@ mod tests {
             )
             .expect("Failed to write workspace JSON");
 
-            assert!(process_workflow_file(temp_dir.path(), "/home/user/project"));
+            assert!(process_workflow_file(temp_dir.path(), "/home/user/project").await);
         }
 
         // Invalid workspace JSON
@@ -468,10 +473,7 @@ mod tests {
             )
             .expect("Failed to write invalid workspace JSON");
 
-            assert!(!process_workflow_file(
-                temp_dir.path(),
-                "/home/user/project"
-            ));
+            assert!(!process_workflow_file(temp_dir.path(), "/home/user/project").await);
         }
     }
 

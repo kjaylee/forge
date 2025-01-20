@@ -944,6 +944,7 @@ dependencies = [
  "async-trait",
  "forge_domain",
  "forge_walker",
+ "futures",
  "rusqlite",
  "serde",
  "serde_json",

@@ -68,7 +68,7 @@ pub struct Ide {
 
 /// Represents functionality for interacting with IDEs
 #[async_trait]
-pub trait IdeRepository {
+pub trait IdeRepository: Send + Sync {
     /// List of all the IDEs that are running on the system on the CWD.
     async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>>;
 

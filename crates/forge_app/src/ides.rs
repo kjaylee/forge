@@ -10,8 +10,8 @@ enum IDEs {
 }
 
 impl ForgeAllIdes {
-    pub fn new<T: ToString>(cwd: T) -> Self {
-        let ides: Vec<IDEs> = vec![IDEs::VsCode(Code::new(cwd.to_string()))];
+    pub async fn new<T: ToString>(cwd: T) -> Self {
+        let ides: Vec<IDEs> = vec![IDEs::VsCode(Code::new(cwd.to_string()).await)];
         Self { ides }
     }
 }
