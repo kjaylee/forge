@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -29,7 +30,7 @@ pub trait APIService: Send + Sync {
 
 impl Service {
     pub async fn api_service() -> Result<impl APIService> {
-        Live::new().await
+        Live::new(std::env::current_dir()?).await
     }
 }
 
@@ -45,8 +46,8 @@ struct Live {
 }
 
 impl Live {
-    async fn new() -> Result<Self> {
-        let env = Service::environment_service().get().await?;
+    async fn new(cwd: PathBuf) -> Result<Self> {
+        let env = Service::environment_service(cwd).get().await?;
 
         let cwd: String = env.cwd.clone();
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
@@ -145,6 +146,8 @@ impl APIService for Live {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use forge_domain::ModelId;
     use futures::future::join_all;
     use tokio_stream::StreamExt;
@@ -153,7 +156,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_e2e() {
-        let api = Live::new().await.unwrap();
+        let api = Live::new(Path::new("../../").to_path_buf()).await.unwrap();
         let task = include_str!("./api_task.md");
 
         const MAX_RETRIES: usize = 3;
