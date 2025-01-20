@@ -146,8 +146,8 @@ impl APIService for Live {
 #[cfg(test)]
 mod tests {
     use forge_domain::ModelId;
-    use tokio_stream::StreamExt;
     use futures::future::join_all;
+    use tokio_stream::StreamExt;
 
     use super::*;
 
@@ -171,7 +171,7 @@ mod tests {
         let test_futures = SUPPORTED_MODELS.iter().map(|&model| {
             let api = api.clone();
             let task = task.to_string();
-            
+
             async move {
                 let request = ChatRequest::new(ModelId::new(model), task);
                 let expected_crates = [
@@ -203,7 +203,9 @@ mod tests {
 
                     let found_crates: Vec<&str> = expected_crates
                         .iter()
-                        .filter(|&crate_name| response.contains(&format!("<crate>{}</crate>", crate_name)))
+                        .filter(|&crate_name| {
+                            response.contains(&format!("<crate>{}</crate>", crate_name))
+                        })
                         .cloned()
                         .collect();
 
@@ -239,14 +241,14 @@ mod tests {
                         ));
                     }
                 }
-                
+
                 unreachable!()
             }
         });
 
         let results = join_all(test_futures).await;
         let errors: Vec<_> = results.into_iter().filter_map(Result::err).collect();
-        
+
         if !errors.is_empty() {
             panic!("Test failures:\n{}", errors.join("\n"));
         }
