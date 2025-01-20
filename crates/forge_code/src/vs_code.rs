@@ -188,9 +188,6 @@ async fn get_all_vscode_instances(cwd: &str) -> anyhow::Result<Vec<Ide>> {
             .to_string_lossy()
             .to_string();
 
-        dbg!(&cmd);
-        dbg!(&working_directory);
-
         if let Some(ide) = get_vscode_instance(cmd, pid, working_directory, cwd, i).await {
             ans.push(ide);
         }
@@ -504,20 +501,9 @@ mod tests {
 
 #[cfg(test)]
 mod partial_integration_tests {
-    use forge_domain::IdeRepository;
     use tempfile::TempDir;
 
     use crate::vs_code::get_vscode_instance;
-
-    #[tokio::test]
-    async fn test_() {
-        let code = super::Code::new("/home/ssdd/RustroverProjects/code-forge");
-        let ides = code.get_active_ides().await.unwrap();
-        for ide in ides {
-            let workspace = code.get_workspace(&ide.workspace_id).await.unwrap();
-            dbg!(workspace);
-        }
-    }
 
     #[tokio::test]
     async fn test_get_vscode_instance() {

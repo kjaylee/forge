@@ -90,7 +90,6 @@ pub mod tests {
             Ok(format!("<task>{}</task>", task))
         }
     }
-
     #[tokio::test]
     async fn test_render_user_prompt() {
         let mut file_map = HashMap::new();
