@@ -33,6 +33,7 @@ mod parser;
 pub mod ranking;  // Make the ranking module public
 mod repo_map;
 mod symbol;
+mod token;
 
 pub use error::Error;
 pub use ranking::{PageRank, PageRankConfig, SymbolReference};
