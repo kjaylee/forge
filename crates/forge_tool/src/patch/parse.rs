@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use nom::bytes::complete::{tag, take_until};
 use nom::character::complete::line_ending;
 use nom::combinator::{map, verify};
@@ -14,10 +12,6 @@ use super::marker::{DIVIDER, REPLACE, SEARCH};
 pub enum Error {
     #[error("Error in block {position}: {kind}")]
     Block { position: usize, kind: Kind },
-    #[error("File not found at path: {0}")]
-    FileNotFound(PathBuf),
-    #[error("File operation failed: {0}")]
-    FileOperation(#[from] std::io::Error),
     #[error("No search/replace blocks found in content")]
     NoBlocks,
     #[error("Parse error: {0}")]
@@ -180,7 +174,7 @@ fn parse_one_block_nom(
                 // This signals “no more blocks” -> a soft error so `many0` stops
                 Err(NomErr::Error(nom::error::Error::new(input, ErrorKind::Eof)))
             }
-            Err(e) => {
+            Err(_) => {
                 // Any real parse error => `Failure` so the entire parse aborts
                 Err(NomErr::Failure(nom::error::Error::new(input, ErrorKind::Fail)))
             }
@@ -333,10 +327,6 @@ mod test {
         // Test error message for no blocks
         let err = parse_blocks("").unwrap_err();
         assert_eq!(err.to_string(), "No search/replace blocks found in content");
-
-        // Test file not found error
-        let err = Error::FileNotFound(PathBuf::from("nonexistent.txt"));
-        assert_eq!(err.to_string(), "File not found at path: nonexistent.txt");
     }
 
     #[test]

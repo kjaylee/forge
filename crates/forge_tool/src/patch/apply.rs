@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
 use dissimilar::Chunk;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
@@ -7,8 +8,17 @@ use serde::Deserialize;
 use tokio::fs;
 
 use super::marker::{DIVIDER, REPLACE, SEARCH};
-use super::parse::{self, Error, PatchBlock};
+use super::parse::{self, PatchBlock};
 use crate::syn;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+enum Error {
+    #[error("File not found at path: {0}")]
+    FileNotFound(PathBuf),
+    #[error("File operation failed: {0}")]
+    FileOperation(#[from] std::io::Error),
+}
 
 /// Input parameters for the fs_replace tool.
 #[derive(Deserialize, JsonSchema)]
@@ -182,6 +192,17 @@ mod test {
         fs::write(&path, content)
             .await
             .map_err(Error::FileOperation)
+    }
+
+    #[test]
+    fn test_error_messages(){
+        // Test file not found error
+        let err = Error::FileNotFound(PathBuf::from("nonexistent.txt"));
+        assert_eq!(err.to_string(), "File not found at path: nonexistent.txt");
+
+        // Test file operation error
+        let io_err = Error::FileOperation(IoError::new(IoErrorKind::NotFound, "No such file or directory (os error 2)"));
+        assert_eq!(io_err.to_string(), "File operation failed: No such file or directory (os error 2)");
     }
 
     #[tokio::test]
