@@ -1109,7 +1109,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "zerocopy",
 ]
 
 [[package]]
