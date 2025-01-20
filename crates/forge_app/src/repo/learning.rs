@@ -6,7 +6,7 @@ use diesel::sql_types::{Text, Timestamp};
 use forge_domain::{Learning, LearningId, LearningRepository};
 
 use crate::embeddings;
-use crate::learning_index::IndexConfig;
+use crate::learning_index::LearningIndexBuilder;
 use crate::schema::learning_table;
 use crate::service::Service;
 use crate::sqlite::Sqlite;
@@ -111,11 +111,11 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
             .values(&raw_learning)
             .execute(&mut conn)?;
 
-        // Index each learning text
+        // TODO: use transaction to rollback db insertion if embedding fails
         let learnings = new_learning.learnings.join("\n");
         if let Ok(embedding) = embeddings::get_embedding(learnings) {
             let index = self.learning_idx.lock().unwrap();
-            index.add(new_learning.id.to_string(), embedding)?;
+            index.add(new_learning.id.to_string(), &embedding)?;
         }
 
         Ok(())
@@ -123,7 +123,7 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 
     async fn search(&self, query: &str, sz: usize) -> anyhow::Result<Vec<Learning>> {
         let embedding = embeddings::get_embedding(query.to_string())?;
-        let ids = self.learning_idx.lock().unwrap().search(embedding, sz)?;
+        let result = self.learning_idx.lock().unwrap().search(&embedding, sz)?;
 
         // Now get the pool connection
         let pool = self
@@ -134,10 +134,10 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
         let mut conn = pool.get().map_err(|e| anyhow::anyhow!(e))?;
 
         // Fetch learnings by IDs
-        let mut learnings = Vec::with_capacity(ids.len());
-        for (id, _) in ids {
+        let mut learnings = Vec::with_capacity(result.len());
+        for res in result {
             if let Ok(raw) = learning_table::table
-                .find(id)
+                .find(res.id)
                 .first::<RawLearning>(&mut conn)
             {
                 if let Ok(learning) = Learning::try_from(raw) {
@@ -152,14 +152,13 @@ impl<S: Sqlite + Send + Sync> LearningRepository for Live<S> {
 impl Service {
     pub fn learning_service(database_url: &str) -> anyhow::Result<impl LearningRepository> {
         let pool_service = Service::db_pool_service(database_url)?;
-        let learning_index = Arc::new(Mutex::new(LearningIndex::new(
-            database_url,
-            IndexConfig {
-                index_name: "learning_index".to_string(),
-                vector_size: 384,
-                column_name: "learning_embedding".to_string(),
-            },
-        )?));
+        let learning_index = Arc::new(Mutex::new(
+            LearningIndexBuilder::new(database_url)
+                .index_name("learning_index")
+                .column_name("learning_embedding")
+                .vector_size(384 as usize)
+                .build()?,
+        ));
         Ok(Live::new(pool_service, learning_index))
     }
 }
@@ -178,14 +177,13 @@ pub mod tests {
     impl TestStorage {
         pub fn in_memory() -> anyhow::Result<impl LearningRepository> {
             let pool_service = TestSqlite::new()?;
-            let learning_index = Arc::new(Mutex::new(LearningIndex::new(
-                ":memory:",
-                IndexConfig {
-                    index_name: "learning_index".to_string(),
-                    vector_size: 384,
-                    column_name: "learning_embedding".to_string(),
-                },
-            )?));
+            let learning_index = Arc::new(Mutex::new(
+                LearningIndexBuilder::new(pool_service.path())
+                    .index_name("learning_index")
+                    .column_name("learning_embedding")
+                    .vector_size(384 as usize)
+                    .build()?,
+            ));
             Ok(Live::new(pool_service, learning_index))
         }
     }
@@ -271,8 +269,10 @@ pub mod tests {
         let learning1 = Learning::new(
             cwd.clone(),
             vec![
-                "Rust's async/await syntax enables concurrent programming without data races.".to_string(),
-                "Tokio provides async primitives like channels and mutexes for safe concurrency.".to_string(),
+                "Rust's async/await syntax enables concurrent programming without data races."
+                    .to_string(),
+                "Tokio provides async primitives like channels and mutexes for safe concurrency."
+                    .to_string(),
                 "Spawn multiple tasks to handle concurrent operations efficiently.".to_string(),
             ],
         );
@@ -311,9 +311,14 @@ pub mod tests {
             .await
             .unwrap();
 
-        
         assert_eq!(result.len(), 2);
-        assert!(result[0].learnings.iter().any(|s| s.contains("async/await")));
-        assert!(result[1].learnings.iter().any(|s| s.contains("thread safety")));
+        assert!(result[0]
+            .learnings
+            .iter()
+            .any(|s| s.contains("async/await")));
+        assert!(result[1]
+            .learnings
+            .iter()
+            .any(|s| s.contains("thread safety")));
     }
 }

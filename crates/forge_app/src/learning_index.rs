@@ -1,28 +1,63 @@
 use anyhow::Result;
+use derive_setters::Setters;
 use rusqlite::{ffi::sqlite3_auto_extension, Connection};
 use sqlite_vec::sqlite3_vec_init;
 
-#[derive(Clone)]
-pub struct IndexConfig {
-    pub index_name: String,
-    pub vector_size: usize,
-    pub column_name: String,
+#[derive(Debug)]
+pub struct SearchResult {
+    pub id: String,
+    pub distance: f64,
+}
+
+#[derive(Setters)]
+#[setters(into)]
+pub struct LearningIndexBuilder {
+    path: String,
+    index_name: String,
+    vector_size: usize,
+    column_name: String,
+}
+
+impl LearningIndexBuilder {
+    pub fn new(path: impl Into<String>) -> Self {
+        Self {
+            path: path.into(),
+            index_name: "embeddings".to_string(),
+            vector_size: 384,
+            column_name: "embedding".to_string(),
+        }
+    }
+
+    pub fn build(self) -> Result<LearningIndex> {
+        LearningIndex::new(self)
+    }
+}
+
+struct Config {
+    index_name: String,
+    vector_size: usize,
+    column_name: String,
 }
 
 pub struct LearningIndex {
     conn: Connection,
-    config: IndexConfig,
+    config: Config,
 }
 
 unsafe impl Send for LearningIndex {}
 
 impl LearningIndex {
-    pub fn new(path: &str, config: IndexConfig) -> Result<Self> {
+    fn new(builder: LearningIndexBuilder) -> Result<Self> {
         unsafe {
             sqlite3_auto_extension(Some(sqlite3_vec_init));
         }
-        let conn = Connection::open(path)?;
+        let conn = Connection::open(&builder.path)?;
 
+        let config = Config {
+            index_name: builder.index_name,
+            vector_size: builder.vector_size,
+            column_name: builder.column_name,
+        };
 
         // Create the vector table if it doesn't exist
         let create_table = format!(
@@ -34,17 +69,20 @@ impl LearningIndex {
         Ok(Self { conn, config })
     }
 
-    pub fn add(&self, id: String, vector: Vec<f32>) -> Result<()> {
+    pub fn add(&self, id: impl AsRef<str>, vector: &[f32]) -> Result<()> {
         let insert_sql = format!(
             "INSERT OR REPLACE INTO {}(id, {}) VALUES (?, ?)",
             self.config.index_name, self.config.column_name
         );
 
-        self.conn.execute(&insert_sql, rusqlite::params![id, vec_to_bytes(&vector)])?;
+        self.conn.execute(
+            &insert_sql,
+            rusqlite::params![id.as_ref(), vec_to_bytes(vector)],
+        )?;
         Ok(())
     }
 
-    pub fn search(&self, query: Vec<f32>, limit: usize) -> Result<Vec<(String, f64)>> {
+    pub fn search(&self, query: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
         let search_sql = format!(
             r"
             SELECT
@@ -58,9 +96,12 @@ impl LearningIndex {
             self.config.index_name, self.config.column_name, limit
         );
 
-        let results: Vec<(String, f64)> = self.conn
+        let results = self
+            .conn
             .prepare(&search_sql)?
-            .query_map([vec_to_bytes(&query)], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .query_map([vec_to_bytes(query)], |row| {
+                Ok(SearchResult { id: row.get(0)?, distance: row.get(1)? })
+            })?
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(results)
@@ -81,34 +122,26 @@ mod tests {
 
     #[test]
     fn test_vector_operations() -> Result<()> {
-        let config = IndexConfig {
-            index_name: "test_embeddings".to_string(),
-            vector_size: 3,
-            column_name: "embedding".to_string(),
-        };
+        let index = LearningIndexBuilder::new(":memory:")
+            .vector_size(3 as usize)
+            .index_name("test_embeddings")
+            .build()?;
 
-        let index = LearningIndex::new(":memory:", config.clone())?;
-
-        // Test batch insert
-        let test_embeddings = vec![
-            ("1".to_string(), vec![0.1, 0.2, 0.3]),    // Document about cats
-            ("2".to_string(), vec![0.15, 0.25, 0.35]), // Document about pets
-            ("3".to_string(), vec![0.8, 0.9, 1.0]),    // Document about space
-        ];
-
-        for (id, embedding) in test_embeddings {
-            index.add(id, embedding)?;
-        }
+        // Add test vectors
+        index.add("1", &[0.1, 0.2, 0.3])?; // Document about cats
+        index.add("2", &[0.15, 0.25, 0.35])?; // Document about pets
+        index.add("3", &[0.8, 0.9, 1.0])?; // Document about space
 
         // Test similarity search
-        let query = vec![0.12, 0.22, 0.32]; // Query about pets/cats
-        let results = index.search(query, 2)?;
+        let query = [0.12, 0.22, 0.32]; // Query about pets/cats
+        let results = index.search(&query, 2)?;
 
+        println!("{:?}", results);
         assert_eq!(results.len(), 2);
         // The closest results should be the pet-related documents (ids 1 and 2)
-        assert!(results[0].0 == "1" || results[0].0 == "2");
-        assert!(results[1].0 == "1" || results[1].0 == "2");
-        assert!(results[0].1 <= results[1].1); // Verify distances are ordered
+        assert!(results[0].id == "1" || results[0].id == "2");
+        assert!(results[1].id == "1" || results[1].id == "2");
+        assert!(results[0].distance <= results[1].distance); // Verify distances are ordered
         Ok(())
     }
 }
