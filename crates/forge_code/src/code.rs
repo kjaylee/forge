@@ -12,7 +12,7 @@ use sysinfo::System;
 
 /// Represents Visual Studio Code IDE interaction
 pub struct Code {
-    cwd: String,
+    root_dir: String,
 }
 
 impl Code {
@@ -28,14 +28,14 @@ impl Code {
             .and_then(|p| p.to_str().map(|s| s.to_string()))
             .unwrap_or(cwd);
 
-        Self { cwd }
+        Self { root_dir: cwd }
     }
 }
 
 #[async_trait]
 impl IdeRepository for Code {
     async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
-        get_all_vscode_instances(&self.cwd).await
+        get_all_vscode_instances(&self.root_dir).await
     }
 
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
@@ -469,7 +469,7 @@ mod tests {
 mod partial_integration_tests {
     use tempfile::TempDir;
 
-    use crate::vs_code::get_vscode_instance;
+    use crate::code::get_vscode_instance;
 
     #[tokio::test]
     async fn test_get_vscode_instance() {

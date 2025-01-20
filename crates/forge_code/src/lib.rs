@@ -1,3 +1,3 @@
-mod vs_code;
+mod code;
 
-pub use vs_code::*;
+pub use code::*;
