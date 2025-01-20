@@ -2,13 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use tokio_stream::StreamExt;
-use crate::{
-    BreakPoint,
-    Context,
-    ContextMessage,
-    ModelId,
-    ProviderService,
-};
+
+use crate::{BreakPoint, Context, ContextMessage, ModelId, ProviderService};
 
 #[async_trait::async_trait]
 pub trait Transform {
@@ -65,10 +60,8 @@ impl Transform for SummarizeMessages {
         }
 
         // Extract messages to summarize
-        let messages_to_summarize: Vec<_> = indices
-            .iter()
-            .map(|&i| ctx.messages[i].clone())
-            .collect();
+        let messages_to_summarize: Vec<_> =
+            indices.iter().map(|&i| ctx.messages[i].clone()).collect();
 
         // Create summarization context with prompt
         let prompt = include_str!("./prompts/summarize.md");
@@ -76,10 +69,8 @@ impl Transform for SummarizeMessages {
         summarize_ctx.messages.extend(messages_to_summarize);
 
         // Get summary from provider
-        let mut stream = self.provider
-            .chat(&self.model_id, summarize_ctx)
-            .await?;
-        
+        let mut stream = self.provider.chat(&self.model_id, summarize_ctx).await?;
+
         let mut summary = String::new();
         while let Some(result) = stream.next().await {
             match result {
@@ -87,8 +78,8 @@ impl Transform for SummarizeMessages {
                     if let Some(content) = msg.content {
                         summary.push_str(content.as_str());
                     }
-                },
-                Err(e) => return Err(e)
+                }
+                Err(e) => return Err(e),
             }
         }
 
@@ -100,7 +91,7 @@ impl Transform for SummarizeMessages {
         // Replace first occurrence with summary and remove the rest
         if let Some(&first_index) = indices.last() {
             ctx.messages[first_index] = ContextMessage::assistant(summary, None);
-            
+
             // Remove remaining messages
             for &index in indices.iter().rev().skip(1) {
                 ctx.messages.remove(index);
@@ -114,7 +105,8 @@ impl Transform for SummarizeMessages {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{breakpoint::MessageRole, ChatCompletionMessage, Model, Parameters, Role};
+    use crate::breakpoint::MessageRole;
+    use crate::{ChatCompletionMessage, Model, Parameters, Role};
 
     #[tokio::test]
     async fn test_remove_messages() {
@@ -126,7 +118,7 @@ mod tests {
         // Remove assistant messages
         let bp = BreakPoint::Role(MessageRole::Role(Role::Assistant));
         let transform = RemoveMessages;
-        
+
         let result = transform.transform(ctx.clone(), &bp).await.unwrap();
         assert_eq!(result.messages.len(), 2);
         assert_eq!(result.messages[0].content(), "message 1".to_string());
@@ -142,7 +134,7 @@ mod tests {
         // Remove assistant messages (none exist)
         let bp = BreakPoint::Role(MessageRole::Role(Role::Assistant));
         let transform = RemoveMessages;
-        
+
         let result = transform.transform(ctx.clone(), &bp).await.unwrap();
         assert_eq!(result.messages.len(), 2);
     }
@@ -161,12 +153,12 @@ mod tests {
             Box::new(BreakPoint::After(
                 Box::new(BreakPoint::Role(MessageRole::Role(Role::User))),
                 Box::new(BreakPoint::Role(MessageRole::Role(Role::Assistant))),
-            ))
+            )),
         );
 
         let transform = RemoveMessages;
         let result = transform.transform(ctx.clone(), &bp).await.unwrap();
-        
+
         assert_eq!(result.messages.len(), 2);
         assert_eq!(result.messages[0].content(), "message 1".to_string());
         assert_eq!(result.messages[1].content(), "message 3".to_string());
@@ -180,7 +172,13 @@ mod tests {
 
     #[async_trait::async_trait]
     impl ProviderService for MockProvider {
-        async fn chat(&self, _model: &ModelId, _ctx: Context) -> anyhow::Result<futures::stream::BoxStream<'static, anyhow::Result<ChatCompletionMessage>>> {
+        async fn chat(
+            &self,
+            _model: &ModelId,
+            _ctx: Context,
+        ) -> anyhow::Result<
+            futures::stream::BoxStream<'static, anyhow::Result<ChatCompletionMessage>>,
+        > {
             let msg = ChatCompletionMessage::default().content_full(&self.summary);
             Ok(Box::pin(futures::stream::once(async { Ok(msg) })))
         }
@@ -201,18 +199,19 @@ mod tests {
             .add_message(ContextMessage::assistant("message 2", None))
             .add_message(ContextMessage::user("message 3"));
 
-        let mock_provider = Arc::new(MockProvider {
-            summary: "Summary of messages".to_string(),
-        });
+        let mock_provider = Arc::new(MockProvider { summary: "Summary of messages".to_string() });
 
         // Summarize assistant messages
         let bp = BreakPoint::Role(MessageRole::Role(Role::Assistant));
         let transform = SummarizeMessages::new(mock_provider, ModelId::new("test-model"));
-        
+
         let result = transform.transform(ctx.clone(), &bp).await.unwrap();
         assert_eq!(result.messages.len(), 3);
         assert_eq!(result.messages[0].content(), "message 1".to_string());
-        assert_eq!(result.messages[1].content(), "Summary of messages".to_string());
+        assert_eq!(
+            result.messages[1].content(),
+            "Summary of messages".to_string()
+        );
         assert_eq!(result.messages[2].content(), "message 3".to_string());
     }
 
@@ -222,14 +221,12 @@ mod tests {
             .add_message(ContextMessage::user("message 1"))
             .add_message(ContextMessage::user("message 2"));
 
-        let mock_provider = Arc::new(MockProvider {
-            summary: "Summary of messages".to_string(),
-        });
+        let mock_provider = Arc::new(MockProvider { summary: "Summary of messages".to_string() });
 
         // Summarize assistant messages (none exist)
         let bp = BreakPoint::Role(MessageRole::Role(Role::Assistant));
         let transform = SummarizeMessages::new(mock_provider, ModelId::new("test-model"));
-        
+
         let result = transform.transform(ctx.clone(), &bp).await.unwrap();
         assert_eq!(result.messages.len(), 2);
     }
@@ -242,9 +239,7 @@ mod tests {
             .add_message(ContextMessage::user("message 3"))
             .add_message(ContextMessage::assistant("message 4", None));
 
-        let mock_provider = Arc::new(MockProvider {
-            summary: "Summary of messages".to_string(),
-        });
+        let mock_provider = Arc::new(MockProvider { summary: "Summary of messages".to_string() });
 
         // Summarize messages after first user message
         let bp = BreakPoint::After(
@@ -254,10 +249,13 @@ mod tests {
 
         let transform = SummarizeMessages::new(mock_provider, ModelId::new("test-model"));
         let result = transform.transform(ctx.clone(), &bp).await.unwrap();
-        
+
         assert_eq!(result.messages.len(), 3);
         assert_eq!(result.messages[0].content(), "message 1".to_string());
-        assert_eq!(result.messages[1].content(), "Summary of messages".to_string());
+        assert_eq!(
+            result.messages[1].content(),
+            "Summary of messages".to_string()
+        );
         assert_eq!(result.messages[2].content(), "message 3".to_string());
     }
 }

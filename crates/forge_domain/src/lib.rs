@@ -1,4 +1,5 @@
 mod agent;
+mod breakpoint;
 mod chat_request;
 mod chat_response;
 mod chat_stream_ext;
@@ -23,11 +24,11 @@ mod tool_definition;
 mod tool_name;
 mod tool_result;
 mod tool_usage;
-mod user_interaction;
 mod transform;
-mod breakpoint;
+mod user_interaction;
 
 pub use agent::*;
+pub use breakpoint::BreakPoint;
 pub use chat_request::*;
 pub use chat_response::*;
 pub use chat_stream_ext::*;
@@ -52,6 +53,5 @@ pub use tool_definition::*;
 pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
-pub use user_interaction::*;
 pub use transform::*;
-pub use breakpoint::BreakPoint;
+pub use user_interaction::*;
