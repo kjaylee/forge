@@ -106,30 +106,18 @@ fn parse_one_block(input: &str, position: usize) -> Result<(&str, PatchBlock), E
 
     if let Some(divider_idx) = input.find(DIVIDER) {
         if !ensure_line_start(input, divider_idx) {
-            return Err(Error::Block {
-                position,
-                kind: Kind::InvalidMarkerPosition,
-            });
+            return Err(Error::Block { position, kind: Kind::InvalidMarkerPosition });
         }
         if !input[divider_idx..].contains(&format!("{DIVIDER}\n")) {
-            return Err(Error::Block {
-                position,
-                kind: Kind::SeparatorNewline,
-            });
+            return Err(Error::Block { position, kind: Kind::SeparatorNewline });
         }
     }
     if let Some(replace_idx) = input.find(REPLACE) {
         if !ensure_line_start(input, replace_idx) {
-            return Err(Error::Block {
-                position,
-                kind: Kind::InvalidMarkerPosition,
-            });
+            return Err(Error::Block { position, kind: Kind::InvalidMarkerPosition });
         }
         if !input[replace_idx..].contains(&format!("{REPLACE}\n")) {
-            return Err(Error::Block {
-                position,
-                kind: Kind::Incomplete,
-            });
+            return Err(Error::Block { position, kind: Kind::Incomplete });
         }
     }
 
@@ -138,31 +126,20 @@ fn parse_one_block(input: &str, position: usize) -> Result<(&str, PatchBlock), E
         Ok((rest, block)) => Ok((rest, block)),
         Err(NomErr::Error(_)) => {
             if input.contains(SEARCH) && !input.contains(DIVIDER) {
-                Err(Error::Block {
-                    position,
-                    kind: Kind::Separator,
-                })
+                Err(Error::Block { position, kind: Kind::Separator })
             } else if input.contains(DIVIDER) && !input.contains(REPLACE) {
-                Err(Error::Block {
-                    position,
-                    kind: Kind::ReplaceMarker,
-                })
+                Err(Error::Block { position, kind: Kind::ReplaceMarker })
             } else {
                 Err(Error::Parse("Invalid patch format".to_string()))
             }
         }
-        Err(NomErr::Incomplete(_)) => Err(Error::Block {
-            position,
-            kind: Kind::Incomplete,
-        }),
+        Err(NomErr::Incomplete(_)) => Err(Error::Block { position, kind: Kind::Incomplete }),
         Err(e) => Err(Error::Parse(e.to_string())),
     }
 }
 
 /// Parse a single patch block, incrementing the position on success
-fn parse_one_block_nom(
-    position: &mut usize,
-) -> impl FnMut(&str) -> IResult<&str, PatchBlock> + '_ {
+fn parse_one_block_nom(position: &mut usize) -> impl FnMut(&str) -> IResult<&str, PatchBlock> + '_ {
     move |input: &str| {
         match parse_one_block(input, *position) {
             Ok((rest, block)) => {
@@ -176,7 +153,10 @@ fn parse_one_block_nom(
             }
             Err(_) => {
                 // Any real parse error => `Failure` so the entire parse aborts
-                Err(NomErr::Failure(nom::error::Error::new(input, ErrorKind::Fail)))
+                Err(NomErr::Failure(nom::error::Error::new(
+                    input,
+                    ErrorKind::Fail,
+                )))
             }
         }
     }
@@ -192,17 +172,11 @@ pub fn parse_blocks(input: &str) -> Result<Vec<PatchBlock>, Error> {
     // Early marker position checks
     if let Some(search_idx) = input.find(SEARCH) {
         if !ensure_line_start(input, search_idx) {
-            return Err(Error::Block {
-                position: 1,
-                kind: Kind::InvalidMarkerPosition,
-            });
+            return Err(Error::Block { position: 1, kind: Kind::InvalidMarkerPosition });
         }
         // Check for newline after SEARCH
         if !input[search_idx..].contains(&format!("{SEARCH}\n")) {
-            return Err(Error::Block {
-                position: 1,
-                kind: Kind::SearchNewline,
-            });
+            return Err(Error::Block { position: 1, kind: Kind::SearchNewline });
         }
     }
 
@@ -221,9 +195,7 @@ pub fn parse_blocks(input: &str) -> Result<Vec<PatchBlock>, Error> {
         // map_res(...) expects to convert the internal Ok(...) into a new Result
         // But parse_one_block_nom already returns a normal IResult with PatchBlock,
         // so we can just do an identity here:
-        |block: PatchBlock| -> Result<PatchBlock, Error> {
-            Ok(block)
-        },
+        |block: PatchBlock| -> Result<PatchBlock, Error> { Ok(block) },
     ))(input);
 
     match result {
@@ -234,10 +206,7 @@ pub fn parse_blocks(input: &str) -> Result<Vec<PatchBlock>, Error> {
             }
             Ok(blocks)
         }
-        Err(NomErr::Incomplete(_)) => Err(Error::Block {
-            position,
-            kind: Kind::Incomplete,
-        }),
+        Err(NomErr::Incomplete(_)) => Err(Error::Block { position, kind: Kind::Incomplete }),
         Err(NomErr::Error(_)) | Err(NomErr::Failure(_)) => {
             match parse_one_block(input, position) {
                 Err(e) => Err(e),
@@ -310,7 +279,7 @@ mod test {
         let result = parse_blocks(&diff);
         assert!(matches!(
             result.unwrap_err(),
-            Error::Parse(msg) if msg.eq("Invalid patch format") 
+            Error::Parse(msg) if msg.eq("Invalid patch format")
         ));
     }
 

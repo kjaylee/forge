@@ -4,12 +4,12 @@ use dissimilar::Chunk;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use thiserror::Error;
 use tokio::fs;
 
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
 use crate::syn;
-use thiserror::Error;
 
 #[derive(Debug, Error)]
 enum Error {
@@ -183,10 +183,11 @@ impl ToolCallService for ApplyPatch {
 
 #[cfg(test)]
 mod test {
+    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
+
     use tempfile::TempDir;
 
     use super::*;
-    use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content)
@@ -195,14 +196,20 @@ mod test {
     }
 
     #[test]
-    fn test_error_messages(){
+    fn test_error_messages() {
         // Test file not found error
         let err = Error::FileNotFound(PathBuf::from("nonexistent.txt"));
         assert_eq!(err.to_string(), "File not found at path: nonexistent.txt");
 
         // Test file operation error
-        let io_err = Error::FileOperation(IoError::new(IoErrorKind::NotFound, "No such file or directory (os error 2)"));
-        assert_eq!(io_err.to_string(), "File operation failed: No such file or directory (os error 2)");
+        let io_err = Error::FileOperation(IoError::new(
+            IoErrorKind::NotFound,
+            "No such file or directory (os error 2)",
+        ));
+        assert_eq!(
+            io_err.to_string(),
+            "File operation failed: No such file or directory (os error 2)"
+        );
     }
 
     #[tokio::test]
