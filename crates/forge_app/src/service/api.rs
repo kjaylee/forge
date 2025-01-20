@@ -11,7 +11,6 @@ use super::completion::CompletionService;
 use super::env::EnvironmentService;
 use super::tool_service::ToolService;
 use super::{File, Service, UIService};
-use crate::ides::ForgeAllIdes;
 use crate::{ConfigRepository, ConversationRepository};
 
 #[async_trait::async_trait]
@@ -50,7 +49,7 @@ impl Live {
         let env = Service::environment_service().get().await?;
 
         let cwd: String = env.cwd.clone();
-        let all_ides = ForgeAllIdes::new(&cwd).await;
+        let ide = Arc::new(Service::ide_service(&cwd));
 
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
         let tool = Arc::new(Service::tool_service());
@@ -64,7 +63,7 @@ impl Live {
 
         let user_prompt = Arc::new(Service::user_prompt_service(
             file_read.clone(),
-            Arc::new(all_ides),
+            Arc::new(ide),
         ));
         let storage = Arc::new(Service::storage_service(&cwd)?);
 

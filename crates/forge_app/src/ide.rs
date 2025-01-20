@@ -1,23 +1,33 @@
+use std::sync::Arc;
+
 use forge_code::Code;
 use forge_domain::{Ide, IdeRepository, Workspace, WorkspaceId};
 
-pub struct ForgeAllIdes {
-    ides: Vec<IDEs>,
+use crate::Service;
+
+struct Live {
+    ides: Vec<IdeType>,
 }
 
-enum IDEs {
+enum IdeType {
     VsCode(Code),
 }
 
-impl ForgeAllIdes {
-    pub async fn new<T: ToString>(cwd: T) -> Self {
-        let ides: Vec<IDEs> = vec![IDEs::VsCode(Code::new(cwd.to_string()).await)];
+impl Live {
+    fn new<T: ToString>(cwd: T) -> Self {
+        let ides: Vec<IdeType> = vec![IdeType::VsCode(Code::new(cwd.to_string()))];
         Self { ides }
     }
 }
 
+impl Service {
+    pub fn ide_service<T: ToString>(cwd: T) -> impl IdeRepository {
+        Live::new(cwd)
+    }
+}
+
 #[async_trait::async_trait]
-impl IdeRepository for ForgeAllIdes {
+impl IdeRepository for Live {
     async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
         let mut files = vec![];
         for ide in &self.ides {
@@ -41,16 +51,16 @@ impl IdeRepository for ForgeAllIdes {
 }
 
 #[async_trait::async_trait]
-impl IdeRepository for IDEs {
+impl IdeRepository for IdeType {
     async fn get_active_ides(&self) -> anyhow::Result<Vec<Ide>> {
         match self {
-            IDEs::VsCode(ide) => ide.get_active_ides().await,
+            IdeType::VsCode(ide) => ide.get_active_ides().await,
         }
     }
 
     async fn get_workspace(&self, ide: &WorkspaceId) -> anyhow::Result<Workspace> {
         match self {
-            IDEs::VsCode(code) => code.get_workspace(ide).await,
+            IdeType::VsCode(code) => code.get_workspace(ide).await,
         }
     }
 }

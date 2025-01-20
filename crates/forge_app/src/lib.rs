@@ -1,5 +1,5 @@
 mod context;
-mod ides;
+mod ide;
 mod log;
 mod repo;
 mod routes;

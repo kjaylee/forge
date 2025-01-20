@@ -8,7 +8,6 @@ snapshot_kind: text
 <file_content path="foo.txt">
 Hello World - Foo
 </file_content>
-
 <file_content path="bar.txt">
 Hello World - Bar
 </file_content>
