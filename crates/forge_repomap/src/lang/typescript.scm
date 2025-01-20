@@ -1,27 +1,48 @@
-;; TypeScript specific queries
-;; Includes all JavaScript queries plus:
+;; Functions and Methods
+(function_declaration
+  name: (identifier) @function)
 
-;; Interfaces
-(interface_declaration
-  name: (type_identifier) @interface)
+(method_definition
+  name: (property_identifier) @method)
 
-;; Type aliases
-(type_alias_declaration
-  name: (type_identifier) @type)
+(arrow_function
+  parameter: (identifier) @parameter)
 
-;; Enums
+;; Classes and Interfaces
+(class_declaration
+  name: (identifier) @class)
+
+[
+  (interface_declaration
+    name: (type_identifier) @interface.name)
+  (type_alias_declaration
+    name: (type_identifier) @type.alias)
+] @type.declaration
+
+;; Variables and Constants
+(variable_declarator
+  name: (identifier) @variable)
+
+((identifier) @constant
+  (#match? @constant "^[A-Z][A-Z_]*$"))
+
+;; TypeScript specific nodes
+(property_signature
+  name: (property_identifier) @property)
+
+(method_signature
+  name: (property_identifier) @method_signature)
+
 (enum_declaration
   name: (identifier) @enum)
 
-;; Generic type parameters
-(type_parameter_declaration
-  name: (type_identifier) @type)
+;; Type Parameters
+(type_parameter
+  name: (type_identifier) @type_parameter)
 
-;; Class properties with type annotations
-(public_field_definition
-  name: (property_identifier) @variable
-  type: (_))
+;; Export/Import
+(export_statement
+  declaration: (_) @exported_declaration)
 
-;; Method signatures in interfaces
-(method_signature
-  name: (property_identifier) @method)
+(import_statement
+  source: (_) @import_source)

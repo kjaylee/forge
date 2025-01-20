@@ -8,26 +8,6 @@ use crate::ranking::{PageRankConfig, SymbolReference};
 use crate::symbol::Symbol;
 
 /// A map of a repository's code structure and relationships.
-///
-/// RepoMap analyzes a repository to build a comprehensive understanding of its:
-/// - Defined symbols (functions, classes, etc.)
-/// - File dependencies and relationships
-/// - Code structure and organization
-///
-/// This information is used to provide relevant context to LLMs when they need to
-/// understand or modify code in the repository.
-///
-/// # Example
-/// ```no_run
-/// use std::path::PathBuf;
-/// use forge_repomap::RepoMap;
-///
-/// let mut repo_map = RepoMap::new(PathBuf::from("./"), 1000).unwrap();
-/// repo_map.analyze().unwrap();
-///
-/// // Get context about specific files
-/// let context = repo_map.get_context(&[PathBuf::from("src/main.rs")]);
-/// ```
 pub struct RepoMap {
     /// Root path of the repository being analyzed
     root_path: PathBuf,
@@ -36,7 +16,7 @@ pub struct RepoMap {
     /// Graph representing relationships between files
     graph: DependencyGraph,
     /// Parser for analyzing source code
-    parser: Parser,
+    parser: Option<Parser>,
     /// Maximum number of tokens to include in context
     token_budget: usize,
 }
@@ -47,9 +27,14 @@ impl RepoMap {
             root_path,
             files: HashMap::new(),
             graph: DependencyGraph::new(),
-            parser: Parser::new()?,
+            parser: None,
             token_budget,
         })
+    }
+
+    pub fn with_parser(mut self) -> Result<Self, Error> {
+        self.parser = Some(Parser::new()?);
+        Ok(self)
     }
 
     /// Configure PageRank parameters for importance calculation
@@ -59,6 +44,9 @@ impl RepoMap {
     }
 
     pub fn analyze(&mut self) -> Result<(), Error> {
+        let parser = self.parser.as_ref()
+            .ok_or_else(|| Error::Parse("Parser not initialized. Call with_parser() first".to_string()))?;
+            
         let walker = forge_walker::Walker::new(self.root_path.clone());
         let entries = futures::executor::block_on(walker.get())
             .map_err(|e| Error::Io(std::io::Error::new(
@@ -85,8 +73,11 @@ impl RepoMap {
     }
 
     fn process_file(&mut self, path: &Path) -> Result<(), Error> {
+        let parser = self.parser.as_ref()
+            .ok_or_else(|| Error::Parse("Parser not initialized. Call with_parser() first".to_string()))?;
+            
         let content = std::fs::read_to_string(path)?;
-        let symbols = self.parser.parse_file(path, &content)?;
+        let symbols = parser.parse_file(path, &content)?;
         self.files.insert(path.to_path_buf(), symbols);
         Ok(())
     }
