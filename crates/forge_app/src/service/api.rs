@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_all_ides::ForgeAllIdes;
 use forge_domain::{
     ChatRequest, ChatResponse, Config, Context, Conversation, ConversationId, Environment, Model,
     ProviderService, ResultStream, ToolDefinition,
@@ -13,6 +12,7 @@ use super::env::EnvironmentService;
 use super::tool_service::ToolService;
 use super::{File, Service, UIService};
 use crate::{ConfigRepository, ConversationRepository};
+use crate::ides::ForgeAllIdes;
 
 #[async_trait::async_trait]
 pub trait APIService: Send + Sync {

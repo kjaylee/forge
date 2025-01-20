@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_all_ides::ForgeAllIdes;
 use forge_domain::IdeRepository;
 use forge_prompt::Prompt;
 use handlebars::Handlebars;
 use serde::Serialize;
+use crate::ides::ForgeAllIdes;
 
 use super::file_read::FileReadService;
 use super::Service;

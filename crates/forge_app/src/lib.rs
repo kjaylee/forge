@@ -5,6 +5,7 @@ mod routes;
 mod schema;
 mod service;
 mod sqlite;
+mod ides;
 
 pub use repo::*;
 pub use routes::Routes;
