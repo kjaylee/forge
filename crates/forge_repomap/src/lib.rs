@@ -30,9 +30,11 @@
 mod error;
 mod graph;
 mod parser;
+pub mod ranking;  // Make the ranking module public
 mod repo_map;
 mod symbol;
 
 pub use error::Error;
+pub use ranking::{PageRank, PageRankConfig, SymbolReference};
 pub use repo_map::RepoMap;
 pub use symbol::{Symbol, SymbolKind, Location};

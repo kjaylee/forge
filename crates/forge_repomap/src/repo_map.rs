@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::error::Error;
 use crate::graph::DependencyGraph;
 use crate::parser::Parser;
+use crate::ranking::{PageRankConfig, SymbolReference};
 use crate::symbol::Symbol;
 
 /// A map of a repository's code structure and relationships.
@@ -51,6 +52,12 @@ impl RepoMap {
         })
     }
 
+    /// Configure PageRank parameters for importance calculation
+    pub fn with_page_rank_config(mut self, config: PageRankConfig) -> Self {
+        self.graph = self.graph.with_page_rank_config(config);
+        self
+    }
+
     pub fn analyze(&mut self) -> Result<(), Error> {
         let walker = forge_walker::Walker::new(self.root_path.clone());
         let entries = futures::executor::block_on(walker.get())
@@ -88,18 +95,23 @@ impl RepoMap {
         // Rebuild the graph from scratch
         self.graph = DependencyGraph::new();
 
-        // Add files and their dependencies to the graph
+        // Add files and their dependencies to the graph with symbol information
         for (file_path, symbols) in &self.files {
             for symbol in symbols {
                 for reference in &symbol.references {
-                    self.graph.add_edge(file_path, &reference.path);
+                    let symbol_ref = SymbolReference {
+                        name: symbol.name.clone(),
+                        kind: symbol.kind.clone(),
+                        count: 1, // For now, we count each reference as 1
+                    };
+                    self.graph.add_symbol_reference(file_path, &reference.path, symbol_ref);
                 }
             }
         }
     }
 
     pub fn get_context(&self, focused_paths: &[PathBuf]) -> String {
-        let importance_scores = self.graph.calculate_importance();
+        let importance_scores = self.graph.calculate_importance_with_focus(focused_paths);
         let mut context = String::new();
 
         // Add focused files first
@@ -150,13 +162,85 @@ impl RepoMap {
     }
 
     fn estimate_tokens(&self, text: &str) -> usize {
-        // Rough estimation: ~4 chars per token
-        text.len() / 4
+        // Enhanced tokenization estimation
+        let mut token_count = 0;
+        
+        // Common programming token patterns
+        let patterns = [
+            // Symbols that are usually separate tokens
+            "->", "=>", "::", "//", "/*", "*/", "#{", "${",
+            // Operators
+            "+", "-", "*", "/", "=", "!", "|", "&", "<", ">",
+            // Brackets and punctuation
+            "(", ")", "[", "]", "{", "}", ",", ";", ".", ":",
+        ];
+
+        // Split into words and process each
+        for word in text.split_whitespace() {
+            // Add base word as one token
+            token_count += 1;
+            
+            // Check for common programming patterns
+            for pattern in &patterns {
+                if word.contains(pattern) {
+                    // Each pattern is counted as a separate token
+                    token_count += word.matches(pattern).count();
+                    
+                    // Count non-empty parts around the pattern
+                    let parts: Vec<_> = word.split(pattern)
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    token_count += parts.len();
+                }
+            }
+        }
+
+        // Count line breaks as they often represent structural tokens
+        token_count += text.matches('\n').count();
+        
+        // Add overhead for potential subtokenization
+        token_count += token_count / 5;
+        
+        token_count
     }
 
     pub fn update_file(&mut self, path: &Path) -> Result<(), Error> {
         self.process_file(path)?;
         self.build_dependency_graph();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_token_estimation() {
+        let repo_map = RepoMap::new(PathBuf::from("."), 1000).unwrap();
+        
+        // Test simple text
+        let simple = "Hello world";
+        assert_eq!(repo_map.estimate_tokens(simple), 2);
+        
+        // Test code-like text
+        let code = "fn test() -> Result<(), Error> {\n    println!(\"test\");\n}";
+        let token_count = repo_map.estimate_tokens(code);
+        assert!(token_count >= 20, "Expected at least 20 tokens, got {}", token_count);
+        
+        // Test operator splitting
+        let ops = "a + b * c";
+        let count = repo_map.estimate_tokens(ops);
+        assert!(count >= 5, "Expected at least 5 tokens, got {}", count);
+        
+        // Test common patterns
+        let patterns = "impl Trait for Type {}";
+        let count = repo_map.estimate_tokens(patterns);
+        assert!(count >= 5, "Expected at least 5 tokens, got {}", count);
+        
+        // Test with paths and type parameters
+        let complex = "std::collections::HashMap<String, Vec<T>>";
+        let count = repo_map.estimate_tokens(complex);
+        assert!(count >= 10, "Expected at least 10 tokens, got {}", count);
     }
 }

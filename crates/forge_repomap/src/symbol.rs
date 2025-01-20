@@ -44,6 +44,25 @@ pub enum SymbolKind {
     Implementation,
 }
 
+impl SymbolKind {
+    /// Get the base weight for this symbol kind for importance calculations
+    pub fn base_weight(&self) -> f64 {
+        match self {
+            SymbolKind::Module => 1.5,       // Highest weight for modules
+            SymbolKind::Trait => 1.4,        // Traits are important for Rust
+            SymbolKind::Interface => 1.4,    // Interfaces are important
+            SymbolKind::Class => 1.3,        // Classes define major structures
+            SymbolKind::Struct => 1.3,       // Structs are like classes
+            SymbolKind::Enum => 1.2,         // Enums define important types
+            SymbolKind::Function => 1.1,     // Functions are common but important
+            SymbolKind::Method => 1.1,       // Methods are like functions
+            SymbolKind::Implementation => 1.1, // Implementations are important
+            SymbolKind::Constant => 0.9,     // Constants are referenced but simple
+            SymbolKind::Variable => 0.8,     // Variables have lowest weight
+        }
+    }
+}
+
 impl fmt::Display for SymbolKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -85,12 +104,13 @@ impl Symbol {
         kind: SymbolKind,
         location: Location,
     ) -> Self {
+        let base_weight = kind.base_weight();
         Self {
             name,
             kind,
             signature: None,
             location,
-            importance: 1.0,
+            importance: base_weight, // Use the base weight as initial importance
             references: Vec::new(),
         }
     }
@@ -106,7 +126,70 @@ impl Symbol {
     }
 
     fn recalculate_importance(&mut self) {
-        // Basic importance calculation based on number of references
-        self.importance = 1.0 + (self.references.len() as f64 * 0.1);
+        // Improved importance calculation
+        // - Uses base weight of the symbol type
+        // - Logarithmic scaling for number of references
+        // - Small bonus for having a signature
+        let reference_multiplier = 1.0 + (self.references.len() as f64).ln().max(0.0) * 0.2;
+        let signature_bonus = if self.signature.is_some() { 0.1 } else { 0.0 };
+        
+        self.importance = self.kind.base_weight() * reference_multiplier + signature_bonus;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_symbol_weights() {
+        assert!(SymbolKind::Module.base_weight() > SymbolKind::Variable.base_weight());
+        assert!(SymbolKind::Class.base_weight() > SymbolKind::Constant.base_weight());
+        assert_eq!(SymbolKind::Function.base_weight(), SymbolKind::Method.base_weight());
+    }
+
+    #[test]
+    fn test_importance_calculation() {
+        let location = Location {
+            path: PathBuf::from("test.rs"),
+            start_line: 1,
+            end_line: 1,
+            start_col: 0,
+            end_col: 0,
+        };
+        
+        let mut symbol = Symbol::new(
+            "test".to_string(),
+            SymbolKind::Function,
+            location.clone(),
+        );
+        
+        let initial_importance = symbol.importance;
+        
+        // Add some references
+        for _ in 0..5 {
+            symbol.add_reference(location.clone());
+        }
+        
+        assert!(symbol.importance > initial_importance);
+    }
+
+    #[test]
+    fn test_symbol_with_signature() {
+        let location = Location {
+            path: PathBuf::from("test.rs"),
+            start_line: 1,
+            end_line: 1,
+            start_col: 0,
+            end_col: 0,
+        };
+        
+        let symbol = Symbol::new(
+            "test".to_string(),
+            SymbolKind::Function,
+            location,
+        ).with_signature("fn test(x: i32) -> i32".to_string());
+        
+        assert!(symbol.importance > SymbolKind::Function.base_weight());
     }
 }
