@@ -19,16 +19,15 @@ pub struct AskFollowUpQuestion;
 
 impl NamedTool for AskFollowUpQuestion {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("ask_follow_up_question")
+        ToolName::new("tool_forge_ui_ask")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for AskFollowUpQuestion {
     type Input = AskFollowUpQuestionInput;
-    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+    async fn call(&self, input: Self::Input) -> Result<String, String> {
         Ok(format!("Question: {}", input.question))
     }
 }

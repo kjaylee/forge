@@ -7,32 +7,8 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// A framework for iterative reasoning in problem-solving.
-///
-/// Purpose:
-/// Tracks reasoning steps ("thoughts") to solve complex problems:
-/// - Breaks tasks into steps
-/// - Supports revisions and branching
-/// - Tracks confidence and verifies solutions
-///
-/// Key Features:
-/// - Adjust `total_thoughts` for complexity
-/// - Link revisions with `revises_thought`
-/// - Branch paths via `branch_from_thought`
-/// - Update `solution_confidence`
-/// - Mark completion with `solution_reached`
-///
-/// Workflow:
-/// 1. Initialize `Think` with `total_thoughts`.
-/// 2. Add steps to `thought_history`.
-/// 3. Revise or branch as needed.
-/// 4. Update confidence and validate.
-/// 5. Mark `solution_reached` when done.
-///
-/// Fields:
-/// - `thought_history`: Steps taken.
-/// - `branches`: Alternate paths.
-/// - `solution_reached`: Final solution.
+/// Problem-solving framework that breaks down tasks into tracked "thoughts".
+/// Supports revisions, alternative branches, and solution confidence tracking.
 #[derive(Clone, Default, ToolDescription)]
 pub struct Think {
     thought_history: Vec<ThoughtInput>,
@@ -195,18 +171,16 @@ impl Think {
 
 impl NamedTool for Think {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("think_step")
+        ToolName::new("tool_forge_process_think")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for Think {
     type Input = ThoughtInput;
-    type Output = ThoughtResult;
-
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+    async fn call(&self, input: Self::Input) -> Result<String, String> {
         let mut thinker = self.clone();
         let thought_result = thinker.process_thought(input).map_err(|e| e.to_string())?;
-        Ok(thought_result)
+        serde_json::to_string(&thought_result).map_err(|e| e.to_string())
     }
 }

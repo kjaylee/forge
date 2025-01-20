@@ -19,16 +19,15 @@ pub struct FSFileInfo;
 
 impl NamedTool for FSFileInfo {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("file_information")
+        ToolName::new("tool_forge_fs_info")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for FSFileInfo {
     type Input = FSFileInfoInput;
-    type Output = String;
 
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+    async fn call(&self, input: Self::Input) -> Result<String, String> {
         let meta = tokio::fs::metadata(input.path)
             .await
             .map_err(|e| e.to_string())?;

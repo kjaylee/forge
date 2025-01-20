@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::time::Duration;
 
 use anyhow::Result;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
@@ -8,7 +7,6 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use tokio::time::timeout;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -27,15 +25,48 @@ pub struct ShellOutput {
     pub success: bool,
 }
 
+/// Formats command output by wrapping non-empty stdout/stderr in XML tags.
+/// stderr is commonly used for warnings and progress info, so success is
+/// determined by exit status, not stderr presence. Returns Ok(output) on
+/// success or Err(output) on failure, with a status message if both streams are
+/// empty.
+fn format_output(stdout: &str, stderr: &str, success: bool) -> Result<String, String> {
+    let mut output = String::new();
+
+    if !stdout.trim().is_empty() {
+        output.push_str(&format!("<stdout>{}</stdout>", stdout));
+    }
+
+    if !stderr.trim().is_empty() {
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(&format!("<stderr>{}</stderr>", stderr));
+    }
+
+    let result = if output.is_empty() {
+        if success {
+            "Command executed successfully with no output.".to_string()
+        } else {
+            "Command failed with no output.".to_string()
+        }
+    } else {
+        output
+    };
+
+    if success {
+        Ok(result)
+    } else {
+        Err(result)
+    }
+}
+
 /// Execute shell commands with safety checks and validation. This tool provides
 /// controlled access to system shell commands while preventing dangerous
 /// operations through a comprehensive blacklist and validation system.
-/// The tool also enforces a timeout to prevent long-running commands from
-/// blocking the system.
 #[derive(ToolDescription)]
 pub struct Shell {
     blacklist: HashSet<String>,
-    timeout_secs: u64,
 }
 
 impl Default for Shell {
@@ -72,7 +103,7 @@ impl Default for Shell {
         blacklist.insert("reboot".to_string());
         blacklist.insert("init".to_string());
 
-        Shell { blacklist, timeout_secs: 30 }
+        Shell { blacklist }
     }
 }
 
@@ -89,64 +120,38 @@ impl Shell {
 
         Ok(())
     }
-
-    async fn execute_command(&self, command: &str, cwd: PathBuf) -> Result<ShellOutput, String> {
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut c = Command::new("cmd");
-            c.args(["/C", command]);
-            c
-        } else {
-            let mut c = Command::new("sh");
-            c.args(["-c", command]);
-            c
-        };
-
-        cmd.current_dir(cwd);
-
-        let timeout_duration = Duration::from_secs(self.timeout_secs);
-        let output = match timeout(timeout_duration, cmd.output()).await {
-            Ok(result) => result.map_err(|e| e.to_string())?,
-            Err(_) => {
-                return Err(format!(
-                    "Command '{}' timed out after {} seconds",
-                    command, self.timeout_secs
-                ))
-            }
-        };
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        Ok(ShellOutput {
-            stdout: if stdout.is_empty() {
-                None
-            } else {
-                Some(stdout)
-            },
-            stderr: if stderr.is_empty() {
-                None
-            } else {
-                Some(stderr)
-            },
-            success: output.status.success(),
-        })
-    }
 }
 
 impl NamedTool for Shell {
     fn tool_name(&self) -> ToolName {
-        ToolName::new("execute_command")
+        ToolName::new("tool_forge_process_shell")
     }
 }
 
 #[async_trait::async_trait]
 impl ToolCallService for Shell {
     type Input = ShellInput;
-    type Output = ShellOutput;
 
-    async fn call(&self, input: Self::Input) -> Result<Self::Output, String> {
+    async fn call(&self, input: Self::Input) -> Result<String, String> {
         self.validate_command(&input.command)?;
-        self.execute_command(&input.command, input.cwd).await
+
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut c = Command::new("cmd");
+            c.args(["/C", &input.command]);
+            c
+        } else {
+            let mut c = Command::new("sh");
+            c.args(["-c", &input.command]);
+            c
+        };
+
+        cmd.current_dir(input.cwd);
+
+        let output = cmd.output().await.map_err(|e| e.to_string())?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        format_output(&stdout, &stderr, output.status.success())
     }
 }
 
@@ -157,6 +162,20 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    /// Platform-specific error message patterns for command not found errors
+    #[cfg(target_os = "windows")]
+    const COMMAND_NOT_FOUND_PATTERNS: [&str; 2] = [
+        "is not recognized",             // cmd.exe
+        "'non_existent_command' is not", // PowerShell
+    ];
+
+    #[cfg(target_family = "unix")]
+    const COMMAND_NOT_FOUND_PATTERNS: [&str; 3] = [
+        "command not found",               // bash/sh
+        "non_existent_command: not found", // bash/sh (Alternative Unix error)
+        "No such file or directory",       // Alternative Unix error
+    ];
 
     #[tokio::test]
     async fn test_shell_echo() {
@@ -169,9 +188,43 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.success);
-        assert!(result.stdout.as_ref().unwrap().contains("Hello, World!"));
-        assert!(result.stderr.is_none());
+        assert!(result.contains("<stdout>Hello, World!</stdout>"));
+        assert!(!result.contains("<stderr>"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_stderr_with_success() {
+        let shell = Shell::default();
+        // Use a command that writes to both stdout and stderr
+        let result = shell
+            .call(ShellInput {
+                command: if cfg!(target_os = "windows") {
+                    "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
+                } else {
+                    "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+                },
+                cwd: env::current_dir().unwrap(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.contains("<stderr>to stderr</stderr>"));
+        assert!(result.contains("<stdout>to stdout</stdout>"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_both_streams() {
+        let shell = Shell::default();
+        let result = shell
+            .call(ShellInput {
+                command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
+                cwd: env::current_dir().unwrap(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.contains("<stdout>to stdout</stdout>"));
+        assert!(result.contains("<stderr>to stderr</stderr>"));
     }
 
     #[tokio::test]
@@ -191,8 +244,12 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.success);
-        let output_path = PathBuf::from(result.stdout.as_ref().unwrap().trim());
+        let path_str = result
+            .trim()
+            .trim_start_matches("<stdout>")
+            .trim_end_matches("</stdout>");
+
+        let output_path = PathBuf::from(path_str);
         let actual_path = match fs::canonicalize(output_path.clone()) {
             Ok(path) => path,
             Err(_) => output_path,
@@ -204,7 +261,6 @@ mod tests {
             "\nExpected path: {:?}\nActual path: {:?}",
             expected_path, actual_path
         );
-        assert!(result.stderr.is_none());
     }
 
     #[tokio::test]
@@ -212,14 +268,24 @@ mod tests {
         let shell = Shell::default();
         let result = shell
             .call(ShellInput {
-                command: "nonexistentcommand".to_string(),
+                command: "non_existent_command".to_string(),
                 cwd: env::current_dir().unwrap(),
             })
-            .await
-            .unwrap();
+            .await;
 
-        assert!(!result.success);
-        assert!(result.stderr.is_some());
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+
+        // Check if any of the platform-specific patterns match
+        let matches_pattern = COMMAND_NOT_FOUND_PATTERNS
+            .iter()
+            .any(|&pattern| err.contains(pattern));
+
+        assert!(
+            matches_pattern,
+            "Error message '{}' did not match any expected patterns for this platform: {:?}",
+            err, COMMAND_NOT_FOUND_PATTERNS
+        );
     }
 
     #[tokio::test]
@@ -263,14 +329,17 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.success);
-        let output_path = PathBuf::from(result.stdout.as_ref().unwrap().trim());
+        let path_str = result
+            .trim()
+            .trim_start_matches("<stdout>")
+            .trim_end_matches("</stdout>");
+
+        let output_path = PathBuf::from(path_str);
         let actual_path = match fs::canonicalize(output_path.clone()) {
             Ok(path) => path,
             Err(_) => output_path,
         };
         assert_eq!(actual_path, current_dir);
-        assert!(result.stderr.is_none());
     }
 
     #[tokio::test]
@@ -284,10 +353,36 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.success);
-        assert!(result.stdout.as_ref().unwrap().contains("first"));
-        assert!(result.stdout.as_ref().unwrap().contains("second"));
-        assert!(result.stderr.is_none());
+        assert!(result.contains("first"));
+        assert!(result.contains("second"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_empty_output() {
+        let shell = Shell::default();
+        let result = shell
+            .call(ShellInput {
+                command: "true".to_string(),
+                cwd: env::current_dir().unwrap(),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result, "Command executed successfully with no output.");
+    }
+
+    #[tokio::test]
+    async fn test_shell_whitespace_only_output() {
+        let shell = Shell::default();
+        let result = shell
+            .call(ShellInput {
+                command: "echo ''".to_string(),
+                cwd: env::current_dir().unwrap(),
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(result, "Command executed successfully with no output.");
     }
 
     #[tokio::test]
@@ -301,34 +396,8 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.success);
-        assert!(result.stdout.is_some());
-        assert!(result.stderr.is_none());
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn test_shell_command_timeout() {
-        let shell = Shell::default();
-        let handle = tokio::spawn(async move {
-            shell
-                .call(ShellInput {
-                    command: if cfg!(target_os = "windows") {
-                        "timeout /t 60".to_string()
-                    } else {
-                        "sleep 60".to_string()
-                    },
-                    cwd: env::current_dir().unwrap(),
-                })
-                .await
-        });
-
-        // Advance time past the timeout
-        tokio::time::advance(Duration::from_secs(30)).await;
-
-        let result = handle.await.unwrap();
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("timed out after 30 seconds"));
+        assert!(!result.is_empty());
+        assert!(!result.contains("Error:"));
     }
 
     #[test]

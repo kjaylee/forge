@@ -62,8 +62,9 @@ impl Live {
         &self,
         request: Context,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
+        chat: ChatRequest,
     ) -> Result<()> {
-        let mut response = self.provider.chat(request).await?;
+        let mut response = self.provider.chat(&chat.model, request.clone()).await?;
         let mut parts = Vec::new();
 
         while let Some(chunk) = response.next().await {
@@ -108,14 +109,13 @@ impl TitleService for Live {
         let request = Context::default()
             .add_message(ContextMessage::user(user_prompt))
             .add_tool(tool.clone())
-            .tool_choice(ToolChoice::Call(tool.name))
-            .model(chat.model);
+            .tool_choice(ToolChoice::Call(tool.name));
 
         let (tx, rx) = tokio::sync::mpsc::channel(1);
 
         let that = self.clone();
         tokio::spawn(async move {
-            if let Err(e) = that.execute(request, tx.clone()).await {
+            if let Err(e) = that.execute(request, tx.clone(), chat.clone()).await {
                 tx.send(Err(e)).await.unwrap();
             }
             drop(tx);
@@ -129,7 +129,9 @@ mod tests {
     use std::sync::Arc;
     use std::vec;
 
-    use forge_domain::{ChatCompletionMessage, ChatResponse, ConversationId, ToolCallPart};
+    use forge_domain::{
+        ChatCompletionMessage, ChatResponse, ConversationId, ModelId, ToolCallPart,
+    };
     // Remove unused import
     use tokio_stream::StreamExt;
 
@@ -171,7 +173,11 @@ mod tests {
 
         let actual = Fixture(mock_llm_responses)
             .run(
-                ChatRequest::new("write an rust program to generate an fibo seq.").conversation_id(
+                ChatRequest::new(
+                    ModelId::new("gpt-3.5-turbo"),
+                    "write an rust program to generate an fibo seq.",
+                )
+                .conversation_id(
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )

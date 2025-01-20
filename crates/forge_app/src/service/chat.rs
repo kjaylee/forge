@@ -3,13 +3,14 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
-    ResultStream, Role, ToolCall, ToolCallFull, ToolService,
+    ResultStream, Role, ToolCall, ToolCallFull,
 };
 use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use super::system_prompt::SystemPromptService;
+use super::tool_service::ToolService;
 use super::user_prompt::UserPromptService;
 use super::Service;
 
@@ -56,6 +57,7 @@ impl Live {
         &self,
         mut request: Context,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
+        chat: ChatRequest,
     ) -> Result<()> {
         loop {
             let mut tool_call_parts = Vec::new();
@@ -63,7 +65,7 @@ impl Live {
             let mut some_tool_result = None;
             let mut assistant_message_content = String::new();
 
-            let mut response = self.provider.chat(request.clone()).await?;
+            let mut response = self.provider.chat(&chat.model, request.clone()).await?;
 
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
@@ -121,6 +123,12 @@ impl Live {
                         .await
                         .unwrap();
                 }
+
+                if let Some(usage) = &message.usage {
+                    tx.send(Ok(ChatResponse::Usage(usage.clone())))
+                        .await
+                        .unwrap();
+                }
             }
 
             request = request.add_message(ContextMessage::assistant(
@@ -158,14 +166,13 @@ impl ChatService for Live {
         let request = request
             .set_system_message(system_prompt)
             .add_message(ContextMessage::user(user_prompt))
-            .tools(self.tool.list())
-            .model(chat.model);
+            .tools(self.tool.list());
 
         let that = self.clone();
 
         tokio::spawn(async move {
             // TODO: simplify this match.
-            match that.chat_workflow(request, tx.clone()).await {
+            match that.chat_workflow(request, tx.clone(), chat.clone()).await {
                 Ok(_) => {}
                 Err(e) => tx.send(Err(e)).await.unwrap(),
             };
@@ -218,8 +225,8 @@ mod tests {
     use derive_setters::Setters;
     use forge_domain::{
         ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
-        FinishReason, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName, ToolResult,
-        ToolService,
+        FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName,
+        ToolResult,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
@@ -227,6 +234,7 @@ mod tests {
 
     use super::{ChatRequest, ChatService, Live};
     use crate::service::tests::{TestProvider, TestSystemPrompt};
+    use crate::service::tool_service::ToolService;
     use crate::service::user_prompt::tests::TestUserPrompt;
 
     struct TestToolService {
@@ -253,9 +261,10 @@ mod tests {
             let mut result = self.result.lock().unwrap();
 
             if let Some(value) = result.pop() {
-                ToolResult::from(call).content(value)
+                ToolResult::from(call).success(value.to_string())
             } else {
-                ToolResult::from(call).content(json!({"error": "No tool call is available"}))
+                ToolResult::from(call)
+                    .failure(json!({"error": "No tool call is available"}).to_string())
             }
         }
 
@@ -322,9 +331,12 @@ mod tests {
             .assistant_responses(vec![vec![ChatCompletionMessage::assistant(Content::full(
                 "Yes sure, tell me what you need.",
             ))]])
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(
-                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
-            ))
+            .run(
+                ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "Hello can you help me?")
+                    .conversation_id(
+                        ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                    ),
+            )
             .await
             .messages
             .into_iter()
@@ -384,9 +396,12 @@ mod tests {
                 json!({"result": "foo tool called"}),
                 json!({"result": "bar tool called"}),
             ])
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(
-                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
-            ))
+            .run(
+                ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "Hello can you help me?")
+                    .conversation_id(
+                        ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                    ),
+            )
             .await
             .messages
             .into_iter()
@@ -404,11 +419,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_llm_calls_with_system_prompt() {
+        let model_id = ModelId::new("gpt-3.5-turbo");
         let actual = Fixture::default()
             .system_prompt("Do everything that the user says")
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(
-                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
-            ))
+            .run(
+                ChatRequest::new(model_id.clone(), "Hello can you help me?").conversation_id(
+                    ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                ),
+            )
             .await
             .llm_calls;
 
@@ -424,6 +442,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_messages_with_tool_call() {
+        let model_id = ModelId::new("gpt-3.5-turbo");
         let mock_llm_responses = vec![
             vec![
                 ChatCompletionMessage::default()
@@ -447,9 +466,11 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(
-                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
-            ))
+            .run(
+                ChatRequest::new(model_id, "Hello can you help me?").conversation_id(
+                    ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                ),
+            )
             .await
             .messages
             .into_iter()
@@ -468,7 +489,7 @@ mod tests {
             ),
             ChatResponse::ToolCallEnd(
                 ToolResult::new(ToolName::new("foo"))
-                    .content(json!({"a": 100, "b": 200}))
+                    .success(json!({"a": 100, "b": 200}).to_string())
                     .call_id(ToolCallId::new("too_call_001")),
             ),
             ChatResponse::FinishReason(FinishReason::ToolCalls),
@@ -483,6 +504,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_modify_context_count_with_tool_call() {
+        let model_id = ModelId::new("gpt-3.5-turbo");
         let mock_llm_responses = vec![
             vec![
                 ChatCompletionMessage::default()
@@ -505,9 +527,11 @@ mod tests {
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
-            .run(ChatRequest::new("Hello can you help me?").conversation_id(
-                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
-            ))
+            .run(
+                ChatRequest::new(model_id, "Hello can you help me?").conversation_id(
+                    ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                ),
+            )
             .await
             .messages
             .into_iter()
@@ -519,6 +543,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_llm_calls_with_tool() {
+        let model_id = ModelId::new("gpt-5");
         let mock_llm_responses = vec![
             vec![
                 ChatCompletionMessage::default()
@@ -545,7 +570,7 @@ mod tests {
             .assistant_responses(mock_llm_responses)
             .tools(vec![json!({"a": 100, "b": 200})])
             .run(
-                ChatRequest::new("Hello can you use foo tool?").conversation_id(
+                ChatRequest::new(model_id.clone(), "Hello can you use foo tool?").conversation_id(
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )
@@ -571,7 +596,7 @@ mod tests {
                 ))
                 .add_message(ContextMessage::ToolMessage(
                     ToolResult::new(ToolName::new("foo"))
-                        .content(json!({"a": 100, "b": 200}))
+                        .success(json!({"a": 100, "b": 200}).to_string())
                         .call_id(ToolCallId::new("too_call_001")),
                 )),
         ];

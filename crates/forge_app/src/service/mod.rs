@@ -1,18 +1,18 @@
+mod api;
 mod chat;
 mod completion;
 mod env;
 mod file_read;
 mod provider;
-mod root_api;
 mod system_prompt;
+mod tool_service;
 mod ui;
 mod user_prompt;
 mod workflow_title;
 
+pub use api::*;
 pub use chat::*;
 pub use completion::*;
-pub use env::*;
-pub use root_api::*;
 pub use ui::*;
 
 pub struct Service;
@@ -69,6 +69,7 @@ mod tests {
     impl ProviderService for TestProvider {
         async fn chat(
             &self,
+            _model_id: &ModelId,
             request: Context,
         ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
             self.calls.lock().unwrap().push(request);

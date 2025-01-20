@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::str::FromStr;
 
 use forge_domain::{
     ChatCompletionMessage as ModelResponse, Content, FinishReason, ToolCallFull, ToolCallId,
-    ToolCallPart, ToolName,
+    ToolCallPart, ToolName, Usage,
 };
 use serde::{Deserialize, Serialize};
 
@@ -24,14 +25,8 @@ pub enum OpenRouterResponse {
         usage: Option<ResponseUsage>,
     },
     Failure {
-        error: OpenRouterErrorResponse,
+        error: ErrorResponse,
     },
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OpenRouterErrorResponse {
-    code: u32,
-    message: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -67,7 +62,20 @@ pub enum Choice {
 pub struct ErrorResponse {
     pub code: u32,
     pub message: String,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub metadata: HashMap<String, serde_json::Value>,
+}
+
+impl Display for ErrorResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "message: {}", self.message)?;
+        if !self.metadata.is_empty() {
+            if let Ok(str_repr) = serde_json::to_string(&self.metadata) {
+                write!(f, ", details: {}", str_repr)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -92,14 +100,24 @@ pub struct FunctionCall {
     pub arguments: String,
 }
 
+impl From<ResponseUsage> for Usage {
+    fn from(usage: ResponseUsage) -> Self {
+        Usage {
+            prompt_tokens: usage.prompt_tokens,
+            completion_tokens: usage.completion_tokens,
+            total_tokens: usage.total_tokens,
+        }
+    }
+}
+
 impl TryFrom<OpenRouterResponse> for ModelResponse {
     type Error = Error;
 
     fn try_from(res: OpenRouterResponse) -> Result<Self, Self::Error> {
         match res {
-            OpenRouterResponse::Success { choices, .. } => {
+            OpenRouterResponse::Success { choices, usage, .. } => {
                 if let Some(choice) = choices.first() {
-                    let response = match choice {
+                    let mut response = match choice {
                         Choice::NonChat { text, finish_reason, .. } => {
                             ModelResponse::assistant(Content::full(text)).finish_reason_opt(
                                 finish_reason
@@ -155,14 +173,15 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                         }
                     };
 
+                    if let Some(usage) = usage {
+                        response.usage = Some(usage.into());
+                    }
                     Ok(response)
                 } else {
                     Err(Error::EmptyContent)
                 }
             }
-            OpenRouterResponse::Failure { error } => {
-                Err(Error::Upstream { message: error.message, code: error.code })
-            }
+            OpenRouterResponse::Failure { error } => Err(Error::Upstream(error)),
         }
     }
 }
