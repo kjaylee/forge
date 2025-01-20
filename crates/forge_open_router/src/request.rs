@@ -272,9 +272,10 @@ impl From<ContextMessage> for OpenRouterMessage {
 }
 
 impl OpenRouterRequest {
-    /// Inserts cache control information into the last system or user message if model supports it.
-    /// NOTE: This helps reduce context window usage by caching only the most recent
-    /// system/user message
+    /// Inserts cache control information into the last system or user message
+    /// if model supports it.
+    /// NOTE: This helps reduce context window usage
+    /// by caching only the most recent system/user message
     pub fn cache(mut self) -> Self {
         if let (Some(mut messages), Some(model)) = (self.messages.take(), self.model.take()) {
             let model_id = model.as_str();
@@ -283,20 +284,17 @@ impl OpenRouterRequest {
                     .iter()
                     .any(|m| model_id.contains(m));
 
-            self.messages = Some(if should_cache {
-                if let Some(last_system_or_user) = messages.iter_mut().rev().find(|msg| {
-                    msg.role == OpenRouterRole::System || msg.role == OpenRouterRole::User
-                }) {
-                    // Avoid cloning the entire content - take ownership and transform
-                    last_system_or_user.content = last_system_or_user
-                        .content
-                        .take()
-                        .map(|content| content.cached());
+            if should_cache {
+                if let Some(msg) = messages
+                    .iter_mut()
+                    .rev()
+                    .find(|msg| matches!(msg.role, OpenRouterRole::System | OpenRouterRole::User))
+                {
+                    msg.content = msg.content.take().map(|content| content.cached());
                 }
-                messages
-            } else {
-                messages
-            });
+            }
+
+            self.messages = Some(messages);
             self.model = Some(model);
         }
         self
@@ -550,12 +548,7 @@ mod tests {
 
         let messages = request.messages.unwrap();
         for msg in messages {
-            if let Some(MessageContent::Parts(parts)) = msg.content {
-                assert!(matches!(
-                    parts[0],
-                    ContentPart::Text { cache_control: None, .. }
-                ));
-            }
+            assert!(matches!(msg.content, Some(MessageContent::Text(_))));
         }
     }
 }
