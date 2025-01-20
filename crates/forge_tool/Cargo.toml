@@ -18,18 +18,18 @@ schemars = "0.8.21"
 regex = "1.10.2"
 walkdir = "2.4.0"
 glob = "0.3.1"
-tree-sitter = "0.24"
+tree-sitter = { workspace = true }
 thiserror = "1.0"
-tree-sitter-rust = "0.23"
-tree-sitter-javascript = "0.23"
-tree-sitter-python = "0.23"
-tree-sitter-typescript = { version = "0.23" }
-tree-sitter-css = "0.23"
-tree-sitter-java = "0.23"
-tree-sitter-scala = "0.23"
-tree-sitter-go = "0.23"
-tree-sitter-cpp = "0.23"
-tree-sitter-ruby = "0.23"
+tree-sitter-rust = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-css = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-scala = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-cpp = { workspace = true }
+tree-sitter-ruby = { workspace = true }
 forge_walker = { path = "../forge_walker" }
 forge_domain = { path = "../forge_domain" }
 tempfile = "3.8.1"

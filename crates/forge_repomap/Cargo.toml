@@ -14,18 +14,18 @@ futures = "0.3"
 streaming-iterator = "0.1.9"
 
 # Tree-sitter dependencies
-tree-sitter = "0.24"
-tree-sitter-rust = "0.23"
-tree-sitter-javascript = "0.23"
-tree-sitter-python = "0.23"
-tree-sitter-typescript = "0.23"
-tree-sitter-c = "0.23"
-tree-sitter-cpp = "0.23"
-tree-sitter-c-sharp = "0.23"
-tree-sitter-java = "0.23"
-tree-sitter-go = "0.23"
-tree-sitter-ruby = "0.23"
-tree-sitter-php = "0.23"
+tree-sitter = { workspace = true }
+tree-sitter-rust = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-c = { workspace = true }
+tree-sitter-cpp = { workspace = true }
+tree-sitter-c-sharp = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-ruby = { workspace = true }
+tree-sitter-php = { workspace = true }
 
 # Internal dependencies
 forge_walker = { path = "../forge_walker" }
