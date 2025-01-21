@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use derive_more::derive::{Display, From};
 use derive_setters::Setters;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::{ToolCallFull, ToolResult};
@@ -71,7 +72,7 @@ impl ContentMessage {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Display)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Display, JsonSchema)]
 pub enum Role {
     System,
     User,

@@ -1,5 +1,6 @@
 use derive_more::derive::From;
 use derive_setters::Setters;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -7,7 +8,7 @@ use super::tool_call_parser::parse;
 use crate::{Error, Result, ToolName};
 
 /// Unique identifier for a using a tool
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(transparent)]
 pub struct ToolCallId(pub(crate) String);
 

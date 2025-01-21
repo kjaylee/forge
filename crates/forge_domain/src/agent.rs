@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;
-use crate::{Context, ContextMessage};
+use crate::{Context, ContextMessage, TransformConfig};
 
 /// Represents which model (primary/secondary) should be used for the agent
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
@@ -92,6 +92,10 @@ pub struct Agent<S: JsonSchema> {
     #[serde(rename = "user", skip_serializing_if = "Option::is_none")]
     pub user_prompt: Option<PromptContent>,
 
+    /// Optional transform configuration for message processing
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transform_config: Option<TransformConfig>,
+
     /// Schema defining the expected arguments or configuration for the agent
     arguments: Schema<S>,
 }
@@ -120,8 +124,15 @@ where
             model: ModelType::Primary,
             system_prompt: None,
             user_prompt: None,
+            transform_config: None,
             arguments: Schema::default(),
         }
+    }
+
+    /// Adds a transform configuration to the agent
+    pub fn with_transform(mut self, config: TransformConfig) -> Self {
+        self.transform_config = Some(config);
+        self
     }
 
     fn render_system_prompt(&self, binding: &C) -> Result<Option<String>> {
@@ -213,6 +224,7 @@ mod tests {
         assert_eq!(agent.model, ModelType::Primary);
         assert_eq!(agent.system_prompt, None);
         assert_eq!(agent.user_prompt, None);
+        assert_eq!(agent.transform_config, None);
     }
 
     #[test]

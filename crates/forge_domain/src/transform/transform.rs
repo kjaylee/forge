@@ -105,7 +105,7 @@ impl Transform for SummarizeMessages {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::breakpoint::MessageRole;
+    use crate::MessageRole;
     use crate::{ChatCompletionMessage, Model, Parameters, Role};
 
     #[tokio::test]

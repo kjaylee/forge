@@ -1,8 +1,11 @@
 use std::collections::HashSet;
 
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
 use crate::{Context, ContextMessage, ToolName, ToolResult};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum BreakPoint {
     /// Keep only the Nth message (0-based).
     Nth(usize),
@@ -42,9 +45,11 @@ pub enum BreakPoint {
 
     /// Keep messages whose tool result is a failure.
     ToolResultFailure(ToolResult),
+
+    //TODO: Add a breakpoint for number of Tokens
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum MessageRole {
     Role(crate::Role),
     Tool,
