@@ -167,7 +167,7 @@ impl ToolCallService for ApplyPatch {
                 format!(
                     "<file_content\n  path=\"{}\"\n  syntax_checker_warning=\"{}\">\n{}</file_content>\n",
                     input.path,
-                    warning.to_string(),
+                    warning,
                     modified
                 )
             } else {
