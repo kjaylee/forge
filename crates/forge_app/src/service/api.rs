@@ -48,11 +48,14 @@ struct Live {
 impl Live {
     async fn new(cwd: PathBuf) -> Result<Self> {
         let env = Service::environment_service(cwd).get().await?;
-
         let cwd: String = env.cwd.clone();
+
+        let learning_embedding_idx = Arc::new(Service::learning_embedding_idx(&cwd).await?);
+
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
-        let tool = Arc::new(Service::tool_service());
+        let tool = Arc::new(Service::tool_service(learning_embedding_idx));
         let file_read = Arc::new(Service::file_read_service());
+
 
         let system_prompt = Arc::new(Service::system_prompt(
             env.clone(),

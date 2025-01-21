@@ -9,4 +9,5 @@ pub use conversation::{ConversationRepository, Live as ConversationRepositoryLiv
 pub mod tests {
     pub use super::config::tests::TestStorage as TestConfigStorage;
     pub use super::conversation::tests::TestStorage as TestConversationStorage;
+    pub use super::learning_embedding::tests::LearningEmeddingTest as TestLearningEmbedding;
 }

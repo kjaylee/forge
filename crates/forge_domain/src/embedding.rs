@@ -25,7 +25,7 @@ pub struct Information {
 }
 
 #[async_trait::async_trait]
-pub trait EmbeddingsRepository {
+pub trait EmbeddingsRepository: Send + Sync {
     async fn get(&self, id: Uuid) -> anyhow::Result<Option<Information>>;
 
     async fn insert(&self, bytes: String, tags: Vec<String>) -> anyhow::Result<Embedding>;

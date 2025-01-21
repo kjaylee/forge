@@ -16,17 +16,17 @@ use serde::Deserialize;
 /// - Important context about the codebase
 #[derive(ToolDescription)]
 pub struct Learning {
-    learning_repository: Arc<dyn EmbeddingsRepository + Send + Sync>,
+    learning_repository: Arc<dyn EmbeddingsRepository>,
 }
 
 impl NamedTool for Learning {
     fn tool_name(&self) -> forge_domain::ToolName {
-        forge_domain::ToolName::new("learning")
+        forge_domain::ToolName::new("tool_forge_code_learning")
     }
 }
 
 impl Learning {
-    pub fn new(learning_repository: Arc<dyn EmbeddingsRepository + Send + Sync>) -> Self {
+    pub fn new(learning_repository: Arc<dyn EmbeddingsRepository>) -> Self {
         Self { learning_repository }
     }
 }
@@ -69,7 +69,7 @@ pub mod tests {
 
     // A simple mock implementation of EmbeddingsRepository for testing
     #[derive(Default)]
-    struct MockEmbeddingsRepository {
+    pub struct MockEmbeddingsRepository {
         insertion_count: Mutex<u8>,
     }
 

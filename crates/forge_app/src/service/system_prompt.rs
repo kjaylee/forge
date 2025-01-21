@@ -98,6 +98,7 @@ mod tests {
     use super::*;
     use crate::service::file_read::tests::TestFileReadService;
     use crate::service::tests::TestProvider;
+    use crate::tests::TestLearningEmbedding;
 
     fn test_env() -> Environment {
         Environment {
@@ -115,7 +116,8 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let tools = Arc::new(Service::tool_service());
+        let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
+        let tools = Arc::new(Service::tool_service(learning_embedding_idx));
         let provider = Arc::new(
             TestProvider::default()
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
@@ -132,7 +134,8 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let tools = Arc::new(Service::tool_service());
+        let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
+        let tools = Arc::new(Service::tool_service(learning_embedding_idx));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -149,7 +152,8 @@ mod tests {
     #[tokio::test]
     async fn test_system_prompt_custom_prompt() {
         let env = test_env();
-        let tools = Arc::new(Service::tool_service());
+        let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
+        let tools = Arc::new(Service::tool_service(learning_embedding_idx));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),

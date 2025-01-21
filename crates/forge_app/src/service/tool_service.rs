@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
+use forge_domain::{EmbeddingsRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
 use tokio::time::{timeout, Duration};
 use tracing::debug;
 
@@ -17,8 +17,8 @@ pub trait ToolService: Send + Sync {
 }
 
 impl Service {
-    pub fn tool_service() -> impl ToolService {
-        Live::from_iter(forge_tool::tools())
+    pub fn tool_service(learning_embedding_idx: Arc<dyn EmbeddingsRepository>) -> impl ToolService {
+        Live::from_iter(forge_tool::tools(learning_embedding_idx))
     }
 }
 

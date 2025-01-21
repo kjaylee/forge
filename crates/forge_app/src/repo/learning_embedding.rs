@@ -215,17 +215,21 @@ fn bytes_to_vec(v: &[u8]) -> Result<Vec<f32>> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::sqlite::tests::TestSqlite;
 
-    async fn setup_db() -> impl EmbeddingsRepository {
-        Live::new(TestSqlite::new().unwrap()).await.unwrap()
+    pub struct LearningEmeddingTest;
+
+    impl LearningEmeddingTest {
+        pub async fn init() -> impl EmbeddingsRepository {
+            Live::new(TestSqlite::new().unwrap()).await.unwrap()
+        }
     }
 
     #[tokio::test]
     async fn test_insertion() {
-        let repo = setup_db().await;
+        let repo = LearningEmeddingTest::init().await;
         let data = "learning about vector indexing".to_string();
         let tags = vec!["learning".to_owned()];
         let result = repo.insert(data, tags).await;
@@ -235,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_search() {
-        let repo = setup_db().await;
+        let repo = LearningEmeddingTest::init().await;
 
         // Insert some test data
         let data1 = "learning about vector indexing".to_string();
@@ -264,7 +268,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get() {
-        let repo = setup_db().await;
+        let repo = LearningEmeddingTest::init().await;
 
         // Insert test data
         let data = "test embedding data".to_string();
@@ -287,8 +291,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_comprehensive_search() {
-        let repo = setup_db().await;
-
+        let repo = LearningEmeddingTest::init().await;
         // Insert multiple learning examples about different topics
         let rust_async = vec![
             "Rust's async/await syntax enables concurrent programming without data races.",
@@ -335,10 +338,7 @@ mod tests {
         // Search with tags
         let query = "Tell me about APIs";
         let query_embedding = Embedding::new(get_embedding(query.to_string()).unwrap());
-        let results = repo
-            .search(query_embedding, vec![], 2)
-            .await
-            .unwrap();
+        let results = repo.search(query_embedding, vec![], 2).await.unwrap();
 
         // Verify we get GraphQL results when searching with the graphql tag
         assert_eq!(results.len(), 2);

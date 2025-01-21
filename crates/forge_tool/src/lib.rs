@@ -2,25 +2,28 @@ mod approve;
 mod ask;
 mod fetch;
 mod fs;
+mod learning;
 mod outline;
 mod patch;
 mod select;
 mod shell;
 mod syn;
 mod think;
-mod learning;
+
+use std::sync::Arc;
 
 use approve::Approve;
 use fetch::Fetch;
-use forge_domain::Tool;
+use forge_domain::{EmbeddingsRepository, Tool};
 use fs::*;
+use learning::Learning;
 use outline::Outline;
 use patch::ApplyPatch;
 use select::SelectTool;
 use shell::Shell;
 use think::Think;
 
-pub fn tools() -> Vec<Tool> {
+pub fn tools(learning_embedding_idx: Arc<dyn EmbeddingsRepository>) -> Vec<Tool> {
     vec![
         Approve.into(),
         FSRead.into(),
@@ -34,12 +37,14 @@ pub fn tools() -> Vec<Tool> {
         Shell::default().into(),
         Think::default().into(),
         Fetch::default().into(),
+        Learning::new(learning_embedding_idx).into(),
     ]
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use learning::tests::MockEmbeddingsRepository;
 
     #[test]
     fn test_tool_description_length() {
@@ -48,7 +53,7 @@ mod tests {
         println!("\nTool description lengths:");
 
         let mut any_exceeded = false;
-        for tool in tools() {
+        for tool in tools(Arc::new(MockEmbeddingsRepository::default())) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",
