@@ -15,7 +15,7 @@ impl Embedder {
         embeddings
             .into_iter()
             .next()
-            .map(|e| Embedding::new(e))
+            .map(Embedding::new)
             .ok_or_else(|| anyhow::anyhow!("No embedding was generated"))
     }
 }
