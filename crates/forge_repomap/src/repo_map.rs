@@ -107,7 +107,8 @@ impl RepoMap {
         let importance_scores = self.graph.calculate_importance(focused_paths);
         let mut context = String::new();
 
-        // Add focused files first this is important otherwise the snapshot will be different for each run
+        // Add focused files first this is important otherwise the snapshot will be
+        // different for each run
         let mut focused = focused_paths.to_vec();
         focused.sort();
         for path in focused {
@@ -125,13 +126,16 @@ impl RepoMap {
 
         // First sort by path to ensure stable ordering
         other_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
-        
+
         // Then stable sort by importance to maintain path ordering for equal scores
         other_files.sort_by(|(path_a, _), (path_b, _)| {
             let score_a = importance_scores.get(*path_a).unwrap_or(&0.0);
             let score_b = importance_scores.get(*path_b).unwrap_or(&0.0);
             // Use ordering that maintains stability for equal scores
-            score_b.partial_cmp(score_a).unwrap().then(path_a.cmp(path_b))
+            score_b
+                .partial_cmp(score_a)
+                .unwrap()
+                .then(path_a.cmp(path_b))
         });
 
         for (path, symbols) in other_files {
@@ -172,7 +176,8 @@ impl RepoMap {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
+    use std::fs;
+    use std::path::PathBuf;
 
     use super::*;
 
@@ -248,39 +253,38 @@ mod tests {
     #[tokio::test]
     async fn test_directory_context_snapshot() -> anyhow::Result<()> {
         use insta::assert_snapshot;
-        
+
         let test_root = PathBuf::from("/test/workspace");
         let mut repo_map = RepoMap::new(test_root.clone(), 10000)?;
-        
-        // Use synchronous operations and collect all files first for deterministic ordering
+
+        // Use synchronous operations and collect all files first for deterministic
+        // ordering
         let src_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut source_files = Vec::new();
-        
+
         // Collect all .rs files synchronously
         for entry in fs::read_dir(&src_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension()
+            if path
+                .extension()
                 .and_then(|ext| ext.to_str())
                 .map(|ext| matches!(ext, "rs"))
-                .unwrap_or(false) 
+                .unwrap_or(false)
             {
                 let relative_path = path.strip_prefix(&src_dir).unwrap();
                 let test_path = test_root.join("src").join(relative_path);
                 let content = fs::read_to_string(&path)?;
-                source_files.push(SourceFile {
-                    path: test_path,
-                    content,
-                });
+                source_files.push(SourceFile { path: test_path, content });
             }
         }
-        
+
         // Sort by path for deterministic ordering
         source_files.sort_by(|a, b| a.path.cmp(&b.path));
         repo_map.process_files(source_files)?;
         let context = repo_map.get_context(&[])?;
         assert_snapshot!(context);
-        
+
         Ok(())
     }
 }
