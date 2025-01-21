@@ -330,7 +330,8 @@ mod tests {
     fn test_tool_call_success_breakpoint() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName("test_tool".to_string())));
+        let bp =
+            BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName("test_tool".to_string())));
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2, 4].into_iter().collect::<HashSet<_>>());
     }
@@ -339,7 +340,8 @@ mod tests {
     fn test_tool_call_failure_breakpoint() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::ToolCallFailure(Box::new(BreakPoint::ToolName("failed_tool".to_string())));
+        let bp =
+            BreakPoint::ToolCallFailure(Box::new(BreakPoint::ToolName("failed_tool".to_string())));
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [5].into_iter().collect::<HashSet<_>>());
     }
@@ -391,9 +393,9 @@ mod tests {
         let ctx = create_test_context();
 
         let bp = BreakPoint::And(
-            Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolCallFailure(Box::new(
-                BreakPoint::ToolName("failed_tool".to_string()),
-            ))))),
+            Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolCallFailure(
+                Box::new(BreakPoint::ToolName("failed_tool".to_string())),
+            )))),
             Box::new(BreakPoint::ToolName("test_tool".to_string())),
         );
         let result = bp.get_breakpoints(&ctx);
@@ -449,7 +451,8 @@ mod tests {
     fn test_complex_tool_breakpoint_combination() {
         let ctx = create_test_context();
 
-        // Test ((ToolCallSuccess AND ToolName) OR (Not ToolCallFailure)) AND After First
+        // Test ((ToolCallSuccess AND ToolName) OR (Not ToolCallFailure)) AND After
+        // First
         let bp = BreakPoint::And(
             Box::new(BreakPoint::Or(
                 Box::new(BreakPoint::And(
@@ -458,9 +461,9 @@ mod tests {
                     )))),
                     Box::new(BreakPoint::ToolName("test_tool".to_string())),
                 )),
-                Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolCallFailure(Box::new(
-                    BreakPoint::ToolName("failed_tool".to_string()),
-                ))))),
+                Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolCallFailure(
+                    Box::new(BreakPoint::ToolName("failed_tool".to_string())),
+                )))),
             )),
             Box::new(BreakPoint::After(
                 Box::new(BreakPoint::First),
