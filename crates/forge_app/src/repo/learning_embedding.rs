@@ -5,7 +5,7 @@ use diesel::sql_types::{Binary, Float, Text, Timestamp};
 use forge_domain::{Embedding, EmbeddingsRepository, Information};
 use uuid::Uuid;
 
-use crate::embeddings::get_embedding;
+use crate::embeddings::Embedder;
 use crate::sqlite::Sqlite;
 use crate::Service;
 
@@ -128,8 +128,7 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
 
         let id = Uuid::new_v4();
         let now = chrono::Local::now().naive_local();
-        let embedding_vec = get_embedding(data.clone())?;
-        let embedding = Embedding::new(embedding_vec);
+        let embedding = Embedder::embed(data.clone())?;
         let embedding_bytes = vec_to_bytes(embedding.as_slice());
         let tags_json = serde_json::to_string(&tags)?;
 
@@ -270,7 +269,8 @@ pub mod tests {
         assert_eq!(results[0].data, data1); // Most similar should be itself
 
         // Search with tags
-        let new_search = Embedding::new(get_embedding("i like eating food".to_string()).unwrap());
+
+        let new_search = Embedder::embed("i like eating food".to_string()).unwrap();
         let results = repo.search(new_search, vec![], 2).await.unwrap();
         assert!(!results.is_empty());
         assert!(results[0].data.contains("cooking"));
@@ -347,7 +347,8 @@ pub mod tests {
 
         // Search with tags
         let query = "Tell me about APIs";
-        let query_embedding = Embedding::new(get_embedding(query.to_string()).unwrap());
+
+        let query_embedding = Embedder::embed(query.to_string()).unwrap();
         let results = repo.search(query_embedding, vec![], 2).await.unwrap();
 
         // Verify we get GraphQL results when searching with the graphql tag

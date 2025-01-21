@@ -9,7 +9,7 @@ use tracing::debug;
 
 use super::Service;
 
-pub type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
+type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
 
 const DB_NAME: &str = ".forge.db";
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
@@ -33,6 +33,7 @@ impl Live {
     fn new(db_path: &str) -> Result<Self> {
         let db_path = format!("{}/{}", db_path, DB_NAME);
 
+        // register custom extensions via rusqlite.
         unsafe {
             sqlite3_auto_extension(Some(sqlite3_vec_init));
         }
