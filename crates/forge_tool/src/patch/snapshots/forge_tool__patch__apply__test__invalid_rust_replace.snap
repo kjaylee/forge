@@ -1,0 +1,10 @@
+---
+source: crates/forge_tool/src/patch/apply.rs
+expression: result
+snapshot_kind: text
+---
+<file_content
+  path="/var/folders/v4/ww1bj4dn2ml3k1xrmfgx8sv80000gn/T/.tmpdfxNqe/test.rs"
+  syntax_checker_warning="Syntax error found in /var/folders/v4/ww1bj4dn2ml3k1xrmfgx8sv80000gn/T/.tmpdfxNqe/test.rs as rs. Hint: Please retry in raw mode without HTML-encoding angle brackets.">
+fn main() { let x = 
+</file_content>

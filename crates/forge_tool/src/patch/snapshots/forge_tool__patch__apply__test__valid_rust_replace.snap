@@ -1,0 +1,8 @@
+---
+source: crates/forge_tool/src/patch/apply.rs
+expression: result
+snapshot_kind: text
+---
+<file_content path="/var/folders/v4/ww1bj4dn2ml3k1xrmfgx8sv80000gn/T/.tmprUyNZj/test.rs">
+fn main() { let x = 42; let y = x * 2; }
+</file_content>
