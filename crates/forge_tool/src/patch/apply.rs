@@ -163,15 +163,24 @@ impl ToolCallService for ApplyPatch {
 
             let syntax_warning = syn::validate(&input.path, &modified);
 
-            let mut output = format!(
+            let mut output = String::new();
+            
+            // Add success message
+            output.push_str(&format!(
                 "Successfully applied {blocks_len} patch(es) to {path}",
                 blocks_len = blocks_len,
                 path = input.path
-            );
+            ));
+            
+            // Add warning if present
             if let Some(warning) = syntax_warning {
                 output.push_str("\nWarning: ");
                 output.push_str(&warning.to_string());
             }
+            
+            // Add final content
+            output.push_str("\n\nFinal content:\n");
+            output.push_str(&modified);
 
             Ok(output)
         }
@@ -470,6 +479,30 @@ mod test {
         assert!(result.contains("Successfully applied"));
         assert!(result.contains(&file_path.display().to_string()));
         assert!(result.contains("Warning: Syntax"));
+    }
+
+    #[tokio::test]
+    async fn test_returns_final_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        let initial_content = "Hello World";
+        let expected_content = "Hello Universe";
+
+        write_test_file(&file_path, initial_content).await.unwrap();
+
+        let fs_replace = ApplyPatch;
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\nHello World\n{DIVIDER}\nHello Universe\n{REPLACE}\n"),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.contains("Successfully applied"));
+        assert!(result.contains(&file_path.display().to_string()));
+        assert!(result.contains("Final content:"));
+        assert!(result.contains(expected_content));
     }
 
     #[tokio::test]
