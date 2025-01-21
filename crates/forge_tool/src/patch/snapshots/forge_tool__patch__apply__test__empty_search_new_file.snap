@@ -1,8 +1,8 @@
 ---
 source: crates/forge_tool/src/patch/apply.rs
-expression: result
+expression: normalize_path(&result)
 snapshot_kind: text
 ---
-<file_content path="/var/folders/v4/ww1bj4dn2ml3k1xrmfgx8sv80000gn/T/.tmpE1Jp3J/test.txt">
+<file_content path="[TEMP_DIR]/test.txt">
 New content
 </file_content>

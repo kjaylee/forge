@@ -194,6 +194,32 @@ mod test {
 
     use super::*;
 
+    /// Normalize paths in snapshot content by replacing temporary directory
+    /// paths with [TEMP_DIR]
+    fn normalize_path(content: &str) -> String {
+        let path_attribute = regex::Regex::new(r#"[a-zA-Z]*\.([a-z]*)""#).unwrap();
+        let file_name = path_attribute
+            .find(content)
+            .unwrap()
+            .as_str()
+            .replace("\"", "");
+
+        let new_path = format!("path=\"[TEMP_DIR]/{}\"", file_name);
+        let pattern = regex::Regex::new(r#"path="[a-zA-Z0-9_/.]*""#).unwrap();
+        let content = pattern.replace_all(content, &new_path);
+        content.to_string()
+    }
+
+    #[test]
+    fn test_normalize_path() {
+        let input = "<file_content path=\"/var/folders/xy/1234567890/T/.tmpABCDEF/test.txt\">Some test content</file_content>";
+        let normalized = normalize_path(input);
+        assert_eq!(
+            normalized,
+            "<file_content path=\"[TEMP_DIR]/test.txt\">Some test content</file_content>"
+        );
+    }
+
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content)
             .await
@@ -247,7 +273,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
 
         // Also snapshot the final file content to verify whitespace preservation
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -270,7 +296,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
 
         // Also snapshot the final file content
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -293,7 +319,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
 
         // Also snapshot the final file content to verify both replacements
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -315,7 +341,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
 
         // Also snapshot the final file content to verify the line was removed
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -342,7 +368,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -358,7 +384,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
 
@@ -374,7 +400,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content3 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content3);
     }
@@ -405,7 +431,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -418,7 +444,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
     }
@@ -449,7 +475,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -462,7 +488,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
     }
@@ -487,7 +513,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content);
     }
@@ -509,7 +535,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(result);
+        insta::assert_snapshot!(normalize_path(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content);
     }
