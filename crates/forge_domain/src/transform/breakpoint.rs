@@ -45,7 +45,6 @@ pub enum BreakPoint {
 
     /// Keep messages whose tool result is a failure.
     ToolResultFailure(ToolResult),
-
     //TODO: Add a breakpoint for number of Tokens
 }
 
