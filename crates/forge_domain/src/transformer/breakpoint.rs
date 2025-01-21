@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Context, ContextMessage, ToolName, ToolResult};
+use crate::{Context, ContextMessage};
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum BreakPoint {
@@ -38,13 +38,13 @@ pub enum BreakPoint {
     Not(Box<BreakPoint>),
 
     /// Keep messages whose tool name matches the given string.
-    ToolName(ToolName),
+    ToolName(String),
 
     /// Keep messages whose tool result is a success.
-    ToolResultSuccess(ToolResult),
+    ToolCallSuccess(Box<BreakPoint>),
 
     /// Keep messages whose tool result is a failure.
-    ToolResultFailure(ToolResult),
+    ToolCallFailure(Box<BreakPoint>),
     //TODO: Add a breakpoint for number of Tokens
 }
 
@@ -132,25 +132,27 @@ impl BreakPoint {
             BreakPoint::ToolName(name) => {
                 for (i, msg) in ctx.messages.iter().enumerate() {
                     if let ContextMessage::ToolMessage(tool) = msg {
-                        if tool.name == *name {
+                        if tool.name.as_str() == name {
                             breakpoints.insert(i);
                         }
                     }
                 }
             }
-            BreakPoint::ToolResultSuccess(result) => {
-                for (i, msg) in ctx.messages.iter().enumerate() {
-                    if let ContextMessage::ToolMessage(tool) = msg {
-                        if tool.name == result.name && !tool.is_error {
+            BreakPoint::ToolCallSuccess(bp) => {
+                let bp_indices = bp.get_breakpoints(ctx);
+                for i in bp_indices {
+                    if let Some(ContextMessage::ToolMessage(tool)) = ctx.messages.get(i) {
+                        if !tool.is_error {
                             breakpoints.insert(i);
                         }
                     }
                 }
             }
-            BreakPoint::ToolResultFailure(result) => {
-                for (i, msg) in ctx.messages.iter().enumerate() {
-                    if let ContextMessage::ToolMessage(tool) = msg {
-                        if tool.name == result.name && tool.is_error {
+            BreakPoint::ToolCallFailure(bp) => {
+                let bp_indices = bp.get_breakpoints(ctx);
+                for i in bp_indices {
+                    if let Some(ContextMessage::ToolMessage(tool)) = ctx.messages.get(i) {
+                        if tool.is_error {
                             breakpoints.insert(i);
                         }
                     }
@@ -319,63 +321,63 @@ mod tests {
     fn test_tool_name_breakpoint() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::ToolName(ToolName::new("test_tool"));
+        let bp = BreakPoint::ToolName("test_tool".to_string());
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2, 4].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_tool_result_success_breakpoint() {
+    fn test_tool_call_success_breakpoint() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::ToolResultSuccess(ToolResult::new(ToolName::new("test_tool")));
+        let bp = BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName("test_tool".to_string())));
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2, 4].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_tool_result_failure_breakpoint() {
+    fn test_tool_call_failure_breakpoint() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::ToolResultFailure(ToolResult::new(ToolName::new("failed_tool")));
+        let bp = BreakPoint::ToolCallFailure(Box::new(BreakPoint::ToolName("failed_tool".to_string())));
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [5].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_tool_result_success_and_tool_name() {
+    fn test_tool_call_success_and_tool_name() {
         let ctx = create_test_context();
 
         let bp = BreakPoint::And(
-            Box::new(BreakPoint::ToolResultSuccess(ToolResult::new(
-                ToolName::new("test_tool"),
-            ))),
-            Box::new(BreakPoint::ToolName(ToolName::new("test_tool"))),
+            Box::new(BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName(
+                "test_tool".to_string(),
+            )))),
+            Box::new(BreakPoint::ToolName("test_tool".to_string())),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2, 4].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_tool_result_failure_or_tool_name() {
+    fn test_tool_call_failure_or_tool_name() {
         let ctx = create_test_context();
 
         let bp = BreakPoint::Or(
-            Box::new(BreakPoint::ToolResultFailure(ToolResult::new(
-                ToolName::new("failed_tool"),
-            ))),
-            Box::new(BreakPoint::ToolName(ToolName::new("other_tool"))),
+            Box::new(BreakPoint::ToolCallFailure(Box::new(BreakPoint::ToolName(
+                "failed_tool".to_string(),
+            )))),
+            Box::new(BreakPoint::ToolName("other_tool".to_string())),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [5, 6].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_not_tool_result_success() {
+    fn test_not_tool_call_success() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::Not(Box::new(BreakPoint::ToolResultSuccess(ToolResult::new(
-            ToolName::new("test_tool"),
+        let bp = BreakPoint::Not(Box::new(BreakPoint::ToolCallSuccess(Box::new(
+            BreakPoint::ToolName("test_tool".to_string()),
         ))));
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(
@@ -389,53 +391,53 @@ mod tests {
         let ctx = create_test_context();
 
         let bp = BreakPoint::And(
-            Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolResultFailure(
-                ToolResult::new(ToolName::new("failed_tool")),
-            )))),
-            Box::new(BreakPoint::ToolName(ToolName::new("test_tool"))),
+            Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolCallFailure(Box::new(
+                BreakPoint::ToolName("failed_tool".to_string()),
+            ))))),
+            Box::new(BreakPoint::ToolName("test_tool".to_string())),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2, 4].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_after_tool_result_success() {
+    fn test_after_tool_call_success() {
         let ctx = create_test_context();
 
         let bp = BreakPoint::After(
-            Box::new(BreakPoint::ToolResultSuccess(ToolResult::new(
-                ToolName::new("test_tool"),
-            ))),
-            Box::new(BreakPoint::ToolName(ToolName::new("failed_tool"))),
+            Box::new(BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName(
+                "test_tool".to_string(),
+            )))),
+            Box::new(BreakPoint::ToolName("failed_tool".to_string())),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [5].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_before_tool_result_failure() {
+    fn test_before_tool_call_failure() {
         let ctx = create_test_context();
 
         let bp = BreakPoint::Before(
-            Box::new(BreakPoint::ToolResultFailure(ToolResult::new(
-                ToolName::new("failed_tool"),
-            ))),
-            Box::new(BreakPoint::ToolName(ToolName::new("test_tool"))),
+            Box::new(BreakPoint::ToolCallFailure(Box::new(BreakPoint::ToolName(
+                "failed_tool".to_string(),
+            )))),
+            Box::new(BreakPoint::ToolName("test_tool".to_string())),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2, 4].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
-    fn test_tool_name_after_tool_result_success() {
+    fn test_tool_name_after_tool_call_success() {
         let ctx = create_test_context();
 
         let bp = BreakPoint::And(
             Box::new(BreakPoint::After(
-                Box::new(BreakPoint::ToolResultSuccess(ToolResult::new(
-                    ToolName::new("test_tool"),
-                ))),
-                Box::new(BreakPoint::ToolName(ToolName::new("other_tool"))),
+                Box::new(BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName(
+                    "test_tool".to_string(),
+                )))),
+                Box::new(BreakPoint::ToolName("other_tool".to_string())),
             )),
             Box::new(BreakPoint::Not(Box::new(BreakPoint::Last))),
         );
@@ -447,18 +449,18 @@ mod tests {
     fn test_complex_tool_breakpoint_combination() {
         let ctx = create_test_context();
 
-        // Test ((ToolSuccess AND ToolName) OR (Not ToolFailure)) AND After First
+        // Test ((ToolCallSuccess AND ToolName) OR (Not ToolCallFailure)) AND After First
         let bp = BreakPoint::And(
             Box::new(BreakPoint::Or(
                 Box::new(BreakPoint::And(
-                    Box::new(BreakPoint::ToolResultSuccess(ToolResult::new(
-                        ToolName::new("test_tool"),
-                    ))),
-                    Box::new(BreakPoint::ToolName(ToolName::new("test_tool"))),
+                    Box::new(BreakPoint::ToolCallSuccess(Box::new(BreakPoint::ToolName(
+                        "test_tool".to_string(),
+                    )))),
+                    Box::new(BreakPoint::ToolName("test_tool".to_string())),
                 )),
-                Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolResultFailure(
-                    ToolResult::new(ToolName::new("failed_tool")),
-                )))),
+                Box::new(BreakPoint::Not(Box::new(BreakPoint::ToolCallFailure(Box::new(
+                    BreakPoint::ToolName("failed_tool".to_string()),
+                ))))),
             )),
             Box::new(BreakPoint::After(
                 Box::new(BreakPoint::First),

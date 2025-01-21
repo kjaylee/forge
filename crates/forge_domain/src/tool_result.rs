@@ -1,12 +1,11 @@
 use std::fmt::Display;
 
 use derive_setters::Setters;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{ToolCallFull, ToolCallId, ToolName};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
 pub struct ToolResult {
     pub name: ToolName,
