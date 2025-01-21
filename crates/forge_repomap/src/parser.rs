@@ -163,41 +163,100 @@ impl Parser {
 
     pub fn parse_file(&self, path: &Path, content: &str) -> Result<Vec<Symbol>, Error> {
         let language = self.detect_language(path)?;
-        let lang = self
-            .parsers
+        let lang = self.parsers
             .get(language)
             .ok_or_else(|| Error::UnsupportedLanguage(language.to_string()))?;
 
         let mut parser = TsParser::new();
-        parser
-            .set_language(lang)
+        parser.set_language(lang)
             .map_err(|e| Error::TreeSitter(e.to_string()))?;
 
-        let tree = parser
-            .parse(content, None)
+        let tree = parser.parse(content, None)
             .ok_or_else(|| Error::Parse("Failed to parse file".to_string()))?;
 
         let query = self.queries.get(language).ok_or_else(|| {
             Error::Parse(format!("No query available for language: {}", language))
         })?;
 
-        let mut symbols = Vec::new();
+        let mut definitions = HashMap::new();
 
-        // Extract symbols using the appropriate query
+        // First pass: collect all definitions
         let mut query_cursor = tree_sitter::QueryCursor::new();
         let mut cursor = query_cursor.matches(query, tree.root_node(), content.as_bytes());
         while let Some(match_) = cursor.next() {
             for capture in match_.captures {
-                let capture_name = &query.capture_names()[capture.index as usize].to_string();
-                let node = capture.node;
+                let capture_name = &query.capture_names()[capture.index as usize];
+                let name = capture.node
+                    .utf8_text(content.as_bytes())
+                    .map_err(|e| Error::Parse(e.to_string()))?
+                    .to_string();
+                
+                if !capture_name.starts_with("name.definition.") {
+                    continue;
+                }
 
-                if let Some(symbol) = self.create_symbol(capture_name, node, path, content)? {
-                    symbols.push(symbol);
+                let kind = match &capture_name["name.definition.".len()..] {
+                    "function" => SymbolKind::Function,
+                    "method" => SymbolKind::Method,
+                    "class" => SymbolKind::Class,
+                    "interface" => SymbolKind::Interface,
+                    "struct" => SymbolKind::Struct,
+                    "enum" => SymbolKind::Enum,
+                    "constant" => SymbolKind::Constant,
+                    "variable" => SymbolKind::Variable,
+                    "module" => SymbolKind::Module,
+                    "trait" => SymbolKind::Trait,
+                    _ => continue,
+                };
+
+                let location = Location {
+                    path: Rc::new(path.to_path_buf()),
+                    start_line: capture.node.start_position().row + 1,
+                    end_line: capture.node.end_position().row + 1,
+                    start_col: capture.node.start_position().column,
+                    end_col: capture.node.end_position().column,
+                };
+
+                definitions.insert(name.clone(), Symbol::new(name, kind, location));
+            }
+        }
+
+        // Second pass: collect all references
+        let mut query_cursor = tree_sitter::QueryCursor::new();
+        let mut cursor = query_cursor.matches(query, tree.root_node(), content.as_bytes());
+        while let Some(match_) = cursor.next() {
+            for capture in match_.captures {
+                let capture_name = &query.capture_names()[capture.index as usize];
+                if !capture_name.starts_with("name.reference.") {
+                    continue;
+                }
+
+                let name = capture.node
+                    .utf8_text(content.as_bytes())
+                    .map_err(|e| Error::Parse(e.to_string()))?
+                    .to_string();
+
+                let location = Location {
+                    path: Rc::new(path.to_path_buf()),
+                    start_line: capture.node.start_position().row + 1,
+                    end_line: capture.node.end_position().row + 1,
+                    start_col: capture.node.start_position().column,
+                    end_col: capture.node.end_position().column,
+                };
+
+                // Always create a symbol for references, even if the definition is not in this file
+                if !definitions.contains_key(&name) {
+                    let mut symbol = Symbol::new(name.clone(), SymbolKind::Function, location.clone());
+                    symbol.add_reference(location);
+                    definitions.insert(name, symbol);
+                } else if let Some(symbol) = definitions.get_mut(&name) {
+                    // Add reference to existing symbol
+                    symbol.add_reference(location);
                 }
             }
         }
 
-        Ok(symbols)
+        Ok(definitions.into_values().collect())
     }
 
     fn detect_language(&self, path: &Path) -> Result<&str, Error> {
@@ -219,52 +278,6 @@ impl Parser {
             ))),
         }
     }
-
-    fn create_symbol(
-        &self,
-        capture_name: &str,
-        node: tree_sitter::Node,
-        file_path: &Path,
-        source: &str,
-    ) -> Result<Option<Symbol>, Error> {
-        let name = node
-            .utf8_text(source.as_bytes())
-            .map_err(|e| Error::Parse(e.to_string()))?
-            .to_string();
-
-        let kind = if capture_name.starts_with("name.definition.") {
-            match &capture_name["name.definition.".len()..] {
-                "function" => Some(SymbolKind::Function),
-                "method" => Some(SymbolKind::Method),
-                "class" => Some(SymbolKind::Class),
-                "interface" => Some(SymbolKind::Interface),
-                "struct" => Some(SymbolKind::Struct),
-                "enum" => Some(SymbolKind::Enum),
-                "constant" => Some(SymbolKind::Constant),
-                "variable" => Some(SymbolKind::Variable),
-                "module" => Some(SymbolKind::Module),
-                "trait" => Some(SymbolKind::Trait),
-                _ => None,
-            }
-        } else {
-            None
-        };
-
-        let kind = match kind {
-            Some(k) => k,
-            None => return Ok(None),
-        };
-
-        let location = Location {
-            path: Rc::new(file_path.to_path_buf()),
-            start_line: node.start_position().row + 1,
-            end_line: node.end_position().row + 1,
-            start_col: node.start_position().column,
-            end_col: node.end_position().column,
-        };
-
-        Ok(Some(Symbol::new(name, kind, location)))
-    }
 }
 
 fn get_language(language: &str) -> Option<Language> {
@@ -281,5 +294,61 @@ fn get_language(language: &str) -> Option<Language> {
         "ruby" => Some(language_ruby()),
         "php" => Some(language_php()),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_parse_references() -> Result<(), Error> {
+        let parser = Parser::new()?;
+        let test_path = std::path::PathBuf::from("test.rs");
+        
+        let content = r#"
+            fn helper() {
+                // Some code
+            }
+            
+            fn main() {
+                helper(); // Call helper function
+                helper(); // Call it again
+            }
+        "#;
+
+        let symbols = parser.parse_file(&test_path, content)?;
+        
+        // Find the helper function symbol
+        let helper = symbols.iter()
+            .find(|s| s.name.as_ref() == "helper")
+            .expect("helper function should be found");
+            
+        assert_eq!(helper.references.len(), 2, "Should have captured two references to helper");
+        
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_method() -> Result<(), Error> {
+        let parser = Parser::new()?;
+        let test_path = std::path::PathBuf::from("test.rs");
+        
+        let content = r#"
+            impl Test {
+                fn test_method(&self) {
+                    // Some implementation
+                }
+            }
+        "#;
+
+        let symbols = parser.parse_file(&test_path, content)?;
+        
+        assert!(
+            symbols.iter().any(|s| s.name.as_ref() == "test_method" && matches!(s.kind, SymbolKind::Method)),
+            "Should find test_method as a method"
+        );
+        
+        Ok(())
     }
 }

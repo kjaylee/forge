@@ -44,12 +44,12 @@ impl DependencyGraph {
             idx
         } else {
             let idx = self.graph.add_node(path.clone());
-            self.node_indices.insert(path, idx);
+            self.node_indices.insert(path.clone(), idx);
             idx
         }
     }
 
-    /// Add a symbol reference between two files
+    /// Initialize or update node weight, returns the calculated weight    /// Add a symbol reference between two files
     pub fn add_symbol_reference(&mut self, from: &Path, to: &Path, symbol: SymbolReference) {
         let from_idx = self.add_node(from.to_path_buf());
         let to_idx = self.add_node(to.to_path_buf());
@@ -73,34 +73,62 @@ impl DependencyGraph {
     /// Calculate importance scores with emphasized files
     pub fn calculate_importance(&self, focused_files: &[PathBuf]) -> HashMap<PathBuf, f64> {
         let mut personalization = HashMap::new();
+        let mut importance_scores = HashMap::new();
+        // If there are no nodes, just bail out with empty scores
+        if self.graph.node_count() == 0 {
+            return importance_scores;
+        }
+
         let default_weight = 1.0 / self.graph.node_count() as f64;
         let focus_weight = 4.0 * default_weight; // Focused files get 4x weight
 
-        for path in focused_files {
-            personalization.insert(path.clone(), focus_weight);
-        }
-
-        let page_rank = PageRank::new(self.page_rank_config.clone());
-        page_rank.calculate(&self.graph, Some(&personalization))
-    }
-
-    /// Get files that depend on a specific file
-    pub fn get_dependent_files(&self, path: &Path) -> Vec<PathBuf> {
-        let mut result = Vec::new();
-
-        if let Some(&node_idx) = self.node_indices.get(path) {
-            for edge in self
-                .graph
-                .edges_directed(node_idx, petgraph::Direction::Incoming)
-            {
-                if let Some(dep_path) = self.graph.node_weight(edge.source()) {
-                    result.push(dep_path.clone());
+        // Initialize scores
+        for node_idx in self.graph.node_indices() {
+            if let Some(path) = self.graph.node_weight(node_idx) {
+                importance_scores.insert(path.clone(), default_weight);
+                if focused_files.contains(path) {
+                    personalization.insert(path.clone(), focus_weight);
                 }
             }
         }
 
-        result
+        // Calculate base reference-weighted scores
+        for edge in self.graph.edge_references() {
+            if let (Some(_from_path), Some(to_path)) = (
+                self.graph.node_weight(edge.source()),
+                self.graph.node_weight(edge.target()),
+            ) {
+                let weight = edge.weight();
+                let score = weight.symbol_refs.iter()
+                    .map(|s| s.kind.base_weight() * s.count as f64)
+                    .sum::<f64>();
+                
+                // Add weighted score to the target file
+                *importance_scores.entry(to_path.clone()).or_insert(0.0) += score;
+            }
+        }
+
+        // Calculate PageRank using initial scores and personalization
+        let page_rank = PageRank::new(self.page_rank_config.clone());
+        let pr_scores = page_rank.calculate(&self.graph, Some(&personalization));
+
+        // Combine reference-based scores with PageRank
+        for (path, pr_score) in pr_scores {
+            let ref_score = importance_scores.get(&path).unwrap_or(&0.0);
+            importance_scores.insert(path, (pr_score + ref_score) / 2.0);
+        }
+
+        // Normalize scores
+        let max_score = importance_scores.values().fold(0.0_f64, |a, &b| a.max(b));
+        if max_score > 0.0 {
+            for score in importance_scores.values_mut() {
+                *score /= max_score;
+            }
+        }
+
+        importance_scores
     }
+
 }
 
 #[cfg(test)]
@@ -130,6 +158,67 @@ mod tests {
 
         assert_eq!(weight.symbol_refs.len(), 1);
         assert_eq!(weight.weight, SymbolKind::Function.base_weight());
+    }
+
+    #[test]
+    fn test_symbol_reference_importance() {
+        let mut graph = DependencyGraph::new();
+
+        // Add multiple references with different weights
+        let function_ref = SymbolReference {
+            name: Rc::new("test_fn".to_string()),
+            kind: SymbolKind::Function,
+            count: 3, // Called multiple times
+        };
+
+        let trait_ref = SymbolReference {
+            name: Rc::new("TestTrait".to_string()),
+            kind: SymbolKind::Trait,
+            count: 1,
+        };
+
+        let var_ref = SymbolReference {
+            name: Rc::new("test_var".to_string()),
+            kind: SymbolKind::Variable,
+            count: 1,
+        };
+
+        // a.rs -> b.rs (multiple function calls)
+        graph.add_symbol_reference(
+            Path::new("src/a.rs"), 
+            Path::new("src/b.rs"), 
+            function_ref.clone()
+        );
+
+        // b.rs -> c.rs (trait reference)
+        graph.add_symbol_reference(
+            Path::new("src/b.rs"), 
+            Path::new("src/c.rs"), 
+            trait_ref
+        );
+
+        // b.rs -> d.rs (variable reference)
+        graph.add_symbol_reference(
+            Path::new("src/b.rs"), 
+            Path::new("src/d.rs"), 
+            var_ref
+        );
+
+        let scores = graph.calculate_importance(&[]);
+
+        // b.rs should have higher score due to multiple incoming function references
+        let b_score = scores[&PathBuf::from("src/b.rs")];
+        let d_score = scores[&PathBuf::from("src/d.rs")];
+
+        assert!(b_score > d_score, 
+            "b.rs (score: {}) should have higher score than d.rs (score: {})", 
+            b_score, d_score);
+
+        // c.rs should have higher score than d.rs due to trait reference
+        let c_score = scores[&PathBuf::from("src/c.rs")];
+        assert!(c_score > d_score,
+            "c.rs (score: {}) should have higher score than d.rs (score: {}) due to trait reference",
+            c_score, d_score);
     }
 
     #[test]

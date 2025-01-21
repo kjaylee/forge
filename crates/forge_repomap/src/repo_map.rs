@@ -9,6 +9,7 @@ use crate::graph::DependencyGraph;
 use crate::parser::Parser;
 use crate::ranking::{PageRankConfig, SymbolReference};
 use crate::symbol::Symbol;
+use crate::symbol::SymbolKind;
 
 /// A map of a repository's code structure and relationships.
 pub struct RepoMap {
@@ -84,20 +85,62 @@ impl RepoMap {
     }
 
     fn build_dependency_graph(&mut self) {
-        // Rebuild the graph from scratch
-        self.graph = DependencyGraph::new();
+        // Rebuild the graph from scratch with default PageRank config
+        self.graph = DependencyGraph::new().with_page_rank_config(PageRankConfig::default());
 
-        // Add files and their dependencies to the graph with symbol information
-        for (file_path, symbols) in &self.files {
-            for symbol in symbols {
-                for reference in &symbol.references {
-                    let symbol_ref = SymbolReference {
-                        name: symbol.name.clone(),
-                        kind: symbol.kind.clone(),
-                        count: 1, // For now, we count each reference as 1
-                    };
-                    self.graph
-                        .add_symbol_reference(file_path, &reference.path, symbol_ref);
+        // Track which file defines each symbol
+        let mut definitions: HashMap<String, (PathBuf, SymbolKind)> = HashMap::new();
+        
+        // First pass: collect all definitions (no references)
+        let mut file_paths: Vec<_> = self.files.keys().cloned().collect();
+        // Sort paths for deterministic order
+        file_paths.sort();
+        
+        // Process files in sorted order for deterministic output
+        for file_path in &file_paths {
+            // Sort symbols by name for deterministic order
+            if let Some(symbols) = self.files.get(file_path) {
+                let mut symbols: Vec<_> = symbols.iter().collect();
+                symbols.sort_by(|a, b| a.name.cmp(&b.name));
+                
+                // Collect definitions (no references)
+                for symbol in symbols {
+                    if symbol.references.is_empty() {
+                        definitions.insert(
+                            symbol.name.to_string(), 
+                            (file_path.clone(), symbol.kind.clone())
+                        );
+                    }
+                }
+            }
+        }
+
+        // Second pass: process references in sorted order
+        for file_path in &file_paths {
+            if let Some(symbols) = self.files.get(file_path) {
+                // Sort symbols by name for deterministic order
+                let mut symbols: Vec<_> = symbols.iter().collect();
+                symbols.sort_by(|a, b| a.name.cmp(&b.name));
+
+                // Process symbols with references
+                for symbol in symbols {
+                    // Skip symbols without references
+                    if !symbol.references.is_empty() {
+                        // Check if this symbol is defined elsewhere
+                        if let Some((def_file, def_kind)) = definitions.get(&symbol.name.to_string()) {
+                            // Add edge from source file to definition file
+                            let symbol_ref = SymbolReference {
+                                name: symbol.name.clone(),
+                                kind: def_kind.clone(),
+                                count: symbol.references.len(),
+                            };
+                            
+                            // Only add cross-file reference if files are different
+                            if file_path.as_path() != def_file.as_path() {
+                                self.graph.add_symbol_reference(file_path, def_file, symbol_ref);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -107,13 +150,9 @@ impl RepoMap {
         let importance_scores = self.graph.calculate_importance(focused_paths);
         let mut context = String::new();
 
-        // Add focused files first this is important otherwise the snapshot will be
-        // different for each run
-        let mut focused = focused_paths.to_vec();
-        focused.sort();
-        for path in focused {
-            if let Some(symbols) = self.files.get(&path) {
-                self.append_file_context(&mut context, &path, symbols);
+        for path in focused_paths {
+            if let Some(symbols) = self.files.get(path) {
+                self.append_file_context(&mut context, path, symbols);
             }
         }
 
@@ -124,18 +163,16 @@ impl RepoMap {
             .filter(|(path, _)| !focused_paths.contains(path))
             .collect();
 
-        // First sort by path to ensure stable ordering
-        other_files.sort_by(|(path_a, _), (path_b, _)| path_a.cmp(path_b));
-
-        // Then stable sort by importance to maintain path ordering for equal scores
+        // Sort by importance first, then maintain path order for stability
         other_files.sort_by(|(path_a, _), (path_b, _)| {
-            let score_a = importance_scores.get(*path_a).unwrap_or(&0.0);
-            let score_b = importance_scores.get(*path_b).unwrap_or(&0.0);
-            // Use ordering that maintains stability for equal scores
-            score_b
-                .partial_cmp(score_a)
+            let score_a = importance_scores.get(path_a.as_path()).unwrap_or(&0.0);
+            let score_b = importance_scores.get(path_b.as_path()).unwrap_or(&0.0);
+            
+            // First compare scores in reverse order (higher first)
+            score_b.partial_cmp(score_a)
                 .unwrap()
-                .then(path_a.cmp(path_b))
+                // If scores are equal, path comparison is implicit due to prior sort
+                .then_with(|| path_a.cmp(path_b))
         });
 
         for (path, symbols) in other_files {
@@ -160,13 +197,37 @@ impl RepoMap {
         }
 
         if let Ok(rel_path) = path.strip_prefix(&self.root_path) {
-            context.push_str(&format!("{}:\n", rel_path.display()));
+            // Use deterministic path string
+            let display_path = rel_path.display().to_string().replace('\\', "/");
+            context.push_str(&format!("{}:\n", display_path));
 
-            // Sort symbols by importance
+            // Sort symbols by kind, then name for complete determinism
             let mut symbols = symbols.to_vec();
-            symbols.sort_by(|a, b| b.importance.partial_cmp(&a.importance).unwrap());
+            symbols.sort_by(|a, b| {
+                // First sort by kind (in consistent order)
+                let kind_a = match a.kind {
+                    SymbolKind::Module => 1,
+                    SymbolKind::Trait => 2,
+                    SymbolKind::Struct => 3,
+                    SymbolKind::Implementation => 4,
+                    SymbolKind::Function | SymbolKind::Method => 5,
+                    _ => 6,
+                };
+                let kind_b = match b.kind {
+                    SymbolKind::Module => 1,
+                    SymbolKind::Trait => 2,
+                    SymbolKind::Struct => 3,
+                    SymbolKind::Implementation => 4,
+                    SymbolKind::Function | SymbolKind::Method => 5,
+                    _ => 6,
+                };
 
-            for symbol in symbols {
+                kind_a.cmp(&kind_b)
+                    .then_with(|| a.name.cmp(&b.name))
+            });
+
+            // Output in deterministic order
+            for symbol in &symbols {
                 let signature = symbol.signature.as_deref().unwrap_or(&symbol.name);
                 context.push_str(&format!("│{} {}\n", symbol.kind, signature));
             }
@@ -176,9 +237,6 @@ impl RepoMap {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::PathBuf;
-
     use super::*;
 
     #[test]
@@ -201,8 +259,13 @@ mod tests {
         // Verify the file was processed
         assert!(repo_map.files.contains_key(&root.join("test.rs")));
         let symbols = repo_map.files.get(&root.join("test.rs")).unwrap();
-        assert_eq!(symbols.len(), 1);
-        assert_eq!(symbols[0].name.as_str(), "test_function");
+        
+        // Should find one function definition
+        let function_symbols: Vec<_> = symbols.iter()
+            .filter(|s| s.references.is_empty()) // Definitions have no references
+            .collect();
+        assert_eq!(function_symbols.len(), 1, "Should have one function definition");
+        assert_eq!(function_symbols[0].name.as_str(), "test_function");
 
         Ok(())
     }
@@ -233,6 +296,51 @@ mod tests {
     }
 
     #[test]
+    fn test_cross_file_references() -> Result<(), Error> {
+        let root = PathBuf::from("/test");
+        let mut repo_map = RepoMap::new(root.clone(), 1000)?;
+
+        // Create two files with cross-references
+        let sources = vec![
+            SourceFile {
+                path: root.join("lib.rs"),
+                content: r#"
+                    pub fn helper_function() {
+                        // Some implementation
+                    }
+                "#.to_string(),
+            },
+            SourceFile {
+                path: root.join("main.rs"),
+                content: r#"
+                    fn main() {
+                        helper_function(); // First call
+                        helper_function(); // Second call
+                    }
+                "#.to_string(),
+            },
+        ];
+
+        repo_map.process_files(sources)?;
+
+        // Get importance scores
+        let scores = repo_map.graph.calculate_importance(&[]);
+        
+        // lib.rs should have higher score as it's referenced
+        let lib_score = scores.get(&root.join("lib.rs")).unwrap_or(&0.0);
+        let main_score = scores.get(&root.join("main.rs")).unwrap_or(&0.0);
+        
+        assert!(lib_score > &0.0, "lib.rs should have a non-zero score (got {})", lib_score);
+        assert!(
+            lib_score > main_score, 
+            "lib.rs ({}) should have higher score than main.rs ({}) as it's referenced", 
+            lib_score, main_score
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_unsupported_file_type() -> Result<(), Error> {
         let root = PathBuf::from("/test");
         let mut repo_map = RepoMap::new(root.clone(), 1000)?;
@@ -253,18 +361,25 @@ mod tests {
     #[tokio::test]
     async fn test_directory_context_snapshot() -> anyhow::Result<()> {
         use insta::assert_snapshot;
-
+        use std::collections::BTreeMap;
+        
+        // Set up deterministic test environment
         let test_root = PathBuf::from("/test/workspace");
         let mut repo_map = RepoMap::new(test_root.clone(), 10000)?;
-
-        // Use synchronous operations and collect all files first for deterministic
-        // ordering
+        
+        // Fixed config for deterministic weights
+        repo_map = repo_map.with_page_rank_config(PageRankConfig {
+            damping_factor: 0.85,
+            max_iterations: 100,
+            tolerance: 1e-6,
+        });
+        
         let src_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
-        let mut source_files = Vec::new();
-
-        // Collect all .rs files synchronously
-        for entry in fs::read_dir(&src_dir)? {
-            let entry = entry?;
+        let mut file_map = BTreeMap::new(); // Use BTreeMap for deterministic ordering
+        let mut entries = tokio::fs::read_dir(&src_dir).await?;
+        
+        // First collect all files in a sorted data structure
+        while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
             if path
                 .extension()
@@ -274,14 +389,34 @@ mod tests {
             {
                 let relative_path = path.strip_prefix(&src_dir).unwrap();
                 let test_path = test_root.join("src").join(relative_path);
-                let content = fs::read_to_string(&path)?;
-                source_files.push(SourceFile { path: test_path, content });
+                let content = tokio::fs::read_to_string(&path).await?;
+                
+                // Use canonical path string as key for deterministic ordering
+                let key = test_path.to_string_lossy().to_string();
+                file_map.insert(key, (test_path, content.replace("\r\n", "\n")));
             }
         }
-
-        // Sort by path for deterministic ordering
-        source_files.sort_by(|a, b| a.path.cmp(&b.path));
+        
+        // Convert sorted map to vec
+        let source_files: Vec<_> = file_map.values()
+            .map(|(path, content)| SourceFile {
+                path: path.clone(),
+                content: content.clone(),
+            })
+            .collect();
+        
         repo_map.process_files(source_files)?;
+        
+        // Get importance scores
+        let scores = repo_map.graph.calculate_importance(&[]);
+        
+        // Verify scores (important for determinism)
+        assert!(scores[&test_root.join("src/ranking.rs")] > 0.0,
+            "ranking.rs should have positive weight");
+        assert!(scores[&test_root.join("src/graph.rs")] > 0.0,
+            "graph.rs should have positive weight");
+        
+        // Get context with deterministic scores
         let context = repo_map.get_context(&[])?;
         assert_snapshot!(context);
 
