@@ -1,8 +1,67 @@
 ---
 source: crates/forge_repomap/src/repo_map.rs
 expression: context
-snapshot_kind: text
 ---
+src/error.rs:
+│class Error
+
+
+src/graph.rs:
+│mod tests
+│struct DependencyGraph
+│method new
+│fn new
+│method with_page_rank_config
+│fn with_page_rank_config
+│method add_node
+│fn add_node
+│method add_symbol_reference
+│fn add_symbol_reference
+│method calculate_importance
+│fn calculate_importance
+│method get_dependent_files
+│fn get_dependent_files
+│method test_add_symbol_reference
+│fn test_add_symbol_reference
+│method test_focused_importance
+│fn test_focused_importance
+
+
+src/lib.rs:
+│mod error
+│mod graph
+│mod parser
+│mod ranking
+│mod repo_map
+│mod symbol
+
+
+src/parser.rs:
+│struct Parser
+│fn language_rust
+│fn language_javascript
+│fn language_python
+│fn language_typescript
+│fn language_c
+│fn language_cpp
+│fn language_csharp
+│fn language_java
+│fn language_go
+│fn language_ruby
+│fn language_php
+│method new
+│fn new
+│method load_query
+│fn load_query
+│method parse_file
+│fn parse_file
+│method detect_language
+│fn detect_language
+│method create_symbol
+│fn create_symbol
+│fn get_language
+
+
 src/ranking.rs:
 │mod tests
 │struct PageRankConfig
@@ -29,31 +88,6 @@ src/ranking.rs:
 │fn test_symbol_weights
 │method test_reference_count_weight
 │fn test_reference_count_weight
-
-
-src/symbol.rs:
-│mod tests
-│struct Location
-│class SymbolKind
-│struct Symbol
-│method base_weight
-│fn base_weight
-│method fmt
-│fn fmt
-│method new
-│fn new
-│method with_signature
-│fn with_signature
-│method add_reference
-│fn add_reference
-│method recalculate_importance
-│fn recalculate_importance
-│method test_symbol_weights
-│fn test_symbol_weights
-│method test_importance_calculation
-│fn test_importance_calculation
-│method test_symbol_with_signature
-│fn test_symbol_with_signature
 
 
 src/repo_map.rs:
@@ -88,61 +122,26 @@ src/repo_map.rs:
 │fn test_directory_context_snapshot
 
 
-src/error.rs:
-│class Error
-
-
-src/parser.rs:
-│struct Parser
-│fn language_rust
-│fn language_javascript
-│fn language_python
-│fn language_typescript
-│fn language_c
-│fn language_cpp
-│fn language_csharp
-│fn language_java
-│fn language_go
-│fn language_ruby
-│fn language_php
-│method new
-│fn new
-│method load_query
-│fn load_query
-│method parse_file
-│fn parse_file
-│method detect_language
-│fn detect_language
-│method create_symbol
-│fn create_symbol
-│fn get_language
-
-
-src/graph.rs:
+src/symbol.rs:
 │mod tests
-│struct DependencyGraph
+│struct Location
+│class SymbolKind
+│struct Symbol
+│method base_weight
+│fn base_weight
+│method fmt
+│fn fmt
 │method new
 │fn new
-│method with_page_rank_config
-│fn with_page_rank_config
-│method add_node
-│fn add_node
-│method add_symbol_reference
-│fn add_symbol_reference
-│method calculate_importance
-│fn calculate_importance
-│method get_dependent_files
-│fn get_dependent_files
-│method test_add_symbol_reference
-│fn test_add_symbol_reference
-│method test_focused_importance
-│fn test_focused_importance
-
-
-src/lib.rs:
-│mod error
-│mod graph
-│mod parser
-│mod ranking
-│mod repo_map
-│mod symbol
+│method with_signature
+│fn with_signature
+│method add_reference
+│fn add_reference
+│method recalculate_importance
+│fn recalculate_importance
+│method test_symbol_weights
+│fn test_symbol_weights
+│method test_importance_calculation
+│fn test_importance_calculation
+│method test_symbol_with_signature
+│fn test_symbol_with_signature

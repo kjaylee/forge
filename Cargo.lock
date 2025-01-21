@@ -1067,6 +1067,7 @@ dependencies = [
  "inquire",
  "insta",
  "mockito",
+ "nom",
  "pretty_assertions",
  "regex",
  "reqwest",
@@ -1075,7 +1076,7 @@ dependencies = [
  "serde_json",
  "streaming-iterator",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tracing",
  "tree-sitter",
@@ -1306,9 +1307,9 @@ dependencies = [
 
 [[package]]
 name = "gh-workflow-tailcall"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fca40d2feefbb7f4f101e99b42b27b3abf522a1d727a44d9705a325d62eb41bf"
+checksum = "0e32d2a5f9bd10d4be60164ac631590a60c7430a5039c2f75036380d8074a1de"
 dependencies = [
  "derive_setters",
  "gh-workflow",
