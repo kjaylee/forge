@@ -7,17 +7,24 @@ use crate::{Context, ContextMessage};
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, PartialEq)]
 pub enum BreakPoint {
-    /// Keep only the Nth message (0-based).
-    Nth(usize),
+    /// Keep only messages that match any condition
+    Any,
 
     /// Keep messages whose role matches the given string.
     Role(MessageRole),
 
-    /// Keep only the first message in the conversation.
-    First,
+    /// Keep only messages at or after the given index
+    MinIndex(usize),
 
-    /// Keep only the last message in the conversation.
-    Last,
+    /// Keep only the Nth (0-based) message that matches the given breakpoint.
+    /// For example, Nth(1, Role(User)) matches the second user message.
+    Nth(usize, Box<BreakPoint>),
+
+    /// Keep only the first message that matches the given breakpoint.
+    First(Box<BreakPoint>),
+
+    /// Keep only the last message that matches the given breakpoint.
+    Last(Box<BreakPoint>),
 
     /// Logical AND of two breakpoints.
     And(Box<BreakPoint>, Box<BreakPoint>),
@@ -67,8 +74,8 @@ impl BreakPoint {
     pub fn get_breakpoints(&self, ctx: &Context) -> HashSet<usize> {
         let mut breakpoints = HashSet::new();
         match self {
-            BreakPoint::Nth(n) => {
-                breakpoints.insert(*n);
+            BreakPoint::Any => {
+                breakpoints.extend(0..ctx.messages.len());
             }
             BreakPoint::Role(role) => {
                 for (i, msg) in ctx.messages.iter().enumerate() {
@@ -77,11 +84,31 @@ impl BreakPoint {
                     }
                 }
             }
-            BreakPoint::First => {
-                breakpoints.insert(0);
+            BreakPoint::MinIndex(n) => {
+                for i in *n..ctx.messages.len() {
+                    breakpoints.insert(i);
+                }
             }
-            BreakPoint::Last => {
-                breakpoints.insert(ctx.messages.len() - 1);
+            BreakPoint::First(bp) => {
+                let matches = bp.get_breakpoints(ctx);
+                if let Some(first) = matches.into_iter().min() {
+                    breakpoints.insert(first);
+                }
+            }
+            BreakPoint::Last(bp) => {
+                let matches = bp.get_breakpoints(ctx);
+                if let Some(last) = matches.into_iter().max() {
+                    breakpoints.insert(last);
+                }
+            }
+            BreakPoint::Nth(n, bp) => {
+                let mut matches: Vec<_> = bp.get_breakpoints(ctx)
+                    .into_iter()
+                    .collect();
+                matches.sort();  // Sort to ensure consistent order
+                if let Some(nth) = matches.get(*n) {
+                    breakpoints.insert(*nth);
+                }
             }
             BreakPoint::And(bp1, bp2) => {
                 let mut bp1_set = bp1.get_breakpoints(ctx);
@@ -214,7 +241,10 @@ mod tests {
         let ctx = create_test_context();
 
         // Test OR between First and Last messages
-        let bp = BreakPoint::Or(Box::new(BreakPoint::First), Box::new(BreakPoint::Last));
+        let bp = BreakPoint::Or(
+            Box::new(BreakPoint::First(Box::new(BreakPoint::Any))),
+            Box::new(BreakPoint::Last(Box::new(BreakPoint::Any)))
+        );
 
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [0, 7].into_iter().collect::<HashSet<_>>());
@@ -264,7 +294,7 @@ mod tests {
     fn test_nth_breakpoint() {
         let ctx = create_test_context();
 
-        let bp = BreakPoint::Nth(2);
+        let bp = BreakPoint::Nth(2, Box::new(BreakPoint::Any));
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [2].into_iter().collect::<HashSet<_>>());
     }
@@ -284,8 +314,8 @@ mod tests {
     fn test_first_last_breakpoint() {
         let ctx = create_test_context();
 
-        let first = BreakPoint::First;
-        let last = BreakPoint::Last;
+        let first = BreakPoint::First(Box::new(BreakPoint::Any));
+        let last = BreakPoint::Last(Box::new(BreakPoint::Any));
 
         assert_eq!(
             first.get_breakpoints(&ctx),
@@ -307,7 +337,7 @@ mod tests {
                 Box::new(BreakPoint::Role(MessageRole::Role(Role::User))),
                 Box::new(BreakPoint::Role(MessageRole::Tool)),
             )),
-            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last))),
+            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last(Box::new(BreakPoint::Any))))),
         );
 
         let result = bp.get_breakpoints(&ctx);
@@ -441,10 +471,88 @@ mod tests {
                 )))),
                 Box::new(BreakPoint::ToolName("other_tool".to_string())),
             )),
-            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last))),
+            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last(Box::new(BreakPoint::Any))))),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [6].into_iter().collect::<HashSet<_>>());
+    }
+
+    #[test]
+    fn test_first_tool_failure() {
+        let ctx = create_test_context();
+
+        let bp = BreakPoint::First(Box::new(BreakPoint::ToolCallFailure(Box::new(
+            BreakPoint::Role(MessageRole::Tool),
+        ))));
+        let result = bp.get_breakpoints(&ctx);
+        // Should return index 5 - first failed tool call
+        assert_eq!(result, [5].into_iter().collect::<HashSet<_>>());
+    }
+
+    #[test]
+    fn test_last_tool_success() {
+        let ctx = create_test_context();
+
+        let bp = BreakPoint::Last(Box::new(BreakPoint::ToolCallSuccess(Box::new(
+            BreakPoint::Role(MessageRole::Tool),
+        ))));
+        let result = bp.get_breakpoints(&ctx);
+        // Should return index 6 - last successful tool call
+        assert_eq!(result, [6].into_iter().collect::<HashSet<_>>());
+    }
+
+    #[test]
+    fn test_nth_user_message() {
+        let ctx = create_test_context();
+
+        let bp = BreakPoint::Nth(1, Box::new(BreakPoint::Role(MessageRole::Role(Role::User))));
+        let result = bp.get_breakpoints(&ctx);
+        assert_eq!(result, [3].into_iter().collect::<HashSet<_>>()); // Second user message
+    }
+
+    #[test]
+    fn test_first_last_nth_basic() {
+        let ctx = create_test_context();
+
+        // Test direct usage of First, Last, Nth variants
+        assert_eq!(
+            BreakPoint::First(Box::new(BreakPoint::Any)).get_breakpoints(&ctx),
+            [0].into_iter().collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            BreakPoint::Last(Box::new(BreakPoint::Any)).get_breakpoints(&ctx),
+            [7].into_iter().collect::<HashSet<_>>()
+        );
+        assert_eq!(
+            BreakPoint::Nth(2, Box::new(BreakPoint::Any)).get_breakpoints(&ctx),
+            [2].into_iter().collect::<HashSet<_>>()
+        );
+    }
+
+    #[test]
+    fn test_first_last_nth_matching() {
+        let ctx = create_test_context();
+
+        // Test direct usage of First, Last, Nth variants with conditions
+        let tool_condition = BreakPoint::Role(MessageRole::Tool);
+        
+        // First tool message
+        assert_eq!(
+            BreakPoint::First(Box::new(tool_condition.clone())).get_breakpoints(&ctx),
+            [2].into_iter().collect::<HashSet<_>>() // First tool call at index 2
+        );
+
+        // Last tool message
+        assert_eq!(
+            BreakPoint::Last(Box::new(tool_condition.clone())).get_breakpoints(&ctx),
+            [6].into_iter().collect::<HashSet<_>>() // Last tool call at index 6
+        );
+
+        // Third tool message (index 2: test_tool success, 4: test_tool success, 5: failed_tool failure)
+        assert_eq!(
+            BreakPoint::Nth(2, Box::new(tool_condition)).get_breakpoints(&ctx),
+            [5].into_iter().collect::<HashSet<_>>()
+        );
     }
 
     #[test]
@@ -466,7 +574,7 @@ mod tests {
                 )))),
             )),
             Box::new(BreakPoint::After(
-                Box::new(BreakPoint::First),
+                Box::new(BreakPoint::First(Box::new(BreakPoint::Any))),
                 Box::new(BreakPoint::Role(MessageRole::Tool)),
             )),
         );
