@@ -6,9 +6,20 @@ use forge_domain::{Embedding, EmbeddingsRepository, Information};
 use uuid::Uuid;
 
 use crate::embeddings::get_embedding;
-use crate::schema::learning_embedding_idx;
 use crate::sqlite::Sqlite;
 use crate::Service;
+
+// Table reference for the diesel.
+diesel::table! {
+    learning_embedding_idx (id) {
+        id -> Text,
+        data -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        tags -> Text,
+        embedding -> Binary,
+    }
+}
 
 #[derive(Queryable, Insertable, QueryableByName)]
 #[diesel(table_name = learning_embedding_idx)]
