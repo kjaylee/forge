@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::EmbeddingsRepository;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription};
-
+use forge_domain::{EmbeddingsRepository, NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -63,9 +61,10 @@ impl ToolCallService for Learning {
 pub mod tests {
     use std::sync::Mutex;
 
-    use super::*;
     use forge_domain::{Embedding, Information};
     use uuid::Uuid;
+
+    use super::*;
 
     // A simple mock implementation of EmbeddingsRepository for testing
     #[derive(Default)]

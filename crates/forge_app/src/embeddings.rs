@@ -1,7 +1,8 @@
 use anyhow::Result;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 
-// TODO: Specify the central cache folder path; otherwise, the cache directory will default to the current working directory of the binary.
+// TODO: Specify the central cache folder path; otherwise, the cache directory
+// will default to the current working directory of the binary.
 pub fn get_embedding(text: String) -> Result<Vec<f32>> {
     let model = TextEmbedding::try_new(
         InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),

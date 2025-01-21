@@ -1,6 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use forge_domain::{EmbeddingsRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult};
+use forge_domain::{
+    EmbeddingsRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+};
 use tokio::time::{timeout, Duration};
 use tracing::debug;
 

@@ -3,7 +3,6 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel::sql_types::{Binary, Float, Text, Timestamp};
 use forge_domain::{Embedding, EmbeddingsRepository, Information};
-use serde_json;
 use uuid::Uuid;
 
 use crate::embeddings::get_embedding;
@@ -109,7 +108,7 @@ impl<P: Send + Sync + Sqlite<Pool = SQLConnection>> EmbeddingsRepository for Liv
             .first::<LearningEmbedding>(&mut conn)
             .optional()?;
 
-        Ok(result.map(|row| Information::try_from(row)).transpose()?)
+        Ok(result.map(Information::try_from).transpose()?)
     }
 
     async fn insert(&self, data: String, tags: Vec<String>) -> Result<Embedding> {

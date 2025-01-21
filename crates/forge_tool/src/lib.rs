@@ -43,8 +43,9 @@ pub fn tools(learning_embedding_idx: Arc<dyn EmbeddingsRepository>) -> Vec<Tool>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use learning::tests::MockEmbeddingsRepository;
+
+    use super::*;
 
     #[test]
     fn test_tool_description_length() {

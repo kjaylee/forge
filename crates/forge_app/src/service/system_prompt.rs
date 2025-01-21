@@ -6,11 +6,10 @@ use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::{debug, info};
 
-use crate::embeddings::get_embedding;
-
 use super::file_read::FileReadService;
 use super::tool_service::ToolService;
 use super::{PromptService, Service};
+use crate::embeddings::get_embedding;
 
 impl Service {
     pub fn system_prompt(
@@ -155,7 +154,8 @@ mod tests {
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let file = Arc::new(TestFileReadService::default());
-        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "write fibo sequence in rust");
+        let request =
+            ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "write fibo sequence in rust");
         let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
             .get(&request)
             .await
