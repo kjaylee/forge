@@ -102,10 +102,8 @@ impl BreakPoint {
                 }
             }
             BreakPoint::Nth(n, bp) => {
-                let mut matches: Vec<_> = bp.get_breakpoints(ctx)
-                    .into_iter()
-                    .collect();
-                matches.sort();  // Sort to ensure consistent order
+                let mut matches: Vec<_> = bp.get_breakpoints(ctx).into_iter().collect();
+                matches.sort(); // Sort to ensure consistent order
                 if let Some(nth) = matches.get(*n) {
                     breakpoints.insert(*nth);
                 }
@@ -243,7 +241,7 @@ mod tests {
         // Test OR between First and Last messages
         let bp = BreakPoint::Or(
             Box::new(BreakPoint::First(Box::new(BreakPoint::Any))),
-            Box::new(BreakPoint::Last(Box::new(BreakPoint::Any)))
+            Box::new(BreakPoint::Last(Box::new(BreakPoint::Any))),
         );
 
         let result = bp.get_breakpoints(&ctx);
@@ -337,7 +335,9 @@ mod tests {
                 Box::new(BreakPoint::Role(MessageRole::Role(Role::User))),
                 Box::new(BreakPoint::Role(MessageRole::Tool)),
             )),
-            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last(Box::new(BreakPoint::Any))))),
+            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last(Box::new(
+                BreakPoint::Any,
+            ))))),
         );
 
         let result = bp.get_breakpoints(&ctx);
@@ -471,7 +471,9 @@ mod tests {
                 )))),
                 Box::new(BreakPoint::ToolName("other_tool".to_string())),
             )),
-            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last(Box::new(BreakPoint::Any))))),
+            Box::new(BreakPoint::Not(Box::new(BreakPoint::Last(Box::new(
+                BreakPoint::Any,
+            ))))),
         );
         let result = bp.get_breakpoints(&ctx);
         assert_eq!(result, [6].into_iter().collect::<HashSet<_>>());
@@ -535,7 +537,7 @@ mod tests {
 
         // Test direct usage of First, Last, Nth variants with conditions
         let tool_condition = BreakPoint::Role(MessageRole::Tool);
-        
+
         // First tool message
         assert_eq!(
             BreakPoint::First(Box::new(tool_condition.clone())).get_breakpoints(&ctx),
@@ -548,7 +550,8 @@ mod tests {
             [6].into_iter().collect::<HashSet<_>>() // Last tool call at index 6
         );
 
-        // Third tool message (index 2: test_tool success, 4: test_tool success, 5: failed_tool failure)
+        // Third tool message (index 2: test_tool success, 4: test_tool success, 5:
+        // failed_tool failure)
         assert_eq!(
             BreakPoint::Nth(2, Box::new(tool_condition)).get_breakpoints(&ctx),
             [5].into_iter().collect::<HashSet<_>>()
