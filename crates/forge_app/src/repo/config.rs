@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::schema::configuration_table::{self};
 use crate::service::Service;
-use crate::sqlite::Sqlite;
+use crate::sqlite::{SQLConnection, Sqlite};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigId(String);
@@ -61,7 +61,7 @@ impl<P: Sqlite> Live<P> {
 }
 
 #[async_trait::async_trait]
-impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
+impl<P: Sqlite<Pool = SQLConnection> + Send + Sync> ConfigRepository for Live<P> {
     async fn get(&self) -> anyhow::Result<Config> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;

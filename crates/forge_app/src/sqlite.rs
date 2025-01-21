@@ -7,18 +7,19 @@ use tracing::debug;
 
 use super::Service;
 
-type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
+pub type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
 
 const DB_NAME: &str = ".forge.db";
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 #[async_trait::async_trait]
 pub trait Sqlite: Send + Sync {
-    async fn pool(&self) -> Result<SQLConnection>;
+    type Pool;
+    async fn pool(&self) -> Result<Self::Pool>;
 }
 
 impl Service {
-    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite> {
+    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite<Pool = SQLConnection>> {
         Live::new(db_path)
     }
 }
@@ -57,7 +58,8 @@ impl Live {
 
 #[async_trait::async_trait]
 impl Sqlite for Live {
-    async fn pool(&self) -> Result<SQLConnection> {
+    type Pool = SQLConnection;
+    async fn pool(&self) -> Result<Self::Pool> {
         Ok(self.pool.clone())
     }
 }
@@ -85,7 +87,8 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl Sqlite for TestSqlite {
-        async fn pool(&self) -> Result<SQLConnection> {
+        type Pool = SQLConnection;
+        async fn pool(&self) -> Result<Self::Pool> {
             Ok(self.live.pool.clone())
         }
     }

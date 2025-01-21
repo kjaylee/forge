@@ -6,7 +6,7 @@ use forge_domain::{Context, Conversation, ConversationId, ConversationMeta};
 
 use crate::schema::conversations;
 use crate::service::Service;
-use crate::sqlite::Sqlite;
+use crate::sqlite::{SQLConnection, Sqlite};
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
 #[diesel(table_name = conversations)]
@@ -69,7 +69,7 @@ impl<P: Sqlite> Live<P> {
 }
 
 #[async_trait::async_trait]
-impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
+impl<P: Sqlite<Pool = SQLConnection> + Send + Sync> ConversationRepository for Live<P> {
     async fn set_conversation(
         &self,
         request: &Context,
