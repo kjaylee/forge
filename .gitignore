@@ -26,3 +26,5 @@ Cargo.lock
 .tasks
 *.new
 .vscode/
+
+crates/forge_app/.fastembed_cache/*

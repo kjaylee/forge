@@ -19,4 +19,19 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(configuration_table, conversations,);
+diesel::table! {
+    learning_embedding_idx (id) {
+        id -> Text,
+        data -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        tags -> Text,
+        embedding -> Binary,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    configuration_table,
+    conversations,
+    learning_embedding_idx,
+);

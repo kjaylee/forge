@@ -3,6 +3,8 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use rusqlite::ffi::sqlite3_auto_extension;
+use sqlite_vec::sqlite3_vec_init;
 use tracing::debug;
 
 use super::Service;
@@ -32,8 +34,11 @@ impl Live {
     fn new(db_path: &str) -> Result<Self> {
         let db_path = format!("{}/{}", db_path, DB_NAME);
 
-        // Run migrations first
+        unsafe {
+            sqlite3_auto_extension(Some(sqlite3_vec_init));
+        }
 
+        // Run migrations first
         let mut conn = SqliteConnection::establish(&db_path)?;
         let migrations = conn
             .run_pending_migrations(MIGRATIONS)
