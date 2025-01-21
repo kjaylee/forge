@@ -62,6 +62,7 @@ impl<P: Sqlite<Pool = SQLConnection>> Live<P> {
         let pool = pool_service.pool().await?;
         let mut conn = pool.get()?;
         // Create virtual table for vector search
+        // TODO: implement custom migration setup that can work with diesel.
         diesel::sql_query(
             "CREATE VIRTUAL TABLE IF NOT EXISTS learning_embedding_idx USING vec0(
                 id TEXT PRIMARY KEY,
@@ -282,5 +283,65 @@ mod tests {
         assert_eq!(info.data, data);
         assert_eq!(info.tags, tags);
         assert_eq!(info.embedding.as_slice().len(), 384);
+    }
+
+    #[tokio::test]
+    async fn test_comprehensive_search() {
+        let repo = setup_db().await;
+
+        // Insert multiple learning examples about different topics
+        let rust_async = vec![
+            "Rust's async/await syntax enables concurrent programming without data races.",
+            "Tokio provides async primitives like channels and mutexes for safe concurrency.",
+            "Spawn multiple tasks to handle concurrent operations efficiently.",
+        ];
+        for text in rust_async {
+            repo.insert(text.to_string(), vec!["learning".to_owned()])
+                .await
+                .unwrap();
+        }
+
+        let rust_threading = vec![
+            "Rust's ownership system and lifetimes ensure thread safety.",
+            "Send and Sync traits enable safe concurrent data sharing.",
+            "Arc and Mutex provide thread-safe reference counting and locking.",
+        ];
+        for text in rust_threading {
+            repo.insert(text.to_string(), vec!["learning".to_owned()])
+                .await
+                .unwrap();
+        }
+
+        let graphql = vec![
+            "GraphQL schemas define the structure of your API.",
+            "Query resolvers handle data fetching in GraphQL.",
+        ];
+        for text in graphql {
+            repo.insert(text.to_string(), vec!["learning".to_owned()])
+                .await
+                .unwrap();
+        }
+
+        let docker = vec![
+            "Docker images are built using Dockerfiles.",
+            "Container orchestration manages deployment and scaling.",
+        ];
+        for text in docker {
+            repo.insert(text.to_string(), vec!["learning".to_owned()])
+                .await
+                .unwrap();
+        }
+
+        // Search with tags
+        let query = "Tell me about APIs";
+        let query_embedding = Embedding::new(get_embedding(query.to_string()).unwrap());
+        let results = repo
+            .search(query_embedding, vec![], 2)
+            .await
+            .unwrap();
+
+        // Verify we get GraphQL results when searching with the graphql tag
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().any(|r| r.data.contains("GraphQL")));
     }
 }

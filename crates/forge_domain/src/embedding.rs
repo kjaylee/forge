@@ -12,6 +12,8 @@ impl Embedding {
         &self.0
     }
 }
+
+#[derive(Debug)]
 pub struct Information {
     pub data: String,
     pub id: Uuid,
