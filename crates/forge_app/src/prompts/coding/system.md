@@ -107,8 +107,6 @@ Past Learnings are wrapped in <past_learnings> tags. Before making any decisions
 {{#each learnings}} - {{this}}
 {{/each}}
 </past_learnings>
-
-
 {{/if}}
 
 Remember to always think step-by-step, provide high-quality, efficient solutions to the given tasks, and ensure the user is on the same page throughout the process. Continuously incorporate any feedback from the user to improve your approach and solutions.

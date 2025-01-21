@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::embeddings::get_embedding;
 use crate::schema::learning_embedding_idx;
-use crate::sqlite::{SQLConnection, Sqlite};
+use crate::sqlite::Sqlite;
 use crate::Service;
 
 #[derive(Queryable, Insertable, QueryableByName)]
@@ -56,7 +56,7 @@ impl Service {
     }
 }
 
-impl<P: Sqlite<Pool = SQLConnection>> Live<P> {
+impl<P: Sqlite> Live<P> {
     pub async fn new(pool_service: P) -> Result<Self> {
         let pool = pool_service.pool().await?;
         let mut conn = pool.get()?;
@@ -98,7 +98,7 @@ impl TryFrom<LearningEmbedding> for Information {
 }
 
 #[async_trait::async_trait]
-impl<P: Send + Sync + Sqlite<Pool = SQLConnection>> EmbeddingsRepository for Live<P> {
+impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
     async fn get(&self, id: Uuid) -> Result<Option<Information>> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;

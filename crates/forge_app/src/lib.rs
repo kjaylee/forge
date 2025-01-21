@@ -3,7 +3,6 @@ pub mod embeddings;
 mod log;
 mod repo;
 mod routes;
-// mod rusqlite;
 mod schema;
 mod service;
 mod sqlite;

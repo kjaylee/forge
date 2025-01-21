@@ -716,7 +716,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
- "serde",
 ]
 
 [[package]]
@@ -1136,14 +1135,12 @@ dependencies = [
  "pretty_assertions",
  "pulldown-cmark",
  "r2d2",
- "r2d2_sqlite",
  "rusqlite",
  "schemars",
  "serde",
  "serde_json",
  "sqlite-vec",
  "tempfile",
- "time",
  "tokio",
  "tokio-stream",
  "tower-http",
@@ -3182,17 +3179,6 @@ dependencies = [
  "log",
  "parking_lot",
  "scheduled-thread-pool",
-]
-
-[[package]]
-name = "r2d2_sqlite"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99f31323d6161385f385046738df520e0e8694fa74852d35891fc0be08348ddc"
-dependencies = [
- "r2d2",
- "rusqlite",
- "uuid",
 ]
 
 [[package]]

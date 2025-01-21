@@ -16,12 +16,11 @@ const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 #[async_trait::async_trait]
 pub trait Sqlite: Send + Sync {
-    type Pool;
-    async fn pool(&self) -> Result<Self::Pool>;
+    async fn pool(&self) -> Result<SQLConnection>;
 }
 
 impl Service {
-    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite<Pool = SQLConnection>> {
+    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite> {
         Live::new(db_path)
     }
 }
@@ -63,8 +62,7 @@ impl Live {
 
 #[async_trait::async_trait]
 impl Sqlite for Live {
-    type Pool = SQLConnection;
-    async fn pool(&self) -> Result<Self::Pool> {
+    async fn pool(&self) -> Result<SQLConnection> {
         Ok(self.pool.clone())
     }
 }
@@ -92,8 +90,7 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl Sqlite for TestSqlite {
-        type Pool = SQLConnection;
-        async fn pool(&self) -> Result<Self::Pool> {
+        async fn pool(&self) -> Result<SQLConnection> {
             Ok(self.live.pool.clone())
         }
     }

@@ -4,7 +4,7 @@ use anyhow::Result;
 use forge_domain::{ChatRequest, Embedding, EmbeddingsRepository, Environment, ProviderService};
 use handlebars::Handlebars;
 use serde::Serialize;
-use tracing::{debug, info};
+use tracing::debug;
 
 use super::file_read::FileReadService;
 use super::tool_service::ToolService;
@@ -83,12 +83,11 @@ impl PromptService for Live {
             tool_supported
         );
 
-        // TODO: Make this better.
         let learnings = self
             .learning_repository
             .search(
                 Embedding::new(get_embedding(request.content.clone())?),
-                vec![],
+                vec!["learning".to_owned()],
                 3,
             )
             .await?;
@@ -98,7 +97,7 @@ impl PromptService for Live {
             Some(learnings.into_iter().map(|l| l.data).collect())
         };
 
-        info!("Learnings: {:#?}", learnings);
+        debug!("Learnings used: {:#?}", learnings);
 
         let ctx = SystemContext {
             env: self.env.clone(),
@@ -143,7 +142,14 @@ mod tests {
         let _ = learning_embedding_idx
             .insert(
                 "Always write unit tests to ensure the correctness of solution".to_string(),
-                vec![],
+                vec!["learning".to_owned()],
+            )
+            .await
+            .unwrap();
+        let _ = learning_embedding_idx
+            .insert(
+                "with rust always use pattern matching for exhuastive matching".to_string(),
+                vec!["learning".to_owned()],
             )
             .await
             .unwrap();
