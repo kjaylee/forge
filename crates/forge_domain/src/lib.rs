@@ -23,7 +23,7 @@ mod tool_definition;
 mod tool_name;
 mod tool_result;
 mod tool_usage;
-mod transform;
+mod transformer;
 mod user_interaction;
 
 pub use agent::*;
@@ -51,5 +51,5 @@ pub use tool_definition::*;
 pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
-pub use transform::*;
+pub use transformer::*;
 pub use user_interaction::*;
