@@ -1,13 +1,13 @@
 use anyhow::Result;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::{ffi::sqlite3_auto_extension, Connection};
+use rusqlite::ffi::sqlite3_auto_extension;
+use rusqlite::Connection;
 use sqlite_vec::sqlite3_vec_init;
 use tracing::debug;
 
-use crate::sqlite::Sqlite;
-
 use super::Service;
+use crate::sqlite::Sqlite;
 
 pub type SQLConnection = Pool<SqliteConnectionManager>;
 
@@ -61,9 +61,10 @@ impl Sqlite for Live {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use rusqlite::params;
     use tempfile::TempDir;
+
+    use super::*;
 
     pub struct TestSqlite {
         live: Live,

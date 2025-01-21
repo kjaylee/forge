@@ -2,7 +2,10 @@ use anyhow::Result;
 use forge_domain::{Embedding, EmbeddingsRepository, Information};
 use uuid::Uuid;
 
-use crate::{embeddings::get_embedding, rusqlite::SQLConnection, sqlite::Sqlite, Service};
+use crate::embeddings::get_embedding;
+use crate::rusqlite::SQLConnection;
+use crate::sqlite::Sqlite;
+use crate::Service;
 
 pub struct Live<P: Sqlite> {
     pool_service: P,
@@ -220,8 +223,8 @@ mod tests {
     //         .connection
     //         .prepare("SELECT id FROM learning_embedding_idx WHERE data = ?1")
     //         .unwrap();
-    //     let id: String = stmt.query_row([data.clone()], |row| row.get(0)).unwrap();
-    //     let uuid = Uuid::parse_str(&id).unwrap();
+    //     let id: String = stmt.query_row([data.clone()], |row|
+    // row.get(0)).unwrap();     let uuid = Uuid::parse_str(&id).unwrap();
 
     //     // Try to get the data back
     //     let result = repo.get(uuid).await.unwrap();
@@ -259,7 +262,9 @@ mod tests {
         // Search with tags
         let new_search = Embedding::new(get_embedding("i like eating food".to_string()).unwrap());
         let results = repo.search(new_search, vec![], 2).await.unwrap();
-        assert!(results.len() > 0);
-        assert!(results[0].data.contains("cooking")); // Should match cooking recipes since it has "food" tag
+        assert!(!results.is_empty());
+        assert!(results[0].data.contains("cooking")); // Should match cooking
+                                                      // recipes since it has
+                                                      // "food" tag
     }
 }

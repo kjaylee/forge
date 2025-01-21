@@ -1,12 +1,12 @@
 mod context;
+pub mod embeddings;
 mod log;
 mod repo;
 mod routes;
+mod rusqlite;
 mod schema;
 mod service;
 mod sqlite;
-mod rusqlite;
-pub mod embeddings;
 
 pub use repo::*;
 pub use routes::Routes;
