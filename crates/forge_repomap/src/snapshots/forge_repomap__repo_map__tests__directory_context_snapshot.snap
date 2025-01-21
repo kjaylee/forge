@@ -222,9 +222,9 @@ src/parser.rs:
 │fn capture_names
 │fn clone
 │fn collect
+│fn contains_key
 │method detect_language
 │fn end_position
-│fn entry
 │fn expect
 │fn extension
 │fn find
@@ -237,7 +237,6 @@ src/parser.rs:
 │fn into
 │fn into_values
 │fn iter
-│fn key
 │fn language_c
 │fn language_cpp
 │fn language_csharp
