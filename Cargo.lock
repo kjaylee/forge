@@ -1286,6 +1286,7 @@ dependencies = [
  "tree-sitter-rust",
  "tree-sitter-scala",
  "tree-sitter-typescript",
+ "uuid",
  "walkdir",
 ]
 

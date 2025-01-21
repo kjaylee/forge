@@ -8,6 +8,7 @@ mod select;
 mod shell;
 mod syn;
 mod think;
+mod learning;
 
 use approve::Approve;
 use fetch::Fetch;
