@@ -249,13 +249,14 @@ impl Parser {
                     end_col: capture.node.end_position().column,
                 };
 
-                // Always create a symbol for references, even if the definition is not in this
-                // file
-                if !definitions.contains_key(&name) {
+                // Always create a symbol for references, even if the definition is not in this file
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    definitions.entry(name.clone())
+                {
                     let mut symbol =
                         Symbol::new(name.clone(), SymbolKind::Function, location.clone());
                     symbol.add_reference(location);
-                    definitions.insert(name, symbol);
+                    e.insert(symbol);
                 } else if let Some(symbol) = definitions.get_mut(&name) {
                     // Add reference to existing symbol
                     symbol.add_reference(location);
