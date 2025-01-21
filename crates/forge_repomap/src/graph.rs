@@ -49,7 +49,8 @@ impl DependencyGraph {
         }
     }
 
-    /// Initialize or update node weight, returns the calculated weight    /// Add a symbol reference between two files
+    /// Initialize or update node weight, returns the calculated weight    ///
+    /// Add a symbol reference between two files
     pub fn add_symbol_reference(&mut self, from: &Path, to: &Path, symbol: SymbolReference) {
         let from_idx = self.add_node(from.to_path_buf());
         let to_idx = self.add_node(to.to_path_buf());
@@ -99,10 +100,12 @@ impl DependencyGraph {
                 self.graph.node_weight(edge.target()),
             ) {
                 let weight = edge.weight();
-                let score = weight.symbol_refs.iter()
+                let score = weight
+                    .symbol_refs
+                    .iter()
                     .map(|s| s.kind.base_weight() * s.count as f64)
                     .sum::<f64>();
-                
+
                 // Add weighted score to the target file
                 *importance_scores.entry(to_path.clone()).or_insert(0.0) += score;
             }
@@ -128,7 +131,6 @@ impl DependencyGraph {
 
         importance_scores
     }
-
 }
 
 #[cfg(test)]
@@ -185,24 +187,16 @@ mod tests {
 
         // a.rs -> b.rs (multiple function calls)
         graph.add_symbol_reference(
-            Path::new("src/a.rs"), 
-            Path::new("src/b.rs"), 
-            function_ref.clone()
+            Path::new("src/a.rs"),
+            Path::new("src/b.rs"),
+            function_ref.clone(),
         );
 
         // b.rs -> c.rs (trait reference)
-        graph.add_symbol_reference(
-            Path::new("src/b.rs"), 
-            Path::new("src/c.rs"), 
-            trait_ref
-        );
+        graph.add_symbol_reference(Path::new("src/b.rs"), Path::new("src/c.rs"), trait_ref);
 
         // b.rs -> d.rs (variable reference)
-        graph.add_symbol_reference(
-            Path::new("src/b.rs"), 
-            Path::new("src/d.rs"), 
-            var_ref
-        );
+        graph.add_symbol_reference(Path::new("src/b.rs"), Path::new("src/d.rs"), var_ref);
 
         let scores = graph.calculate_importance(&[]);
 
@@ -210,9 +204,12 @@ mod tests {
         let b_score = scores[&PathBuf::from("src/b.rs")];
         let d_score = scores[&PathBuf::from("src/d.rs")];
 
-        assert!(b_score > d_score, 
-            "b.rs (score: {}) should have higher score than d.rs (score: {})", 
-            b_score, d_score);
+        assert!(
+            b_score > d_score,
+            "b.rs (score: {}) should have higher score than d.rs (score: {})",
+            b_score,
+            d_score
+        );
 
         // c.rs should have higher score than d.rs due to trait reference
         let c_score = scores[&PathBuf::from("src/c.rs")];

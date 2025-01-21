@@ -163,15 +163,18 @@ impl Parser {
 
     pub fn parse_file(&self, path: &Path, content: &str) -> Result<Vec<Symbol>, Error> {
         let language = self.detect_language(path)?;
-        let lang = self.parsers
+        let lang = self
+            .parsers
             .get(language)
             .ok_or_else(|| Error::UnsupportedLanguage(language.to_string()))?;
 
         let mut parser = TsParser::new();
-        parser.set_language(lang)
+        parser
+            .set_language(lang)
             .map_err(|e| Error::TreeSitter(e.to_string()))?;
 
-        let tree = parser.parse(content, None)
+        let tree = parser
+            .parse(content, None)
             .ok_or_else(|| Error::Parse("Failed to parse file".to_string()))?;
 
         let query = self.queries.get(language).ok_or_else(|| {
@@ -186,11 +189,12 @@ impl Parser {
         while let Some(match_) = cursor.next() {
             for capture in match_.captures {
                 let capture_name = &query.capture_names()[capture.index as usize];
-                let name = capture.node
+                let name = capture
+                    .node
                     .utf8_text(content.as_bytes())
                     .map_err(|e| Error::Parse(e.to_string()))?
                     .to_string();
-                
+
                 if !capture_name.starts_with("name.definition.") {
                     continue;
                 }
@@ -231,7 +235,8 @@ impl Parser {
                     continue;
                 }
 
-                let name = capture.node
+                let name = capture
+                    .node
                     .utf8_text(content.as_bytes())
                     .map_err(|e| Error::Parse(e.to_string()))?
                     .to_string();
@@ -244,9 +249,11 @@ impl Parser {
                     end_col: capture.node.end_position().column,
                 };
 
-                // Always create a symbol for references, even if the definition is not in this file
+                // Always create a symbol for references, even if the definition is not in this
+                // file
                 if !definitions.contains_key(&name) {
-                    let mut symbol = Symbol::new(name.clone(), SymbolKind::Function, location.clone());
+                    let mut symbol =
+                        Symbol::new(name.clone(), SymbolKind::Function, location.clone());
                     symbol.add_reference(location);
                     definitions.insert(name, symbol);
                 } else if let Some(symbol) = definitions.get_mut(&name) {
@@ -300,12 +307,12 @@ fn get_language(language: &str) -> Option<Language> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_references() -> Result<(), Error> {
         let parser = Parser::new()?;
         let test_path = std::path::PathBuf::from("test.rs");
-        
+
         let content = r#"
             fn helper() {
                 // Some code
@@ -318,14 +325,19 @@ mod tests {
         "#;
 
         let symbols = parser.parse_file(&test_path, content)?;
-        
+
         // Find the helper function symbol
-        let helper = symbols.iter()
+        let helper = symbols
+            .iter()
             .find(|s| s.name.as_ref() == "helper")
             .expect("helper function should be found");
-            
-        assert_eq!(helper.references.len(), 2, "Should have captured two references to helper");
-        
+
+        assert_eq!(
+            helper.references.len(),
+            2,
+            "Should have captured two references to helper"
+        );
+
         Ok(())
     }
 
@@ -333,7 +345,7 @@ mod tests {
     fn test_parse_method() -> Result<(), Error> {
         let parser = Parser::new()?;
         let test_path = std::path::PathBuf::from("test.rs");
-        
+
         let content = r#"
             impl Test {
                 fn test_method(&self) {
@@ -343,12 +355,14 @@ mod tests {
         "#;
 
         let symbols = parser.parse_file(&test_path, content)?;
-        
+
         assert!(
-            symbols.iter().any(|s| s.name.as_ref() == "test_method" && matches!(s.kind, SymbolKind::Method)),
+            symbols
+                .iter()
+                .any(|s| s.name.as_ref() == "test_method" && matches!(s.kind, SymbolKind::Method)),
             "Should find test_method as a method"
         );
-        
+
         Ok(())
     }
 }
