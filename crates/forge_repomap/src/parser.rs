@@ -249,7 +249,8 @@ impl Parser {
                     end_col: capture.node.end_position().column,
                 };
 
-                // Always create a symbol for references, even if the definition is not in this file
+                // Always create a symbol for references, even if the definition is not in this
+                // file
                 if let std::collections::hash_map::Entry::Vacant(e) =
                     definitions.entry(name.clone())
                 {
