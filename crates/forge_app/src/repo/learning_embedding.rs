@@ -41,14 +41,11 @@ impl<P: Sqlite<Pool = SQLConnection>> Live<P> {
 
     fn row_to_information(row: &rusqlite::Row, distance_idx: Option<usize>) -> Result<Information> {
         let id = Uuid::parse_str(&row.get::<_, String>(0)?)?;
-        let created_at = chrono::NaiveDateTime::parse_from_str(
-            row.get::<_, String>(2)?.as_str(),
-            "%Y-%m-%d %H:%M:%S%.f",
-        )?;
-        let updated_at = chrono::NaiveDateTime::parse_from_str(
-            row.get::<_, String>(3)?.as_str(),
-            "%Y-%m-%d %H:%M:%S%.f",
-        )?;
+        let date_format = "%Y-%m-%d %H:%M:%S%.f";
+        let created_at =
+            chrono::NaiveDateTime::parse_from_str(row.get::<_, String>(2)?.as_str(), date_format)?;
+        let updated_at =
+            chrono::NaiveDateTime::parse_from_str(row.get::<_, String>(3)?.as_str(), date_format)?;
         let tags: Vec<String> = serde_json::from_str(&row.get::<_, String>(4)?)?;
         let embedding_bytes = row.get::<_, Vec<u8>>(5)?;
         let embedding_vec = bytes_to_vec(&embedding_bytes)?;
@@ -135,8 +132,8 @@ impl<P: Send + Sync + Sqlite<Pool = SQLConnection>> EmbeddingsRepository for Liv
         let mut stmt = if tags.is_empty() {
             conn.prepare(
                 "
-                SELECT le.id, le.data, le.created_at, le.updated_at, le.tags, le.embedding, distance
-                FROM learning_embedding_idx le
+                SELECT id, data, created_at, updated_at, tags, embedding, distance
+                FROM learning_embedding_idx
                 WHERE embedding MATCH ?
                 AND k = ?
                 ORDER BY distance ASC
@@ -263,8 +260,6 @@ mod tests {
         let new_search = Embedding::new(get_embedding("i like eating food".to_string()).unwrap());
         let results = repo.search(new_search, vec![], 2).await.unwrap();
         assert!(!results.is_empty());
-        assert!(results[0].data.contains("cooking")); // Should match cooking
-                                                      // recipes since it has
-                                                      // "food" tag
+        assert!(results[0].data.contains("cooking"));
     }
 }
