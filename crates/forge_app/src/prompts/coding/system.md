@@ -101,6 +101,16 @@ When approaching a task, follow these steps:
    e. Incorporation of any user feedback received during the task execution
    f. Results of running tests and compilation steps
 
+{{#if learnings}}
+Past Learnings are wrapped in <past_learnings> tags. Before making any decisions, always take these learnings into account.
+<past_learnings>
+{{#each learnings}} - {{this}}
+{{/each}}
+</past_learnings>
+
+
+{{/if}}
+
 Remember to always think step-by-step, provide high-quality, efficient solutions to the given tasks, and ensure the user is on the same page throughout the process. Continuously incorporate any feedback from the user to improve your approach and solutions.
 
 Now, please wait for a task to be provided in <task> tags.

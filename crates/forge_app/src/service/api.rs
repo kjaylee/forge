@@ -53,15 +53,15 @@ impl Live {
         let learning_embedding_idx = Arc::new(Service::learning_embedding_idx(&cwd).await?);
 
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
-        let tool = Arc::new(Service::tool_service(learning_embedding_idx));
+        let tool = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
         let file_read = Arc::new(Service::file_read_service());
-
 
         let system_prompt = Arc::new(Service::system_prompt(
             env.clone(),
             tool.clone(),
             provider.clone(),
             file_read.clone(),
+            learning_embedding_idx,
         ));
 
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));

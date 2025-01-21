@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{ChatRequest, Environment, ProviderService};
+use forge_domain::{ChatRequest, Embedding, EmbeddingsRepository, Environment, ProviderService};
 use handlebars::Handlebars;
 use serde::Serialize;
-use tracing::debug;
+use tracing::{debug, info};
+
+use crate::embeddings::get_embedding;
 
 use super::file_read::FileReadService;
 use super::tool_service::ToolService;
@@ -16,8 +18,9 @@ impl Service {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
+        learning_repository: Arc<dyn EmbeddingsRepository>,
     ) -> impl PromptService {
-        Live::new(env, tool, provider, file_read)
+        Live::new(env, tool, provider, file_read, learning_repository)
     }
 }
 
@@ -27,6 +30,7 @@ struct SystemContext {
     tool_information: String,
     tool_supported: bool,
     custom_instructions: Option<String>,
+    learnings: Option<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -35,6 +39,7 @@ struct Live {
     tool: Arc<dyn ToolService>,
     provider: Arc<dyn ProviderService>,
     file_read: Arc<dyn FileReadService>,
+    learning_repository: Arc<dyn EmbeddingsRepository>,
 }
 
 impl Live {
@@ -43,8 +48,9 @@ impl Live {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
+        learning_repository: Arc<dyn EmbeddingsRepository>,
     ) -> Self {
-        Self { env, tool, provider, file_read }
+        Self { env, tool, provider, file_read, learning_repository }
     }
 }
 
@@ -78,11 +84,29 @@ impl PromptService for Live {
             tool_supported
         );
 
+        // TODO: Make this better.
+        let learnings = self
+            .learning_repository
+            .search(
+                Embedding::new(get_embedding(request.content.clone())?),
+                vec![],
+                3,
+            )
+            .await?;
+        let learnings = if learnings.is_empty() {
+            None
+        } else {
+            Some(learnings.into_iter().map(|l| l.data).collect())
+        };
+
+        info!("Learnings: {:#?}", learnings);
+
         let ctx = SystemContext {
             env: self.env.clone(),
             tool_information: self.tool.usage_prompt(),
             tool_supported,
             custom_instructions,
+            learnings,
         };
 
         Ok(hb.render_template(template, &ctx)?)
@@ -117,14 +141,22 @@ mod tests {
     async fn test_tool_supported() {
         let env = test_env();
         let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(learning_embedding_idx));
+        let _ = learning_embedding_idx
+            .insert(
+                "Always write unit tests to ensure the correctness of solution".to_string(),
+                vec![],
+            )
+            .await
+            .unwrap();
+
+        let tools = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
         let provider = Arc::new(
             TestProvider::default()
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let file = Arc::new(TestFileReadService::default());
-        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file)
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "write fibo sequence in rust");
+        let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
             .get(&request)
             .await
             .unwrap();
@@ -135,14 +167,14 @@ mod tests {
     async fn test_tool_unsupported() {
         let env = test_env();
         let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(learning_embedding_idx));
+        let tools = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
         )]));
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file)
+        let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
             .get(&request)
             .await
             .unwrap();
@@ -153,7 +185,7 @@ mod tests {
     async fn test_system_prompt_custom_prompt() {
         let env = test_env();
         let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(learning_embedding_idx));
+        let tools = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -161,7 +193,7 @@ mod tests {
         let file = Arc::new(TestFileReadService::default().add(".custom.md", "Woof woof!"));
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task")
             .custom_instructions(".custom.md");
-        let prompt = Live::new(env, tools, provider, file)
+        let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
             .get(&request)
             .await
             .unwrap();
