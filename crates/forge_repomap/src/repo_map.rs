@@ -170,9 +170,9 @@ impl RepoMap {
             let score_a = importance_scores.get(path_a.as_path()).unwrap_or(&0.0);
             let score_b = importance_scores.get(path_b.as_path()).unwrap_or(&0.0);
 
-
             // First compare scores in reverse order (higher first)
-            score_b.partial_cmp(score_a)
+            score_b
+                .partial_cmp(score_a)
                 .unwrap()
                 // If scores are equal, path comparison is implicit due to prior sort
                 .then_with(|| path_a.cmp(path_b))
@@ -263,7 +263,8 @@ mod tests {
         let symbols = repo_map.files.get(&root.join("test.rs")).unwrap();
 
         // Should find one function definition
-        let function_symbols: Vec<_> = symbols.iter()
+        let function_symbols: Vec<_> = symbols
+            .iter()
             .filter(|s| s.references.is_empty()) // Definitions have no references
             .collect();
         assert_eq!(
