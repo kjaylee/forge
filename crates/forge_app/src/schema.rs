@@ -19,7 +19,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(
-    configuration_table,
-    conversations,
-);
+diesel::allow_tables_to_appear_in_same_query!(configuration_table, conversations,);
