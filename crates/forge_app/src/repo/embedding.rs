@@ -11,7 +11,7 @@ use crate::Service;
 
 // Table reference for the diesel.
 diesel::table! {
-    learning_embedding_idx (id) {
+    embedding_index (id) {
         id -> Text,
         data -> Text,
         created_at -> Timestamp,
@@ -22,8 +22,8 @@ diesel::table! {
 }
 
 #[derive(Queryable, Insertable, QueryableByName)]
-#[diesel(table_name = learning_embedding_idx)]
-struct LearningEmbedding {
+#[diesel(table_name = embedding_index)]
+struct RawEmbedding {
     #[diesel(sql_type = Text)]
     id: String,
     #[diesel(sql_type = Text)]
@@ -61,7 +61,7 @@ pub struct Live<P: Sqlite> {
 }
 
 impl Service {
-    pub async fn learning_embedding_idx(database_url: &str) -> Result<impl EmbeddingsRepository> {
+    pub async fn embedding_repository(database_url: &str) -> Result<impl EmbeddingsRepository> {
         let db_svc = Service::db_pool_service(database_url)?;
         Live::new(db_svc).await
     }
@@ -74,7 +74,7 @@ impl<P: Sqlite> Live<P> {
         // Create virtual table for vector search
         // TODO: implement custom migration setup that can work with diesel.
         diesel::sql_query(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS learning_embedding_idx USING vec0(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS embedding_index USING vec0(
                 id TEXT PRIMARY KEY,
                 data TEXT,
                 created_at TEXT,
@@ -89,9 +89,9 @@ impl<P: Sqlite> Live<P> {
     }
 }
 
-impl TryFrom<LearningEmbedding> for Information {
+impl TryFrom<RawEmbedding> for Information {
     type Error = anyhow::Error;
-    fn try_from(row: LearningEmbedding) -> Result<Self> {
+    fn try_from(row: RawEmbedding) -> Result<Self> {
         let id = Uuid::parse_str(&row.id)?;
         let tags: Vec<String> = serde_json::from_str(&row.tags)?;
         let embedding_vec = bytes_to_vec(&row.embedding)?;
@@ -108,15 +108,34 @@ impl TryFrom<LearningEmbedding> for Information {
     }
 }
 
+impl TryFrom<SearchResult> for Information {
+    type Error = anyhow::Error;
+    fn try_from(row: SearchResult) -> Result<Self> {
+        let id = Uuid::parse_str(&row.id)?;
+        let tags: Vec<String> = serde_json::from_str(&row.tags)?;
+        let embedding_vec = bytes_to_vec(&row.embedding)?;
+
+        Ok(Information {
+            id,
+            data: row.data.clone(),
+            embedding: Embedding::new(embedding_vec),
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            tags,
+            distance: Some(row.distance),
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
     async fn get(&self, id: Uuid) -> Result<Option<Information>> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
 
-        let result = learning_embedding_idx::table
-            .filter(learning_embedding_idx::id.eq(id.to_string()))
-            .first::<LearningEmbedding>(&mut conn)
+        let result = embedding_index::table
+            .filter(embedding_index::id.eq(id.to_string()))
+            .first::<RawEmbedding>(&mut conn)
             .optional()?;
 
         Ok(result.map(Information::try_from).transpose()?)
@@ -132,7 +151,7 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
         let embedding_bytes = vec_to_bytes(embedding.as_slice());
         let tags_json = serde_json::to_string(&tags)?;
 
-        let new_embedding = LearningEmbedding {
+        let new_embedding = RawEmbedding {
             id: id.to_string(),
             data,
             created_at: now,
@@ -141,7 +160,7 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
             embedding: embedding_bytes,
         };
 
-        diesel::insert_into(learning_embedding_idx::table)
+        diesel::insert_into(embedding_index::table)
             .values(&new_embedding)
             .execute(&mut conn)?;
         Ok(embedding)
@@ -162,7 +181,7 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
         let results = if tags.is_empty() {
             diesel::sql_query(
                 "SELECT id, data, created_at, updated_at, tags, embedding, distance
-                FROM learning_embedding_idx
+                FROM embedding_index
                 WHERE embedding MATCH ?
                 AND k = ?
                 ORDER BY distance ASC",
@@ -173,7 +192,7 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
         } else {
             diesel::sql_query(
                 "SELECT le.id, le.data, le.created_at, le.updated_at, le.tags, le.embedding, distance
-                FROM learning_embedding_idx le
+                FROM embedding_index le
                 WHERE embedding MATCH ?
                 AND k = ?
                 AND EXISTS (
@@ -191,16 +210,7 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
 
         let mut information = Vec::with_capacity(results.len());
         for result in results {
-            let mut embedding = Information::try_from(LearningEmbedding {
-                id: result.id,
-                data: result.data,
-                created_at: result.created_at,
-                updated_at: result.updated_at,
-                tags: result.tags,
-                embedding: result.embedding,
-            })?;
-            embedding.distance = Some(result.distance);
-            information.push(embedding);
+            information.push(Information::try_from(result)?);
         }
 
         Ok(information)
@@ -228,9 +238,9 @@ pub mod tests {
     use super::*;
     use crate::sqlite::tests::TestSqlite;
 
-    pub struct LearningEmeddingTest;
+    pub struct EmbeddingRepositoryTest;
 
-    impl LearningEmeddingTest {
+    impl EmbeddingRepositoryTest {
         pub async fn init() -> impl EmbeddingsRepository {
             Live::new(TestSqlite::new().unwrap()).await.unwrap()
         }
@@ -238,7 +248,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_insertion() {
-        let repo = LearningEmeddingTest::init().await;
+        let repo = EmbeddingRepositoryTest::init().await;
         let data = "learning about vector indexing".to_string();
         let tags = vec!["learning".to_owned()];
         let result = repo.insert(data, tags).await;
@@ -248,7 +258,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_search() {
-        let repo = LearningEmeddingTest::init().await;
+        let repo = EmbeddingRepositoryTest::init().await;
 
         // Insert some test data
         let data1 = "learning about vector indexing".to_string();
@@ -278,7 +288,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_get() {
-        let repo = LearningEmeddingTest::init().await;
+        let repo = EmbeddingRepositoryTest::init().await;
 
         // Insert test data
         let data = "test embedding data".to_string();
@@ -301,7 +311,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_comprehensive_search() {
-        let repo = LearningEmeddingTest::init().await;
+        let repo = EmbeddingRepositoryTest::init().await;
         // Insert multiple learning examples about different topics
         let rust_async = vec![
             "Rust's async/await syntax enables concurrent programming without data races.",

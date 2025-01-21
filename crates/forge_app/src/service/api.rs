@@ -50,10 +50,10 @@ impl Live {
         let env = Service::environment_service(cwd).get().await?;
         let cwd: String = env.cwd.clone();
 
-        let learning_embedding_idx = Arc::new(Service::learning_embedding_idx(&cwd).await?);
+        let embedding_repository = Arc::new(Service::embedding_repository(&cwd).await?);
 
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
-        let tool = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
+        let tool = Arc::new(Service::tool_service(embedding_repository.clone()));
         let file_read = Arc::new(Service::file_read_service());
 
         let system_prompt = Arc::new(Service::system_prompt(
@@ -61,7 +61,7 @@ impl Live {
             tool.clone(),
             provider.clone(),
             file_read.clone(),
-            learning_embedding_idx,
+            embedding_repository,
         ));
 
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));

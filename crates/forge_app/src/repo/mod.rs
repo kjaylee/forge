@@ -1,6 +1,6 @@
 mod config;
 mod conversation;
-mod learning_embedding;
+mod embedding;
 
 pub use config::{ConfigRepository, Live as ConfigRepositoryLive};
 pub use conversation::{ConversationRepository, Live as ConversationRepositoryLive};
@@ -9,5 +9,5 @@ pub use conversation::{ConversationRepository, Live as ConversationRepositoryLiv
 pub mod tests {
     pub use super::config::tests::TestStorage as TestConfigStorage;
     pub use super::conversation::tests::TestStorage as TestConversationStorage;
-    pub use super::learning_embedding::tests::LearningEmeddingTest as TestLearningEmbedding;
+    pub use super::embedding::tests::EmbeddingRepositoryTest as TestLearningEmbedding;
 }
