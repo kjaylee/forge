@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{ChatRequest, EmbeddingsRepository,Environment, ProviderService, ToolService};
+use forge_domain::{ChatRequest, EmbeddingsRepository, Environment, ProviderService, ToolService};
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
@@ -119,7 +119,6 @@ mod tests {
     use super::*;
     use crate::service::test::{TestFileReadService, TestProvider};
     use crate::tests::TestLearningEmbedding;
-
 
     fn test_env() -> Environment {
         Environment {
