@@ -1,9 +1,9 @@
-use std::error::Error as StdError;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::{Completion, Input};
 use forge_domain::{Command, Usage, UserInput};
-use inquire::Autocomplete;
 use tokio::fs;
 
 use crate::console::CONSOLE;
@@ -29,42 +29,12 @@ impl CommandCompleter {
     }
 }
 
-impl Autocomplete for CommandCompleter {
-    /// Returns a list of command suggestions that match the current input.
-    /// Only provides suggestions for inputs starting with '/'.
-    fn get_suggestions(
-        &mut self,
-        input: &str,
-    ) -> std::result::Result<Vec<String>, Box<dyn StdError + Send + Sync>> {
-        if input.starts_with('/') {
-            Ok(self
-                .commands
-                .iter()
-                .filter(|cmd| cmd.starts_with(input))
-                .cloned()
-                .collect())
-        } else {
-            Ok(vec![])
-        }
-    }
-
-    /// Returns the best matching command completion for the current input.
-    /// Only provides completions for inputs starting with '/'.
-    fn get_completion(
-        &mut self,
-        input: &str,
-        highlighted_suggestion: Option<String>,
-    ) -> std::result::Result<Option<String>, Box<dyn StdError + Send + Sync>> {
-        Ok(highlighted_suggestion.or_else(|| {
-            if input.starts_with('/') {
-                self.commands
-                    .iter()
-                    .find(|cmd| cmd.starts_with(input))
-                    .cloned()
-            } else {
-                None
-            }
-        }))
+impl Completion for CommandCompleter {
+    fn get(&self, input: &str) -> Option<String> {
+        self.commands
+            .iter()
+            .find(|cmd| cmd.starts_with(input))
+            .cloned()
     }
 }
 
@@ -73,7 +43,6 @@ impl UserInput for Console {
     async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
         let path = path.into();
         let content = fs::read_to_string(&path).await?.trim().to_string();
-
         CONSOLE.writeln(content.clone())?;
         Ok(Command::Message(content))
     }
@@ -83,6 +52,8 @@ impl UserInput for Console {
         help_text: Option<&str>,
         initial_text: Option<&str>,
     ) -> anyhow::Result<Command> {
+        let theme = ColorfulTheme::default();
+        let completion = CommandCompleter::new();
         loop {
             CONSOLE.writeln("")?;
             let help = help_text.map(|a| a.to_string()).unwrap_or(format!(
@@ -90,15 +61,12 @@ impl UserInput for Console {
                 Command::available_commands().join(", ")
             ));
 
-            let mut text = inquire::Text::new("")
-                .with_help_message(&help)
-                .with_autocomplete(CommandCompleter::new());
+            let input = Input::<String>::with_theme(&theme)
+                .with_prompt(&help)
+                .completion_with(&completion)
+                .with_initial_text(initial_text.unwrap_or(""));
 
-            if let Some(initial_text) = initial_text {
-                text = text.with_initial_value(initial_text);
-            }
-
-            let text = text.prompt()?;
+            let text = input.interact_text()?;
             match Command::parse(&text) {
                 Ok(input) => return Ok(input),
                 Err(e) => {
