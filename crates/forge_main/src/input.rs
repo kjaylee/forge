@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use colored::Colorize;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Completion, Input};
 use forge_domain::{Command, Usage, UserInput};
@@ -56,13 +57,17 @@ impl UserInput for Console {
         let completion = CommandCompleter::new();
         loop {
             CONSOLE.writeln("")?;
-            let help = help_text.map(|a| a.to_string()).unwrap_or(format!(
-                "Available commands: {}",
-                Command::available_commands().join(", ")
-            ));
+            let help = help_text.map(|a| a.bright_white().to_string()).unwrap_or({
+                let commands = Command::available_commands()
+                    .join(", ")
+                    .bright_cyan()
+                    .to_string();
+                format!("{} {}", "Available commands:".white(), commands)
+            });
+            CONSOLE.writeln(help)?;
 
             let input = Input::<String>::with_theme(&theme)
-                .with_prompt(&help)
+                .with_prompt("")
                 .completion_with(&completion)
                 .with_initial_text(initial_text.unwrap_or(""));
 
