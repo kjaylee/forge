@@ -208,10 +208,10 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
             .load::<SearchResult>(&mut conn)?
         };
 
-        let mut information = Vec::with_capacity(results.len());
-        for result in results {
-            information.push(Information::try_from(result)?);
-        }
+        let information = results
+            .into_iter()
+            .map(Information::try_from)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(information)
     }
