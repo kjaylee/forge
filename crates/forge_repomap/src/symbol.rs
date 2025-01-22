@@ -1,69 +1,134 @@
-use std::fmt;
 use std::path::PathBuf;
+use std::fmt;
 use std::rc::Rc;
 
-use serde::{Deserialize, Serialize};
-
-/// Represents a location in a source file, including the file path and position
-/// information.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Location {
-    /// The path to the source file
     pub path: Rc<PathBuf>,
-    /// Starting line number (1-based)
     pub start_line: usize,
-    /// Ending line number (1-based)
     pub end_line: usize,
-    /// Starting column number (0-based)
     pub start_col: usize,
-    /// Ending column number (0-based)
     pub end_col: usize,
 }
 
-/// Represents different types of symbols that can be found in source code.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SymbolKind {
-    /// A function definition
-    Function,
-    /// A method within a class or struct
-    Method,
-    /// A class definition
-    Class,
-    /// An interface definition
-    Interface,
-    /// A struct definition
-    Struct,
-    /// An enum definition
-    Enum,
-    /// A constant value
-    Constant,
-    /// A variable declaration
-    Variable,
-    /// A module or namespace
-    Module,
-    /// A trait definition (Rust)
-    Trait,
-    /// An implementation block (Rust)
-    Implementation,
+#[derive(Debug, Clone)]
+pub struct SymbolReference {
+    pub name: String,
+    pub location: Location,
+    pub kind: SymbolKind,
+    pub is_public: bool,
+    pub has_docs: bool,
 }
 
-impl SymbolKind {
-    /// Get the base weight for this symbol kind for importance calculations
-    pub fn base_weight(&self) -> f64 {
-        match self {
-            SymbolKind::Module => 1.5,         // Highest weight for modules
-            SymbolKind::Trait => 1.4,          // Traits are important for Rust
-            SymbolKind::Interface => 1.4,      // Interfaces are important
-            SymbolKind::Class => 1.3,          // Classes define major structures
-            SymbolKind::Struct => 1.3,         // Structs are like classes
-            SymbolKind::Enum => 1.2,           // Enums define important types
-            SymbolKind::Function => 1.1,       // Functions are common but important
-            SymbolKind::Method => 1.1,         // Methods are like functions
-            SymbolKind::Implementation => 1.1, // Implementations are important
-            SymbolKind::Constant => 0.9,       // Constants are referenced but simple
-            SymbolKind::Variable => 0.8,       // Variables have lowest weight
+impl SymbolReference {
+    pub fn new(name: String, location: Location, kind: SymbolKind) -> Self {
+        Self {
+            name,
+            location,
+            kind,
+            is_public: false,
+            has_docs: false,
         }
     }
+
+    pub fn with_visibility(mut self, is_public: bool) -> Self {
+        self.is_public = is_public;
+        self
+    }
+
+    pub fn with_docs(mut self, has_docs: bool) -> Self {
+        self.has_docs = has_docs;
+        self
+    }
+
+    pub fn base_weight(&self) -> f64 {
+        self.kind.base_weight()
+    }
+
+    pub fn importance_factor(&self) -> f64 {
+        let mut factor = self.base_weight();
+        if self.is_public {
+            factor *= 1.5;
+        }
+        if self.has_docs {
+            factor *= 1.2;
+        }
+        factor
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Symbol {
+    pub name: String,
+    pub kind: SymbolKind,
+    pub scope: Option<Scope>,
+    pub references: Vec<SymbolReference>,
+    pub signature: Option<String>,
+    pub location: Location,
+}
+
+impl Symbol {
+    pub fn new(name: String, kind: SymbolKind, location: Location) -> Self {
+        Self {
+            name,
+            kind,
+            scope: None,
+            references: Vec::new(),
+            signature: None,
+            location,
+        }
+    }
+
+    pub fn with_scope(mut self, scope: Scope) -> Self {
+        self.scope = Some(scope);
+        self
+    }
+
+    pub fn with_signature(mut self, signature: String) -> Self {
+        self.signature = Some(signature);
+        self
+    }
+
+    pub fn add_reference(&mut self, reference: SymbolReference) {
+        self.references.push(reference);
+    }
+
+    pub fn is_public(&self) -> bool {
+        // A symbol is public if it has public visibility in its references
+        self.references.iter().any(|r| r.is_public)
+    }
+
+    pub fn has_docs(&self) -> bool {
+        // A symbol has docs if any of its references has docs
+        self.references.iter().any(|r| r.has_docs)
+    }
+
+    pub fn importance_factor(&self) -> f64 {
+        let mut factor = self.kind.base_weight();
+        if self.is_public() {
+            factor *= 1.5;
+        }
+        if self.has_docs() {
+            factor *= 1.2;
+        }
+        factor
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SymbolKind {
+    Function,
+    Method,
+    Class,
+    Interface,
+    Struct,
+    Enum,
+    Constant,
+    Variable,
+    Module,
+    Trait,
+    TypeAlias,
+    Macro,
 }
 
 impl fmt::Display for SymbolKind {
@@ -79,64 +144,63 @@ impl fmt::Display for SymbolKind {
             SymbolKind::Variable => write!(f, "var"),
             SymbolKind::Module => write!(f, "mod"),
             SymbolKind::Trait => write!(f, "trait"),
-            SymbolKind::Implementation => write!(f, "impl"),
+            SymbolKind::TypeAlias => write!(f, "type"),
+            SymbolKind::Macro => write!(f, "macro"),
         }
     }
 }
 
-/// Represents a symbol found in the source code, such as a function, class, or
-/// variable.
+impl SymbolKind {
+    pub fn base_weight(&self) -> f64 {
+        match self {
+            SymbolKind::Function | SymbolKind::Method => 1.0,
+            SymbolKind::Class | SymbolKind::Interface => 1.5,
+            SymbolKind::Struct | SymbolKind::Trait => 1.3,
+            SymbolKind::Enum => 0.8,
+            SymbolKind::Constant => 0.5,
+            SymbolKind::Variable => 0.3,
+            SymbolKind::Module => 2.0,
+            SymbolKind::TypeAlias => 0.7,
+            SymbolKind::Macro => 1.2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScopeType {
+    Module,
+    Function,
+    Block,
+    Class,
+    Interface,
+    None,
+}
+
 #[derive(Debug, Clone)]
-pub struct Symbol {
-    /// The name of the symbol
-    pub name: Rc<String>,
-    /// The kind of symbol (e.g., function, class, etc.)
-    pub kind: SymbolKind,
-    /// Optional signature for functions and methods
-    pub signature: Option<Rc<String>>,
-    /// The location where this symbol is defined
-    pub location: Location,
-    /// A score indicating the symbol's importance in the codebase (higher is
-    /// more important)
-    pub importance: f64,
-    /// Locations where this symbol is referenced
-    pub references: Vec<Location>,
+pub struct Scope {
+    pub scope_type: ScopeType,
+    pub start_line: usize,
+    pub end_line: usize,
+    pub parent_scope: Option<Box<Scope>>,
 }
 
-impl Symbol {
-    pub fn new(name: String, kind: SymbolKind, location: Location) -> Self {
-        let base_weight = kind.base_weight();
+impl Scope {
+    pub fn new(scope_type: ScopeType, start_line: usize, end_line: usize) -> Self {
         Self {
-            name: Rc::new(name),
-            kind,
-            signature: None,
-            location,
-            importance: base_weight,
-            references: Vec::new(),
+            scope_type,
+            start_line,
+            end_line,
+            parent_scope: None,
         }
     }
 
-    pub fn with_signature(mut self, signature: String) -> Self {
-        let signature_bonus = 0.1;
-        self.signature = Some(Rc::new(signature));
-        self.importance += signature_bonus;
+    pub fn with_parent(mut self, parent: Scope) -> Self {
+        self.parent_scope = Some(Box::new(parent));
         self
     }
 
-    pub fn add_reference(&mut self, reference: Location) {
-        self.references.push(reference);
-        self.recalculate_importance();
-    }
-
-    fn recalculate_importance(&mut self) {
-        // Improved importance calculation
-        // - Uses base weight of the symbol type
-        // - Logarithmic scaling for number of references
-        // - Small bonus for having a signature
-        let reference_multiplier = 1.0 + (self.references.len() as f64).ln().max(0.0) * 0.2;
-        let signature_bonus = if self.signature.is_some() { 0.1 } else { 0.0 };
-
-        self.importance = self.kind.base_weight() * reference_multiplier + signature_bonus;
+    pub fn contains_line(&self, line: usize) -> bool {
+        line >= self.start_line && line <= self.end_line
     }
 }
 
@@ -145,57 +209,61 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_scope_contains_line() {
+        let scope = Scope::new(ScopeType::Function, 1, 10);
+        assert!(scope.contains_line(5));
+        assert!(!scope.contains_line(11));
+    }
+
+    #[test]
+    fn test_scope_with_parent() {
+        let parent = Scope::new(ScopeType::Module, 1, 20);
+        let child = Scope::new(ScopeType::Function, 5, 10).with_parent(parent);
+
+        assert!(child.contains_line(7));
+        assert!(child.parent_scope.unwrap().contains_line(15));
+    }
+
+    #[test]
     fn test_symbol_weights() {
-        assert!(SymbolKind::Module.base_weight() > SymbolKind::Variable.base_weight());
-        assert!(SymbolKind::Class.base_weight() > SymbolKind::Constant.base_weight());
-        assert_eq!(
-            SymbolKind::Function.base_weight(),
-            SymbolKind::Method.base_weight()
-        );
+        assert!(SymbolKind::Module.base_weight() > SymbolKind::Function.base_weight(),
+            "Modules should have higher base weight than functions");
+        assert!(SymbolKind::Class.base_weight() > SymbolKind::Variable.base_weight(),
+            "Classes should have higher base weight than variables");
     }
 
     #[test]
-    fn test_importance_calculation() {
+    fn test_symbol_metadata() {
+        let path = Rc::new(PathBuf::from("test.rs"));
         let location = Location {
-            path: Rc::new(PathBuf::from("test.rs")),
+            path: Rc::clone(&path),
             start_line: 1,
             end_line: 1,
             start_col: 0,
             end_col: 0,
         };
 
-        let mut symbol = Symbol::new("test".to_string(), SymbolKind::Function, location.clone());
+        let mut symbol = Symbol::new(
+            "test".to_string(),
+            SymbolKind::Function,
+            location.clone(),
+        ).with_signature("fn test() -> ()".to_string());
 
-        let initial_importance = symbol.importance;
-
-        // Add some references
-        for _ in 0..5 {
-            symbol.add_reference(location.clone());
-        }
-
-        assert!(symbol.importance > initial_importance);
-    }
-
-    #[test]
-    fn test_symbol_with_signature() {
-        let location = Location {
-            path: Rc::new(PathBuf::from("test.rs")),
-            start_line: 1,
-            end_line: 1,
-            start_col: 0,
-            end_col: 0,
-        };
-
-        let base_symbol = Symbol::new("test".to_string(), SymbolKind::Function, location);
-
-        let base_importance = base_symbol.importance;
-
-        let symbol_with_sig = base_symbol.with_signature("fn test(x: i32) -> i32".to_string());
-
-        assert!(symbol_with_sig.importance > base_importance,
-            "Symbol with signature (importance: {}) should have higher importance than base symbol (importance: {})",
-            symbol_with_sig.importance,
-            base_importance
+        // Add a public reference
+        symbol.add_reference(
+            SymbolReference::new(
+                "test".to_string(),
+                location.clone(),
+                SymbolKind::Function,
+            )
+            .with_visibility(true)
+            .with_docs(true)
         );
+
+        assert_eq!(symbol.signature.as_ref().unwrap(), "fn test() -> ()");
+        assert!(symbol.is_public(), "Symbol should be public");
+        assert!(symbol.has_docs(), "Symbol should have docs");
+        assert!(symbol.importance_factor() > symbol.kind.base_weight(), 
+            "Importance factor should be higher than base weight");
     }
 }

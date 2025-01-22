@@ -23,9 +23,16 @@ Automatically weights different types of symbols:
 ### Language Support
 Currently supports:
 - Rust (.rs)
-- JavaScript (.js)
-- Python (.py)
+- JavaScript (.js, .jsx)
 - TypeScript (.ts, .tsx)
+- Python (.py)
+- C (.c)
+- C++ (.cpp, .hpp)
+- C# (.cs)
+- Java (.java)
+- Go (.go)
+- Ruby (.rb)
+- PHP (.php)
 
 ## Installation
 
