@@ -136,15 +136,15 @@ mod tests {
     #[tokio::test]
     async fn test_tool_supported() {
         let env = test_env();
-        let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
-        let _ = learning_embedding_idx
+        let embedding_repository = Arc::new(TestLearningEmbedding::init().await);
+        let _ = embedding_repository
             .insert(
                 "Always write unit tests to ensure the correctness of solution".to_string(),
                 vec!["learning".to_owned()],
             )
             .await
             .unwrap();
-        let _ = learning_embedding_idx
+        let _ = embedding_repository
             .insert(
                 "with rust always use pattern matching for exhuastive matching".to_string(),
                 vec!["learning".to_owned()],
@@ -152,7 +152,7 @@ mod tests {
             .await
             .unwrap();
 
-        let tools = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
+        let tools = Arc::new(Service::tool_service(embedding_repository.clone()));
         let provider = Arc::new(
             TestProvider::default()
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
@@ -160,7 +160,7 @@ mod tests {
         let file = Arc::new(TestFileReadService::default());
         let request =
             ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "write fibo sequence in rust");
-        let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
+        let prompt = Live::new(env, tools, provider, file, embedding_repository)
             .get(&request)
             .await
             .unwrap();
@@ -170,15 +170,15 @@ mod tests {
     #[tokio::test]
     async fn test_tool_unsupported() {
         let env = test_env();
-        let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
+        let embedding_repository = Arc::new(TestLearningEmbedding::init().await);
+        let tools = Arc::new(Service::tool_service(embedding_repository.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
         )]));
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
+        let prompt = Live::new(env, tools, provider, file, embedding_repository)
             .get(&request)
             .await
             .unwrap();
@@ -188,8 +188,8 @@ mod tests {
     #[tokio::test]
     async fn test_system_prompt_custom_prompt() {
         let env = test_env();
-        let learning_embedding_idx = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(learning_embedding_idx.clone()));
+        let embedding_repository = Arc::new(TestLearningEmbedding::init().await);
+        let tools = Arc::new(Service::tool_service(embedding_repository.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -197,7 +197,7 @@ mod tests {
         let file = Arc::new(TestFileReadService::default().add(".custom.md", "Woof woof!"));
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task")
             .custom_instructions(".custom.md");
-        let prompt = Live::new(env, tools, provider, file, learning_embedding_idx)
+        let prompt = Live::new(env, tools, provider, file, embedding_repository)
             .get(&request)
             .await
             .unwrap();

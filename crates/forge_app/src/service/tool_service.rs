@@ -13,8 +13,8 @@ use super::Service;
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(30);
 
 impl Service {
-    pub fn tool_service(learning_embedding_idx: Arc<dyn EmbeddingsRepository>) -> impl ToolService {
-        Live::from_iter(forge_tool::tools(learning_embedding_idx))
+    pub fn tool_service(embedding_repository: Arc<dyn EmbeddingsRepository>) -> impl ToolService {
+        Live::from_iter(forge_tool::tools(embedding_repository))
     }
 }
 

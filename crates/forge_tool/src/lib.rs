@@ -23,7 +23,7 @@ use select::SelectTool;
 use shell::Shell;
 use think::Think;
 
-pub fn tools(learning_embedding_idx: Arc<dyn EmbeddingsRepository>) -> Vec<Tool> {
+pub fn tools(embedding_repository: Arc<dyn EmbeddingsRepository>) -> Vec<Tool> {
     vec![
         Approve.into(),
         FSRead.into(),
@@ -37,7 +37,7 @@ pub fn tools(learning_embedding_idx: Arc<dyn EmbeddingsRepository>) -> Vec<Tool>
         Shell::default().into(),
         Think::default().into(),
         Fetch::default().into(),
-        Learning::new(learning_embedding_idx).into(),
+        Learning::new(embedding_repository).into(),
     ]
 }
 
