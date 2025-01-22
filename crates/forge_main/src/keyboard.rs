@@ -27,7 +27,6 @@ pub struct KeyboardEvents<
 
 impl KeyboardEvents<event::EventStream> {
     pub fn new() -> Self {
-        crossterm::terminal::enable_raw_mode().expect("Failed to enable raw mode");
         Self { reader: event::EventStream::new(), events: HashSet::new() }
     }
 }
@@ -38,6 +37,7 @@ impl<S: Stream<Item = std::io::Result<Event>> + Unpin + Send> KeyboardEvents<S> 
     }
 
     pub async fn is_pressed(&mut self) -> bool {
+        crossterm::terminal::enable_raw_mode().expect("Failed to enable raw mode");
         if let Some(Ok(Event::Key(key))) = self.reader.next().await {
             let event = KeyEvent::from(key.code);
             self.events.contains(&event)
