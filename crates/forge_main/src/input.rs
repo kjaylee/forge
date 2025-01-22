@@ -55,16 +55,15 @@ impl UserInput for Console {
     ) -> anyhow::Result<Command> {
         let theme = ColorfulTheme::default();
         let completion = CommandCompleter::new();
+        let help = help_text.map(|a| a.bright_white().to_string()).unwrap_or({
+            let commands = Command::available_commands().join(", ");
+            format!("[Available commands: {}]", commands)
+                .bright_cyan()
+                .to_string()
+        });
         loop {
             CONSOLE.writeln("")?;
-            let help = help_text.map(|a| a.bright_white().to_string()).unwrap_or({
-                let commands = Command::available_commands()
-                    .join(", ")
-                    .bright_cyan()
-                    .to_string();
-                format!("{} {}", "Available commands:".white(), commands)
-            });
-            CONSOLE.writeln(help)?;
+            CONSOLE.writeln(&help)?;
 
             let input = Input::<String>::with_theme(&theme)
                 .with_prompt("")
