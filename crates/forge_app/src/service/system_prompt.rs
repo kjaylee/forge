@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{ChatRequest, EmbeddingsRepository, Environment, ProviderService};
+use forge_domain::{ChatRequest, EmbeddingsRepository,Environment, ProviderService, ToolService};
 use handlebars::Handlebars;
 use serde::Serialize;
 use tracing::debug;
 
 use super::file_read::FileReadService;
-use super::tool_service::ToolService;
 use super::{PromptService, Service};
 use crate::embeddings::Embedder;
 
@@ -118,9 +117,9 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
-    use crate::service::file_read::tests::TestFileReadService;
-    use crate::service::tests::TestProvider;
+    use crate::service::test::{TestFileReadService, TestProvider};
     use crate::tests::TestLearningEmbedding;
+
 
     fn test_env() -> Environment {
         Environment {
