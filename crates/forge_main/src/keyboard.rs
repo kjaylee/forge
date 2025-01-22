@@ -52,7 +52,7 @@ impl<S: Stream<Item = std::io::Result<Event>> + Unpin + Send> KeyboardEvents<S> 
 impl<S: Stream<Item = std::io::Result<Event>> + Unpin + Send> Drop for KeyboardEvents<S> {
     fn drop(&mut self) {
         // best effort to disable raw mode
-        let _ =crossterm::terminal::disable_raw_mode();
+        let _ = crossterm::terminal::disable_raw_mode();
     }
 }
 
