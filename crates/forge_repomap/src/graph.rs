@@ -1,263 +1,157 @@
-use std::path::{Path, PathBuf};
-use petgraph::prelude::*;
-use petgraph::algo::page_rank;
-use std::collections::{HashMap, BTreeMap};
-use crate::ranking::EdgeType;
+use petgraph::algo::page_rank::page_rank;
+use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::prelude::EdgeIndex;
+use petgraph::visit::EdgeRef;
+use std::collections::{HashMap, HashSet};
+use std::fmt::Write;
+use super::symbol::SymbolIndex;
 
-pub struct DependencyGraph {
-    graph: Graph<PathBuf, f64>,
-    node_indices: BTreeMap<PathBuf, NodeIndex>,  // Changed to BTreeMap for deterministic ordering
-    edge_to_type: HashMap<EdgeIndex, EdgeType>,
-    total_weights: BTreeMap<PathBuf, f64>,  // Changed to BTreeMap for deterministic ordering
+pub type RankedDefinition = ((NodeIndex, String), f64);
+pub type RankedDefinitionsMap = HashMap<(NodeIndex, String), f64>;
+
+pub struct ReferenceGraph {
+    graph: DiGraph<String, f64>,
+    node_indices: HashMap<String, NodeIndex>,
+    edge_to_ident: HashMap<EdgeIndex, String>,
+    ranked_definitions: RankedDefinitionsMap,
+    sorted_definitions: Vec<RankedDefinition>,
 }
 
-impl DependencyGraph {
+impl ReferenceGraph {
     pub fn new() -> Self {
         Self {
-            graph: Graph::new(),
-            node_indices: BTreeMap::new(),
-            edge_to_type: HashMap::new(),
-            total_weights: BTreeMap::new(),
+            graph: DiGraph::new(),
+            node_indices: HashMap::new(),
+            edge_to_ident: HashMap::new(),
+            ranked_definitions: HashMap::new(),
+            sorted_definitions: Vec::new(),
         }
     }
 
-    pub fn add_node(&mut self, path: &Path) -> NodeIndex {
-        if let Some(&idx) = self.node_indices.get(path) {
-            idx
-        } else {
-            let idx = self.graph.add_node(path.to_path_buf());
-            self.node_indices.insert(path.to_path_buf(), idx);
-            self.total_weights.insert(path.to_path_buf(), 0.0);
-            idx
-        }
-    }
-
-    pub fn add_symbol_reference(
-        &mut self,
-        from: &Path,
-        to: &Path,
-        edge_type: EdgeType,
-    ) {
-        let from_idx = self.add_node(from);
-        let to_idx = self.add_node(to);
-
-        // Calculate edge weight based on reference type and frequency
-        let weight = edge_type.base_weight();
-
-        // Update total weights - track both incoming and outgoing
-        *self.total_weights.entry(from.to_path_buf()).or_insert(0.0) += weight;
-        *self.total_weights.entry(to.to_path_buf()).or_insert(0.0) += weight;
-
-        if let Some(edge_idx) = self.graph.find_edge(from_idx, to_idx) {
-            // If edge exists, update its weight
-            if let Some(edge_weight) = self.graph.edge_weight_mut(edge_idx) {
-                *edge_weight += weight;
-            }
-        } else {
-            // Create new edge
-            let edge_idx = self.graph.add_edge(from_idx, to_idx, weight);
-            self.edge_to_type.insert(edge_idx, edge_type);
-        }
-    }
-
-    pub fn calculate_importance(&self, focused_paths: &[PathBuf]) -> BTreeMap<PathBuf, f64> {  // Changed return type to BTreeMap
-        // First pass: calculate total outgoing weights for each node
-        let mut outgoing_weights: BTreeMap<NodeIndex, f64> = BTreeMap::new();  // Changed to BTreeMap
-        
-        // Process edges in deterministic order
-        let mut edges: Vec<_> = self.graph.edge_references().collect();
-        edges.sort_by_key(|e| (e.source(), e.target()));
-        
-        for edge in &edges {
-            let source = edge.source();
-            let weight = *edge.weight();
-            *outgoing_weights.entry(source).or_insert(0.0) += weight;
-        }
-
-        // Create normalized graph
-        let mut normalized_graph = Graph::new();
-        let mut node_map = BTreeMap::new();  // Changed to BTreeMap
-
-        // Add nodes in deterministic order
-        let nodes: Vec<_> = self.graph.node_indices()
-            .collect::<Vec<_>>();  // Collect once and reuse
-        
-        for &node_idx in &nodes {
-            let new_idx = normalized_graph.add_node(self.graph[node_idx].clone());
-            node_map.insert(node_idx, new_idx);
-        }
-
-        // Add edges in deterministic order
-        for edge in &edges {
-            let source = edge.source();
-            let target = edge.target();
-            let weight = *edge.weight();
-            
-            let total_weight = outgoing_weights.get(&source).unwrap_or(&1.0);
-            let normalized_weight = if *total_weight > 0.0 { weight / total_weight } else { weight };
-            
-            let new_source = node_map[&source];
-            let new_target = node_map[&target];
-            normalized_graph.add_edge(new_source, new_target, normalized_weight);
-        }
-
-        // Calculate PageRank on normalized graph
-        let ranks = page_rank(&normalized_graph, 0.85, 100);
-        
-        // Calculate maximum total weight for normalization
-        let max_weight = self.total_weights.values().copied().fold(1.0_f64, f64::max);
-
-        // Calculate scores in deterministic order
-        let mut scores = BTreeMap::new();
-        let focus_boost = if !focused_paths.is_empty() { 3.0 } else { 1.0 };
-        
-        for &node_idx in &nodes {
-            if let Some(path) = self.graph.node_weight(node_idx) {
-                let rank = ranks[node_map[&node_idx].index()];
-                let total_weight = self.total_weights.get(path).unwrap_or(&0.0);
-                let weight_factor = 1.0 + (total_weight / max_weight).sqrt(); // Use sqrt for smoother scaling
-                let importance = rank * weight_factor;
-                
-                let multiplier = if focused_paths.contains(path) { focus_boost } else { 1.0 };
-                scores.insert(path.clone(), importance * multiplier);
-            }
-        }
-
-        // Normalize final scores
-        let total_score: f64 = scores.values().sum();
-        if total_score > 0.0 {
-            for score in scores.values_mut() {
-                *score /= total_score;
-            }
-        }
-
-        scores
-    }
-
-    pub fn get_edge_info(&self, edge_idx: EdgeIndex) -> Option<(&EdgeType, f64)> {
-        self.edge_to_type.get(&edge_idx).and_then(|edge_type| {
-            self.graph
-                .edge_weight(edge_idx)
-                .map(|weight| (edge_type, *weight))
-        })
-    }
-
-    pub fn get_graph(&self) -> &Graph<PathBuf, f64> {
+    pub fn get_graph(&self) -> &DiGraph<String, f64> {
         &self.graph
     }
 
-    pub fn debug_print_state(&self) {
-        println!("\nGraph State:");
-        println!("Nodes: {}", self.graph.node_count());
-        println!("Edges: {}", self.graph.edge_count());
-        
-        println!("\nNodes:");
-        let mut nodes: Vec<_> = self.graph.node_indices().collect();
-        nodes.sort();
-        for node_idx in nodes {
-            if let Some(path) = self.graph.node_weight(node_idx) {
-                println!("{:?}: {:?}", node_idx, path);
+    pub fn from_symbol_index(symbol_index: &SymbolIndex, mentioned_idents: &HashSet<String>) -> Self {
+        let mut reference_graph = Self::new();
+        reference_graph.populate_from_symbol_index(symbol_index, mentioned_idents);
+        reference_graph
+    }
+
+    pub fn populate_from_symbol_index(
+        &mut self,
+        symbol_index: &SymbolIndex,
+        mentioned_idents: &HashSet<String>,
+    ) {
+        // Sort common symbols for deterministic order
+        let mut common_symbols: Vec<_> = symbol_index.common_symbols.iter().collect();
+        common_symbols.sort();
+        for ident in &symbol_index.common_symbols {
+            let mul = self.calculate_multiplier(ident, mentioned_idents);
+            let num_refs = symbol_index.references[ident].len() as f64;
+            let scaled_refs = num_refs.sqrt();
+
+            for referencer in &symbol_index.references[ident] {
+                for definer in &symbol_index.defines[ident] {
+                    let referencer_idx = self.get_or_create_node(referencer.to_str().unwrap());
+                    let definer_idx = self.get_or_create_node(definer.to_str().unwrap());
+
+                    let edge_index =
+                        self.graph
+                            .add_edge(referencer_idx, definer_idx, mul * scaled_refs);
+
+                    self.edge_to_ident.insert(edge_index, ident.to_string());
+                }
             }
         }
         
-        println!("\nEdges:");
-        let mut edges: Vec<_> = self.graph.edge_references().collect();
-        edges.sort_by_key(|e| (e.source(), e.target()));
-        for edge in edges {
-            let source = self.graph.node_weight(edge.source()).unwrap();
-            let target = self.graph.node_weight(edge.target()).unwrap();
+    }
+
+    pub fn calculate_page_ranks(&self) -> Vec<f64> {
+        page_rank(&self.graph, 0.85, 1)
+    }
+
+    pub fn get_ranked_definitions(&self) -> &RankedDefinitionsMap {
+        &self.ranked_definitions
+    }
+
+    pub fn get_sorted_definitions(&self) -> &[RankedDefinition] {
+        &self.sorted_definitions
+    }
+
+    pub fn calculate_and_distribute_ranks(&mut self) {
+        let ranks = self.calculate_page_ranks();
+        self.distribute_rank(&ranks);
+        self.sort_by_rank();
+    }
+
+    fn sort_by_rank(&mut self) {
+        let mut vec: Vec<_> = self.ranked_definitions.iter().collect();
+        vec.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap_or(std::cmp::Ordering::Equal));
+        self.sorted_definitions = vec.into_iter().map(|(k, v)| (k.clone(), *v)).collect();
+    }
+
+    fn distribute_rank(&mut self, ranked: &Vec<f64>) {
+        for src in self.graph.node_indices() {
+            let src_rank = ranked[src.index() as usize];
+            let total_outgoing_weights: f64 = self.graph.edges(src).map(|edge| *edge.weight()).sum();
+
+            for edge in self.graph.edges(src) {
+                let destination = edge.target();
+                let weight = *edge.weight();
+                let new_weight = src_rank * weight / total_outgoing_weights;
+
+                let edge_index = edge.id();
+                let ident = self.edge_to_ident.get(&edge_index).expect("edge_index should exist");
+
+                *self.ranked_definitions
+                    .entry((destination, ident.clone()))
+                    .or_insert(0.0) += new_weight;
+            }
+        }
+    }
+
+    pub fn generate_dot_representation(&self) -> String {
+        let mut dot = String::new();
+        writeln!(&mut dot, "digraph {{").unwrap();
+
+        for node_index in self.graph.node_indices() {
+            let node_label = &self.graph[node_index];
+            writeln!(
+                &mut dot,
+                "    {:?} [ label = {:?} ]",
+                node_index.index(),
+                node_label
+            ).unwrap();
+        }
+
+        for edge in self.graph.edge_references() {
+            let (source, target) = (edge.source().index(), edge.target().index());
             let weight = edge.weight();
-            println!("{:?} -> {:?} (weight: {})", source, target, weight);
+            writeln!(
+                &mut dot,
+                "    {:?} -> {:?} [ label = {:?} ]",
+                source, target, weight
+            ).unwrap();
         }
 
-        println!("\nTotal weights per file:");
-        for (path, weight) in &self.total_weights {  // BTreeMap is already ordered
-            println!("{:?}: {}", path, weight);
+        writeln!(&mut dot, "}}").unwrap();
+        dot
+    }
+
+    fn get_or_create_node(&mut self, name: &str) -> NodeIndex {
+        *self.node_indices
+            .entry(name.to_string())
+            .or_insert_with(|| self.graph.add_node(name.to_string()))
+    }
+
+    fn calculate_multiplier(&self, symbol: &str, mentioned_idents: &HashSet<String>) -> f64 {
+        if mentioned_idents.contains(symbol) {
+            10.0
+        } else if symbol.starts_with('_') {
+            0.1
+        } else {
+            1.0
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_add_symbol_reference() {
-        let mut graph = DependencyGraph::new();
-        let from = Path::new("src/lib.rs");
-        let to = Path::new("src/module.rs");
-        
-        graph.add_symbol_reference(from, to, EdgeType::Call);
-        
-        assert_eq!(graph.node_indices.len(), 2);
-    }
-
-    #[test]
-    fn test_multiple_references() {
-        let mut graph = DependencyGraph::new();
-        let from = Path::new("src/main.rs");
-        let to = Path::new("src/lib.rs");
-
-        // Add first reference
-        graph.add_symbol_reference(from, to, EdgeType::Call);
-
-        // Add second reference to same files with different type
-        graph.add_symbol_reference(from, to, EdgeType::Implementation);
-
-        // Should still only have 2 nodes
-        assert_eq!(graph.node_indices.len(), 2);
-    }
-
-    #[test]
-    fn test_importance_calculation() {
-        let mut graph = DependencyGraph::new();
-        let main = PathBuf::from("src/main.rs");
-        let lib = PathBuf::from("src/lib.rs");
-        let util = PathBuf::from("src/util.rs");
-
-        // Create a graph where main.rs references lib.rs multiple times
-        graph.add_symbol_reference(&main, &lib, EdgeType::Call);
-        graph.add_symbol_reference(&main, &lib, EdgeType::Implementation);
-        graph.add_symbol_reference(&main, &util, EdgeType::Use);
-        graph.add_symbol_reference(&lib, &util, EdgeType::Use);
-
-        let scores = graph.calculate_importance(&[]);
-        
-        // Check that scores are properly normalized
-        let total_score: f64 = scores.values().sum();
-        assert!((total_score - 1.0).abs() < 1e-6, "Scores should sum to 1.0");
-
-        // Test focus boosting
-        let focused_scores = graph.calculate_importance(&[main.clone()]);
-        assert!(
-            focused_scores.get(&main).unwrap() > scores.get(&main).unwrap(),
-            "Focused file should have higher importance"
-        );
-    }
-
-    #[test]
-    fn test_weighted_importance() {
-        let mut graph = DependencyGraph::new();
-        let heavy = PathBuf::from("src/heavy.rs");
-        let light = PathBuf::from("src/light.rs");
-        let other = PathBuf::from("src/other.rs");
-
-        // Add many references from heavy.rs
-        for _ in 0..10 {
-            graph.add_symbol_reference(&heavy, &other, EdgeType::Implementation);
-        }
-
-        // Add few references from light.rs
-        graph.add_symbol_reference(&light, &other, EdgeType::Use);
-
-        let scores = graph.calculate_importance(&[]);
-        
-        let heavy_score = scores.get(&heavy).unwrap();
-        let light_score = scores.get(&light).unwrap();
-        
-        assert!(heavy_score > light_score,
-            "File with more references should have higher importance: heavy({}) > light({})",
-            heavy_score, light_score
-        );
     }
 }

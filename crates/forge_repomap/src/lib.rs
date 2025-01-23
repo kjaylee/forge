@@ -1,15 +1,19 @@
-pub mod parser;
 pub mod error;
+pub mod file;
 pub mod graph;
-pub mod ranking;
-pub mod repo_map;
-pub mod scope_walker;
+pub mod helpers;
 pub mod symbol;
+pub mod tree_context;
+pub mod tree_walker;
+pub mod types;
+mod analyser;
 
-pub use error::Error;
-pub use graph::DependencyGraph;
-pub use ranking::EdgeType;
-pub use repo_map::RepoMap;
-pub use scope_walker::ScopeWalker;
-pub use symbol::{Symbol, SymbolKind, Scope, Location, SymbolReference};
-pub use parser::{Parser, ParseConfig};
+#[cfg(test)]
+mod tests;
+
+pub use error::RepoMapError;
+pub use file::FileError;
+pub use file::GitWalker;
+pub use helpers::close_small_gaps_helper;
+pub use symbol::{Symbol, SymbolIndex, SymbolKind};
+pub use types::RepoMap;

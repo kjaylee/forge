@@ -1,0 +1,25 @@
+[package]
+name = "forge_language"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tree-sitter = { workspace = true }
+thiserror = "1.0"
+once_cell = "1.18"
+streaming-iterator = "0.1.9"
+
+# Tree-sitter language parsers
+tree-sitter-rust = { workspace = true }
+tree-sitter-javascript = { workspace = true }
+tree-sitter-python = { workspace = true }
+tree-sitter-typescript = { workspace = true }
+tree-sitter-c = { workspace = true }
+tree-sitter-cpp = { workspace = true }
+tree-sitter-c-sharp = { workspace = true }
+tree-sitter-java = { workspace = true }
+tree-sitter-go = { workspace = true }
+tree-sitter-ruby = { workspace = true }
+tree-sitter-php = { workspace = true }
+tree-sitter-css = { workspace = true }
+tree-sitter-scala = { workspace = true }

@@ -1,3 +1,7 @@
+; Use declarations
+(use_declaration
+    tree: (use_tree) @use.path) @use.declaration
+
 ; ADT definitions
 (struct_item
     name: (type_identifier) @name.definition.struct) @definition.struct
