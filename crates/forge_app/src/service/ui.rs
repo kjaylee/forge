@@ -45,13 +45,13 @@ impl UIService for Live {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self
                 .conversation_service
-                .get_conversation(*conversation_id)
+                .get(*conversation_id)
                 .await?;
             (context, false)
         } else {
             let conversation = self
                 .conversation_service
-                .set_conversation(&Context::default(), None)
+                .insert(&Context::default(), None)
                 .await?;
             (conversation, true)
         };
@@ -85,13 +85,13 @@ impl UIService for Live {
                                 .conversation_id
                                 .expect("`conversation_id` must be set at this point.");
                             conversation_service
-                                .set_conversation_title(&conversation_id, title.to_owned())
+                                .set_title(&conversation_id, title.to_owned())
                                 .await?;
                             message
                         }
                         Ok(ChatResponse::ModifyContext(context)) => {
                             conversation_service
-                                .set_conversation(context, request.conversation_id)
+                                .insert(context, request.conversation_id)
                                 .await?;
                             message
                         }
@@ -170,7 +170,7 @@ mod tests {
 
         let model_id = ModelId::new("gpt-3.5-turbo");
         let conversation = conversation_service
-            .set_conversation(&Context::default(), None)
+            .insert(&Context::default(), None)
             .await
             .unwrap();
 

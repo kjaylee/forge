@@ -55,7 +55,7 @@ impl<P: Sqlite> Live<P> {
 
 #[async_trait::async_trait]
 impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
-    async fn set_conversation(
+    async fn insert(
         &self,
         request: &Context,
         id: Option<ConversationId>,
@@ -90,7 +90,7 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn get_conversation(&self, id: ConversationId) -> Result<Conversation> {
+    async fn get(&self, id: ConversationId) -> Result<Conversation> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let raw: RawConversation = conversations::table
@@ -100,7 +100,7 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn list_conversations(&self) -> Result<Vec<Conversation>> {
+    async fn list(&self) -> Result<Vec<Conversation>> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let raw: Vec<RawConversation> = conversations::table
@@ -113,7 +113,7 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
             .collect::<Result<Vec<_>, _>>()?)
     }
 
-    async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation> {
+    async fn archive(&self, id: ConversationId) -> Result<Conversation> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
 
@@ -128,7 +128,7 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn set_conversation_title(
+    async fn set_title(
         &self,
         id: &ConversationId,
         title: String,
@@ -180,7 +180,7 @@ pub mod tests {
         id: Option<ConversationId>,
     ) -> Result<Conversation> {
         let request = Context::default();
-        storage.set_conversation(&request, id).await
+        storage.insert(&request, id).await
     }
 
     #[tokio::test]
@@ -189,7 +189,7 @@ pub mod tests {
         let id = ConversationId::generate();
 
         let saved = create_conversation(&storage, Some(id)).await.unwrap();
-        let retrieved = storage.get_conversation(id).await.unwrap();
+        let retrieved = storage.get(id).await.unwrap();
 
         assert_eq!(saved.id, retrieved.id);
         assert_eq!(saved.context, retrieved.context);
@@ -204,9 +204,9 @@ pub mod tests {
         let conv3 = create_conversation(&storage, None).await.unwrap();
 
         // Archive one conversation
-        storage.archive_conversation(conv2.id).await.unwrap();
+        storage.archive(conv2.id).await.unwrap();
 
-        let conversations = storage.list_conversations().await.unwrap();
+        let conversations = storage.list().await.unwrap();
 
         assert_eq!(conversations.len(), 2);
         assert!(conversations.iter().all(|c| !c.archived));
@@ -220,7 +220,7 @@ pub mod tests {
         let storage = setup_storage().await.unwrap();
         let conversation = create_conversation(&storage, None).await.unwrap();
 
-        let archived = storage.archive_conversation(conversation.id).await.unwrap();
+        let archived = storage.archive(conversation.id).await.unwrap();
 
         assert!(archived.archived);
         assert_eq!(archived.id, conversation.id);
@@ -231,7 +231,7 @@ pub mod tests {
         let storage = setup_storage().await.unwrap();
         let conversation = create_conversation(&storage, None).await.unwrap();
         let result = storage
-            .set_conversation_title(&conversation.id, "test-title".to_string())
+            .set_title(&conversation.id, "test-title".to_string())
             .await
             .unwrap();
 

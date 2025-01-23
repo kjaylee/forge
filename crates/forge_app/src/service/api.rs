@@ -105,7 +105,7 @@ impl APIService for Live {
     async fn context(&self, conversation_id: ConversationId) -> Result<Context> {
         Ok(self
             .storage
-            .get_conversation(conversation_id)
+            .get(conversation_id)
             .await?
             .context)
     }
@@ -119,13 +119,13 @@ impl APIService for Live {
     }
 
     async fn conversations(&self) -> Result<Vec<Conversation>> {
-        self.storage.list_conversations().await
+        self.storage.list().await
     }
 
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory> {
         Ok(self
             .storage
-            .get_conversation(conversation_id)
+            .get(conversation_id)
             .await?
             .context
             .into())
