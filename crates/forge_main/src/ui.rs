@@ -120,6 +120,8 @@ impl UI {
         // Register the ESC key for keyboard events
         let mut keyboard = KeyboardEvents::new();
         keyboard.register(Key::Esc);
+        keyboard.register(Key::ControlC);
+
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream, &mut keyboard).await,
             Err(err) => Err(err),
