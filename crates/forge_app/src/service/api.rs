@@ -103,11 +103,7 @@ impl APIService for Live {
     }
 
     async fn context(&self, conversation_id: ConversationId) -> Result<Context> {
-        Ok(self
-            .storage
-            .get(conversation_id)
-            .await?
-            .context)
+        Ok(self.storage.get(conversation_id).await?.context)
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
@@ -123,12 +119,7 @@ impl APIService for Live {
     }
 
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory> {
-        Ok(self
-            .storage
-            .get(conversation_id)
-            .await?
-            .context
-            .into())
+        Ok(self.storage.get(conversation_id).await?.context.into())
     }
 
     async fn get_config(&self) -> Result<Config> {

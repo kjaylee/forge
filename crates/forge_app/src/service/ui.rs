@@ -43,10 +43,7 @@ impl Service {
 impl UIService for Live {
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
-            let context = self
-                .conversation_service
-                .get(*conversation_id)
-                .await?;
+            let context = self.conversation_service.get(*conversation_id).await?;
             (context, false)
         } else {
             let conversation = self

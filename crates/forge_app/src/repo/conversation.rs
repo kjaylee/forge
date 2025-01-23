@@ -55,11 +55,7 @@ impl<P: Sqlite> Live<P> {
 
 #[async_trait::async_trait]
 impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
-    async fn insert(
-        &self,
-        request: &Context,
-        id: Option<ConversationId>,
-    ) -> Result<Conversation> {
+    async fn insert(&self, request: &Context, id: Option<ConversationId>) -> Result<Conversation> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
         let id = id.unwrap_or_else(ConversationId::generate);
@@ -128,11 +124,7 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn set_title(
-        &self,
-        id: &ConversationId,
-        title: String,
-    ) -> Result<Conversation> {
+    async fn set_title(&self, id: &ConversationId, title: String) -> Result<Conversation> {
         let pool = self.pool_service.pool().await?;
         let mut conn = pool.get()?;
 
