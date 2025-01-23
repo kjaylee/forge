@@ -43,7 +43,8 @@ pub struct KeyboardEvents<
 
 impl KeyboardEvents<event::EventStream> {
     pub fn new() -> Self {
-        Self { reader: event::EventStream::new(), events: HashSet::new() }
+        let reader = event::EventStream::new();
+        Self { reader, events: HashSet::new() }
     }
 }
 
@@ -53,14 +54,19 @@ impl<S: Stream<Item = std::io::Result<Event>> + Unpin + Send> KeyboardEvents<S> 
     }
 
     pub async fn is_pressed(&mut self) -> bool {
+        #[cfg(not(test))]
         crossterm::terminal::enable_raw_mode().expect("Failed to enable raw mode");
+
         let result = if let Some(Ok(Event::Key(key))) = self.reader.next().await {
             let event = Key::from(key);
             self.events.contains(&event)
         } else {
             false
         };
-        crossterm::terminal::disable_raw_mode().expect("Failed to enable raw mode");
+
+        #[cfg(not(test))]
+        crossterm::terminal::disable_raw_mode().expect("Failed to disable raw mode");
+
         result
     }
 }
@@ -68,6 +74,7 @@ impl<S: Stream<Item = std::io::Result<Event>> + Unpin + Send> KeyboardEvents<S> 
 impl<S: Stream<Item = std::io::Result<Event>> + Unpin + Send> Drop for KeyboardEvents<S> {
     fn drop(&mut self) {
         // best effort to disable raw mode
+        #[cfg(not(test))]
         let _ = crossterm::terminal::disable_raw_mode();
     }
 }
@@ -104,6 +111,7 @@ mod tests {
                 .expect("Failed to send test event");
         }
 
+        // Mock version that doesn't require raw mode
         async fn is_pressed(&mut self) -> bool {
             self.keyboard.is_pressed().await
         }
