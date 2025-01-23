@@ -666,9 +666,8 @@ mod tests {
             .chat(request, Context::default())
             .await
             .unwrap();
-        while let Some(_) = stream.next().await {
+        if let Some(_) = stream.next().await {
             drop(stream);
-            break;
         }
         tokio::time::advance(Duration::from_secs(35)).await;
         // we should consumed only one message from stream.
