@@ -41,8 +41,7 @@ impl TryFrom<ConfigEntity> for Config {
 
     fn try_from(raw: ConfigEntity) -> Result<Self, Self::Error> {
         // TODO: currently we don't need id and created_at.
-        serde_json::from_str(&raw.data)
-            .with_context(|| "failed to load configuration from store")
+        serde_json::from_str(&raw.data).with_context(|| "failed to load configuration from store")
     }
 }
 
