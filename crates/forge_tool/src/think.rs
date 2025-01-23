@@ -62,10 +62,16 @@ pub struct ThoughtResult {
 impl Think {
     fn validate_thought_data(&self, mut input: ThoughtInput) -> Result<ThoughtInput> {
         if input.thought_number <= 0 {
-            return Err(anyhow::anyhow!("Invalid thought number: {} (must be positive)", input.thought_number));
+            return Err(anyhow::anyhow!(
+                "Invalid thought number: {} (must be positive)",
+                input.thought_number
+            ));
         }
         if input.total_thoughts <= 0 {
-            return Err(anyhow::anyhow!("Invalid total thoughts: {} (must be positive)", input.total_thoughts));
+            return Err(anyhow::anyhow!(
+                "Invalid total thoughts: {} (must be positive)",
+                input.total_thoughts
+            ));
         }
 
         // If no confidence is provided, calculate it based on progress

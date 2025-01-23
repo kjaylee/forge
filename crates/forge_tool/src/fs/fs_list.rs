@@ -1,6 +1,6 @@
-use anyhow::Context;
 use std::path::Path;
 
+use anyhow::Context;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
@@ -47,7 +47,9 @@ impl ToolCallService for FSList {
         let max_depth = if recursive { usize::MAX } else { 1 };
         let walker = Walker::new(dir.to_path_buf()).with_max_depth(max_depth);
 
-        let files = walker.get().await
+        let files = walker
+            .get()
+            .await
             .with_context(|| format!("Failed to read directory contents from '{}'", input.path))
             .map_err(|e| e.to_string())?;
 

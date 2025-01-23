@@ -79,7 +79,10 @@ impl Fetch {
                             path.to_string()
                         };
                         if path.starts_with(&disallowed) {
-                            return Err(anyhow!("URL {} cannot be fetched due to robots.txt restrictions", url));
+                            return Err(anyhow!(
+                                "URL {} cannot be fetched due to robots.txt restrictions",
+                                url
+                            ));
                         }
                     }
                 }
