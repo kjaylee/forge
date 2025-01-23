@@ -67,6 +67,12 @@ impl Live {
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
 
+                if tx.is_closed() {
+                    // If the receiver is closed, we should stop processing messages.
+                    drop(response);
+                    break;
+                }
+
                 if let Some(ref content) = message.content {
                     if !content.is_empty() {
                         assistant_message_content.push_str(content.as_str());
