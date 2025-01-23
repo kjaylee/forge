@@ -41,7 +41,7 @@ impl Console {
         // Disable raw mode to prevent terminal issues
         #[cfg(not(test))]
         crossterm::terminal::disable_raw_mode().expect("Failed to enable raw mode");
-        
+
         let content = content.as_ref();
         let mut state = self.state.lock().unwrap();
         if content.is_empty() {
