@@ -74,10 +74,7 @@ pub(crate) mod tests {
             let temp_dir = TempDir::new().unwrap();
             let db_path = temp_dir.path().to_str().unwrap().to_string();
 
-            Ok(Self {
-                driver: Driver::new(&db_path, None)?,
-                _temp_dir: temp_dir,
-            })
+            Ok(Self { driver: Driver::new(&db_path, None)?, _temp_dir: temp_dir })
         }
 
         pub fn with_timeout(timeout: std::time::Duration) -> Result<Self> {
@@ -89,7 +86,7 @@ pub(crate) mod tests {
                 _temp_dir: temp_dir,
             })
         }
-        
+
         pub fn pool(&self) -> SQLConnection {
             self.driver.pool()
         }

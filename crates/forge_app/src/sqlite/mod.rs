@@ -16,9 +16,7 @@ struct Live {
 
 impl Live {
     fn new(db_path: &str, timeout: Option<std::time::Duration>) -> Result<Self> {
-        Ok(Self {
-            driver: driver::Driver::new(db_path, timeout)?,
-        })
+        Ok(Self { driver: driver::Driver::new(db_path, timeout)? })
     }
 }
 
@@ -36,7 +34,10 @@ impl Service {
     }
 
     /// Create a new SQLite pool service with custom timeout
-    pub fn db_pool_service_with_timeout(db_path: &str, timeout: std::time::Duration) -> Result<impl Sqlite> {
+    pub fn db_pool_service_with_timeout(
+        db_path: &str,
+        timeout: std::time::Duration,
+    ) -> Result<impl Sqlite> {
         Live::new(db_path, Some(timeout))
     }
 }
@@ -51,9 +52,7 @@ pub mod tests {
 
     impl TestSqlite {
         pub fn new() -> Result<Self> {
-            Ok(Self {
-                test_driver: driver::tests::TestDriver::new()?,
-            })
+            Ok(Self { test_driver: driver::tests::TestDriver::new()? })
         }
 
         pub fn with_timeout(timeout: std::time::Duration) -> Result<Self> {
