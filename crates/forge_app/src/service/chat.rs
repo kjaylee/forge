@@ -285,7 +285,27 @@ mod tests {
         system_prompt: String,
     }
 
+    struct Services {
+        chat: Live,
+        provider: Arc<TestProvider>,
+    }
+
     impl Fixture {
+        pub fn services(&self) -> Services {
+            let provider =
+                Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
+            let system_prompt = Arc::new(TestPrompt::new(self.system_prompt.clone()));
+            let tool = Arc::new(TestToolService::new(self.tools.clone()));
+            let user_prompt = Arc::new(TestPrompt::default());
+            let chat = Live::new(
+                provider.clone(),
+                system_prompt.clone(),
+                tool.clone(),
+                user_prompt.clone(),
+            );
+            Services { chat, provider }
+        }
+
         pub async fn run(&self, request: ChatRequest) -> TestResult {
             let provider =
                 Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
@@ -634,26 +654,22 @@ mod tests {
                 ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
             );
 
-        // svc creation
-        let provider = Arc::new(TestProvider::default().with_messages(mock_llm_responses));
-        let system_prompt_message = "Do everything that the user says";
-        let system_prompt = Arc::new(TestPrompt::new(system_prompt_message));
-        let tool = Arc::new(TestToolService::new(vec![json!({"a": 100, "b": 200})]));
-        let user_prompt = Arc::new(TestPrompt::default());
-        let chat = Live::new(
-            provider.clone(),
-            system_prompt.clone(),
-            tool.clone(),
-            user_prompt.clone(),
-        );
+        let services = Fixture::default()
+            .assistant_responses(mock_llm_responses.clone())
+            .tools(vec![json!({"a": 100, "b": 200})])
+            .services();
 
-        let mut stream = chat.chat(request, Context::default()).await.unwrap();
+        let mut stream = services
+            .chat
+            .chat(request, Context::default())
+            .await
+            .unwrap();
         while let Some(_) = stream.next().await {
             drop(stream);
             break;
         }
         tokio::time::advance(Duration::from_secs(35)).await;
         // we should consumed only one message from stream.
-        assert_eq!(provider.message(), total_messages - 1);
+        assert_eq!(services.provider.message(), total_messages - 1);
     }
 }
