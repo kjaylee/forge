@@ -285,7 +285,8 @@ mod tests {
         system_prompt: String,
     }
 
-    // This is a helper struct to hold the services required to run or validate tests
+    // This is a helper struct to hold the services required to run or validate
+    // tests
     struct Service {
         chat: Live,
         provider: Arc<TestProvider>,
