@@ -2,7 +2,9 @@ use anyhow::Result;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Nullable, Text, Timestamp};
-use forge_domain::{Context, Conversation, ConversationId, ConversationMeta};
+use forge_domain::{
+    Context, Conversation, ConversationId, ConversationMeta, ConversationRepository,
+};
 
 use crate::schema::conversations;
 use crate::service::Service;
@@ -41,23 +43,6 @@ impl TryFrom<RawConversation> for Conversation {
         })
     }
 }
-#[async_trait::async_trait]
-pub trait ConversationRepository: Send + Sync {
-    async fn set_conversation(
-        &self,
-        request: &Context,
-        id: Option<ConversationId>,
-    ) -> Result<Conversation>;
-    async fn get_conversation(&self, id: ConversationId) -> Result<Conversation>;
-    async fn list_conversations(&self) -> Result<Vec<Conversation>>;
-    async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation>;
-    async fn set_conversation_title(
-        &self,
-        id: &ConversationId,
-        title: String,
-    ) -> Result<Conversation>;
-}
-
 pub struct Live<P: Sqlite> {
     pool_service: P,
 }
@@ -178,8 +163,8 @@ pub mod tests {
     use super::*;
     use crate::sqlite::tests::TestSqlite;
 
-    pub struct TestStorage;
-    impl TestStorage {
+    pub struct TestConversationStorage;
+    impl TestConversationStorage {
         pub fn in_memory() -> Result<impl ConversationRepository> {
             let pool_service = TestSqlite::new()?;
             Ok(Live::new(pool_service))
@@ -187,7 +172,7 @@ pub mod tests {
     }
 
     async fn setup_storage() -> Result<impl ConversationRepository> {
-        TestStorage::in_memory()
+        TestConversationStorage::in_memory()
     }
 
     async fn create_conversation(

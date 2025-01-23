@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use forge_domain::{ChatRequest, ChatResponse, Context, ResultStream};
+use forge_domain::{ChatRequest, ChatResponse, Context, ConversationRepository, ResultStream};
 use tokio_stream::{once, StreamExt};
 use tracing::debug;
 
 use super::chat::ChatService;
 use super::workflow_title::TitleService;
-use crate::{ConversationRepository, Service};
+use crate::Service;
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {
@@ -111,7 +111,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::repo::tests::TestConversationStorage;
+    use crate::repo::test::TestConversationStorage;
 
     struct TestTitleService {
         events: Vec<ChatResponse>,

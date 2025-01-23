@@ -54,16 +54,27 @@ pub struct ConversationMeta {
 }
 
 #[async_trait]
-pub trait ConversationRepository {
+pub trait ConversationRepository: Send + Sync {
+    /// Set a new conversation or update an existing one
+    async fn set_conversation(
+        &self,
+        context: &Context,
+        id: Option<ConversationId>,
+    ) -> anyhow::Result<Conversation>;
+
     /// Get a conversation by its ID
-    async fn get_conversation(&self, id: ConversationId) -> anyhow::Result<Option<Conversation>>;
+    async fn get_conversation(&self, id: ConversationId) -> anyhow::Result<Conversation>;
 
-    /// Save a new conversation or update an existing one
-    async fn save_conversation(&self, conversation: &Conversation) -> anyhow::Result<()>;
-
-    /// List all conversations
+    /// List all active (non-archived) conversations
     async fn list_conversations(&self) -> anyhow::Result<Vec<Conversation>>;
 
-    /// Archive a conversation
-    async fn archive_conversation(&self, id: ConversationId) -> anyhow::Result<()>;
+    /// Archive a conversation and return the updated conversation
+    async fn archive_conversation(&self, id: ConversationId) -> anyhow::Result<Conversation>;
+
+    /// Set the title for a conversation
+    async fn set_conversation_title(
+        &self,
+        id: &ConversationId,
+        title: String,
+    ) -> anyhow::Result<Conversation>;
 }

@@ -3,15 +3,15 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Config, Context, Conversation, ConversationId, Environment, Model,
-    ProviderService, ResultStream, ToolDefinition, ToolService,
+    ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation, ConversationId,
+    ConversationRepository, Environment, Model, ProviderService, ResultStream, ToolDefinition,
+    ToolService,
 };
 
 use super::chat::ConversationHistory;
 use super::completion::CompletionService;
 use super::env::EnvironmentService;
 use super::{File, Service, UIService};
-use crate::{ConfigRepository, ConversationRepository};
 
 #[async_trait::async_trait]
 pub trait APIService: Send + Sync {
