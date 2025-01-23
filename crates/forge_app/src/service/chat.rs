@@ -285,13 +285,14 @@ mod tests {
         system_prompt: String,
     }
 
-    struct Services {
+    // This is a helper struct to hold the services required to run or validate tests
+    struct Service {
         chat: Live,
         provider: Arc<TestProvider>,
     }
 
     impl Fixture {
-        pub fn services(&self) -> Services {
+        pub fn services(&self) -> Service {
             let provider =
                 Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
             let system_prompt = Arc::new(TestPrompt::new(self.system_prompt.clone()));
@@ -303,7 +304,7 @@ mod tests {
                 tool.clone(),
                 user_prompt.clone(),
             );
-            Services { chat, provider }
+            Service { chat, provider }
         }
 
         pub async fn run(&self, request: ChatRequest) -> TestResult {
