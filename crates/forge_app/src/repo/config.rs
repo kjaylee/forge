@@ -58,33 +58,30 @@ impl<P: Sqlite> Live<P> {
 #[async_trait::async_trait]
 impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
     async fn get(&self) -> anyhow::Result<Config> {
-        let pool = self
+        let mut conn = self
             .pool_service
-            .pool()
+            .connection()
             .await
-            .context("Failed to get database pool")?;
-        let mut conn = pool
-            .get()
-            .context("Failed to get database connection from pool")?;
+            .with_context(|| format!("Failed to acquire database connection for retrieving latest configuration"))?;
 
         // get the max timestamp.
         let max_ts: Option<NaiveDateTime> = configuration_table::table
             .select(max(configuration_table::created_at))
-            .first(&mut conn)?;
+            .first(&mut conn)
+            .with_context(|| "Failed to retrieve configuration - no configurations found in database")?;
 
         // use the max timestamp to get the latest config.
         let result: ConfigEntity = configuration_table::table
             .filter(configuration_table::created_at.eq_any(max_ts))
             .limit(1)
-            .first(&mut conn)?;
+            .first(&mut conn)
+            .with_context(|| format!("Failed to retrieve configuration for timestamp: {:?}", max_ts))?;
 
         Ok(Config::try_from(result)?)
     }
 
     async fn set(&self, data: Config) -> anyhow::Result<Config> {
-        let pool: r2d2::Pool<diesel::r2d2::ConnectionManager<SqliteConnection>> =
-            self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+        let mut conn = self.pool_service.connection().await?;
         let now = Utc::now().naive_utc();
 
         let raw = ConfigEntity {

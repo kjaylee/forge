@@ -8,6 +8,15 @@ use crate::Service;
 #[async_trait::async_trait]
 pub trait Sqlite: Send + Sync {
     async fn pool(&self) -> Result<driver::SQLConnection>;
+    
+    /// Gets a connection from the pool. This is a convenience method to avoid
+    /// duplicate connection acquisition code across repositories.
+    async fn connection(&self) -> Result<diesel::r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::SqliteConnection>>> {
+        let pool = self.pool().await
+            .with_context(|| "Failed to get database pool")?;
+        pool.get()
+            .with_context(|| "Failed to acquire connection from pool - pool may be exhausted or database locked")
+    }
 }
 
 struct Live {
