@@ -231,6 +231,7 @@ mod tests {
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
+    use tokio::time::Duration;
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, ChatService, Live};
@@ -600,5 +601,59 @@ mod tests {
                 )),
         ];
         assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_should_drop_task_when_stream_is_dropped() {
+        tokio::time::pause();
+        let model_id = ModelId::new("gpt-5");
+        let mock_llm_responses = vec![
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Let's use foo tool")
+                    .add_tool_call(
+                        ToolCallPart::default()
+                            .name(ToolName::new("foo"))
+                            .arguments_part(r#"{"foo": 1,"#)
+                            .call_id(ToolCallId::new("too_call_001")),
+                    ),
+                ChatCompletionMessage::default()
+                    .content_part("")
+                    .add_tool_call(ToolCallPart::default().arguments_part(r#""bar": 2}"#)),
+                // IMPORTANT: the last message has an empty string in content
+                ChatCompletionMessage::default()
+                    .content_part("")
+                    .finish_reason(FinishReason::ToolCalls),
+            ],
+            vec![ChatCompletionMessage::default()
+                .content_part("Task is complete, let me know how can i help you!")],
+        ];
+        let total_messages = mock_llm_responses.len();
+        let request = ChatRequest::new(model_id.clone(), "Hello can you use foo tool?")
+            .conversation_id(
+                ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+            );
+
+        // svc creation
+        let provider = Arc::new(TestProvider::default().with_messages(mock_llm_responses));
+        let system_prompt_message = "Do everything that the user says";
+        let system_prompt = Arc::new(TestPrompt::new(system_prompt_message));
+        let tool = Arc::new(TestToolService::new(vec![json!({"a": 100, "b": 200})]));
+        let user_prompt = Arc::new(TestPrompt::default());
+        let chat = Live::new(
+            provider.clone(),
+            system_prompt.clone(),
+            tool.clone(),
+            user_prompt.clone(),
+        );
+
+        let mut stream = chat.chat(request, Context::default()).await.unwrap();
+        while let Some(_) = stream.next().await {
+            drop(stream);
+            break;
+        }
+        tokio::time::advance(Duration::from_secs(35)).await;
+        // we should consumed only one message from stream.
+        assert_eq!(provider.message(), total_messages - 1);
     }
 }
