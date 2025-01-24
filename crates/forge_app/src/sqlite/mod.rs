@@ -20,16 +20,8 @@ pub trait Sqlite: Send + Sync {
 }
 
 impl Service {
-    /// Create a new SQLite service with default timeout (30 seconds)
-    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite> {
-        Driver::new(db_path, None)
-    }
-
     /// Create a new SQLite service with custom timeout
-    pub fn db_pool_service_with_timeout(
-        db_path: &str,
-        timeout: std::time::Duration,
-    ) -> Result<impl Sqlite> {
+    pub fn db_pool_service(db_path: &str, timeout: std::time::Duration) -> Result<impl Sqlite> {
         Driver::new(db_path, Some(timeout))
     }
 }
