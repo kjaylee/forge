@@ -115,199 +115,62 @@ mod tests {
     fn test_multiple_calls() {
         let input = [
             ToolCallPart {
-                call_id: Some(ToolCallId("call_RQzWftugWpSHqHoh84JUCzhi".to_string())),
+                call_id: Some(ToolCallId("call_1".to_string())),
                 name: Some(ToolName::new("tool_forge_fs_read")),
-                arguments_part: "".to_string(),
+                arguments_part: "{\"path\": \"crates/forge_app/src/fixtures/mascot.md\"}"
+                    .to_string(),
             },
             ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "{\"pa".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "th\": ".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "\"crate".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "s/fo".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "rge_a".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "pp/src".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "/fix".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "tures".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "/masco".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "t.md".to_string(),
-            },
-            ToolCallPart { call_id: None, name: None, arguments_part: "\"}".to_string() },
-            ToolCallPart {
-                call_id: Some(ToolCallId("call_1DRCgHOhUh9LeVMYuxHVN7E5".to_string())),
+                call_id: Some(ToolCallId("call_2".to_string())),
                 name: Some(ToolName::new("tool_forge_fs_read")),
-                arguments_part: "".to_string(),
+                arguments_part: "{\"path\": \"docs/onboarding.md\"}".to_string(),
             },
             ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "{\"pa".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "th\": ".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "\"docs/".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "onbo".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "ardin".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "g.md\"}".to_string(),
-            },
-            ToolCallPart {
-                call_id: Some(ToolCallId("call_d2rwbxN4k8DqQ5zknqtxSS0Y".to_string())),
+                call_id: Some(ToolCallId("call_3".to_string())),
                 name: Some(ToolName::new("tool_forge_fs_read")),
-                arguments_part: "".to_string(),
+                arguments_part: "{\"path\": \"crates/forge_app/src/service/service.md\"}"
+                    .to_string(),
             },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "{\"pa".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "th\": ".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "\"crate".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "s/fo".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "rge_a".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "pp/src".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "/ser".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "vice/".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "servic".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "e.md".to_string(),
-            },
-            ToolCallPart { call_id: None, name: None, arguments_part: "\"}".to_string() },
         ];
 
-        let result = ToolCallFull::try_from_parts(&input).unwrap();
-        assert_eq!(result.len(), 3);
+        let actual = ToolCallFull::try_from_parts(&input).unwrap();
+
+        let exepected = vec![
+            ToolCallFull {
+                name: ToolName::new("tool_forge_fs_read"),
+                call_id: Some(ToolCallId("call_1".to_string())),
+                arguments: serde_json::json!({"path": "crates/forge_app/src/fixtures/mascot.md"}),
+            },
+            ToolCallFull {
+                name: ToolName::new("tool_forge_fs_read"),
+                call_id: Some(ToolCallId("call_2".to_string())),
+                arguments: serde_json::json!({"path": "docs/onboarding.md"}),
+            },
+            ToolCallFull {
+                name: ToolName::new("tool_forge_fs_read"),
+                call_id: Some(ToolCallId("call_3".to_string())),
+                arguments: serde_json::json!({"path": "crates/forge_app/src/service/service.md"}),
+            },
+        ];
+
+        assert_eq!(actual, exepected);
     }
 
     #[test]
     fn test_single_tool_call() {
-        let input = [
-            ToolCallPart {
-                call_id: Some(ToolCallId("call_1DRCgHOhUh9LeVMYuxHVN7E5".to_string())),
-                name: Some(ToolName::new("tool_forge_fs_read")),
-                arguments_part: "".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "{\"pa".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "th\": ".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "\"docs/".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "onbo".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "ardin".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "g.md\"}".to_string(),
-            },
-        ];
+        let input = [ToolCallPart {
+            call_id: Some(ToolCallId("call_1".to_string())),
+            name: Some(ToolName::new("tool_forge_fs_read")),
+            arguments_part: "{\"path\": \"docs/onboarding.md\"}".to_string(),
+        }];
 
-        let result = ToolCallFull::try_from_parts(&input).unwrap();
-        assert_eq!(result.len(), 1);
+        let actual = ToolCallFull::try_from_parts(&input).unwrap();
+        let expected = vec![ToolCallFull {
+            call_id: Some(ToolCallId("call_1".to_string())),
+            name: ToolName::new("tool_forge_fs_read"),
+            arguments: serde_json::json!({"path": "docs/onboarding.md"}),
+        }];
+
+        assert_eq!(actual, expected);
     }
 }
