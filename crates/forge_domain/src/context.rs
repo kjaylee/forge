@@ -34,11 +34,11 @@ impl ContextMessage {
         .into()
     }
 
-    pub fn assistant(content: impl ToString, tool_call: Option<Vec<ToolCallFull>>) -> Self {
+    pub fn assistant(content: impl ToString, tool_calls: Option<Vec<ToolCallFull>>) -> Self {
         ContentMessage {
             role: Role::Assistant,
             content: content.to_string(),
-            tool_calls: tool_call,
+            tool_calls,
         }
         .into()
     }
