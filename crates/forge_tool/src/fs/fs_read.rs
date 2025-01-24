@@ -33,7 +33,10 @@ impl ToolCallService for FSRead {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);
         if !path.is_absolute() {
-            return Err(format!("Path '{}' is not absolute, absolute path is required.", input.path));
+            return Err(format!(
+                "Path '{}' is not absolute, absolute path is required.",
+                input.path
+            ));
         }
         let content = tokio::fs::read_to_string(path)
             .await
