@@ -241,7 +241,7 @@ mod tests {
     #[tokio::test]
     async fn test_find_cat_name() -> Result<()> {
         let errors = Fixture::new(
-            "There is a cat hidden in the codebase. What is its name? hint: use shell the command.",
+            "There is a cat hidden in the codebase. What is its name? hint: it's present in rs files only.",
         )
         .test_models(|response| response.to_lowercase().contains("juniper"))
         .await;
