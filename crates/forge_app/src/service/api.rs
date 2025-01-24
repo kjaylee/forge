@@ -154,7 +154,7 @@ mod tests {
 
     use super::*;
 
-    const MAX_RETRIES: usize = 1;
+    const MAX_RETRIES: usize = 3;
     const SUPPORTED_MODELS: &[&str] = &[
         "anthropic/claude-3.5-sonnet:beta",
         "openai/gpt-4o-2024-11-20",
