@@ -163,7 +163,7 @@ impl Live {
                 request = request.extend_messages(
                     tool_call_results
                         .into_iter()
-                        .map(|result| ContextMessage::ToolMessage(result))
+                        .map(ContextMessage::ToolMessage)
                         .collect(),
                 );
                 tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
