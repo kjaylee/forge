@@ -13,18 +13,14 @@ pub(crate) struct ConnectionOptions {
 
 impl ConnectionOptions {
     pub fn new(busy_timeout: Duration, max_connections: u32, connection_timeout: Duration) -> Self {
-        Self {
-            busy_timeout,
-            max_connections,
-            connection_timeout,
-        }
+        Self { busy_timeout, max_connections, connection_timeout }
     }
 
     pub fn default() -> Self {
         Self::new(
-            Duration::from_secs(30),  // busy timeout
-            5,                        // max connections
-            Duration::from_secs(30),  // connection timeout
+            Duration::from_secs(30), // busy timeout
+            5,                       // max connections
+            Duration::from_secs(30), // connection timeout
         )
     }
 }
