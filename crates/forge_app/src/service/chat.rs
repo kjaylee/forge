@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
-    ResultStream, Role, ToolCall, ToolCallFull, ToolService,
+    ResultStream, Role, ToolCall, ToolCallFull, ToolResult, ToolService,
 };
 use serde::Serialize;
 use tokio_stream::wrappers::ReceiverStream;
@@ -37,6 +37,12 @@ struct Live {
     system_prompt: Arc<dyn PromptService>,
     tool: Arc<dyn ToolService>,
     user_prompt: Arc<dyn PromptService>,
+}
+
+/// mapping of tool call request to it's result.
+struct ToolCallMap {
+    request: ToolCallFull,
+    response: ToolResult,
 }
 
 impl Live {
@@ -103,15 +109,19 @@ impl Live {
                 }
 
                 if let Some(FinishReason::ToolCalls) = message.finish_reason {
-                    // TODO: drop clone from here.
                     let tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)?;
+                    tool_call_map.reserve_exact(tool_calls.len());
 
-                    for tool_call in tool_calls.into_iter() {
+                    // TODO: execute these tool calls in parallel.
+                    for tool_call in tool_calls {
                         tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
                             .await
                             .unwrap();
                         let tool_result = self.tool.call(tool_call.clone()).await;
-                        tool_call_map.push((tool_call, tool_result.clone()));
+                        tool_call_map.push(ToolCallMap {
+                            request: tool_call,
+                            response: tool_result.clone(),
+                        });
                         // send the tool use end message.
                         tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
                             .await
@@ -132,26 +142,27 @@ impl Live {
                 }
             }
 
-            let tool_calls = tool_call_map
-                .clone()
-                .into_iter()
-                .map(|t| t.0)
+            let tool_call_requests = tool_call_map
+                .iter()
+                .map(|t| t.request.clone())
                 .collect::<Vec<_>>();
             request = request.add_message(ContextMessage::assistant(
                 assistant_message_content.clone(),
-                Some(tool_calls),
+                Some(tool_call_requests),
             ));
 
             tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
                 .await
                 .unwrap();
 
-            let tool_call_results = tool_call_map.into_iter().map(|t| t.1).collect::<Vec<_>>();
-
+            let tool_call_results = tool_call_map.into_iter().map(|t| t.response).collect::<Vec<_>>();
             if !tool_call_results.is_empty() {
-                for tool_result in tool_call_results {
-                    request = request.add_message(ContextMessage::ToolMessage(tool_result));
-                }
+                request = request.extend_messages(
+                    tool_call_results
+                        .into_iter()
+                        .map(|result| ContextMessage::ToolMessage(result))
+                        .collect(),
+                );
                 tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
                     .await
                     .unwrap();
