@@ -20,7 +20,7 @@ pub(crate) struct Driver {
 }
 
 impl Driver {
-    pub fn new(db_path: &str, timeout: Option<std::time::Duration>) -> Result<Self> {
+    pub fn new(db_path: &str) -> Result<Self> {
         let db_path = format!("{}/{}", db_path, DB_NAME);
 
         // Run migrations first
@@ -38,12 +38,9 @@ impl Driver {
 
         drop(conn);
 
-        // Create connection pool
-        let manager = ConnectionManager::<SqliteConnection>::new(db_path);
-        let options = match timeout {
-            Some(timeout) => ConnectionOptions::new(timeout, 5, timeout),
-            None => ConnectionOptions::default(),
-        };
+        // Create connection pool with default options
+        let manager = ConnectionManager::new(db_path);
+        let options = ConnectionOptions::default();
 
         let pool = Pool::builder()
             .connection_customizer(Box::new(options.clone()))
@@ -83,17 +80,7 @@ pub(crate) mod tests {
             let temp_dir = TempDir::new().unwrap();
             let db_path = temp_dir.path().to_str().unwrap().to_string();
 
-            Ok(Self { driver: Driver::new(&db_path, None)?, _temp_dir: temp_dir })
-        }
-
-        pub fn with_timeout(timeout: std::time::Duration) -> Result<Self> {
-            let temp_dir = TempDir::new().unwrap();
-            let db_path = temp_dir.path().to_str().unwrap().to_string();
-
-            Ok(Self {
-                driver: Driver::new(&db_path, Some(timeout))?,
-                _temp_dir: temp_dir,
-            })
+            Ok(Self { driver: Driver::new(&db_path)?, _temp_dir: temp_dir })
         }
     }
 
@@ -107,16 +94,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    async fn test_connection_with_custom_timeout() -> Result<()> {
-        let sqlite = TestDriver::with_timeout(std::time::Duration::from_secs(60))?;
-        let mut conn = sqlite.connection().await?;
-        // Verify we can execute a simple query
-        diesel::sql_query("SELECT 1").execute(&mut conn)?;
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_connection_with_default_timeout() -> Result<()> {
+    async fn test_connection() -> Result<()> {
         let sqlite = TestDriver::new()?;
         let mut conn = sqlite.connection().await?;
         // Verify we can execute a simple query
