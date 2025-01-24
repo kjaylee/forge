@@ -60,24 +60,29 @@ impl Live {
 #[async_trait::async_trait]
 impl ConfigRepository for Live {
     async fn get(&self) -> anyhow::Result<Config> {
-        let mut conn = self
-            .pool_service
-            .connection()
-            .await
-            .with_context(|| format!("Failed to acquire database connection for retrieving latest configuration"))?;
+        let mut conn = self.pool_service.connection().await.with_context(|| {
+            "Failed to acquire database connection for retrieving latest configuration".to_string()
+        })?;
 
         // get the max timestamp.
         let max_ts: Option<NaiveDateTime> = configuration_table::table
             .select(max(configuration_table::created_at))
             .first(&mut conn)
-            .with_context(|| "Failed to retrieve configuration - no configurations found in database")?;
+            .with_context(|| {
+                "Failed to retrieve configuration - no configurations found in database"
+            })?;
 
         // use the max timestamp to get the latest config.
         let result: ConfigEntity = configuration_table::table
             .filter(configuration_table::created_at.eq_any(max_ts))
             .limit(1)
             .first(&mut conn)
-            .with_context(|| format!("Failed to retrieve configuration for timestamp: {:?}", max_ts))?;
+            .with_context(|| {
+                format!(
+                    "Failed to retrieve configuration for timestamp: {:?}",
+                    max_ts
+                )
+            })?;
 
         Ok(Config::try_from(result)?)
     }

@@ -64,7 +64,7 @@ impl Live {
 impl ConversationRepository for Live {
     async fn insert(&self, request: &Context, id: Option<ConversationId>) -> Result<Conversation> {
         let mut conn = self.pool_service.connection().await.with_context(|| {
-            format!("Failed to acquire database connection for conversation operation")
+            "Failed to acquire database connection for conversation operation".to_string()
         })?;
         let id = id.unwrap_or_else(ConversationId::generate);
 

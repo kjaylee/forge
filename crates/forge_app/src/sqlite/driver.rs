@@ -57,8 +57,9 @@ impl Driver {
 #[async_trait::async_trait]
 impl Sqlite for Driver {
     async fn connection(&self) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
-        self.pool.get()
-            .with_context(|| "Failed to acquire connection from pool - pool may be exhausted or database locked")
+        self.pool.get().with_context(|| {
+            "Failed to acquire connection from pool - pool may be exhausted or database locked"
+        })
     }
 }
 
@@ -96,7 +97,9 @@ pub(crate) mod tests {
 
     #[async_trait::async_trait]
     impl Sqlite for TestDriver {
-        async fn connection(&self) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
+        async fn connection(
+            &self,
+        ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
             self.driver.connection().await
         }
     }
@@ -122,14 +125,14 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn test_multiple_connections() -> Result<()> {
         let sqlite = TestDriver::new()?;
-        
+
         // Get two connections and verify they both work
         let mut conn1 = sqlite.connection().await?;
         let mut conn2 = sqlite.connection().await?;
-        
+
         diesel::sql_query("SELECT 1").execute(&mut conn1)?;
         diesel::sql_query("SELECT 1").execute(&mut conn2)?;
-        
+
         Ok(())
     }
 }

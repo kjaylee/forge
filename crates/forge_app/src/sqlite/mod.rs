@@ -4,12 +4,11 @@ pub(crate) mod driver;
 use anyhow::Result;
 use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::sqlite::SqliteConnection;
-
-use crate::Service;
-pub(crate) use driver::Driver;
-
 #[cfg(test)]
 pub(crate) use driver::tests::TestDriver;
+pub(crate) use driver::Driver;
+
+use crate::Service;
 
 /// Sqlite provides database access functionality.
 /// It abstracts away the connection pooling details and
