@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Context;
 use chrono::{NaiveDateTime, Utc};
 use diesel::dsl::max;
@@ -45,18 +47,18 @@ impl TryFrom<ConfigEntity> for Config {
     }
 }
 
-pub struct Live<P> {
-    pool_service: P,
+pub struct Live {
+    pool_service: Arc<dyn Sqlite>,
 }
 
-impl<P: Sqlite> Live<P> {
-    pub fn new(pool_service: P) -> Self {
+impl Live {
+    pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
         Self { pool_service }
     }
 }
 
 #[async_trait::async_trait]
-impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
+impl ConfigRepository for Live {
     async fn get(&self) -> anyhow::Result<Config> {
         let mut conn = self
             .pool_service
@@ -100,8 +102,8 @@ impl<P: Sqlite + Send + Sync> ConfigRepository for Live<P> {
 }
 
 impl Service {
-    pub fn config_service(database_url: &str) -> anyhow::Result<impl ConfigRepository> {
-        Ok(Live::new(Service::db_pool_service(database_url)?))
+    pub fn config_repo(sql: Arc<dyn Sqlite>) -> impl ConfigRepository {
+        Live::new(sql)
     }
 }
 
@@ -116,7 +118,7 @@ pub mod tests {
 
     impl TestConfigStorage {
         pub fn in_memory() -> anyhow::Result<impl ConfigRepository> {
-            let pool_service = TestDriver::new()?;
+            let pool_service = Arc::new(TestDriver::new()?);
             Ok(Live::new(pool_service))
         }
     }

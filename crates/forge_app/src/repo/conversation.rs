@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{Context as _, Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
@@ -48,24 +50,22 @@ impl TryFrom<ConversationEntity> for Conversation {
         })
     }
 }
-pub struct Live<P: Sqlite> {
-    pool_service: P,
+pub struct Live {
+    pool_service: Arc<dyn Sqlite>,
 }
 
-impl<P: Sqlite> Live<P> {
-    pub fn new(pool_service: P) -> Self {
+impl Live {
+    pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
         Self { pool_service }
     }
 }
 
 #[async_trait::async_trait]
-impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
+impl ConversationRepository for Live {
     async fn insert(&self, request: &Context, id: Option<ConversationId>) -> Result<Conversation> {
-        let mut conn = self
-            .pool_service
-            .connection()
-            .await
-            .with_context(|| format!("Failed to acquire database connection for conversation operation"))?;
+        let mut conn = self.pool_service.connection().await.with_context(|| {
+            format!("Failed to acquire database connection for conversation operation")
+        })?;
         let id = id.unwrap_or_else(ConversationId::generate);
 
         let raw = ConversationEntity {
@@ -86,7 +86,12 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
                 conversations::updated_at.eq(&raw.updated_at),
             ))
             .execute(&mut conn)
-            .with_context(|| format!("Failed to save conversation with id: {} - database insert/update failed", id))?;
+            .with_context(|| {
+                format!(
+                    "Failed to save conversation with id: {} - database insert/update failed",
+                    id
+                )
+            })?;
 
         let raw: ConversationEntity = conversations::table
             .find(id.into_string())
@@ -130,7 +135,12 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
         let raw: ConversationEntity = conversations::table
             .find(id.into_string())
             .first(&mut conn)
-            .with_context(|| format!("Failed to retrieve conversation after archiving - id: {}", id))?;
+            .with_context(|| {
+                format!(
+                    "Failed to retrieve conversation after archiving - id: {}",
+                    id
+                )
+            })?;
 
         Ok(Conversation::try_from(raw)?)
     }
@@ -146,16 +156,20 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
         let raw: ConversationEntity = conversations::table
             .find(id.into_string())
             .first(&mut conn)
-            .with_context(|| format!("Failed to retrieve conversation after setting title - id: {}", id))?;
+            .with_context(|| {
+                format!(
+                    "Failed to retrieve conversation after setting title - id: {}",
+                    id
+                )
+            })?;
 
         Ok(raw.try_into()?)
     }
 }
 
 impl Service {
-    pub fn storage_service(database_url: &str) -> Result<impl ConversationRepository> {
-        let pool_service = Service::db_pool_service(database_url)?;
-        Ok(Live::new(pool_service))
+    pub fn conversation_repo(sql: Arc<dyn Sqlite>) -> impl ConversationRepository {
+        Live::new(sql)
     }
 }
 
@@ -169,7 +183,7 @@ pub mod tests {
     pub struct TestConversationStorage;
     impl TestConversationStorage {
         pub fn in_memory() -> Result<impl ConversationRepository> {
-            let pool_service = TestDriver::new()?;
+            let pool_service = Arc::new(TestDriver::new()?);
             Ok(Live::new(pool_service))
         }
     }
