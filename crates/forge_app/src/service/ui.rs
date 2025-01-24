@@ -61,7 +61,7 @@ impl UIService for Live {
             .chat(request.clone(), conversation.context)
             .await?;
 
-        if is_new {
+        if is_new && false {
             let title_stream = self.title_service.get_title(request.clone()).await?;
             let id = conversation.id;
             stream = Box::pin(

@@ -9,8 +9,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSListInput {
-    /// The path of the directory to list contents for (relative to the current
-    /// working directory)
+    /// The path of the directory to list contents for. Always provide the absolute path.
     pub path: String,
     /// Whether to list files recursively. Use true for recursive listing, false
     /// or omit for top-level only.

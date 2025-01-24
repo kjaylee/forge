@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReadInput {
-    /// The path of the file to read (relative to the current working directory)
+    /// The path of the file to read, always provide the absolute path.
     pub path: String,
 }
 

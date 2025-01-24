@@ -9,8 +9,7 @@ use crate::syn;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
-    /// The path of the file to write to (relative to the current working
-    /// directory)
+    /// The path of the file to write to, always provide the absolute path.
     pub path: String,
     /// The content to write to the file. ALWAYS provide the COMPLETE intended
     /// content of the file, without any truncation or omissions. You MUST
