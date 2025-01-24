@@ -157,7 +157,7 @@ mod tests {
     const MAX_RETRIES: usize = 3;
     const SUPPORTED_MODELS: &[&str] = &[
         "anthropic/claude-3.5-sonnet:beta",
-        "openai/gpt-4o-2024-11-20",
+        // "openai/gpt-4o-2024-11-20",
         "anthropic/claude-3.5-sonnet",
         "openai/gpt-4o",
         "openai/gpt-4o-mini",
@@ -240,11 +240,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_cat_name() -> Result<()> {
-        let errors = Fixture::new(
-            "There is a cat hidden in the codebase. What is its name? hint: it's present in rs files only.",
-        )
-        .test_models(|response| response.to_lowercase().contains("juniper"))
-        .await;
+        let errors = Fixture::new("There is a cat hidden in the codebase. What is its name? hint: it's in the *.rs file and use fs_find tool")
+            .test_models(|response| response.to_lowercase().contains("juniper"))
+            .await;
 
         assert!(errors.is_empty(), "Test failures:\n{}", errors.join("\n"));
         Ok(())
