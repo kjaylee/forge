@@ -156,13 +156,13 @@ mod tests {
 
     const MAX_RETRIES: usize = 1;
     const SUPPORTED_MODELS: &[&str] = &[
-        // "anthropic/claude-3.5-sonnet:beta",
+        "anthropic/claude-3.5-sonnet:beta",
         "openai/gpt-4o-2024-11-20",
-        // "anthropic/claude-3.5-sonnet",
-        // "openai/gpt-4o",
-        // "openai/gpt-4o-mini",
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-4o",
+        "openai/gpt-4o-mini",
         // "google/gemini-flash-1.5",
-        // "anthropic/claude-3-sonnet",
+        "anthropic/claude-3-sonnet",
     ];
 
     /// Test fixture for API testing that supports parallel model validation
