@@ -1,13 +1,14 @@
 use anyhow::{Context, Result};
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use tracing::debug;
 
 use super::conn::ConnectionOptions;
+use super::Sqlite;
 
-pub(crate) type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
+type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
 
 const DB_NAME: &str = ".forge.db";
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
@@ -51,9 +52,13 @@ impl Driver {
 
         Ok(Driver { pool })
     }
+}
 
-    pub fn pool(&self) -> SQLConnection {
-        self.pool.clone()
+#[async_trait::async_trait]
+impl Sqlite for Driver {
+    async fn connection(&self) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
+        self.pool.get()
+            .with_context(|| "Failed to acquire connection from pool - pool may be exhausted or database locked")
     }
 }
 
@@ -63,6 +68,7 @@ pub(crate) mod tests {
 
     use super::*;
 
+    /// Test driver that handles temporary database creation and cleanup
     pub struct TestDriver {
         driver: Driver,
         // Keep TempDir alive for the duration of the test
@@ -86,17 +92,44 @@ pub(crate) mod tests {
                 _temp_dir: temp_dir,
             })
         }
+    }
 
-        pub fn pool(&self) -> SQLConnection {
-            self.driver.pool()
+    #[async_trait::async_trait]
+    impl Sqlite for TestDriver {
+        async fn connection(&self) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
+            self.driver.connection().await
         }
     }
 
     #[tokio::test]
-    async fn test_custom_timeout() -> Result<()> {
-        let driver = TestDriver::with_timeout(std::time::Duration::from_secs(60))?;
-        let pool = driver.pool();
-        assert!(pool.get().is_ok());
+    async fn test_connection_with_custom_timeout() -> Result<()> {
+        let sqlite = TestDriver::with_timeout(std::time::Duration::from_secs(60))?;
+        let mut conn = sqlite.connection().await?;
+        // Verify we can execute a simple query
+        diesel::sql_query("SELECT 1").execute(&mut conn)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_connection_with_default_timeout() -> Result<()> {
+        let sqlite = TestDriver::new()?;
+        let mut conn = sqlite.connection().await?;
+        // Verify we can execute a simple query
+        diesel::sql_query("SELECT 1").execute(&mut conn)?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_multiple_connections() -> Result<()> {
+        let sqlite = TestDriver::new()?;
+        
+        // Get two connections and verify they both work
+        let mut conn1 = sqlite.connection().await?;
+        let mut conn2 = sqlite.connection().await?;
+        
+        diesel::sql_query("SELECT 1").execute(&mut conn1)?;
+        diesel::sql_query("SELECT 1").execute(&mut conn2)?;
+        
         Ok(())
     }
 }

@@ -110,13 +110,13 @@ pub mod tests {
     use forge_domain::{ApiKey, ModelConfig, ModelId, Permissions, ProviderId};
 
     use super::*;
-    use crate::sqlite::tests::TestSqlite;
+    use crate::sqlite::TestDriver;
 
     pub struct TestConfigStorage;
 
     impl TestConfigStorage {
         pub fn in_memory() -> anyhow::Result<impl ConfigRepository> {
-            let pool_service = TestSqlite::new()?;
+            let pool_service = TestDriver::new()?;
             Ok(Live::new(pool_service))
         }
     }

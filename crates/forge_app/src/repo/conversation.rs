@@ -161,16 +161,15 @@ impl Service {
 
 #[cfg(test)]
 pub mod tests {
-
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::sqlite::tests::TestSqlite;
+    use crate::sqlite::TestDriver;
 
     pub struct TestConversationStorage;
     impl TestConversationStorage {
         pub fn in_memory() -> Result<impl ConversationRepository> {
-            let pool_service = TestSqlite::new()?;
+            let pool_service = TestDriver::new()?;
             Ok(Live::new(pool_service))
         }
     }
