@@ -11,8 +11,7 @@ use serde::Deserialize;
 #[derive(Deserialize, JsonSchema)]
 pub struct FSSearchInput {
     /// The path of the directory to search in (relative to the current working
-    /// directory). This directory will be recursively searched. always provide
-    /// absolute path.
+    /// directory). This directory will be recursively searched.
     pub path: String,
     /// The regular expression pattern to search for. Uses Rust regex syntax.
     pub regex: String,
