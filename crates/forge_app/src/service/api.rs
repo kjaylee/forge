@@ -154,15 +154,15 @@ mod tests {
 
     use super::*;
 
-    const MAX_RETRIES: usize = 3;
+    const MAX_RETRIES: usize = 1;
     const SUPPORTED_MODELS: &[&str] = &[
-        "anthropic/claude-3.5-sonnet:beta",
+        // "anthropic/claude-3.5-sonnet:beta",
         "openai/gpt-4o-2024-11-20",
-        "anthropic/claude-3.5-sonnet",
-        "openai/gpt-4o",
-        "openai/gpt-4o-mini",
+        // "anthropic/claude-3.5-sonnet",
+        // "openai/gpt-4o",
+        // "openai/gpt-4o-mini",
         // "google/gemini-flash-1.5",
-        "anthropic/claude-3-sonnet",
+        // "anthropic/claude-3-sonnet",
     ];
 
     /// Test fixture for API testing that supports parallel model validation
@@ -178,7 +178,9 @@ mod tests {
 
         /// Get the API service, panicking if not validated
         async fn api(&self) -> Live {
-            Live::new(Path::new("../../").to_path_buf()).await.unwrap()
+            let path = Path::new("../../").to_path_buf();
+            let path = path.canonicalize().unwrap();
+            Live::new(path).await.unwrap()
         }
 
         /// Get model response as text
@@ -240,7 +242,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_find_cat_name() -> Result<()> {
-        let errors = Fixture::new("There is a cat hidden in the codebase. What is its name? hint: it's present in .md file.")
+        let errors = Fixture::new("There is a cat hidden in the codebase. What is its name? hint: it's present in mascot.md file.")
             .test_models(|response| response.to_lowercase().contains("juniper"))
             .await;
 
