@@ -41,13 +41,15 @@ impl Driver {
         // Create connection pool
         let manager = ConnectionManager::<SqliteConnection>::new(db_path);
         let options = match timeout {
-            Some(timeout) => ConnectionOptions::new(timeout),
+            Some(timeout) => ConnectionOptions::new(timeout, 5, timeout),
             None => ConnectionOptions::default(),
         };
 
         let pool = Pool::builder()
-            .connection_customizer(Box::new(options))
-            .max_size(1) // SQLite works better with a single connection
+            .connection_customizer(Box::new(options.clone()))
+            .max_size(options.max_connections)
+            .connection_timeout(options.connection_timeout)
+            .test_on_check_out(true)
             .build(manager)?;
 
         Ok(Driver { pool })
