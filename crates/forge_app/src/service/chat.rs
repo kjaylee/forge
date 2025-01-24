@@ -40,7 +40,7 @@ struct Live {
 }
 
 /// mapping of tool call request to it's result.
-struct ToolCallMap {
+struct ToolCallEntry {
     request: ToolCallFull,
     response: ToolResult,
 }
@@ -66,7 +66,7 @@ impl Live {
             let mut tool_call_parts = Vec::new();
             let mut assistant_message_content = String::new();
 
-            let mut tool_call_map = Vec::new();
+            let mut tool_call_entry = Vec::new();
 
             let mut response = self.provider.chat(&chat.model, request.clone()).await?;
 
@@ -110,7 +110,7 @@ impl Live {
 
                 if let Some(FinishReason::ToolCalls) = message.finish_reason {
                     let tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)?;
-                    tool_call_map.reserve_exact(tool_calls.len());
+                    tool_call_entry.reserve_exact(tool_calls.len());
 
                     // TODO: execute these tool calls in parallel.
                     for tool_call in tool_calls {
@@ -118,7 +118,7 @@ impl Live {
                             .await
                             .unwrap();
                         let tool_result = self.tool.call(tool_call.clone()).await;
-                        tool_call_map.push(ToolCallMap {
+                        tool_call_entry.push(ToolCallEntry {
                             request: tool_call,
                             response: tool_result.clone(),
                         });
@@ -142,7 +142,7 @@ impl Live {
                 }
             }
 
-            let tool_call_requests = tool_call_map
+            let tool_call_requests = tool_call_entry
                 .iter()
                 .map(|t| t.request.clone())
                 .collect::<Vec<_>>();
@@ -155,7 +155,7 @@ impl Live {
                 .await
                 .unwrap();
 
-            let tool_call_results = tool_call_map.into_iter().map(|t| t.response).collect::<Vec<_>>();
+            let tool_call_results = tool_call_entry.into_iter().map(|t| t.response).collect::<Vec<_>>();
             if !tool_call_results.is_empty() {
                 request = request.extend_messages(
                     tool_call_results
