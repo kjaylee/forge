@@ -17,7 +17,7 @@ where
             if let Some(FinishReason::ToolCalls) = &message.finish_reason {
                 let tool_call = ToolCallFull::try_from_parts(parts)?;
                 return Ok(Some(
-                    ChatCompletionMessage::default().add_tool_call(tool_call.clone()),
+                    ChatCompletionMessage::default().add_tool_call(tool_call[0].clone()),
                 ));
             }
             Ok(None)

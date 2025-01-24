@@ -52,29 +52,50 @@ impl ToolCallFull {
     pub fn new(tool_name: ToolName) -> Self {
         Self { name: tool_name, call_id: None, arguments: Value::default() }
     }
-    pub fn try_from_parts(parts: &[ToolCallPart]) -> Result<Self> {
-        let mut tool_name = None;
+
+    pub fn try_from_parts(parts: &[ToolCallPart]) -> Result<Vec<Self>> {
+        let mut tool_name: Option<&ToolName> = None;
         let mut tool_call_id = None;
+
+        let mut tool_calls = Vec::new();
 
         let mut input = String::new();
         for part in parts.iter() {
-            if let Some(value) = &part.name {
-                tool_name = Some(value);
+            if let Some(value) = &part.call_id {
+                if let Some(tool_name) = tool_name {
+                    if !input.is_empty() {
+                        tool_calls.push(ToolCallFull {
+                            name: tool_name.clone(),
+                            call_id: tool_call_id,
+                            arguments: serde_json::from_str(&input)
+                                .map_err(Error::ToolCallArgument)?,
+                        });
+                        input.clear();
+                    }
+                }
+                tool_call_id = Some(value.clone());
             }
 
-            if let Some(value) = &part.call_id {
-                tool_call_id = Some(value);
+            if let Some(value) = &part.name {
+                tool_name = Some(value);
             }
 
             input.push_str(&part.arguments_part);
         }
 
-        if let Some(tool_name) = tool_name {
-            Ok(ToolCallFull {
-                name: tool_name.clone(),
-                call_id: tool_call_id.cloned(),
-                arguments: serde_json::from_str(&input).map_err(Error::ToolCallArgument)?,
-            })
+        if !input.is_empty() {
+            if let Some(tool_name) = tool_name {
+                tool_calls.push(ToolCallFull {
+                    name: tool_name.clone(),
+                    call_id: tool_call_id,
+                    arguments: serde_json::from_str(&input).map_err(Error::ToolCallArgument)?,
+                });
+                input.clear();
+            }
+        }
+
+        if !tool_calls.is_empty() {
+            Ok(tool_calls)
         } else {
             Err(Error::ToolCallMissingName)
         }
@@ -83,5 +104,268 @@ impl ToolCallFull {
     /// Parse multiple tool calls from XML format.
     pub fn try_from_xml(input: &str) -> std::result::Result<Vec<Self>, String> {
         parse(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_multiple_calls() {
+        let input = [
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_RQzWftugWpSHqHoh84JUCzhi".to_string())),
+                name: Some(ToolName::new("tool_forge_fs_read")),
+                arguments_part: "".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "{\"pa".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "th\": ".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "\"crate".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "s/fo".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "rge_a".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "pp/src".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "/fix".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "tures".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "/masco".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "t.md".to_string(),
+            },
+            ToolCallPart { call_id: None, name: None, arguments_part: "\"}".to_string() },
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_1DRCgHOhUh9LeVMYuxHVN7E5".to_string())),
+                name: Some(ToolName::new("tool_forge_fs_read")),
+                arguments_part: "".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "{\"pa".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "th\": ".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "\"docs/".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "onbo".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "ardin".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "g.md\"}".to_string(),
+            },
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_d2rwbxN4k8DqQ5zknqtxSS0Y".to_string())),
+                name: Some(ToolName::new("tool_forge_fs_read")),
+                arguments_part: "".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "{\"pa".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "th\": ".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "\"crate".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "s/fo".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "rge_a".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "pp/src".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "/ser".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "vice/".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "servic".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "e.md".to_string(),
+            },
+            ToolCallPart { call_id: None, name: None, arguments_part: "\"}".to_string() },
+        ];
+
+        let result = ToolCallFull::try_from_parts(&input).unwrap();
+        println!("{:#?}", result);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_single_tool_call() {
+        let input = [
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_RQzWftugWpSHqHoh84JUCzhi".to_string())),
+                name: Some(ToolName::new("tool_forge_fs_read")),
+                arguments_part: "".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "{\"pa".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "th\": ".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "\"crate".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "s/fo".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "rge_a".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "pp/src".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "/fix".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "tures".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "/masco".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "t.md".to_string(),
+            },
+            ToolCallPart { call_id: None, name: None, arguments_part: "\"}".to_string() },
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_1DRCgHOhUh9LeVMYuxHVN7E5".to_string())),
+                name: Some(ToolName::new("tool_forge_fs_read")),
+                arguments_part: "".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "{\"pa".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "th\": ".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "\"docs/".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "onbo".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "ardin".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "g.md\"}".to_string(),
+            },
+        ];
+
+        let result = ToolCallFull::try_from_parts(&input).unwrap();
+        println!("{:#?}", result);
+        assert_eq!(result.len(), 1);
     }
 }

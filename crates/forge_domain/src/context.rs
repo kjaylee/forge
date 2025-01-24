@@ -34,7 +34,7 @@ impl ContextMessage {
         .into()
     }
 
-    pub fn assistant(content: impl ToString, tool_call: Option<ToolCallFull>) -> Self {
+    pub fn assistant(content: impl ToString, tool_call: Option<Vec<ToolCallFull>>) -> Self {
         ContentMessage {
             role: Role::Assistant,
             content: content.to_string(),
@@ -58,7 +58,7 @@ pub struct ContentMessage {
     pub content: String,
 
     // FIXME: Message could contain multiple tool calls
-    pub tool_call: Option<ToolCallFull>,
+    pub tool_call: Option<Vec<ToolCallFull>>,
 }
 
 impl ContentMessage {
