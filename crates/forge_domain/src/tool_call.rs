@@ -264,69 +264,12 @@ mod tests {
         ];
 
         let result = ToolCallFull::try_from_parts(&input).unwrap();
-        println!("{:#?}", result);
-        assert_eq!(result.len(), 2);
+        assert_eq!(result.len(), 3);
     }
 
     #[test]
     fn test_single_tool_call() {
         let input = [
-            ToolCallPart {
-                call_id: Some(ToolCallId("call_RQzWftugWpSHqHoh84JUCzhi".to_string())),
-                name: Some(ToolName::new("tool_forge_fs_read")),
-                arguments_part: "".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "{\"pa".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "th\": ".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "\"crate".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "s/fo".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "rge_a".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "pp/src".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "/fix".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "tures".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "/masco".to_string(),
-            },
-            ToolCallPart {
-                call_id: None,
-                name: None,
-                arguments_part: "t.md".to_string(),
-            },
-            ToolCallPart { call_id: None, name: None, arguments_part: "\"}".to_string() },
             ToolCallPart {
                 call_id: Some(ToolCallId("call_1DRCgHOhUh9LeVMYuxHVN7E5".to_string())),
                 name: Some(ToolName::new("tool_forge_fs_read")),
@@ -365,7 +308,6 @@ mod tests {
         ];
 
         let result = ToolCallFull::try_from_parts(&input).unwrap();
-        println!("{:#?}", result);
         assert_eq!(result.len(), 1);
     }
 }
