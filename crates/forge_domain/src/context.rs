@@ -20,7 +20,7 @@ impl ContextMessage {
         ContentMessage {
             role: Role::User,
             content: content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         }
         .into()
     }
@@ -29,7 +29,7 @@ impl ContextMessage {
         ContentMessage {
             role: Role::System,
             content: content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         }
         .into()
     }
@@ -38,7 +38,7 @@ impl ContextMessage {
         ContentMessage {
             role: Role::Assistant,
             content: content.to_string(),
-            tool_call,
+            tool_calls: tool_call,
         }
         .into()
     }
@@ -56,9 +56,7 @@ impl ContextMessage {
 pub struct ContentMessage {
     pub role: Role,
     pub content: String,
-
-    // FIXME: Message could contain multiple tool calls
-    pub tool_call: Option<Vec<ToolCallFull>>,
+    pub tool_calls: Option<Vec<ToolCallFull>>,
 }
 
 impl ContentMessage {
@@ -66,7 +64,7 @@ impl ContentMessage {
         Self {
             role: Role::Assistant,
             content: content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         }
     }
 }

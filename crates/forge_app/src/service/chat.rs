@@ -155,7 +155,10 @@ impl Live {
                 .await
                 .unwrap();
 
-            let tool_call_results = tool_call_entry.into_iter().map(|t| t.response).collect::<Vec<_>>();
+            let tool_call_results = tool_call_entry
+                .into_iter()
+                .map(|t| t.response)
+                .collect::<Vec<_>>();
             if !tool_call_results.is_empty() {
                 request = request.extend_messages(
                     tool_call_results
@@ -226,7 +229,7 @@ impl From<Context> for ConversationHistory {
             .flat_map(|message| match message {
                 ContextMessage::ContentMessage(content) => {
                     let mut messages = vec![ChatResponse::Text(content.content.clone())];
-                    if let Some(tool_calls) = &content.tool_call {
+                    if let Some(tool_calls) = &content.tool_calls {
                         for tool_call in tool_calls {
                             messages.push(ChatResponse::ToolCallStart(tool_call.clone()));
                         }
