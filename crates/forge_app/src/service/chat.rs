@@ -369,7 +369,6 @@ mod tests {
         }
     }
 
-    #[derive(Debug)]
     struct TestResult {
         messages: Vec<ChatResponse>,
         llm_calls: Vec<Context>,
