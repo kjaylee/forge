@@ -33,7 +33,7 @@ impl UI {
         exec: Option<String>,
         custom_instructions: Option<PathBuf>,
     ) -> Result<Self> {
-        let api = Arc::new(Service::api_service().await?);
+        let api = Arc::new(Service::api_service(None).await?);
 
         Ok(Self {
             state: Default::default(),

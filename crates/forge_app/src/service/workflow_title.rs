@@ -74,11 +74,13 @@ impl Live {
         if !tx.is_closed() {
             // if receiver is closed, we should not send any more messages
             let tool_call = ToolCallFull::try_from_parts(&parts)?;
-            let title: Title = serde_json::from_value(tool_call.arguments)?;
-
-            tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
-                .await
-                .unwrap();
+            // we expect only one tool call, it's okay to ignore other tool calls.
+            if let Some(tool_call) = tool_call.into_iter().next() {
+                let title: Title = serde_json::from_value(tool_call.arguments)?;
+                tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
+                    .await
+                    .unwrap();
+            }
         }
 
         Ok(())
@@ -132,7 +134,8 @@ mod tests {
     use std::vec;
 
     use forge_domain::{
-        ChatCompletionMessage, ChatResponse, ConversationId, ModelId, ToolCallPart,
+        ChatCompletionMessage, ChatResponse, ConversationId, FinishReason, ModelId, ToolCallId,
+        ToolCallPart,
     };
     // Remove unused import
     use tokio_stream::StreamExt;
@@ -200,6 +203,51 @@ mod tests {
         assert_eq!(
             chat.user_prompt("write an rust program to generate an fibo seq."),
             "<technical_content>write an rust program to generate an fibo seq.</technical_content>"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mutliple_tool_calls() {
+        let mock_llm_responses = vec![vec![
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default()
+                    .call_id(ToolCallId::new("call_1"))
+                    .arguments_part(r#"{"text": "Rust Fib"#)
+                    .name(Title::definition().name),
+            ),
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#),
+            ),
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default()
+                    .call_id(ToolCallId::new("call_2"))
+                    .arguments_part(r#"{"text": "Fib"#)
+                    .name(Title::definition().name),
+            ),
+            ChatCompletionMessage::default()
+                .add_tool_call(ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#))
+                .finish_reason(FinishReason::ToolCalls),
+        ]];
+
+        let actual = Fixture(mock_llm_responses)
+            .run(
+                ChatRequest::new(
+                    ModelId::new("gpt-3.5-turbo"),
+                    "write an rust program to generate an fibo seq.",
+                )
+                .conversation_id(
+                    ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                ),
+            )
+            .await;
+
+        // even though we have multiple tool calls, we only expect the first one to be
+        // processed.
+        assert_eq!(
+            actual,
+            vec![ChatResponse::CompleteTitle(
+                "Rust Fibonacci Implementation".to_string()
+            )]
         );
     }
 }

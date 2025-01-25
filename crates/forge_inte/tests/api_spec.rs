@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use forge_app::APIService;
+use forge_app::{APIService, Service};
 use forge_domain::{ChatRequest, ChatResponse, ModelId};
 use futures::future::join_all;
 use tokio_stream::StreamExt;
@@ -29,7 +29,9 @@ impl Fixture {
 
     /// Get the API service, panicking if not validated
     async fn api(&self) -> impl APIService {
-        forge_app::Service::api_service().await.unwrap()
+        let path = Path::new("../../").to_path_buf();
+        let path = path.canonicalize().unwrap();
+        Service::api_service(Some(path)).await.unwrap()
     }
 
     /// Get model response as text
@@ -90,11 +92,12 @@ impl Fixture {
 }
 
 #[tokio::test]
-async fn test_find_cat_name() -> anyhow::Result<()> {
-    let errors = Fixture::new("There is a cat hidden in the codebase. What is its name?")
-        .test_models(|response| response.to_lowercase().contains("juniper"))
-        .await;
+async fn test_find_cat_name() {
+    let errors = Fixture::new(
+        "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file.",
+    )
+    .test_models(|response| response.to_lowercase().contains("juniper"))
+    .await;
 
     assert!(errors.is_empty(), "Test failures:\n{}", errors.join("\n"));
-    Ok(())
 }

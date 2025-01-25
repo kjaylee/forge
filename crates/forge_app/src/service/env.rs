@@ -13,18 +13,18 @@ pub trait EnvironmentService {
 }
 
 impl Service {
-    pub fn environment_service(base_dir: PathBuf) -> impl EnvironmentService {
+    pub fn environment_service(base_dir: Option<PathBuf>) -> impl EnvironmentService {
         Live::new(base_dir)
     }
 }
 
 struct Live {
     env: Mutex<Option<Environment>>,
-    base_dir: PathBuf,
+    base_dir: Option<PathBuf>,
 }
 
 impl Live {
-    pub fn new(base_dir: PathBuf) -> Self {
+    pub fn new(base_dir: Option<PathBuf>) -> Self {
         Self { env: Mutex::new(None), base_dir }
     }
 
@@ -41,8 +41,11 @@ impl Live {
         } else {
             std::env::current_dir()?
         };
-        let files = match Walker::new(cwd.clone())
-            .with_max_depth(usize::MAX)
+
+        let files = match Walker::builder()
+            .cwd(cwd.clone())
+            .max_depth(3)
+            .build()?
             .get()
             .await
         {
@@ -79,7 +82,7 @@ impl EnvironmentService for Live {
         if let Some(env) = guard.as_ref() {
             return Ok(env.clone());
         } else {
-            *guard = Some(Live::from_env(Some(self.base_dir.clone())).await?);
+            *guard = Some(Live::from_env(self.base_dir.clone()).await?);
             Ok(guard.as_ref().unwrap().clone())
         }
     }

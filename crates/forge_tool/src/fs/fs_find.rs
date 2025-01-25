@@ -8,10 +8,12 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::utils::assert_absolute_path;
+
 #[derive(Deserialize, JsonSchema)]
 pub struct FSSearchInput {
-    /// The path of the directory to search in (relative to the current working
-    /// directory). This directory will be recursively searched.
+    /// The path of the directory to search in (absolute path required). This
+    /// directory will be recursively searched.
     pub path: String,
     /// The regular expression pattern to search for. Uses Rust regex syntax.
     pub regex: String,
@@ -23,7 +25,7 @@ pub struct FSSearchInput {
 /// Request to perform a regex search across files in a specified directory,
 /// providing context-rich results. This tool searches for patterns or specific
 /// content across multiple files, displaying each match with encapsulating
-/// context.
+/// context. The path must be absolute.
 #[derive(ToolDescription)]
 pub struct FSSearch;
 
@@ -39,6 +41,8 @@ impl ToolCallService for FSSearch {
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let dir = Path::new(&input.path);
+        assert_absolute_path(dir)?;
+
         if !dir.exists() {
             return Err(format!("Directory '{}' does not exist", input.path));
         }
@@ -47,7 +51,11 @@ impl ToolCallService for FSSearch {
         let pattern = format!("(?i){}", input.regex);
         let regex = Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
-        let walker = Walker::new(dir.to_path_buf());
+        let walker = Walker::builder()
+            .cwd(dir.to_path_buf())
+            .build()
+            .map_err(|e| format!("Failed to create directory walker: {}", e))?;
+
         let files = walker
             .get()
             .await
@@ -303,5 +311,20 @@ mod test {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid regex pattern"));
+    }
+
+    #[tokio::test]
+    async fn test_fs_search_relative_path() {
+        let fs_search = FSSearch;
+        let result = fs_search
+            .call(FSSearchInput {
+                path: "relative/path".to_string(),
+                regex: "test".to_string(),
+                file_pattern: None,
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 }
