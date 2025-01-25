@@ -8,11 +8,11 @@ use forge_domain::{
     ToolService,
 };
 
+use super::Service;
 use super::chat::ConversationHistory;
 use super::env::EnvironmentService;
 use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;
-use super::Service;
 
 #[async_trait::async_trait]
 pub trait APIService: Send + Sync {
@@ -49,7 +49,6 @@ impl Live {
     async fn new(cwd: Option<PathBuf>) -> Result<Self> {
         let env = Service::environment_service(cwd).get().await?;
 
-        let cwd: String = env.cwd.clone();
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));
         let tool = Arc::new(Service::tool_service());
         let file_read = Arc::new(Service::file_read_service());
@@ -63,7 +62,9 @@ impl Live {
 
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
-        let sqlite = Arc::new(Service::db_pool_service(&cwd)?);
+        // Create an owned String that will live for 'static
+        let db_path = format!("{}/forge.db", env.cwd);
+        let sqlite = Arc::new(Service::db_pool_service(&db_path)?);
 
         let conversation_repo = Arc::new(Service::conversation_repo(sqlite.clone()));
 
@@ -75,7 +76,8 @@ impl Live {
             tool.clone(),
             user_prompt,
         ));
-        let completions = Arc::new(Service::completion_service(cwd.clone()));
+        // Use the environment's cwd for completions since that's always available
+        let completions = Arc::new(Service::completion_service(env.cwd.clone()));
 
         let title_service = Arc::new(Service::title_service(provider.clone()));
 

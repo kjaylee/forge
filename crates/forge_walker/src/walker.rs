@@ -178,7 +178,7 @@ mod tests {
     use std::fs::{self};
 
     use pretty_assertions::assert_eq;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     use super::*;
 

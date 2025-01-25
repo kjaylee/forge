@@ -1,12 +1,12 @@
 use std::fmt;
 
+use nom::IResult;
 use nom::branch::alt;
 use nom::bytes::complete::take_while1;
 use nom::character::complete::{char, space0, space1};
 use nom::combinator::{map, opt, recognize};
 use nom::multi::many0;
 use nom::sequence::{pair, preceded};
-use nom::IResult;
 
 #[derive(Debug, Clone)]
 pub struct Prompt {
@@ -156,10 +156,10 @@ mod tests {
         let prompt =
             Prompt::parse("Compare @src/test_file.txt with @src/test_file2.txt".to_string());
 
-        assert_eq!(
-            prompt.files(),
-            vec!["src/test_file.txt", "src/test_file2.txt"]
-        );
+        assert_eq!(prompt.files(), vec![
+            "src/test_file.txt",
+            "src/test_file2.txt"
+        ]);
     }
 
     #[test]

@@ -68,9 +68,9 @@ impl ConfigRepository for Live {
         let max_ts: Option<NaiveDateTime> = configuration_table::table
             .select(max(configuration_table::created_at))
             .first(&mut conn)
-            .with_context(|| {
-                "Failed to retrieve configuration - no configurations found in database"
-            })?;
+            .with_context(
+                || "Failed to retrieve configuration - no configurations found in database",
+            )?;
 
         // use the max timestamp to get the latest config.
         let result: ConfigEntity = configuration_table::table

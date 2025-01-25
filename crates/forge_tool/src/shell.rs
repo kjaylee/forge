@@ -54,11 +54,7 @@ fn format_output(stdout: &str, stderr: &str, success: bool) -> Result<String, St
         output
     };
 
-    if success {
-        Ok(result)
-    } else {
-        Err(result)
-    }
+    if success { Ok(result) } else { Err(result) }
 }
 
 /// Execute shell commands with safety checks and validation. This tool provides

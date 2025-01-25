@@ -8,7 +8,7 @@ use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, 
 use tokio_stream::StreamExt;
 
 use crate::keyboard::{Key, KeyboardEvents};
-use crate::{Console, StatusDisplay, CONSOLE};
+use crate::{CONSOLE, Console, StatusDisplay};
 
 #[derive(Default)]
 struct UIState {
@@ -55,7 +55,7 @@ impl UI {
     pub async fn run(&mut self) -> Result<()> {
         // Get initial input from file or prompt
         let mut input = match &self.exec {
-            Some(ref path) => self.console.upload(path).await?,
+            Some(path) => self.console.upload(path).await?,
             None => self.console.prompt(None, None).await?,
         };
 
@@ -74,7 +74,7 @@ impl UI {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
                     input = match &self.exec {
-                        Some(ref path) => self.console.upload(path).await?,
+                        Some(path) => self.console.upload(path).await?,
                         None => {
                             self.console
                                 .prompt(None, self.state.current_content.as_deref())

@@ -6,8 +6,8 @@ use forge_domain::{Command, Usage, UserInput};
 use inquire::Autocomplete;
 use tokio::fs;
 
-use crate::console::CONSOLE;
 use crate::StatusDisplay;
+use crate::console::CONSOLE;
 
 /// Provides command autocompletion functionality for the input prompt.
 ///

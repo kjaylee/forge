@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use forge_domain::{NamedTool, ToolCallService, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use reqwest::{Client, Url};
@@ -131,7 +131,10 @@ impl Fetch {
         } else {
             Ok((
                 page_raw,
-                format!("Content type {} cannot be simplified to markdown, but here is the raw content:\n", content_type),
+                format!(
+                    "Content type {} cannot be simplified to markdown, but here is the raw content:\n",
+                    content_type
+                ),
             ))
         }
     }

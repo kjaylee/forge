@@ -2,11 +2,11 @@ use anyhow::{Context, Result};
 use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sqlite::SqliteConnection;
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use tracing::debug;
 
-use super::conn::ConnectionOptions;
 use super::Sqlite;
+use super::conn::ConnectionOptions;
 
 type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -56,9 +56,9 @@ impl Driver {
 #[async_trait::async_trait]
 impl Sqlite for Driver {
     async fn connection(&self) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
-        self.pool.get().with_context(|| {
-            "Failed to acquire connection from pool - pool may be exhausted or database locked"
-        })
+        self.pool.get().with_context(
+            || "Failed to acquire connection from pool - pool may be exhausted or database locked",
+        )
     }
 }
 

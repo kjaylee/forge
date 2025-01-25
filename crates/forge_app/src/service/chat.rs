@@ -6,8 +6,8 @@ use forge_domain::{
     ResultStream, Role, ToolCall, ToolCallFull, ToolResult, ToolService,
 };
 use serde::Serialize;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::ReceiverStream;
 
 use super::{PromptService, Service};
 
@@ -257,7 +257,7 @@ mod tests {
         ToolResult, ToolService,
     };
     use pretty_assertions::assert_eq;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use tokio::time::Duration;
     use tokio_stream::StreamExt;
 
@@ -435,8 +435,10 @@ mod tests {
                     .finish_reason(FinishReason::ToolCalls),
             ],
             // Final completion message
-            vec![ChatCompletionMessage::default()
-                .content_part("All tools have been used successfully.")],
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("All tools have been used successfully."),
+            ],
         ];
 
         let actual = Fixture::default()
@@ -509,8 +511,10 @@ mod tests {
                     .content_part("")
                     .finish_reason(FinishReason::ToolCalls),
             ],
-            vec![ChatCompletionMessage::default()
-                .content_part("Task is complete, let me know if you need anything else.")],
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Task is complete, let me know if you need anything else."),
+            ],
         ];
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
@@ -570,8 +574,10 @@ mod tests {
                     .content_part("")
                     .finish_reason(FinishReason::ToolCalls),
             ],
-            vec![ChatCompletionMessage::default()
-                .content_part("Task is complete, let me know if you need anything else.")],
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Task is complete, let me know if you need anything else."),
+            ],
         ];
         let actual = Fixture::default()
             .assistant_responses(mock_llm_responses)
@@ -611,8 +617,10 @@ mod tests {
                     .content_part("")
                     .finish_reason(FinishReason::ToolCalls),
             ],
-            vec![ChatCompletionMessage::default()
-                .content_part("Task is complete, let me know how can i help you!")],
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Task is complete, let me know how can i help you!"),
+            ],
         ];
 
         let actual = Fixture::default()
@@ -637,9 +645,11 @@ mod tests {
             expected_llm_request_1
                 .add_message(ContextMessage::assistant(
                     "Let's use foo tool",
-                    Some(vec![ToolCallFull::new(ToolName::new("foo"))
-                        .arguments(json!({"foo": 1, "bar": 2}))
-                        .call_id(ToolCallId::new("too_call_001"))]),
+                    Some(vec![
+                        ToolCallFull::new(ToolName::new("foo"))
+                            .arguments(json!({"foo": 1, "bar": 2}))
+                            .call_id(ToolCallId::new("too_call_001")),
+                    ]),
                 ))
                 .add_message(ContextMessage::ToolMessage(
                     ToolResult::new(ToolName::new("foo"))
@@ -672,8 +682,10 @@ mod tests {
                     .content_part("")
                     .finish_reason(FinishReason::ToolCalls),
             ],
-            vec![ChatCompletionMessage::default()
-                .content_part("Task is complete, let me know how can i help you!")],
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Task is complete, let me know how can i help you!"),
+            ],
         ];
         let total_messages = mock_llm_responses.len();
         let request = ChatRequest::new(model_id.clone(), "Hello can you use foo tool?")
@@ -724,8 +736,10 @@ mod tests {
                     .add_tool_call(ToolCallPart::default().arguments_part(r#""y": 400}"#)),
                 ChatCompletionMessage::default().finish_reason(FinishReason::ToolCalls),
             ],
-            vec![ChatCompletionMessage::default()
-                .content_part("Task is complete, let me know how can i help you!")],
+            vec![
+                ChatCompletionMessage::default()
+                    .content_part("Task is complete, let me know how can i help you!"),
+            ],
         ];
 
         let actual = Fixture::default()

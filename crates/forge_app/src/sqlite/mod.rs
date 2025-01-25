@@ -4,9 +4,9 @@ pub(crate) mod driver;
 use anyhow::Result;
 use diesel::r2d2::{ConnectionManager, PooledConnection};
 use diesel::sqlite::SqliteConnection;
+pub(crate) use driver::Driver;
 #[cfg(test)]
 pub(crate) use driver::tests::TestDriver;
-pub(crate) use driver::Driver;
 
 use crate::service::Service;
 
@@ -21,7 +21,7 @@ pub trait Sqlite: Send + Sync {
 
 impl Service {
     /// Create a new SQLite service
-    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite> {
+    pub fn db_pool_service(db_path: &str) -> Result<impl Sqlite + 'static> {
         Driver::new(db_path)
     }
 }

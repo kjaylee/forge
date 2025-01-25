@@ -3,8 +3,8 @@ use forge_domain::{
     self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters,
     ProviderService, ResultStream,
 };
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::Client;
+use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use reqwest_eventsource::{Event, EventSource};
 use tokio_stream::StreamExt;
 
