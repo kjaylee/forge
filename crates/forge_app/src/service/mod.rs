@@ -1,9 +1,9 @@
 mod api;
 mod chat;
-mod suggestion;
 mod env;
 mod file_read;
 mod provider;
+mod suggestion;
 mod system_prompt;
 #[cfg(test)]
 mod test;
