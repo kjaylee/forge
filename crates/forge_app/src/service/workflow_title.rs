@@ -241,8 +241,8 @@ mod tests {
             )
             .await;
 
-        
-        // even though we have multiple tool calls, we only expect the first one to be processed.
+        // even though we have multiple tool calls, we only expect the first one to be
+        // processed.
         assert_eq!(
             actual,
             vec![ChatResponse::CompleteTitle(
