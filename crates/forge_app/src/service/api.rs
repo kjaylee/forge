@@ -10,9 +10,9 @@ use forge_domain::{
 
 use super::chat::ConversationHistory;
 use super::env::EnvironmentService;
-use super::suggestion::SuggestionService;
+use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;
-use super::{File, Service};
+use super::Service;
 
 #[async_trait::async_trait]
 pub trait APIService: Send + Sync {
