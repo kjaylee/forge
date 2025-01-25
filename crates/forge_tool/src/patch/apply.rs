@@ -254,12 +254,9 @@ mod test {
                 path: nonexistent.to_string_lossy().to_string(),
                 diff: format!("{SEARCH}\nHello\n{DIVIDER}\nWorld\n{REPLACE}\n"),
             })
-            .await
-            .unwrap_err();
+            .await;
 
-        // Normalize the path in the error message to just show the final component
-        let error = "File not found at path: nonexistent.txt".to_string();
-        insta::assert_snapshot!(error);
+        assert!(result.unwrap_err().contains("File not found"));
     }
 
     #[tokio::test]
