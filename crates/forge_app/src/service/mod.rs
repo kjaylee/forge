@@ -1,6 +1,6 @@
 mod api;
 mod chat;
-mod completion;
+mod suggestion;
 mod env;
 mod file_read;
 mod provider;
@@ -13,7 +13,7 @@ mod user_prompt;
 mod workflow_title;
 
 pub use api::*;
-pub use completion::*;
+pub use suggestion::*;
 use forge_domain::ChatRequest;
 pub use ui::*;
 

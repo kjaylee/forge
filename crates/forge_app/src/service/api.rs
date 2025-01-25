@@ -9,7 +9,7 @@ use forge_domain::{
 };
 
 use super::chat::ConversationHistory;
-use super::completion::CompletionService;
+use super::suggestion::SuggestionService;
 use super::env::EnvironmentService;
 use super::{File, Service, UIService};
 
@@ -37,7 +37,7 @@ impl Service {
 struct Live {
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
-    completions: Arc<dyn CompletionService>,
+    completions: Arc<dyn SuggestionService>,
     ui_service: Arc<dyn UIService>,
     conversation_repo: Arc<dyn ConversationRepository>,
     config_repo: Arc<dyn ConfigRepository>,
@@ -99,7 +99,7 @@ impl Live {
 #[async_trait::async_trait]
 impl APIService for Live {
     async fn completions(&self) -> Result<Vec<File>> {
-        self.completions.list().await
+        self.completions.suggestions().await
     }
 
     async fn tools(&self) -> Vec<ToolDefinition> {
