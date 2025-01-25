@@ -12,15 +12,18 @@ mod ui;
 mod user_prompt;
 mod workflow_title;
 
-pub use api::*;
-pub use suggestion::*;
-use forge_domain::ChatRequest;
-pub use ui::*;
+pub use api::APIService;
+pub use chat::{ChatService, ConversationHistory};
+pub use env::EnvironmentService;
+pub use file_read::FileReadService;
+pub use suggestion::{File, SuggestionService};
+pub use ui::UIService;
+pub use workflow_title::TitleService;
 
 pub struct Service;
 
 #[async_trait::async_trait]
 pub trait PromptService: Send + Sync {
     /// Generate prompt from a ChatRequest
-    async fn get(&self, request: &ChatRequest) -> anyhow::Result<String>;
+    async fn get(&self, request: &forge_domain::ChatRequest) -> anyhow::Result<String>;
 }
