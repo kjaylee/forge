@@ -6,11 +6,11 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::syn;
+use crate::utils::assert_absolute_path;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
-    /// The path of the file to write to (relative to the current working
-    /// directory)
+    /// The path of the file to write to (absolute path required)
     pub path: String,
     /// The content to write to the file. ALWAYS provide the COMPLETE intended
     /// content of the file, without any truncation or omissions. You MUST
@@ -22,10 +22,11 @@ pub struct FSWriteInput {
 }
 
 /// Use it to create a new file at a specified path with the provided content.
-/// By default, if the file already exists, the tool will return an error to
-/// prevent overwriting. Set overwrite=true to allow overwriting existing files.
-/// The tool automatically handles the creation of any missing
-/// intermediary directories in the specified path.
+/// Always provide absolute paths for file locations. By default, if the file
+/// already exists, the tool will return an error to prevent overwriting. Set
+/// overwrite=true to allow overwriting existing files. The tool automatically
+/// handles the creation of any missing intermediary directories in the
+/// specified path.
 #[derive(ToolDescription)]
 pub struct FSWrite;
 
@@ -40,6 +41,10 @@ impl ToolCallService for FSWrite {
     type Input = FSWriteInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
+        // Validate absolute path requirement
+        let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
+
         // Check if file already exists
         let file_exists = tokio::fs::metadata(&input.path).await.is_ok();
         if file_exists && !input.overwrite.unwrap_or(false) {
@@ -335,6 +340,21 @@ mod test {
         // Verify original content remains unchanged
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, initial_content);
+    }
+
+    #[tokio::test]
+    async fn test_fs_write_relative_path() {
+        let fs_write = FSWrite;
+        let result = fs_write
+            .call(FSWriteInput {
+                path: "relative/path/file.txt".to_string(),
+                content: "test content".to_string(),
+                overwrite: None,
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 
     #[tokio::test]
