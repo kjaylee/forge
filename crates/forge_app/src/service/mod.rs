@@ -13,6 +13,11 @@ mod user_prompt;
 mod workflow_title;
 
 pub use api::APIService;
+pub use chat::ChatService;
+pub use suggestion::SuggestionService;
+pub use ui::UIService;
+pub use workflow_title::TitleService;
+
 pub struct Service;
 
 #[async_trait::async_trait]
