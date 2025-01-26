@@ -209,7 +209,11 @@ impl From<Context> for OpenRouterRequest {
                     .into_iter()
                     .map(OpenRouterTool::from)
                     .collect::<Vec<_>>();
-                if tools.is_empty() { None } else { Some(tools) }
+                if tools.is_empty() {
+                    None
+                } else {
+                    Some(tools)
+                }
             },
             model: None,
             prompt: Default::default(),
@@ -472,10 +476,10 @@ mod tests {
 
         // Verify last user message IS cached
         if let Some(MessageContent::Parts(parts)) = &messages[1].content {
-            assert!(matches!(parts[0], ContentPart::Text {
-                cache_control: Some(_),
-                ..
-            }));
+            assert!(matches!(
+                parts[0],
+                ContentPart::Text { cache_control: Some(_), .. }
+            ));
         } else {
             panic!("Last user message should be cached");
         }
@@ -520,10 +524,10 @@ mod tests {
 
         // Verify last system message IS cached
         if let Some(MessageContent::Parts(parts)) = &messages[1].content {
-            assert!(matches!(parts[0], ContentPart::Text {
-                cache_control: Some(_),
-                ..
-            }));
+            assert!(matches!(
+                parts[0],
+                ContentPart::Text { cache_control: Some(_), .. }
+            ));
         } else {
             panic!("Last system message should be cached");
         }

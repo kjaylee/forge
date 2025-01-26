@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
 use derive_setters::Setters;
-use schemars::JsonSchema;
 use schemars::schema::RootSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{NamedTool, ToolCallService, ToolName, UsageParameterPrompt, UsagePrompt};

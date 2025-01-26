@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use forge_main::{UI, banner};
+use forge_main::{banner, UI};
 
 /// Command line arguments for the application
 #[derive(Parser)]

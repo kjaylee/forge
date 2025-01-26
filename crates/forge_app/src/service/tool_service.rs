@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
-use tokio::time::{Duration, timeout};
+use tokio::time::{timeout, Duration};
 use tracing::debug;
 
 use super::Service;
@@ -101,7 +101,7 @@ impl ToolService for Live {
 #[cfg(test)]
 mod test {
     use forge_domain::{Tool, ToolCallId, ToolDefinition};
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
     use tokio::time;
 
     use super::*;

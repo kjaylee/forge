@@ -5,10 +5,10 @@ use forge_domain::{
     ChatRequest, ChatResponse, Context, ContextMessage, ProviderService, ResultStream, ToolCall,
     ToolCallFull, ToolChoice, ToolDefinition,
 };
-use schemars::{JsonSchema, schema_for};
+use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use tokio_stream::StreamExt;
 use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::StreamExt;
 
 use super::Service;
 
@@ -188,9 +188,12 @@ mod tests {
             )
             .await;
 
-        assert_eq!(actual, vec![ChatResponse::CompleteTitle(
-            "Rust Fibonacci Implementation".to_string()
-        )]);
+        assert_eq!(
+            actual,
+            vec![ChatResponse::CompleteTitle(
+                "Rust Fibonacci Implementation".to_string()
+            )]
+        );
     }
 
     #[tokio::test]
@@ -240,8 +243,11 @@ mod tests {
 
         // even though we have multiple tool calls, we only expect the first one to be
         // processed.
-        assert_eq!(actual, vec![ChatResponse::CompleteTitle(
-            "Rust Fibonacci Implementation".to_string()
-        )]);
+        assert_eq!(
+            actual,
+            vec![ChatResponse::CompleteTitle(
+                "Rust Fibonacci Implementation".to_string()
+            )]
+        );
     }
 }

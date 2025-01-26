@@ -55,7 +55,7 @@ where
 #[cfg(test)]
 mod tests {
 
-    use futures::{StreamExt, stream};
+    use futures::{stream, StreamExt};
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
@@ -152,15 +152,13 @@ mod tests {
     #[tokio::test]
     async fn test_collect_tool_call_parts_invalid_json() {
         // Setup message with invalid JSON
-        let messages = vec![
-            ChatCompletionMessage::default()
-                .add_tool_call(
-                    ToolCallPart::default()
-                        .name(ToolName::new("test_tool"))
-                        .arguments_part("{invalid json"),
-                )
-                .finish_reason_opt(Some(FinishReason::ToolCalls)),
-        ];
+        let messages = vec![ChatCompletionMessage::default()
+            .add_tool_call(
+                ToolCallPart::default()
+                    .name(ToolName::new("test_tool"))
+                    .arguments_part("{invalid json"),
+            )
+            .finish_reason_opt(Some(FinishReason::ToolCalls))];
 
         // Execute collection
         let actual = stream::iter(messages.into_iter().map(Ok::<ChatCompletionMessage, Error>))
@@ -178,11 +176,9 @@ mod tests {
     #[tokio::test]
     async fn test_collect_tool_call_parts_missing_name() {
         // Setup message with missing tool name
-        let messages = vec![
-            ChatCompletionMessage::default()
-                .add_tool_call(ToolCallPart::default().arguments_part("{\"key\": \"value\"}"))
-                .finish_reason_opt(Some(FinishReason::ToolCalls)),
-        ];
+        let messages = vec![ChatCompletionMessage::default()
+            .add_tool_call(ToolCallPart::default().arguments_part("{\"key\": \"value\"}"))
+            .finish_reason_opt(Some(FinishReason::ToolCalls))];
 
         // Execute collection
         let actual = stream::iter(messages.into_iter().map(Ok::<ChatCompletionMessage, Error>))

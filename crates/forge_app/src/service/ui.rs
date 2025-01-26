@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use forge_domain::{ChatRequest, ChatResponse, Context, ConversationRepository, ResultStream};
-use tokio_stream::{StreamExt, once};
+use tokio_stream::{once, StreamExt};
 use tracing::debug;
 
-use super::Service;
 use super::chat::ChatService;
 use super::workflow_title::TitleService;
+use super::Service;
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {

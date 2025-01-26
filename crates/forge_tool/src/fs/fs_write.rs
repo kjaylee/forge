@@ -333,11 +333,9 @@ mod test {
 
         // Verify write was prevented
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Set overwrite=true to overwrite")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("Set overwrite=true to overwrite"));
 
         // Verify original content remains unchanged
         let content = fs::read_to_string(&file_path).await.unwrap();
@@ -380,11 +378,9 @@ mod test {
 
         // Verify write was prevented
         assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .contains("Set overwrite=true to overwrite")
-        );
+        assert!(result
+            .unwrap_err()
+            .contains("Set overwrite=true to overwrite"));
 
         // Verify original content remains unchanged
         let content = fs::read_to_string(&file_path).await.unwrap();

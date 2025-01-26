@@ -219,40 +219,40 @@ mod test {
     fn test_parse_blocks_missing_separator() {
         let diff = format!("{SEARCH}\nsearch content\n");
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 1,
-            kind: Kind::Separator
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 1, kind: Kind::Separator }
+        ));
     }
 
     #[test]
     fn test_parse_blocks_missing_newline() {
         let diff = format!("{SEARCH}search content");
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 1,
-            kind: Kind::SearchNewline
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 1, kind: Kind::SearchNewline }
+        ));
     }
 
     #[test]
     fn test_parse_blocks_missing_separator_newline() {
         let diff = format!("{SEARCH}\nsearch content\n{DIVIDER}content");
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 1,
-            kind: Kind::SeparatorNewline
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 1, kind: Kind::SeparatorNewline }
+        ));
     }
 
     #[test]
     fn test_parse_blocks_missing_replace_marker() {
         let diff = format!("{SEARCH}\nsearch content\n{DIVIDER}\nreplace content\n");
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 1,
-            kind: Kind::ReplaceMarker
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 1, kind: Kind::ReplaceMarker }
+        ));
     }
 
     #[test]
@@ -272,10 +272,10 @@ mod test {
         );
         let result = parse_blocks(&diff);
         println!("{:?}", result);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 2,
-            kind: Kind::Incomplete
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 2, kind: Kind::Incomplete }
+        ));
     }
 
     #[test]
@@ -349,18 +349,18 @@ mod test {
         // Test SEARCH marker
         let diff = format!("{SEARCH}code\n{DIVIDER}\nnew\n{REPLACE}\n");
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 1,
-            kind: Kind::SearchNewline
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 1, kind: Kind::SearchNewline }
+        ));
 
         // Test DIVIDER marker
         let diff = format!("{SEARCH}\ncode\n{DIVIDER}new\n{REPLACE}\n");
         let result = parse_blocks(&diff);
-        assert!(matches!(result.unwrap_err(), Error::Block {
-            position: 1,
-            kind: Kind::SeparatorNewline
-        }));
+        assert!(matches!(
+            result.unwrap_err(),
+            Error::Block { position: 1, kind: Kind::SeparatorNewline }
+        ));
     }
     #[test]
     fn test_multiple_blocks_without_newline_end() {

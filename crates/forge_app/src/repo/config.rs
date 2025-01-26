@@ -68,9 +68,9 @@ impl ConfigRepository for Live {
         let max_ts: Option<NaiveDateTime> = configuration_table::table
             .select(max(configuration_table::created_at))
             .first(&mut conn)
-            .with_context(
-                || "Failed to retrieve configuration - no configurations found in database",
-            )?;
+            .with_context(|| {
+                "Failed to retrieve configuration - no configurations found in database"
+            })?;
 
         // use the max timestamp to get the latest config.
         let result: ConfigEntity = configuration_table::table
@@ -88,9 +88,10 @@ impl ConfigRepository for Live {
     }
 
     async fn set(&self, data: Config) -> anyhow::Result<Config> {
-        let mut conn = self.pool_service.connection()
-            .await
-            .with_context(|| "Failed to acquire database connection for saving configuration")?;
+        let mut conn =
+            self.pool_service.connection().await.with_context(|| {
+                "Failed to acquire database connection for saving configuration"
+            })?;
         let now = Utc::now().naive_utc();
 
         let serialized_data = serde_json::to_string(&data)

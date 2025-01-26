@@ -8,11 +8,11 @@ use forge_domain::{
     ToolService,
 };
 
-use super::Service;
 use super::chat::ConversationHistory;
 use super::env::EnvironmentService;
 use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;
+use super::Service;
 
 #[async_trait::async_trait]
 pub trait APIService: Send + Sync {

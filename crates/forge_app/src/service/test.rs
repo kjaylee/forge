@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use derive_setters::Setters;
 use forge_domain::{
     ChatCompletionMessage, ChatRequest, Context, FileReadService, Model, ModelId, Parameters,

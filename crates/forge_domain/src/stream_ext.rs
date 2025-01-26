@@ -22,7 +22,7 @@ impl<S: Stream> StreamExt for S {}
 
 #[cfg(test)]
 mod tests {
-    use futures::{StreamExt as _, stream};
+    use futures::{stream, StreamExt as _};
     use pretty_assertions::assert_eq;
 
     use super::*;

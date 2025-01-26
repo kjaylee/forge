@@ -8,7 +8,7 @@ use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, 
 use tokio_stream::StreamExt;
 
 use crate::keyboard::{Key, KeyboardEvents};
-use crate::{CONSOLE, Console, StatusDisplay};
+use crate::{Console, StatusDisplay, CONSOLE};
 
 #[derive(Default)]
 struct UIState {

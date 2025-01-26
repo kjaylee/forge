@@ -38,7 +38,9 @@ impl PromptService for Live {
 
         let mut file_contents = vec![];
         for file_path in parsed_task.files() {
-            let content = self.file_read.read(file_path.clone().into())
+            let content = self
+                .file_read
+                .read(file_path.clone().into())
                 .await
                 .with_context(|| format!("Failed to read content from file: {}", file_path))?;
             file_contents.push(FileRead { path: file_path, content });
@@ -50,7 +52,8 @@ impl PromptService for Live {
 
         let ctx = PromptContext { task: request.content.to_string(), files: file_contents };
 
-        Ok(hb.render_template(template, &ctx)
+        Ok(hb
+            .render_template(template, &ctx)
             .with_context(|| "Failed to render user task template")?)
     }
 }
