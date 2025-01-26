@@ -313,7 +313,10 @@ mod tests {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Empty command"));
+        assert_eq!(
+            result.unwrap_err(),
+            "Command string is empty or contains only whitespace"
+        );
     }
 
     #[tokio::test]
