@@ -51,7 +51,7 @@ impl ToolService for Live {
                     Err(_) => Err(format!(
                         "Tool '{}' timed out after {} minutes",
                         name.as_str(),
-                        TOOL_CALL_TIMEOUT.as_secs()/60
+                        TOOL_CALL_TIMEOUT.as_secs() / 60
                     )),
                 }
             }
