@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use forge_domain::{ChatRequest, FileReadService};
 use forge_prompt::Prompt;
 use handlebars::Handlebars;
