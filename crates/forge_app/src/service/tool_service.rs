@@ -49,9 +49,9 @@ impl ToolService for Live {
                 match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input)).await {
                     Ok(result) => result,
                     Err(_) => Err(format!(
-                        "Tool '{}' timed out after {} seconds",
+                        "Tool '{}' timed out after {} minutes",
                         name.as_str(),
-                        TOOL_CALL_TIMEOUT.as_secs()
+                        TOOL_CALL_TIMEOUT.as_secs()/60
                     )),
                 }
             }
@@ -232,8 +232,6 @@ mod test {
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;
-        dbg!(content_str);
-
         assert!(
             content_str.contains("timed out"),
             "Expected timeout error message"
