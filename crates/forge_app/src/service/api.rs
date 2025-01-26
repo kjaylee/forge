@@ -63,8 +63,7 @@ impl Live {
         let user_prompt = Arc::new(Service::user_prompt_service(file_read.clone()));
 
         // Create an owned String that will live for 'static
-        let db_path = format!("{}/forge.db", env.cwd);
-        let sqlite = Arc::new(Service::db_pool_service(&db_path)?);
+        let sqlite = Arc::new(Service::db_pool_service(&env.cwd)?);
 
         let conversation_repo = Arc::new(Service::conversation_repo(sqlite.clone()));
 
