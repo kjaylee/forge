@@ -3,9 +3,9 @@ use forge_domain::ForgeDomain;
 use crate::{APIService, ChatService, SuggestionService, TitleService, UIService};
 
 /// Core application trait providing access to high-level application services.
-/// This trait extends ForgeDomain to provide a complete interface including both
-/// domain and application layer services. It follows clean architecture principles
-/// by building application services on top of domain services.
+/// This trait extends ForgeDomain to provide a complete interface including
+/// both domain and application layer services. It follows clean architecture
+/// principles by building application services on top of domain services.
 pub trait ForgeApp: ForgeDomain {
     /// The concrete type implementing API service capabilities
     type APIService: APIService;
@@ -15,7 +15,7 @@ pub trait ForgeApp: ForgeDomain {
     type UIService: UIService;
     /// The concrete type implementing suggestion service capabilities
     type SuggestionService: SuggestionService;
-    /// The concrete type implementing workflow title service capabilities 
+    /// The concrete type implementing workflow title service capabilities
     type TitleService: TitleService;
 
     /// Get a reference to the API service instance
