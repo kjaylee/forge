@@ -34,11 +34,21 @@ impl UI {
         custom_instructions: Option<PathBuf>,
     ) -> Result<Self> {
         let api = Arc::new(Service::api_service(None).await?);
+        let files = api
+            .suggestions()
+            .await?
+            .into_iter()
+            .filter_map(|file| if file.is_dir { None } else { Some(file.path) })
+            .collect();
+
+        let console = Console::default()
+            .commands(Command::available_commands())
+            .files(files);
 
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console,
+            console,
             verbose,
             exec,
             custom_instructions,

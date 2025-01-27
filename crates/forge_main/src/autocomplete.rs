@@ -48,16 +48,17 @@ pub trait Suggester {
     /// This method handles both trigger detection and suggestion filtering.
     fn get_suggestions(&self, input: &str, cursor_position: usize) -> SuggestionContext;
 
-    /// Formats the selected suggestion before it replaces the text in replace_range.
-    /// Default implementation returns the suggestion as-is.
+    /// Formats the selected suggestion before it replaces the text in
+    /// replace_range. Default implementation returns the suggestion as-is.
     fn format_suggestion(&self, suggestion: &str) -> String {
         suggestion.to_string()
     }
 }
 
-/// A simple suggester that filters a static list of suggestions when triggered by a specific character.
+/// A simple suggester that filters a static list of suggestions when triggered
+/// by a specific character.
 pub struct StaticSuggester {
-    suggestions: Vec<String>,
+    pub suggestions: Vec<String>,
     pub trigger_chars: Vec<char>,
     pub submit_on_select: bool,
 }
@@ -270,10 +271,8 @@ impl<S: Suggester + 'static> Prompt for AutocompleteInput<S> {
                     if !context.suggestions.is_empty() && context.show_suggestions {
                         let should_submit = context.submit_on_select;
                         self.select_suggestion();
-                        if should_submit {
-                            if self.validate().is_ok() {
-                                return PromptState::Submit;
-                            }
+                        if should_submit && self.validate().is_ok() {
+                            return PromptState::Submit;
                         }
                         return PromptState::Active;
                     }
