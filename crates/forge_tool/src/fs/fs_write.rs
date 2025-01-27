@@ -85,6 +85,7 @@ impl ToolCallService for FSWrite {
 mod test {
     use std::path::Path;
 
+    use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use tokio::fs;
 
@@ -177,9 +178,8 @@ mod test {
             .await;
 
         // Check that the result is an error with correct tool name
-        let err = result.unwrap_err();
-        assert!(err.contains("already exists"));
-        assert!(err.contains("tool_forge_fs_read"));
+        let actual = TempDir::normalize(&result.unwrap_err());
+        assert_snapshot!(actual);
 
         // Verify original content remains unchanged
         let content = fs::read_to_string(&file_path).await.unwrap();
