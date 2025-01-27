@@ -85,6 +85,7 @@ impl ToolCallService for FSList {
 
 #[cfg(test)]
 mod test {
+    use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio::fs;
@@ -129,19 +130,7 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 4);
-
-        let files: Vec<_> = lines.iter().filter(|p| p.starts_with("[FILE]")).collect();
-        let dirs: Vec<_> = lines.iter().filter(|p| p.starts_with("[DIR]")).collect();
-
-        assert_eq!(files.len(), 2);
-        assert_eq!(dirs.len(), 2);
-
-        assert!(result.contains("file1.txt"));
-        assert!(result.contains("file2.txt"));
-        assert!(result.contains("dir1"));
-        assert!(result.contains("dir2"));
+        assert_snapshot!(result);
     }
 
     #[tokio::test]

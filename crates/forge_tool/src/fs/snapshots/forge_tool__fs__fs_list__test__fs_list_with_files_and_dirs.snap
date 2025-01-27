@@ -1,0 +1,8 @@
+---
+source: crates/forge_tool/src/fs/fs_list.rs
+expression: result
+---
+<file path="file2.txt">
+<file path="file1.txt">
+<dir path="dir2">
+<dir path="dir1">
