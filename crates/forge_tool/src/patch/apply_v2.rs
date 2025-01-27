@@ -228,12 +228,17 @@ mod test {
     }
 
     impl PatchTest {
-        fn new(initial: impl ToString, replacements: &[Replacement]) -> Self {
+        fn new(initial: impl ToString) -> Self {
             PatchTest {
                 initial: initial.to_string(),
-                replacements: replacements.to_vec(),
-                result: None,
+                replacements: Default::default(),
+                result: Default::default(),
             }
+        }
+
+        fn replace(mut self, search: impl ToString, replace: impl ToString) -> Self {
+            self.replacements.push(Replacement::new(search, replace));
+            self
         }
 
         async fn execute(mut self) -> Result<Self, String> {
@@ -276,7 +281,8 @@ mod test {
 
     #[tokio::test]
     async fn simple_replacement() {
-        let actual = PatchTest::new("Hello World", &[Replacement::new("World", "Forge")])
+        let actual = PatchTest::new("Hello World")
+            .replace("World", "Forge")
             .execute()
             .await
             .unwrap();
