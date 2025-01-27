@@ -34,9 +34,11 @@ impl UserInput for Console {
         help_text: Option<&str>,
         initial_text: Option<&str>,
     ) -> anyhow::Result<Command> {
-        let help = help_text
-            .map(|a| a.to_string())
-            .unwrap_or(format!("[Available commands: {}]", self.commands.join(", ")).cyan().to_string());
+        let help = help_text.map(|a| a.to_string()).unwrap_or(
+            format!("[Available commands: {}]", self.commands.join(", "))
+                .cyan()
+                .to_string(),
+        );
 
         // TODO: need API like: prompter.prompt(initial_text, hint, suggester);
         let mut input = AutocompleteInput::new(initial_text.unwrap_or(""))
