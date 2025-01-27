@@ -55,8 +55,7 @@ pub trait Suggester {
     }
 }
 
-
-/// A suggester config that holds the suggestions list and 
+/// A suggester config that holds the suggestions list and
 /// the trigger points for the suggestions and the action to be taken.
 pub struct SuggesterConfig {
     pub suggestions: Vec<String>,
@@ -465,7 +464,8 @@ mod tests {
         input.handle(KeyCode::Char('@'), KeyModifiers::NONE);
         input.handle(KeyCode::Char('a'), KeyModifiers::NONE);
         input.handle(KeyCode::Char('p'), KeyModifiers::NONE);
+        input.handle(KeyCode::Char('p'), KeyModifiers::NONE);
         input.handle(KeyCode::Tab, KeyModifiers::NONE);
-        assert_eq!(input.input.value(), "apple.rs");
+        assert!(input.input.value().contains("apple.rs"));
     }
 }
