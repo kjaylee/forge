@@ -330,7 +330,6 @@ impl SuggestionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     struct SimpleSuggester {
         suggestions: SuggesterConfig,
