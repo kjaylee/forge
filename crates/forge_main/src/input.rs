@@ -8,7 +8,7 @@ use promptuity::themes::MinimalTheme;
 use promptuity::{Promptuity, Term};
 use tokio::fs;
 
-use crate::autocomplete::{AutocompleteInput, MultiTriggerSuggester};
+use crate::autocomplete::{AutocompleteInput, Suggester, SuggesterConfig, SuggestionContext};
 use crate::console::CONSOLE;
 use crate::StatusDisplay;
 
@@ -17,6 +17,13 @@ use crate::StatusDisplay;
 pub struct Console {
     commands: Vec<String>,
     files: Vec<String>,
+}
+
+/// A custom suggester that supports multiple trigger patterns and actions for
+/// these triggers. eg. files with '@' and commands with '/'
+pub struct MultiTriggerSuggester {
+    files: SuggesterConfig,
+    commands: SuggesterConfig,
 }
 
 #[async_trait]
@@ -65,5 +72,132 @@ impl UserInput for Console {
                 }
             }
         }
+    }
+}
+
+impl MultiTriggerSuggester {
+    pub fn new(files: Vec<String>, commands: Vec<String>) -> Self {
+        let files = files.into_iter().map(|f| f.to_lowercase()).collect();
+        let commands = commands.into_iter().map(|c| c.to_lowercase()).collect();
+        Self {
+            files: SuggesterConfig::new(files)
+                .with_triggers(vec!['@'])
+                .with_submit_on_select(false), // Don't submit after selecting file
+            commands: SuggesterConfig::new(commands)
+                .with_triggers(vec!['/'])
+                .with_submit_on_select(true), // Submit immediately after selecting command
+        }
+    }
+}
+
+impl Suggester for MultiTriggerSuggester {
+    fn get_suggestions(&self, input: &str, cursor_position: usize) -> SuggestionContext {
+        // Find the last trigger char before cursor position
+        let input_before_cursor = &input[..cursor_position];
+        if let Some((trigger_pos, _)) = input_before_cursor
+            .char_indices()
+            .rev()
+            .find(|(_, c)| self.commands.trigger_chars.contains(c))
+        {
+            let query = &input[trigger_pos + 1..cursor_position].to_lowercase();
+            let filtered = self
+                .commands
+                .suggestions
+                .iter()
+                .filter(|s| s.contains(query))
+                .take(5)
+                .cloned()
+                .collect();
+
+            SuggestionContext {
+                suggestions: filtered,
+                replace_range: Some((trigger_pos, cursor_position)),
+                show_suggestions: !query.is_empty(),
+                submit_on_select: self.commands.submit_on_select,
+            }
+        } else if let Some((trigger_pos, _)) = input_before_cursor
+            .char_indices()
+            .rev()
+            .find(|(_, c)| self.files.trigger_chars.contains(c))
+        {
+            let query = &input[trigger_pos + 1..cursor_position].to_lowercase();
+            let filtered = self
+                .files
+                .suggestions
+                .iter()
+                .filter(|file| {
+                    // we've file paths like '/users/abc/random/file.txt'
+                    // we want to check on the basis of file name only
+                    if let Some(file_name) = file.split('/').next_back() {
+                        file_name.contains(query)
+                    } else {
+                        false
+                    }
+                })
+                .take(5)
+                .cloned()
+                .collect();
+
+            SuggestionContext {
+                suggestions: filtered,
+                replace_range: Some((trigger_pos, cursor_position)),
+                show_suggestions: !query.is_empty(),
+                submit_on_select: self.files.submit_on_select,
+            }
+        } else {
+            SuggestionContext::empty()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_should_trigger_commands() {
+        let autocomplete = MultiTriggerSuggester::new(
+            vec!["a.rs".to_owned(), "b.rs".to_owned()],
+            vec!["a".to_owned(), "b".to_owned()],
+        );
+        let suggestions = autocomplete.get_suggestions("/", 1);
+        assert_eq!(
+            suggestions.suggestions,
+            vec!["a".to_owned(), "b".to_owned()]
+        );
+    }
+
+    #[test]
+    fn test_should_trigger_files() {
+        let autocomplete = MultiTriggerSuggester::new(
+            vec!["a.rs".to_owned(), "b.rs".to_owned()],
+            vec!["a".to_owned(), "b".to_owned()],
+        );
+        let suggestions = autocomplete.get_suggestions("@", 1);
+        assert_eq!(
+            suggestions.suggestions,
+            vec!["a.rs".to_owned(), "b.rs".to_owned()]
+        );
+    }
+
+    #[test]
+    fn test_should_trigger_select_specific_command() {
+        let autocomplete = MultiTriggerSuggester::new(
+            vec!["a.rs".to_owned(), "b.rs".to_owned()],
+            vec!["a".to_owned(), "b".to_owned()],
+        );
+        let suggestions = autocomplete.get_suggestions("/a", 2);
+        assert_eq!(suggestions.suggestions, vec!["a".to_owned()]);
+    }
+
+    #[test]
+    fn test_should_not_trigger_autocomplete() {
+        let autocomplete = MultiTriggerSuggester::new(
+            vec!["a.rs".to_owned(), "b.rs".to_owned()],
+            vec!["a".to_owned(), "b".to_owned()],
+        );
+        let suggestions = autocomplete.get_suggestions("#a", 2);
+        assert!(suggestions.suggestions.is_empty());
     }
 }
