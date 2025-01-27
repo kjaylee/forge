@@ -55,8 +55,9 @@ pub trait Suggester {
     }
 }
 
-/// A simple suggester that filters a static list of suggestions when triggered
-/// by a specific character.
+
+/// A suggester config that holds the suggestions list and 
+/// the trigger points for the suggestions and the action to be taken.
 pub struct SuggesterConfig {
     pub suggestions: Vec<String>,
     pub trigger_chars: Vec<char>,
