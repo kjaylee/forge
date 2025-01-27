@@ -17,10 +17,7 @@ impl TempDir {
                 .suffix(Self::END_MARKER)
                 .tempdir_in(temp_dir.clone())
                 .with_context(|| {
-                    format!(
-                        "failed to create temp directory in: {}",
-                        temp_dir.display()
-                    )
+                    format!("failed to create temp directory in: {}", temp_dir.display())
                 })?,
         })
     }
