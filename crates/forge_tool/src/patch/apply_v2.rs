@@ -256,4 +256,75 @@ mod test {
             .unwrap();
         insta::assert_snapshot!(actual);
     }
+
+    #[tokio::test]
+    async fn fuzzy_match() {
+        let actual = PatchTest::new("fooo bar")
+            .replace("foo", "baz")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn append_empty_search() {
+        let actual = PatchTest::new("foo")
+            .replace("", " bar")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn delete_empty_replace() {
+        let actual = PatchTest::new("foo bar baz")
+            .replace("bar ", "")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn multiple_replacements() {
+        let actual = PatchTest::new("foo bar")
+            .replace("foo", "baz")
+            .replace("bar", "qux")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn no_match_error() {
+        let result = PatchTest::new("foo")
+            .replace("bar", "baz")
+            .execute()
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Could not find match"));
+    }
+
+    #[tokio::test]
+    async fn fuzzy_below_threshold() {
+        let result = PatchTest::new("fo bar")
+            .replace("foo", "baz")
+            .execute()
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Could not find match"));
+    }
+
+    #[tokio::test]
+    async fn empty_file() {
+        let actual = PatchTest::new("")
+            .replace("", "foo")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
 }
