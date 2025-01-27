@@ -181,7 +181,7 @@ impl Suggester for MultiTriggerSuggester {
                     let file = s.to_lowercase();
                     // we've file paths like '/users/abc/random/file.txt'
                     // we want to check on the basis of file name only
-                    if let Some(file_name) = file.split('/').last() {
+                    if let Some(file_name) = file.split('/').next_back() {
                         file_name.contains(query)
                     } else {
                         false
@@ -207,7 +207,6 @@ impl Suggester for MultiTriggerSuggester {
         }
     }
 }
-
 
 /// A prompt for text input with autocomplete suggestions.
 pub struct AutocompleteInput<S: Suggester> {
