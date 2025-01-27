@@ -330,7 +330,7 @@ impl SuggestionContext {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::input::MultiTriggerSuggester;
+    
 
     struct SimpleSuggester {
         suggestions: SuggesterConfig,
@@ -392,7 +392,8 @@ mod tests {
             "fibo.rs".to_owned(),
             "apple.rs".to_owned(),
             "apricot.rs".to_owned(),
-        ]).with_triggers(vec!['@']);
+        ])
+        .with_triggers(vec!['@']);
 
         let mut input = AutocompleteInput::new("Test").with_suggester(suggester);
 
@@ -413,13 +414,12 @@ mod tests {
 
     #[test]
     fn test_suggestion_selection() {
-        let suggester = SimpleSuggester::new(
-            vec![
-                "fibo.rs".to_owned(),
-                "apple.rs".to_owned(),
-                "apricot.rs".to_owned(),
-            ],
-        ).with_triggers(vec!['@']);
+        let suggester = SimpleSuggester::new(vec![
+            "fibo.rs".to_owned(),
+            "apple.rs".to_owned(),
+            "apricot.rs".to_owned(),
+        ])
+        .with_triggers(vec!['@']);
 
         let mut input = AutocompleteInput::new("").with_suggester(suggester);
         // // Show suggestions
