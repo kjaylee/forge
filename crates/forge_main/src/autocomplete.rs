@@ -70,7 +70,7 @@ impl SuggesterConfig {
         unique_suggestions.sort();
         Self {
             suggestions: unique_suggestions,
-            trigger_chars: vec!['@'],
+            trigger_chars: vec![],
             submit_on_select: false,
         }
     }
@@ -332,12 +332,54 @@ mod tests {
     use super::*;
     use crate::input::MultiTriggerSuggester;
 
+    struct SimpleSuggester {
+        suggestions: SuggesterConfig,
+    }
+
+    impl SimpleSuggester {
+        fn new(suggestions: Vec<String>) -> Self {
+            Self { suggestions: SuggesterConfig::new(suggestions) }
+        }
+
+        pub fn with_triggers(mut self, triggers: Vec<char>) -> Self {
+            self.suggestions.trigger_chars = triggers;
+            self
+        }
+    }
+
+    impl Suggester for SimpleSuggester {
+        fn get_suggestions(&self, input: &str, pos: usize) -> SuggestionContext {
+            let input_before_cursor = &input[..pos];
+            if let Some((trigger_pos, _)) = input_before_cursor
+                .char_indices()
+                .rev()
+                .find(|(_, c)| self.suggestions.trigger_chars.contains(c))
+            {
+                let query = &input[trigger_pos + 1..pos].to_lowercase();
+                let filtered = self
+                    .suggestions
+                    .suggestions
+                    .iter()
+                    .filter(|s| s.contains(query))
+                    .take(5)
+                    .cloned()
+                    .collect();
+
+                SuggestionContext {
+                    suggestions: filtered,
+                    replace_range: Some((trigger_pos, pos)),
+                    show_suggestions: !query.is_empty(),
+                    submit_on_select: self.suggestions.submit_on_select,
+                }
+            } else {
+                SuggestionContext::empty()
+            }
+        }
+    }
+
     #[test]
     fn test_autocomplete_input_basic() {
-        let suggester = MultiTriggerSuggester::new(
-            vec!["a.rs".to_owned(), "b.rs".to_owned()],
-            vec!["list".to_owned()],
-        );
+        let suggester = SimpleSuggester::new(vec!["a.rs".to_owned(), "b.rs".to_owned()]);
         let input = AutocompleteInput::new("Test").with_suggester(suggester);
         // Test initial state
         assert_eq!(input.input.value(), "");
@@ -346,14 +388,11 @@ mod tests {
 
     #[test]
     fn test_autocomplete_filtering() {
-        let suggester = MultiTriggerSuggester::new(
-            vec![
-                "fibo.rs".to_owned(),
-                "apple.rs".to_owned(),
-                "apricot.rs".to_owned(),
-            ],
-            vec!["list".to_owned()],
-        );
+        let suggester = SimpleSuggester::new(vec![
+            "fibo.rs".to_owned(),
+            "apple.rs".to_owned(),
+            "apricot.rs".to_owned(),
+        ]).with_triggers(vec!['@']);
 
         let mut input = AutocompleteInput::new("Test").with_suggester(suggester);
 
@@ -374,14 +413,13 @@ mod tests {
 
     #[test]
     fn test_suggestion_selection() {
-        let suggester = MultiTriggerSuggester::new(
+        let suggester = SimpleSuggester::new(
             vec![
                 "fibo.rs".to_owned(),
                 "apple.rs".to_owned(),
                 "apricot.rs".to_owned(),
             ],
-            vec!["list".to_owned()],
-        );
+        ).with_triggers(vec!['@']);
 
         let mut input = AutocompleteInput::new("").with_suggester(suggester);
         // // Show suggestions
