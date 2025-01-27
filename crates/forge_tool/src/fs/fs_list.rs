@@ -86,7 +86,6 @@ impl ToolCallService for FSList {
 #[cfg(test)]
 mod test {
     use insta::assert_snapshot;
-    
     use tokio::fs;
 
     use super::*;
