@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use crossterm::style::Stylize;
 use derive_setters::Setters;
 use forge_domain::{Command, Usage, UserInput};
 use promptuity::themes::MinimalTheme;
@@ -35,7 +36,7 @@ impl UserInput for Console {
     ) -> anyhow::Result<Command> {
         let help = help_text
             .map(|a| a.to_string())
-            .unwrap_or(format!("Available commands: {}", self.commands.join(", ")));
+            .unwrap_or(format!("[Available commands: {}]", self.commands.join(", ")).cyan().to_string());
 
         // TODO: need API like: prompter.prompt(initial_text, hint, suggester);
         let mut input = AutocompleteInput::new(initial_text.unwrap_or(""))
