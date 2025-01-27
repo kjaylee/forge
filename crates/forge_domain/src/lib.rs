@@ -25,6 +25,7 @@ mod tool_result;
 mod tool_service;
 mod tool_usage;
 mod user_interaction;
+mod snapshot;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -53,6 +54,7 @@ pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
+pub use snapshot::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
@@ -70,6 +72,8 @@ pub trait ForgeDomain {
     type ConfigRepo: ConfigRepository;
     /// The concrete type implementing environment repository
     type EnvironmentRepo: EnvironmentRepository;
+    /// The concrete type implementing snapshot repository
+    type SnapshotRepo: SnapshotRepository;
 
     /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
@@ -84,4 +88,6 @@ pub trait ForgeDomain {
 
     /// Get a reference to the file read service instance
     fn file_read_service(&self) -> &Self::FileReadService;
+    /// Get a reference to the snapshot repository instance
+    fn snapshot_repository(&self) -> &Self::SnapshotRepo;
 }

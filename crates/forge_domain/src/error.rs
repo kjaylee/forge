@@ -17,6 +17,9 @@ pub enum Error {
     #[error("Invalid conversation id: {0}")]
     ConversationId(uuid::Error),
 
+    #[error("Invalid snapshot id: {0}")]
+    SnapshotId(uuid::Error),
+
     #[error("Invalid input command: {0}")]
     InputCommand(String),
 
