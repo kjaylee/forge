@@ -1,5 +1,0 @@
----
-source: crates/forge_app/src/service/tool_service.rs
-expression: result
----
-<tool_result><tool_name>failure_tool</tool_name><success>Tool call failed with simulated failure</success></tool_result>

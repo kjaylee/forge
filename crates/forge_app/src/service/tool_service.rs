@@ -43,18 +43,18 @@ impl TokenLimiter {
        temp_file
     }
 
-    async fn process_output(&self, output: String) -> Result<String, String> {
+    async fn process_output(&self, output: String) -> String {
         let token_count = self.token_counter.count_tokens(&output);
         if token_count > self.token_counter.max_tokens {
             let temp_file = self.create_temp_file(output).await;
-            return Err(format!(
+            return format!(
                 "Output exceeds token limit ({} > {}). Written to temp file: {}, use search to find relevant information",
                 token_count,
                 self.token_counter.max_tokens,
                 temp_file.display()
-            ))
+            )
         }
-        Ok(output)
+        output
     }
 }
 
@@ -109,8 +109,8 @@ impl ToolService for Live {
         };
 
         let output = match output {
-            Ok(output) => self.limits.process_output(output).await,
-            Err(output) => self.limits.process_output(output).await,
+            Ok(output) => Ok(self.limits.process_output(output).await),
+            Err(output) => Err(self.limits.process_output(output).await),
         };
         match output {
             Ok(output) => ToolResult::from(call).success(output),
@@ -351,7 +351,6 @@ mod test {
         test::time::advance(Duration::from_secs(305)).await;
 
         let result = service.call(call).await;
-
         // Assert that the result contains a timeout error message
         let content_str = &result.content;
         assert!(
