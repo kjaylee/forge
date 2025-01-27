@@ -228,8 +228,12 @@ mod test {
     }
 
     impl PatchTest {
-        fn new(initial: impl ToString, replacements: Vec<Replacement>) -> Self {
-            PatchTest { initial: initial.to_string(), replacements, result: None }
+        fn new(initial: impl ToString, replacements: &[Replacement]) -> Self {
+            PatchTest {
+                initial: initial.to_string(),
+                replacements: replacements.to_vec(),
+                result: None,
+            }
         }
 
         async fn execute(mut self) -> Result<Self, String> {
@@ -272,7 +276,7 @@ mod test {
 
     #[tokio::test]
     async fn simple_replacement() {
-        let actual = PatchTest::new("Hello World", vec![Replacement::new("World", "Forge")])
+        let actual = PatchTest::new("Hello World", &[Replacement::new("World", "Forge")])
             .execute()
             .await
             .unwrap();
