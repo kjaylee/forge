@@ -49,11 +49,10 @@ impl ToolCallService for FSList {
         let recursive = input.recursive.unwrap_or(false);
         let max_depth = if recursive { usize::MAX } else { 1 };
 
-        let walker = Walker::builder()
+        let walker = Walker::default()
             .cwd(dir.to_path_buf())
-            .max_depth(max_depth)
-            .build()
-            .map_err(|e| format!("Failed to create directory walker: {}", e))?;
+            .max_breadth(usize::MAX)
+            .max_depth(max_depth);
 
         let files = walker
             .get()
@@ -68,13 +67,16 @@ impl ToolCallService for FSList {
             }
 
             if !entry.path.is_empty() {
-                let prefix = if entry.is_dir { "[DIR]" } else { "[FILE]" };
-                paths.push(format!("{} {}", prefix, entry.path));
+                if entry.is_dir {
+                    paths.push(format!(r#"<dir path="{}">"#, entry.path));
+                } else {
+                    paths.push(format!(r#"<file path="{}">"#, entry.path));
+                };
             }
         }
 
         if paths.is_empty() {
-            Ok("No files found".to_string())
+            Ok("<empty></empty>".to_string())
         } else {
             Ok(paths.join("\n"))
         }
