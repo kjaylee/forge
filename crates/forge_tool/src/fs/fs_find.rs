@@ -132,10 +132,10 @@ impl ToolCallService for FSSearch {
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::utils::TempDir;
 
     #[tokio::test]
     async fn test_fs_search_content() {

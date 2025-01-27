@@ -1,6 +1,7 @@
-mod normalize_path;
 mod path_validation;
-
 #[cfg(test)]
-pub use normalize_path::*;
+mod temp_dir;
+
 pub use path_validation::*;
+#[cfg(test)]
+pub use temp_dir::*;

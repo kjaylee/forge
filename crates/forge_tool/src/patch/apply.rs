@@ -193,10 +193,8 @@ impl ToolCallService for ApplyPatch {
 mod test {
     use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
-    use tempfile::TempDir;
-
     use super::*;
-    use crate::utils::normalize_path;
+    use crate::utils::TempDir;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content)
@@ -254,7 +252,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content to verify whitespace preservation
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -277,7 +275,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -300,7 +298,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content to verify both replacements
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -322,7 +320,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content to verify the line was removed
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -349,7 +347,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -365,7 +363,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
 
@@ -381,7 +379,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content3 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content3);
     }
@@ -412,7 +410,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -425,7 +423,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
     }
@@ -456,7 +454,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -469,7 +467,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
     }
@@ -494,7 +492,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content);
     }
@@ -516,7 +514,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content);
     }

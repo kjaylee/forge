@@ -75,11 +75,11 @@ impl ToolCallService for FSList {
             }
         }
 
-        if paths.is_empty() {
-            Ok("<empty></empty>".to_string())
-        } else {
-            Ok(paths.join("\n"))
-        }
+        Ok(format!(
+            "<file_list path=\"{}\">\n{}\n</file_list>",
+            input.path,
+            paths.join("\n")
+        ))
     }
 }
 
@@ -87,10 +87,10 @@ impl ToolCallService for FSList {
 mod test {
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::utils::TempDir;
 
     #[tokio::test]
     async fn test_fs_list_empty_directory() {

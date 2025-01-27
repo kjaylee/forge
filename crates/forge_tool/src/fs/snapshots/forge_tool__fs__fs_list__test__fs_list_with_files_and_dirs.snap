@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/fs/fs_list.rs
 expression: result
+snapshot_kind: text
 ---
 <file path="file2.txt">
 <file path="file1.txt">
