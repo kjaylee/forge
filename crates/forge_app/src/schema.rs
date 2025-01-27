@@ -19,4 +19,19 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(configuration_table, conversations,);
+diesel::table! {
+    snapshots (id) {
+        id -> Text,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+        file_path -> Text,
+        archived -> Bool,
+        snapshot_path -> Text,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    configuration_table,
+    conversations,
+    snapshots,
+);

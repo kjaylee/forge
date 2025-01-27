@@ -3,8 +3,9 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use derive_more::derive::Display;
 use uuid::Uuid;
-use crate::{Error, Result};
+use crate::{Error};
 use chrono::{DateTime, Utc};
+use anyhow::Result;
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
 #[serde(transparent)]
@@ -19,7 +20,7 @@ impl SnapshotId {
         self.0.to_string()
     }
 
-    pub fn parse(value: impl ToString) -> Result<Self> {
+    pub fn parse(value: impl ToString) -> Result<Self, Error> {
         Ok(Self(
             Uuid::parse_str(&value.to_string()).map_err(Error::SnapshotId)?,
         ))
@@ -58,11 +59,11 @@ pub struct SnapshotMeta {
 
 #[async_trait]
 pub trait SnapshotRepository: Send + Sync {
-    fn create_snapshot(file_path: &str) -> Result<Snapshot>;
-    fn list_snapshots(file_path: &str) -> Result<Vec<Snapshot>>;
-    fn restore_snapshot(
+    async fn create_snapshot(&self, file_path: &str) -> Result<Snapshot>;
+    async fn list_snapshots(&self,file_path: &str) -> Result<Vec<Snapshot>>;
+    async fn restore_snapshot(&self,
         file_path: &str,
         snapshot_id: Option<SnapshotId>,
     ) -> Result<()>;
-    fn archive_snapshots(before: SnapshotId) -> Result<()> ;
+    async fn archive_snapshots(&self,after: SnapshotId) -> Result<()> ;
 }
