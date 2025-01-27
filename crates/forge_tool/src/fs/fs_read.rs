@@ -41,7 +41,6 @@ impl ToolCallService for FSRead {
             .await
             .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e));
 
-        
         match out {
             Ok(output) => Ok(process_output(token_counter.clone(), output)),
             Err(output) => Err(process_output(token_counter.clone(), output)),
