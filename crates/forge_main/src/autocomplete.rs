@@ -241,8 +241,10 @@ impl<S: Suggester> AutocompleteInput<S> {
                 if !context.suggestions.is_empty() && context.show_suggestions {
                     if let Some((start, end)) = context.replace_range {
                         let input = self.input.value();
-                        let suggestion =
-                            suggester.format_suggestion(&context.suggestions[self.selected_index]);
+                        let suggestion = suggester
+                            .format_suggestion(&context.suggestions[self.selected_index])
+                            .cyan()
+                            .to_string();
                         let new_value =
                             format!("{}{}{}", &input[..start], suggestion, &input[end..]);
                         self.input = InputCursor::new(new_value, start + suggestion.len());
