@@ -329,8 +329,8 @@ impl SuggestionContext {
 
 #[cfg(test)]
 mod tests {
-    use crate::input::MultiTriggerSuggester;
     use super::*;
+    use crate::input::MultiTriggerSuggester;
 
     #[test]
     fn test_autocomplete_input_basic() {
