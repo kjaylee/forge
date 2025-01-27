@@ -10,11 +10,17 @@ pub struct TokenCounter {
     pub max_tokens: usize,
 }
 
+impl Default for TokenCounter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TokenCounter {
     /// Create a new TokenCounter using the GPT-4 tokenizer
     pub fn new() -> Self {
         let bpe = tiktoken_rs::get_bpe_from_model("gpt-4-0314").unwrap();
-        Self { bpe , max_tokens: MAX_TOOL_OUTPUT_TOKENS }
+        Self { bpe, max_tokens: MAX_TOOL_OUTPUT_TOKENS }
     }
 
     /// Count the number of tokens in the given text

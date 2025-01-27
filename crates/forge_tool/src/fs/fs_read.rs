@@ -5,9 +5,8 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::utils::assert_absolute_path;
-
 use super::fs_find;
+use crate::utils::assert_absolute_path;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReadInput {
@@ -41,17 +40,16 @@ impl ToolCallService for FSRead {
         let out = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e));
-        
-        let output = match out {
-            Ok(output) => Ok(process_output(token_counter.clone(), output)),
-            Err(output) => Err(process_output(token_counter.clone(),output)),
-        };
-      output     
-    }
 
+        
+        match out {
+            Ok(output) => Ok(process_output(token_counter.clone(), output)),
+            Err(output) => Err(process_output(token_counter.clone(), output)),
+        }
+    }
 }
 
-fn process_output(token_counter: TokenCounter, output: String) ->String {
+fn process_output(token_counter: TokenCounter, output: String) -> String {
     let token_count = token_counter.count_tokens(&output);
     if token_count > token_counter.max_tokens {
         return format!(
@@ -59,7 +57,7 @@ fn process_output(token_counter: TokenCounter, output: String) ->String {
             token_count,
             token_counter.max_tokens,
             fs_find::FSSearch.tool_name().as_str()
-        )
+        );
     }
     output
 }

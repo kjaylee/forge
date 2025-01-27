@@ -1,7 +1,12 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use forge_domain::{ TokenCounter, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
-use tokio::{fs, time::{timeout, Duration}};
+use forge_domain::{
+    TokenCounter, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+};
+use tokio::fs;
+use tokio::time::{timeout, Duration};
 use tracing::debug;
 use uuid::Uuid;
 
@@ -23,7 +28,6 @@ pub struct TokenLimiter {
     temp_dir: PathBuf,
 }
 
-
 impl TokenLimiter {
     pub fn new() -> Self {
         Self {
@@ -32,15 +36,14 @@ impl TokenLimiter {
         }
     }
     async fn create_temp_file(&self, content: String) -> PathBuf {
-        let temp_file = self.temp_dir.join(format!(
-            "{}_{}.txt",
-            TEMP_FILE_PREFIX,
-            Uuid::new_v4()
-        ));
-        // If this fails we should show an error message to the user not to the LLM as this is a system error
+        let temp_file = self
+            .temp_dir
+            .join(format!("{}_{}.txt", TEMP_FILE_PREFIX, Uuid::new_v4()));
+        // If this fails we should show an error message to the user not to the LLM as
+        // this is a system error
         fs::write(&temp_file, content).await.unwrap();
-        
-       temp_file
+
+        temp_file
     }
 
     async fn process_output(&self, output: String) -> String {
@@ -52,13 +55,11 @@ impl TokenLimiter {
                 token_count,
                 self.token_counter.max_tokens,
                 temp_file.display()
-            )
+            );
         }
         output
     }
 }
-
-
 
 struct Live {
     tools: HashMap<ToolName, Tool>,
@@ -70,7 +71,7 @@ impl FromIterator<Tool> for Live {
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
-                .collect::<HashMap<_, _>>();
+            .collect::<HashMap<_, _>>();
         let limits = Arc::new(TokenLimiter::new());
         Self { tools, limits }
     }
@@ -238,7 +239,12 @@ mod test {
             executable: Box::new(FailureTool),
         };
 
-        Live::from_iter(vec![success_tool, failure_tool, long_failure_tool, long_success_tool])
+        Live::from_iter(vec![
+            success_tool,
+            failure_tool,
+            long_failure_tool,
+            long_success_tool,
+        ])
     }
 
     #[tokio::test]

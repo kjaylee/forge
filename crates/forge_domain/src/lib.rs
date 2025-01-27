@@ -15,8 +15,8 @@ mod message;
 mod model;
 mod provider;
 mod stream_ext;
-mod tool;
 mod token_counter;
+mod tool;
 mod tool_call;
 mod tool_call_parser;
 mod tool_choice;
@@ -44,6 +44,7 @@ pub use message::*;
 pub use model::*;
 pub use provider::*;
 pub use stream_ext::*;
+pub use token_counter::*;
 pub use tool::*;
 pub use tool_call::*;
 pub use tool_call_parser::*;
@@ -54,7 +55,6 @@ pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
-pub use token_counter::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
