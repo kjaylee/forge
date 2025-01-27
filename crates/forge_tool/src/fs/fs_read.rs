@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
 use forge_domain::{NamedTool, TokenCounter, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -22,9 +22,7 @@ pub struct FSReadInput {
 /// PDF and DOCX files. May not be suitable for other types of binary files, as
 /// it returns the raw content as a string.
 #[derive(ToolDescription)]
-pub struct FSRead{
-    token_counter: Arc<TokenCounter>,
-}
+pub struct FSRead;
 
 impl NamedTool for FSRead {
     fn tool_name(&self) -> ToolName {
@@ -39,20 +37,21 @@ impl ToolCallService for FSRead {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
+        let token_counter = TokenCounter::new();
         let out = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e));
         
         let output = match out {
-            Ok(output) => Ok(process_output(self.token_counter.clone(), output)),
-            Err(output) => Err(process_output(self.token_counter.clone(),output)),
+            Ok(output) => Ok(process_output(token_counter.clone(), output)),
+            Err(output) => Err(process_output(token_counter.clone(),output)),
         };
       output     
     }
 
 }
 
-fn process_output(token_counter: Arc<TokenCounter>, output: String) ->String {
+fn process_output(token_counter: TokenCounter, output: String) ->String {
     let token_count = token_counter.count_tokens(&output);
     if token_count > token_counter.max_tokens {
         return format!(

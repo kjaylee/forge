@@ -107,14 +107,9 @@ impl ToolService for Live {
                 available_tools.join(", ")
             )),
         };
-
-        let output = match output {
-            Ok(output) => Ok(self.limits.process_output(output).await),
-            Err(output) => Err(self.limits.process_output(output).await),
-        };
         match output {
-            Ok(output) => ToolResult::from(call).success(output),
-            Err(output) => ToolResult::from(call).failure(output),
+            Ok(output) => ToolResult::from(call).success(self.limits.process_output(output).await),
+            Err(output) => ToolResult::from(call).failure(self.limits.process_output(output).await),
         }
     }
 
