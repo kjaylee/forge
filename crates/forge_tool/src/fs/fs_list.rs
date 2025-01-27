@@ -24,8 +24,10 @@ pub struct FSListInput {
 /// contents. The path must be absolute. Do not use this tool to confirm the
 /// existence of files you may have created, as the user will let you know if
 /// the files were created successfully or not.
-#[derive(ToolDescription)]
-pub struct FSList;
+#[derive(Default, ToolDescription)]
+pub struct FSList {
+    sorted: bool,
+}
 
 impl NamedTool for FSList {
     fn tool_name(&self) -> ToolName {
@@ -54,11 +56,16 @@ impl ToolCallService for FSList {
             .max_breadth(usize::MAX)
             .max_depth(max_depth);
 
-        let files = walker
+        let mut files = walker
             .get()
             .await
             .with_context(|| format!("Failed to read directory contents from '{}'", input.path))
             .map_err(|e| e.to_string())?;
+
+        // Sort the files for consistent snapshots
+        if self.sorted {
+            files.sort_by(|a, b| a.path.cmp(&b.path));
+        }
 
         for entry in files {
             // Skip the root directory itself
@@ -91,11 +98,17 @@ mod test {
     use super::*;
     use crate::utils::TempDir;
 
+    impl FSList {
+        fn new(sorted: bool) -> Self {
+            Self { sorted }
+        }
+    }
+
     #[tokio::test]
     async fn test_fs_list_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -120,7 +133,7 @@ mod test {
         fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
         fs::create_dir(temp_dir.path().join("dir2")).await.unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -137,7 +150,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent_dir = temp_dir.path().join("nonexistent");
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
                 path: nonexistent_dir.to_string_lossy().to_string(),
@@ -162,7 +175,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
@@ -195,7 +208,7 @@ mod test {
             .await
             .unwrap();
 
-        let fs_list = FSList;
+        let fs_list = FSList::new(true);
 
         // Test recursive listing
         let result = fs_list
@@ -211,7 +224,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_list_relative_path() {
-        let fs_list = FSList;
+        let fs_list = FSList::new(true);
         let result = fs_list
             .call(FSListInput { path: "relative/path".to_string(), recursive: None })
             .await;
