@@ -37,7 +37,7 @@ impl TokenLimiter {
             TEMP_FILE_PREFIX,
             Uuid::new_v4()
         ));
-        
+        // If this fails we should show an error message to the user not to the LLM as this is a system error
         fs::write(&temp_file, content).await.unwrap();
         
        temp_file
