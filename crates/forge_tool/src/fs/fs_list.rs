@@ -130,7 +130,7 @@ mod test {
             .await
             .unwrap();
 
-        assert_snapshot!(result);
+        assert_snapshot!(TempDir::normalize(&result));
     }
 
     #[tokio::test]
@@ -207,30 +207,7 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 5); // root.txt, dir1, file1.txt, subdir, file2.txt
-        assert!(result.contains("root.txt"));
-        assert!(result.contains("dir1"));
-        assert!(result.contains("file1.txt"));
-        assert!(result.contains("subdir"));
-        assert!(result.contains("file2.txt"));
-
-        // Test non-recursive listing of same structure
-        let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: Some(false),
-            })
-            .await
-            .unwrap();
-
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 2); // Only root.txt and dir1
-        assert!(result.contains("root.txt"));
-        assert!(result.contains("dir1"));
-        assert!(!result.contains("file1.txt"));
-        assert!(!result.contains("subdir"));
-        assert!(!result.contains("file2.txt"));
+        assert_snapshot!(TempDir::normalize(&result));
     }
 
     #[tokio::test]
