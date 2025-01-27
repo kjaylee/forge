@@ -1,22 +1,68 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
-use tokio::time::{timeout, Duration};
+use forge_domain::{ TokenCounter, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use tokio::{fs, time::{timeout, Duration}};
 use tracing::debug;
+use uuid::Uuid;
 
 use super::Service;
 
 // Timeout duration for tool calls
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
+/// Prefix for temporary files created by the system
+pub const TEMP_FILE_PREFIX: &str = "forge_temp_";
 impl Service {
     pub fn tool_service() -> impl ToolService {
         Live::from_iter(forge_tool::tools())
     }
 }
 
+pub struct TokenLimiter {
+    token_counter: TokenCounter,
+    temp_dir: PathBuf,
+}
+
+
+impl TokenLimiter {
+    pub fn new() -> Self {
+        Self {
+            token_counter: TokenCounter::new(),
+            temp_dir: std::env::temp_dir(),
+        }
+    }
+    async fn create_temp_file(&self, content: String) -> PathBuf {
+        let temp_file = self.temp_dir.join(format!(
+            "{}_{}.txt",
+            TEMP_FILE_PREFIX,
+            Uuid::new_v4()
+        ));
+        
+        fs::write(&temp_file, content).await.unwrap();
+        
+       temp_file
+    }
+
+    async fn process_output(&self, output: String) -> Result<String, String> {
+        let token_count = self.token_counter.count_tokens(&output);
+        if token_count > self.token_counter.max_tokens {
+            let temp_file = self.create_temp_file(output).await;
+            return Err(format!(
+                "Output exceeds token limit ({} > {}). Written to temp file: {}, use search to find relevant information",
+                token_count,
+                self.token_counter.max_tokens,
+                temp_file.display()
+            ))
+        }
+        Ok(output)
+    }
+}
+
+
+
 struct Live {
     tools: HashMap<ToolName, Tool>,
+    limits: Arc<TokenLimiter>,
 }
 
 impl FromIterator<Tool> for Live {
@@ -24,9 +70,9 @@ impl FromIterator<Tool> for Live {
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), tool))
-            .collect::<HashMap<_, _>>();
-
-        Self { tools }
+                .collect::<HashMap<_, _>>();
+        let limits = Arc::new(TokenLimiter::new());
+        Self { tools, limits }
     }
 }
 
@@ -62,6 +108,10 @@ impl ToolService for Live {
             )),
         };
 
+        let output = match output {
+            Ok(output) => self.limits.process_output(output).await,
+            Err(output) => self.limits.process_output(output).await,
+        };
         match output {
             Ok(output) => ToolResult::from(call).success(output),
             Err(output) => ToolResult::from(call).failure(output),
@@ -100,7 +150,7 @@ impl ToolService for Live {
 
 #[cfg(test)]
 mod test {
-    use forge_domain::{Tool, ToolCallId, ToolDefinition};
+    use forge_domain::{Tool, ToolCallId, ToolDefinition, MAX_TOOL_OUTPUT_TOKENS};
     use serde_json::{json, Value};
     use tokio::time;
 
@@ -128,6 +178,30 @@ mod test {
         }
     }
 
+    struct LongFailureTool;
+
+    #[async_trait::async_trait]
+    impl forge_domain::ToolCallService for LongFailureTool {
+        type Input = Value;
+
+        async fn call(&self, _input: Self::Input) -> Result<String, String> {
+            let long_output = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+            Err(long_output)
+        }
+    }
+
+    struct LongSuccessTool;
+
+    #[async_trait::async_trait]
+    impl forge_domain::ToolCallService for LongSuccessTool {
+        type Input = Value;
+
+        async fn call(&self, _input: Self::Input) -> Result<String, String> {
+            let long_output = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+            Ok(long_output)
+        }
+    }
+
     fn new_tool_service() -> impl ToolService {
         let success_tool = Tool {
             definition: ToolDefinition {
@@ -137,6 +211,26 @@ mod test {
                 output_schema: Some(schemars::schema_for!(String)),
             },
             executable: Box::new(SuccessTool),
+        };
+
+        let long_failure_tool = Tool {
+            definition: ToolDefinition {
+                name: ToolName::new("long_failure_tool"),
+                description: "A test tool that fails with long output".to_string(),
+                input_schema: schemars::schema_for!(serde_json::Value),
+                output_schema: Some(schemars::schema_for!(String)),
+            },
+            executable: Box::new(LongFailureTool),
+        };
+
+        let long_success_tool = Tool {
+            definition: ToolDefinition {
+                name: ToolName::new("long_success_tool"),
+                description: "A test tool that succeeds with long output".to_string(),
+                input_schema: schemars::schema_for!(serde_json::Value),
+                output_schema: Some(schemars::schema_for!(String)),
+            },
+            executable: Box::new(LongSuccessTool),
         };
 
         let failure_tool = Tool {
@@ -149,7 +243,7 @@ mod test {
             executable: Box::new(FailureTool),
         };
 
-        Live::from_iter(vec![success_tool, failure_tool])
+        Live::from_iter(vec![success_tool, failure_tool, long_failure_tool, long_success_tool])
     }
 
     #[tokio::test]
@@ -202,6 +296,34 @@ mod test {
             tokio::time::sleep(Duration::from_secs(400)).await;
             Ok("Slow tool completed".to_string())
         }
+    }
+
+    #[tokio::test]
+    async fn test_failed_tool_call_with_long_output() {
+        let service = new_tool_service();
+        let long_input = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+        let call = ToolCallFull {
+            name: ToolName::new("long_failure_tool"),
+            arguments: json!(long_input),
+            call_id: Some(ToolCallId::new("test")),
+        };
+
+        let result = service.call(call).await;
+        assert!(result.content.contains("Output exceeds token limit"));
+    }
+
+    #[tokio::test]
+    async fn test_successful_tool_call_with_long_output() {
+        let service = new_tool_service();
+        let long_input = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+        let call = ToolCallFull {
+            name: ToolName::new("long_success_tool"),
+            arguments: json!(long_input),
+            call_id: Some(ToolCallId::new("test")),
+        };
+
+        let result = service.call(call).await;
+        assert!(result.content.contains("Output exceeds token limit"));
     }
 
     #[tokio::test(flavor = "current_thread")]

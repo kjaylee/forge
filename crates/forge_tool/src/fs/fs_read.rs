@@ -1,11 +1,13 @@
 use std::path::Path;
 
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{NamedTool, TokenCounter, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::utils::assert_absolute_path;
+
+use super::fs_find;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReadInput {
@@ -35,11 +37,31 @@ impl ToolCallService for FSRead {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
-
-        tokio::fs::read_to_string(path)
+        let out = tokio::fs::read_to_string(path)
             .await
-            .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e))
+            .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e));
+        
+        let output = match out {
+            Ok(output) => process_output(output),
+            Err(output) => process_output(output),
+        };
+      output     
     }
+
+}
+
+fn process_output(output: String) -> Result<String, String> {
+    let token_counter = TokenCounter::new();
+    let token_count = token_counter.count_tokens(&output);
+    if token_count > token_counter.max_tokens {
+        return Err(format!(
+            "Output exceeds token limit ({} > {}), use {} to find relevant information",
+            token_count,
+            token_counter.max_tokens,
+            fs_find::FSSearch.tool_name().as_str()
+        ))
+    }
+    Ok(output)
 }
 
 #[cfg(test)]
