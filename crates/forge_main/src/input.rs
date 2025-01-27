@@ -38,11 +38,12 @@ impl UserInput for Console {
             .unwrap_or(format!("Available commands: {}", self.commands.join(", ")));
 
         // TODO: need API like: prompter.prompt(initial_text, hint, suggester);
-        let mut input = AutocompleteInput::with_custom_suggester(
-            initial_text.unwrap_or(""),
-            MultiTriggerSuggester::new(self.files.clone(), self.commands.clone()),
-        )
-        .with_hint(help);
+        let mut input = AutocompleteInput::new(initial_text.unwrap_or(""))
+            .with_suggester(MultiTriggerSuggester::new(
+                self.files.clone(),
+                self.commands.clone(),
+            ))
+            .with_hint(help);
         let mut term = Term::default();
         let mut theme = MinimalTheme::default();
         let mut p = Promptuity::new(&mut term, &mut theme);

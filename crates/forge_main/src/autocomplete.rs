@@ -57,13 +57,13 @@ pub trait Suggester {
 
 /// A simple suggester that filters a static list of suggestions when triggered
 /// by a specific character.
-pub struct StaticSuggester {
+pub struct SuggesterConfig {
     pub suggestions: Vec<String>,
     pub trigger_chars: Vec<char>,
     pub submit_on_select: bool,
 }
 
-impl StaticSuggester {
+impl SuggesterConfig {
     /// Creates a new [`StaticSuggester`] with the given suggestions.
     pub fn new(suggestions: Vec<String>) -> Self {
         let mut unique_suggestions: Vec<_> = suggestions.into_iter().collect();
@@ -88,54 +88,20 @@ impl StaticSuggester {
     }
 }
 
-impl Suggester for StaticSuggester {
-    fn get_suggestions(&self, input: &str, cursor_position: usize) -> SuggestionContext {
-        // Find the last trigger char before cursor position
-        let input_before_cursor = &input[..cursor_position];
-        if let Some((trigger_pos, _)) = input_before_cursor
-            .char_indices()
-            .rev()
-            .find(|(_, c)| self.trigger_chars.contains(c))
-        {
-            let query = &input[trigger_pos + 1..cursor_position];
-            let filtered = self
-                .suggestions
-                .iter()
-                .filter(|s| s.to_lowercase().contains(&query.to_lowercase()))
-                .cloned()
-                .collect();
-
-            SuggestionContext {
-                suggestions: filtered,
-                replace_range: Some((trigger_pos, cursor_position)),
-                show_suggestions: !query.is_empty(),
-                submit_on_select: self.submit_on_select,
-            }
-        } else {
-            SuggestionContext {
-                suggestions: Vec::new(),
-                replace_range: None,
-                show_suggestions: false,
-                submit_on_select: false,
-            }
-        }
-    }
-}
-
 /// A custom suggester that supports multiple trigger patterns and actions for
 /// these triggers. eg. files with '@' and commands with '/'
 pub struct MultiTriggerSuggester {
-    files: StaticSuggester,
-    commands: StaticSuggester,
+    files: SuggesterConfig,
+    commands: SuggesterConfig,
 }
 
 impl MultiTriggerSuggester {
     pub fn new(files: Vec<String>, commands: Vec<String>) -> Self {
         Self {
-            files: StaticSuggester::new(files)
+            files: SuggesterConfig::new(files)
                 .with_triggers(vec!['@'])
                 .with_submit_on_select(false), // Don't submit after selecting file
-            commands: StaticSuggester::new(commands)
+            commands: SuggesterConfig::new(commands)
                 .with_triggers(vec!['/'])
                 .with_submit_on_select(true), // Submit immediately after selecting command
         }
@@ -211,7 +177,7 @@ impl Suggester for MultiTriggerSuggester {
 /// A prompt for text input with autocomplete suggestions.
 pub struct AutocompleteInput<S: Suggester> {
     formatter: Box<dyn AutocompleteFormatter>,
-    suggester: S,
+    suggester: Option<S>,
     message: String,
     hint: Option<String>,
     placeholder: Option<String>,
@@ -222,12 +188,12 @@ pub struct AutocompleteInput<S: Suggester> {
     selected_index: usize,
 }
 
-impl AutocompleteInput<StaticSuggester> {
+impl<S: Suggester> AutocompleteInput<S> {
     /// Creates a new [`AutocompleteInput`] prompt.
     pub fn new(message: impl std::fmt::Display) -> Self {
         Self {
             formatter: Box::new(DefaultAutocompleteFormatter::new()),
-            suggester: StaticSuggester::new(Vec::new()),
+            suggester: None,
             message: message.to_string(),
             hint: None,
             placeholder: None,
@@ -241,42 +207,10 @@ impl AutocompleteInput<StaticSuggester> {
 }
 
 impl<S: Suggester> AutocompleteInput<S> {
-    /// Creates a new [`AutocompleteInput`] prompt with a custom suggester.
-    pub fn with_custom_suggester(message: impl std::fmt::Display, suggester: S) -> Self {
-        Self {
-            formatter: Box::new(DefaultAutocompleteFormatter::new()),
-            suggester,
-            message: message.to_string(),
-            hint: None,
-            placeholder: None,
-            required: true,
-            validator: None,
-            input: InputCursor::new(String::new(), 0),
-            suggestion_context: None,
-            selected_index: 0,
-        }
-    }
-
     /// Sets the suggester for the prompt.
     pub fn with_suggester(mut self, suggester: S) -> Self {
-        self.suggester = suggester;
+        self.suggester = Some(suggester);
         self
-    }
-
-    /// Sets the suggestions for the prompt.
-    pub fn with_suggestions(self, suggestions: Vec<String>) -> AutocompleteInput<StaticSuggester> {
-        AutocompleteInput {
-            formatter: self.formatter,
-            suggester: StaticSuggester::new(suggestions),
-            message: self.message,
-            hint: self.hint,
-            placeholder: self.placeholder,
-            required: self.required,
-            validator: self.validator,
-            input: self.input,
-            suggestion_context: None,
-            selected_index: 0,
-        }
     }
 
     /// Sets the hint message for the prompt.
@@ -292,26 +226,31 @@ impl<S: Suggester> AutocompleteInput<S> {
     }
 
     fn update_suggestions(&mut self) {
-        let input = self.input.value();
-        let cursor_pos = self.input.cursor();
-        self.suggestion_context = Some(self.suggester.get_suggestions(&input, cursor_pos));
-        self.selected_index = 0;
+        // if suggester is present, then ask for the suggestions.
+        if let Some(suggester) = &self.suggester {
+            let input = self.input.value();
+            let cursor_pos = self.input.cursor();
+            self.suggestion_context = Some(suggester.get_suggestions(&input, cursor_pos));
+            self.selected_index = 0;
+        }
     }
 
     fn select_suggestion(&mut self) {
-        if let Some(context) = &self.suggestion_context {
-            if !context.suggestions.is_empty() && context.show_suggestions {
-                if let Some((start, end)) = context.replace_range {
-                    let input = self.input.value();
-                    let suggestion = self
-                        .suggester
-                        .format_suggestion(&context.suggestions[self.selected_index]);
-                    let new_value = format!("{}{}{}", &input[..start], suggestion, &input[end..]);
-                    self.input = InputCursor::new(new_value, start + suggestion.len());
+        if let Some(suggester) = &self.suggester {
+            if let Some(context) = &self.suggestion_context {
+                if !context.suggestions.is_empty() && context.show_suggestions {
+                    if let Some((start, end)) = context.replace_range {
+                        let input = self.input.value();
+                        let suggestion =
+                            suggester.format_suggestion(&context.suggestions[self.selected_index]);
+                        let new_value =
+                            format!("{}{}{}", &input[..start], suggestion, &input[end..]);
+                        self.input = InputCursor::new(new_value, start + suggestion.len());
+                    }
                 }
             }
+            self.suggestion_context = None;
         }
-        self.suggestion_context = None;
     }
 }
 
@@ -469,9 +408,11 @@ mod tests {
 
     #[test]
     fn test_autocomplete_input_basic() {
-        let input = AutocompleteInput::new("Test")
-            .with_suggestions(vec!["apple".to_string(), "banana".to_string()]);
-
+        let suggester = MultiTriggerSuggester::new(
+            vec!["a.rs".to_owned(), "b.rs".to_owned()],
+            vec!["list".to_owned()],
+        );
+        let input = AutocompleteInput::new("Test").with_suggester(suggester);
         // Test initial state
         assert_eq!(input.input.value(), "");
         assert!(input.suggestion_context.is_none());
@@ -479,11 +420,16 @@ mod tests {
 
     #[test]
     fn test_autocomplete_filtering() {
-        let mut input = AutocompleteInput::new("Test").with_suggestions(vec![
-            "apple".to_string(),
-            "banana".to_string(),
-            "apricot".to_string(),
-        ]);
+        let suggester = MultiTriggerSuggester::new(
+            vec![
+                "fibo.rs".to_owned(),
+                "apple.rs".to_owned(),
+                "apricot.rs".to_owned(),
+            ],
+            vec!["list".to_owned()],
+        );
+
+        let mut input = AutocompleteInput::new("Test").with_suggester(suggester);
 
         // Simulate typing 'a'
         input.handle(KeyCode::Char('@'), KeyModifiers::NONE);
@@ -496,20 +442,27 @@ mod tests {
 
         assert_eq!(
             input.suggestion_context.as_ref().unwrap().suggestions,
-            vec!["apple".to_string(), "apricot".to_string()]
+            vec!["apple.rs".to_string(), "apricot.rs".to_string()]
         );
     }
 
     #[test]
     fn test_suggestion_selection() {
-        let mut input = AutocompleteInput::new("Test")
-            .with_suggestions(vec!["apple".to_string(), "banana".to_string()]);
+        let suggester = MultiTriggerSuggester::new(
+            vec![
+                "fibo.rs".to_owned(),
+                "apple.rs".to_owned(),
+                "apricot.rs".to_owned(),
+            ],
+            vec!["list".to_owned()],
+        );
 
+        let mut input = AutocompleteInput::new("").with_suggester(suggester);
         // // Show suggestions
         input.handle(KeyCode::Char('@'), KeyModifiers::NONE);
         input.handle(KeyCode::Char('a'), KeyModifiers::NONE);
         input.handle(KeyCode::Char('p'), KeyModifiers::NONE);
         input.handle(KeyCode::Tab, KeyModifiers::NONE);
-        assert_eq!(input.input.value(), "apple");
+        assert_eq!(input.input.value(), "apple.rs");
     }
 }
