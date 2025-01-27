@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use dissimilar::Chunk;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
@@ -11,85 +11,75 @@ use tokio::fs;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
+/// Threshold for fuzzy matching. A score above this value is considered a
+/// match. The score is calculated as the ratio of matching characters to total
+/// characters.
 const MATCH_THRESHOLD: f64 = 0.7;
 
-// The core matching function
-fn find_best_match(content: &str, search: &str) -> Option<(usize, usize)> {
-    // Try exact match first
-    if let Some(idx) = content.find(search) {
-        return Some((idx, idx + search.len()));
-    }
-
-    // Get line-by-line chunks
-    let content_lines: Vec<&str> = content.lines().collect();
-    let search_lines: Vec<&str> = search.lines().collect();
-
-    'outer: for start_idx in 0..content_lines.len() {
-        if start_idx + search_lines.len() > content_lines.len() {
-            break;
-        }
-
-        let mut total_score = 0.0;
-        for (i, search_line) in search_lines.iter().enumerate() {
-            let content_line = content_lines[start_idx + i];
-            let line_score = similarity_score(content_line.trim(), search_line.trim());
-            total_score += line_score;
-
-            // Early exit if line score is too low
-            if line_score < MATCH_THRESHOLD * 0.5 {
-                continue 'outer;
-            }
-        }
-
-        let avg_score = total_score / search_lines.len() as f64;
-        if avg_score >= MATCH_THRESHOLD {
-            // Find the position in original content
-            let mut pos = 0;
-            for i in 0..start_idx {
-                pos += content_lines[i].len() + 1; // +1 for newline
-            }
-
-            // Calculate the length of matched region
-            let mut match_len = 0;
-            for i in 0..search_lines.len() {
-                match_len += content_lines[start_idx + i].len() + 1;
-            }
-            match_len -= 1; // Remove extra newline from last line
-
-            return Some((pos, pos + match_len));
-        }
-    }
-
-    None
+/// Represents a potential patch match in the source text
+#[derive(Debug)]
+struct PatchMatch {
+    text: String,
+    similarity: f64,
 }
 
-// Apply a single replacement
-fn apply_replacement(content: &str, replacement: &Replacement) -> Option<String> {
-    if replacement.search.is_empty() {
-        let mut result = content.to_string();
-        result.push_str(&replacement.content);
-        return Some(result);
+impl PatchMatch {
+    fn new(text: String, total_len: usize) -> Self {
+        Self {
+            similarity: text.chars().count() as f64 / total_len as f64,
+            text,
+        }
     }
 
-    if let Some((start, end)) = find_best_match(content, &replacement.search) {
-        let mut result = content.to_string();
-        result.replace_range(start..end, &replacement.content);
-        Some(result)
-    } else {
-        None
+    fn is_good_match(&self) -> bool {
+        self.similarity >= MATCH_THRESHOLD
     }
 }
 
 #[derive(Debug, Error)]
 enum Error {
-    #[error("File not found at path: {0}")]
-    FileNotFound(PathBuf),
-    #[error("File operation failed: {0}")]
+    #[error("Failed to read/write file: {0}")]
     FileOperation(#[from] std::io::Error),
-    #[error("Invalid replacement: {0}")]
-    InvalidReplacement(String),
+    #[error("Could not find match for search text: {0}")]
+    NoMatch(String),
 }
 
+/// Find the best matching section using fuzzy matching
+fn find_best_match(content: &str, search: &str) -> Option<PatchMatch> {
+    dissimilar::diff(content, search)
+        .iter()
+        .filter_map(|chunk| match chunk {
+            Chunk::Equal(text) => Some(PatchMatch::new(text.to_string(), search.len())),
+            _ => None,
+        })
+        .filter(PatchMatch::is_good_match)
+        .max_by(|a, b| {
+            a.similarity
+                .partial_cmp(&b.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+}
+
+/// Apply a single replacement to the source text
+fn apply_single_replacement(source: &str, replacement: &Replacement) -> Result<String, Error> {
+    if replacement.search.is_empty() {
+        // Append mode - add content at the end
+        return Ok(format!("{}{}", source, replacement.content));
+    }
+
+    let patch = find_best_match(source, &replacement.search)
+        .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
+
+    Ok(if replacement.content.is_empty() {
+        // Delete mode - remove the matched content
+        source.replace(&patch.text, "")
+    } else {
+        // Replace mode - substitute matched content with new content
+        source.replace(&patch.text, &replacement.content)
+    })
+}
+
+/// A single search and replace operation
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone)]
 pub struct Replacement {
     pub search: String,
@@ -104,8 +94,8 @@ pub struct ApplyPatchV2Input {
 
 /// Replace sections in a file using JSON-based search/replace definitions.
 /// Each replacement can use fuzzy matching if exact matches aren't found.
-/// Matching preserves whitespace and uses a fuzzy matching algorithm when exact
-/// matches fail.
+/// Matching preserves whitespace and uses a similarity score to find the best
+/// match.
 #[derive(ToolDescription)]
 pub struct ApplyPatchV2;
 
@@ -115,36 +105,46 @@ impl NamedTool for ApplyPatchV2 {
     }
 }
 
-fn similarity_score(text1: &str, text2: &str) -> f64 {
-    let chunks = dissimilar::diff(text1, text2);
-    let mut equal_chars = 0;
-    let total_chars = text2.chars().count();
-
-    for chunk in chunks {
-        if let Chunk::Equal(text) = chunk {
-            equal_chars += text.chars().count();
-        }
-    }
-
-    equal_chars as f64 / total_chars as f64
-}
-
 async fn apply_replacements(
     content: String,
     replacements: Vec<Replacement>,
 ) -> Result<String, Error> {
-    let mut result = content;
+    replacements.iter().try_fold(content, |acc, replacement| {
+        apply_single_replacement(&acc, replacement)
+    })
+}
 
-    for replacement in replacements {
-        result = apply_replacement(&result, &replacement).ok_or_else(|| {
-            Error::InvalidReplacement(format!(
-                "Could not find match for search text: {}",
-                replacement.search
-            ))
-        })?;
+/// Format the modified content as XML with optional syntax warning
+fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
+    if let Some(w) = warning {
+        format!(
+            "<file_content\n  path=\"{}\"\n  syntax_checker_warning=\"{}\">\n{}</file_content>\n",
+            path, w, content
+        )
+    } else {
+        format!(
+            "<file_content path=\"{}\">\n{}\n</file_content>\n",
+            path,
+            content.trim_end()
+        )
     }
+}
 
-    Ok(result)
+/// Process the file modifications and return the formatted output
+async fn process_file_modifications(
+    path: &Path,
+    replacements: Vec<Replacement>,
+) -> Result<String, Error> {
+    let content = fs::read_to_string(path).await?;
+    let modified = apply_replacements(content, replacements).await?;
+    fs::write(path, &modified).await?;
+
+    let warning = syn::validate(path, &modified).map(|e| e.to_string());
+    Ok(format_output(
+        path.to_string_lossy().as_ref(),
+        &modified,
+        warning.as_deref(),
+    ))
 }
 
 #[async_trait::async_trait]
@@ -155,41 +155,9 @@ impl ToolCallService for ApplyPatchV2 {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        if !path.exists() {
-            return Err(Error::FileNotFound(path.to_path_buf()).to_string());
-        }
-
-        let result: Result<_, Error> = async {
-            let content = fs::read_to_string(&input.path)
-                .await
-                .map_err(Error::FileOperation)?;
-
-            let modified = apply_replacements(content, input.replacements).await?;
-
-            fs::write(&input.path, &modified)
-                .await
-                .map_err(Error::FileOperation)?;
-
-            let syntax_warning = syn::validate(&input.path, &modified);
-
-            let output = if let Some(warning) = syntax_warning {
-                format!(
-                    "<file_content\n  path=\"{}\"\n  syntax_checker_warning=\"{}\">\n{}</file_content>\n",
-                    input.path, warning, modified
-                )
-            } else {
-                format!(
-                    "<file_content path=\"{}\">\n{}\n</file_content>\n",
-                    input.path,
-                    modified.trim_end()
-                )
-            };
-
-            Ok(output)
-        }
-        .await;
-
-        result.map_err(|e| e.to_string())
+        process_file_modifications(path, input.replacements)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 
