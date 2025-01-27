@@ -6,6 +6,7 @@ mod keyboard;
 mod normalize;
 pub mod status;
 pub mod ui;
+mod autocomplete;
 
 pub use console::CONSOLE;
 pub use info::display_info;
