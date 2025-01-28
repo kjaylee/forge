@@ -58,11 +58,11 @@ impl ToolCallService for FSRead {
 
 fn process_output(token_counter: Arc<TokenCounter>, output: String) -> String {
     let token_count = token_counter.count_tokens(&output);
-    if token_count > token_counter.max_tokens {
+    if token_count > TokenCounter::MAX_TOOL_OUTPUT_TOKENS {
         return format!(
             "Output exceeds token limit ({} > {}), use {} to find relevant information",
             token_count,
-            token_counter.max_tokens,
+            TokenCounter::MAX_TOOL_OUTPUT_TOKENS,
             fs_find::FSSearch::tool_name().as_str()
         );
     }

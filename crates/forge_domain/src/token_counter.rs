@@ -1,13 +1,13 @@
 use tiktoken_rs::CoreBPE;
 
 /// Maximum number of tokens allowed in tool output
-pub const MAX_TOOL_OUTPUT_TOKENS: usize = 10_000;
+
+const BPE_MODEL: &str = "gpt-4-0314";
 
 /// TokenCounter struct for counting tokens in text using tiktoken
 #[derive(Clone)]
 pub struct TokenCounter {
     bpe: CoreBPE,
-    pub max_tokens: usize,
 }
 
 impl Default for TokenCounter {
@@ -17,10 +17,13 @@ impl Default for TokenCounter {
 }
 
 impl TokenCounter {
+    // TODO: make this configurable
+    pub const MAX_TOOL_OUTPUT_TOKENS: usize = 10_000;
+
     /// Create a new TokenCounter using the GPT-4 tokenizer
     pub fn new() -> Self {
-        let bpe = tiktoken_rs::get_bpe_from_model("gpt-4-0314").unwrap();
-        Self { bpe, max_tokens: MAX_TOOL_OUTPUT_TOKENS }
+        let bpe = tiktoken_rs::get_bpe_from_model(BPE_MODEL).unwrap();
+        Self { bpe }
     }
 
     /// Count the number of tokens in the given text

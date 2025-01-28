@@ -45,14 +45,14 @@ impl TokenLimiter {
 
     async fn process_output(&self, output: String) -> Result<String, String> {
         let token_count = self.token_counter.count_tokens(&output);
-        if token_count > self.token_counter.max_tokens {
+        if token_count > TokenCounter::MAX_TOOL_OUTPUT_TOKENS {
             let temp_file = self.create_temp_file(output).await;
             match temp_file {
                 Ok(temp_file) => {
                     return Ok(format!(
                         "Output exceeds token limit ({} > {}). Written to temp file: {}, use search to find relevant information from this file",
                         token_count,
-                        self.token_counter.max_tokens,
+                        TokenCounter::MAX_TOOL_OUTPUT_TOKENS,
                         temp_file.display()
                     ));
                 }
@@ -60,7 +60,7 @@ impl TokenLimiter {
                     return Err(format!(
                         "Output exceeds token limit ({} > {}). Failed to write output to temp file: {}.",
                         token_count,
-                        self.token_counter.max_tokens,
+                        TokenCounter::MAX_TOOL_OUTPUT_TOKENS,
                         e
                     ));
                 }
@@ -162,7 +162,7 @@ impl ToolService for Live {
 
 #[cfg(test)]
 mod test {
-    use forge_domain::{Tool, ToolCallId, ToolDefinition, MAX_TOOL_OUTPUT_TOKENS};
+    use forge_domain::{Tool, ToolCallId, ToolDefinition};
     use serde_json::{json, Value};
     use tokio::time;
 
@@ -197,7 +197,7 @@ mod test {
         type Input = Value;
 
         async fn call(&self, _input: Self::Input) -> Result<String, String> {
-            let long_output = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+            let long_output = "all\n".repeat(TokenCounter::MAX_TOOL_OUTPUT_TOKENS + 1);
             Err(long_output)
         }
     }
@@ -209,7 +209,7 @@ mod test {
         type Input = Value;
 
         async fn call(&self, _input: Self::Input) -> Result<String, String> {
-            let long_output = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+            let long_output = "all\n".repeat(TokenCounter::MAX_TOOL_OUTPUT_TOKENS + 1);
             Ok(long_output)
         }
     }
@@ -318,7 +318,7 @@ mod test {
     #[tokio::test]
     async fn test_failed_tool_call_with_long_output() {
         let service = new_tool_service();
-        let long_input = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+        let long_input = "all\n".repeat(TokenCounter::MAX_TOOL_OUTPUT_TOKENS + 1);
         let call = ToolCallFull {
             name: ToolName::new("long_failure_tool"),
             arguments: json!(long_input),
@@ -332,7 +332,7 @@ mod test {
     #[tokio::test]
     async fn test_successful_tool_call_with_long_output() {
         let service = new_tool_service();
-        let long_input = "all\n".repeat(MAX_TOOL_OUTPUT_TOKENS + 1);
+        let long_input = "all\n".repeat(TokenCounter::MAX_TOOL_OUTPUT_TOKENS + 1);
         let call = ToolCallFull {
             name: ToolName::new("long_success_tool"),
             arguments: json!(long_input),
