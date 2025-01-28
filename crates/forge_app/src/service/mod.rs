@@ -3,6 +3,7 @@ mod chat;
 mod env;
 mod file_read;
 mod provider;
+mod snapshot_provider;
 mod suggestion;
 mod system_prompt;
 #[cfg(test)]
@@ -11,10 +12,8 @@ mod tool_service;
 mod ui;
 mod user_prompt;
 mod workflow_title;
-mod snapshot_provider;
 
 pub use api::APIService;
-pub use snapshot_provider::SnapshotProvider;
 pub struct Service;
 
 #[async_trait::async_trait]

@@ -2,11 +2,13 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use forge_domain::{Snapshot, SnapshotId, SnapshotProvider as SnapshotProviderTrait, SnapshotRepository};
+use forge_domain::{
+    Snapshot, SnapshotId, SnapshotProvider as SnapshotProviderTrait, SnapshotRepository,
+};
 use sha2::{Digest, Sha256};
 
-/// Provides file-system level snapshot operations while coordinating with the SnapshotRepository
-/// for persistent storage
+/// Provides file-system level snapshot operations while coordinating with the
+/// SnapshotRepository for persistent storage
 pub struct SnapshotProvider {
     repository: Arc<dyn SnapshotRepository>,
 }
@@ -31,9 +33,9 @@ impl SnapshotProvider {
         // Check if a file with this hash already exists in temp directory
         let mut temp_path = std::env::temp_dir();
         temp_path.push(&hash);
-        
+
         let exists = tokio::fs::metadata(&temp_path).await.is_ok();
-        
+
         Ok((hash, exists))
     }
 
@@ -46,7 +48,7 @@ impl SnapshotProvider {
     async fn copy_file_with_hashed_name(file_path: &str) -> Result<(String, bool)> {
         // Get the hash and check if file exists
         let (hash, exists) = Self::create_hashed_name(file_path).await?;
-        
+
         if !exists {
             // Read the file's content
             let content = tokio::fs::read(file_path).await?;
@@ -73,20 +75,29 @@ impl SnapshotProviderTrait for SnapshotProvider {
         if exists {
             // If snapshot exists, find it in the repository
             let snapshots = self.repository.list_snapshots(file_path).await?;
-            if let Some(snapshot) = snapshots.into_iter().find(|s| s.snapshot_path == snapshot_path) {
+            if let Some(snapshot) = snapshots
+                .into_iter()
+                .find(|s| s.snapshot_path == snapshot_path)
+            {
                 return Ok(snapshot);
             }
         }
 
         // If we get here, either the file is new or it wasn't in the database
-        self.repository.create_snapshot(file_path, &snapshot_path).await
+        self.repository
+            .create_snapshot(file_path, &snapshot_path)
+            .await
     }
 
     async fn list_snapshots(&self, file_path: &str) -> Result<Vec<Snapshot>> {
         self.repository.list_snapshots(file_path).await
     }
 
-    async fn restore_snapshot(&self, file_path: &str, snapshot_id: Option<SnapshotId>) -> Result<()> {
+    async fn restore_snapshot(
+        &self,
+        file_path: &str,
+        snapshot_id: Option<SnapshotId>,
+    ) -> Result<()> {
         // First find the snapshot in the repository
         let snapshot = match snapshot_id {
             Some(id) => {
@@ -110,7 +121,12 @@ impl SnapshotProviderTrait for SnapshotProvider {
         // Read the snapshot content
         let snapshot_content = tokio::fs::read(&snapshot.snapshot_path)
             .await
-            .with_context(|| format!("Failed to read snapshot content from: {}", snapshot.snapshot_path))?;
+            .with_context(|| {
+                format!(
+                    "Failed to read snapshot content from: {}",
+                    snapshot.snapshot_path
+                )
+            })?;
 
         // Write the content back to the original file
         tokio::fs::write(file_path, snapshot_content)
@@ -131,7 +147,9 @@ impl SnapshotProviderTrait for SnapshotProvider {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
     use tokio::sync::Mutex;
+
     use super::*;
 
     /// A test implementation of the SnapshotProvider trait for use in tests
@@ -142,9 +160,7 @@ mod tests {
 
     impl TestSnapshotProvider {
         pub fn new() -> Self {
-            Self {
-                snapshots: Arc::new(Mutex::new(HashMap::new())),
-            }
+            Self { snapshots: Arc::new(Mutex::new(HashMap::new())) }
         }
 
         pub async fn get_snapshot_content(&self, file_path: &str) -> Option<Vec<u8>> {
@@ -184,7 +200,11 @@ mod tests {
             })
         }
 
-        async fn restore_snapshot(&self, file_path: &str, _snapshot_id: Option<SnapshotId>) -> Result<()> {
+        async fn restore_snapshot(
+            &self,
+            file_path: &str,
+            _snapshot_id: Option<SnapshotId>,
+        ) -> Result<()> {
             // For testing, we don't need to actually restore files
             let snapshots = self.snapshots.lock().await;
             if !snapshots.contains_key(file_path) {
@@ -204,7 +224,7 @@ mod tests {
     async fn test_snapshot_provider_create_and_list() -> Result<()> {
         let provider = TestSnapshotProvider::default();
         let file_path = "test.txt";
-        
+
         // Create a snapshot
         let snapshot = provider.create_snapshot(file_path).await?;
         assert_eq!(snapshot.file_path, file_path);
@@ -229,12 +249,16 @@ mod tests {
         let snapshot = provider.create_snapshot(file_path).await?;
 
         // Restore should now succeed
-        assert!(provider.restore_snapshot(file_path, Some(snapshot.id)).await.is_ok());
+        assert!(provider
+            .restore_snapshot(file_path, Some(snapshot.id))
+            .await
+            .is_ok());
 
         Ok(())
     }
 
     use std::sync::Arc;
+
     use tempfile::NamedTempFile;
     use tokio::fs::File;
     use tokio::io::AsyncWriteExt;
@@ -265,10 +289,18 @@ mod tests {
 
         async fn list_snapshots(&self, file_path: &str) -> Result<Vec<Snapshot>> {
             let snapshots = self.snapshots.lock().await;
-            Ok(snapshots.iter().filter(|s| s.file_path == file_path).cloned().collect())
+            Ok(snapshots
+                .iter()
+                .filter(|s| s.file_path == file_path)
+                .cloned()
+                .collect())
         }
 
-        async fn restore_snapshot(&self, _file_path: &str, _snapshot_id: Option<SnapshotId>) -> Result<()> {
+        async fn restore_snapshot(
+            &self,
+            _file_path: &str,
+            _snapshot_id: Option<SnapshotId>,
+        ) -> Result<()> {
             Ok(())
         }
 
@@ -288,7 +320,7 @@ mod tests {
 
         // Create first snapshot
         let snapshot1 = provider.create_snapshot(&file_path).await?;
-        
+
         // Create second snapshot of the same file
         let snapshot2 = provider.create_snapshot(&file_path).await?;
 
@@ -320,11 +352,13 @@ mod tests {
         assert_ne!(snapshot1.snapshot_path, snapshot2.snapshot_path);
 
         // Check that both snapshots were stored
-        let all_snapshots = vec![repo.list_snapshots(&file_path1).await?, 
-                                repo.list_snapshots(&file_path2).await?]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
+        let all_snapshots = vec![
+            repo.list_snapshots(&file_path1).await?,
+            repo.list_snapshots(&file_path2).await?,
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
         assert_eq!(all_snapshots.len(), 2);
 
         Ok(())

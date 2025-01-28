@@ -5,6 +5,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Text, Timestamp};
 use forge_domain::{Snapshot, SnapshotId, SnapshotMeta, SnapshotRepository};
+
 use crate::schema::snapshots;
 use crate::sqlite::Sqlite;
 
@@ -182,6 +183,7 @@ impl SnapshotRepository for Live {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::sqlite::TestDriver;
 
@@ -247,8 +249,20 @@ mod tests {
         storage.archive_snapshots(snap1.id).await.unwrap();
 
         let snapshots = storage.list_snapshots(file_path).await.unwrap();
-        assert!(!snapshots.iter().find(|s| s.id == snap1.id).unwrap().archived);
-        assert!(snapshots.iter().find(|s| s.id == snap2.id).unwrap().archived);
+        assert!(
+            !snapshots
+                .iter()
+                .find(|s| s.id == snap1.id)
+                .unwrap()
+                .archived
+        );
+        assert!(
+            snapshots
+                .iter()
+                .find(|s| s.id == snap2.id)
+                .unwrap()
+                .archived
+        );
     }
 
     #[tokio::test]
@@ -267,7 +281,7 @@ mod tests {
 
         // Verify the latest snapshot is not archived
         let snapshots = storage.list_snapshots(file_path).await.unwrap();
-        let latest = snapshots.iter().next().unwrap();
+        let latest = snapshots.first().unwrap();
         assert!(!latest.archived);
         assert_eq!(latest.id, snap2.id);
     }
@@ -281,7 +295,10 @@ mod tests {
         storage.archive_snapshots(snap.id).await.unwrap();
 
         // Restore specific snapshot
-        storage.restore_snapshot(file_path, Some(snap.id)).await.unwrap();
+        storage
+            .restore_snapshot(file_path, Some(snap.id))
+            .await
+            .unwrap();
 
         let snapshots = storage.list_snapshots(file_path).await.unwrap();
         assert!(!snapshots[0].archived);
