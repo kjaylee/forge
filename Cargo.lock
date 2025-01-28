@@ -581,8 +581,7 @@ dependencies = [
 [[package]]
 name = "dialoguer"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "658bce805d770f407bc62102fca7c2c64ceef2fbcb2b8bd19d2765ce093980de"
+source = "git+https://github.com/laststylebender14/dialoguer.git?branch=feat%2Fimpl-autocomplete-with-input#7163f29b9b46cf070ee84a3c383071666f43e9db"
 dependencies = [
  "console",
  "shell-words",

@@ -33,11 +33,12 @@ impl UI {
         custom_instructions: Option<PathBuf>,
     ) -> Result<Self> {
         let api = Arc::new(Service::api_service().await?);
+        let files = api.completions().await?.into_iter().filter(|f| !f.is_dir).map(|f| f.path).collect();
 
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console,
+            console: Console::new(files, Command::available_commands()),
             verbose,
             exec,
             custom_instructions,
