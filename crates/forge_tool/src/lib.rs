@@ -10,6 +10,7 @@ mod syn;
 mod think;
 mod utils;
 
+
 use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
@@ -21,7 +22,7 @@ use think::Think;
 pub fn tools() -> Vec<Tool> {
     vec![
         // Approve.into(),
-        FSRead.into(),
+        FSRead::new().into(),
         FSWrite.into(),
         FSList::default().into(),
         FSSearch.into(),
