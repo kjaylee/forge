@@ -1,0 +1,9 @@
+---
+source: crates/forge_tool/src/patch/apply_v2.rs
+expression: actual
+---
+<!-- INITIAL -->foox baz foo
+<!-- REPLACEMENTS -->
+<!-- SEARCH -->afoo
+<!-- REPLACE -->bar
+<!-- FINAL -->barx baz foo

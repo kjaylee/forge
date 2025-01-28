@@ -75,7 +75,8 @@ fn apply_single_replacement(source: &str, replacement: &Replacement) -> Result<S
         source.replace(&patch.text, "")
     } else {
         // Replace mode - substitute matched content with new content
-        source.replace(&patch.text, &replacement.content)
+
+        source.replacen(&patch.text, &replacement.content, 1)
     })
 }
 
@@ -92,10 +93,8 @@ pub struct ApplyPatchV2Input {
     pub replacements: Vec<Replacement>,
 }
 
-/// Replace sections in a file using JSON-based search/replace definitions.
-/// Each replacement can use fuzzy matching if exact matches aren't found.
-/// Matching preserves whitespace and uses a similarity score to find the best
-/// match.
+/// Finds and replaces all occurrences of the search text with the replacement
+/// text in the file at the given path.
 #[derive(ToolDescription)]
 pub struct ApplyPatchV2;
 
@@ -103,15 +102,6 @@ impl NamedTool for ApplyPatchV2 {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_patch_v2")
     }
-}
-
-async fn apply_replacements(
-    content: String,
-    replacements: Vec<Replacement>,
-) -> Result<String, Error> {
-    replacements.iter().try_fold(content, |acc, replacement| {
-        apply_single_replacement(&acc, replacement)
-    })
 }
 
 /// Format the modified content as XML with optional syntax warning
@@ -136,7 +126,9 @@ async fn process_file_modifications(
     replacements: Vec<Replacement>,
 ) -> Result<String, Error> {
     let content = fs::read_to_string(path).await?;
-    let modified = apply_replacements(content, replacements).await?;
+    let modified = replacements.iter().try_fold(content, |acc, replacement| {
+        apply_single_replacement(&acc, replacement)
+    })?;
     fs::write(path, &modified).await?;
 
     let warning = syn::validate(path, &modified).map(|e| e.to_string());
@@ -209,6 +201,7 @@ mod test {
             self
         }
 
+        // TODO: tests don't need to write files to disk
         async fn execute(mut self) -> Result<Self, String> {
             let temp_dir = TempDir::new().unwrap();
             let path = temp_dir.path().join("test.txt");
@@ -300,10 +293,7 @@ mod test {
 
     #[tokio::test]
     async fn no_match_error() {
-        let result = PatchTest::new("foo")
-            .replace("bar", "baz")
-            .execute()
-            .await;
+        let result = PatchTest::new("foo").replace("bar", "baz").execute().await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Could not find match"));
     }
@@ -322,6 +312,67 @@ mod test {
     async fn empty_file() {
         let actual = PatchTest::new("")
             .replace("", "foo")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn multiple_matches_first_only() {
+        let actual = PatchTest::new("foo bar foo")
+            .replace("foo", "baz")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn multiple_matches_sequential() {
+        let actual = PatchTest::new("foo bar foo")
+            .replace("foo", "baz")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn exact_threshold_match() {
+        let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
+            .replace("foo", "bar")
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn just_below_threshold() {
+        let result = PatchTest::new("fox") // 2/3 ≈ 0.67, just below MATCH_THRESHOLD
+            .replace("foo", "bar")
+            .execute()
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Could not find match"));
+    }
+
+    #[tokio::test]
+    async fn multiple_fuzzy_matches() {
+        let actual = PatchTest::new("foox baz foo")
+            .replace("afoo", "bar") // Should replace both "foox"
+            .execute()
+            .await
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn exact_and_fuzzy_mixed() {
+        let actual = PatchTest::new("foo foox foo")
+            .replace("foo", "bar") // Should replace first exact "foo"
+            .replace("foo", "baz") // Should replace second exact "foo"
             .execute()
             .await
             .unwrap();
