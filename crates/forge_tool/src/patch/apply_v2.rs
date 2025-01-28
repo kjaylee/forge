@@ -234,11 +234,11 @@ mod test {
         }
     }
 
-    /**************************************************************************
+    /*
      * Basic Operations
      * Tests basic functionality like exact matches, empty inputs, and simple
-     * cases ***************************************************************
-     * ******** */
+     * cases
+     */
     #[test]
     fn exact_match_single_word() {
         let actual = PatchTest::new("Hello World")
@@ -272,10 +272,10 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    /**************************************************************************
+    /*
      * Multiple Replacements
      * Tests behavior when multiple replacements are performed
-     ********************************************************************** */
+     */
     #[test]
     fn different_replacements_in_sequence() {
         let actual = PatchTest::new("foo bar")
@@ -315,10 +315,10 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    /**************************************************************************
+    /*
      * Fuzzy Matching Behavior
      * Tests the fuzzy matching algorithm and similarity thresholds
-     ********************************************************************** */
+     */
     #[test]
     fn exact_threshold_match() {
         let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
@@ -359,10 +359,10 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    /**************************************************************************
+    /*
      * Unicode and Special Characters
      * Tests handling of non-ASCII text and special characters
-     ********************************************************************** */
+     */
     #[test]
     fn unicode_characters() {
         let actual = PatchTest::new("Hello 世界")
@@ -390,10 +390,10 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    /**************************************************************************
+    /*
      * Whitespace Handling
      * Tests preservation of whitespace, indentation, and line endings
-     ********************************************************************** */
+     */
     #[test]
     fn preserve_indentation() {
         let actual = PatchTest::new("    indented\n        more indented")
@@ -421,10 +421,10 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    /**************************************************************************
+    /*
      * Error Cases
      * Tests error handling and edge cases
-     ********************************************************************** */
+     */
     #[test]
     fn nested_replacements() {
         let actual = PatchTest::new("outer inner outer")
@@ -445,15 +445,15 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    /**************************************************************************
+    /*
      * Complex Replacements
      * Tests complicated scenarios like nested and overlapping matches
-     ********************************************************************** */
+     */
 
-    /**************************************************************************
+    /*
      * Error Cases
      * Tests error handling and validation
-     ********************************************************************** */
+     */
 
     #[test]
     fn delete_single_line_only() {
