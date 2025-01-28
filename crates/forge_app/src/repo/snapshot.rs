@@ -53,7 +53,7 @@ impl Live {
     pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
         Self { pool_service }
     }
-    async fn copy_file_with_hashed_name(file_path: &str) -> Result<String> {
+    async fn create_hashed_name(file_path: &str) -> Result<String> {
         // Read the file's content
         let content = tokio::fs::read(file_path).await?;
     
@@ -63,7 +63,15 @@ impl Live {
         hasher.update(&content);
     
         // Convert the hash to a hexadecimal string
-        let hash = format!("{:x}", hasher.finalize());
+        Ok(format!("{:x}", hasher.finalize()))
+    }
+
+    async fn copy_file_with_hashed_name(file_path: &str) -> Result<String> {
+        // Create the hashed name
+        let hash = Self::create_hashed_name(file_path).await?;
+    
+        // Read the file's content
+        let content = tokio::fs::read(file_path).await?;
     
         // Create a path in the system temp directory
         let mut temp_path = std::env::temp_dir();

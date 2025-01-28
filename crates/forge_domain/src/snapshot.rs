@@ -27,7 +27,7 @@ impl SnapshotId {
     }
 }
 
-#[derive(Debug, Setters, Serialize, Deserialize)]
+#[derive(Debug, Clone, Setters, Serialize, Deserialize)]
 pub struct Snapshot {
     pub id: SnapshotId,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -51,7 +51,7 @@ impl Snapshot {
     
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotMeta {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
