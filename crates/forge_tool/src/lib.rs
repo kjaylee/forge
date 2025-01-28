@@ -21,7 +21,7 @@ use think::Think;
 pub fn tools() -> Vec<Tool> {
     vec![
         // Approve.into(),
-        FSRead::new().into(),
+        FSRead::default().into(),
         FSWrite.into(),
         FSList::default().into(),
         FSSearch.into(),

@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::sync::Arc;
 
 use forge_domain::{NamedTool, TokenCounter, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -21,15 +20,9 @@ pub struct FSReadInput {
 /// information from configuration files. Automatically extracts raw text from
 /// PDF and DOCX files. May not be suitable for other types of binary files, as
 /// it returns the raw content as a string.
-#[derive(ToolDescription)]
+#[derive(Default, ToolDescription)]
 pub struct FSRead {
-    token_counter: Arc<TokenCounter>,
-}
-
-impl FSRead {
-    pub fn new() -> Self {
-        Self { token_counter: Arc::new(TokenCounter::new()) }
-    }
+    token_counter: TokenCounter,
 }
 
 impl NamedTool for FSRead {
@@ -56,7 +49,7 @@ impl ToolCallService for FSRead {
     }
 }
 
-fn process_output(token_counter: Arc<TokenCounter>, output: String) -> String {
+fn process_output(token_counter: TokenCounter, output: String) -> String {
     let token_count = token_counter.count_tokens(&output);
     if token_count > TokenCounter::MAX_TOOL_OUTPUT_TOKENS {
         return format!(
@@ -85,7 +78,7 @@ mod test {
         let test_content = "Hello, World!";
         fs::write(&file_path, test_content).await.unwrap();
 
-        let fs_read = FSRead::new();
+        let fs_read = FSRead::default();
         let result = fs_read
             .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
             .await
@@ -99,7 +92,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent_file = temp_dir.path().join("nonexistent.txt");
 
-        let fs_read = FSRead::new();
+        let fs_read = FSRead::default();
         let result = fs_read
             .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() })
             .await;
@@ -113,7 +106,7 @@ mod test {
         let file_path = temp_dir.path().join("empty.txt");
         fs::write(&file_path, "").await.unwrap();
 
-        let fs_read = FSRead::new();
+        let fs_read = FSRead::default();
         let result = fs_read
             .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
             .await
@@ -124,12 +117,12 @@ mod test {
 
     #[test]
     fn test_description() {
-        assert!(FSRead::new().description().len() > 100)
+        assert!(FSRead::default().description().len() > 100)
     }
 
     #[tokio::test]
     async fn test_fs_read_relative_path() {
-        let fs_read = FSRead::new();
+        let fs_read = FSRead::default();
         let result = fs_read
             .call(FSReadInput { path: "relative/path.txt".to_string() })
             .await;
