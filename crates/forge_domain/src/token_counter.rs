@@ -1,7 +1,5 @@
 use tiktoken_rs::CoreBPE;
 
-/// Maximum number of tokens allowed in tool output
-
 const BPE_MODEL: &str = "gpt-4-0314";
 
 /// TokenCounter struct for counting tokens in text using tiktoken

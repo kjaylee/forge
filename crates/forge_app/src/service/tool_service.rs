@@ -31,7 +31,7 @@ struct TokenLimiter {
 impl TokenLimiter {
     pub fn new() -> Self {
         Self {
-            token_counter: TokenCounter::new(),
+            token_counter: TokenCounter::default(),
             temp_dir: std::env::temp_dir(),
         }
     }
