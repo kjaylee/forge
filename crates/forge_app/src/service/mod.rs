@@ -11,8 +11,10 @@ mod tool_service;
 mod ui;
 mod user_prompt;
 mod workflow_title;
+mod snapshot_provider;
 
 pub use api::APIService;
+pub use snapshot_provider::SnapshotProvider;
 pub struct Service;
 
 #[async_trait::async_trait]

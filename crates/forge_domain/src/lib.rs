@@ -15,6 +15,7 @@ mod message;
 mod model;
 mod provider;
 mod snapshot;
+mod snapshot_provider;
 mod stream_ext;
 mod tool;
 mod tool_call;
@@ -44,6 +45,7 @@ pub use message::*;
 pub use model::*;
 pub use provider::*;
 pub use snapshot::*;
+pub use snapshot_provider::*;
 pub use stream_ext::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -74,6 +76,8 @@ pub trait ForgeDomain {
     type EnvironmentRepo: EnvironmentRepository;
     /// The concrete type implementing snapshot repository
     type SnapshotRepo: SnapshotRepository;
+    /// The concrete type implementing snapshot provider service
+    type SnapshotProv: SnapshotProvider;
 
     /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
@@ -85,9 +89,10 @@ pub trait ForgeDomain {
     fn config_repository(&self) -> &Self::ConfigRepo;
     /// Get a reference to the environment repository instance
     fn environment_repository(&self) -> &Self::EnvironmentRepo;
-
     /// Get a reference to the file read service instance
     fn file_read_service(&self) -> &Self::FileReadService;
     /// Get a reference to the snapshot repository instance
     fn snapshot_repository(&self) -> &Self::SnapshotRepo;
+    /// Get a reference to the snapshot provider service instance
+    fn snapshot_provider(&self) -> &Self::SnapshotProv;
 }

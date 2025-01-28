@@ -5,8 +5,6 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Text, Timestamp};
 use forge_domain::{Snapshot, SnapshotId, SnapshotMeta, SnapshotRepository};
-use sha2::{Digest, Sha256};
-
 use crate::schema::snapshots;
 use crate::sqlite::Sqlite;
 
@@ -56,58 +54,21 @@ impl Live {
     pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
         Self { pool_service }
     }
-    async fn create_hashed_name(file_path: &str) -> Result<String> {
-        // Read the file's content
-        let content = tokio::fs::read(file_path).await?;
-
-        // Create a SHA256 hash combining file path and file content
-        let mut hasher = Sha256::new();
-        hasher.update(file_path.as_bytes());
-        hasher.update(&content);
-
-        // Convert the hash to a hexadecimal string
-        Ok(format!("{:x}", hasher.finalize()))
-    }
-
-    async fn copy_file_with_hashed_name(file_path: &str) -> Result<String> {
-        // Create the hashed name
-        let hash = Self::create_hashed_name(file_path).await?;
-
-        // Read the file's content
-        let content = tokio::fs::read(file_path).await?;
-
-        // Create a path in the system temp directory
-        let mut temp_path = std::env::temp_dir();
-        temp_path.push(&hash);
-
-        // Write the file content to the new temp file
-        tokio::fs::write(&temp_path, &content).await?;
-
-        // Return the new file path as a string
-        Ok(temp_path.to_string_lossy().to_string())
-    }
 }
 
 #[async_trait::async_trait]
 impl SnapshotRepository for Live {
-    async fn create_snapshot(&self, file_path: &str) -> Result<Snapshot> {
+    async fn create_snapshot(&self, file_path: &str, snapshot_path: &str) -> Result<Snapshot> {
         let mut conn = self.pool_service.connection().await.with_context(|| {
-            "Failed to acquire database connection for conversation operation".to_string()
+            "Failed to acquire database connection for snapshot operation".to_string()
         })?;
-        // create a file in temp directory which will copy the content of the file_path
-        // and the name of the file will be the sha256 hash of the file_path and its
-        // content
-
-        let snapshot_path = Self::copy_file_with_hashed_name(file_path)
-            .await
-            .with_context(|| format!("Failed to create snapshot for file path: {}", file_path))?;
 
         let entity = SnapshotEntity {
             id: SnapshotId::generate().into_string(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
             file_path: file_path.to_string(),
-            snapshot_path,
+            snapshot_path: snapshot_path.to_string(),
             archived: false,
         };
         diesel::insert_into(snapshots::table)
@@ -187,10 +148,6 @@ impl SnapshotRepository for Live {
         let mut conn = self.pool_service.connection().await.with_context(|| {
             "Failed to acquire database connection for conversation operation".to_string()
         })?;
-        // We need to archive every snapshot that was created after the snapshot
-        // corresponding to the given UUID. Because the snapshot ID is a UUID and cannot
-        // be directly compared, we must first locate the exact snapshot with that ID.
-        // Then, we gather all subsequent snapshots and proceed to archive them.
         let snapshot = snapshots::table
             .filter(snapshots::id.eq(after.into_string()))
             .first::<SnapshotEntity>(&mut conn)
@@ -219,5 +176,115 @@ impl SnapshotRepository for Live {
                 )
             })?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use super::*;
+    use crate::sqlite::TestDriver;
+
+    pub struct TestSnapshotStorage;
+    impl TestSnapshotStorage {
+        pub fn in_memory() -> Result<impl SnapshotRepository> {
+            let pool_service = Arc::new(TestDriver::new()?);
+            Ok(Live::new(pool_service))
+        }
+    }
+
+    async fn setup_storage() -> Result<impl SnapshotRepository> {
+        TestSnapshotStorage::in_memory()
+    }
+
+    async fn create_test_snapshot(
+        storage: &impl SnapshotRepository,
+        file_path: &str,
+    ) -> Result<Snapshot> {
+        let snapshot_path = format!("/tmp/test_{}", file_path);
+        storage.create_snapshot(file_path, &snapshot_path).await
+    }
+
+    #[tokio::test]
+    async fn snapshot_can_be_stored_and_retrieved() {
+        let storage = setup_storage().await.unwrap();
+        let file_path = "test.txt";
+
+        let saved = create_test_snapshot(&storage, file_path).await.unwrap();
+        let snapshots = storage.list_snapshots(file_path).await.unwrap();
+
+        assert_eq!(snapshots.len(), 1);
+        assert_eq!(saved.file_path, snapshots[0].file_path);
+        assert_eq!(saved.snapshot_path, snapshots[0].snapshot_path);
+    }
+
+    #[tokio::test]
+    async fn list_returns_snapshots_by_file_path() {
+        let storage = setup_storage().await.unwrap();
+
+        let snap1 = create_test_snapshot(&storage, "test1.txt").await.unwrap();
+        let snap2 = create_test_snapshot(&storage, "test2.txt").await.unwrap();
+
+        let snapshots1 = storage.list_snapshots("test1.txt").await.unwrap();
+        let snapshots2 = storage.list_snapshots("test2.txt").await.unwrap();
+
+        assert_eq!(snapshots1.len(), 1);
+        assert_eq!(snapshots2.len(), 1);
+        assert_eq!(snapshots1[0].id, snap1.id);
+        assert_eq!(snapshots2[0].id, snap2.id);
+    }
+
+    #[tokio::test]
+    async fn archive_marks_later_snapshots_as_archived() {
+        let storage = setup_storage().await.unwrap();
+        let file_path = "test.txt";
+
+        // Create two snapshots
+        let snap1 = create_test_snapshot(&storage, file_path).await.unwrap();
+        let snap2 = create_test_snapshot(&storage, file_path).await.unwrap();
+
+        // Archive after first snapshot
+        storage.archive_snapshots(snap1.id).await.unwrap();
+
+        let snapshots = storage.list_snapshots(file_path).await.unwrap();
+        assert!(!snapshots.iter().find(|s| s.id == snap1.id).unwrap().archived);
+        assert!(snapshots.iter().find(|s| s.id == snap2.id).unwrap().archived);
+    }
+
+    #[tokio::test]
+    async fn restore_latest_snapshot_succeeds() {
+        let storage = setup_storage().await.unwrap();
+        let file_path = "test.txt";
+
+        let _snap1 = create_test_snapshot(&storage, file_path).await.unwrap();
+        let snap2 = create_test_snapshot(&storage, file_path).await.unwrap();
+
+        // Archive all snapshots
+        storage.archive_snapshots(snap2.id).await.unwrap();
+
+        // Restore latest
+        storage.restore_snapshot(file_path, None).await.unwrap();
+
+        // Verify the latest snapshot is not archived
+        let snapshots = storage.list_snapshots(file_path).await.unwrap();
+        let latest = snapshots.iter().next().unwrap();
+        assert!(!latest.archived);
+        assert_eq!(latest.id, snap2.id);
+    }
+
+    #[tokio::test]
+    async fn restore_specific_snapshot_succeeds() {
+        let storage = setup_storage().await.unwrap();
+        let file_path = "test.txt";
+
+        let snap = create_test_snapshot(&storage, file_path).await.unwrap();
+        storage.archive_snapshots(snap.id).await.unwrap();
+
+        // Restore specific snapshot
+        storage.restore_snapshot(file_path, Some(snap.id)).await.unwrap();
+
+        let snapshots = storage.list_snapshots(file_path).await.unwrap();
+        assert!(!snapshots[0].archived);
+        assert_eq!(snapshots[0].id, snap.id);
     }
 }

@@ -58,7 +58,7 @@ pub struct SnapshotMeta {
 
 #[async_trait]
 pub trait SnapshotRepository: Send + Sync {
-    async fn create_snapshot(&self, file_path: &str) -> Result<Snapshot>;
+    async fn create_snapshot(&self, file_path: &str, snapshot_path: &str) -> Result<Snapshot>;
     async fn list_snapshots(&self, file_path: &str) -> Result<Vec<Snapshot>>;
     async fn restore_snapshot(
         &self,
