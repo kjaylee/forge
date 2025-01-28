@@ -43,23 +43,25 @@ impl ToolCallService for FSRead {
             .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e));
 
         match out {
-            Ok(output) => Ok(process_output(self.token_counter.clone(), output)),
-            Err(output) => Err(process_output(self.token_counter.clone(), output)),
+            Ok(output) => Ok(self.process_output(output)),
+            Err(output) => Err(self.process_output(output)),
         }
     }
 }
 
-fn process_output(token_counter: TokenCounter, output: String) -> String {
-    let token_count = token_counter.count_tokens(&output);
-    if token_count > TokenCounter::MAX_TOOL_OUTPUT_TOKENS {
-        return format!(
-            "Output exceeds token limit ({} > {}), use {} to find relevant information",
-            token_count,
-            TokenCounter::MAX_TOOL_OUTPUT_TOKENS,
-            fs_find::FSSearch::tool_name().as_str()
-        );
+impl FSRead {
+    fn process_output(&self, output: String) -> String {
+        let token_count = self.token_counter.count_tokens(&output);
+        if token_count > TokenCounter::MAX_TOOL_OUTPUT_TOKENS {
+            return format!(
+                "Output exceeds token limit ({} > {}), use {} to find relevant information",
+                token_count,
+                TokenCounter::MAX_TOOL_OUTPUT_TOKENS,
+                fs_find::FSSearch::tool_name().as_str()
+            );
+        }
+        output
     }
-    output
 }
 
 #[cfg(test)]
