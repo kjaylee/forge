@@ -63,7 +63,7 @@ fn process_output(token_counter: Arc<TokenCounter>, output: String) -> String {
             "Output exceeds token limit ({} > {}), use {} to find relevant information",
             token_count,
             token_counter.max_tokens,
-            fs_find::FSSearch.tool_name().as_str()
+            fs_find::FSSearch::tool_name().as_str()
         );
     }
     output
