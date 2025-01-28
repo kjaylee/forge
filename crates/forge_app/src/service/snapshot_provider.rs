@@ -7,14 +7,14 @@ use sha2::{Digest, Sha256};
 
 use super::Service;
 
-/// Provides file-system level snapshot operations while coordinating with the SnapshotRepository
-/// for persistent storage
+/// Provides file-system level snapshot operations while coordinating with the
+/// SnapshotRepository for persistent storage
 pub struct Live {
     repository: Arc<dyn SnapshotRepository>,
 }
 
 impl Live {
-     fn new(repository: Arc<dyn SnapshotRepository>) -> Self {
+    fn new(repository: Arc<dyn SnapshotRepository>) -> Self {
         Self { repository }
     }
 
@@ -68,7 +68,7 @@ impl Live {
 impl Service {
     pub fn snapshot_provider(repository: Arc<dyn SnapshotRepository>) -> impl SnapshotProvider {
         Live::new(repository)
-    } 
+    }
 }
 
 #[async_trait]
