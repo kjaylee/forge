@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use forge_domain::{NamedTool, TokenCounter, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -21,7 +21,16 @@ pub struct FSReadInput {
 /// PDF and DOCX files. May not be suitable for other types of binary files, as
 /// it returns the raw content as a string.
 #[derive(ToolDescription)]
-pub struct FSRead;
+pub struct FSRead{
+    token_counter: Arc<TokenCounter>,
+}
+
+impl FSRead {
+    pub fn new() -> Self {
+        Self { token_counter: Arc::new(TokenCounter::new()) }
+    }
+    
+}
 
 impl NamedTool for FSRead {
     fn tool_name(&self) -> ToolName {
@@ -36,19 +45,18 @@ impl ToolCallService for FSRead {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
-        let token_counter = TokenCounter::new();
         let out = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e));
 
         match out {
-            Ok(output) => Ok(process_output(token_counter.clone(), output)),
-            Err(output) => Err(process_output(token_counter.clone(), output)),
+            Ok(output) => Ok(process_output(self.token_counter.clone(), output)),
+            Err(output) => Err(process_output(self.token_counter.clone(), output)),
         }
     }
 }
 
-fn process_output(token_counter: TokenCounter, output: String) -> String {
+fn process_output(token_counter: Arc<TokenCounter>, output: String) -> String {
     let token_count = token_counter.count_tokens(&output);
     if token_count > token_counter.max_tokens {
         return format!(
@@ -77,7 +85,7 @@ mod test {
         let test_content = "Hello, World!";
         fs::write(&file_path, test_content).await.unwrap();
 
-        let fs_read = FSRead;
+        let fs_read = FSRead::new();
         let result = fs_read
             .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
             .await
@@ -91,7 +99,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent_file = temp_dir.path().join("nonexistent.txt");
 
-        let fs_read = FSRead;
+        let fs_read = FSRead::new();
         let result = fs_read
             .call(FSReadInput { path: nonexistent_file.to_string_lossy().to_string() })
             .await;
@@ -105,7 +113,7 @@ mod test {
         let file_path = temp_dir.path().join("empty.txt");
         fs::write(&file_path, "").await.unwrap();
 
-        let fs_read = FSRead;
+        let fs_read = FSRead::new();
         let result = fs_read
             .call(FSReadInput { path: file_path.to_string_lossy().to_string() })
             .await
@@ -116,12 +124,12 @@ mod test {
 
     #[test]
     fn test_description() {
-        assert!(FSRead.description().len() > 100)
+        assert!(FSRead::new().description().len() > 100)
     }
 
     #[tokio::test]
     async fn test_fs_read_relative_path() {
-        let fs_read = FSRead;
+        let fs_read = FSRead::new();
         let result = fs_read
             .call(FSReadInput { path: "relative/path.txt".to_string() })
             .await;
