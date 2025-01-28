@@ -64,7 +64,6 @@ impl TokenLimiter {
                         e
                     ));
                 }
-                
             }
         }
         Ok(output)
@@ -118,20 +117,16 @@ impl ToolService for Live {
                 available_tools.join(", ")
             )),
         };
-          
+
         match output {
-            Ok(output) => {
-                match self.limits.process_output(output).await {
-                    Ok(processed_output) => ToolResult::from(call).success(processed_output),
-                    Err(e) => ToolResult::from(call).failure(e),   
-                }
-            }
-            Err(output) => {
-                match self.limits.process_output(output).await {
-                    Ok(processed_output) => ToolResult::from(call).failure(processed_output),
-                    Err(e) => ToolResult::from(call).failure(e),   
-                }
-            }
+            Ok(output) => match self.limits.process_output(output).await {
+                Ok(processed_output) => ToolResult::from(call).success(processed_output),
+                Err(e) => ToolResult::from(call).failure(e),
+            },
+            Err(output) => match self.limits.process_output(output).await {
+                Ok(processed_output) => ToolResult::from(call).failure(processed_output),
+                Err(e) => ToolResult::from(call).failure(e),
+            },
         }
     }
 

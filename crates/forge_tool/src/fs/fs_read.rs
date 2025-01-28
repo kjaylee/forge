@@ -1,4 +1,5 @@
-use std::{path::Path, sync::Arc};
+use std::path::Path;
+use std::sync::Arc;
 
 use forge_domain::{NamedTool, TokenCounter, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -21,7 +22,7 @@ pub struct FSReadInput {
 /// PDF and DOCX files. May not be suitable for other types of binary files, as
 /// it returns the raw content as a string.
 #[derive(ToolDescription)]
-pub struct FSRead{
+pub struct FSRead {
     token_counter: Arc<TokenCounter>,
 }
 
@@ -29,7 +30,6 @@ impl FSRead {
     pub fn new() -> Self {
         Self { token_counter: Arc::new(TokenCounter::new()) }
     }
-    
 }
 
 impl NamedTool for FSRead {

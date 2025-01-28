@@ -10,7 +10,6 @@ mod syn;
 mod think;
 mod utils;
 
-
 use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
