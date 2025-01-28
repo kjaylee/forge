@@ -60,24 +60,27 @@ fn find_best_match(content: &str, search: &str) -> Option<PatchMatch> {
         })
 }
 
-/// Apply a single replacement to the source text
-fn apply_single_replacement(source: &str, replacement: &Replacement) -> Result<String, Error> {
-    if replacement.search.is_empty() {
-        // Append mode - add content at the end
-        return Ok(format!("{}{}", source, replacement.content));
-    }
+fn apply_replacements(content: String, replacements: Vec<Replacement>) -> Result<String, Error> {
+    // Iterate over all replacements and apply them one by one
+    replacements
+        .iter()
+        .try_fold(content, |source, replacement| {
+            if replacement.search.is_empty() {
+                // Append mode - add content at the end
+                Ok(format!("{}{}", source, replacement.content))
+            } else {
+                let patch = find_best_match(&source, &replacement.search)
+                    .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
 
-    let patch = find_best_match(source, &replacement.search)
-        .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
-
-    Ok(if replacement.content.is_empty() {
-        // Delete mode - remove the matched content
-        source.replace(&patch.text, "")
-    } else {
-        // Replace mode - substitute matched content with new content
-
-        source.replacen(&patch.text, &replacement.content, 1)
-    })
+                Ok(if replacement.content.is_empty() {
+                    // Delete mode - remove the matched content
+                    source.replace(&patch.text, "")
+                } else {
+                    // Replace mode - substitute matched content with new content
+                    source.replacen(&patch.text, &replacement.content, 1)
+                })
+            }
+        })
 }
 
 /// A single search and replace operation
@@ -126,15 +129,13 @@ async fn process_file_modifications(
     replacements: Vec<Replacement>,
 ) -> Result<String, Error> {
     let content = fs::read_to_string(path).await?;
-    let modified = replacements.iter().try_fold(content, |acc, replacement| {
-        apply_single_replacement(&acc, replacement)
-    })?;
-    fs::write(path, &modified).await?;
+    let content = apply_replacements(content, replacements)?;
+    fs::write(path, &content).await?;
 
-    let warning = syn::validate(path, &modified).map(|e| e.to_string());
+    let warning = syn::validate(path, &content).map(|e| e.to_string());
     Ok(format_output(
         path.to_string_lossy().as_ref(),
-        &modified,
+        &content,
         warning.as_deref(),
     ))
 }
@@ -158,7 +159,6 @@ mod test {
     use std::fmt::{self, Display};
 
     use super::*;
-    use crate::utils::TempDir;
 
     // Test helpers
     #[derive(Debug)]
@@ -202,25 +202,13 @@ mod test {
         }
 
         // TODO: tests don't need to write files to disk
-        async fn execute(mut self) -> Result<Self, String> {
-            let temp_dir = TempDir::new().unwrap();
-            let path = temp_dir.path().join("test.txt");
-            fs::write(&path, &self.initial).await.unwrap();
+        fn execute(mut self) -> Result<Self, Error> {
+            self.result = Some(apply_replacements(
+                self.initial.clone(),
+                self.replacements.clone(),
+            )?);
 
-            match ApplyPatchV2
-                .call(ApplyPatchV2Input {
-                    path: path.to_string_lossy().to_string(),
-                    replacements: self.replacements.clone(),
-                })
-                .await
-            {
-                Ok(_) => {
-                    let final_content = fs::read_to_string(&path).await.unwrap();
-                    self.result = Some(final_content);
-                    Ok(self)
-                }
-                Err(e) => Err(e),
-            }
+            Ok(self)
         }
     }
 
@@ -245,7 +233,6 @@ mod test {
         let actual = PatchTest::new("Hello World")
             .replace("World", "Forge")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
@@ -255,18 +242,13 @@ mod test {
         let actual = PatchTest::new("fooo bar")
             .replace("foo", "baz")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
 
     #[tokio::test]
     async fn append_empty_search() {
-        let actual = PatchTest::new("foo")
-            .replace("", " bar")
-            .execute()
-            .await
-            .unwrap();
+        let actual = PatchTest::new("foo").replace("", " bar").execute().unwrap();
         insta::assert_snapshot!(actual);
     }
 
@@ -275,7 +257,6 @@ mod test {
         let actual = PatchTest::new("foo bar baz")
             .replace("bar ", "")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
@@ -286,35 +267,33 @@ mod test {
             .replace("foo", "baz")
             .replace("bar", "qux")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
 
     #[tokio::test]
     async fn no_match_error() {
-        let result = PatchTest::new("foo").replace("bar", "baz").execute().await;
+        let result = PatchTest::new("foo").replace("bar", "baz").execute();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Could not find match"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match"));
     }
 
     #[tokio::test]
     async fn fuzzy_below_threshold() {
-        let result = PatchTest::new("fo bar")
-            .replace("foo", "baz")
-            .execute()
-            .await;
+        let result = PatchTest::new("fo bar").replace("foo", "baz").execute();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Could not find match"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match"));
     }
 
     #[tokio::test]
     async fn empty_file() {
-        let actual = PatchTest::new("")
-            .replace("", "foo")
-            .execute()
-            .await
-            .unwrap();
+        let actual = PatchTest::new("").replace("", "foo").execute().unwrap();
         insta::assert_snapshot!(actual);
     }
 
@@ -323,7 +302,6 @@ mod test {
         let actual = PatchTest::new("foo bar foo")
             .replace("foo", "baz")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
@@ -333,7 +311,6 @@ mod test {
         let actual = PatchTest::new("foo bar foo")
             .replace("foo", "baz")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
@@ -343,7 +320,6 @@ mod test {
         let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
             .replace("foo", "bar")
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
@@ -352,10 +328,12 @@ mod test {
     async fn just_below_threshold() {
         let result = PatchTest::new("fox") // 2/3 ≈ 0.67, just below MATCH_THRESHOLD
             .replace("foo", "bar")
-            .execute()
-            .await;
+            .execute();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Could not find match"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match"));
     }
 
     #[tokio::test]
@@ -363,7 +341,6 @@ mod test {
         let actual = PatchTest::new("foox baz foo")
             .replace("afoo", "bar") // Should replace both "foox"
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
@@ -374,7 +351,6 @@ mod test {
             .replace("foo", "bar") // Should replace first exact "foo"
             .replace("foo", "baz") // Should replace second exact "foo"
             .execute()
-            .await
             .unwrap();
         insta::assert_snapshot!(actual);
     }
