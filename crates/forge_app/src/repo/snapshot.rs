@@ -8,6 +8,7 @@ use forge_domain::{Snapshot, SnapshotId, SnapshotMeta, SnapshotRepository};
 
 use crate::schema::snapshots;
 use crate::sqlite::Sqlite;
+use crate::Service;
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
 #[diesel(table_name = snapshots)]
@@ -47,13 +48,19 @@ impl TryFrom<SnapshotEntity> for Snapshot {
     }
 }
 
-pub struct Live {
+struct Live {
     pool_service: Arc<dyn Sqlite>,
 }
 
 impl Live {
-    pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
+    fn new(pool_service: Arc<dyn Sqlite>) -> Self {
         Self { pool_service }
+    }
+}
+
+impl Service {
+    pub fn snapshot_repo(sql: Arc<dyn Sqlite>) -> impl SnapshotRepository {
+        Live::new(sql)
     }
 }
 
