@@ -1,0 +1,11 @@
+---
+source: crates/forge_tool/src/patch/apply_v2.rs
+expression: actual
+---
+<!-- INITIAL -->    indented
+        more indented
+<!-- REPLACEMENTS -->
+<!-- SEARCH -->indented
+<!-- REPLACE -->text
+<!-- FINAL -->    text
+        more indented

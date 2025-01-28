@@ -1,0 +1,9 @@
+---
+source: crates/forge_tool/src/patch/apply_v2.rs
+expression: actual
+---
+<!-- INITIAL -->Hi 👋, how are you?
+<!-- REPLACEMENTS -->
+<!-- SEARCH -->👋
+<!-- REPLACE -->👍
+<!-- FINAL -->Hi 👍, how are you?

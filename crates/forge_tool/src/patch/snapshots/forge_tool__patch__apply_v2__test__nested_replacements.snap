@@ -1,0 +1,11 @@
+---
+source: crates/forge_tool/src/patch/apply_v2.rs
+expression: actual
+---
+<!-- INITIAL -->outer inner outer
+<!-- REPLACEMENTS -->
+<!-- SEARCH -->outer inner outer
+<!-- REPLACE -->modified inner
+<!-- SEARCH -->inner
+<!-- REPLACE -->content
+<!-- FINAL -->modified content

@@ -1,0 +1,9 @@
+---
+source: crates/forge_tool/src/patch/apply_v2.rs
+expression: actual
+---
+<!-- INITIAL -->Hello 世界 World
+<!-- REPLACEMENTS -->
+<!-- SEARCH -->世界 World
+<!-- REPLACE -->地球
+<!-- FINAL -->Hello 地球

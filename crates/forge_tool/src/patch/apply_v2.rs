@@ -24,13 +24,6 @@ struct PatchMatch {
 }
 
 impl PatchMatch {
-    fn new(text: String, total_len: usize) -> Self {
-        Self {
-            similarity: text.chars().count() as f64 / total_len as f64,
-            text,
-        }
-    }
-
     fn is_good_match(&self) -> bool {
         self.similarity >= MATCH_THRESHOLD
     }
@@ -46,10 +39,23 @@ enum Error {
 
 /// Find the best matching section using fuzzy matching
 fn find_best_match(content: &str, search: &str) -> Option<PatchMatch> {
+    // For exact matches, return immediately
+    if content.contains(search) {
+        return Some(PatchMatch { text: search.to_string(), similarity: 1.0 });
+    }
+
+    // Otherwise use fuzzy matching
     dissimilar::diff(content, search)
         .iter()
         .filter_map(|chunk| match chunk {
-            Chunk::Equal(text) => Some(PatchMatch::new(text.to_string(), search.len())),
+            Chunk::Equal(text) => {
+                // Weight longer matches higher than shorter ones
+                Some(PatchMatch {
+                    text: text.to_string(),
+                    similarity: text.to_string().chars().count() as f64
+                        / search.chars().count() as f64,
+                })
+            }
             _ => None,
         })
         .filter(PatchMatch::is_good_match)
@@ -228,8 +234,13 @@ mod test {
         }
     }
 
-    #[tokio::test]
-    async fn simple_replacement() {
+    /**************************************************************************
+     * Basic Operations
+     * Tests basic functionality like exact matches, empty inputs, and simple
+     * cases ***************************************************************
+     * ******** */
+    #[test]
+    fn exact_match_single_word() {
         let actual = PatchTest::new("Hello World")
             .replace("World", "Forge")
             .execute()
@@ -237,23 +248,23 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn fuzzy_match() {
+    #[test]
+    fn fuzzy_match_with_extra_characters() {
         let actual = PatchTest::new("fooo bar")
-            .replace("foo", "baz")
+            .replace("foo", "baz") // Should match despite extra 'o'
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn append_empty_search() {
+    #[test]
+    fn append_empty_search() {
         let actual = PatchTest::new("foo").replace("", " bar").execute().unwrap();
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn delete_empty_replace() {
+    #[test]
+    fn delete_empty_replace() {
         let actual = PatchTest::new("foo bar baz")
             .replace("bar ", "")
             .execute()
@@ -261,8 +272,12 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn multiple_replacements() {
+    /**************************************************************************
+     * Multiple Replacements
+     * Tests behavior when multiple replacements are performed
+     ************************************************************************ */
+    #[test]
+    fn different_replacements_in_sequence() {
         let actual = PatchTest::new("foo bar")
             .replace("foo", "baz")
             .replace("bar", "qux")
@@ -271,34 +286,8 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn no_match_error() {
-        let result = PatchTest::new("foo").replace("bar", "baz").execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match"));
-    }
-
-    #[tokio::test]
-    async fn fuzzy_below_threshold() {
-        let result = PatchTest::new("fo bar").replace("foo", "baz").execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match"));
-    }
-
-    #[tokio::test]
-    async fn empty_file() {
-        let actual = PatchTest::new("").replace("", "foo").execute().unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[tokio::test]
-    async fn multiple_matches_first_only() {
+    #[test]
+    fn replaces_only_first_match() {
         let actual = PatchTest::new("foo bar foo")
             .replace("foo", "baz")
             .execute()
@@ -306,17 +295,32 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn multiple_matches_sequential() {
-        let actual = PatchTest::new("foo bar foo")
-            .replace("foo", "baz")
+    #[test]
+    fn sequential_replacements_on_identical_text() {
+        let actual = PatchTest::new("same same same")
+            .replace("same", "different") // First occurrence
+            .replace("same", "changed") // Second occurrence
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn exact_threshold_match() {
+    #[test]
+    fn sequential_non_overlapping_replacements() {
+        let actual = PatchTest::new("abcdef")
+            .replace("abc", "123")
+            .replace("def", "456")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    /**************************************************************************
+     * Fuzzy Matching Behavior
+     * Tests the fuzzy matching algorithm and similarity thresholds
+     ************************************************************************ */
+    #[test]
+    fn exact_threshold_match() {
         let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
             .replace("foo", "bar")
             .execute()
@@ -324,8 +328,8 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn just_below_threshold() {
+    #[test]
+    fn just_below_threshold() {
         let result = PatchTest::new("fox") // 2/3 ≈ 0.67, just below MATCH_THRESHOLD
             .replace("foo", "bar")
             .execute();
@@ -336,22 +340,143 @@ mod test {
             .contains("Could not find match"));
     }
 
-    #[tokio::test]
-    async fn multiple_fuzzy_matches() {
+    #[test]
+    fn fuzzy_match_with_prefix() {
         let actual = PatchTest::new("foox baz foo")
-            .replace("afoo", "bar") // Should replace both "foox"
+            .replace("afoo", "bar") // Should match "foox" despite "a" prefix
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
     }
 
-    #[tokio::test]
-    async fn exact_and_fuzzy_mixed() {
+    #[test]
+    fn prefers_exact_matches_over_fuzzy() {
         let actual = PatchTest::new("foo foox foo")
-            .replace("foo", "bar") // Should replace first exact "foo"
+            .replace("foo", "bar") // Should replace exact "foo" first
             .replace("foo", "baz") // Should replace second exact "foo"
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
+    }
+
+    /**************************************************************************
+     * Unicode and Special Characters
+     * Tests handling of non-ASCII text and special characters
+     ************************************************************************ */
+    #[test]
+    fn unicode_characters() {
+        let actual = PatchTest::new("Hello 世界")
+            .replace("世界", "🌍")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn emoji_replacement() {
+        let actual = PatchTest::new("Hi 👋, how are you?")
+            .replace("👋", "👍")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn mixed_unicode_ascii() {
+        let actual = PatchTest::new("Hello 世界 World")
+            .replace("世界 World", "地球")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    /**************************************************************************
+     * Whitespace Handling
+     * Tests preservation of whitespace, indentation, and line endings
+     ************************************************************************ */
+    #[test]
+    fn preserve_indentation() {
+        let actual = PatchTest::new("    indented\n        more indented")
+            .replace("indented", "text")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn tab_characters() {
+        let actual = PatchTest::new("no_tab\thas_tab")
+            .replace("has_tab", "replaced")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn multiple_line_endings() {
+        let actual = PatchTest::new("line1\nline2\rline3\r\nline4")
+            .replace("line2", "replaced")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    /**************************************************************************
+     * Error Cases
+     * Tests error handling and edge cases
+     ************************************************************************ */
+    #[test]
+    fn nested_replacements() {
+        let actual = PatchTest::new("outer inner outer")
+            .replace("outer inner outer", "modified inner")
+            .replace("inner", "content")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn overlapping_matches() {
+        let actual = PatchTest::new("abcabcabc")
+            .replace("abca", "1234")
+            .replace("cabc", "5678")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    /**************************************************************************
+     * Complex Replacements
+     * Tests complicated scenarios like nested and overlapping matches
+     ************************************************************************ */
+
+    /**************************************************************************
+     * Error Cases
+     * Tests error handling and validation
+     ************************************************************************ */
+    #[test]
+    fn empty_search_text() {
+        let actual = PatchTest::new("").replace("", "foo").execute().unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn no_match_found() {
+        let result = PatchTest::new("foo").replace("bar", "baz").execute();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match"));
+    }
+
+    #[test]
+    fn fuzzy_match_below_threshold() {
+        let result = PatchTest::new("fo").replace("foo", "bar").execute();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match"));
     }
 }

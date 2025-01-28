@@ -2,8 +2,8 @@
 source: crates/forge_tool/src/patch/apply_v2.rs
 expression: actual
 ---
-<!-- INITIAL -->foo bar foo
+<!-- INITIAL -->Hello 世界
 <!-- REPLACEMENTS -->
-<!-- SEARCH -->foo
-<!-- REPLACE -->baz
-<!-- FINAL -->baz bar foo
+<!-- SEARCH -->世界
+<!-- REPLACE -->🌍
+<!-- FINAL -->Hello 🌍

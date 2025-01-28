@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/patch/apply_v2.rs
 expression: actual
+snapshot_kind: text
 ---
 <!-- INITIAL -->foox baz foo
 <!-- REPLACEMENTS -->
