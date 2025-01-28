@@ -14,6 +14,7 @@ mod learning;
 mod message;
 mod model;
 mod provider;
+mod snapshot;
 mod stream_ext;
 mod tool;
 mod tool_call;
@@ -25,7 +26,6 @@ mod tool_result;
 mod tool_service;
 mod tool_usage;
 mod user_interaction;
-mod snapshot;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -43,6 +43,7 @@ pub use learning::*;
 pub use message::*;
 pub use model::*;
 pub use provider::*;
+pub use snapshot::*;
 pub use stream_ext::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -54,7 +55,6 @@ pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
-pub use snapshot::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management

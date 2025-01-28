@@ -1,11 +1,12 @@
+use anyhow::Result;
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
+use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
-use derive_more::derive::Display;
 use uuid::Uuid;
-use crate::{Error};
-use chrono::{DateTime, Utc};
-use anyhow::Result;
+
+use crate::Error;
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
 #[serde(transparent)]
@@ -35,7 +36,6 @@ pub struct Snapshot {
     pub file_path: String,
     pub snapshot_path: String,
     pub archived: bool,
-
 }
 
 impl Snapshot {
@@ -48,7 +48,6 @@ impl Snapshot {
             archived: false,
         }
     }
-    
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,10 +59,11 @@ pub struct SnapshotMeta {
 #[async_trait]
 pub trait SnapshotRepository: Send + Sync {
     async fn create_snapshot(&self, file_path: &str) -> Result<Snapshot>;
-    async fn list_snapshots(&self,file_path: &str) -> Result<Vec<Snapshot>>;
-    async fn restore_snapshot(&self,
+    async fn list_snapshots(&self, file_path: &str) -> Result<Vec<Snapshot>>;
+    async fn restore_snapshot(
+        &self,
         file_path: &str,
         snapshot_id: Option<SnapshotId>,
     ) -> Result<()>;
-    async fn archive_snapshots(&self,after: SnapshotId) -> Result<()> ;
+    async fn archive_snapshots(&self, after: SnapshotId) -> Result<()>;
 }
