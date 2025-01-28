@@ -1,7 +1,6 @@
 mod apply;
-mod apply_v2;
+mod apply_json;
 mod marker;
 mod parse;
 
-pub use apply::ApplyPatch;
-pub use apply_v2::ApplyPatchV2;
+pub use apply_json::ApplyPatchJson;

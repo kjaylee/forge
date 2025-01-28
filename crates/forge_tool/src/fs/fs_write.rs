@@ -5,7 +5,7 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::patch::ApplyPatch;
+use crate::patch::ApplyPatchJson;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -48,7 +48,7 @@ impl ToolCallService for FSWrite {
             return Err(format!(
                 "File {} already exists. Use '{}' tool to modify existing files.",
                 input.path,
-                ApplyPatch::tool_name().as_str()
+                ApplyPatchJson::tool_name().as_str()
             ));
         }
 

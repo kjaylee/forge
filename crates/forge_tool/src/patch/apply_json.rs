@@ -97,7 +97,7 @@ pub struct Replacement {
 }
 
 #[derive(Deserialize, JsonSchema)]
-pub struct ApplyPatchV2Input {
+pub struct ApplyPatchJsonInput {
     pub path: String,
     pub replacements: Vec<Replacement>,
 }
@@ -105,9 +105,9 @@ pub struct ApplyPatchV2Input {
 /// Finds and replaces all occurrences of the search text with the replacement
 /// text in the file at the given path.
 #[derive(ToolDescription)]
-pub struct ApplyPatchV2;
+pub struct ApplyPatchJson;
 
-impl NamedTool for ApplyPatchV2 {
+impl NamedTool for ApplyPatchJson {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_patch_v2")
     }
@@ -147,8 +147,8 @@ async fn process_file_modifications(
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for ApplyPatchV2 {
-    type Input = ApplyPatchV2Input;
+impl ToolCallService for ApplyPatchJson {
+    type Input = ApplyPatchJsonInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);

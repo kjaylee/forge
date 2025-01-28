@@ -189,7 +189,19 @@ Usage:
 <path>...</path>
 </tool_forge_patch>
 
-9. tool_forge_process_shell
+9. tool_forge_patch_v2
+Finds and replaces all occurrences of the search text with the replacement
+ text in the file at the given path.
+
+Parameters:
+
+Usage:
+<tool_forge_patch_v2>
+<path>...</path>
+<replacements>...</replacements>
+</tool_forge_patch_v2>
+
+10. tool_forge_process_shell
 Execute shell commands with safety checks and validation. This tool provides
  controlled access to system shell commands while preventing dangerous
  operations through a comprehensive blacklist and validation system.
@@ -204,7 +216,7 @@ Usage:
 <cwd>...</cwd>
 </tool_forge_process_shell>
 
-10. tool_forge_process_think
+11. tool_forge_process_think
 Problem-solving framework that breaks down tasks into tracked \"thoughts\".
  Supports revisions, alternative branches, and solution confidence tracking.
 
