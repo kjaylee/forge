@@ -1,0 +1,15 @@
+---
+source: crates/forge_tool/src/patch/apply_v2.rs
+expression: actual
+---
+<!-- INITIAL -->line1
+line2
+line1
+line3
+<!-- REPLACEMENTS -->
+<!-- SEARCH -->line1
+
+<!-- REPLACE -->
+<!-- FINAL -->line2
+line1
+line3

@@ -4,3 +4,4 @@ mod marker;
 mod parse;
 
 pub use apply::ApplyPatch;
+pub use apply_v2::ApplyPatchV2;

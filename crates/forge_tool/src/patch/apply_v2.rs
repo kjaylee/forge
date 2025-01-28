@@ -80,7 +80,7 @@ fn apply_replacements(content: String, replacements: Vec<Replacement>) -> Result
 
                 Ok(if replacement.content.is_empty() {
                     // Delete mode - remove the matched content
-                    source.replace(&patch.text, "")
+                    source.replacen(&patch.text, "", 1)
                 } else {
                     // Replace mode - substitute matched content with new content
                     source.replacen(&patch.text, &replacement.content, 1)
@@ -275,7 +275,7 @@ mod test {
     /**************************************************************************
      * Multiple Replacements
      * Tests behavior when multiple replacements are performed
-     ************************************************************************ */
+     *********************************************************************** */
     #[test]
     fn different_replacements_in_sequence() {
         let actual = PatchTest::new("foo bar")
@@ -318,7 +318,7 @@ mod test {
     /**************************************************************************
      * Fuzzy Matching Behavior
      * Tests the fuzzy matching algorithm and similarity thresholds
-     ************************************************************************ */
+     *********************************************************************** */
     #[test]
     fn exact_threshold_match() {
         let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
@@ -362,7 +362,7 @@ mod test {
     /**************************************************************************
      * Unicode and Special Characters
      * Tests handling of non-ASCII text and special characters
-     ************************************************************************ */
+     *********************************************************************** */
     #[test]
     fn unicode_characters() {
         let actual = PatchTest::new("Hello 世界")
@@ -393,7 +393,7 @@ mod test {
     /**************************************************************************
      * Whitespace Handling
      * Tests preservation of whitespace, indentation, and line endings
-     ************************************************************************ */
+     *********************************************************************** */
     #[test]
     fn preserve_indentation() {
         let actual = PatchTest::new("    indented\n        more indented")
@@ -424,7 +424,7 @@ mod test {
     /**************************************************************************
      * Error Cases
      * Tests error handling and edge cases
-     ************************************************************************ */
+     *********************************************************************** */
     #[test]
     fn nested_replacements() {
         let actual = PatchTest::new("outer inner outer")
@@ -448,12 +448,22 @@ mod test {
     /**************************************************************************
      * Complex Replacements
      * Tests complicated scenarios like nested and overlapping matches
-     ************************************************************************ */
+     *********************************************************************** */
 
     /**************************************************************************
      * Error Cases
      * Tests error handling and validation
-     ************************************************************************ */
+     *********************************************************************** */
+
+    #[test]
+    fn delete_single_line_only() {
+        let actual = PatchTest::new("line1\nline2\nline1\nline3")
+            .replace("line1\n", "") // Delete first occurrence of line1 and its newline
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
     #[test]
     fn empty_search_text() {
         let actual = PatchTest::new("").replace("", "foo").execute().unwrap();
