@@ -65,11 +65,14 @@ impl Completion for Completer {
 
     fn get_suggestions(&self, input: &str) -> Vec<String> {
         let (suggestion, trigger_char) = Completer::find_last_trigger_position(input);
+        if suggestion.is_empty() {
+            return vec![];
+        }
         let result = match trigger_char {
             '/' => self
                 .commands
                 .iter()
-                .filter(|cmd| cmd.starts_with(suggestion))
+                .filter(|cmd| cmd.contains(suggestion))
                 .cloned()
                 .collect(),
             '@' => self
