@@ -581,7 +581,7 @@ dependencies = [
 [[package]]
 name = "dialoguer"
 version = "0.11.0"
-source = "git+https://github.com/laststylebender14/dialoguer.git?branch=feat%2Fimpl-autocomplete-with-input#7163f29b9b46cf070ee84a3c383071666f43e9db"
+source = "git+https://github.com/laststylebender14/dialoguer.git?branch=feat%2Fimpl-autocomplete-with-input#18ccba6ac0f82f7ee414b0446836c87220343b06"
 dependencies = [
  "console",
  "shell-words",
