@@ -23,7 +23,7 @@ impl Service {
     }
 }
 
-pub struct TokenLimiter {
+struct TokenLimiter {
     token_counter: TokenCounter,
     temp_dir: PathBuf,
 }
@@ -35,29 +35,39 @@ impl TokenLimiter {
             temp_dir: std::env::temp_dir(),
         }
     }
-    async fn create_temp_file(&self, content: String) -> PathBuf {
+    async fn create_temp_file(&self, content: String) -> Result<PathBuf, std::io::Error> {
         let temp_file = self
             .temp_dir
             .join(format!("{}_{}.txt", TEMP_FILE_PREFIX, Uuid::new_v4()));
-        // If this fails we should show an error message to the user not to the LLM as
-        // this is a system error
-        fs::write(&temp_file, content).await.unwrap();
-
-        temp_file
+        fs::write(&temp_file, content).await?;
+        Ok(temp_file)
     }
 
-    async fn process_output(&self, output: String) -> String {
+    async fn process_output(&self, output: String) -> Result<String, String> {
         let token_count = self.token_counter.count_tokens(&output);
         if token_count > self.token_counter.max_tokens {
             let temp_file = self.create_temp_file(output).await;
-            return format!(
-                "Output exceeds token limit ({} > {}). Written to temp file: {}, use search to find relevant information",
-                token_count,
-                self.token_counter.max_tokens,
-                temp_file.display()
-            );
+            match temp_file {
+                Ok(temp_file) => {
+                    return Ok(format!(
+                        "Output exceeds token limit ({} > {}). Written to temp file: {}, use search to find relevant information from this file",
+                        token_count,
+                        self.token_counter.max_tokens,
+                        temp_file.display()
+                    ));
+                }
+                Err(e) => {
+                    return Err(format!(
+                        "Output exceeds token limit ({} > {}). Failed to write output to temp file: {}.",
+                        token_count,
+                        self.token_counter.max_tokens,
+                        e
+                    ));
+                }
+                
+            }
         }
-        output
+        Ok(output)
     }
 }
 
@@ -108,9 +118,20 @@ impl ToolService for Live {
                 available_tools.join(", ")
             )),
         };
+          
         match output {
-            Ok(output) => ToolResult::from(call).success(self.limits.process_output(output).await),
-            Err(output) => ToolResult::from(call).failure(self.limits.process_output(output).await),
+            Ok(output) => {
+                match self.limits.process_output(output).await {
+                    Ok(processed_output) => ToolResult::from(call).success(processed_output),
+                    Err(e) => ToolResult::from(call).failure(e),   
+                }
+            }
+            Err(output) => {
+                match self.limits.process_output(output).await {
+                    Ok(processed_output) => ToolResult::from(call).failure(processed_output),
+                    Err(e) => ToolResult::from(call).failure(e),   
+                }
+            }
         }
     }
 
