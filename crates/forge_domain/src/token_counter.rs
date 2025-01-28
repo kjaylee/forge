@@ -12,19 +12,14 @@ pub struct TokenCounter {
 
 impl Default for TokenCounter {
     fn default() -> Self {
-        Self::new()
+        let bpe = tiktoken_rs::get_bpe_from_model(BPE_MODEL).unwrap();
+        Self { bpe }
     }
 }
 
 impl TokenCounter {
     // TODO: make this configurable
     pub const MAX_TOOL_OUTPUT_TOKENS: usize = 10_000;
-
-    /// Create a new TokenCounter using the GPT-4 tokenizer
-    pub fn new() -> Self {
-        let bpe = tiktoken_rs::get_bpe_from_model(BPE_MODEL).unwrap();
-        Self { bpe }
-    }
 
     /// Count the number of tokens in the given text
     pub fn count_tokens(&self, text: &str) -> usize {
