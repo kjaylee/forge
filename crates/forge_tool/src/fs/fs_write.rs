@@ -29,7 +29,7 @@ pub struct FSWrite;
 
 impl NamedTool for FSWrite {
     fn tool_name() -> ToolName {
-        ToolName::new("tool_forge_fs_write")
+        ToolName::new("tool_forge_fs_create")
     }
 }
 
