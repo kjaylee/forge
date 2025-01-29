@@ -104,9 +104,10 @@ fn generate() {
             .runs_on("ubuntu-latest")
             .add_step(Step::uses("actions", "checkout", "v4"))
             // Download all artifacts
-            .add_step(Step::uses("actions", "download-artifact", "v3")
-                .add_with(("name", "${{ matrix.binary_name }}"))
-                .add_with(("path", "${{ inputs.path }}"))
+            .add_step(
+                Step::uses("actions", "download-artifact", "v3")
+                    .add_with(("name", "${{ matrix.binary_name }}"))
+                    .add_with(("path", "${{ inputs.path }}")),
             )
             // Create GitHub release
             .add_step(
