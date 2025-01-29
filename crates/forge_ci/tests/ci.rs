@@ -41,7 +41,7 @@ fn generate() {
 
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
     let main_cond =
-        Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
+        Expression::new("github.event_name == 'push'");
 
     // Add release build job
     workflow = workflow.add_job(
@@ -66,18 +66,6 @@ fn generate() {
                 Step::uses("ClementTsang", "cargo-action", "v0.0.3")
                     .add_with(("command", "build --release"))
                     .add_with(("args", "--target ${{ matrix.target }}"))
-            )
-            // Create release archive
-            .add_step(
-                Step::run(r#"
-                    cd $(dirname "${{ matrix.binary_path }}")
-                    if [ "${{ runner.os }}" = "Windows" ]; then
-                        7z a ../../../${{ matrix.binary_name }}.zip $(basename "${{ matrix.binary_path }}")
-                    else
-                        tar czf ../../../${{ matrix.binary_name }}.tar.gz $(basename "${{ matrix.binary_path }}")
-                    fi
-                    cd -
-                "#)
             )
             // Upload artifact for release
             .add_step(
