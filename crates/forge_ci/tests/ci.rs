@@ -81,13 +81,11 @@ fn generate() {
             )
             // Upload artifact for release
             .add_step(
-                
                     Step::uses("actions", "upload-artifact", "v3")
                     .add_with(("name", "${{ matrix.binary_name }}"))
                     .add_with(("path", "${{ inputs.path }}/${{ matrix.binary_name }}.tar.gz"))
                     .add_with(("if-no-files-found", "error"))
             )
-            
     );
     // Add release creation job
     let build_release_job = workflow
