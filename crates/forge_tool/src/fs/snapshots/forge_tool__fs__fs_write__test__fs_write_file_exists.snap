@@ -1,11 +1,6 @@
 ---
 source: crates/forge_tool/src/fs/fs_write.rs
 expression: actual
-<<<<<<< HEAD
 snapshot_kind: text
 ---
 File [TEMP_DIR]/test.txt already exists. Use 'tool_forge_patch_v2' tool to modify existing files.
-=======
----
-File [TEMP_DIR]/test.txt already exists. Use 'tool_forge_patch' tool to modify existing files.
->>>>>>> 0306a219f3da55da2c70d6955e977df4988e6b72
