@@ -1,6 +1,4 @@
-
-use gh_workflow_tailcall::*;
-use gh_workflow_tailcall::Input;
+use gh_workflow_tailcall::{Input, *};
 use indexmap::map::IndexMap;
 use serde_json::{json, Value};
 
@@ -43,8 +41,9 @@ fn generate() {
     });
 
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
-    let main_cond = Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
-    
+    let main_cond =
+        Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
+
     // Add release build job
     workflow = workflow.add_job(
         "build-release",
@@ -93,10 +92,22 @@ fn generate() {
     );
 
     let mut path_map = IndexMap::new();
-    path_map.insert("name".to_string(), Value::String("${{ matrix.binary_name }}".to_string()));
-    path_map.insert("path".to_string(), Value::String("${{ inputs.path }}".to_string()));
+    path_map.insert(
+        "name".to_string(),
+        Value::String("${{ matrix.binary_name }}".to_string()),
+    );
+    path_map.insert(
+        "path".to_string(),
+        Value::String("${{ inputs.path }}".to_string()),
+    );
     // Add release creation job
-    let build_release_job = workflow.jobs.clone().unwrap().get("build-release").unwrap().clone();
+    let build_release_job = workflow
+        .jobs
+        .clone()
+        .unwrap()
+        .get("build-release")
+        .unwrap()
+        .clone();
     workflow = workflow.add_job(
         "create-release",
         Job::new("create-release")
@@ -104,19 +115,15 @@ fn generate() {
             .runs_on("ubuntu-latest")
             .add_step(Step::uses("actions", "checkout", "v4"))
             // Download all artifacts
-            .add_step(
-                Step::uses("actions", "download-artifact", "v3")
-                    .with(Input::from(path_map))
-                    
-            )
+            .add_step(Step::uses("actions", "download-artifact", "v3").with(Input::from(path_map)))
             // Create GitHub release
             .add_step(
                 Step::uses("softprops", "action-gh-release", "v1")
                     .with(("generate_release_notes", "true"))
                     .with(("files", "${{ inputs.path }}/artifacts/**/*"))
                     .with(("prerelease", "true"))
-                    .with(("token", "${{ secrets.GITHUB_TOKEN }}"))
-            )
+                    .with(("token", "${{ secrets.GITHUB_TOKEN }}")),
+            ),
     );
 
     workflow.generate().unwrap();
