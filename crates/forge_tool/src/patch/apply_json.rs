@@ -16,16 +16,112 @@ use crate::utils::assert_absolute_path;
 /// characters.
 const MATCH_THRESHOLD: f64 = 0.7;
 
-/// Represents a potential patch match in the source text
-#[derive(Debug)]
-struct PatchMatch {
-    text: String,
-    similarity: f64,
+/// A match found in the source text. Represents a range in the source text that
+/// can be used for extraction or replacement operations. Stores the position
+/// and length to allow efficient substring operations.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+struct Range {
+    /// Starting position of the match in source text
+    start: usize,
+    /// Length of the matched text
+    length: usize,
 }
 
-impl PatchMatch {
-    fn is_good_match(&self) -> bool {
-        self.similarity >= MATCH_THRESHOLD
+impl Range {
+    /// Create a new match from a start position and length
+    fn new(start: usize, length: usize) -> Self {
+        Self { start, length }
+    }
+
+    /// Get the end position (exclusive) of this match
+    fn end(&self) -> usize {
+        self.start + self.length
+    }
+
+    /// Try to find an exact match in the source text
+    fn find_exact(source: &str, search: &str) -> Option<Self> {
+        source
+            .find(search)
+            .map(|start| Self::new(start, search.len()))
+    }
+
+    /// Try to find a fuzzy match in the source text
+    fn find_fuzzy(source: &str, search: &str) -> Option<Self> {
+        let matches = MatchSequence::new((source, search));
+
+        if matches.similarity(search.chars().count()) >= MATCH_THRESHOLD {
+            matches.to_range()
+        } else {
+            None
+        }
+    }
+}
+
+impl From<Range> for std::ops::Range<usize> {
+    fn from(m: Range) -> Self {
+        m.start..m.end()
+    }
+}
+
+/// A collection of matching chunks found between source and search text.
+/// This type handles analyzing sequences of matches to determine if they
+/// form a good enough match for patching.
+///
+/// The analysis includes:
+/// * Computing total matching characters
+/// * Computing similarity scores
+/// * Finding matching ranges
+#[derive(Debug)]
+struct MatchSequence {
+    /// All matching chunks found
+    chunks: Vec<Range>,
+}
+
+impl MatchSequence {
+    fn new((source, search): (&str, &str)) -> Self {
+        let mut chunks = Vec::new();
+        let mut start = 0;
+
+        // Walk through text and track position of matching chunks
+        let diff = dissimilar::diff(source, search);
+        dbg!(&diff);
+        for chunk in diff {
+            match chunk {
+                // Text is equal in both source and search
+                Chunk::Equal(s) => {
+                    chunks.push(Range { start, length: s.chars().count() });
+                    start += s.chars().count();
+                }
+
+                // Text is in source but not in search
+                Chunk::Delete(s) => start += s.chars().count(),
+
+                // Text is in search but not in source
+                Chunk::Insert(_) => (), // Inserts don't affect source position
+            }
+        }
+
+        MatchSequence { chunks }
+    }
+
+    /// Get first match in sequence, if any exists. Returns a match spanning
+    /// from the start of the first chunk to the end of the last chunk.
+    fn to_range(&self) -> Option<Range> {
+        if self.chunks.is_empty() {
+            None
+        } else {
+            let first = &self.chunks[0];
+            let last = self.chunks.last().unwrap();
+            Some(Range::new(first.start, last.end() - first.start))
+        }
+    }
+
+    /// Calculate similarity score based on total matching characters vs search
+    /// length. Returns a value between 0.0 and 1.0, where 1.0 means perfect
+    /// match.
+    fn similarity(&self, search_len: usize) -> f64 {
+        let total_matching: usize = self.chunks.iter().map(|chunk| chunk.length).sum();
+        total_matching as f64 / search_len as f64
     }
 }
 
@@ -37,56 +133,27 @@ enum Error {
     NoMatch(String),
 }
 
-/// Find the best matching section using fuzzy matching
-fn find_best_match(content: &str, search: &str) -> Option<PatchMatch> {
-    // For exact matches, return immediately
-    if content.contains(search) {
-        return Some(PatchMatch { text: search.to_string(), similarity: 1.0 });
-    }
-
-    // Otherwise use fuzzy matching
-    dissimilar::diff(content, search)
-        .iter()
-        .filter_map(|chunk| match chunk {
-            Chunk::Equal(text) => {
-                // Weight longer matches higher than shorter ones
-                Some(PatchMatch {
-                    text: text.to_string(),
-                    similarity: text.to_string().chars().count() as f64
-                        / search.chars().count() as f64,
-                })
-            }
-            _ => None,
-        })
-        .filter(PatchMatch::is_good_match)
-        .max_by(|a, b| {
-            a.similarity
-                .partial_cmp(&b.similarity)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        })
-}
-
-fn apply_replacements(content: String, replacements: Vec<Replacement>) -> Result<String, Error> {
+fn apply_replacements(source: String, replacements: Vec<Replacement>) -> Result<String, Error> {
     // Iterate over all replacements and apply them one by one
-    replacements
-        .iter()
-        .try_fold(content, |source, replacement| {
-            if replacement.search.is_empty() {
-                // Append mode - add content at the end
-                Ok(format!("{}{}", source, replacement.content))
-            } else {
-                let patch = find_best_match(&source, &replacement.search)
-                    .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
+    replacements.iter().try_fold(source, |source, replacement| {
+        let search = replacement.search.as_str();
+        if replacement.search.is_empty() {
+            // Append mode - add content at the end
+            Ok(format!("{}{}", source, replacement.content))
+        } else {
+            let patch = Range::find_exact(&source, search)
+                .or_else(|| Range::find_fuzzy(&source, search))
+                .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
 
-                Ok(if replacement.content.is_empty() {
-                    // Delete mode - remove the matched content
-                    source.replacen(&patch.text, "", 1)
-                } else {
-                    // Replace mode - substitute matched content with new content
-                    source.replacen(&patch.text, &replacement.content, 1)
-                })
-            }
-        })
+            Ok(if replacement.content.is_empty() {
+                // Delete mode - remove the matched content
+                source[..patch.start].to_string() + &source[patch.end()..]
+            } else {
+                // Replace mode - substitute matched content with new content
+                source[..patch.start].to_string() + &replacement.content + &source[patch.end()..]
+            })
+        }
+    })
 }
 
 /// A single search and replace operation
@@ -319,6 +386,16 @@ mod test {
      * Fuzzy Matching Behavior
      * Tests the fuzzy matching algorithm and similarity thresholds
      */
+
+    #[test]
+    fn fuzzy_match_hyphenated_pattern() {
+        let actual = PatchTest::new("abc foobar pqr")
+            .replace("foo-bar", "replaced") // Should match "foobar" despite the hyphen
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
     #[test]
     fn exact_threshold_match() {
         let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
