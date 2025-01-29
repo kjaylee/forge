@@ -316,7 +316,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117725a109d387c937a1533ce01b450cbde6b88abceea8473c4d7a85853cda3c"
 dependencies = [
  "lazy_static",
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -325,7 +325,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -749,7 +749,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33d852cb9b869c2a9b3df2f71a3074817f01e1844f839a144f5fcef059a4eb5d"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -853,7 +853,9 @@ name = "forge_ci"
 version = "0.1.0"
 dependencies = [
  "gh-workflow-tailcall",
+ "indexmap",
  "pretty_assertions",
+ "serde_json",
 ]
 
 [[package]]
@@ -1196,9 +1198,9 @@ dependencies = [
 
 [[package]]
 name = "gh-workflow"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee69706ae880b32172849c0c305bba7512d0ded60bf41668e95012bb047669bf"
+checksum = "5107624928f6c2381609c85694c12b734fe697753259e0c6b060120da64be0b8"
 dependencies = [
  "async-trait",
  "derive_more",
@@ -1214,9 +1216,9 @@ dependencies = [
 
 [[package]]
 name = "gh-workflow-macros"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1c1c450ec330fb0ff04fa00eae5de0c8c67cfc9c8b04bbbdf7bb0d1cc993d5b"
+checksum = "e72d2e820ebf208f923f0ed711cd7135446ddf99cceeba418a55f36f277fcdbe"
 dependencies = [
  "heck",
  "quote",
@@ -1225,9 +1227,9 @@ dependencies = [
 
 [[package]]
 name = "gh-workflow-tailcall"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e32d2a5f9bd10d4be60164ac631590a60c7430a5039c2f75036380d8074a1de"
+checksum = "4782cea870d1d4fa0c0169f52304f01862867d5bc536b7040e1c4a0047dd8f2f"
 dependencies = [
  "derive_setters",
  "gh-workflow",
@@ -2485,7 +2487,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2724,7 +2726,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3200,7 +3202,7 @@ dependencies = [
  "getrandom 0.3.1",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -3951,7 +3953,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
