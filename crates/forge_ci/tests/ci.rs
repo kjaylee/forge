@@ -40,8 +40,7 @@ fn generate() {
     });
 
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
-    let main_cond =
-        Expression::new("github.event_name == 'push'");
+    let main_cond = Expression::new("github.event_name == 'push'");
 
     // Add release build job
     workflow = workflow.add_job(
@@ -49,31 +48,30 @@ fn generate() {
         Job::new("build-release")
             .add_needs(build_job.clone())
             .cond(main_cond)
-            .strategy(Strategy {
-                fail_fast: None,
-                max_parallel: None,
-                matrix: Some(matrix)
-            })
+            .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
             .runs_on("${{ matrix.os }}")
             .add_step(Step::uses("actions", "checkout", "v4"))
             // Install Rust with cross-compilation target
             .add_step(
                 Step::uses("dtolnay", "rust-toolchain", "stable")
-                    .with(("targets", "${{ matrix.target }}"))
+                    .with(("targets", "${{ matrix.target }}")),
             )
             // Build release binary
             .add_step(
                 Step::uses("ClementTsang", "cargo-action", "v0.0.3")
                     .add_with(("command", "build --release"))
-                    .add_with(("args", "--target ${{ matrix.target }}"))
+                    .add_with(("args", "--target ${{ matrix.target }}")),
             )
             // Upload artifact for release
             .add_step(
-                    Step::uses("actions", "upload-artifact", "v3")
+                Step::uses("actions", "upload-artifact", "v3")
                     .add_with(("name", "${{ matrix.binary_name }}"))
-                    .add_with(("path", "${{ inputs.path }}/${{ matrix.binary_name }}.tar.gz"))
-                    .add_with(("if-no-files-found", "error"))
-            )
+                    .add_with((
+                        "path",
+                        "${{ inputs.path }}/${{ matrix.binary_name }}.tar.gz",
+                    ))
+                    .add_with(("if-no-files-found", "error")),
+            ),
     );
     // Add release creation job
     let build_release_job = workflow
