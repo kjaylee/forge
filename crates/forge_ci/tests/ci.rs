@@ -63,8 +63,9 @@ fn generate() {
             )
             // Build release binary
             .add_step(
-                Step::uses("actions-rs", "cargo", "v1")
-                    .with(("command", "build --release --target ${{matrix.target}}"))
+                Step::uses("ClementTsang", "cargo-action", "v0.0.3")
+                    .add_with(("command", "build --release"))
+                    .add_with(("args", "--target ${{ matrix.target }}"))
             )
             // Create release archive
             .add_step(
