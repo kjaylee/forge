@@ -15,7 +15,6 @@ pub struct Handover {
     pub min: usize,
 }
 
-
 pub struct Workflow {
     pub jobs: Vec<Job>,
 }
