@@ -136,7 +136,7 @@ fn test_release_drafter() {
 
     release_drafter = release_drafter.name("Release Drafter");
     let yaml = release_drafter.to_string().unwrap();
-    let github_dir = ".github/workflows";
+    let github_dir = "../../.github/workflows";
     std::fs::create_dir_all(github_dir).unwrap();
     std::fs::write(format!("{}/release-drafter.yml", github_dir), yaml).unwrap();
 }
