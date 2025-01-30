@@ -86,7 +86,7 @@ impl Prompt {
                 char('@'),
                 verify(
                     take_while1(|c: char| !c.is_whitespace() && c != '@'),
-                    |path: &str| Path::new(path).exists(),
+                    |path: &str| Path::new(path).is_file(),
                 ),
             ),
             |path: &str| Token::File(path.to_string()),
@@ -236,5 +236,13 @@ mod tests {
         let file2 = fixture.path("src/test_file2.txt");
         let prompt = Prompt::parse(format!("@{}@{}", file1, file2));
         assert_eq!(prompt.files(), vec![file1, file2]);
+    }
+
+    #[test]
+    fn test_dir_ref() {
+        let fixture = Fixture::default();
+        let dir = fixture.path("src");
+        let prompt = Prompt::parse(format!("this is main dir: @{}", dir));
+        assert!(prompt.files().is_empty());
     }
 }
