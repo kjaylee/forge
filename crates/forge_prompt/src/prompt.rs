@@ -4,7 +4,7 @@ use std::path::Path;
 use nom::branch::alt;
 use nom::bytes::complete::take_while1;
 use nom::character::complete::{char, space0, space1};
-use nom::combinator::{map, opt, recognize};
+use nom::combinator::{map, opt, recognize, verify};
 use nom::multi::many0;
 use nom::sequence::{pair, preceded};
 use nom::{IResult, Parser};
@@ -84,15 +84,12 @@ impl Prompt {
         map(
             preceded(
                 char('@'),
-                take_while1(|c: char| !c.is_whitespace() && c != '@'),
+                verify(
+                    take_while1(|c: char| !c.is_whitespace() && c != '@'),
+                    |path: &str| Path::new(path).exists(),
+                ),
             ),
-            |path: &str| {
-                if Path::new(path).exists() {
-                    Token::File(path.to_string())
-                } else {
-                    Token::Literal(format!("@{}", path))
-                }
-            },
+            |path: &str| Token::File(path.to_string()),
         )
         .parse(input)
     }
@@ -218,14 +215,20 @@ mod tests {
     fn test_file_markers() {
         let prompt = Prompt::parse("hey there, this is my test@mail.com id.".to_string());
         assert!(prompt.files().is_empty());
-        assert_eq!(prompt.to_string(), "hey there, this is my test@mail.com id.");
+        assert_eq!(
+            prompt.to_string(),
+            "hey there, this is my test@mail.com id."
+        );
     }
 
     #[test]
     fn test_if_file_not_exist_treat_it_literal() {
         let prompt = Prompt::parse("hey there, this is my @/ext/test.md id.".to_string());
         assert!(prompt.files().is_empty());
-        assert_eq!(prompt.to_string(), "hey there, this is my @/ext/test.md id.");
+        assert_eq!(
+            prompt.to_string(),
+            "hey there, this is my @/ext/test.md id."
+        );
     }
 
     #[test]
