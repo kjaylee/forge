@@ -532,4 +532,25 @@ mod test {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Path must be absolute"));
     }
+
+    #[tokio::test]
+    async fn test_consecutive_newlines() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Test file with various newline patterns
+        let content = "First line\nSecond line\nThird line\n";
+        write_test_file(&file_path, content).await.unwrap();
+
+        let _result = ApplyPatch
+            .call(ApplyPatchInput {
+                path: file_path.to_string_lossy().to_string(),
+                diff: format!("{SEARCH}\n\n\n{DIVIDER}\n{REPLACE}\n").to_string(),
+            })
+            .await
+            .unwrap();
+        let updated = fs::read_to_string(&file_path).await.unwrap();
+        // since we can't find the `\n\n` in the file to replace, the file content should remain the same.
+        assert_eq!(content, updated);
+    }
 }
