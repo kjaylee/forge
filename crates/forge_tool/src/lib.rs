@@ -14,7 +14,7 @@ use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
 use outline::Outline;
-use patch::ApplyPatch;
+use patch::*;
 use shell::Shell;
 use think::Think;
 
@@ -25,7 +25,9 @@ pub fn tools(max_tokens: usize) -> Vec<Tool> {
         FSList::default().into(),
         FSSearch.into(),
         FSFileInfo.into(),
+        // TODO: once ApplyPatchJson is stable we can delete ApplyPatch
         ApplyPatch.into(),
+        // ApplyPatchJson.into(),
         Outline.into(),
         Shell::default().into(),
         Think::default().into(),
