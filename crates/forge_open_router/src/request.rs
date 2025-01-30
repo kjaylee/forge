@@ -179,10 +179,10 @@ pub struct OpenRouterRequest {
 }
 
 /// ref: https://openrouter.ai/docs/transforms
-#[derive(Display, Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum Transform {
-    #[display("middle-out")]
     #[default]
+    #[serde(rename = "middle-out")]
     MiddleOut,
 }
 
@@ -572,6 +572,6 @@ mod tests {
 
     #[test]
     fn test_transform_display() {
-        assert_eq!(Transform::MiddleOut.to_string(), "middle-out");
+        assert_eq!(serde_json::to_string(&Transform::MiddleOut).unwrap(), "\"middle-out\"");
     }
 }
