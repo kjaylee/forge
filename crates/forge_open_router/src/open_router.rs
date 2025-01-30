@@ -1,7 +1,6 @@
 use anyhow::{Context as _, Result};
 use forge_domain::{
-    self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters,
-    ProviderService, ResultStream,
+    ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
 };
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::Client;
@@ -58,7 +57,7 @@ impl ProviderService for OpenRouter {
     async fn chat(
         &self,
         model_id: &ModelId,
-        request: ChatContext,
+        request: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let request = OpenRouterRequest::from(request)
             .model(model_id.clone())
