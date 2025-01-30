@@ -25,3 +25,17 @@ Verification Step:
 Tips to be Successful:
 
 - Run snapshot test using the `cargo insta test --accept` or the command will never complete.
+
+Code Guidelines:
+
+1. Write unit tests as follows:
+   a. Ensure there is minimum boilerplate code and leverage helper functions.
+   b. Define three variables: `setup`, `actual` and `expected`.
+   c. Use `pretty_assertions` always.
+
+   ```rust
+   let setup = ...;
+   let actual = ... ;
+   let expected = ... ;
+   assert_eq!(actual, expected);
+   ```
