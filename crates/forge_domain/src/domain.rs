@@ -12,7 +12,7 @@ pub trait ChatProvider: Send + Sync + 'static {
     async fn chat(
         &self,
         model_id: &ModelId,
-        request: Context,
+        context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
 }
 

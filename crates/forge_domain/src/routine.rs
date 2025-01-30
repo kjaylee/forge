@@ -1,6 +1,6 @@
 use crate::{Agent, ForgeDomain};
 
-pub struct Routine<'a, S, U, D: ForgeDomain> {
+pub struct Routine<'a, S, U, D> {
     system: S,
     user: U,
     domain: &'a D,
@@ -11,7 +11,7 @@ impl<'a, S, U, D: ForgeDomain> Routine<'a, S, U, D> {
         Self { system, user, domain }
     }
 
-    pub fn launch(&self, agent: Agent<S, U>) -> anyhow::Result<()> {
+    pub async fn launch(&self, agent: Agent<S, U>) -> anyhow::Result<()> {
         todo!()
     }
 }
