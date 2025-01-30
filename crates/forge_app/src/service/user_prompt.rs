@@ -66,7 +66,6 @@ pub mod tests {
     use super::*;
     use crate::service::test::TestFileReadService;
 
-
     #[tokio::test]
     async fn test_render_user_prompt() {
         // Create a temp directory and write some files in it.
