@@ -61,25 +61,55 @@ impl PromptService for Live {
 #[cfg(test)]
 pub mod tests {
 
+    use tempfile::TempDir;
+
     use super::*;
     use crate::service::test::TestFileReadService;
 
+
     #[tokio::test]
     async fn test_render_user_prompt() {
+        // Create a temp directory and write some files in it.
+        let temp_dir = TempDir::new().unwrap();
+        let foo_path = temp_dir
+            .path()
+            .join("foo.txt")
+            .to_string_lossy()
+            .to_string();
+        let bar_path = temp_dir
+            .path()
+            .join("bar.txt")
+            .to_string_lossy()
+            .to_string();
+        tokio::fs::write(&foo_path, "Hello World - Foo")
+            .await
+            .unwrap();
+        tokio::fs::write(&bar_path, "Hello World - Bar")
+            .await
+            .unwrap();
+
         let file_read = Arc::new(
             TestFileReadService::default()
-                .add("foo.txt", "Hello World - Foo")
-                .add("bar.txt", "Hello World - Bar"),
+                .add(&foo_path, "Hello World - Foo")
+                .add(&bar_path, "Hello World - Bar"),
         );
-
         let request = ChatRequest::new(
             forge_domain::ModelId::new("gpt-3.5-turbo"),
-            "read this file content from @foo.txt and @bar.txt",
+            format!(
+                "read this file content from @{} and @{}",
+                &foo_path, &bar_path
+            ),
         );
         let rendered_prompt = Service::user_prompt_service(file_read)
             .get(&request)
             .await
             .unwrap();
+
+        // since temp path keep on changing, we need to replace it with static path.
+        let rendered_prompt = rendered_prompt
+            .replace(&foo_path, "foo.txt")
+            .replace(&bar_path, "bar.txt");
+
         insta::assert_snapshot!(rendered_prompt);
     }
 }
