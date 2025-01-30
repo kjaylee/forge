@@ -96,19 +96,17 @@ impl Prompt {
 
     fn parse_word(input: &str) -> IResult<&str, String> {
         let (input, _) = space0(input)?;
-        let (input, word) = recognize(pair(
-            take_while1(|c: char| !c.is_whitespace()),
-            opt(space1),
-        ))
-        .parse(input)?;
+        let (input, word) =
+            recognize(pair(take_while1(|c: char| !c.is_whitespace()), opt(space1))).parse(input)?;
         Ok((input, word.trim().to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
     use std::fs;
+
+    use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
     use super::*;
