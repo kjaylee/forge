@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use crate::{ChatCompletionMessage, Context, ModelId};
+use forge_domain::{ChatCompletionMessage, Context, ModelId};
 
 pub type BoxStream<A, E> =
     Pin<Box<dyn tokio_stream::Stream<Item = std::result::Result<A, E>> + Send>>;
@@ -16,7 +16,7 @@ pub trait ChatProvider: Send + Sync + 'static {
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
 }
 
-pub trait ForgeDomain: Send + Sync + 'static {
+pub trait ForgeAPI: Send + Sync + 'static {
     type ChatProvider: ChatProvider;
     fn chat_provider(&self) -> &Self::ChatProvider;
 }

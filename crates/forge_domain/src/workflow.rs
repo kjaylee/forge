@@ -1,4 +1,4 @@
-use crate::AgentId;
+use crate::{Agent, AgentId};
 
 pub struct JobId(String);
 
@@ -18,3 +18,4 @@ pub struct Handover {
 pub struct Workflow {
     pub jobs: Vec<Job>,
 }
+

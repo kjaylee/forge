@@ -1,11 +1,9 @@
 mod agent;
 mod context;
-mod domain;
 mod error;
 mod message;
 mod model;
 mod permission;
-mod routine;
 mod tool_call;
 mod tool_call_parser;
 mod tool_choice;
@@ -18,7 +16,6 @@ mod workflow;
 
 pub use agent::*;
 pub use context::*;
-pub use domain::*;
 pub use error::*;
 pub use message::*;
 pub use permission::*;

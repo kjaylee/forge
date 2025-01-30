@@ -1,0 +1,10 @@
+[package]
+name = "forge_app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.95"
+async-trait = "0.1.85"
+forge_domain = { path = "../forge_domain" }
+tokio-stream = "0.1.17"
