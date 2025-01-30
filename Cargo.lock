@@ -131,6 +131,7 @@ name = "forge_domain"
 version = "0.1.0"
 dependencies = [
  "derive_more",
+ "indexmap",
  "thiserror",
  "url",
 ]
