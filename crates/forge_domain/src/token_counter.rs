@@ -16,9 +16,6 @@ impl Default for TokenCounter {
 }
 
 impl TokenCounter {
-    // TODO: make this configurable
-    pub const MAX_TOOL_OUTPUT_TOKENS: usize = 10_000;
-
     /// Count the number of tokens in the given text
     pub fn count_tokens(&self, text: &str) -> usize {
         self.bpe.encode_with_special_tokens(text).len()

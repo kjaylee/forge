@@ -23,6 +23,7 @@ pub struct FSReadInput {
 #[derive(Default, ToolDescription)]
 pub struct FSRead {
     token_counter: TokenCounter,
+    max_token: usize,
 }
 
 impl NamedTool for FSRead {
@@ -52,15 +53,19 @@ impl ToolCallService for FSRead {
 impl FSRead {
     fn process_output(&self, output: String) -> String {
         let token_count = self.token_counter.count_tokens(&output);
-        if token_count > TokenCounter::MAX_TOOL_OUTPUT_TOKENS {
+        if token_count > self.max_token {
             return format!(
                 "Output exceeds token limit ({} > {}), use {} to find relevant information",
                 token_count,
-                TokenCounter::MAX_TOOL_OUTPUT_TOKENS,
+                self.max_token,
                 fs_find::FSSearch::tool_name().as_str()
             );
         }
         output
+    }
+
+    pub fn new(max_token: usize) -> FSRead {
+        FSRead { max_token, token_counter: TokenCounter::default() }
     }
 }
 

@@ -18,17 +18,15 @@ use patch::ApplyPatch;
 use shell::Shell;
 use think::Think;
 
-pub fn tools() -> Vec<Tool> {
+pub fn tools(max_tokens: usize) -> Vec<Tool> {
     vec![
-        // Approve.into(),
-        FSRead::default().into(),
+        FSRead::new(max_tokens).into(),
         FSWrite.into(),
         FSList::default().into(),
         FSSearch.into(),
         FSFileInfo.into(),
         ApplyPatch.into(),
         Outline.into(),
-        // SelectTool.into(),
         Shell::default().into(),
         Think::default().into(),
         Fetch::default().into(),
@@ -46,7 +44,7 @@ mod tests {
         println!("\nTool description lengths:");
 
         let mut any_exceeded = false;
-        for tool in tools() {
+        for tool in tools(usize::MAX) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",
