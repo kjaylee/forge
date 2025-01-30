@@ -1,5 +1,3 @@
-use std::pin::Pin;
-
 use thiserror::Error;
 
 // NOTE: Deriving From for error is a really bad idea. This is because you end
@@ -25,7 +23,3 @@ pub enum Error {
 }
 
 pub type Result<A> = std::result::Result<A, Error>;
-pub type BoxStream<A, E> =
-    Pin<Box<dyn tokio_stream::Stream<Item = std::result::Result<A, E>> + Send>>;
-
-pub type ResultStream<A, E> = std::result::Result<BoxStream<A, E>, E>;
