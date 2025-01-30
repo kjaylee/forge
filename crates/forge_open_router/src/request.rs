@@ -572,6 +572,9 @@ mod tests {
 
     #[test]
     fn test_transform_display() {
-        assert_eq!(serde_json::to_string(&Transform::MiddleOut).unwrap(), "\"middle-out\"");
+        assert_eq!(
+            serde_json::to_string(&Transform::MiddleOut).unwrap(),
+            "\"middle-out\""
+        );
     }
 }
