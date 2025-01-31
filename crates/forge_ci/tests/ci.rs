@@ -201,7 +201,6 @@ fn test_release_drafter() {
                     PullRequestType::Synchronize,
                 ],
                 branches: vec!["main".to_string()],
-                ..PullRequestTarget::default()
             }),
             ..Event::default()
         })
