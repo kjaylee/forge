@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/outline/tests/scala.rs
 expression: result
+snapshot_kind: text
 ---
 test.scala
 │sealed trait UserRole

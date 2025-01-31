@@ -56,7 +56,7 @@ impl RepoMap {
         let mut iteration = 0;
 
         while lower_bound <= upper_bound {
-            iteration += 1;
+            iteration = iteration + 1;
 
             let tree = RepoMap::to_tree(&ranked_symbols[..middle].to_vec());
             let num_tokens = self.get_token_count(&tree);

@@ -16,7 +16,7 @@ pub struct Fetch {
 }
 
 impl NamedTool for Fetch {
-    fn tool_name(&self) -> forge_domain::ToolName {
+    fn tool_name() -> forge_domain::ToolName {
         forge_domain::ToolName::new("tool_forge_net_fetch")
     }
 }
@@ -79,7 +79,10 @@ impl Fetch {
                             path.to_string()
                         };
                         if path.starts_with(&disallowed) {
-                            return Err(anyhow!("URL cannot be fetched due to robots.txt"));
+                            return Err(anyhow!(
+                                "URL {} cannot be fetched due to robots.txt restrictions",
+                                url
+                            ));
                         }
                     }
                 }
@@ -96,7 +99,7 @@ impl Fetch {
             .get(url.as_str())
             .send()
             .await
-            .map_err(|e| anyhow!("Failed to fetch URL: {}", e))?;
+            .map_err(|e| anyhow!("Failed to fetch URL {}: {}", url, e))?;
 
         if !response.status().is_success() {
             return Err(anyhow!(
@@ -116,7 +119,7 @@ impl Fetch {
         let page_raw = response
             .text()
             .await
-            .map_err(|e| anyhow!("Failed to read response content: {}", e))?;
+            .map_err(|e| anyhow!("Failed to read response content from {}: {}", url, e))?;
 
         let is_page_html = page_raw[..100.min(page_raw.len())].contains("<html")
             || content_type.contains("text/html")
@@ -128,7 +131,10 @@ impl Fetch {
         } else {
             Ok((
                 page_raw,
-                format!("Content type {} cannot be simplified to markdown, but here is the raw content:\n", content_type),
+                format!(
+                    "Content type {} cannot be simplified to markdown, but here is the raw content:\n",
+                    content_type
+                ),
             ))
         }
     }

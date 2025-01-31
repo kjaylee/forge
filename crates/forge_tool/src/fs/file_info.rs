@@ -1,24 +1,29 @@
+use std::path::Path;
+
+use anyhow::Context;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::utils::assert_absolute_path;
+
 #[derive(Deserialize, JsonSchema)]
 pub struct FSFileInfoInput {
-    /// The path of the file or directory to inspect (relative to the current
-    /// working directory)
+    /// The path of the file or directory to inspect (absolute path required)
     pub path: String,
 }
 
 /// Request to retrieve detailed metadata about a file or directory at the
 /// specified path. Returns comprehensive information including size, creation
-/// time, last modified time, permissions, and type. Use this when you need to
-/// understand file characteristics without reading the actual content.
+/// time, last modified time, permissions, and type. Path must be absolute. Use
+/// this when you need to understand file characteristics without reading the
+/// actual content.
 #[derive(ToolDescription)]
 pub struct FSFileInfo;
 
 impl NamedTool for FSFileInfo {
-    fn tool_name(&self) -> ToolName {
+    fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_info")
     }
 }
@@ -28,8 +33,12 @@ impl ToolCallService for FSFileInfo {
     type Input = FSFileInfoInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
-        let meta = tokio::fs::metadata(input.path)
+        let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
+
+        let meta = tokio::fs::metadata(&input.path)
             .await
+            .with_context(|| format!("Failed to get metadata for '{}'", input.path))
             .map_err(|e| e.to_string())?;
         Ok(format!("{:?}", meta))
     }
@@ -37,10 +46,10 @@ impl ToolCallService for FSFileInfo {
 
 #[cfg(test)]
 mod test {
-    use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::utils::TempDir;
 
     #[tokio::test]
     async fn test_fs_file_info_on_file() {
@@ -87,5 +96,16 @@ mod test {
             .await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_fs_file_info_relative_path() {
+        let fs_info = FSFileInfo;
+        let result = fs_info
+            .call(FSFileInfoInput { path: "relative/path.txt".to_string() })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 }

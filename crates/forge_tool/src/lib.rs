@@ -8,28 +8,29 @@ mod select;
 mod shell;
 mod syn;
 mod think;
+mod utils;
 
-use approve::Approve;
 use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
 use outline::Outline;
-use patch::ApplyPatch;
-use select::SelectTool;
+use patch::*;
 use shell::Shell;
 use think::Think;
 
 pub fn tools() -> Vec<Tool> {
     vec![
-        Approve.into(),
+        // Approve.into(),
         FSRead.into(),
         FSWrite.into(),
-        FSList.into(),
+        FSList::default().into(),
         FSSearch.into(),
         FSFileInfo.into(),
+        // TODO: once ApplyPatchJson is stable we can delete ApplyPatch
         ApplyPatch.into(),
+        // ApplyPatchJson.into(),
         Outline.into(),
-        SelectTool.into(),
+        // SelectTool.into(),
         Shell::default().into(),
         Think::default().into(),
         Fetch::default().into(),

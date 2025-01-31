@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/outline/tests/java.rs
 expression: result
+snapshot_kind: text
 ---
 test.java
 │public class UserService {

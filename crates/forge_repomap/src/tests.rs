@@ -32,7 +32,6 @@ mod repomap_tests {
         
         let walker = GitWalker{};
         let files = walker.read_files(&root_path).await.unwrap();
-        dbg!(&files.keys());
         let mut symbol_index = SymbolIndex::new(&root_path);
         symbol_index.generate_from_files(files).await;
         assert!(!symbol_index.definitions().is_empty(), "No definitions found in the repository");
