@@ -44,7 +44,7 @@ impl Completer for ReedlineCompleter {
                 .filter_map(|file| {
                     if !search_term.is_empty() && file.path.contains(search_term) {
                         Some(Suggestion {
-                            value: format!("@{}", file.path,),
+                            value: format!("@{}", file.path),
                             description: if file.is_dir() {
                                 Some("Directory".to_string())
                             } else {
