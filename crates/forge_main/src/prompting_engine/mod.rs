@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use forge_domain::Command;
 use nu_ansi_term::{Color, Style};
 use reedline::{
@@ -5,7 +7,6 @@ use reedline::{
     FileBackedHistory, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptHistorySearchStatus,
     Reedline, ReedlineEvent, ReedlineMenu, Signal, Span, Suggestion,
 };
-use std::borrow::Cow;
 
 // cap the title by `MAX_LEN` chars else show ellipsis at the end.
 const MAX_LEN: usize = 30;
@@ -127,7 +128,8 @@ impl Completer for CommandCompleter {
 impl ReedLineEngine {
     fn intialize_bindings() -> reedline::Keybindings {
         let mut keybindings = default_emacs_keybindings();
-        // on TAB press shows the completion menu, and if we've exact match it will insert it
+        // on TAB press shows the completion menu, and if we've exact match it will
+        // insert it
         keybindings.add_binding(
             KeyModifiers::NONE,
             KeyCode::Tab,

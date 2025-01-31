@@ -28,7 +28,7 @@ pub enum Command {
     /// This can be triggered with the '/info' command.
     Info,
     /// Exit the application without any further action.
-    Exit
+    Exit,
 }
 
 impl Command {
