@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use derive_setters::Setters;
 use reedline::{Prompt, PromptHistorySearchStatus};
 
-use super::style;   
+use super::style;
 
 /// Very Specialized Prompt for the Agent Chat
 #[derive(Clone, Default, Setters)]
@@ -16,14 +16,20 @@ impl Prompt for AgentChatPrompt {
     fn render_prompt_left(&self) -> Cow<str> {
         if let Some(title) = self.start.as_ref() {
             let truncated = if title.chars().count() > style::MAX_LEN {
-                format!("{}{}", title.chars().take(style::MAX_LEN).collect::<String>(), "...")
+                format!(
+                    "{}{}",
+                    title.chars().take(style::MAX_LEN).collect::<String>(),
+                    "..."
+                )
             } else {
                 title.to_string()
             };
 
-            Cow::Owned(format!("{} {}",
+            Cow::Owned(format!(
+                "{} {}",
                 style::base_prompt_indicator(),
-                style::format_title(&truncated)))
+                style::format_title(&truncated)
+            ))
         } else {
             Cow::Owned(style::base_prompt_indicator())
         }
@@ -68,9 +74,11 @@ mod tests {
     fn test_render_prompt_left_with_title() {
         let prompt = AgentChatPrompt::default().start(Some("test-title".to_string()));
         let actual = prompt.render_prompt_left();
-        let expected = format!("{} {}",
+        let expected = format!(
+            "{} {}",
             style::base_prompt_indicator(),
-            style::format_title("test-title"));
+            style::format_title("test-title")
+        );
         assert_eq!(actual, expected);
     }
 
@@ -88,9 +96,11 @@ mod tests {
         let prompt = AgentChatPrompt::default().start(Some(long_title.clone()));
         let actual = prompt.render_prompt_left();
         let truncated = format!("{}{}", "a".repeat(style::MAX_LEN), "...");
-        let expected = format!("{} {}",
+        let expected = format!(
+            "{} {}",
             style::base_prompt_indicator(),
-            style::format_title(&truncated));
+            style::format_title(&truncated)
+        );
         assert_eq!(actual, expected);
     }
 
