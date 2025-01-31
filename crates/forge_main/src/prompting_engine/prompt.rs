@@ -83,6 +83,7 @@ impl Prompt for ForgePrompt {
 #[cfg(test)]
 mod tests {
     use nu_ansi_term::Style;
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
@@ -91,16 +92,17 @@ mod tests {
         let mut prompt = ForgePrompt::default();
         prompt.title("test-title".to_string());
         let title_style = Style::new().fg(Color::Cyan).paint("test-title").to_string();
-        assert_eq!(
-            prompt.render_prompt_left(),
-            format!("{AI_INDICATOR} {title_style}")
-        );
+        let actual = prompt.render_prompt_left();
+        let expected = format!("{AI_INDICATOR} {title_style}");
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_render_prompt_left_without_title() {
         let prompt = ForgePrompt::default();
-        assert_eq!(prompt.render_prompt_left(), AI_INDICATOR);
+        let actual = prompt.render_prompt_left();
+        let expected = AI_INDICATOR;
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -113,10 +115,9 @@ mod tests {
             .fg(Color::Cyan)
             .paint(truncated_title)
             .to_string();
-        assert_eq!(
-            prompt.render_prompt_left(),
-            format!("{AI_INDICATOR} {title_style}")
-        );
+        let actual = prompt.render_prompt_left();
+        let expected = format!("{AI_INDICATOR} {title_style}");
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -129,13 +130,17 @@ mod tests {
             .fg(Color::DarkGray)
             .paint("[10/20/30]")
             .to_string();
-        assert_eq!(prompt.render_prompt_right(), usage_style);
+        let actual = prompt.render_prompt_right();
+        let expected = usage_style;
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_render_prompt_right_without_usage() {
         let prompt = ForgePrompt::default();
-        assert_eq!(prompt.render_prompt_right(), "");
+        let actual = prompt.render_prompt_right();
+        let expected = "";
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -146,28 +151,25 @@ mod tests {
             .fg(Color::LightYellow)
             .paint(format!(" {RIGHT_CHEVRON} "))
             .to_string();
-        assert_eq!(
-            prompt.render_prompt_indicator(reedline::PromptEditMode::Default),
-            indicator_style
-        );
+        let actual = prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
+        let expected = indicator_style;
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_render_prompt_indicator_without_title() {
         let prompt = ForgePrompt::default();
-        assert_eq!(
-            prompt.render_prompt_indicator(reedline::PromptEditMode::Default),
-            ""
-        );
+        let actual = prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
+        let expected = "";
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_render_prompt_multiline_indicator() {
         let prompt = ForgePrompt::default();
-        assert_eq!(
-            prompt.render_prompt_multiline_indicator(),
-            MULTILINE_INDICATOR
-        );
+        let actual = prompt.render_prompt_multiline_indicator();
+        let expected = MULTILINE_INDICATOR;
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -177,10 +179,12 @@ mod tests {
             status: PromptHistorySearchStatus::Passing,
             term: "test".to_string(),
         };
-        assert_eq!(
-            prompt.render_prompt_history_search_indicator(history_search),
-            " (reverse-search: test) "
-        );
+        let actual = prompt.render_prompt_history_search_indicator(history_search);
+        let expected = Style::new()
+            .fg(Color::White)
+            .paint("(reverse-search: test) ")
+            .to_string();
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -190,9 +194,11 @@ mod tests {
             status: PromptHistorySearchStatus::Failing,
             term: "test".to_string(),
         };
-        assert_eq!(
-            prompt.render_prompt_history_search_indicator(history_search),
-            " (failing reverse-search: test) "
-        );
+        let actual = prompt.render_prompt_history_search_indicator(history_search);
+        let expected = Style::new()
+            .fg(Color::White)
+            .paint("(failing reverse-search: test) ")
+            .to_string();
+        assert_eq!(actual, expected);
     }
 }
