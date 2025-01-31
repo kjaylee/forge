@@ -5,7 +5,7 @@ use forge_domain::{Command, Usage, UserInput};
 use tokio::fs;
 
 use crate::console::CONSOLE;
-use crate::prompting_engine::{CustomPrompt, ReadResult, ReedLineEngine};
+use crate::prompting_engine::{AgentChatPrompt, ReadResult, ReedLineEngine};
 use crate::StatusDisplay;
 
 /// Console implementation for handling user input via command line.
@@ -31,7 +31,7 @@ impl UserInput for Console {
         loop {
             let result = if let Some(help_text) = help_text {
                 ReedLineEngine::start()
-                    .with_prompt(Box::new(CustomPrompt::default().with_title(help_text)))
+                    .with_prompt(Box::new(AgentChatPrompt::default().with_start(help_text)))
                     .prompt()?
             } else {
                 ReedLineEngine::start().prompt()?

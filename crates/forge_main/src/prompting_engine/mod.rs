@@ -21,21 +21,28 @@ struct CommandCompleter {
     commands: Vec<String>,
 }
 
+/// Very Specialized Prompt for the Agent Chat
 #[derive(Clone, Default)]
-pub struct CustomPrompt {
-    title: Option<String>,
+pub struct AgentChatPrompt {
+    start: Option<String>,
+    end: Option<String>,
 }
 
-impl CustomPrompt {
-    pub fn with_title<T: Into<String>>(mut self, title: T) -> Self {
-        self.title = Some(title.into());
+impl AgentChatPrompt {
+    pub fn with_start<T: Into<String>>(mut self, start_txt: T) -> Self {
+        self.start = Some(start_txt.into());
+        self
+    }
+
+    pub fn with_end<T: Into<String>>(mut self, end_txt: T) -> Self {
+        self.end = Some(end_txt.into());
         self
     }
 }
 
-impl Prompt for CustomPrompt {
+impl Prompt for AgentChatPrompt {
     fn render_prompt_left(&self) -> Cow<str> {
-        if let Some(title) = self.title.as_ref() {
+        if let Some(title) = self.start.as_ref() {
             // TODO: cap the title by 15 chars else show ellipsis at the end.
             let truncated = if title.chars().count() > MAX_LEN {
                 format!("{}...", title.chars().take(MAX_LEN).collect::<String>())
@@ -73,7 +80,20 @@ impl Prompt for CustomPrompt {
     }
 
     fn render_prompt_right(&self) -> Cow<str> {
-        Cow::Borrowed("")
+        if let Some(end) = self.end.as_ref() {
+            Cow::Owned(format!(
+                " {}{}{}",
+                Style::new().fg(Color::DarkGray).bold().paint("["),
+                Style::new()
+                    .reset_before_style()
+                    .fg(Color::DarkGray)
+                    .bold()
+                    .paint(end),
+                Style::new().fg(Color::DarkGray).bold().paint("]"),
+            ))
+        } else {
+            Cow::Borrowed("")
+        }
     }
 
     fn render_prompt_indicator(&self, _prompt_mode: reedline::PromptEditMode) -> Cow<str> {
@@ -162,7 +182,7 @@ impl ReedLineEngine {
         let completion_menu = Box::new(
             ColumnarMenu::default()
                 .with_name("completion_menu")
-                .with_marker("➜ ")
+                .with_marker(" ")
                 .with_text_style(Style::new().dimmed().italic().fg(Color::White))
                 .with_selected_text_style(
                     Style::new()
@@ -187,8 +207,7 @@ impl ReedLineEngine {
             .with_quick_completions(true)
             .with_partial_completions(true)
             .with_ansi_colors(true);
-        let prompt = CustomPrompt::default();
-        Self { editor, prompt: Box::new(prompt) }
+        Self { editor, prompt: Box::new(AgentChatPrompt::default()) }
     }
 
     #[allow(dead_code)]
