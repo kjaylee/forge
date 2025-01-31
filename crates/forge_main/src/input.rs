@@ -29,18 +29,6 @@ impl UserInput for Console {
     ) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
         loop {
-            // let help = help_text.map(|a| a.to_string()).unwrap_or(format!(
-            //     "Available commands: {}",
-            //     Command::available_commands().join(", ")
-            // ));
-
-            // let mut text = inquire::Text::new("")
-            //     .with_help_message(&help)
-            //     .with_autocomplete(CommandCompleter::new());
-
-            // if let Some(initial_text) = initial_text {
-            //     text = text.with_initial_value(initial_text);
-            // }
             let result = if let Some(help_text) = help_text {
                 ReedLineEngine::start()
                     .with_prompt(Box::new(CustomPrompt::default().with_title(help_text)))

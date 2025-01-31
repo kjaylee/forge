@@ -8,7 +8,7 @@ use reedline::{
 use std::borrow::Cow;
 
 // cap the title by `MAX_LEN` chars else show ellipsis at the end.
-const MAX_LEN: usize = usize::MAX;
+const MAX_LEN: usize = 30;
 
 pub struct ReedLineEngine {
     editor: Reedline,
