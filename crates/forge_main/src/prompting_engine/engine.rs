@@ -1,9 +1,13 @@
 use std::path::PathBuf;
 
 use nu_ansi_term::{Color, Style};
-use reedline::{default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory, KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal};
+use reedline::{
+    default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory,
+    KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
+};
 
-use super::{completer::CommandCompleter, style};
+use super::completer::CommandCompleter;
+use super::style;
 
 // store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 10;
@@ -75,7 +79,7 @@ impl ReedLineEngine {
                 .with_name("completion_menu")
                 .with_marker(" ")
                 .with_text_style(Style::new().dimmed().italic().fg(Color::White))
-                .with_selected_text_style(style::bold_style(Color::White))
+                .with_selected_text_style(style::bold_style(Color::White)),
         );
 
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));
