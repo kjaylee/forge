@@ -32,7 +32,6 @@ impl ReedLineEngine {
             KeyCode::Tab,
             ReedlineEvent::UntilFound(vec![
                 ReedlineEvent::Menu("completion_menu".to_string()),
-                ReedlineEvent::HistoryHintComplete,
                 ReedlineEvent::Edit(vec![EditCommand::Complete]),
             ]),
         );
