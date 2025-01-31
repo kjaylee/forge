@@ -44,7 +44,9 @@ const DEFAULT_MAX_DEPTH: usize = 5;
 const DEFAULT_MAX_BREADTH: usize = 10;
 
 impl Walker {
-    pub fn min() -> Self {
+    /// Creates a new Walker instance with all settings set to conservative
+    /// values.
+    pub fn min_all() -> Self {
         Self {
             cwd: PathBuf::new(),
             max_depth: DEFAULT_MAX_DEPTH,
@@ -56,7 +58,10 @@ impl Walker {
         }
     }
 
-    pub fn max() -> Self {
+    /// Creates a new Walker instance with all settings set to maximum values.
+    /// NOTE: This could produce a large number of files and should be used with
+    /// carefully.
+    pub fn max_all() -> Self {
         Self {
             cwd: PathBuf::new(),
             max_depth: usize::MAX,
@@ -93,8 +98,9 @@ impl Walker {
         }
     }
 
-    /// Internal function to scan filesystem
-    fn get_blocking(&self) -> Result<Vec<File>> {
+    /// Blocking function to scan filesystem. Use this when you already have
+    /// a runtime or want to avoid spawning a new one.
+    pub fn get_blocking(&self) -> Result<Vec<File>> {
         let mut files = Vec::new();
         let mut total_size = 0u64;
         let mut dir_entries: HashMap<String, usize> = HashMap::new();
@@ -247,7 +253,7 @@ mod tests {
         ])
         .unwrap();
 
-        let actual = Walker::min()
+        let actual = Walker::min_all()
             .cwd(fixture.path().to_path_buf())
             .get()
             .await
@@ -267,7 +273,7 @@ mod tests {
             fixtures::create_sized_files(&[("text.txt".into(), 10), ("binary.exe".into(), 10)])
                 .unwrap();
 
-        let actual = Walker::min()
+        let actual = Walker::min_all()
             .cwd(fixture.path().to_path_buf())
             .skip_binary(true)
             .get()
@@ -292,7 +298,7 @@ mod tests {
         let (fixture, _) =
             fixtures::create_file_collection(DEFAULT_MAX_BREADTH + 5, "file").unwrap();
 
-        let actual = Walker::min()
+        let actual = Walker::min_all()
             .cwd(fixture.path().to_path_buf())
             .get()
             .await
@@ -314,7 +320,7 @@ mod tests {
     async fn test_walker_enforces_directory_depth_limit() {
         let fixture = fixtures::create_directory_tree(DEFAULT_MAX_DEPTH + 3, "test.txt").unwrap();
 
-        let actual = Walker::min()
+        let actual = Walker::min_all()
             .cwd(fixture.path().to_path_buf())
             .get()
             .await
