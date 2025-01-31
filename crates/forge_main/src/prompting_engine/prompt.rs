@@ -6,6 +6,14 @@ use reedline::{Prompt, PromptHistorySearchStatus};
 
 // cap the title by `MAX_LEN` chars and show ellipsis at the end.
 const MAX_LEN: usize = 30;
+const PROMPT_ARROW: &str = "➜";
+const PROMPT_NAME: &str = "FORGE";
+const PROMPT_INDICATOR: &str = "⚡";
+const MULTILINE_INDICATOR: &str = "::: ";
+const LEFT_PAREN: &str = "(";
+const RIGHT_PAREN: &str = ")";
+const LEFT_BRACKET: &str = "[";
+const RIGHT_BRACKET: &str = "]";
 
 /// Very Specialized Prompt for the Agent Chat
 #[derive(Clone, Default, Setters)]
@@ -17,7 +25,6 @@ pub struct AgentChatPrompt {
 impl Prompt for AgentChatPrompt {
     fn render_prompt_left(&self) -> Cow<str> {
         if let Some(title) = self.start.as_ref() {
-            // TODO: cap the title by 15 chars else show ellipsis at the end.
             let truncated = if title.chars().count() > MAX_LEN {
                 format!("{}...", title.chars().take(MAX_LEN).collect::<String>())
             } else {
@@ -30,15 +37,15 @@ impl Prompt for AgentChatPrompt {
                     .reset_before_style()
                     .bold()
                     .fg(Color::LightGreen)
-                    .paint("➜"),
-                Style::new().fg(Color::Cyan).bold().paint("FORGE"),
-                Style::new().fg(Color::Blue).bold().paint("("),
+                    .paint(PROMPT_ARROW),
+                Style::new().fg(Color::Cyan).bold().paint(PROMPT_NAME),
+                Style::new().fg(Color::Blue).bold().paint(LEFT_PAREN),
                 Style::new()
                     .reset_before_style()
                     .bold()
                     .fg(Color::Red)
                     .paint(truncated),
-                Style::new().fg(Color::Blue).bold().paint(")")
+                Style::new().fg(Color::Blue).bold().paint(RIGHT_PAREN)
             ))
         } else {
             Cow::Owned(format!(
@@ -47,8 +54,8 @@ impl Prompt for AgentChatPrompt {
                     .reset_before_style()
                     .bold()
                     .fg(Color::LightGreen)
-                    .paint("➜"),
-                Style::new().fg(Color::Cyan).bold().paint("FORGE"),
+                    .paint(PROMPT_ARROW),
+                Style::new().fg(Color::Cyan).bold().paint(PROMPT_NAME),
             ))
         }
     }
@@ -57,13 +64,13 @@ impl Prompt for AgentChatPrompt {
         if let Some(end) = self.end.as_ref() {
             Cow::Owned(format!(
                 " {}{}{}",
-                Style::new().fg(Color::DarkGray).bold().paint("["),
+                Style::new().fg(Color::DarkGray).bold().paint(LEFT_BRACKET),
                 Style::new()
                     .reset_before_style()
                     .fg(Color::DarkGray)
                     .bold()
                     .paint(end),
-                Style::new().fg(Color::DarkGray).bold().paint("]"),
+                Style::new().fg(Color::DarkGray).bold().paint(RIGHT_BRACKET),
             ))
         } else {
             Cow::Borrowed("")
@@ -73,12 +80,12 @@ impl Prompt for AgentChatPrompt {
     fn render_prompt_indicator(&self, _prompt_mode: reedline::PromptEditMode) -> Cow<str> {
         Cow::Owned(format!(
             " {} ",
-            Style::new().fg(Color::LightYellow).bold().paint("⚡")
+            Style::new().fg(Color::LightYellow).bold().paint(PROMPT_INDICATOR)
         ))
     }
 
     fn render_prompt_multiline_indicator(&self) -> Cow<str> {
-        Cow::Borrowed("::: ")
+        Cow::Borrowed(MULTILINE_INDICATOR)
     }
 
     fn render_prompt_history_search_indicator(
