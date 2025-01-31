@@ -100,13 +100,12 @@ src/helpers.rs:
 
 src/symbol.rs:
 ⋮...
-|pub struct SymbolIndex {
-|    pub defines: HashMap<String, HashSet<PathBuf>>,
-|    pub references: HashMap<String, Vec<PathBuf>>, // Using Vec to maintain order of references
-|    pub definitions: HashMap<(PathBuf, String), HashSet<Symbol>>,
-|    pub common_symbols: HashSet<String>,
-|    pub file_to_symbols: HashMap<PathBuf, HashSet<(PathBuf, String)>>,
-|    pub path: PathBuf,
+|pub struct Symbol {
+|    pub rel_fname: PathBuf,
+|    pub fname: PathBuf,
+|    pub line: usize,
+|    pub name: String,
+|    pub kind: SymbolKind,
 ⋮...
 |impl SymbolIndex {
 |    pub fn new(path: &Path) -> Self {
@@ -119,32 +118,35 @@ src/symbol.rs:
 |            path: path.to_path_buf(),
 |        }
 ⋮...
-|    fn process_file(&self, fname: &str, content: &[u8], config: &'static LanguageSyntaxConfig) -> R
-|            
-|        let rel_path = self.get_rel_fname(&PathBuf::from(fname));
-|        let mut symbols = Vec::new();
-|        
-|        // Create QueryEngine for handling both definition and reference queries
-|        let mut query_engine = QueryEngine::from_config(config)
-|            .map_err(|e| RepoMapError::ParseError(e.to_string()))?;
-|
-|
+|    fn process_definitions(
+|        &self,
+|        query_engine: &mut QueryEngine,
+|        query_str: &str,
+|        fname: &str,
+|        rel_path: &Path,
+|        source: &[u8],
+|        symbols: &mut Vec<Symbol>,
+|        config: &'static LanguageSyntaxConfig
 ⋮...
-|    pub fn add_symbol(&mut self, symbol: Symbol, rel_path: &PathBuf) {
-|        match symbol.kind {
-|            SymbolKind::Definition => {
-|                self.defines
-|                    .entry(symbol.name.clone())
-|                    .or_default()
-|                    .insert(rel_path.clone());
-|                self.definitions
-|                    .entry((rel_path.clone(), symbol.name.clone()))
-|                    .or_default()
-|                    .insert(symbol.clone());
+|    pub fn process_empty_references(&mut self) {
+|        if self.references.is_empty() {
+|            self.references = self
+|                .defines
+|                .iter()
+|                .map(|(k, v)| (k.clone(), v.iter().cloned().collect::<Vec<PathBuf>>()))
+|                .collect();
+|        }
 ⋮...
-|    pub fn post_process_symbols(&mut self) {
-|        self.process_empty_references();
-|        self.process_common_symbols();
+|    pub fn process_common_symbols(&mut self) {
+|        self.common_symbols = self
+|            .defines
+|            .keys()
+|            .filter_map(|key| {
+|                if self.references.contains_key(key) {
+|                    Some(key.clone())
+|                } else {
+|                    None
+|                }
 ⋮...
 |    pub fn get_rel_fname(&self, fname: &PathBuf) -> PathBuf {
 |        fname
