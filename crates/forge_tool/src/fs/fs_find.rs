@@ -54,7 +54,7 @@ impl ToolCallService for FSSearch {
         // TODO: Current implementation is extremely slow and inefficient.
         // It should ideally be taking in a stream of files and processing them
         // concurrently.
-        let walker = Walker::max().cwd(dir.to_path_buf());
+        let walker = Walker::max_all().cwd(dir.to_path_buf());
 
         let files = walker
             .get()
