@@ -1,3 +1,6 @@
+use std::borrow::Cow;
+use std::path::PathBuf;
+
 use derive_setters::Setters;
 use forge_domain::Command;
 use nu_ansi_term::{Color, Style};
@@ -6,7 +9,6 @@ use reedline::{
     FileBackedHistory, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptHistorySearchStatus,
     Reedline, ReedlineEvent, ReedlineMenu, Signal, Span, Suggestion,
 };
-use std::{borrow::Cow, path::PathBuf};
 
 // cap the title by `MAX_LEN` chars and show ellipsis at the end.
 const MAX_LEN: usize = 30;
