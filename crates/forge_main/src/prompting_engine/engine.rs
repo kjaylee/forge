@@ -8,8 +8,8 @@ use reedline::{
 
 use super::completer::CommandCompleter;
 
-// store the last `HISTORY_CAPACITY` commands in the history file
-const HISTORY_CAPACITY: usize = 10;
+// TODO: Store the last `HISTORY_CAPACITY` commands in the history file
+const HISTORY_CAPACITY: usize = 1024;
 
 pub struct ReedLineEngine {
     editor: Reedline,

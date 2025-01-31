@@ -11,46 +11,6 @@ const AI_INDICATOR: &str = "⚡";
 const MULTILINE_INDICATOR: &str = "::: ";
 const RIGHT_CHEVRON: &str = "❯";
 
-// // outputs: `➜ FORGE ⚡ `
-// fn base_prompt() -> Cow<'static, str> {
-//     format!(
-//         "{} {}",
-//         Style::new()::fg(Color::LightGreen).paint(ARROW),
-//         Style::new()::fg(Color::Cyan).paint(SHELL_NAME)
-//     )
-// }
-
-// // outputs: `(title)`
-// fn format_title(title: &str) -> Cow<str> {
-//     let title = title.chars().take(MAX_LEN).collect::<String>();
-//     format!(
-//         "{}{}{}",
-//         Style::new()::fg(Color::Blue).paint(LEFT_PAREN),
-//         Style::new()::fg(Color::Red).paint(title),
-//         Style::new()::fg(Color::Blue).paint(RIGHT_PAREN)
-//     )
-// }
-
-// // outputs: `[end]`
-// fn format_end(end: &str) -> Cow<str> {
-//     format!(
-//         " {}{}{}",
-//         Style::new()::fg(Color::DarkGray).paint(LEFT_BRACKET),
-//         Style::new()::fg(Color::DarkGray).paint(end),
-//         Style::new()::fg(Color::DarkGray).paint(RIGHT_BRACKET)
-//     )
-// }
-
-// // outputs: ` ⚡ `
-// fn format_indicator() -> Cow<str> {
-//     format!(" {} ", Style::new()::fg(Color::LightYellow).paint(AI_INDICATOR))
-// }
-
-// outputs: `::: `
-// fn get_multiline_indicator() -> &'static str {
-//     MULTILINE_INDICATOR
-// }
-
 /// Very Specialized Prompt for the Agent Chat
 #[derive(Clone, Default, Setters)]
 #[setters(strip_option, borrow_self)]
@@ -115,97 +75,124 @@ impl Prompt for ForgePrompt {
             PromptHistorySearchStatus::Passing => "",
             PromptHistorySearchStatus::Failing => "failing ",
         };
-        Cow::Owned(format!(
-            " ({}reverse-search: {}) ",
-            prefix, history_search.term
-        ))
+        let input = format!("({}reverse-search: {}) ", prefix, history_search.term);
+        Cow::Owned(Style::new().fg(Color::White).paint(input).to_string())
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use nu_ansi_term::Style;
 
-//     #[test]
-//     fn test_render_prompt_left_with_title() {
-//         let prompt =
-// AgentChatPrompt::default().start(Some("test-title".to_string()));         let
-// actual = prompt.render_prompt_left();         let expected = format!("{} {}",
-// base_prompt_indicator(), format_title("test-title"));         assert_eq!
-// (actual, expected);     }
+    use super::*;
 
-//     #[test]
-//     fn test_render_prompt_left_without_title() {
-//         let prompt = AgentChatPrompt::default();
-//         let actual = prompt.render_prompt_left();
-//         let expected = base_prompt_indicator();
-//         assert_eq!(actual, expected);
-//     }
+    #[test]
+    fn test_render_prompt_left_with_title() {
+        let mut prompt = ForgePrompt::default();
+        prompt.title("test-title".to_string());
+        let title_style = Style::new().fg(Color::Cyan).paint("test-title").to_string();
+        assert_eq!(
+            prompt.render_prompt_left(),
+            format!("{AI_INDICATOR} {title_style}")
+        );
+    }
 
-//     #[test]
-//     fn test_render_prompt_left_with_long_title() {
-//         let long_title = "a".repeat(MAX_LEN + 10);
-//         let prompt =
-// AgentChatPrompt::default().start(Some(long_title.clone()));         let
-// actual = prompt.render_prompt_left();         let truncated = format!("{}{}",
-// "a".repeat(MAX_LEN), "...");         let expected = format!("{} {}",
-// base_prompt_indicator(), format_title(&truncated));         assert_eq!
-// (actual, expected);     }
+    #[test]
+    fn test_render_prompt_left_without_title() {
+        let prompt = ForgePrompt::default();
+        assert_eq!(prompt.render_prompt_left(), AI_INDICATOR);
+    }
 
-//     #[test]
-//     fn test_render_prompt_right_with_end() {
-//         let prompt =
-// AgentChatPrompt::default().end(Some("test-end".to_string()));         let
-// actual = prompt.render_prompt_right();         let expected =
-// format_end("test-end");         assert_eq!(actual, expected);
-//     }
+    #[test]
+    fn test_render_prompt_left_with_long_title() {
+        let long_title = "a".repeat(MAX_LEN + 10);
+        let mut prompt = ForgePrompt::default();
+        prompt.title(long_title);
+        let truncated_title = "a".repeat(MAX_LEN);
+        let title_style = Style::new()
+            .fg(Color::Cyan)
+            .paint(truncated_title)
+            .to_string();
+        assert_eq!(
+            prompt.render_prompt_left(),
+            format!("{AI_INDICATOR} {title_style}")
+        );
+    }
 
-//     #[test]
-//     fn test_render_prompt_right_without_end() {
-//         let prompt = AgentChatPrompt::default();
-//         let actual = prompt.render_prompt_right();
-//         let expected = "";
-//         assert_eq!(actual, expected);
-//     }
+    #[test]
+    fn test_render_prompt_right_with_usage() {
+        let usage = Usage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
+        let mut prompt = ForgePrompt::default();
+        prompt.usage(usage);
+        let usage_style = Style::new()
+            .bold()
+            .fg(Color::DarkGray)
+            .paint("[10/20/30]")
+            .to_string();
+        assert_eq!(prompt.render_prompt_right(), usage_style);
+    }
 
-//     #[test]
-//     fn test_render_prompt_indicator() {
-//         let prompt = AgentChatPrompt::default();
-//         let actual =
-// prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
-//         let expected = format_indicator();
-//         assert_eq!(actual, expected);
-//     }
+    #[test]
+    fn test_render_prompt_right_without_usage() {
+        let prompt = ForgePrompt::default();
+        assert_eq!(prompt.render_prompt_right(), "");
+    }
 
-//     #[test]
-//     fn test_render_prompt_multiline_indicator() {
-//         let prompt = AgentChatPrompt::default();
-//         let actual = prompt.render_prompt_multiline_indicator();
-//         let expected = get_multiline_indicator();
-//         assert_eq!(actual, expected);
-//     }
+    #[test]
+    fn test_render_prompt_indicator_with_title() {
+        let mut prompt = ForgePrompt::default();
+        prompt.title("test".to_string());
+        let indicator_style = Style::new()
+            .fg(Color::LightYellow)
+            .paint(format!(" {RIGHT_CHEVRON} "))
+            .to_string();
+        assert_eq!(
+            prompt.render_prompt_indicator(reedline::PromptEditMode::Default),
+            indicator_style
+        );
+    }
 
-//     #[test]
-//     fn test_render_prompt_history_search_indicator_passing() {
-//         let prompt = AgentChatPrompt::default();
-//         let history_search = reedline::PromptHistorySearch {
-//             status: PromptHistorySearchStatus::Passing,
-//             term: "test-term".to_string(),
-//         };
-//         let actual =
-// prompt.render_prompt_history_search_indicator(history_search);         let
-// expected = " (reverse-search: test-term) ";         assert_eq!(actual,
-// expected);     }
+    #[test]
+    fn test_render_prompt_indicator_without_title() {
+        let prompt = ForgePrompt::default();
+        assert_eq!(
+            prompt.render_prompt_indicator(reedline::PromptEditMode::Default),
+            ""
+        );
+    }
 
-//     #[test]
-//     fn test_render_prompt_history_search_indicator_failing() {
-//         let prompt = AgentChatPrompt::default();
-//         let history_search = reedline::PromptHistorySearch {
-//             status: PromptHistorySearchStatus::Failing,
-//             term: "test-term".to_string(),
-//         };
-//         let actual =
-// prompt.render_prompt_history_search_indicator(history_search);         let
-// expected = " (failing reverse-search: test-term) ";         assert_eq!
-// (actual, expected);     }
-// }
+    #[test]
+    fn test_render_prompt_multiline_indicator() {
+        let prompt = ForgePrompt::default();
+        assert_eq!(
+            prompt.render_prompt_multiline_indicator(),
+            MULTILINE_INDICATOR
+        );
+    }
+
+    #[test]
+    fn test_render_prompt_history_search_indicator_passing() {
+        let prompt = ForgePrompt::default();
+        let history_search = reedline::PromptHistorySearch {
+            status: PromptHistorySearchStatus::Passing,
+            term: "test".to_string(),
+        };
+        assert_eq!(
+            prompt.render_prompt_history_search_indicator(history_search),
+            " (reverse-search: test) "
+        );
+    }
+
+    #[test]
+    fn test_render_prompt_history_search_indicator_failing() {
+        let prompt = ForgePrompt::default();
+        let history_search = reedline::PromptHistorySearch {
+            status: PromptHistorySearchStatus::Failing,
+            term: "test".to_string(),
+        };
+        assert_eq!(
+            prompt.render_prompt_history_search_indicator(history_search),
+            " (failing reverse-search: test) "
+        );
+    }
+}
