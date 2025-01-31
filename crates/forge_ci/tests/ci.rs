@@ -39,43 +39,6 @@ fn generate() {
     let main_cond =
         Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
 
-    // Add release build job
-    workflow = workflow.add_job(
-        "build-release",
-        Job::new("build-release")
-            .add_needs(build_job.clone())
-            .cond(main_cond.clone())
-            .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
-            .runs_on("${{ matrix.os }}")
-            .add_step(Step::uses("actions", "checkout", "v4"))
-            // Install Rust with cross-compilation target
-            .add_step(
-                Step::uses("dtolnay", "rust-toolchain", "stable")
-                    .with(("targets", "${{ matrix.target }}")),
-            )
-            // Build release binary
-            .add_step(
-                Step::uses("ClementTsang", "cargo-action", "v0.0.3")
-                    .add_with(("command", "build --release"))
-                    .add_with(("args", "--target ${{ matrix.target }}")),
-            )
-            // Upload artifact for release
-            .add_step(
-                Step::uses("actions", "upload-artifact", "v4")
-                    .add_with(("name", "${{ matrix.binary_name }}"))
-                    .add_with(("path", "${{ matrix.binary_path }}"))
-                    .add_with(("if-no-files-found", "error")),
-            ),
-    );
-    // Store reference to build-release job
-    let build_release_job = workflow
-        .jobs
-        .clone()
-        .unwrap()
-        .get("build-release")
-        .unwrap()
-        .clone();
-
     // Add draft release job
     workflow = workflow.add_job(
         "draft_release",
@@ -110,6 +73,48 @@ fn generate() {
         .clone()
         .unwrap()
         .get("draft_release")
+        .unwrap()
+        .clone();
+
+    // Add release build job
+    workflow = workflow.add_job(
+        "build-release",
+        Job::new("build-release")
+            .add_needs(build_job.clone())
+            .add_needs(draft_release_job.clone())
+            .cond(main_cond.clone())
+            .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
+            .runs_on("${{ matrix.os }}")
+            .add_step(Step::uses("actions", "checkout", "v4"))
+            // Install Rust with cross-compilation target
+            .add_step(
+                Step::uses("dtolnay", "rust-toolchain", "stable")
+                    .with(("targets", "${{ matrix.target }}")),
+            )
+            // Build release binary
+            .add_step(
+                Step::uses("ClementTsang", "cargo-action", "v0.0.3")
+                    .add_with(("command", "build --release"))
+                    .add_with(("args", "--target ${{ matrix.target }}"))
+                    .add_env((
+                        "APP_VERSION",
+                        "${{ needs.draft_release.outputs.create_release_name }}",
+                    )),
+            )
+            // Upload artifact for release
+            .add_step(
+                Step::uses("actions", "upload-artifact", "v4")
+                    .add_with(("name", "${{ matrix.binary_name }}"))
+                    .add_with(("path", "${{ matrix.binary_path }}"))
+                    .add_with(("if-no-files-found", "error")),
+            ),
+    );
+    // Store reference to build-release job
+    let build_release_job = workflow
+        .jobs
+        .clone()
+        .unwrap()
+        .get("build-release")
         .unwrap()
         .clone();
 
