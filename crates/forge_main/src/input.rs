@@ -14,7 +14,7 @@ pub struct Console;
 
 #[async_trait]
 impl UserInput for Console {
-    type PromptInput = Input;
+    type PromptInput = PromptInput;
     async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
         let path = path.into();
         let content = fs::read_to_string(&path).await?.trim().to_string();
@@ -50,17 +50,17 @@ impl UserInput for Console {
     }
 }
 
-pub enum Input {
+pub enum PromptInput {
     Update {
         title: Option<String>,
         usage: Option<Usage>,
     },
 }
 
-impl From<Input> for AgentChatPrompt {
-    fn from(input: Input) -> Self {
+impl From<PromptInput> for AgentChatPrompt {
+    fn from(input: PromptInput) -> Self {
         match input {
-            Input::Update { title, usage } => {
+            PromptInput::Update { title, usage } => {
                 let mut prompt = AgentChatPrompt::default();
                 if let Some(title) = title {
                     prompt = prompt.start(Some(title));

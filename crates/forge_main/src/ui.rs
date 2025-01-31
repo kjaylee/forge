@@ -7,7 +7,7 @@ use forge_app::{APIService, Service};
 use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
 use tokio_stream::StreamExt;
 
-use crate::input::Input;
+use crate::input::PromptInput;
 use crate::{Console, StatusDisplay, CONSOLE};
 
 #[derive(Default)]
@@ -18,9 +18,9 @@ struct UIState {
     usage: Usage,
 }
 
-impl From<&UIState> for Input {
+impl From<&UIState> for PromptInput {
     fn from(state: &UIState) -> Self {
-        Input::Update {
+        PromptInput::Update {
             title: state.current_title.clone(),
             usage: Some(state.usage.clone()),
         }
@@ -116,11 +116,6 @@ impl UI {
             conversation_id: self.state.current_conversation_id,
             custom_instructions: self.custom_instructions.clone(),
         };
-
-        self.process_chat(chat).await
-    }
-
-    async fn process_chat(&mut self, chat: ChatRequest) -> Result<()> {
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
