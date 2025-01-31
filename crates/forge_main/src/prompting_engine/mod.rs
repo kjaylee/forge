@@ -151,6 +151,7 @@ impl ReedLineEngine {
             KeyModifiers::NONE,
             KeyCode::Tab,
             ReedlineEvent::UntilFound(vec![
+                ReedlineEvent::HistoryHintComplete,
                 ReedlineEvent::Menu("completion_menu".to_string()),
                 ReedlineEvent::MenuNext,
                 ReedlineEvent::Edit(vec![EditCommand::Complete]),
