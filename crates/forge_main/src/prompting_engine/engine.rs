@@ -77,8 +77,8 @@ impl ReedLineEngine {
             ColumnarMenu::default()
                 .with_name("completion_menu")
                 .with_marker(" ")
-                .with_text_style(Style::new().dimmed().italic().fg(Color::White))
-                .with_selected_text_style(Style::new().bold().fg(Color::White)),
+                .with_text_style(Style::new().bold().fg(Color::White))
+                .with_selected_text_style(Style::new().bold().on(Color::White).fg(Color::Black)),
         );
 
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));
@@ -87,7 +87,7 @@ impl ReedLineEngine {
             .with_history(history)
             .with_completer(completer)
             .with_hinter(Box::new(
-                DefaultHinter::default().with_style(Style::new().italic().fg(Color::DarkGray)),
+                DefaultHinter::default().with_style(Style::new().fg(Color::DarkGray)),
             ))
             .with_menu(ReedlineMenu::EngineCompleter(completion_menu))
             .with_edit_mode(edit_mode)
