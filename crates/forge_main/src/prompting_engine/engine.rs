@@ -7,7 +7,6 @@ use reedline::{
 };
 
 use super::completer::CommandCompleter;
-use super::style;
 
 // store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 10;
@@ -79,7 +78,7 @@ impl ReedLineEngine {
                 .with_name("completion_menu")
                 .with_marker(" ")
                 .with_text_style(Style::new().dimmed().italic().fg(Color::White))
-                .with_selected_text_style(style::bold_style(Color::White)),
+                .with_selected_text_style(Style::new().bold().fg(Color::White)),
         );
 
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));

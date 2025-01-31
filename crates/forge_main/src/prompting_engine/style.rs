@@ -12,7 +12,7 @@ const LEFT_BRACKET: &str = "[";
 const RIGHT_BRACKET: &str = "]";
 
 // bold style builder
-pub fn bold_style(color: Color) -> Style {
+fn bold_style(color: Color) -> Style {
     Style::new().bold().fg(color)
 }
 
