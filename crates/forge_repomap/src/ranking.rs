@@ -7,11 +7,7 @@ pub struct PageRankConfig {
 
 impl Default for PageRankConfig {
     fn default() -> Self {
-        Self {
-            max_iterations: 100,
-            damping_factor: 0.85,
-            tolerance: 1e-6,
-        }
+        Self { max_iterations: 100, damping_factor: 0.85, tolerance: 1e-6 }
     }
 }
 
@@ -44,10 +40,7 @@ pub struct EdgeWeight {
 
 impl Default for EdgeWeight {
     fn default() -> Self {
-        Self {
-            edge_type: EdgeType::Use,
-            weight: 1.0,
-        }
+        Self { edge_type: EdgeType::Use, weight: 1.0 }
     }
 }
 
@@ -69,10 +62,7 @@ pub struct PageRank {
 
 impl PageRank {
     pub fn new(config: PageRankConfig) -> Self {
-        Self {
-            config,
-            edge_weight_factor: 1.0,
-        }
+        Self { config, edge_weight_factor: 1.0 }
     }
 
     pub fn with_edge_weights(mut self, factor: f64) -> Self {
@@ -114,7 +104,10 @@ impl PageRank {
 
             // Initialize new scores with damping factor
             for node in graph.node_indices() {
-                new_scores.insert(node, (1.0 - self.config.damping_factor) / graph.node_count() as f64);
+                new_scores.insert(
+                    node,
+                    (1.0 - self.config.damping_factor) / graph.node_count() as f64,
+                );
             }
 
             // Update scores based on edges
@@ -122,7 +115,8 @@ impl PageRank {
                 let out_edges: Vec<_> = graph.edges(node).collect();
                 if !out_edges.is_empty() {
                     let score = scores[&node];
-                    let total_weight: f64 = out_edges.iter()
+                    let total_weight: f64 = out_edges
+                        .iter()
                         .map(|e| e.weight().weight * self.edge_weight_factor)
                         .sum();
 
@@ -130,7 +124,8 @@ impl PageRank {
                         let target = edge.target();
                         let weight = edge.weight().weight * self.edge_weight_factor;
                         let contribution = score * weight / total_weight;
-                        *new_scores.entry(target).or_insert(0.0) += self.config.damping_factor * contribution;
+                        *new_scores.entry(target).or_insert(0.0) +=
+                            self.config.damping_factor * contribution;
                     }
                 }
             }
@@ -160,14 +155,17 @@ mod tests {
 
     #[test]
     fn test_edge_type_weights() {
-        assert!(EdgeType::Implementation.base_weight() > EdgeType::Import.base_weight(),
-            "Implementation edges should have higher weight than imports");
+        assert!(
+            EdgeType::Implementation.base_weight() > EdgeType::Import.base_weight(),
+            "Implementation edges should have higher weight than imports"
+        );
     }
 
     #[test]
     fn test_enhanced_page_rank() {
-        use petgraph::Graph;
         use std::path::PathBuf;
+
+        use petgraph::Graph;
 
         let mut graph = Graph::new();
         let n1 = graph.add_node(PathBuf::from("a.rs"));
@@ -178,8 +176,7 @@ mod tests {
         graph.add_edge(n2, n3, EdgeWeight::new(EdgeType::Call));
         graph.add_edge(n3, n1, EdgeWeight::new(EdgeType::Use));
 
-        let page_rank = PageRank::new(PageRankConfig::default())
-            .with_edge_weights(1.2);
+        let page_rank = PageRank::new(PageRankConfig::default()).with_edge_weights(1.2);
 
         let scores = page_rank.calculate(&graph);
         assert_eq!(scores.len(), 3);

@@ -1,17 +1,18 @@
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use std::rc::Rc;
-use serde::{Deserialize, Serialize};
-use tokio::sync::Semaphore;
+use std::sync::Arc;
+
 use futures::stream::{self, StreamExt};
-use tree_sitter::{Language, Parser as TsParser, Query, Node};
+use serde::{Deserialize, Serialize};
 use streaming_iterator::StreamingIterator;
+use tokio::sync::Semaphore;
+use tree_sitter::{Language, Node, Parser as TsParser, Query};
 
 use crate::error::Error;
-use crate::symbol::{Location, Symbol, Scope, SymbolKind, SymbolReference};
-use crate::scope_walker::ScopeWalker;
 use crate::ranking::EdgeType;
+use crate::scope_walker::ScopeWalker;
+use crate::symbol::{Location, Scope, Symbol, SymbolKind, SymbolReference};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ReferenceType {
@@ -42,7 +43,6 @@ impl ReferenceType {
     }
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ParseConfig {
     /// Enable parallel parsing of files
@@ -55,6 +55,12 @@ pub struct ParseConfig {
     pub parse_signatures: bool,
     /// Enable reference tracking
     pub track_references: bool,
+}
+
+impl Default for ParseConfig {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ParseConfig {
@@ -107,7 +113,7 @@ impl Parser {
             queries: HashMap::new(),
             config: ParseConfig::new(),
         };
-        
+
         parser.queries = parser.initialize_queries()?;
         Ok(parser)
     }
@@ -224,7 +230,7 @@ impl Parser {
                 let parser = Arc::clone(&parser);
                 let permit = Arc::clone(&semaphore).acquire_owned();
                 let path = path.clone();
-                
+
                 async move {
                     let _permit = permit.await;
                     let symbols = parser.parse_file(path.as_ref(), &content)?;
@@ -259,16 +265,18 @@ impl Parser {
     }
 
     pub fn parse_file(&self, path: &Path, content: &str) -> Result<Vec<Symbol>, Error> {
-        let language = path.extension()
+        let language = path
+            .extension()
             .and_then(|s| s.to_str())
             .ok_or_else(|| Error::UnsupportedLanguage("Missing file extension".to_string()))?;
 
-        let lang = self.parsers.get(language)
-            .ok_or_else(|| Error::UnsupportedLanguage(format!("Unsupported language: {}", language)))?;
+        let lang = self.parsers.get(language).ok_or_else(|| {
+            Error::UnsupportedLanguage(format!("Unsupported language: {}", language))
+        })?;
 
         let tree = self.parse_content(content, lang)?;
         let mut symbols = self.extract_symbols(&tree, path, content)?;
-        
+
         if self.config.scope_analysis {
             self.analyze_scopes(&mut symbols, &tree)?;
         }
@@ -298,12 +306,14 @@ impl Parser {
     ) -> Result<(), Error> {
         // Create a scope walker and get all scopes from the tree
         let mut walker = ScopeWalker::new(tree.clone());
-        let scopes = walker.analyze()
+        let scopes = walker
+            .analyze()
             .map_err(|e| Error::Parse(format!("Failed to analyze scopes: {}", e)))?;
 
         // Assign scopes to symbols based on their locations and build scope hierarchy
         for symbol in symbols {
-            let mut matching_scopes: Vec<&Scope> = scopes.iter()
+            let mut matching_scopes: Vec<&Scope> = scopes
+                .iter()
                 .filter(|scope| scope.contains_line(symbol.location.start_line))
                 .collect();
 
@@ -313,15 +323,16 @@ impl Parser {
             if let Some(most_specific_scope) = matching_scopes.first() {
                 // Create a new scope with the complete hierarchy
                 let mut current_scope = (*most_specific_scope).clone();
-                
+
                 // Build the scope hierarchy by finding parent scopes
                 for potential_parent in matching_scopes.iter().skip(1) {
-                    if potential_parent.contains_line(current_scope.start_line) 
-                        && potential_parent.end_line >= current_scope.end_line {
+                    if potential_parent.contains_line(current_scope.start_line)
+                        && potential_parent.end_line >= current_scope.end_line
+                    {
                         current_scope = current_scope.with_parent((*potential_parent).clone());
                     }
                 }
-                
+
                 symbol.scope = Some(current_scope);
             }
         }
@@ -334,7 +345,7 @@ impl Parser {
             .utf8_text(content.as_bytes())
             .map_err(|e| Error::Parse(e.to_string()))?
             .to_string();
-        
+
         Ok(Some(signature))
     }
 
@@ -345,10 +356,12 @@ impl Parser {
         content: &str,
     ) -> Result<Vec<Symbol>, Error> {
         let mut symbols = Vec::new();
-        let query = self.queries.get(path.extension()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| Error::UnsupportedLanguage("Unknown file extension".to_string()))?
-        ).ok_or_else(|| Error::Parse("No query available for language".to_string()))?;
+        let query =
+            self.queries
+                .get(path.extension().and_then(|s| s.to_str()).ok_or_else(|| {
+                    Error::UnsupportedLanguage("Unknown file extension".to_string())
+                })?)
+                .ok_or_else(|| Error::Parse("No query available for language".to_string()))?;
 
         let mut cursor = tree_sitter::QueryCursor::new();
         let mut matches = cursor.matches(query, tree.root_node(), content.as_bytes());
@@ -360,7 +373,8 @@ impl Parser {
                     continue;
                 }
 
-                let name = capture.node
+                let name = capture
+                    .node
                     .utf8_text(content.as_bytes())
                     .map_err(|e| Error::Parse(e.to_string()))?;
 
@@ -437,44 +451,54 @@ impl Parser {
         match node.kind() {
             // Use declarations
             "use_declaration" => {
-                if let Some(ref_) = self.process_reference(node, content, path, ReferenceType::Use)? {
+                if let Some(ref_) =
+                    self.process_reference(node, content, path, ReferenceType::Use)?
+                {
                     references.push(ref_);
                 }
-            },
-            
+            }
+
             // Function calls
             "call_expression" => {
                 if let Some(function_name) = node.child_by_field_name("function") {
-                    if let Some(ref_) = self.process_reference(&function_name, content, path, ReferenceType::Call)? {
+                    if let Some(ref_) =
+                        self.process_reference(&function_name, content, path, ReferenceType::Call)?
+                    {
                         references.push(ref_);
                     }
                 }
-            },
-            
+            }
+
             // Type references
             "type_identifier" => {
-                if let Some(ref_) = self.process_reference(node, content, path, ReferenceType::Type)? {
+                if let Some(ref_) =
+                    self.process_reference(node, content, path, ReferenceType::Type)?
+                {
                     references.push(ref_);
                 }
-            },
-            
+            }
+
             // Field access
             "field_expression" => {
                 if let Some(field) = node.child_by_field_name("field") {
-                    if let Some(ref_) = self.process_reference(&field, content, path, ReferenceType::Field)? {
+                    if let Some(ref_) =
+                        self.process_reference(&field, content, path, ReferenceType::Field)?
+                    {
                         references.push(ref_);
                     }
                 }
-            },
-            
+            }
+
             // Module references
             "mod_item" => {
                 if let Some(name) = node.child_by_field_name("name") {
-                    if let Some(ref_) = self.process_reference(&name, content, path, ReferenceType::Module)? {
+                    if let Some(ref_) =
+                        self.process_reference(&name, content, path, ReferenceType::Module)?
+                    {
                         references.push(ref_);
                     }
                 }
-            },
+            }
 
             _ => {}
         }
@@ -502,7 +526,8 @@ impl Parser {
         ref_type: ReferenceType,
     ) -> Result<Option<(SymbolReference, ReferenceType)>, Error> {
         // Extract text and create reference
-        let text = node.utf8_text(content.as_bytes())
+        let text = node
+            .utf8_text(content.as_bytes())
             .map_err(|e| Error::Parse(e.to_string()))?;
         let name = text.to_string();
 
@@ -515,11 +540,13 @@ impl Parser {
         };
 
         // Extract visibility and documentation
-        let is_public = node.parent()
+        let is_public = node
+            .parent()
             .and_then(|n| n.child_by_field_name("pub"))
             .is_some();
-        
-        let has_docs = node.parent()
+
+        let has_docs = node
+            .parent()
             .and_then(|n| n.prev_sibling())
             .map(|n| n.kind() == "line_comment" || n.kind() == "block_comment")
             .unwrap_or(false);
@@ -536,16 +563,14 @@ impl Parser {
                 } else {
                     SymbolKind::Variable
                 }
-            },
-            ReferenceType::Definition => {
-                match node.parent().map(|n| n.kind()) {
-                    Some("function_item") => SymbolKind::Function,
-                    Some("struct_item") => SymbolKind::Struct,
-                    Some("impl_item") => SymbolKind::Class,
-                    Some("trait_item") => SymbolKind::Trait,
-                    Some("module") => SymbolKind::Module,
-                    _ => SymbolKind::Variable,
-                }
+            }
+            ReferenceType::Definition => match node.parent().map(|n| n.kind()) {
+                Some("function_item") => SymbolKind::Function,
+                Some("struct_item") => SymbolKind::Struct,
+                Some("impl_item") => SymbolKind::Class,
+                Some("trait_item") => SymbolKind::Trait,
+                Some("module") => SymbolKind::Module,
+                _ => SymbolKind::Variable,
             },
         };
 
@@ -615,8 +640,9 @@ fn language_php() -> Language {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
+    use super::*;
 
     #[tokio::test]
     async fn test_parallel_parsing() -> Result<(), Error> {
@@ -631,24 +657,18 @@ mod tests {
                 PathBuf::from("test1.rs"),
                 "pub fn test1() { test2(); }".to_string(),
             ),
-            (
-                PathBuf::from("test2.rs"),
-                "pub fn test2() { }".to_string(),
-            ),
+            (PathBuf::from("test2.rs"), "pub fn test2() { }".to_string()),
         ];
 
         let results = parser.parse_files(files).await?;
         assert_eq!(results.len(), 2);
-        
+
         Ok(())
     }
 
     #[test]
     fn test_scope_analysis() -> Result<(), Error> {
-        let parser = Parser::new()?.with_config(
-            ParseConfig::new()
-                .with_scope_analysis(true)
-        );
+        let parser = Parser::new()?.with_config(ParseConfig::new().with_scope_analysis(true));
 
         let content = r#"
             mod test_mod {
@@ -662,7 +682,7 @@ mod tests {
 
         let symbols = parser.parse_file(&PathBuf::from("test.rs"), content)?;
         assert!(!symbols.is_empty());
-        
+
         // Verify that scopes are assigned
         let module_symbol = symbols.iter().find(|s| s.kind == SymbolKind::Module);
         assert!(module_symbol.is_some());

@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::fmt;
+use std::path::PathBuf;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -22,13 +22,7 @@ pub struct SymbolReference {
 
 impl SymbolReference {
     pub fn new(name: String, location: Location, kind: SymbolKind) -> Self {
-        Self {
-            name,
-            location,
-            kind,
-            is_public: false,
-            has_docs: false,
-        }
+        Self { name, location, kind, is_public: false, has_docs: false }
     }
 
     pub fn with_visibility(mut self, is_public: bool) -> Self {
@@ -186,12 +180,7 @@ pub struct Scope {
 
 impl Scope {
     pub fn new(scope_type: ScopeType, start_line: usize, end_line: usize) -> Self {
-        Self {
-            scope_type,
-            start_line,
-            end_line,
-            parent_scope: None,
-        }
+        Self { scope_type, start_line, end_line, parent_scope: None }
     }
 
     pub fn with_parent(mut self, parent: Scope) -> Self {
@@ -226,10 +215,14 @@ mod tests {
 
     #[test]
     fn test_symbol_weights() {
-        assert!(SymbolKind::Module.base_weight() > SymbolKind::Function.base_weight(),
-            "Modules should have higher base weight than functions");
-        assert!(SymbolKind::Class.base_weight() > SymbolKind::Variable.base_weight(),
-            "Classes should have higher base weight than variables");
+        assert!(
+            SymbolKind::Module.base_weight() > SymbolKind::Function.base_weight(),
+            "Modules should have higher base weight than functions"
+        );
+        assert!(
+            SymbolKind::Class.base_weight() > SymbolKind::Variable.base_weight(),
+            "Classes should have higher base weight than variables"
+        );
     }
 
     #[test]
@@ -243,27 +236,22 @@ mod tests {
             end_col: 0,
         };
 
-        let mut symbol = Symbol::new(
-            "test".to_string(),
-            SymbolKind::Function,
-            location.clone(),
-        ).with_signature("fn test() -> ()".to_string());
+        let mut symbol = Symbol::new("test".to_string(), SymbolKind::Function, location.clone())
+            .with_signature("fn test() -> ()".to_string());
 
         // Add a public reference
         symbol.add_reference(
-            SymbolReference::new(
-                "test".to_string(),
-                location.clone(),
-                SymbolKind::Function,
-            )
-            .with_visibility(true)
-            .with_docs(true)
+            SymbolReference::new("test".to_string(), location.clone(), SymbolKind::Function)
+                .with_visibility(true)
+                .with_docs(true),
         );
 
         assert_eq!(symbol.signature.as_ref().unwrap(), "fn test() -> ()");
         assert!(symbol.is_public(), "Symbol should be public");
         assert!(symbol.has_docs(), "Symbol should have docs");
-        assert!(symbol.importance_factor() > symbol.kind.base_weight(), 
-            "Importance factor should be higher than base weight");
+        assert!(
+            symbol.importance_factor() > symbol.kind.base_weight(),
+            "Importance factor should be higher than base weight"
+        );
     }
 }

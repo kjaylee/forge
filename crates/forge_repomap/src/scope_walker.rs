@@ -1,4 +1,5 @@
 use tree_sitter::{Node, Tree};
+
 use crate::symbol::{Scope, ScopeType};
 
 pub struct ScopeWalker {
@@ -79,8 +80,9 @@ impl ScopeWalker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tree_sitter::Parser;
+
+    use super::*;
 
     fn setup_tree(source: &str) -> Tree {
         let mut parser = Parser::new();
@@ -101,7 +103,8 @@ mod tests {
         let mut walker = ScopeWalker::new(tree);
         let scopes = walker.analyze().unwrap();
 
-        let function_scope = scopes.iter()
+        let function_scope = scopes
+            .iter()
             .find(|s| s.scope_type == ScopeType::Function)
             .expect("Should find function scope");
 
@@ -125,39 +128,58 @@ mod tests {
         let scopes = walker.analyze().unwrap();
 
         // Get function scopes only
-        let function_scopes: Vec<_> = scopes.iter()
+        let function_scopes: Vec<_> = scopes
+            .iter()
             .filter(|s| s.scope_type == ScopeType::Function)
             .collect();
 
         // Separate nested and top-level functions
-        let nested_functions: Vec<_> = function_scopes.iter()
+        let nested_functions: Vec<_> = function_scopes
+            .iter()
             .filter(|s| s.parent_scope.is_some())
             .collect();
-        let top_level_functions: Vec<_> = function_scopes.iter()
+        let top_level_functions: Vec<_> = function_scopes
+            .iter()
             .filter(|s| s.parent_scope.is_none())
             .collect();
 
         assert_eq!(nested_functions.len(), 1, "Should have one nested function");
-        assert_eq!(top_level_functions.len(), 1, "Should have one top-level function");
+        assert_eq!(
+            top_level_functions.len(),
+            1,
+            "Should have one top-level function"
+        );
 
         // Get all function scopes
-        let function_scopes: Vec<_> = scopes.iter()
+        let function_scopes: Vec<_> = scopes
+            .iter()
             .filter(|s| s.scope_type == ScopeType::Function)
             .collect();
 
         // Find nested and outer functions
-        let inner_fn = function_scopes.iter()
+        let inner_fn = function_scopes
+            .iter()
             .find(|s| s.start_line == 3)
             .expect("Should find inner function at line 3");
-        
-        let outer_fn = function_scopes.iter()
+
+        let outer_fn = function_scopes
+            .iter()
             .find(|s| s.start_line == 2)
             .expect("Should find outer function at line 2");
 
         // Verify proper nesting
-        assert!(inner_fn.parent_scope.is_some(), "Inner function should have a parent");
-        assert!(outer_fn.parent_scope.is_none(), "Outer function should not have a parent");
-        assert_eq!(inner_fn.parent_scope.as_ref().unwrap().start_line, 2,
-            "Inner function's parent should be the outer function");
+        assert!(
+            inner_fn.parent_scope.is_some(),
+            "Inner function should have a parent"
+        );
+        assert!(
+            outer_fn.parent_scope.is_none(),
+            "Outer function should not have a parent"
+        );
+        assert_eq!(
+            inner_fn.parent_scope.as_ref().unwrap().start_line,
+            2,
+            "Inner function's parent should be the outer function"
+        );
     }
 }
