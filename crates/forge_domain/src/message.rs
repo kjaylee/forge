@@ -1,12 +1,11 @@
-use derive_more::derive::{Display, From};
+use derive_more::derive::From;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 
 use super::ToolCall;
 
-#[derive(Default, Clone, Debug, Serialize, PartialEq, Eq, Display)]
-#[display("{}/{}/{}", prompt_tokens, completion_tokens, total_tokens)]
+#[derive(Default, Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Usage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,

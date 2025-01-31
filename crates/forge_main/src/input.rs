@@ -5,7 +5,7 @@ use forge_domain::{Command, Usage, UserInput};
 use tokio::fs;
 
 use crate::console::CONSOLE;
-use crate::prompting_engine::{AgentChatPrompt, ReadResult, ReedLineEngine};
+use crate::prompting_engine::{ForgePrompt, ReadResult, ReedLineEngine};
 use crate::StatusDisplay;
 
 /// Console implementation for handling user input via command line.
@@ -26,7 +26,7 @@ impl UserInput for Console {
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
         let mut engine = ReedLineEngine::start();
-        let prompt: AgentChatPrompt = input.map(Into::into).unwrap_or_default();
+        let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {
             let result = engine.prompt(&prompt);
@@ -57,16 +57,16 @@ pub enum PromptInput {
     },
 }
 
-impl From<PromptInput> for AgentChatPrompt {
+impl From<PromptInput> for ForgePrompt {
     fn from(input: PromptInput) -> Self {
         match input {
             PromptInput::Update { title, usage } => {
-                let mut prompt = AgentChatPrompt::default();
+                let mut prompt = ForgePrompt::default();
                 if let Some(title) = title {
-                    prompt = prompt.start(Some(title));
+                    prompt.title(title);
                 }
                 if let Some(usage) = usage {
-                    prompt = prompt.end(Some(usage.to_string()));
+                    prompt.usage(usage);
                 }
                 prompt
             }

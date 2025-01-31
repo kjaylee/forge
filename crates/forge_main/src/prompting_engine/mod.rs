@@ -3,4 +3,4 @@ mod engine;
 mod prompt;
 
 pub use engine::{ReadResult, ReedLineEngine};
-pub use prompt::AgentChatPrompt;
+pub use prompt::ForgePrompt;
