@@ -8,10 +8,12 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::utils::assert_absolute_path;
+
 #[derive(Deserialize, JsonSchema)]
 pub struct FSSearchInput {
-    /// The path of the directory to search in (relative to the current working
-    /// directory). This directory will be recursively searched.
+    /// The path of the directory to search in (absolute path required). This
+    /// directory will be recursively searched.
     pub path: String,
     /// The regular expression pattern to search for. Uses Rust regex syntax.
     pub regex: String,
@@ -20,15 +22,15 @@ pub struct FSSearchInput {
     pub file_pattern: Option<String>,
 }
 
-/// Request to perform a regex search across files in a specified directory,
-/// providing context-rich results. This tool searches for patterns or specific
-/// content across multiple files, displaying each match with encapsulating
-/// context.
+/// Request to perform a regex search on the content across files in a specified
+/// directory, providing context-rich results. This tool searches for patterns
+/// or specific content across multiple files, displaying each match with
+/// encapsulating context. The path must be absolute.
 #[derive(ToolDescription)]
 pub struct FSSearch;
 
 impl NamedTool for FSSearch {
-    fn tool_name(&self) -> ToolName {
+    fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_search")
     }
 }
@@ -39,6 +41,8 @@ impl ToolCallService for FSSearch {
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let dir = Path::new(&input.path);
+        assert_absolute_path(dir)?;
+
         if !dir.exists() {
             return Err(format!("Directory '{}' does not exist", input.path));
         }
@@ -47,11 +51,15 @@ impl ToolCallService for FSSearch {
         let pattern = format!("(?i){}", input.regex);
         let regex = Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
 
-        let walker = Walker::new(dir.to_path_buf());
+        // TODO: Current implementation is extremely slow and inefficient.
+        // It should ideally be taking in a stream of files and processing them
+        // concurrently.
+        let walker = Walker::max().cwd(dir.to_path_buf());
+
         let files = walker
             .get()
             .await
-            .map_err(|e| format!("Failed to walk directory: {}", e))?;
+            .map_err(|e| format!("Failed to walk directory '{}': {}", dir.display(), e))?;
 
         let mut matches = Vec::new();
         let mut seen_paths = HashSet::new();
@@ -66,8 +74,14 @@ impl ToolCallService for FSSearch {
 
             // Apply file pattern filter if provided
             if let Some(ref pattern) = input.file_pattern {
-                let glob = glob::Pattern::new(pattern)
-                    .map_err(|e| format!("Invalid glob pattern: {}", e))?;
+                let glob = glob::Pattern::new(pattern).map_err(|e| {
+                    format!(
+                        "Invalid glob pattern '{}' for file '{}': {}",
+                        pattern,
+                        full_path.display(),
+                        e
+                    )
+                })?;
                 if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
                     if !glob.matches(filename) {
                         continue;
@@ -115,10 +129,10 @@ impl ToolCallService for FSSearch {
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::utils::TempDir;
 
     #[tokio::test]
     async fn test_fs_search_content() {
@@ -297,5 +311,20 @@ mod test {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Invalid regex pattern"));
+    }
+
+    #[tokio::test]
+    async fn test_fs_search_relative_path() {
+        let fs_search = FSSearch;
+        let result = fs_search
+            .call(FSSearchInput {
+                path: "relative/path".to_string(),
+                regex: "test".to_string(),
+                file_pattern: None,
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 }

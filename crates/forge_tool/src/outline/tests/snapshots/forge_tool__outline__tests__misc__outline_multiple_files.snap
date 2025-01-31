@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/outline/tests/misc.rs
 expression: result
+snapshot_kind: text
 ---
 app.py
 │def start(): print('Starting')

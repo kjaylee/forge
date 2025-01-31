@@ -71,3 +71,113 @@ jobs:
       run: cargo +nightly fmt --all --check
     - name: Cargo Clippy
       run: cargo +nightly clippy --all-features --workspace -- -D warnings
+  build-release:
+    needs:
+    - build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: build-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+        - binary_name: forge-x86_64-unknown-linux-gnu
+          binary_path: target/x86_64-unknown-linux-gnu/release/forge_main
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+        - binary_name: forge-x86_64-apple-darwin
+          binary_path: target/x86_64-apple-darwin/release/forge_main
+          os: macos-latest
+          target: x86_64-apple-darwin
+        - binary_name: forge-aarch64-apple-darwin
+          binary_path: target/aarch64-apple-darwin/release/forge_main
+          os: macos-latest
+          target: aarch64-apple-darwin
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    - uses: ClementTsang/cargo-action@v0.0.3
+      with:
+        command: build --release
+        args: --target ${{ matrix.target }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.binary_name }}
+        path: ${{ matrix.binary_path }}
+        if-no-files-found: error
+  draft_release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: draft_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+    - id: create_release
+      uses: release-drafter/release-drafter@v6
+      with:
+        config-name: release-drafter.yml
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - id: set_output
+      run: echo "create_release_id=${{ steps.create_release.outputs.id }}" >> $GITHUB_OUTPUT && echo "create_release_name=${{ steps.create_release.outputs.tag_name }}" >> $GITHUB_OUTPUT
+    outputs:
+      create_release_name: ${{ steps.set_output.outputs.create_release_name }}
+      create_release_id: ${{ steps.set_output.outputs.create_release_id }}
+  create_release:
+    needs:
+    - build-release
+    - draft_release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: create_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: forge-*
+        path: artifacts
+    - run: mkdir -p renamed_artifacts
+    - run: |-
+        for dir in artifacts/forge-*; do
+                        for file in "$dir"/*; do
+                            if [ -f "$file" ]; then
+                                filename=$(basename "$file")
+                                dirname=$(basename "$dir")
+                                target=${dirname#forge-}
+                                cp "$file" "renamed_artifacts/forge-$target"
+                            fi
+                        done
+                    done
+    - run: ls -la renamed_artifacts/
+    - uses: xresloader/upload-to-github-release@v1
+      with:
+        release_id: ${{ needs.draft_release.outputs.create_release_id }}
+        file: renamed_artifacts/*
+        overwrite: 'true'
+  semantic_release:
+    needs:
+    - draft_release
+    - create_release
+    if: (startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    name: semantic_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
+    steps:
+    - uses: test-room-7/action-publish-release-drafts@v0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        tag-name: ${{ needs.draft_release.outputs.create_release_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

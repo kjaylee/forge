@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/outline/tests/javascript.rs
 expression: result
+snapshot_kind: text
 ---
 test.js
 │// Basic function

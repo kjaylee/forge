@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/outline/tests/tsx.rs
 expression: result
+snapshot_kind: text
 ---
 test.tsx
 │interface Props {
