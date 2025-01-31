@@ -41,8 +41,14 @@ impl Completer for ReedlineCompleter {
             let files = self.walker.get_blocking().unwrap_or_default();
             files
                 .into_iter()
+                .filter(|file| !file.is_dir())
                 .filter_map(|file| {
-                    if !search_term.is_empty() && file.path.contains(search_term) {
+                    if !search_term.is_empty()
+                        && file
+                            .file_name
+                            .as_ref()
+                            .map_or_else(|| false, |file| file.contains(search_term))
+                    {
                         Some(Suggestion {
                             value: format!("@{}", file.path),
                             description: if file.is_dir() {
@@ -115,20 +121,6 @@ mod tests {
         assert_eq!(suggestions.len(), 1);
         assert_eq!(suggestions[0].value, "@test.txt");
         assert_eq!(suggestions[0].description, Some("File".to_string()));
-    }
-
-    #[test]
-    fn test_directory_completion() {
-        let dir = tempdir().unwrap();
-        let subdir_path = dir.path().join("subdir");
-        fs::create_dir(&subdir_path).unwrap();
-
-        let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
-        let suggestions = completer.complete("@sub", 0);
-
-        assert_eq!(suggestions.len(), 1);
-        assert_eq!(suggestions[0].value, "@subdir/");
-        assert_eq!(suggestions[0].description, Some("Directory".to_string()));
     }
 
     #[test]
