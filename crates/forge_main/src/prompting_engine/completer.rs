@@ -17,7 +17,7 @@ impl ReedlineCompleter {
 }
 
 impl Completer for ReedlineCompleter {
-    fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
+    fn complete(&mut self, line: &str, _: usize) -> Vec<Suggestion> {
         // For command completion
         if line.starts_with('/') {
             return Command::available_commands()
@@ -41,27 +41,23 @@ impl Completer for ReedlineCompleter {
             let files = self.walker.get_blocking().unwrap_or_default();
             files
                 .into_iter()
-                .filter_map(|file| match file.file_name {
-                    Some(ref file_name) => {
-                        if !search_term.is_empty() && file_name.starts_with(search_term) {
-                            Some(Suggestion {
-                                value: format!("@{}{}", file.path.trim_end_matches('/'), 
-                                    if file.is_dir() { "/" } else { "" }),
-                                description: if file.is_dir() {
-                                    Some("Directory".to_string())
-                                } else {
-                                    Some("File".to_string())
-                                },
-                                style: None,
-                                extra: None,
-                                span: Span::new(last_at_pos, line.len()),
-                                append_whitespace: true,
-                            })
-                        } else {
-                            None
-                        }
+                .filter_map(|file| {
+                    if !search_term.is_empty() && file.path.contains(search_term) {
+                        Some(Suggestion {
+                            value: format!("@{}", file.path,),
+                            description: if file.is_dir() {
+                                Some("Directory".to_string())
+                            } else {
+                                Some("File".to_string())
+                            },
+                            style: None,
+                            extra: None,
+                            span: Span::new(last_at_pos, line.len()),
+                            append_whitespace: true,
+                        })
+                    } else {
+                        None
                     }
-                    None => None,
                 })
                 .collect()
         } else {
