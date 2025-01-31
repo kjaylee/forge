@@ -1,5 +1,4 @@
-use std::borrow::Cow;
-
+use derive_setters::Setters;
 use forge_domain::Command;
 use nu_ansi_term::{Color, Style};
 use reedline::{
@@ -7,13 +6,15 @@ use reedline::{
     FileBackedHistory, KeyCode, KeyModifiers, MenuBuilder, Prompt, PromptHistorySearchStatus,
     Reedline, ReedlineEvent, ReedlineMenu, Signal, Span, Suggestion,
 };
+use std::{borrow::Cow, path::PathBuf};
 
-// cap the title by `MAX_LEN` chars else show ellipsis at the end.
+// cap the title by `MAX_LEN` chars and show ellipsis at the end.
 const MAX_LEN: usize = 30;
+// store the last `HISTORY_CAPACITY` commands in the history file
+const HISTORY_CAPACITY: usize = 10;
 
 pub struct ReedLineEngine {
     editor: Reedline,
-    prompt: Box<dyn Prompt>,
 }
 
 #[derive(Clone)]
@@ -22,22 +23,16 @@ struct CommandCompleter {
 }
 
 /// Very Specialized Prompt for the Agent Chat
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Setters)]
 pub struct AgentChatPrompt {
     start: Option<String>,
     end: Option<String>,
 }
 
-impl AgentChatPrompt {
-    pub fn with_start<T: Into<String>>(mut self, start_txt: T) -> Self {
-        self.start = Some(start_txt.into());
-        self
-    }
-
-    pub fn with_end<T: Into<String>>(mut self, end_txt: T) -> Self {
-        self.end = Some(end_txt.into());
-        self
-    }
+pub enum ReadResult {
+    Success(String),
+    Continue,
+    Exit,
 }
 
 impl Prompt for AgentChatPrompt {
@@ -178,7 +173,18 @@ impl ReedLineEngine {
     }
 
     pub fn start() -> Self {
-        let history = Box::new(FileBackedHistory::default());
+        // Store file history in system config directory
+        let history_file = dirs::config_dir()
+            .map(|mut path| {
+                path.push("forge");
+                path.push(".forge_history");
+                path
+            })
+            .unwrap_or_else(|| PathBuf::from(".forge_history"));
+
+        let history = Box::new(
+            FileBackedHistory::with_file(HISTORY_CAPACITY, history_file).unwrap_or_default(),
+        );
         let completion_menu = Box::new(
             ColumnarMenu::default()
                 .with_name("completion_menu")
@@ -207,25 +213,13 @@ impl ReedLineEngine {
             .with_quick_completions(true)
             .with_partial_completions(true)
             .with_ansi_colors(true);
-        Self { editor, prompt: Box::new(AgentChatPrompt::default()) }
+        Self { editor }
     }
 
-    #[allow(dead_code)]
-    pub fn with_prompt(mut self, prompt: Box<dyn Prompt>) -> Self {
-        self.prompt = prompt;
-        self
-    }
-
-    pub fn prompt(&mut self) -> anyhow::Result<ReadResult> {
-        let signal = self.editor.read_line(&*self.prompt);
+    pub fn prompt(&mut self, prompt: &dyn Prompt) -> anyhow::Result<ReadResult> {
+        let signal = self.editor.read_line(prompt);
         signal.map(Into::into).map_err(|e| anyhow::anyhow!(e))
     }
-}
-
-pub enum ReadResult {
-    Success(String),
-    Continue,
-    Exit,
 }
 
 impl From<Signal> for ReadResult {

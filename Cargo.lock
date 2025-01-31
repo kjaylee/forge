@@ -924,6 +924,7 @@ dependencies = [
  "colored 3.0.0",
  "crossterm 0.28.1",
  "derive_setters",
+ "dirs",
  "forge_app",
  "forge_domain",
  "inquire",
