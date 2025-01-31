@@ -104,12 +104,22 @@ mod tests {
     fn test_render_prompt_left_with_title() {
         let prompt = AgentChatPrompt::default().start(Some("test-title".to_string()));
         let actual = prompt.render_prompt_left();
-        let expected = format!("{} {} {}{}{}",
-            Style::new().reset_before_style().bold().fg(Color::LightGreen).paint("➜"),
+        let expected = format!(
+            "{} {} {}{}{}",
+            Style::new()
+                .reset_before_style()
+                .bold()
+                .fg(Color::LightGreen)
+                .paint("➜"),
             Style::new().fg(Color::Cyan).bold().paint("FORGE"),
             Style::new().fg(Color::Blue).bold().paint("("),
-            Style::new().reset_before_style().bold().fg(Color::Red).paint("test-title"),
-            Style::new().fg(Color::Blue).bold().paint(")"));
+            Style::new()
+                .reset_before_style()
+                .bold()
+                .fg(Color::Red)
+                .paint("test-title"),
+            Style::new().fg(Color::Blue).bold().paint(")")
+        );
         assert_eq!(actual, expected);
     }
 
@@ -117,9 +127,15 @@ mod tests {
     fn test_render_prompt_left_without_title() {
         let prompt = AgentChatPrompt::default();
         let actual = prompt.render_prompt_left();
-        let expected = format!("{} {}",
-            Style::new().reset_before_style().bold().fg(Color::LightGreen).paint("➜"),
-            Style::new().fg(Color::Cyan).bold().paint("FORGE"));
+        let expected = format!(
+            "{} {}",
+            Style::new()
+                .reset_before_style()
+                .bold()
+                .fg(Color::LightGreen)
+                .paint("➜"),
+            Style::new().fg(Color::Cyan).bold().paint("FORGE")
+        );
         assert_eq!(actual, expected);
     }
 
@@ -129,12 +145,22 @@ mod tests {
         let prompt = AgentChatPrompt::default().start(Some(long_title.clone()));
         let actual = prompt.render_prompt_left();
         let truncated = format!("{}{}", "a".repeat(MAX_LEN), "...");
-        let expected = format!("{} {} {}{}{}",
-            Style::new().reset_before_style().bold().fg(Color::LightGreen).paint("➜"),
+        let expected = format!(
+            "{} {} {}{}{}",
+            Style::new()
+                .reset_before_style()
+                .bold()
+                .fg(Color::LightGreen)
+                .paint("➜"),
             Style::new().fg(Color::Cyan).bold().paint("FORGE"),
             Style::new().fg(Color::Blue).bold().paint("("),
-            Style::new().reset_before_style().bold().fg(Color::Red).paint(truncated),
-            Style::new().fg(Color::Blue).bold().paint(")"));
+            Style::new()
+                .reset_before_style()
+                .bold()
+                .fg(Color::Red)
+                .paint(truncated),
+            Style::new().fg(Color::Blue).bold().paint(")")
+        );
         assert_eq!(actual, expected);
     }
 
@@ -142,10 +168,16 @@ mod tests {
     fn test_render_prompt_right_with_end() {
         let prompt = AgentChatPrompt::default().end(Some("test-end".to_string()));
         let actual = prompt.render_prompt_right();
-        let expected = format!(" {}{}{}",
+        let expected = format!(
+            " {}{}{}",
             Style::new().fg(Color::DarkGray).bold().paint("["),
-            Style::new().reset_before_style().fg(Color::DarkGray).bold().paint("test-end"),
-            Style::new().fg(Color::DarkGray).bold().paint("]"));
+            Style::new()
+                .reset_before_style()
+                .fg(Color::DarkGray)
+                .bold()
+                .paint("test-end"),
+            Style::new().fg(Color::DarkGray).bold().paint("]")
+        );
         assert_eq!(actual, expected);
     }
 
@@ -161,8 +193,10 @@ mod tests {
     fn test_render_prompt_indicator() {
         let prompt = AgentChatPrompt::default();
         let actual = prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
-        let expected = format!(" {} ",
-            Style::new().fg(Color::LightYellow).bold().paint("⚡"));
+        let expected = format!(
+            " {} ",
+            Style::new().fg(Color::LightYellow).bold().paint("⚡")
+        );
         assert_eq!(actual, expected);
     }
 
