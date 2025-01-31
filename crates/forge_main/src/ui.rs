@@ -8,7 +8,6 @@ use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, 
 use tokio_stream::StreamExt;
 
 use crate::input::Input;
-use crate::keyboard::{Key, KeyboardEvents};
 use crate::{Console, StatusDisplay, CONSOLE};
 
 #[derive(Default)]
@@ -122,13 +121,8 @@ impl UI {
     }
 
     async fn process_chat(&mut self, chat: ChatRequest) -> Result<()> {
-        // Register the ESC key for keyboard events
-        let mut keyboard = KeyboardEvents::new();
-        keyboard.register(Key::Esc);
-        keyboard.register(Key::ControlC);
-
         match self.api.chat(chat).await {
-            Ok(mut stream) => self.handle_chat_stream(&mut stream, &mut keyboard).await,
+            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
         }
     }
@@ -136,14 +130,11 @@ impl UI {
     async fn handle_chat_stream(
         &mut self,
         stream: &mut (impl StreamExt<Item = Result<ChatResponse>> + Unpin),
-        keyboard: &mut KeyboardEvents,
     ) -> Result<()> {
         loop {
             tokio::select! {
-                maybe_key_pressed = keyboard.is_pressed() => {
-                    if maybe_key_pressed {
-                        return Ok(());
-                    }
+                _ = tokio::signal::ctrl_c() => {
+                    return Ok(());
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
