@@ -39,14 +39,14 @@ impl Completer for ReedlineCompleter {
         if let Some(last_at_pos) = line.rfind('@') {
             let search_term = &line[(last_at_pos + 1)..];
             let files = self.walker.get_blocking().unwrap_or_default();
-
             files
                 .into_iter()
                 .filter_map(|file| match file.file_name {
                     Some(ref file_name) => {
-                        if file_name.starts_with(search_term) {
+                        if !search_term.is_empty() && file_name.starts_with(search_term) {
                             Some(Suggestion {
-                                value: format!("@{}", file.path),
+                                value: format!("@{}{}", file.path.trim_end_matches('/'), 
+                                    if file.is_dir() { "/" } else { "" }),
                                 description: if file.is_dir() {
                                     Some("Directory".to_string())
                                 } else {
@@ -54,7 +54,7 @@ impl Completer for ReedlineCompleter {
                                 },
                                 style: None,
                                 extra: None,
-                                span: Span::new(pos - search_term.len() - 1, line.len()),
+                                span: Span::new(last_at_pos, line.len()),
                                 append_whitespace: true,
                             })
                         } else {
@@ -131,7 +131,7 @@ mod tests {
         let suggestions = completer.complete("@sub", 0);
 
         assert_eq!(suggestions.len(), 1);
-        assert_eq!(suggestions[0].value, "@subdir");
+        assert_eq!(suggestions[0].value, "@subdir/");
         assert_eq!(suggestions[0].description, Some("Directory".to_string()));
     }
 
