@@ -1,19 +1,9 @@
 use std::borrow::Cow;
 
 use derive_setters::Setters;
-use nu_ansi_term::{Color, Style};
 use reedline::{Prompt, PromptHistorySearchStatus};
 
-// cap the title by `MAX_LEN` chars and show ellipsis at the end.
-const MAX_LEN: usize = 30;
-const PROMPT_ARROW: &str = "➜";
-const PROMPT_NAME: &str = "FORGE";
-const PROMPT_INDICATOR: &str = "⚡";
-const MULTILINE_INDICATOR: &str = "::: ";
-const LEFT_PAREN: &str = "(";
-const RIGHT_PAREN: &str = ")";
-const LEFT_BRACKET: &str = "[";
-const RIGHT_BRACKET: &str = "]";
+use super::style;   
 
 /// Very Specialized Prompt for the Agent Chat
 #[derive(Clone, Default, Setters)]
@@ -25,67 +15,34 @@ pub struct AgentChatPrompt {
 impl Prompt for AgentChatPrompt {
     fn render_prompt_left(&self) -> Cow<str> {
         if let Some(title) = self.start.as_ref() {
-            let truncated = if title.chars().count() > MAX_LEN {
-                format!("{}...", title.chars().take(MAX_LEN).collect::<String>())
+            let truncated = if title.chars().count() > style::MAX_LEN {
+                format!("{}{}", title.chars().take(style::MAX_LEN).collect::<String>(), "...")
             } else {
                 title.to_string()
             };
 
-            Cow::Owned(format!(
-                "{} {} {}{}{}",
-                Style::new()
-                    .reset_before_style()
-                    .bold()
-                    .fg(Color::LightGreen)
-                    .paint(PROMPT_ARROW),
-                Style::new().fg(Color::Cyan).bold().paint(PROMPT_NAME),
-                Style::new().fg(Color::Blue).bold().paint(LEFT_PAREN),
-                Style::new()
-                    .reset_before_style()
-                    .bold()
-                    .fg(Color::Red)
-                    .paint(truncated),
-                Style::new().fg(Color::Blue).bold().paint(RIGHT_PAREN)
-            ))
+            Cow::Owned(format!("{} {}",
+                style::base_prompt_indicator(),
+                style::format_title(&truncated)))
         } else {
-            Cow::Owned(format!(
-                "{} {}",
-                Style::new()
-                    .reset_before_style()
-                    .bold()
-                    .fg(Color::LightGreen)
-                    .paint(PROMPT_ARROW),
-                Style::new().fg(Color::Cyan).bold().paint(PROMPT_NAME),
-            ))
+            Cow::Owned(style::base_prompt_indicator())
         }
     }
 
     fn render_prompt_right(&self) -> Cow<str> {
         if let Some(end) = self.end.as_ref() {
-            Cow::Owned(format!(
-                " {}{}{}",
-                Style::new().fg(Color::DarkGray).bold().paint(LEFT_BRACKET),
-                Style::new()
-                    .reset_before_style()
-                    .fg(Color::DarkGray)
-                    .bold()
-                    .paint(end),
-                Style::new().fg(Color::DarkGray).bold().paint(RIGHT_BRACKET),
-            ))
+            Cow::Owned(style::format_end(end))
         } else {
             Cow::Borrowed("")
         }
     }
 
     fn render_prompt_indicator(&self, _prompt_mode: reedline::PromptEditMode) -> Cow<str> {
-        Cow::Owned(format!(
-            " {} ",
-            Style::new().fg(Color::LightYellow).bold().paint(PROMPT_INDICATOR)
-        ))
+        Cow::Owned(style::format_indicator())
     }
 
     fn render_prompt_multiline_indicator(&self) -> Cow<str> {
-        Cow::Borrowed(MULTILINE_INDICATOR)
+        Cow::Borrowed(style::get_multiline_indicator())
     }
 
     fn render_prompt_history_search_indicator(
@@ -111,22 +68,9 @@ mod tests {
     fn test_render_prompt_left_with_title() {
         let prompt = AgentChatPrompt::default().start(Some("test-title".to_string()));
         let actual = prompt.render_prompt_left();
-        let expected = format!(
-            "{} {} {}{}{}",
-            Style::new()
-                .reset_before_style()
-                .bold()
-                .fg(Color::LightGreen)
-                .paint("➜"),
-            Style::new().fg(Color::Cyan).bold().paint("FORGE"),
-            Style::new().fg(Color::Blue).bold().paint("("),
-            Style::new()
-                .reset_before_style()
-                .bold()
-                .fg(Color::Red)
-                .paint("test-title"),
-            Style::new().fg(Color::Blue).bold().paint(")")
-        );
+        let expected = format!("{} {}",
+            style::base_prompt_indicator(),
+            style::format_title("test-title"));
         assert_eq!(actual, expected);
     }
 
@@ -134,40 +78,19 @@ mod tests {
     fn test_render_prompt_left_without_title() {
         let prompt = AgentChatPrompt::default();
         let actual = prompt.render_prompt_left();
-        let expected = format!(
-            "{} {}",
-            Style::new()
-                .reset_before_style()
-                .bold()
-                .fg(Color::LightGreen)
-                .paint("➜"),
-            Style::new().fg(Color::Cyan).bold().paint("FORGE")
-        );
+        let expected = style::base_prompt_indicator();
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_render_prompt_left_with_long_title() {
-        let long_title = "a".repeat(MAX_LEN + 10);
+        let long_title = "a".repeat(style::MAX_LEN + 10);
         let prompt = AgentChatPrompt::default().start(Some(long_title.clone()));
         let actual = prompt.render_prompt_left();
-        let truncated = format!("{}{}", "a".repeat(MAX_LEN), "...");
-        let expected = format!(
-            "{} {} {}{}{}",
-            Style::new()
-                .reset_before_style()
-                .bold()
-                .fg(Color::LightGreen)
-                .paint("➜"),
-            Style::new().fg(Color::Cyan).bold().paint("FORGE"),
-            Style::new().fg(Color::Blue).bold().paint("("),
-            Style::new()
-                .reset_before_style()
-                .bold()
-                .fg(Color::Red)
-                .paint(truncated),
-            Style::new().fg(Color::Blue).bold().paint(")")
-        );
+        let truncated = format!("{}{}", "a".repeat(style::MAX_LEN), "...");
+        let expected = format!("{} {}",
+            style::base_prompt_indicator(),
+            style::format_title(&truncated));
         assert_eq!(actual, expected);
     }
 
@@ -175,16 +98,7 @@ mod tests {
     fn test_render_prompt_right_with_end() {
         let prompt = AgentChatPrompt::default().end(Some("test-end".to_string()));
         let actual = prompt.render_prompt_right();
-        let expected = format!(
-            " {}{}{}",
-            Style::new().fg(Color::DarkGray).bold().paint("["),
-            Style::new()
-                .reset_before_style()
-                .fg(Color::DarkGray)
-                .bold()
-                .paint("test-end"),
-            Style::new().fg(Color::DarkGray).bold().paint("]")
-        );
+        let expected = style::format_end("test-end");
         assert_eq!(actual, expected);
     }
 
@@ -200,10 +114,7 @@ mod tests {
     fn test_render_prompt_indicator() {
         let prompt = AgentChatPrompt::default();
         let actual = prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
-        let expected = format!(
-            " {} ",
-            Style::new().fg(Color::LightYellow).bold().paint("⚡")
-        );
+        let expected = style::format_indicator();
         assert_eq!(actual, expected);
     }
 
@@ -211,7 +122,7 @@ mod tests {
     fn test_render_prompt_multiline_indicator() {
         let prompt = AgentChatPrompt::default();
         let actual = prompt.render_prompt_multiline_indicator();
-        let expected = "::: ";
+        let expected = style::get_multiline_indicator();
         assert_eq!(actual, expected);
     }
 
