@@ -14,6 +14,7 @@ pub struct Console;
 
 #[async_trait]
 impl UserInput for Console {
+    type PromptInput = Input;
     async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
         let path = path.into();
         let content = fs::read_to_string(&path).await?.trim().to_string();
@@ -22,20 +23,17 @@ impl UserInput for Console {
         Ok(Command::Message(content))
     }
 
-    async fn prompt(
-        &self,
-        help_text: Option<&str>,
-        _initial_text: Option<&str>,
-    ) -> anyhow::Result<Command> {
+    async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
         let mut engine = ReedLineEngine::start();
-        let prompt = AgentChatPrompt::default().start(help_text.map(|t| t.to_owned()));
+        let prompt: AgentChatPrompt = input.map(Into::into).unwrap_or_default();
+
         loop {
-            let result = engine.prompt(&prompt)?;
+            let result = engine.prompt(&prompt);
             match result {
-                ReadResult::Continue => continue,
-                ReadResult::Exit => return Ok(Command::Exit),
-                ReadResult::Success(text) => match Command::parse(&text) {
+                Ok(ReadResult::Continue) => continue,
+                Ok(ReadResult::Exit) => return Ok(Command::Exit),
+                Ok(ReadResult::Success(text)) => match Command::parse(&text) {
                     Ok(input) => return Ok(input),
                     Err(e) => {
                         CONSOLE.writeln(
@@ -43,6 +41,34 @@ impl UserInput for Console {
                         )?;
                     }
                 },
+                Err(e) => {
+                    CONSOLE
+                        .writeln(StatusDisplay::failed(e.to_string(), Usage::default()).format())?;
+                }
+            }
+        }
+    }
+}
+
+pub enum Input {
+    Update {
+        title: Option<String>,
+        usage: Option<Usage>,
+    },
+}
+
+impl From<Input> for AgentChatPrompt {
+    fn from(input: Input) -> Self {
+        match input {
+            Input::Update { title, usage } => {
+                let mut prompt = AgentChatPrompt::default();
+                if let Some(title) = title {
+                    prompt = prompt.start(Some(title));
+                }
+                if let Some(usage) = usage {
+                    prompt = prompt.end(Some(usage.to_string()));
+                }
+                prompt
             }
         }
     }

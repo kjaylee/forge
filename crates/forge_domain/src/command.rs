@@ -79,6 +79,7 @@ impl Command {
 /// GUI, or file system.
 #[async_trait]
 pub trait UserInput {
+    type PromptInput;
     /// Read content from a file and convert it to the input type.
     ///
     /// # Arguments
@@ -98,9 +99,5 @@ pub trait UserInput {
     /// # Returns
     /// * `Ok(Input)` - Successfully processed input
     /// * `Err` - An error occurred during input processing
-    async fn prompt(
-        &self,
-        help_text: Option<&str>,
-        initial_text: Option<&str>,
-    ) -> anyhow::Result<Command>;
+    async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command>;
 }

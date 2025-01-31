@@ -7,6 +7,7 @@ use forge_app::{APIService, Service};
 use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
 use tokio_stream::StreamExt;
 
+use crate::input::Input;
 use crate::keyboard::{Key, KeyboardEvents};
 use crate::{Console, StatusDisplay, CONSOLE};
 
@@ -16,6 +17,15 @@ struct UIState {
     current_title: Option<String>,
     current_content: Option<String>,
     usage: Usage,
+}
+
+impl From<&UIState> for Input {
+    fn from(state: &UIState) -> Self {
+        Input::Update {
+            title: state.current_title.clone(),
+            usage: Some(state.usage.clone()),
+        }
+    }
 }
 
 pub struct UI {
@@ -56,7 +66,7 @@ impl UI {
         // Get initial input from file or prompt
         let mut input = match &self.exec {
             Some(path) => self.console.upload(path).await?,
-            None => self.console.prompt(None, None).await?,
+            None => self.console.prompt(None).await?,
         };
 
         let model = ModelId::from_env(&self.api.environment().await?);
@@ -67,7 +77,7 @@ impl UI {
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
-                    input = self.console.prompt(None, None).await?;
+                    input = self.console.prompt(None).await?;
                     continue;
                 }
                 Command::Reload => {
@@ -75,29 +85,21 @@ impl UI {
                     self.state = Default::default();
                     input = match &self.exec {
                         Some(path) => self.console.upload(path).await?,
-                        None => {
-                            self.console
-                                .prompt(None, self.state.current_content.as_deref())
-                                .await?
-                        }
+                        None => self.console.prompt(None).await?,
                     };
                     continue;
                 }
                 Command::Info => {
                     crate::display_info(&self.api.environment().await?, &self.state.usage)?;
-                    input = self
-                        .console
-                        .prompt(self.format_title().as_deref(), None)
-                        .await?;
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Message(ref content) => {
                     self.state.current_content = Some(content.clone());
                     self.chat(content.clone(), &model).await?;
-                    input = self
-                        .console
-                        .prompt(self.format_title().as_deref(), None)
-                        .await?;
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
                 }
                 Command::Exit => {
                     break;
@@ -213,9 +215,5 @@ impl UI {
             }
         }
         Ok(())
-    }
-
-    fn format_title(&self) -> Option<String> {
-        self.state.current_title.clone()
     }
 }
