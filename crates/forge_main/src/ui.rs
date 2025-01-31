@@ -216,10 +216,6 @@ impl UI {
     }
 
     fn format_title(&self) -> Option<String> {
-        // self.state
-        //     .current_title
-        //     .as_ref()
-        //     .map(|title| StatusDisplay::task(title, self.state.usage.clone()).format())
         self.state.current_title.clone()
     }
 }
