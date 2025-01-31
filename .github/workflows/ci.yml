@@ -184,3 +184,21 @@ jobs:
         tag-name: ${{ needs.draft_release.outputs.create_release_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  homebrew_release:
+    needs:
+    - draft_release
+    - create_release
+    - semantic_release
+    if: (startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    name: homebrew_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: tailcallhq/homebrew-code-forge
+        ref: main
+        token: ${{ secrets.HOMEBREW_ACCESS }}
+    - run: ./update-formula.sh ${{needs.draft_release.outputs.create_release_name }}

@@ -169,9 +169,7 @@ fn generate() {
     workflow = workflow.add_job("create_release", create_release_job.clone());
 
     // Add semantic release job to publish the release
-    workflow = workflow.add_job(
-        "semantic_release",
-        Job::new("semantic_release")
+    let semantic_release_job = Job::new("semantic_release")
             .add_needs(draft_release_job.clone())
             .add_needs(create_release_job.clone())
             .cond(Expression::new("(startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')"))
@@ -188,6 +186,31 @@ fn generate() {
                     .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
                     .add_with(("github-token", "${{ secrets.GITHUB_TOKEN }}"))
                     .add_with(("tag-name", "${{ needs.draft_release.outputs.create_release_name }}")),
+            );
+    workflow = workflow.add_job("semantic_release", semantic_release_job.clone());
+
+    // Homebrew release job
+    workflow = workflow.add_job(
+        "homebrew_release",
+        Job::new("homebrew_release")
+            .add_needs(draft_release_job.clone())
+            .add_needs(create_release_job.clone())
+            .add_needs(semantic_release_job.clone())
+            .cond(Expression::new("(startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')"))
+            .permissions(
+                Permissions::default()
+                    .contents(Level::Write)
+                    .pull_requests(Level::Write),
+            )
+            .runs_on("ubuntu-latest")
+            .add_step(
+                Step::uses("actions", "checkout", "v4")
+                    .add_with(("repository", "tailcallhq/homebrew-code-forge"))
+                    .add_with(("ref", "main"))
+                    .add_with(("token", "${{ secrets.HOMEBREW_ACCESS }}")),
+            )
+            .add_step(
+                Step::run("./update-formula.sh ${{needs.draft_release.outputs.create_release_name }}"),
             ),
     );
 
