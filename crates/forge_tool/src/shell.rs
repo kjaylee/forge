@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
+use std::{collections::HashSet, process::Stdio};
 
 use anyhow::Result;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
@@ -146,12 +146,21 @@ impl ToolCallService for Shell {
         };
 
         cmd.current_dir(input.cwd);
+        cmd.stderr(Stdio::inherit());
+        cmd.stdout(Stdio::inherit());
 
-        let output = cmd
-            .output()
-            .await
-            .map_err(|e| format!("Failed to execute command '{}': {}", input.command, e))?;
-
+        let child = cmd.spawn().map_err(|e| {
+            format!(
+                "Failed to spawn the command task '{}': {}",
+                input.command, e
+            )
+        })?;
+        let output = child.wait_with_output().await.map_err(|e| {
+            format!(
+                "Failed to execute for the command '{}': {}",
+                input.command, e
+            )
+        })?;
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         format_output(&stdout, &stderr, output.status.success())
