@@ -9,8 +9,14 @@ use tokio::task::spawn_blocking;
 #[derive(Clone, Debug)]
 pub struct File {
     pub path: String,
-    pub is_dir: bool,
+    pub file_name: Option<String>,
     pub size: u64,
+}
+
+impl File {
+    pub fn is_dir(&self) -> bool {
+        self.path.ends_with('/')
+    }
 }
 
 #[derive(Debug, Clone, Setters)]
@@ -177,7 +183,18 @@ impl Walker {
                 .with_context(|| format!("Failed to strip prefix from path: {}", path.display()))?;
             let path_string = relative_path.to_string_lossy().to_string();
 
-            files.push(File { path: path_string, is_dir, size: file_size });
+            let file_name = path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string());
+
+            // Ensure directory paths end with '/' for is_dir() function
+            let path_string = if is_dir {
+                format!("{}/", path_string)
+            } else {
+                path_string
+            };
+
+            files.push(File { path: path_string, file_name, size: file_size });
 
             if !is_dir {
                 total_size += file_size;
@@ -261,7 +278,7 @@ mod tests {
 
         let expected = 1; // Only small.txt should be included
         assert_eq!(
-            actual.iter().filter(|f| !f.is_dir).count(),
+            actual.iter().filter(|f| !f.is_dir()).count(),
             expected,
             "Walker should only include files within size limit"
         );
@@ -283,7 +300,7 @@ mod tests {
         let expected = vec!["text.txt"];
         let actual_files: Vec<_> = actual
             .iter()
-            .filter(|f| !f.is_dir)
+            .filter(|f| !f.is_dir())
             .map(|f| f.path.as_str())
             .collect();
 
@@ -307,7 +324,7 @@ mod tests {
         let expected = DEFAULT_MAX_BREADTH;
         let actual_file_count = actual
             .iter()
-            .filter(|f| f.path.starts_with("files/") && !f.is_dir)
+            .filter(|f| f.path.starts_with("files/") && !f.is_dir())
             .count();
 
         assert_eq!(
@@ -329,7 +346,7 @@ mod tests {
         let expected = DEFAULT_MAX_DEPTH;
         let actual_max_depth = actual
             .iter()
-            .filter(|f| !f.is_dir)
+            .filter(|f| !f.is_dir())
             .map(|f| f.path.split('/').count())
             .max()
             .unwrap();
@@ -338,5 +355,32 @@ mod tests {
             actual_max_depth, expected,
             "Walker should respect the configured max_depth limit"
         );
+    }
+
+    #[tokio::test]
+    async fn test_file_name_and_is_dir() {
+        let fixture = fixtures::create_sized_files(&[("test.txt".into(), 100)]).unwrap();
+
+        let actual = Walker::min_all()
+            .cwd(fixture.path().to_path_buf())
+            .get()
+            .await
+            .unwrap();
+
+        let file = actual
+            .iter()
+            .find(|f| !f.is_dir())
+            .expect("Should find a file");
+
+        assert_eq!(file.file_name.as_deref(), Some("test.txt"));
+        assert!(!file.is_dir());
+
+        let dir = actual
+            .iter()
+            .find(|f| f.is_dir())
+            .expect("Should find a directory");
+
+        assert!(dir.is_dir());
+        assert!(dir.path.ends_with('/'));
     }
 }

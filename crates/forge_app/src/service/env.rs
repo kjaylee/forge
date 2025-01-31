@@ -45,7 +45,7 @@ impl Live {
         let files = match Walker::min_all().cwd(cwd.clone()).max_depth(3).get().await {
             Ok(files) => files
                 .into_iter()
-                .filter(|f| !f.is_dir)
+                .filter(|f| !f.is_dir())
                 .map(|f| f.path)
                 .collect(),
             Err(_) => vec![],

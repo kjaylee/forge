@@ -6,7 +6,7 @@ use reedline::{
     KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
 
-use super::completer::CommandCompleter;
+use super::completer::ReedlineCompleter;
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;
@@ -82,7 +82,7 @@ impl ReedLineEditor {
         );
 
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));
-        let completer = Box::new(CommandCompleter::new(cwd));
+        let completer = Box::new(ReedlineCompleter::new(cwd));
         let editor = Reedline::create()
             .with_history(history)
             .with_completer(completer)

@@ -36,7 +36,7 @@ impl SuggestionService for Live {
         let files = walker.get().await?;
         Ok(files
             .into_iter()
-            .map(|file| File { path: file.path, is_dir: file.is_dir })
+            .map(|file| File { path: file.path.clone(), is_dir: file.is_dir() })
             .collect())
     }
 }

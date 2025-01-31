@@ -73,7 +73,7 @@ impl ToolCallService for FSList {
             }
 
             if !entry.path.is_empty() {
-                if entry.is_dir {
+                if entry.is_dir() {
                     paths.push(format!(r#"<dir path="{}">"#, entry.path));
                 } else {
                     paths.push(format!(r#"<file path="{}">"#, entry.path));

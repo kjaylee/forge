@@ -65,7 +65,7 @@ impl ToolCallService for FSSearch {
         let mut seen_paths = HashSet::new();
 
         for file in files {
-            if file.is_dir {
+            if file.is_dir() {
                 continue;
             }
 
