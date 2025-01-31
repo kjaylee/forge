@@ -11,7 +11,7 @@ use super::completer::CommandCompleter;
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;
 
-pub struct ReedLineEngine {
+pub struct ReedLineEditor {
     editor: Reedline,
 }
 
@@ -21,7 +21,7 @@ pub enum ReadResult {
     Exit,
 }
 
-impl ReedLineEngine {
+impl ReedLineEditor {
     fn intialize_bindings() -> reedline::Keybindings {
         let mut keybindings = default_emacs_keybindings();
         // on TAB press shows the completion menu, and if we've exact match it will
@@ -60,7 +60,7 @@ impl ReedLineEngine {
         keybindings
     }
 
-    pub fn start() -> Self {
+    pub fn start(cwd: PathBuf) -> Self {
         // Store file history in system config directory
         let history_file = dirs::config_dir()
             .map(|mut path| {
@@ -76,13 +76,13 @@ impl ReedLineEngine {
         let completion_menu = Box::new(
             ColumnarMenu::default()
                 .with_name("completion_menu")
-                .with_marker(" ")
+                .with_marker("")
                 .with_text_style(Style::new().bold().fg(Color::White))
                 .with_selected_text_style(Style::new().bold().on(Color::White).fg(Color::Black)),
         );
 
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));
-        let completer = Box::new(CommandCompleter::default());
+        let completer = Box::new(CommandCompleter::new(cwd));
         let editor = Reedline::create()
             .with_history(history)
             .with_completer(completer)

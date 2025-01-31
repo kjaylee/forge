@@ -5,12 +5,21 @@ use forge_domain::{Command, Usage, UserInput};
 use tokio::fs;
 
 use crate::console::CONSOLE;
-use crate::prompting_engine::{ForgePrompt, ReadResult, ReedLineEngine};
+use crate::prompting_engine::{ForgePrompt, ReadResult, ReedLineEditor};
 use crate::StatusDisplay;
 
 /// Console implementation for handling user input via command line.
 #[derive(Debug, Default)]
-pub struct Console;
+pub struct Console {
+    cwd: PathBuf,
+}
+
+impl Console {
+    /// Creates a new instance of `Console`.
+    pub fn new(cwd: PathBuf) -> Self {
+        Self { cwd }
+    }
+}
 
 #[async_trait]
 impl UserInput for Console {
@@ -25,7 +34,7 @@ impl UserInput for Console {
 
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
-        let mut engine = ReedLineEngine::start();
+        let mut engine = ReedLineEditor::start(self.cwd.clone());
         let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {

@@ -46,8 +46,8 @@ impl UI {
 
         Ok(Self {
             state: Default::default(),
-            api,
-            console: Console,
+            api: api.clone(),
+            console: Console::new(PathBuf::from(api.environment().await?.cwd)),
             verbose,
             exec,
             custom_instructions,

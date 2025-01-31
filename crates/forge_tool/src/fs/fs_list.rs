@@ -51,7 +51,9 @@ impl ToolCallService for FSList {
         let recursive = input.recursive.unwrap_or(false);
         let max_depth = if recursive { usize::MAX } else { 1 };
 
-        let walker = Walker::max_all().cwd(dir.to_path_buf()).max_depth(max_depth);
+        let walker = Walker::max_all()
+            .cwd(dir.to_path_buf())
+            .max_depth(max_depth);
 
         let mut files = walker
             .get()

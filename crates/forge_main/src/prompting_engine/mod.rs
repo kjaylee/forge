@@ -1,6 +1,6 @@
 mod completer;
-mod engine;
+mod editor;
 mod prompt;
 
-pub use engine::{ReadResult, ReedLineEngine};
+pub use editor::{ReadResult, ReedLineEditor};
 pub use prompt::ForgePrompt;
