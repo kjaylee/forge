@@ -41,6 +41,13 @@ impl ReedLineEngine {
             ReedlineEvent::ClearScreen,
         );
 
+        // on CTRL + r press searches the history
+        keybindings.add_binding(
+            KeyModifiers::CONTROL,
+            KeyCode::Char('r'),
+            ReedlineEvent::SearchHistory,
+        );
+
         // on ALT + Enter press inserts a newline
         keybindings.add_binding(
             KeyModifiers::ALT,
