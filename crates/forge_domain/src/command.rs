@@ -27,6 +27,8 @@ pub enum Command {
     /// Display system environment information.
     /// This can be triggered with the '/info' command.
     Info,
+    /// Exit the application without any further action.
+    Exit
 }
 
 impl Command {
@@ -42,6 +44,7 @@ impl Command {
             "/new".to_string(),
             "/reload".to_string(),
             "/info".to_string(),
+            "/exit".to_string(),
         ]
     }
 
@@ -62,6 +65,7 @@ impl Command {
             "/new" => Ok(Command::New),
             "/reload" => Ok(Command::Reload),
             "/info" => Ok(Command::Info),
+            "/exit" => Ok(Command::Exit),
             cmd if cmd.starts_with('/') => Err(Error::InputCommand(cmd.to_string())),
             text => Ok(Command::Message(text.to_string())),
         }
