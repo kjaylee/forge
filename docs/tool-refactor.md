@@ -113,3 +113,45 @@ Performance Considerations:
   - Tool execution efficiency
   - Resource usage
   - Async operation performance
+
+# Execution Instructions
+
+- Keep the documentation 1-2 lines only.
+- Add you learnings based on user feedback in the <learnings> tag.
+- Create a task list in the <tasks> tag.
+- Use <next_task> to mark the next tag.
+
+<next_task>
+Create base trait structure in forge_domain/src/tools with category directories and core traits.
+</next_task>
+
+<tasks>
+1. Create tools directory structure
+   - Create directory: forge_domain/src/tools
+   - Add category dirs: fs, net, code, process
+   - Add mod.rs files
+
+2. Define base traits
+
+   - Create base Tool trait
+   - Define ToolError type
+   - Set up category-specific base traits
+
+3. Move existing tools
+
+   - Migrate file system tools
+   - Migrate network tools
+   - Migrate code analysis tools
+   - Migrate process tools
+
+4. Documentation and tests
+   - Add trait documentation
+   - Migrate existing tests
+   - Verify compilation
+     </tasks>
+
+<learnings>
+- Maintaining parallel implementations reduces risk
+- Category-based organization improves maintainability
+- Early documentation helps track progress
+</learnings>
