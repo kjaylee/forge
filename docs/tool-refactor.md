@@ -32,7 +32,7 @@ Tool Call Service:
 
 Directory Structure:
 
-- Create new 'tools' directory in forge_domain
+- Review the 'tools' directory in forge_domain
 - Organize traits by tool category
 - Each tool gets its own module
 
