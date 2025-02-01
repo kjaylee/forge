@@ -50,7 +50,7 @@ impl Completer for ReedlineCompleter {
                             .map_or_else(|| false, |file| file.contains(search_term))
                     {
                         Some(Suggestion {
-                            value: format!("{}", file.path),
+                            value: file.path.to_string(),
                             description: None,
                             style: None,
                             extra: None,
@@ -71,7 +71,7 @@ impl Completer for ReedlineCompleter {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::{self, File};
+    use std::fs::{File};
 
     use tempfile::tempdir;
 
