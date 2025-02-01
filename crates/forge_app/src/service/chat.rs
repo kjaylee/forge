@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
-    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolDispatchService,
+    ResultStream, ToolCall, ToolCallFull, ToolDispatchService, ToolResult,
 };
 use futures::StreamExt;
 
@@ -208,8 +208,8 @@ mod tests {
     use derive_setters::Setters;
     use forge_domain::{
         ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
-        FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName,
-        ToolResult, ToolDispatchService,
+        FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition,
+        ToolDispatchService, ToolName, ToolResult,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
