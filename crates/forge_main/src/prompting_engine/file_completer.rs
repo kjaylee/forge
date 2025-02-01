@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use forge_domain::Command;
 use forge_walker::Walker;
 use reedline::{Completer, Span, Suggestion};
 
@@ -18,26 +17,10 @@ impl ReedlineCompleter {
 
 impl Completer for ReedlineCompleter {
     fn complete(&mut self, line: &str, _: usize) -> Vec<Suggestion> {
-        // For command completion
-        if line.starts_with('/') {
-            return Command::available_commands()
-                .into_iter()
-                .filter(|cmd| cmd.starts_with(line))
-                .map(|cmd| Suggestion {
-                    value: cmd,
-                    description: None,
-                    style: None,
-                    extra: None,
-                    span: Span::new(0, line.len()),
-                    append_whitespace: true,
-                })
-                .collect();
-        }
-
-        // For file completion - find the last @ and use everything after it as the
+        // For file completion - find the last space and use everything after it as the
         // search term
-        if let Some(last_at_pos) = line.rfind(' ') {
-            let search_term = &line[(last_at_pos + 1)..];
+        if let Some(last_space_pos) = line.rfind(' ') {
+            let search_term = &line[(last_space_pos + 1)..];
             let files = self.walker.get_blocking().unwrap_or_default();
             files
                 .into_iter()
@@ -54,7 +37,7 @@ impl Completer for ReedlineCompleter {
                             description: None,
                             style: None,
                             extra: None,
-                            span: Span::new(last_at_pos + 1, line.len()),
+                            span: Span::new(last_space_pos + 1, line.len()),
                             append_whitespace: true,
                         })
                     } else {
@@ -112,35 +95,35 @@ mod tests {
         File::create(&file_path).unwrap();
 
         let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
-        let suggestions = completer.complete("@test", 0);
+        let suggestions = completer.complete("open test", 0);
 
         assert_eq!(suggestions.len(), 1);
-        assert_eq!(suggestions[0].value, "@test.txt");
-        assert_eq!(suggestions[0].description, Some("File".to_string()));
+        assert_eq!(suggestions[0].value, format!("{}", file_path.display()));
+        assert_eq!(suggestions[0].description, None);
     }
 
     #[test]
     fn test_file_completion_empty() {
         let dir = tempdir().unwrap();
         let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
-        let suggestions = completer.complete("@", 0);
+        let suggestions = completer.complete("open ", 0);
 
         // Should list all files/directories in the empty temp directory
         assert!(suggestions.is_empty());
     }
 
     #[test]
-    fn test_file_completion_multiple_at() {
+    fn test_file_completion_multiple_words() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test.txt");
         File::create(&file_path).unwrap();
 
         let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
-        // Using multiple @ characters, only the last one should be used for search
-        let suggestions = completer.complete("some@text@test", 0);
+        let suggestions = completer.complete("some file test", 0);
 
         assert_eq!(suggestions.len(), 1);
-        assert_eq!(suggestions[0].value, "@test.txt");
-        assert_eq!(suggestions[0].description, Some("File".to_string()));
+        let expected_path = format!("{}", file_path.display());
+        assert_eq!(suggestions[0].value, expected_path);
+        assert_eq!(suggestions[0].description, None);
     }
 }

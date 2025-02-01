@@ -2,11 +2,13 @@ use std::path::PathBuf;
 
 use nu_ansi_term::{Color, Style};
 use reedline::{
-    default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory,
-    KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
+    default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs,
+    FileBackedHistory, KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent,
+    ReedlineMenu, Signal,
 };
 
-use super::completer::ReedlineCompleter;
+use super::command_completer::CommandCompleter;
+use super::file_completer::ReedlineCompleter;
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;
@@ -57,6 +59,12 @@ impl ReedLineEditor {
             ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
         );
 
+        keybindings.add_binding(
+            KeyModifiers::NONE,
+            KeyCode::Char('/'),
+            ReedlineEvent::Menu("command_menu".to_string()),
+        );
+
         keybindings
     }
 
@@ -81,15 +89,29 @@ impl ReedLineEditor {
                 .with_selected_text_style(Style::new().bold().on(Color::White).fg(Color::Black)),
         );
 
+        let commands_menu = Box::new(
+            ColumnarMenu::default()
+                .with_name("command_menu")
+                .with_marker("")
+                .with_text_style(Style::new().bold().fg(Color::White))
+                .with_selected_text_style(Style::new().bold().on(Color::White).fg(Color::Black)),
+        );
+
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));
-        let completer = Box::new(ReedlineCompleter::new(cwd));
+        let suggestions_completer = Box::new(ReedlineCompleter::new(cwd));
         let editor = Reedline::create()
             .with_history(history)
-            .with_completer(completer)
             .with_hinter(Box::new(
                 DefaultHinter::default().with_style(Style::new().fg(Color::DarkGray)),
             ))
-            .with_menu(ReedlineMenu::EngineCompleter(completion_menu))
+            .with_menu(ReedlineMenu::WithCompleter {
+                menu: completion_menu,
+                completer: suggestions_completer,
+            })
+            .with_menu(ReedlineMenu::WithCompleter {
+                menu: commands_menu,
+                completer: Box::new(CommandCompleter),
+            })
             .with_edit_mode(edit_mode)
             .with_quick_completions(true)
             .with_partial_completions(true)
