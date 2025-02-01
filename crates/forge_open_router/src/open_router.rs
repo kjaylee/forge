@@ -193,11 +193,7 @@ mod tests {
         .unwrap();
         let message = serde_json::from_str::<OpenRouterResponse>(&content)
             .context("Failed to parse response")?;
-        let message = ChatCompletionMessage::try_from(
-            message
-                .clone()
-                .with_context(|| "Failed to create completion message"),
-        );
+        let message = ChatCompletionMessage::try_from(message.clone());
 
         assert!(message.is_err());
         Ok(())
