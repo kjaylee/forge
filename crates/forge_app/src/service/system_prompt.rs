@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, Environment, FileReadService, ProviderService, SystemContext, ToolService,
+    ChatRequest, Environment, FileReadService, ProviderService, SystemContext, ToolDispatchService,
 };
 use handlebars::Handlebars;
 use tracing::debug;
@@ -12,7 +12,7 @@ use super::{PromptService, Service};
 impl Service {
     pub fn system_prompt(
         env: Environment,
-        tool: Arc<dyn ToolService>,
+        tool: Arc<dyn ToolDispatchService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
     ) -> impl PromptService {
@@ -23,7 +23,7 @@ impl Service {
 #[derive(Clone)]
 struct Live {
     env: Environment,
-    tool: Arc<dyn ToolService>,
+    tool: Arc<dyn ToolDispatchService>,
     provider: Arc<dyn ProviderService>,
     file_read: Arc<dyn FileReadService>,
 }
@@ -31,7 +31,7 @@ struct Live {
 impl Live {
     pub fn new(
         env: Environment,
-        tool: Arc<dyn ToolService>,
+        tool: Arc<dyn ToolDispatchService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
     ) -> Self {

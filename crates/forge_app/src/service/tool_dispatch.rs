@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolDispatchService, ToolName, ToolResult};
 use tokio::time::{timeout, Duration};
 use tracing::debug;
 
@@ -10,7 +10,7 @@ use super::Service;
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 impl Service {
-    pub fn tool_service() -> impl ToolService {
+    pub fn tool_service() -> impl ToolDispatchService {
         Live::from_iter(forge_tool::tools())
     }
 }
@@ -31,7 +31,7 @@ impl FromIterator<Tool> for Live {
 }
 
 #[async_trait::async_trait]
-impl ToolService for Live {
+impl ToolDispatchService for Live {
     async fn call(&self, call: ToolCallFull) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
@@ -128,7 +128,7 @@ mod test {
         }
     }
 
-    fn new_tool_service() -> impl ToolService {
+    fn new_tool_service() -> impl ToolDispatchService {
         let success_tool = Tool {
             definition: ToolDefinition {
                 name: ToolName::new("success_tool"),

@@ -5,7 +5,7 @@ use anyhow::Result;
 use forge_domain::{
     ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation,
     ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
-    ProviderService, ResultStream, ToolDefinition, ToolService,
+    ProviderService, ResultStream, ToolDefinition, ToolDispatchService,
 };
 
 use super::env::EnvironmentService;
@@ -36,7 +36,7 @@ impl Service {
 #[derive(Clone)]
 struct Live {
     provider: Arc<dyn ProviderService>,
-    tool: Arc<dyn ToolService>,
+    tool: Arc<dyn ToolDispatchService>,
     completions: Arc<dyn SuggestionService>,
     ui_service: Arc<dyn UIService>,
     conversation_repo: Arc<dyn ConversationRepository>,

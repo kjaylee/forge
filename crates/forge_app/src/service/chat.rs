@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
-    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,
+    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolDispatchService,
 };
 use futures::StreamExt;
 
@@ -23,7 +23,7 @@ impl Service {
     pub fn chat_service(
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn PromptService>,
-        tool: Arc<dyn ToolService>,
+        tool: Arc<dyn ToolDispatchService>,
         user_prompt: Arc<dyn PromptService>,
     ) -> impl ChatService {
         Live::new(provider, system_prompt, tool, user_prompt)
@@ -34,7 +34,7 @@ impl Service {
 struct Live {
     provider: Arc<dyn ProviderService>,
     system_prompt: Arc<dyn PromptService>,
-    tool: Arc<dyn ToolService>,
+    tool: Arc<dyn ToolDispatchService>,
     user_prompt: Arc<dyn PromptService>,
 }
 
@@ -48,7 +48,7 @@ impl Live {
     fn new(
         provider: Arc<dyn ProviderService>,
         system_prompt: Arc<dyn PromptService>,
-        tool: Arc<dyn ToolService>,
+        tool: Arc<dyn ToolDispatchService>,
         user_prompt: Arc<dyn PromptService>,
     ) -> Self {
         Self { provider, system_prompt, tool, user_prompt }
@@ -209,7 +209,7 @@ mod tests {
     use forge_domain::{
         ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
         FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName,
-        ToolResult, ToolService,
+        ToolResult, ToolDispatchService,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl ToolService for TestToolService {
+    impl ToolDispatchService for TestToolService {
         async fn call(&self, call: ToolCallFull) -> ToolResult {
             let mut result = self.result.lock().unwrap();
 

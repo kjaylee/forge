@@ -10,7 +10,7 @@ pub trait ToolCallService {
 }
 
 #[async_trait::async_trait]
-pub trait ToolService: Send + Sync {
+pub trait ToolDispatchService: Send + Sync {
     async fn call(&self, call: ToolCallFull) -> ToolResult;
     fn list(&self) -> Vec<ToolDefinition>;
     fn usage_prompt(&self) -> String;

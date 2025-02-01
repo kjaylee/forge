@@ -22,7 +22,7 @@ mod tool_choice;
 mod tool_definition;
 mod tool_name;
 mod tool_result;
-mod tool_service;
+mod tool_dispatch_service;
 mod tool_usage;
 mod user_interaction;
 
@@ -50,7 +50,7 @@ pub use tool_choice::*;
 pub use tool_definition::*;
 pub use tool_name::*;
 pub use tool_result::*;
-pub use tool_service::*;
+pub use tool_dispatch_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
 
@@ -61,7 +61,7 @@ pub trait ForgeDomain {
     /// The concrete type implementing file read service capabilities
     type FileReadService: file::FileReadService;
     /// The concrete type implementing tool service capabilities
-    type ToolService: ToolService;
+    type ToolService: ToolDispatchService;
     /// The concrete type implementing provider service capabilities
     type ProviderService: ProviderService;
     /// The concrete type implementing conversation repository

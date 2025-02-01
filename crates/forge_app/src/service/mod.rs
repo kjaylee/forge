@@ -7,7 +7,7 @@ mod suggestion;
 mod system_prompt;
 #[cfg(test)]
 mod test;
-mod tool_service;
+mod tool_dispatch;
 mod ui;
 mod user_prompt;
 mod workflow_title;
