@@ -4,18 +4,18 @@ use forge_walker::Walker;
 use reedline::{Completer, Span, Suggestion};
 
 #[derive(Clone)]
-pub struct ReedlineCompleter {
+pub struct FileCompleter {
     walker: Walker,
 }
 
-impl ReedlineCompleter {
+impl FileCompleter {
     pub fn new(cwd: PathBuf) -> Self {
         let walker = Walker::max_all().cwd(cwd).skip_binary(true);
         Self { walker }
     }
 }
 
-impl Completer for ReedlineCompleter {
+impl Completer for FileCompleter {
     fn complete(&mut self, line: &str, _: usize) -> Vec<Suggestion> {
         // For file completion - find the last space and use everything after it as the
         // search term
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_empty_input_commands() {
-        let mut completer = ReedlineCompleter::new(PathBuf::from("."));
+        let mut completer = FileCompleter::new(PathBuf::from("."));
         let suggestions = completer.complete("/", 0);
 
         // Should return all available commands
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_partial_command() {
-        let mut completer = ReedlineCompleter::new(PathBuf::from("."));
+        let mut completer = FileCompleter::new(PathBuf::from("."));
         let suggestions = completer.complete("/n", 0);
 
         // Should return commands starting with /n
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_no_completion_for_regular_text() {
-        let mut completer = ReedlineCompleter::new(PathBuf::from("."));
+        let mut completer = FileCompleter::new(PathBuf::from("."));
         let suggestions = completer.complete("regular", 0);
 
         assert!(suggestions.is_empty());
@@ -94,7 +94,7 @@ mod tests {
         let file_path = dir.path().join("test.txt");
         File::create(&file_path).unwrap();
 
-        let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
+        let mut completer = FileCompleter::new(dir.path().to_path_buf());
         let suggestions = completer.complete("open test", 0);
 
         assert_eq!(suggestions.len(), 1);
@@ -105,7 +105,7 @@ mod tests {
     #[test]
     fn test_file_completion_empty() {
         let dir = tempdir().unwrap();
-        let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
+        let mut completer = FileCompleter::new(dir.path().to_path_buf());
         let suggestions = completer.complete("open ", 0);
 
         // Should list all files/directories in the empty temp directory
@@ -118,7 +118,7 @@ mod tests {
         let file_path = dir.path().join("test.txt");
         File::create(&file_path).unwrap();
 
-        let mut completer = ReedlineCompleter::new(dir.path().to_path_buf());
+        let mut completer = FileCompleter::new(dir.path().to_path_buf());
         let suggestions = completer.complete("some file test", 0);
 
         assert_eq!(suggestions.len(), 1);

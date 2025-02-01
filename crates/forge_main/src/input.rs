@@ -5,7 +5,8 @@ use forge_domain::{Command, Usage, UserInput};
 use tokio::fs;
 
 use crate::console::CONSOLE;
-use crate::prompting_engine::{ForgePrompt, ReadResult, ReedLineEditor};
+use crate::editor::{ForgeEditor, ReadResult};
+use crate::prompt::ForgePrompt;
 use crate::StatusDisplay;
 
 /// Console implementation for handling user input via command line.
@@ -34,7 +35,7 @@ impl UserInput for Console {
 
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
-        let mut engine = ReedLineEditor::start(self.cwd.clone());
+        let mut engine = ForgeEditor::start(self.cwd.clone());
         let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {

@@ -6,13 +6,12 @@ use reedline::{
     KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
 
-use super::command_completer::CommandCompleter;
-use super::file_completer::ReedlineCompleter;
+use super::completer::{CommandCompleter, FileCompleter};
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;
 
-pub struct ReedLineEditor {
+pub struct ForgeEditor {
     editor: Reedline,
 }
 
@@ -22,7 +21,7 @@ pub enum ReadResult {
     Exit,
 }
 
-impl ReedLineEditor {
+impl ForgeEditor {
     fn intialize_bindings() -> reedline::Keybindings {
         let mut keybindings = default_emacs_keybindings();
         // on TAB press shows the completion menu, and if we've exact match it will
@@ -97,7 +96,7 @@ impl ReedLineEditor {
         );
 
         let edit_mode = Box::new(Emacs::new(Self::intialize_bindings()));
-        let suggestions_completer = Box::new(ReedlineCompleter::new(cwd));
+        let suggestions_completer = Box::new(FileCompleter::new(cwd));
         let editor = Reedline::create()
             .with_history(history)
             .with_hinter(Box::new(
