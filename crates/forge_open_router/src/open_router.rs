@@ -85,8 +85,8 @@ impl ProviderService for OpenRouter {
                             serde_json::from_str::<OpenRouterResponse>(&event.data)
                                 .with_context(|| "Failed to parse OpenRouter response")
                                 .and_then(|message| {
-                                    Ok(ChatCompletionMessage::try_from(message.clone())
-                                        .with_context(|| "Failed to create completion message")?)
+                                    ChatCompletionMessage::try_from(message.clone())
+                                        .with_context(|| "Failed to create completion message")
                                 }),
                         ),
                     },
@@ -97,8 +97,8 @@ impl ProviderService for OpenRouter {
                             .await
                             .with_context(|| "Failed to parse OpenRouter response")
                             .and_then(|message| {
-                                Ok(ChatCompletionMessage::try_from(message.clone())
-                                    .with_context(|| "Failed to create completion message")?)
+                                ChatCompletionMessage::try_from(message.clone())
+                                    .with_context(|| "Failed to create completion message")
                             })
                             .with_context(|| "Failed with invalid status code"),
                     ),
@@ -108,8 +108,8 @@ impl ProviderService for OpenRouter {
                             .await
                             .with_context(|| "Failed to parse OpenRouter response")
                             .and_then(|message| {
-                                Ok(ChatCompletionMessage::try_from(message.clone())
-                                    .with_context(|| "Failed to create completion message")?)
+                                ChatCompletionMessage::try_from(message.clone())
+                                    .with_context(|| "Failed to create completion message")
                             })
                             .with_context(|| "Failed with invalid content type"),
                     ),
