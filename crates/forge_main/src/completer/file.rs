@@ -33,7 +33,7 @@ impl Completer for FileCompleter {
                             .map_or_else(|| false, |file| file.contains(search_term))
                     {
                         Some(Suggestion {
-                            value: file.path.to_string(),
+                            value: file.file_name.unwrap_or_default().to_string(),
                             description: None,
                             style: None,
                             extra: None,
@@ -61,26 +61,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_empty_input_commands() {
-        let mut completer = FileCompleter::new(PathBuf::from("."));
-        let suggestions = completer.complete("/", 0);
-
-        // Should return all available commands
-        assert!(!suggestions.is_empty());
-        assert!(suggestions.iter().all(|s| s.value.starts_with('/')));
-    }
-
-    #[test]
-    fn test_partial_command() {
-        let mut completer = FileCompleter::new(PathBuf::from("."));
-        let suggestions = completer.complete("/n", 0);
-
-        // Should return commands starting with /n
-        assert!(!suggestions.is_empty());
-        assert!(suggestions.iter().all(|s| s.value.starts_with("/n")));
-    }
-
-    #[test]
     fn test_no_completion_for_regular_text() {
         let mut completer = FileCompleter::new(PathBuf::from("."));
         let suggestions = completer.complete("regular", 0);
@@ -98,7 +78,7 @@ mod tests {
         let suggestions = completer.complete("open test", 0);
 
         assert_eq!(suggestions.len(), 1);
-        assert_eq!(suggestions[0].value, format!("{}", file_path.display()));
+        assert_eq!(suggestions[0].value, "test.txt");
         assert_eq!(suggestions[0].description, None);
     }
 
@@ -122,8 +102,7 @@ mod tests {
         let suggestions = completer.complete("some file test", 0);
 
         assert_eq!(suggestions.len(), 1);
-        let expected_path = format!("{}", file_path.display());
-        assert_eq!(suggestions[0].value, expected_path);
+        assert_eq!(suggestions[0].value, "test.txt");
         assert_eq!(suggestions[0].description, None);
     }
 }
