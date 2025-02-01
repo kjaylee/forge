@@ -85,20 +85,33 @@ impl ProviderService for OpenRouter {
                             serde_json::from_str::<OpenRouterResponse>(&event.data)
                                 .with_context(|| "Failed to parse OpenRouter response")
                                 .and_then(|message| {
-                                    Ok(ChatCompletionMessage::try_from(message.clone())?)
+                                    Ok(ChatCompletionMessage::try_from(message.clone())
+                                        .with_context(|| "Failed to create completion message")?)
                                 }),
                         ),
                     },
                     Err(reqwest_eventsource::Error::StreamEnded) => None,
-                    Err(reqwest_eventsource::Error::InvalidStatusCode(_, response))
-                    | Err(reqwest_eventsource::Error::InvalidContentType(_, response)) => Some(
+                    Err(reqwest_eventsource::Error::InvalidStatusCode(_, response)) => Some(
                         response
                             .json::<OpenRouterResponse>()
                             .await
                             .with_context(|| "Failed to parse OpenRouter response")
                             .and_then(|message| {
-                                Ok(ChatCompletionMessage::try_from(message.clone())?)
-                            }),
+                                Ok(ChatCompletionMessage::try_from(message.clone())
+                                    .with_context(|| "Failed to create completion message")?)
+                            })
+                            .with_context(|| "Failed with invalid status code"),
+                    ),
+                    Err(reqwest_eventsource::Error::InvalidContentType(_, response)) => Some(
+                        response
+                            .json::<OpenRouterResponse>()
+                            .await
+                            .with_context(|| "Failed to parse OpenRouter response")
+                            .and_then(|message| {
+                                Ok(ChatCompletionMessage::try_from(message.clone())
+                                    .with_context(|| "Failed to create completion message")?)
+                            })
+                            .with_context(|| "Failed with invalid content type"),
                     ),
                     Err(err) => Some(Err(err.into())),
                 }
@@ -180,7 +193,11 @@ mod tests {
         .unwrap();
         let message = serde_json::from_str::<OpenRouterResponse>(&content)
             .context("Failed to parse response")?;
-        let message = ChatCompletionMessage::try_from(message.clone());
+        let message = ChatCompletionMessage::try_from(
+            message
+                .clone()
+                .with_context(|| "Failed to create completion message"),
+        );
 
         assert!(message.is_err());
         Ok(())
