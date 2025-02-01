@@ -1,157 +1,217 @@
-# Tool Refactor
+# Tool Refactor - Agent Execution Guide
+
+## Prerequisites
+
+Environment Requirements:
+- Rust version: stable (2021 edition)
+- Required crates: All listed in Cargo.toml
+- Build tools: cargo, git
+
+Build Verification:
+```bash
+cargo check --workspace  # Must pass before starting
+cargo test --workspace   # All tests must pass
+```
 
 ## Architecture Overview
 
 Domain Layer (forge_domain):
-
 - Create service traits for each existing tool
 - ForgeDomain trait will be extended to include tool services
 - New ForgeTools trait will organize all tool-related services
 - Error handling standardized on anyhow::Result throughout
 
 Service Layer (forge_app):
-
 - Implement service traits for each tool
 - Maintain backward compatibility with existing interfaces
 - Async operations:
   - Use async_trait only for tools requiring async operations
   - Support both sync and async operations in ToolCallService
 
-## Tool Organization
+## Implementation Guide
 
-Tool Call Service:
-
-- Purpose: Creates executable tools from service implementations
-- Responsibilities:
-  - Manages tool lifecycle
-  - Handles both sync and async operations
-  - Integrates with ForgeTools trait
-  - Provides unified interface for tool execution
-
-## Phase 1: Define Traits
+### Phase 1: Define Traits
 
 Directory Structure:
-
 - Review the 'tools' directory in forge_domain
 - Organize traits by tool category
 - Each tool gets its own module
 
 Implementation Requirements:
-
 - Create all service traits before implementation
 - Standardize on anyhow::Result for error handling
 - Define clear interfaces maintaining backward compatibility
 - Document trait requirements and usage
 
-## Phase 2: Create Tools
+### Phase 2: Create Tools
 
 Implementation Strategy:
-
 - Create tools vector similar to forge_tools/lib
 - Tool creation depends only on new traits
-- Use ToolDefinition trait for tool metadata:
-  - Define input/output types
-  - Specify execution requirements
-  - Document tool capabilities
-- JsonSchema derivation:
-  - Derive from input/output structs
-  - Maintain compatibility with existing schema
+- Use ToolDefinition trait for tool metadata
+- JsonSchema derivation from structs
 
-Migration Approach:
+### Phase 3-6: Implementation through Optimization
+[Previous phases content remains unchanged]
 
-- Develop new implementation alongside existing code
-- Keep both implementations active during development
-- Final switch:
-  - Single point of change
-  - Zero downtime transition
-  - Fallback capability if needed
+## Execution Instructions
 
-## Phase 3: Service Implementation
+### Documentation Format
+- Keep documentation concise (1-2 lines per item)
+- Use XML-style tags for structured content
+- Each commit must reference task number
 
-Implementation in forge_app:
+### Progress Tracking
+- Update task status in <status> tag
+- Record blockers in <blockers> tag
+- Document completion criteria in <done> tag
 
-- Implement service traits for each tool
-- Integration with ForgeDomain
-- Connection with ForgeTools trait
-- Maintain clean separation of concerns
-
-## Phase 4: Verification
-
-Testing Requirements:
-
-- Unit tests:
-  - New tests for service traits
-  - New tests for implementations
-  - Coverage for both sync/async operations
-- Integration tests:
-  - Port existing tests to new architecture
-  - Verify tool interactions
-  - Test ForgeTools integration
-- Migration tests:
-  - Verify both implementations during transition
-  - Ensure behavior parity
-
-## Phase 5: Review
-
-Architecture Verification:
-
-- Verify clean architecture principles:
-  - Clear separation of concerns
-  - Dependency rules followed
-  - Interface segregation
-- Code organization:
-  - Proper module structure
-  - Clear documentation
-  - Consistent patterns
-
-## Phase 6: Optimize
-
-Performance Considerations:
-
-- Optimization deferred for initial implementation
-- Future optimization targets:
-  - Tool execution efficiency
-  - Resource usage
-  - Async operation performance
-
-# Execution Instructions
-
-- Keep the documentation 1-2 lines only.
-- Add you learnings based on user feedback in the <learnings> tag.
-- Create a task list in the <tasks> tag.
-- Use <next_task> to mark the next tag.
+### Current Task
 
 <next_task>
-Create base trait structure in forge_domain/src/tools with category directories and core traits.
+task_id: 1
+description: Create base trait structure in forge_domain/src/tools with category directories and core traits.
+validation:
+  - Directory structure matches specification
+  - All mod.rs files present and correct
+  - Compilation succeeds
+  - Tests pass
+error_handling:
+  - If directories exist, verify structure
+  - If compilation fails, review and fix each error
+  - If tests fail, document and address each failure
+completion_criteria:
+  - All directories created and verified
+  - mod.rs files contain correct exports
+  - cargo check passes
+  - cargo test passes
 </next_task>
 
 <tasks>
 1. Create tools directory structure
-   - Create directory: forge_domain/src/tools
-   - Add category dirs: fs, net, code, process
-   - Add mod.rs files
+   status: pending
+   steps:
+     - Verify forge_domain/src/tools exists
+     - Verify category dirs: fs, net, code, process
+     - Create/update mod.rs files
+   validation:
+     - Directory structure correct
+     - mod.rs files present
+     - Compilation successful
 
 2. Define base traits
-
-   - Create base Tool trait
-   - Define ToolError type
-   - Set up category-specific base traits
+   status: pending
+   prerequisites: task_1_complete
+   steps:
+     - Create base Tool trait
+     - Define ToolError using anyhow
+     - Create category traits
+   validation:
+     - Traits compile
+     - Documentation present
+     - Error handling correct
 
 3. Move existing tools
-
-   - Migrate file system tools
-   - Migrate network tools
-   - Migrate code analysis tools
-   - Migrate process tools
+   status: pending
+   prerequisites: task_2_complete
+   steps:
+     - Migrate tools one category at a time
+     - Update implementations
+     - Verify each migration
+   validation:
+     - No functionality loss
+     - All tests pass
+     - Clean compilation
 
 4. Documentation and tests
-   - Add trait documentation
-   - Migrate existing tests
-   - Verify compilation
-     </tasks>
+   status: pending
+   prerequisites: task_3_complete
+   steps:
+     - Add trait docs
+     - Update tests
+     - Verify coverage
+   validation:
+     - Documentation complete
+     - Tests passing
+     - Coverage acceptable
+</tasks>
 
-<learnings>
-- Maintaining parallel implementations reduces risk
-- Category-based organization improves maintainability
-- Early documentation helps track progress
-</learnings>
+<status>
+current_phase: 1
+current_task: 1
+completion_percentage: 0
+last_successful_validation: none
+active_blockers: 0
+</status>
+
+<blockers>
+</blockers>
+
+<done>
+criteria:
+  - All tasks marked complete
+  - All validations passing
+  - No active blockers
+  - Full test coverage maintained
+  - Documentation updated
+  - Clean cargo check
+  - All tests passing
+</done>
+
+### Error Recovery Procedures
+
+1. Compilation Failures
+   - Document error message
+   - Identify failed module
+   - Review recent changes
+   - Attempt targeted fix
+   - If unsuccessful, revert to last known good state
+
+2. Test Failures
+   - Document failing tests
+   - Reproduce locally
+   - Review test requirements
+   - Fix implementation or update test
+   - Verify no regression
+
+3. Integration Issues
+   - Identify integration point
+   - Verify interface compliance
+   - Review error logs
+   - Apply fixes incrementally
+   - Validate full integration
+
+### Commit Message Format
+
+```
+[Task-N] Brief description
+
+- Detailed change 1
+- Detailed change 2
+
+Validation:
+- List of validations performed
+
+Fixes: #issue (if applicable)
+```
+
+### Agent Instructions
+
+1. Always start by verifying prerequisites
+2. Check current status before starting new task
+3. Follow error recovery procedures when issues arise
+4. Update status after each significant step
+5. Document learnings as they occur
+6. Use specified commit message format
+7. Validate against completion criteria
+8. Report blockers immediately
+
+### Validation Requirements
+
+For each task:
+1. Compilation must succeed
+2. Tests must pass
+3. Documentation must be present
+4. Code style must follow Rust guidelines
+5. No warnings in cargo check
+6. All error handling paths verified
