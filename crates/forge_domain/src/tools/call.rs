@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::tool_call_parser::parse;
+use super::parser::parse;
 use crate::{Error, Result, ToolName};
 
 /// Unique identifier for a using a tool
