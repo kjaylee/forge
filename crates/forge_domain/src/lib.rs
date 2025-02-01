@@ -15,16 +15,7 @@ mod message;
 mod model;
 mod provider;
 mod stream_ext;
-mod tool;
-mod tool_call;
-mod tool_call_parser;
-mod tool_choice;
-mod tool_definition;
-mod tool_name;
-mod tool_result;
-mod tool_dispatch_service;
-mod tool_usage;
-mod user_interaction;
+mod tools;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -43,16 +34,7 @@ pub use message::*;
 pub use model::*;
 pub use provider::*;
 pub use stream_ext::*;
-pub use tool::*;
-pub use tool_call::*;
-pub use tool_call_parser::*;
-pub use tool_choice::*;
-pub use tool_definition::*;
-pub use tool_name::*;
-pub use tool_result::*;
-pub use tool_dispatch_service::*;
-pub use tool_usage::*;
-pub use user_interaction::*;
+pub use tools::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
