@@ -71,7 +71,7 @@ impl Completer for ReedlineCompleter {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::{File};
+    use std::fs::File;
 
     use tempfile::tempdir;
 
