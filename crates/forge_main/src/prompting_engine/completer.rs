@@ -36,7 +36,7 @@ impl Completer for ReedlineCompleter {
 
         // For file completion - find the last @ and use everything after it as the
         // search term
-        if let Some(last_at_pos) = line.rfind('@') {
+        if let Some(last_at_pos) = line.rfind(' ') {
             let search_term = &line[(last_at_pos + 1)..];
             let files = self.walker.get_blocking().unwrap_or_default();
             files
@@ -50,15 +50,11 @@ impl Completer for ReedlineCompleter {
                             .map_or_else(|| false, |file| file.contains(search_term))
                     {
                         Some(Suggestion {
-                            value: format!("@{}", file.path),
-                            description: if file.is_dir() {
-                                Some("Directory".to_string())
-                            } else {
-                                Some("File".to_string())
-                            },
+                            value: format!("{}", file.path),
+                            description: None,
                             style: None,
                             extra: None,
-                            span: Span::new(last_at_pos, line.len()),
+                            span: Span::new(last_at_pos + 1, line.len()),
                             append_whitespace: true,
                         })
                     } else {
