@@ -2,9 +2,8 @@ use std::path::PathBuf;
 
 use nu_ansi_term::{Color, Style};
 use reedline::{
-    default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs,
-    FileBackedHistory, KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent,
-    ReedlineMenu, Signal,
+    default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory,
+    KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
 
 use super::command_completer::CommandCompleter;
