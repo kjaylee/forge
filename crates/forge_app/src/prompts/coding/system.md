@@ -21,7 +21,7 @@ Tool Usage Instructions:
 
 You have access to above given set of tools. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
 
-# Tool Use Formatting
+Tool Use Formatting:
 
 Tool use is formatted using XML-style tags. The tool name is enclosed in opening and closing tags, and each parameter is similarly enclosed within its own set of tags. Here's the structure:
 
