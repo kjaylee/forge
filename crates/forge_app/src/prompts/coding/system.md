@@ -37,6 +37,8 @@ For example:
 <command>date</command>
 <cwd>/Path/to/dir</cwd>
 </tool_forge_process_shell>
+
+Before using a tool, ensure all required parameters are available. If any required parameters are missing, do not attempt to use the tool.
 </usage_rules>
 {{/if}}
 </tool_information>
