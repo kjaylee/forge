@@ -66,6 +66,9 @@ Before providing your final title, wrap your analysis in <title_generation_proce
 9. Consider potential objections or weaknesses for each title.
 10. Reflect on how well each title aligns with SEO best practices.
 11. Select the best title and explain your choice, explicitly stating how it aligns with the identified concepts and target audience.
+12. Prepare a tool call with the selected title as the parameter.
+
+After your analysis, make a tool call with the final title as the parameter.
 
 Example output structure:
 
@@ -87,10 +90,4 @@ Example output structure:
 
 </title_generation_process>
 
-{{#if tool_supported}}
-Final Output: Tool call with selected title as parameter
-{{else}}
-Final Output: Title in <generate_title> format
-{{/if}}
-
-Now, please wait for technical content to be provided in <technical_content> tags.
+Remember, the final output should only contain the tool call with the selected title as the parameter.
