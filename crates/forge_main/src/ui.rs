@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
-use forge_app::{APIService, Service};
+use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_domain::{
     ChatRequest, ChatResponse, Command, ConversationId, Environment, ModelId, Usage, UserInput,
 };
@@ -45,7 +45,7 @@ pub struct UI {
 impl UI {
     pub async fn init() -> Result<Self> {
         // NOTE: This has to be first line
-        let env = Environment::from_cwd(std::env::current_dir()?)?;
+        let env = EnvironmentFactory::new(std::env::current_dir()?).create()?;
         let guard = log::init_tracing(env.clone())?;
         let api = Arc::new(Service::api_service(env)?);
 

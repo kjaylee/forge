@@ -40,38 +40,7 @@ impl Environment {
     pub fn history_path(&self) -> PathBuf {
         self.base_path.clone()
     }
-
-    pub fn from_cwd(cwd: PathBuf) -> anyhow::Result<Environment> {
-        dotenv::dotenv().ok();
-        let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
-        let large_model_id =
-            std::env::var("FORGE_LARGE_MODEL").unwrap_or("anthropic/claude-3.5-sonnet".to_owned());
-        let small_model_id =
-            std::env::var("FORGE_SMALL_MODEL").unwrap_or("anthropic/claude-3.5-haiku".to_owned());
-
-        Ok(Environment {
-            os: std::env::consts::OS.to_string(),
-            cwd,
-            shell: if cfg!(windows) {
-                std::env::var("COMSPEC")?
-            } else {
-                std::env::var("SHELL").unwrap_or("/bin/sh".to_string())
-            },
-            api_key,
-            large_model_id,
-            small_model_id,
-            base_path: base_path(),
-            home: dirs::home_dir(),
-        })
-    }
 }
-
-fn base_path() -> PathBuf {
-    dirs::config_dir()
-        .map(|a| a.join("forge"))
-        .unwrap_or(PathBuf::from(".").join(".forge"))
-}
-
 /// Repository for accessing system environment information
 #[async_trait]
 pub trait EnvironmentRepository {
