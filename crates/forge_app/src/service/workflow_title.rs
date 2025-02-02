@@ -143,8 +143,8 @@ mod tests {
     use std::vec;
 
     use forge_domain::{
-        ChatCompletionMessage, ChatResponse, ConversationId, FinishReason, ModelId, ToolCallId,
-        ToolCallPart,
+        ChatCompletionMessage, ChatResponse, ConversationId, FinishReason, ModelId, Parameters,
+        ToolCallId, ToolCallPart,
     };
     use tokio_stream::StreamExt;
 
@@ -157,7 +157,14 @@ mod tests {
 
     impl Fixture {
         pub async fn run(&self, request: ChatRequest) -> anyhow::Result<Vec<ChatResponse>> {
-            let provider = Arc::new(TestProvider::default().with_messages(self.0.clone()));
+            let provider = Arc::new(
+                TestProvider::default()
+                    .with_messages(self.0.clone())
+                    .parameters(vec![
+                        (ModelId::new("gpt-3.5-turbo"), Parameters::new(true)),
+                        (ModelId::new("gpt-5"), Parameters::new(true)),
+                    ]),
+            );
             let chat = Live::new(provider.clone());
 
             let mut stream = chat.get_title(request).await.unwrap();

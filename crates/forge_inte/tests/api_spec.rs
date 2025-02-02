@@ -5,7 +5,7 @@ use forge_domain::{ChatRequest, ChatResponse, ModelId};
 use futures::future::join_all;
 use tokio_stream::StreamExt;
 
-const MAX_RETRIES: usize = 3;
+const MAX_RETRIES: usize = 5;
 const SUPPORTED_MODELS: &[&str] = &[
     "anthropic/claude-3.5-sonnet:beta",
     "openai/gpt-4o-2024-11-20",

@@ -104,7 +104,7 @@ impl ProviderService for TestProvider {
 
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         match self.parameters.iter().find(|(id, _)| id == model) {
-            None => Ok(Parameters { tool_supported: true }),
+            None => anyhow::bail!("Model not found: {}", model),
             Some((_, parameter)) => Ok(parameter.clone()),
         }
     }

@@ -179,7 +179,6 @@ impl ChatService for Live {
         context: Context,
     ) -> ResultStream<ChatResponse, anyhow::Error> {
         let system_prompt = self.system_prompt.get(&chat).await?;
-        debug!("System Prompt: {}", system_prompt);
         let user_prompt = self.user_prompt.get(&chat).await?;
 
         let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
@@ -221,8 +220,8 @@ mod tests {
     use derive_setters::Setters;
     use forge_domain::{
         ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
-        FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName,
-        ToolResult, ToolService,
+        FinishReason, ModelId, Parameters, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition,
+        ToolName, ToolResult, ToolService,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
@@ -289,8 +288,14 @@ mod tests {
 
     impl Fixture {
         pub fn services(&self) -> Service {
-            let provider =
-                Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
+            let provider = Arc::new(
+                TestProvider::default()
+                    .with_messages(self.assistant_responses.clone())
+                    .parameters(vec![
+                        (ModelId::new("gpt-3.5-turbo"), Parameters::new(true)),
+                        (ModelId::new("gpt-5"), Parameters::new(true)),
+                    ]),
+            );
             let system_prompt = Arc::new(TestPrompt::new(self.system_prompt.clone()));
             let tool = Arc::new(TestToolService::new(self.tools.clone()));
             let user_prompt = Arc::new(TestPrompt::default());
@@ -304,8 +309,14 @@ mod tests {
         }
 
         pub async fn run(&self, request: ChatRequest) -> TestResult {
-            let provider =
-                Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
+            let provider = Arc::new(
+                TestProvider::default()
+                    .with_messages(self.assistant_responses.clone())
+                    .parameters(vec![
+                        (ModelId::new("gpt-3.5-turbo"), Parameters::new(true)),
+                        (ModelId::new("gpt-5"), Parameters::new(true)),
+                    ]),
+            );
             let system_prompt_message = if self.system_prompt.is_empty() {
                 "Do everything that the user says"
             } else {
