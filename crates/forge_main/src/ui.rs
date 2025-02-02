@@ -5,7 +5,7 @@ use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_domain::{
-    ChatRequest, ChatResponse, Command, ConversationId, Environment, ModelId, Usage, UserInput,
+    ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput,
 };
 use tokio_stream::StreamExt;
 
