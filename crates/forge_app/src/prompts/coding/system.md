@@ -15,9 +15,8 @@ First, let's establish the current system information:
 
 <tool_information>
 {{#if (not tool_supported)}}
-You have access to the following tools:
-{{tool_information}}
-
+<available_tools>{{tool_information}}</available_tools>
+<usage_rules>
 Tool Usage Instructions:
 
 You have access to above given set of tools. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
@@ -38,9 +37,7 @@ For example:
 <command>date</command>
 <cwd>/Path/to/dir</cwd>
 </tool_forge_process_shell>
-
-Always adhere to this format for the tool use to ensure proper parsing and execution.
-
+</usage_rules>
 {{/if}}
 </tool_information>
 

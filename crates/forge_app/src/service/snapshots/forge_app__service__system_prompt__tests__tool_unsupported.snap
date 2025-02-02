@@ -22,8 +22,7 @@ First, let's establish the current system information:
 </system_info>
 
 <tool_information>
-You have access to the following tools:
-
+<available_tools>
 1. tool_forge_code_outline
 List definitions (classes, functions, methods, types etc.) in source code
  with their relationships. Helps navigate and understand code structure
@@ -235,8 +234,8 @@ Usage:
 <thought_number>...</thought_number>
 <total_thoughts>...</total_thoughts>
 </tool_forge_process_think>
-
-
+</available_tools>
+<usage_rules>
 Tool Usage Instructions:
 
 You have access to above given set of tools. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
@@ -257,9 +256,7 @@ For example:
 <command>date</command>
 <cwd>/Path/to/dir</cwd>
 </tool_forge_process_shell>
-
-Always adhere to this format for the tool use to ensure proper parsing and execution.
-
+</usage_rules>
 </tool_information>
 
 Your task will be provided inside <task> tags. For example:
