@@ -4,7 +4,9 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, Service};
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_domain::{
+    ChatRequest, ChatResponse, Command, ConversationId, Environment, ModelId, Usage, UserInput,
+};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -43,9 +45,9 @@ pub struct UI {
 impl UI {
     pub async fn init() -> Result<Self> {
         // NOTE: This has to be first line
-
-        let api = Arc::new(Service::api_service(None)?);
-        let guard = log::init_tracing(api.environment().await?)?;
+        let env = Environment::from_cwd(std::env::current_dir()?)?;
+        let guard = log::init_tracing(env.clone())?;
+        let api = Arc::new(Service::api_service(env)?);
 
         let cli = Cli::parse();
         Ok(Self {

@@ -881,6 +881,8 @@ dependencies = [
  "chrono",
  "derive_more",
  "derive_setters",
+ "dirs",
+ "dotenv",
  "futures",
  "handlebars",
  "html-escape",
