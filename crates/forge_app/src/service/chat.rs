@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
-    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,
+    ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
+    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,BoxStreamExt,
 };
 use futures::StreamExt;
 
@@ -62,13 +62,19 @@ impl Live {
         chat: ChatRequest,
     ) -> Result<()> {
         loop {
-            let mut tool_call_parts = Vec::new();
             let mut assistant_message_content = String::new();
 
             let mut tool_call_entry = Vec::new();
 
             let mut response = self.provider.chat(&chat.model, request.clone()).await?;
 
+            let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
+        response = if !tool_supported{
+            Box::pin(response.collect_tool_call_xml_content())
+        } else {
+            Box::pin(response.collect_tool_call_parts())
+        };
+        let mut is_first_tool_part = true;
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
 
@@ -80,46 +86,40 @@ impl Live {
                             .unwrap();
                     }
                 }
-
                 if !message.tool_call.is_empty() {
                     if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
                         // Send tool call detection on first part
-                        if tool_call_parts.is_empty() {
+                        if is_first_tool_part {
+                            is_first_tool_part = false;
                             if let Some(tool_name) = &tool_part.name {
                                 tx.send(Ok(ChatResponse::ToolCallDetected(tool_name.clone())))
                                     .await
                                     .unwrap();
                             }
                         }
-                        // Add to parts and send the part itself
-                        tool_call_parts.push(tool_part.clone());
                         tx.send(Ok(ChatResponse::ToolCallArgPart(
                             tool_part.arguments_part.clone(),
                         )))
                         .await
                         .unwrap();
                     }
-                }
-
-                if let Some(FinishReason::ToolCalls) = message.finish_reason {
-                    let tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)?;
-                    tool_call_entry.reserve_exact(tool_calls.len());
-
-                    // TODO: execute these tool calls in parallel.
-                    for tool_call in tool_calls {
-                        tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
-                            .await
-                            .unwrap();
-                        let tool_result = self.tool.call(tool_call.clone()).await;
-                        tool_call_entry.push(ToolCallEntry {
-                            request: tool_call,
-                            response: tool_result.clone(),
-                        });
-                        // send the tool use end message.
-                        tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
-                            .await
-                            .unwrap();
+                    for tool_call in message.tool_call.iter() {
+                        if let ToolCall::Full(tool_call_full) = tool_call {
+                            tx.send(Ok(ChatResponse::ToolCallStart(tool_call_full.clone())))
+                                .await
+                                .unwrap();
+                            let tool_result = self.tool.call(tool_call_full.clone()).await;
+                            tool_call_entry.push(ToolCallEntry {
+                                request: tool_call_full.clone(),
+                                response: tool_result.clone(),
+                            });
+                            // send the tool use end message.
+                            tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
+                                .await
+                                .unwrap();
+                        }
                     }
+                    
                 }
 
                 if let Some(reason) = &message.finish_reason {
@@ -179,10 +179,23 @@ impl ChatService for Live {
         let system_prompt = self.system_prompt.get(&chat).await?;
         let user_prompt = self.user_prompt.get(&chat).await?;
 
-        let request = request
+        let tool_supported = self
+            .provider
+            .parameters(&chat.model)
+            .await?
+            .tool_supported;
+
+        let request = if !tool_supported {
+            request
             .set_system_message(system_prompt)
             .add_message(ContextMessage::user(user_prompt))
-            .tools(self.tool.list());
+        } else {
+            request
+                .set_system_message(system_prompt)
+                .add_message(ContextMessage::user(user_prompt))
+                .tools(self.tool.list())
+        };
+        
 
         let that = self.clone();
 
@@ -486,6 +499,7 @@ mod tests {
             ChatResponse::ToolCallDetected(ToolName::new("foo")),
             ChatResponse::ToolCallArgPart(r#"{"foo": 1,"#.to_string()),
             ChatResponse::ToolCallArgPart(r#""bar": 2}"#.to_string()),
+            ChatResponse::FinishReason(FinishReason::ToolCalls),
             ChatResponse::ToolCallStart(
                 ToolCallFull::new(ToolName::new("foo"))
                     .arguments(json!({"foo": 1, "bar": 2}))
@@ -496,7 +510,6 @@ mod tests {
                     .success(json!({"a": 100, "b": 200}).to_string())
                     .call_id(ToolCallId::new("too_call_001")),
             ),
-            ChatResponse::FinishReason(FinishReason::ToolCalls),
             ChatResponse::Text(
                 "Task is complete, let me know if you need anything else.".to_string(),
             ),

@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, ProviderService, ResultStream, ToolCall,
-    ToolCallFull, ToolChoice, ToolDefinition,
+    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService, ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition
 };
+use handlebars::Handlebars;
 use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use tokio_stream::StreamExt;
@@ -40,9 +40,20 @@ impl Live {
         Self { provider }
     }
 
-    fn system_prompt(&self) -> String {
+    fn system_prompt(&self, tool_supported: bool, tool: ToolDefinition ) -> Result<String> {
         let template = include_str!("../prompts/title.md");
-        template.to_owned()
+        let mut hb = Handlebars::new();
+        hb.set_strict_mode(true);
+        hb.register_escape_fn(|str| str.to_string());
+
+        let ctx = SystemContext {
+            tool_information: tool.description,
+            tool_supported,
+            env : Environment::default(),
+            custom_instructions: None,
+        };
+
+        Ok(hb.render_template(template, &ctx)?)
     }
 
     fn user_prompt(&self, content: &str) -> String {
@@ -56,25 +67,21 @@ impl Live {
         chat: ChatRequest,
     ) -> Result<()> {
         let mut response = self.provider.chat(&chat.model, request.clone()).await?;
-        let mut parts = Vec::new();
+        let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
+        response = if !tool_supported {
+            Box::pin(response.collect_tool_call_xml_content())
+        } else {
+            Box::pin(response.collect_tool_call_parts())
+        };
 
         while let Some(chunk) = response.next().await {
             let message = chunk?;
-            if let Some(ToolCall::Part(args)) = message.tool_call.first() {
-                parts.push(args.clone());
-            }
-        }
-
-        // Extract title from parts if present
-        if !tx.is_closed() {
-            // if receiver is closed, we should not send any more messages
-            let tool_call = ToolCallFull::try_from_parts(&parts)?;
-            // we expect only one tool call, it's okay to ignore other tool calls.
-            if let Some(tool_call) = tool_call.into_iter().next() {
-                let title: Title = serde_json::from_value(tool_call.arguments)?;
-                tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
-                    .await
-                    .unwrap();
+            for tool_call in message.tool_call {
+                if let ToolCall::Full(tool_call) = tool_call {
+                    let title: Title = serde_json::from_value(tool_call.arguments)?;
+                    tx.send(Ok(ChatResponse::CompleteTitle(title.text))).await.unwrap();
+                    break;
+                }
             }
         }
 
@@ -100,15 +107,26 @@ impl Title {
 #[async_trait::async_trait]
 impl TitleService for Live {
     async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
-        let system_prompt = self.system_prompt();
         let user_prompt = self.user_prompt(&chat.content);
         let tool = Title::definition();
-
-        let request = Context::default()
+        let tool_supported = self
+            .provider
+            .parameters(&chat.model)
+            .await?
+            .tool_supported;
+        let system_prompt = self.system_prompt(tool_supported, tool.clone())?;
+        let request = if !tool_supported {
+            Context::default()
+            .add_message(ContextMessage::system(system_prompt))
+            .add_message(ContextMessage::user(user_prompt))
+        } else {
+            Context::default()
             .add_message(ContextMessage::system(system_prompt))
             .add_message(ContextMessage::user(user_prompt))
             .add_tool(tool.clone())
-            .tool_choice(ToolChoice::Call(tool.name));
+            .tool_choice(ToolChoice::Call(tool.name))
+        };
+
 
         let that = self.clone();
 
@@ -129,7 +147,6 @@ mod tests {
         ChatCompletionMessage, ChatResponse, ConversationId, FinishReason, ModelId, ToolCallId,
         ToolCallPart,
     };
-    // Remove unused import
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, Live, TitleService};
@@ -140,18 +157,20 @@ mod tests {
     struct Fixture(Vec<Vec<ChatCompletionMessage>>);
 
     impl Fixture {
-        pub async fn run(&self, request: ChatRequest) -> Vec<ChatResponse> {
+        pub async fn run(&self, request: ChatRequest) -> anyhow::Result<Vec<ChatResponse>> {
             let provider = Arc::new(TestProvider::default().with_messages(self.0.clone()));
             let chat = Live::new(provider.clone());
 
-            chat.get_title(request)
-                .await
-                .unwrap()
-                .collect::<Vec<_>>()
-                .await
-                .into_iter()
-                .map(|message| message.unwrap())
-                .collect::<Vec<_>>()
+            let mut stream = chat.get_title(request)
+                .await.unwrap();
+
+            let mut responses = vec![];
+            while let Some(response) = stream.next().await {
+                responses.push(response?);
+            }
+
+            Ok(responses)
+                
         }
     }
 
@@ -160,12 +179,10 @@ mod tests {
         let mock_llm_responses = vec![vec![
             ChatCompletionMessage::default().add_tool_call(
                 ToolCallPart::default()
-                    .arguments_part(r#"{"text": "Rust Fib"#)
+                    .arguments_part(r#"{"text": "Rust Fibonacci Implementation"}"#)
                     .name(Title::definition().name),
             ),
-            ChatCompletionMessage::default().add_tool_call(
-                ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#),
-            ),
+            ChatCompletionMessage::default().finish_reason(FinishReason::ToolCalls),
         ]];
 
         let actual = Fixture(mock_llm_responses)
@@ -178,7 +195,7 @@ mod tests {
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )
-            .await;
+            .await.unwrap();
 
         assert_eq!(
             actual,
@@ -231,7 +248,7 @@ mod tests {
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )
-            .await;
+            .await.unwrap();
 
         // even though we have multiple tool calls, we only expect the first one to be
         // processed.

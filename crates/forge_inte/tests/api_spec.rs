@@ -12,6 +12,7 @@ const SUPPORTED_MODELS: &[&str] = &[
     "anthropic/claude-3.5-sonnet",
     "openai/gpt-4o",
     "openai/gpt-4o-mini",
+    "qwen/qwen-2.5-7b-instruct",
     // "google/gemini-flash-1.5",
     "anthropic/claude-3-sonnet",
 ];
@@ -94,7 +95,7 @@ impl Fixture {
 #[tokio::test]
 async fn test_find_cat_name() {
     let errors = Fixture::new(
-        "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file.",
+        "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file. and its not in docs you can use any tool I have provided and you should not ask any questions from me",
     )
     .test_models(|response| response.to_lowercase().contains("juniper"))
     .await;

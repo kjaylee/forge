@@ -5,7 +5,7 @@ use super::stream_ext::StreamExt;
 use super::{ChatCompletionMessage, FinishReason, ToolCall, ToolCallFull, ToolCallPart};
 
 pub trait BoxStreamExt: Stream<Item = Result<ChatCompletionMessage>> + Sized {
-    fn collect_tool_call_parts(self) -> impl Stream<Item = Result<ChatCompletionMessage>> {
+        fn collect_tool_call_parts(self) -> impl Stream<Item = Result<ChatCompletionMessage>> {
         self.try_collect(Vec::<ToolCallPart>::new(), |parts, message| {
             if let Some(ToolCall::Part(tool_call)) = &message.tool_call.first() {
                 parts.push(tool_call.clone());
@@ -26,7 +26,6 @@ pub trait BoxStreamExt: Stream<Item = Result<ChatCompletionMessage>> + Sized {
             if let Some(content) = &message.content {
                 parts.push_str(content.as_str());
             }
-
             if message.finish_reason.is_some() {
                 if let Ok(tool_calls) = ToolCallFull::try_from_xml(parts) {
                     let mut message = ChatCompletionMessage::default();
