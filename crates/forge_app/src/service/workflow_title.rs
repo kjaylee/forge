@@ -183,8 +183,11 @@ mod tests {
         let mock_llm_responses = vec![vec![
             ChatCompletionMessage::default().add_tool_call(
                 ToolCallPart::default()
-                    .arguments_part(r#"{"text": "Rust Fibonacci Implementation"}"#)
+                    .arguments_part(r#"{"text": "Rust Fib"#)
                     .name(Title::definition().name),
+            ),
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#),
             ),
             ChatCompletionMessage::default().finish_reason(FinishReason::ToolCalls),
         ]];
