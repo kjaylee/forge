@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
-    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,BoxStreamExt,
+    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
+    ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,
 };
 use futures::StreamExt;
 
@@ -69,12 +69,12 @@ impl Live {
             let mut response = self.provider.chat(&chat.model, request.clone()).await?;
 
             let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
-        response = if !tool_supported{
-            Box::pin(response.collect_tool_call_xml_content())
-        } else {
-            Box::pin(response.collect_tool_call_parts())
-        };
-        let mut is_first_tool_part = true;
+            response = if !tool_supported {
+                Box::pin(response.collect_tool_call_xml_content())
+            } else {
+                Box::pin(response.collect_tool_call_parts())
+            };
+            let mut is_first_tool_part = true;
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
 
@@ -119,7 +119,6 @@ impl Live {
                                 .unwrap();
                         }
                     }
-                    
                 }
 
                 if let Some(reason) = &message.finish_reason {
@@ -179,23 +178,18 @@ impl ChatService for Live {
         let system_prompt = self.system_prompt.get(&chat).await?;
         let user_prompt = self.user_prompt.get(&chat).await?;
 
-        let tool_supported = self
-            .provider
-            .parameters(&chat.model)
-            .await?
-            .tool_supported;
+        let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
 
         let request = if !tool_supported {
             request
-            .set_system_message(system_prompt)
-            .add_message(ContextMessage::user(user_prompt))
+                .set_system_message(system_prompt)
+                .add_message(ContextMessage::user(user_prompt))
         } else {
             request
                 .set_system_message(system_prompt)
                 .add_message(ContextMessage::user(user_prompt))
                 .tools(self.tool.list())
         };
-        
 
         let that = self.clone();
 

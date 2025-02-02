@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService, ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition
+    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService,
+    ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition,
 };
 use handlebars::Handlebars;
 use schemars::{schema_for, JsonSchema};
@@ -40,7 +41,7 @@ impl Live {
         Self { provider }
     }
 
-    fn system_prompt(&self, tool_supported: bool, tool: ToolDefinition ) -> Result<String> {
+    fn system_prompt(&self, tool_supported: bool, tool: ToolDefinition) -> Result<String> {
         let template = include_str!("../prompts/title.md");
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -49,7 +50,7 @@ impl Live {
         let ctx = SystemContext {
             tool_information: tool.description,
             tool_supported,
-            env : Environment::default(),
+            env: Environment::default(),
             custom_instructions: None,
         };
 
@@ -79,7 +80,9 @@ impl Live {
             for tool_call in message.tool_call {
                 if let ToolCall::Full(tool_call) = tool_call {
                     let title: Title = serde_json::from_value(tool_call.arguments)?;
-                    tx.send(Ok(ChatResponse::CompleteTitle(title.text))).await.unwrap();
+                    tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
+                        .await
+                        .unwrap();
                     break;
                 }
             }
@@ -109,24 +112,19 @@ impl TitleService for Live {
     async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
         let user_prompt = self.user_prompt(&chat.content);
         let tool = Title::definition();
-        let tool_supported = self
-            .provider
-            .parameters(&chat.model)
-            .await?
-            .tool_supported;
+        let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
         let system_prompt = self.system_prompt(tool_supported, tool.clone())?;
         let request = if !tool_supported {
             Context::default()
-            .add_message(ContextMessage::system(system_prompt))
-            .add_message(ContextMessage::user(user_prompt))
+                .add_message(ContextMessage::system(system_prompt))
+                .add_message(ContextMessage::user(user_prompt))
         } else {
             Context::default()
-            .add_message(ContextMessage::system(system_prompt))
-            .add_message(ContextMessage::user(user_prompt))
-            .add_tool(tool.clone())
-            .tool_choice(ToolChoice::Call(tool.name))
+                .add_message(ContextMessage::system(system_prompt))
+                .add_message(ContextMessage::user(user_prompt))
+                .add_tool(tool.clone())
+                .tool_choice(ToolChoice::Call(tool.name))
         };
-
 
         let that = self.clone();
 
@@ -161,8 +159,7 @@ mod tests {
             let provider = Arc::new(TestProvider::default().with_messages(self.0.clone()));
             let chat = Live::new(provider.clone());
 
-            let mut stream = chat.get_title(request)
-                .await.unwrap();
+            let mut stream = chat.get_title(request).await.unwrap();
 
             let mut responses = vec![];
             while let Some(response) = stream.next().await {
@@ -170,7 +167,6 @@ mod tests {
             }
 
             Ok(responses)
-                
         }
     }
 
@@ -195,7 +191,8 @@ mod tests {
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(
             actual,
@@ -248,7 +245,8 @@ mod tests {
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )
-            .await.unwrap();
+            .await
+            .unwrap();
 
         // even though we have multiple tool calls, we only expect the first one to be
         // processed.
