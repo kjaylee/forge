@@ -44,7 +44,7 @@ impl UI {
     pub async fn init() -> Result<Self> {
         // NOTE: This has to be first line
 
-        let api = Arc::new(Service::api_service(None).await?);
+        let api = Arc::new(Service::api_service(None)?);
         let guard = log::init_tracing(api.environment().await?)?;
 
         let cli = Cli::parse();
@@ -69,7 +69,7 @@ impl UI {
         banner::display()?;
 
         // Get initial input from file or prompt
-        let mut input = match &self.cli.exec {
+        let mut input = match &self.cli.prompt {
             Some(path) => self.console.upload(path).await?,
             None => self.console.prompt(None).await?,
         };
@@ -88,7 +88,7 @@ impl UI {
                 Command::Reload => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
-                    input = match &self.cli.exec {
+                    input = match &self.cli.prompt {
                         Some(path) => self.console.upload(path).await?,
                         None => self.console.prompt(None).await?,
                     };

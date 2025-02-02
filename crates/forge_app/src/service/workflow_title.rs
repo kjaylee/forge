@@ -52,6 +52,7 @@ impl Live {
             tool_supported,
             env: Environment::default(),
             custom_instructions: None,
+            files: vec![],
         };
 
         Ok(hb.render_template(template, &ctx)?)

@@ -8,12 +8,15 @@ First, let's establish the current system information:
 
 <system_info>
 <operating_system>linux</operating_system>
-<current_working_directory>/home/user/project</current_working_directory>
+<current_working_directory>[TEMP_DIR]</current_working_directory>
 <default_shell>/bin/bash</default_shell>
 <home_directory>/home/user</home_directory>
 <file_list>
- - file1.txt
+ - /
  - file2.txt
+ - file1.txt
+ - nested/
+ - nested/file3.txt
 </file_list>
 </system_info>
 
