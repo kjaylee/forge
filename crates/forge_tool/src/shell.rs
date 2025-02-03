@@ -22,7 +22,7 @@ impl TeeWriter {
     }
 
     async fn handle<T: tokio::io::AsyncRead + Unpin>(
-        &mut self,
+        mut self,
         mut reader: T,
     ) -> io::Result<Vec<u8>> {
         let mut buffer = [0; 1024];
@@ -32,7 +32,7 @@ impl TeeWriter {
             }
             self.write(&buffer[..n])?;
         }
-        Ok(self.buffer.clone())
+        Ok(self.buffer)
     }
 }
 
@@ -207,13 +207,11 @@ impl ToolCallService for Shell {
         let stdout = child.stdout.take().expect("Failed to capture stdout");
         let stderr = child.stderr.take().expect("Failed to capture stderr");
 
-        // Create writers for stdout and stderr
-        let mut stdout_writer = TeeWriter::new(Box::new(io::stdout()));
-        let mut stderr_writer = TeeWriter::new(Box::new(io::stderr()));
-
         // Process both streams concurrently
-        let (stdout_result, stderr_result) =
-            tokio::join!(stdout_writer.handle(stdout), stderr_writer.handle(stderr));
+        let (stdout_result, stderr_result) = tokio::join!(
+            TeeWriter::new(Box::new(io::stdout())).handle(stdout),
+            TeeWriter::new(Box::new(io::stderr())).handle(stderr)
+        );
 
         // Handle any IO errors
         let stdout_bytes = stdout_result.map_err(|e| format!("Failed to read stdout: {}", e))?;
