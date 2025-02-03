@@ -98,18 +98,18 @@ pub struct Arena {
 pub struct SmartTool<S> {
     pub name: ToolName,
     pub description: String,
-    pub agent: AgentId,
+    pub run: Routine,
     pub input: Schema<S>,
 }
 
-pub enum Step {
+pub enum Routine {
     Agent(AgentId),
     Workflow(WorkflowId),
 }
 
 pub struct Handover {
-    pub from: Step,
-    pub to: Step,
+    pub from: Routine,
+    pub to: Routine,
 }
 
 pub struct WorkflowId(String);
