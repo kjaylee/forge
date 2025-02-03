@@ -41,7 +41,11 @@ impl Live {
         Self { provider }
     }
 
-    pub(crate) fn system_prompt(&self, tool_supported: bool, tool: ToolDefinition) -> Result<String> {
+    pub(crate) fn system_prompt(
+        &self,
+        tool_supported: bool,
+        tool: ToolDefinition,
+    ) -> Result<String> {
         let template = include_str!("../prompts/title.md");
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -180,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn test_system_prompt(){
+    fn test_system_prompt() {
         let provider = Arc::new(TestProvider::default());
         let chat = Live::new(provider);
         let snap = chat.system_prompt(false, Title::definition()).unwrap();
