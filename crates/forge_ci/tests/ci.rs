@@ -1,4 +1,6 @@
+use generate::Generate;
 use gh_workflow_tailcall::*;
+use indexmap::indexmap;
 use serde_json::json;
 
 #[test]
@@ -7,7 +9,7 @@ fn generate() {
         .auto_fix(true)
         .add_setup(Step::run("sudo apt-get install -y libsqlite3-dev"))
         .to_ci_workflow()
-        .add_env(("FORGE_KEY", "${{secrets.FORGE_KEY}}"));
+        .add_env(("OPEN_ROUTER_KEY", "${{secrets.OPEN_ROUTER_KEY}}"));
 
     // Set up the build matrix for all platforms
     let matrix = json!({
@@ -37,14 +39,46 @@ fn generate() {
     let main_cond =
         Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
 
-    // Add release build job
+    // Add draft release job
+    let draft_release_job = Job::new("draft_release")
+            .runs_on("ubuntu-latest")
+            .cond(main_cond.clone())
+            .permissions(
+                Permissions::default()
+                    .contents(Level::Write)
+                    .pull_requests(Level::Write),
+            )
+            .add_step(Step::uses("actions", "checkout", "v4"))
+            .add_step(
+                Step::uses("release-drafter", "release-drafter", "v6")
+                    .id("create_release")
+                    .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
+                    .with(("config-name", "release-drafter.yml")),
+            )
+            .add_step(
+                Step::run("echo \"create_release_id=${{ steps.create_release.outputs.id }}\" >> $GITHUB_OUTPUT && echo \"create_release_name=${{ steps.create_release.outputs.tag_name }}\" >> $GITHUB_OUTPUT")
+                    .id("set_output"),
+            )
+            .outputs(indexmap! {
+                "create_release_name".to_string() => "${{ steps.set_output.outputs.create_release_name }}".to_string(),
+                "create_release_id".to_string() => "${{ steps.set_output.outputs.create_release_id }}".to_string()
+            });
+    workflow = workflow.add_job("draft_release", draft_release_job.clone());
+
+    // Build and upload release job
     workflow = workflow.add_job(
         "build-release",
         Job::new("build-release")
             .add_needs(build_job.clone())
-            .cond(main_cond)
+            .add_needs(draft_release_job.clone())
+            .cond(main_cond.clone())
             .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
             .runs_on("${{ matrix.os }}")
+            .permissions(
+                Permissions::default()
+                    .contents(Level::Write)
+                    .pull_requests(Level::Write),
+            )
             .add_step(Step::uses("actions", "checkout", "v4"))
             // Install Rust with cross-compilation target
             .add_step(
@@ -55,17 +89,28 @@ fn generate() {
             .add_step(
                 Step::uses("ClementTsang", "cargo-action", "v0.0.3")
                     .add_with(("command", "build --release"))
-                    .add_with(("args", "--target ${{ matrix.target }}")),
+                    .add_with(("args", "--target ${{ matrix.target }}"))
+                    .add_env((
+                        "APP_VERSION",
+                        "${{ needs.draft_release.outputs.create_release_name }}",
+                    )),
             )
-            // Upload artifact for release
+            // Rename binary to target name
+            .add_step(Step::run(
+                "cp ${{ matrix.binary_path }} forge-${{ matrix.target }}",
+            ))
+            // Upload directly to release
             .add_step(
-                Step::uses("actions", "upload-artifact", "v3")
-                    .add_with(("name", "${{ matrix.binary_name }}"))
-                    .add_with(("path", "${{ matrix.binary_path }}"))
-                    .add_with(("if-no-files-found", "error")),
+                Step::uses("xresloader", "upload-to-github-release", "v1")
+                    .add_with((
+                        "release_id",
+                        "${{ needs.draft_release.outputs.create_release_id }}",
+                    ))
+                    .add_with(("file", "forge-${{ matrix.target }}"))
+                    .add_with(("overwrite", "true")),
             ),
     );
-    // Add release creation job
+    // Store reference to build-release job
     let build_release_job = workflow
         .jobs
         .clone()
@@ -73,27 +118,92 @@ fn generate() {
         .get("build-release")
         .unwrap()
         .clone();
-    workflow = workflow.add_job(
-        "create-release",
-        Job::new("create-release")
-            .add_needs(build_release_job)
-            .runs_on("ubuntu-latest")
-            .add_step(Step::uses("actions", "checkout", "v4"))
-            // Download all artifacts
-            .add_step(
-                Step::uses("actions", "download-artifact", "v3")
-                    .add_with(("name", "${{ matrix.binary_name }}"))
-                    .add_with(("path", "${{ inputs.path }}")),
+
+    // Add semantic release job to publish the release
+    let semantic_release_job = Job::new("semantic_release")
+            .add_needs(draft_release_job.clone())
+            .add_needs(build_release_job.clone())
+            .cond(Expression::new("(startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')"))
+            .permissions(
+                Permissions::default()
+                    .contents(Level::Write)
+                    .pull_requests(Level::Write),
             )
-            // Create GitHub release
+            .runs_on("ubuntu-latest")
+            .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
+            .env(("APP_VERSION", "${{ needs.draft_release.outputs.create_release_name }}"))
             .add_step(
-                Step::uses("softprops", "action-gh-release", "v1")
-                    .add_with(("generate_release_notes", "true"))
-                    .add_with(("files", "${{ inputs.path }}/artifacts/**/*"))
-                    .add_with(("prerelease", "true"))
-                    .add_with(("token", "${{ secrets.GITHUB_TOKEN }}")),
+                Step::uses("test-room-7", "action-publish-release-drafts", "v0")
+                    .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
+                    .add_with(("github-token", "${{ secrets.GITHUB_TOKEN }}"))
+                    .add_with(("tag-name", "${{ needs.draft_release.outputs.create_release_name }}")),
+            );
+    workflow = workflow.add_job("semantic_release", semantic_release_job.clone());
+
+    // Homebrew release job
+    workflow = workflow.add_job(
+        "homebrew_release",
+        Job::new("homebrew_release")
+            .add_needs(draft_release_job.clone())
+            .add_needs(build_release_job.clone())
+            .add_needs(semantic_release_job.clone())
+            .cond(Expression::new("(startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')"))
+            .permissions(
+                Permissions::default()
+                    .contents(Level::Write)
+                    .pull_requests(Level::Write),
+            )
+            .runs_on("ubuntu-latest")
+            .add_step(
+                Step::uses("actions", "checkout", "v4")
+                    .add_with(("repository", "antinomyhq/homebrew-code-forge"))
+                    .add_with(("ref", "main"))
+                    .add_with(("token", "${{ secrets.HOMEBREW_ACCESS }}")),
+            )
+            // Make script executable and run it with token
+            .add_step(
+                Step::run("GITHUB_TOKEN=\"${{ secrets.HOMEBREW_ACCESS }}\" ./update-formula.sh ${{needs.draft_release.outputs.create_release_name }}"),
             ),
     );
 
     workflow.generate().unwrap();
+}
+#[test]
+fn test_release_drafter() {
+    // Generate Release Drafter workflow
+    let mut release_drafter = Workflow::default()
+        .on(Event {
+            push: Some(Push { branches: vec!["main".to_string()], ..Push::default() }),
+            pull_request_target: Some(PullRequestTarget {
+                types: vec![
+                    PullRequestType::Opened,
+                    PullRequestType::Reopened,
+                    PullRequestType::Synchronize,
+                ],
+                branches: vec!["main".to_string()],
+            }),
+            ..Event::default()
+        })
+        .permissions(
+            Permissions::default()
+                .contents(Level::Write)
+                .pull_requests(Level::Write),
+        );
+
+    release_drafter = release_drafter.add_job(
+        "update_release_draft",
+        Job::new("update_release_draft")
+            .runs_on("ubuntu-latest")
+            .add_step(
+                Step::uses("release-drafter", "release-drafter", "v6")
+                    .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
+                    .add_with(("config-name", "release-drafter.yml")),
+            ),
+    );
+
+    release_drafter = release_drafter.name("Release Drafter");
+    Generate::new(release_drafter)
+        .name("release-drafter.yml")
+        .generate()
+        .unwrap();
 }

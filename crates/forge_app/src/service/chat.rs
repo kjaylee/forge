@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, FinishReason, ProviderService,
+    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
     ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,
 };
-use tokio_stream::wrappers::ReceiverStream;
-use tokio_stream::StreamExt;
+use futures::StreamExt;
+use tracing::debug;
 
 use super::{PromptService, Service};
+use crate::mpsc_stream::MpscStream;
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {
@@ -38,12 +39,6 @@ struct Live {
     user_prompt: Arc<dyn PromptService>,
 }
 
-/// mapping of tool call request to it's result.
-struct ToolCallEntry {
-    request: ToolCallFull,
-    response: ToolResult,
-}
-
 impl Live {
     fn new(
         provider: Arc<dyn ProviderService>,
@@ -57,26 +52,25 @@ impl Live {
     /// Executes the chat workflow until the task is complete.
     async fn chat_workflow(
         &self,
-        mut request: Context,
+        mut context: Context,
         tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
         chat: ChatRequest,
     ) -> Result<()> {
         loop {
-            let mut tool_call_parts = Vec::new();
             let mut assistant_message_content = String::new();
+            let mut full_tool_calls: Vec<ToolCallFull> = Vec::new();
+            let mut full_tool_call_results: Vec<ToolResult> = Vec::new();
 
-            let mut tool_call_entry = Vec::new();
-
-            let mut response = self.provider.chat(&chat.model, request.clone()).await?;
-
+            let mut response = self.provider.chat(&chat.model, context.clone()).await?;
+            let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
+            response = if !tool_supported {
+                Box::pin(response.collect_tool_call_xml_content())
+            } else {
+                Box::pin(response.collect_tool_call_parts())
+            };
+            let mut is_first_tool_part = true;
             while let Some(chunk) = response.next().await {
                 let message = chunk?;
-
-                if tx.is_closed() {
-                    // If the receiver is closed, we should stop processing messages.
-                    drop(response);
-                    break;
-                }
 
                 if let Some(ref content) = message.content {
                     if !content.is_empty() {
@@ -88,43 +82,39 @@ impl Live {
                 }
 
                 if !message.tool_call.is_empty() {
+                    // Streaming tool call parts to the frontend to avoid the long loading state.
                     if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
                         // Send tool call detection on first part
-                        if tool_call_parts.is_empty() {
+                        if is_first_tool_part {
+                            is_first_tool_part = false;
                             if let Some(tool_name) = &tool_part.name {
                                 tx.send(Ok(ChatResponse::ToolCallDetected(tool_name.clone())))
                                     .await
                                     .unwrap();
                             }
                         }
-                        // Add to parts and send the part itself
-                        tool_call_parts.push(tool_part.clone());
                         tx.send(Ok(ChatResponse::ToolCallArgPart(
                             tool_part.arguments_part.clone(),
                         )))
                         .await
                         .unwrap();
                     }
-                }
 
-                if let Some(FinishReason::ToolCalls) = message.finish_reason {
-                    let tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)?;
-                    tool_call_entry.reserve_exact(tool_calls.len());
+                    for tool_call in message.tool_call.iter() {
+                        if let ToolCall::Full(tool_call_full) = tool_call {
+                            full_tool_calls.push(tool_call_full.clone());
+                            tx.send(Ok(ChatResponse::ToolCallStart(tool_call_full.clone())))
+                                .await
+                                .unwrap();
+                            let tool_result = self.tool.call(tool_call_full.clone()).await;
 
-                    // TODO: execute these tool calls in parallel.
-                    for tool_call in tool_calls {
-                        tx.send(Ok(ChatResponse::ToolCallStart(tool_call.clone())))
-                            .await
-                            .unwrap();
-                        let tool_result = self.tool.call(tool_call.clone()).await;
-                        tool_call_entry.push(ToolCallEntry {
-                            request: tool_call,
-                            response: tool_result.clone(),
-                        });
-                        // send the tool use end message.
-                        tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
-                            .await
-                            .unwrap();
+                            full_tool_call_results.push(tool_result.clone());
+
+                            // send the tool use end message.
+                            tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
+                                .await
+                                .unwrap();
+                        }
                     }
                 }
 
@@ -141,34 +131,19 @@ impl Live {
                 }
             }
 
-            let tool_call_requests = tool_call_entry
-                .iter()
-                .map(|t| t.request.clone())
-                .collect::<Vec<_>>();
-            request = request.add_message(ContextMessage::assistant(
-                assistant_message_content.clone(),
-                Some(tool_call_requests),
-            ));
+            // Update the context with new messages
+            context = context
+                .add_message(ContextMessage::assistant(
+                    assistant_message_content,
+                    Some(full_tool_calls),
+                ))
+                .add_tool_results(full_tool_call_results.clone());
 
-            tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
+            tx.send(Ok(ChatResponse::ModifyContext(context.clone())))
                 .await
                 .unwrap();
 
-            let tool_call_results = tool_call_entry
-                .into_iter()
-                .map(|t| t.response)
-                .collect::<Vec<_>>();
-            if !tool_call_results.is_empty() {
-                request = request.extend_messages(
-                    tool_call_results
-                        .into_iter()
-                        .map(ContextMessage::ToolMessage)
-                        .collect(),
-                );
-                tx.send(Ok(ChatResponse::ModifyContext(request.clone())))
-                    .await
-                    .unwrap();
-            } else {
+            if full_tool_call_results.is_empty() {
                 break Ok(());
             }
         }
@@ -180,22 +155,31 @@ impl ChatService for Live {
     async fn chat(
         &self,
         chat: forge_domain::ChatRequest,
-        request: Context,
+        context: Context,
     ) -> ResultStream<ChatResponse, anyhow::Error> {
         let system_prompt = self.system_prompt.get(&chat).await?;
         let user_prompt = self.user_prompt.get(&chat).await?;
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
 
-        let request = request
-            .set_system_message(system_prompt)
-            .add_message(ContextMessage::user(user_prompt))
-            .tools(self.tool.list());
+        let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
+
+        let context = if !tool_supported {
+            context
+                .set_system_message(system_prompt)
+                .add_message(ContextMessage::user(user_prompt))
+        } else {
+            context
+                .set_system_message(system_prompt)
+                .add_message(ContextMessage::user(user_prompt))
+                .tools(self.tool.list())
+        };
+
+        debug!("Tools: {:?}", self.tool.list());
 
         let that = self.clone();
 
-        tokio::spawn(async move {
+        Ok(Box::pin(MpscStream::spawn(move |tx| async move {
             // TODO: simplify this match.
-            match that.chat_workflow(request, tx.clone(), chat.clone()).await {
+            match that.chat_workflow(context, tx.clone(), chat.clone()).await {
                 Ok(_) => {}
                 Err(e) => {
                     tx.send(Err(e)).await.unwrap();
@@ -203,11 +187,7 @@ impl ChatService for Live {
             };
 
             tx.send(Ok(ChatResponse::Complete)).await.unwrap();
-
-            drop(tx);
-        });
-
-        Ok(Box::pin(ReceiverStream::new(rx)))
+        })))
     }
 }
 
@@ -219,8 +199,8 @@ mod tests {
     use derive_setters::Setters;
     use forge_domain::{
         ChatCompletionMessage, ChatResponse, Content, Context, ContextMessage, ConversationId,
-        FinishReason, ModelId, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition, ToolName,
-        ToolResult, ToolService,
+        FinishReason, ModelId, Parameters, ToolCallFull, ToolCallId, ToolCallPart, ToolDefinition,
+        ToolName, ToolResult, ToolService,
     };
     use pretty_assertions::assert_eq;
     use serde_json::{json, Value};
@@ -287,8 +267,14 @@ mod tests {
 
     impl Fixture {
         pub fn services(&self) -> Service {
-            let provider =
-                Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
+            let provider = Arc::new(
+                TestProvider::default()
+                    .with_messages(self.assistant_responses.clone())
+                    .parameters(vec![
+                        (ModelId::new("gpt-3.5-turbo"), Parameters::new(true)),
+                        (ModelId::new("gpt-5"), Parameters::new(true)),
+                    ]),
+            );
             let system_prompt = Arc::new(TestPrompt::new(self.system_prompt.clone()));
             let tool = Arc::new(TestToolService::new(self.tools.clone()));
             let user_prompt = Arc::new(TestPrompt::default());
@@ -302,8 +288,14 @@ mod tests {
         }
 
         pub async fn run(&self, request: ChatRequest) -> TestResult {
-            let provider =
-                Arc::new(TestProvider::default().with_messages(self.assistant_responses.clone()));
+            let provider = Arc::new(
+                TestProvider::default()
+                    .with_messages(self.assistant_responses.clone())
+                    .parameters(vec![
+                        (ModelId::new("gpt-3.5-turbo"), Parameters::new(true)),
+                        (ModelId::new("gpt-5"), Parameters::new(true)),
+                    ]),
+            );
             let system_prompt_message = if self.system_prompt.is_empty() {
                 "Do everything that the user says"
             } else {
@@ -425,11 +417,9 @@ mod tests {
 
         // Expected ModifyContext events:
         // 1. After first assistant message with foo tool_call
-        // 2. After foo tool_result
-        // 3. After second assistant message with bar tool_call
-        // 4. After bar tool_result
-        // 5. After final completion message
-        assert_eq!(actual, 5);
+        // 2. After second assistant message with bar tool_call
+        // 3. After final completion message
+        assert_eq!(actual, 3);
     }
 
     #[tokio::test]
@@ -497,6 +487,7 @@ mod tests {
             ChatResponse::ToolCallDetected(ToolName::new("foo")),
             ChatResponse::ToolCallArgPart(r#"{"foo": 1,"#.to_string()),
             ChatResponse::ToolCallArgPart(r#""bar": 2}"#.to_string()),
+            ChatResponse::FinishReason(FinishReason::ToolCalls),
             ChatResponse::ToolCallStart(
                 ToolCallFull::new(ToolName::new("foo"))
                     .arguments(json!({"foo": 1, "bar": 2}))
@@ -507,7 +498,6 @@ mod tests {
                     .success(json!({"a": 100, "b": 200}).to_string())
                     .call_id(ToolCallId::new("too_call_001")),
             ),
-            ChatResponse::FinishReason(FinishReason::ToolCalls),
             ChatResponse::Text(
                 "Task is complete, let me know if you need anything else.".to_string(),
             ),
@@ -553,7 +543,7 @@ mod tests {
             .filter(|msg| matches!(msg, ChatResponse::ModifyContext { .. }))
             .count();
 
-        assert_eq!(actual, 3);
+        assert_eq!(actual, 2);
     }
 
     #[tokio::test]

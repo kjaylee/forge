@@ -1,17 +1,18 @@
 use std::path::Path;
 
-use forge_app::{APIService, Service};
+use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_domain::{ChatRequest, ChatResponse, ModelId};
 use futures::future::join_all;
 use tokio_stream::StreamExt;
 
-const MAX_RETRIES: usize = 3;
+const MAX_RETRIES: usize = 5;
 const SUPPORTED_MODELS: &[&str] = &[
     "anthropic/claude-3.5-sonnet:beta",
     "openai/gpt-4o-2024-11-20",
     "anthropic/claude-3.5-sonnet",
     "openai/gpt-4o",
     "openai/gpt-4o-mini",
+    "qwen/qwen-2.5-7b-instruct",
     // "google/gemini-flash-1.5",
     "anthropic/claude-3-sonnet",
 ];
@@ -28,17 +29,18 @@ impl Fixture {
     }
 
     /// Get the API service, panicking if not validated
-    async fn api(&self) -> impl APIService {
+    fn api(&self) -> impl APIService {
+        // NOTE: In tests the CWD is not the project root
         let path = Path::new("../../").to_path_buf();
         let path = path.canonicalize().unwrap();
-        Service::api_service(Some(path)).await.unwrap()
+        let env = EnvironmentFactory::new(path).create().unwrap();
+        Service::api_service(env).unwrap()
     }
 
     /// Get model response as text
     async fn get_model_response(&self, model: &str) -> String {
         let request = ChatRequest::new(ModelId::new(model), self.task.clone());
         self.api()
-            .await
             .chat(request)
             .await
             .unwrap()
@@ -94,7 +96,7 @@ impl Fixture {
 #[tokio::test]
 async fn test_find_cat_name() {
     let errors = Fixture::new(
-        "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file.",
+        "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file, but not in the docs directory. You can use any tool at your disposal to find it. Do not ask me any questions.",
     )
     .test_models(|response| response.to_lowercase().contains("juniper"))
     .await;

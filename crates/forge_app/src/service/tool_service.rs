@@ -95,7 +95,7 @@ impl ToolService for Live {
     async fn call(&self, call: ToolCallFull) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
-        debug!("Calling tool: {}", name.as_str());
+        debug!("{:?}", call);
         let mut available_tools = self
             .tools
             .keys()
@@ -122,7 +122,7 @@ impl ToolService for Live {
             )),
         };
 
-        match output {
+        let result = match output {
             Ok(output) => match self.limits.process_output(output).await {
                 Ok(processed_output) => ToolResult::from(call).success(processed_output),
                 Err(e) => ToolResult::from(call).failure(e),
@@ -131,7 +131,11 @@ impl ToolService for Live {
                 Ok(processed_output) => ToolResult::from(call).failure(processed_output),
                 Err(e) => ToolResult::from(call).failure(e),
             },
-        }
+        };
+
+        debug!("{:?}", result);
+
+        result
     }
 
     fn list(&self) -> Vec<ToolDefinition> {
