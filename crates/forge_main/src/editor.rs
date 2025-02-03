@@ -85,7 +85,7 @@ impl ForgeEditor {
 
         let commands_menu = Box::new(
             ColumnarMenu::default()
-                .with_name("command_menu")
+                .with_name(COMMAND_COMPLETION_MENU)
                 .with_marker("")
                 .with_text_style(Style::new().bold().fg(Color::Cyan))
                 .with_selected_text_style(Style::new().on(Color::White).fg(Color::Black)),
