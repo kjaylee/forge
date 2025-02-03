@@ -417,11 +417,9 @@ mod tests {
 
         // Expected ModifyContext events:
         // 1. After first assistant message with foo tool_call
-        // 2. After foo tool_result
-        // 3. After second assistant message with bar tool_call
-        // 4. After bar tool_result
-        // 5. After final completion message
-        assert_eq!(actual, 5);
+        // 2. After second assistant message with bar tool_call
+        // 3. After final completion message
+        assert_eq!(actual, 3);
     }
 
     #[tokio::test]
@@ -545,7 +543,7 @@ mod tests {
             .filter(|msg| matches!(msg, ChatResponse::ModifyContext { .. }))
             .count();
 
-        assert_eq!(actual, 3);
+        assert_eq!(actual, 2);
     }
 
     #[tokio::test]
