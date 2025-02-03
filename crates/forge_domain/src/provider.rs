@@ -1,4 +1,5 @@
 use anyhow::Result;
+use url::Url;
 
 use crate::{
     ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ResultStream,
@@ -14,3 +15,5 @@ pub trait ProviderService: Send + Sync + 'static {
     async fn models(&self) -> Result<Vec<Model>>;
     async fn parameters(&self, model: &ModelId) -> Result<Parameters>;
 }
+
+pub struct Provider(Url);

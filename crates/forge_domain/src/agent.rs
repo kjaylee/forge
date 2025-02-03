@@ -2,12 +2,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use schemars::schema::RootSchema;
-use serde::{Deserialize, Serialize};
-use url::Url;
+use serde::Serialize;
 
-use crate::{Environment, Model, ModelId, ToolName};
+use crate::{Environment, ModelId, Provider, ToolName};
 
-#[derive(Clone, Debug, Serialize)]
+pub struct Variables(HashMap<String, String>);
+
+#[derive(Serialize)]
 pub struct SystemContext {
     pub env: Environment,
     pub tool_information: String,
@@ -16,31 +17,9 @@ pub struct SystemContext {
     pub files: Vec<String>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum ModelType {
-    #[default]
-    Primary,
-    Secondary,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub enum PromptContent {
     Text(String),
     File(PathBuf),
-}
-
-impl From<String> for PromptContent {
-    fn from(s: String) -> Self {
-        PromptContent::Text(s)
-    }
-}
-
-impl From<&str> for PromptContent {
-    fn from(s: &str) -> Self {
-        PromptContent::Text(s.to_string())
-    }
 }
 
 pub struct Prompt<V> {
@@ -66,14 +45,11 @@ pub struct Agent {
     pub model: ModelId,
     pub description: String,
     pub system_prompt: Prompt<SystemContext>,
-    pub user_prompt: Prompt<HashMap<String, String>>,
+    pub user_prompt: Prompt<Variables>,
     pub tools: Vec<ToolName>,
     pub transforms: Vec<Transform>,
 }
 
-pub struct Provider(Url);
-
-// TODO: Add more compression strategies
 pub enum Transform {
     SuccessfulToolCalls(Action),
     FailedToolCalls(Action),
@@ -85,44 +61,6 @@ pub enum Action {
     Remove,
     Summarize,
     RemoveDuplicate,
-}
-
-pub struct Arena {
-    pub agents: Vec<Agent>,
-    pub workflows: Option<Vec<Workflow>>,
-    pub models: Vec<Model>,
-    pub providers: Vec<Provider>,
-    pub tools: Option<Vec<SmartTool<HashMap<String, String>>>>,
-}
-
-pub struct SmartTool<S> {
-    pub name: ToolName,
-    pub description: String,
-    pub run: Routine,
-    pub input: Schema<S>,
-}
-
-pub enum Routine {
-    Agent(AgentId),
-    Workflow(WorkflowId),
-}
-
-pub struct Handover {
-    pub from: Routine,
-    pub to: Routine,
-}
-
-pub struct WorkflowId(String);
-
-pub struct Workflow {
-    pub id: WorkflowId,
-    pub description: String,
-    pub handovers: Vec<Handover>,
-}
-
-pub enum Exit {
-    Success,
-    Failure,
 }
 
 impl Agent {

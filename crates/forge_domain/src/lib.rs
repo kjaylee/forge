@@ -1,4 +1,5 @@
 mod agent;
+mod arena;
 mod chat_request;
 mod chat_response;
 mod chat_stream_ext;
@@ -25,6 +26,7 @@ mod tool_result;
 mod tool_service;
 mod tool_usage;
 mod user_interaction;
+mod workflow;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -53,6 +55,7 @@ pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
+pub use workflow::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
