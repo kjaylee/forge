@@ -29,6 +29,7 @@ uuid = { version = "1.11.0", features = [
     "macro-diagnostics",
     "serde",
 ] }
+url = "2.5.4"
 
 [dev-dependencies]
 insta = { version = "1.34.0", features = ["json"] }
