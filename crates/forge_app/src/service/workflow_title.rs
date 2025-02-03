@@ -41,14 +41,14 @@ impl Live {
         Self { provider }
     }
 
-    fn system_prompt(&self, tool_supported: bool, tool: ToolDefinition) -> Result<String> {
+    pub(crate) fn system_prompt(&self, tool_supported: bool, tool: ToolDefinition) -> Result<String> {
         let template = include_str!("../prompts/title.md");
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
         hb.register_escape_fn(|str| str.to_string());
 
         let ctx = SystemContext {
-            tool_information: tool.description,
+            tool_information: tool.usage_prompt().to_string(),
             tool_supported,
             env: Environment::default(),
             custom_instructions: None,
@@ -146,6 +146,7 @@ mod tests {
         ChatCompletionMessage, ChatResponse, ConversationId, FinishReason, ModelId, Parameters,
         ToolCallId, ToolCallPart,
     };
+    use insta::assert_snapshot;
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, Live, TitleService};
@@ -176,6 +177,14 @@ mod tests {
 
             Ok(responses)
         }
+    }
+
+    #[test]
+    fn test_system_prompt(){
+        let provider = Arc::new(TestProvider::default());
+        let chat = Live::new(provider);
+        let snap = chat.system_prompt(false, Title::definition()).unwrap();
+        assert_snapshot!(snap);
     }
 
     #[tokio::test]
