@@ -38,6 +38,13 @@ impl ForgeEditor {
             ]),
         );
 
+        // on SHIFT + '@' press to start the file completion.
+        keybindings.add_binding(
+            KeyModifiers::SHIFT,
+            KeyCode::Char('@'),
+            ReedlineEvent::Menu(FILE_COMPLETION_MENU.to_owned()),
+        );
+
         // on CTRL + k press clears the screen
         keybindings.add_binding(
             KeyModifiers::CONTROL,
