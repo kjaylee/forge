@@ -39,12 +39,6 @@ struct Live {
     user_prompt: Arc<dyn PromptService>,
 }
 
-/// mapping of tool call request to it's result.
-struct ToolCallEntry {
-    request: ToolCallFull,
-    response: ToolResult,
-}
-
 impl Live {
     fn new(
         provider: Arc<dyn ProviderService>,
@@ -64,11 +58,10 @@ impl Live {
     ) -> Result<()> {
         loop {
             let mut assistant_message_content = String::new();
-
-            let mut tool_call_entry = Vec::new();
+            let mut full_tool_calls: Vec<ToolCallFull> = Vec::new();
+            let mut full_tool_call_results: Vec<ToolResult> = Vec::new();
 
             let mut response = self.provider.chat(&chat.model, context.clone()).await?;
-
             let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
             response = if !tool_supported {
                 Box::pin(response.collect_tool_call_xml_content())
@@ -87,7 +80,9 @@ impl Live {
                             .unwrap();
                     }
                 }
+
                 if !message.tool_call.is_empty() {
+                    // Streaming tool call parts to the frontend to avoid the long loading state.
                     if let Some(ToolCall::Part(tool_part)) = message.tool_call.first() {
                         // Send tool call detection on first part
                         if is_first_tool_part {
@@ -104,16 +99,17 @@ impl Live {
                         .await
                         .unwrap();
                     }
+
                     for tool_call in message.tool_call.iter() {
                         if let ToolCall::Full(tool_call_full) = tool_call {
+                            full_tool_calls.push(tool_call_full.clone());
                             tx.send(Ok(ChatResponse::ToolCallStart(tool_call_full.clone())))
                                 .await
                                 .unwrap();
                             let tool_result = self.tool.call(tool_call_full.clone()).await;
-                            tool_call_entry.push(ToolCallEntry {
-                                request: tool_call_full.clone(),
-                                response: tool_result.clone(),
-                            });
+
+                            full_tool_call_results.push(tool_result.clone());
+
                             // send the tool use end message.
                             tx.send(Ok(ChatResponse::ToolCallEnd(tool_result)))
                                 .await
@@ -135,38 +131,17 @@ impl Live {
                 }
             }
 
-            let tool_call_requests = tool_call_entry
-                .iter()
-                .map(|t| t.request.clone())
-                .collect::<Vec<_>>();
-            let message = ContextMessage::assistant(
-                assistant_message_content.clone(),
-                Some(tool_call_requests),
-            );
-            debug!("Assistant Message: {:?}", message);
-            context = context.add_message(message);
+            // Update the context with new messages
+            context = context
+                .add_message(ContextMessage::assistant(
+                    assistant_message_content,
+                    Some(full_tool_calls),
+                ))
+                .add_tool_results(full_tool_call_results.clone());
 
             tx.send(Ok(ChatResponse::ModifyContext(context.clone())))
                 .await
                 .unwrap();
-
-            let tool_call_results = tool_call_entry
-                .into_iter()
-                .map(|t| t.response)
-                .collect::<Vec<_>>();
-            if !tool_call_results.is_empty() {
-                context = context.extend_messages(
-                    tool_call_results
-                        .into_iter()
-                        .map(ContextMessage::ToolMessage)
-                        .collect(),
-                );
-                tx.send(Ok(ChatResponse::ModifyContext(context.clone())))
-                    .await
-                    .unwrap();
-            } else {
-                break Ok(());
-            }
         }
     }
 }
