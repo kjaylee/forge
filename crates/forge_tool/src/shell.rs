@@ -30,9 +30,7 @@ impl TeeWriter {
             if n == 0 {
                 break;
             }
-            self.writer.write_all(&buffer[..n])?;
-            self.writer.flush()?;
-            self.buffer.extend_from_slice(&buffer[..n]);
+            self.write(&buffer[..n])?;
         }
         Ok(self.buffer.clone())
     }
@@ -41,6 +39,7 @@ impl TeeWriter {
 impl Write for TeeWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.writer.write_all(buf)?;
+        self.flush()?;
         self.buffer.extend_from_slice(buf);
         Ok(buf.len())
     }
