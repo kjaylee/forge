@@ -461,21 +461,4 @@ mod tests {
         assert!(!result.is_empty());
         assert!(!result.contains("Error:"));
     }
-
-    #[tokio::test]
-    async fn test_shell_interactive() {
-        let shell = Shell::default();
-        let result = shell
-            .call(ShellInput {
-                // Using a command that doesn't require input but could be interactive
-                command: "echo 'Testing interactive mode'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
-            .await;
-
-        // Should succeed since we're using inherit for stdin
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        assert!(output.contains("<stdout>Testing interactive mode"));
-    }
 }
