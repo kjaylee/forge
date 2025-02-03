@@ -61,17 +61,16 @@ impl Live {
             let mut full_tool_calls: Vec<ToolCallFull> = Vec::new();
             let mut full_tool_call_results: Vec<ToolResult> = Vec::new();
 
-            let mut response = self
-                .provider
-                .chat(&chat.model, context.clone())
-                .await?
-                .collect_content()
-                .boxed();
+            let mut response = self.provider.chat(&chat.model, context.clone()).await?;
 
             let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
 
             response = if !tool_supported {
-                response.collect_tool_call_xml_content().boxed()
+                response
+                    .collect_content()
+                    .boxed()
+                    .collect_tool_call_xml_content()
+                    .boxed()
             } else {
                 response.collect_tool_call_parts().boxed()
             };
