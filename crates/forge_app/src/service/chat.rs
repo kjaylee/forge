@@ -142,6 +142,10 @@ impl Live {
             tx.send(Ok(ChatResponse::ModifyContext(context.clone())))
                 .await
                 .unwrap();
+
+            if full_tool_call_results.is_empty() {
+                break Ok(());
+            }
         }
     }
 }
