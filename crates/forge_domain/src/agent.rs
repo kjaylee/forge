@@ -7,7 +7,7 @@ use schemars::schema::RootSchema;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::{Environment, ModelId, Provider, ToolName, ToolResult};
+use crate::{Environment, ModelId, Provider, ToolName};
 
 #[derive(Default, Serialize)]
 pub struct Variables(HashMap<String, Value>);
@@ -61,12 +61,6 @@ impl From<Value> for Variables {
         };
 
         variables
-    }
-}
-
-impl From<Variables> for ToolResult {
-    fn from(value: Variables) -> Self {
-        todo!()
     }
 }
 

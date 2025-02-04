@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::Stream;
@@ -95,23 +96,11 @@ impl WorkflowEngine {
     pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
         match id {
             FlowId::Agent(id) => {
-                let id = self
-                    .arena
-                    .agents
-                    .iter()
-                    .find(|a| &a.id == id)
-                    .ok_or(Error::AgentUndefined(id.clone()))?;
-
+                let id = self.find_agent(id)?;
                 self.init_agent(id, input).await
             }
             FlowId::Workflow(id) => {
-                let id = self
-                    .arena
-                    .workflows
-                    .iter()
-                    .find(|w| &w.id == id)
-                    .ok_or(Error::WorkflowUndefined(id.clone()))?;
-
+                let id = self.find_workflow(id)?;
                 self.init_workflow(id, input).await
             }
         }
@@ -186,11 +175,30 @@ impl WorkflowEngine {
         let smart_tool = self.find_tool(&tool_call.name);
         if let Some(tool) = smart_tool {
             let input = Variables::from(tool_call.arguments.clone());
-            let output = self.execute(&tool.run, &input).await?;
-            Ok(ToolResult::from(output))
+            match self.execute(&tool.run, &input).await {
+                Ok(output) => {
+                    let output = serde_json::to_string(&output).with_context(|| {
+                        format!(
+                            "Failed to serialize output of smart tool: {}",
+                            tool.name.as_str()
+                        )
+                    })?;
+                    Ok(ToolResult::from(tool_call.clone()).success(output))
+                }
+                Err(error) => Ok(ToolResult::from(tool_call.clone()).failure(error.to_string())),
+            }
         } else {
             Ok(self.tool.call(tool_call.clone()).await)
         }
+    }
+
+    fn find_workflow(&self, id: &WorkflowId) -> anyhow::Result<&Workflow> {
+        Ok(self
+            .arena
+            .workflows
+            .iter()
+            .find(|w| w.id == *id)
+            .ok_or(Error::WorkflowUndefined(id.clone()))?)
     }
 
     fn find_agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
