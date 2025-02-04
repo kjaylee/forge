@@ -186,13 +186,11 @@ impl ToolCallService for Shell {
             c
         };
 
-        // set the cwd and env for enabling color output
-        cmd.current_dir(input.cwd).env("CLICOLOR_FORCE", "1");
-
-        // Configure stdio
-        cmd.stdin(std::process::Stdio::inherit());
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::piped());
+        cmd.current_dir(input.cwd)
+            .env("CLICOLOR_FORCE", "1") // enable color output
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
 
         // Spawn the command
         let mut child = cmd
@@ -209,7 +207,6 @@ impl ToolCallService for Shell {
             TeeWriter::new(Box::new(io::stderr())).handle(stderr)
         );
 
-        // Handle any IO errors
         let stdout_bytes = stdout_result.map_err(|e| format!("Failed to read stdout: {}", e))?;
         let stderr_bytes = stderr_result.map_err(|e| format!("Failed to read stderr: {}", e))?;
 
