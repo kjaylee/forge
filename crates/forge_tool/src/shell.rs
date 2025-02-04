@@ -187,6 +187,7 @@ impl ToolCallService for Shell {
         };
 
         cmd.current_dir(input.cwd)
+            .env("CLICOLOR_FORCE", "1")
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
@@ -215,9 +216,9 @@ impl ToolCallService for Shell {
             .await
             .map_err(|e| format!("Failed to wait for command '{}': {}", input.command, e))?;
 
-        // Convert output to strings
-        let stdout = String::from_utf8_lossy(&stdout_bytes).to_string();
-        let stderr = String::from_utf8_lossy(&stderr_bytes).to_string();
+        // stripe ANSI codes from command ouput.
+        let stdout = String::from_utf8_lossy(&strip_ansi_escapes::strip(&stdout_bytes)).to_string();
+        let stderr = String::from_utf8_lossy(&strip_ansi_escapes::strip(&stderr_bytes)).to_string();
 
         // Format and return the output
         format_output(&stdout, &stderr, status.success())
