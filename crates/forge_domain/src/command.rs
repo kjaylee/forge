@@ -49,32 +49,48 @@ pub enum ConfigCommand {
 
 impl ConfigCommand {
     /// Parse a config command from string arguments
+    ///
+    /// # Arguments
+    /// * `args` - Command arguments (without "config" command itself)
+    ///
+    /// # Returns
+    /// * `Ok(ConfigCommand)` - Successfully parsed command
+    /// * `Err` - Parse error with usage information
     fn parse(args: &[&str]) -> Result<ConfigCommand> {
-        match args.first().copied() {
-            None => Ok(ConfigCommand::List),
-            Some("set") => {
-                if args.len() < 3 {
-                    return Err(Error::CommandParse(
-                        "Usage: /config set <key> <value>".to_string(),
-                    ));
-                }
-                Ok(ConfigCommand::Set(
-                    args[1].to_string(),
-                    args[2..].join(" "),
-                ))
-            }
+        // No arguments = list command
+        if args.is_empty() {
+            return Ok(ConfigCommand::List);
+        }
+
+        // Get command type and ensure it's valid
+        match args.get(0).map(|s| *s) {
             Some("get") => {
-                if args.len() != 2 {
-                    return Err(Error::CommandParse(
-                        "Usage: /config get <key>".to_string(),
-                    ));
-                }
-                Ok(ConfigCommand::Get(args[1].to_string()))
+                let key = args
+                    .get(1)
+                    .ok_or_else(|| Error::CommandParse("Usage: /config get <key>".into()))?;
+
+                Ok(ConfigCommand::Get(key.to_string()))
             }
-            Some(x) => Err(Error::CommandParse(format!(
-                "Invalid config subcommand: {}. Use 'set', 'get', or no subcommand to list all options",
-                x
-            ))),
+            Some("set") => {
+                let key = args.get(1).ok_or_else(|| {
+                    Error::CommandParse("Usage: /config set <key> <value>".into())
+                })?;
+
+                let value = args
+                    .get(2..)
+                    .filter(|rest| !rest.is_empty())
+                    .ok_or_else(|| Error::CommandParse("Usage: /config set <key> <value>".into()))?
+                    .join(" ");
+
+                if value.is_empty() {
+                    return Err(Error::CommandParse("Value cannot be empty".into()));
+                }
+
+                Ok(ConfigCommand::Set(key.to_string(), value))
+            }
+            _ => Err(Error::CommandParse(
+                "Usage: /config [get <key> | set <key> <value>]".into(),
+            )),
         }
     }
 }
