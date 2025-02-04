@@ -120,10 +120,14 @@ impl UI {
                 }
                 Command::Config { ref key, ref value } => {
                     match (key, value) {
-                        (Some(k), Some(v)) => {
-                            self.config.insert(k, v)?;
-                            CONSOLE.writeln(format!("{}: {}", k.bright_blue(), v.green()))?;
-                        }
+                        (Some(k), Some(v)) => match self.config.insert(k, v) {
+                            Ok(()) => {
+                                CONSOLE.writeln(format!("{}: {}", k.bright_blue(), v.green()))?;
+                            }
+                            Err(e) => {
+                                CONSOLE.writeln(format!("{}", e.to_string().bright_red()))?;
+                            }
+                        },
                         (Some(k), None) => {
                             if let Some(value) = self.config.get(k) {
                                 CONSOLE.writeln(&format!(

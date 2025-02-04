@@ -29,7 +29,7 @@ impl FromStr for ConfigKey {
             "primary-model" => Ok(ConfigKey::PrimaryModel),
             "secondary-model" => Ok(ConfigKey::SecondaryModel),
             "tool-timeout" => Ok(ConfigKey::ToolTimeout),
-            _ => Err(anyhow!("Invalid configuration key: {}. Valid keys are: primary-model, secondary-model, tool-timeout", s)),
+            _ => Err(anyhow!("Invalid configuration key: {}", s)),
         }
     }
 }
