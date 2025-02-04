@@ -9,7 +9,7 @@ use super::completer::InputCompleter;
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;
-const COMPLETION_MENU: &str = "file_completion_menu";
+const COMPLETION_MENU: &str = "completion_menu";
 
 pub struct ForgeEditor {
     editor: Reedline,
