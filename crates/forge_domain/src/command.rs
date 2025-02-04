@@ -32,7 +32,6 @@ pub enum Command {
     Exit,
     /// Config command, can be used to get or set or display configuration
     /// values.
-    /// Config command for managing application configuration
     Config(ConfigCommand),
 }
 
@@ -49,10 +48,10 @@ pub enum ConfigCommand {
 
 impl ConfigCommand {
     /// Parse a config command from string arguments
-    ///
+    /// 
     /// # Arguments
     /// * `args` - Command arguments (without "config" command itself)
-    ///
+    /// 
     /// # Returns
     /// * `Ok(ConfigCommand)` - Successfully parsed command
     /// * `Err` - Parse error with usage information
@@ -65,19 +64,14 @@ impl ConfigCommand {
         // Get command type and ensure it's valid
         match args.get(0).map(|s| *s) {
             Some("get") => {
-                let key = args
-                    .get(1)
+                let key = args.get(1)
                     .ok_or_else(|| Error::CommandParse("Usage: /config get <key>".into()))?;
-
                 Ok(ConfigCommand::Get(key.to_string()))
             }
             Some("set") => {
-                let key = args.get(1).ok_or_else(|| {
-                    Error::CommandParse("Usage: /config set <key> <value>".into())
-                })?;
-
-                let value = args
-                    .get(2..)
+                let key = args.get(1)
+                    .ok_or_else(|| Error::CommandParse("Usage: /config set <key> <value>".into()))?;
+                let value = args.get(2..)
                     .filter(|rest| !rest.is_empty())
                     .ok_or_else(|| Error::CommandParse("Usage: /config set <key> <value>".into()))?
                     .join(" ");
@@ -89,8 +83,8 @@ impl ConfigCommand {
                 Ok(ConfigCommand::Set(key.to_string(), value))
             }
             _ => Err(Error::CommandParse(
-                "Usage: /config [get <key> | set <key> <value>]".into(),
-            )),
+                "Usage: /config [get <key> | set <key> <value>]".into()
+            ))
         }
     }
 }
@@ -174,4 +168,108 @@ pub trait UserInput {
     /// * `Ok(Input)` - Successfully processed input
     /// * `Err` - An error occurred during input processing
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod config_command {
+        use super::*;
+
+        #[test]
+        fn parse_empty_args_returns_list() {
+            let args: Vec<&str> = vec![];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::List));
+        }
+
+        #[test]
+        fn parse_get_command_with_key() {
+            let args = vec!["get", "test-key"];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::Get(key) if key == "test-key"));
+        }
+
+        #[test]
+        fn parse_get_command_without_key_returns_error() {
+            let args = vec!["get"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_command_with_key_value() {
+            let args = vec!["set", "test-key", "test value with spaces"];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::Set(key, value) 
+                if key == "test-key" && value == "test value with spaces"));
+        }
+
+        #[test]
+        fn parse_set_command_without_value_returns_error() {
+            let args = vec!["set", "test-key"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_command_without_key_returns_error() {
+            let args = vec!["set"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_command_with_empty_value_returns_error() {
+            let args = vec!["set", "test-key", ""];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("empty")));
+        }
+
+        #[test]
+        fn parse_invalid_command_returns_error() {
+            let args = vec!["invalid"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_preserves_value_whitespace() {
+            let args = vec!["set", "test-key", "value", "with", "  multiple  ", "spaces"];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::Set(key, value) 
+                if key == "test-key" && value == "value with   multiple   spaces"));
+        }
+    }
+
+    mod command_parsing {
+        use super::*;
+
+        #[test]
+        fn parse_config_list() {
+            let result = Command::parse("/config").unwrap();
+            assert!(matches!(result, Command::Config(ConfigCommand::List)));
+        }
+
+        #[test]
+        fn parse_config_get() {
+            let result = Command::parse("/config get key").unwrap();
+            assert!(matches!(result, Command::Config(ConfigCommand::Get(key)) if key == "key"));
+        }
+
+        #[test]
+        fn parse_config_set_single_value() {
+            let result = Command::parse("/config set key value").unwrap();
+            assert!(matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
+                if key == "key" && value == "value"));
+        }
+
+        #[test]
+        fn parse_config_set_multiple_words() {
+            let result = Command::parse("/config set key multiple words").unwrap();
+            assert!(matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
+                if key == "key" && value == "multiple words"));
+        }
+    }
 }
