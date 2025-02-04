@@ -10,13 +10,13 @@ use serde_json::Value;
 use crate::{Environment, ModelId, Provider, ToolName, ToolResult};
 
 #[derive(Default, Serialize)]
-pub struct Variables(HashMap<String, String>);
+pub struct Variables(HashMap<String, Value>);
 impl Variables {
-    pub fn add(&mut self, key: impl Into<String>, value: impl Into<String>) {
+    pub fn add(&mut self, key: impl Into<String>, value: impl Into<Value>) {
         self.0.insert(key.into(), value.into());
     }
 
-    pub fn get(&self, key: &str) -> Option<&String> {
+    pub fn get(&self, key: &str) -> Option<&Value> {
         self.0.get(key)
     }
 
@@ -38,7 +38,29 @@ impl From<Vec<Variables>> for Variables {
 
 impl From<Value> for Variables {
     fn from(value: Value) -> Self {
-        todo!()
+        let mut variables = Variables::default();
+        match value {
+            Value::Null => {}
+            Value::Bool(value) => {
+                variables.add("value", value.to_string());
+            }
+            Value::Number(value) => {
+                variables.add("value", value.to_string());
+            }
+            Value::String(value) => {
+                variables.add("value", value);
+            }
+            Value::Array(values) => {
+                variables.add("value", values);
+            }
+            Value::Object(map) => {
+                for (key, value) in map {
+                    variables.add(key, value);
+                }
+            }
+        };
+
+        variables
     }
 }
 

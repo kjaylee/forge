@@ -6,6 +6,7 @@ use std::sync::Arc;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::Stream;
+use serde_json::Value;
 
 use crate::{
     Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextExtension,
@@ -231,7 +232,7 @@ impl WorkflowEngine {
                     })) = context.messages.last()
                     {
                         let mut input = Variables::default();
-                        input.add(input_key, content);
+                        input.add(input_key, Value::from(content.clone()));
 
                         let agent = self.find_agent(agent_id)?;
                         let output = self.init_agent(agent, &input).await?;
