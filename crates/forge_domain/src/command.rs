@@ -32,15 +32,50 @@ pub enum Command {
     Exit,
     /// Config command, can be used to get or set or display configuration
     /// values.
-    Config {
-        key: Option<String>,
-        value: Option<String>,
-    },
+    /// Config command for managing application configuration
+    Config(ConfigCommand),
 }
 
-impl Command {
-    pub fn empty_config() -> Command {
-        Command::Config { key: None, value: None }
+/// Represents different configuration operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigCommand {
+    /// List all available configuration options
+    List,
+    /// Get the value of a specific configuration key
+    Get(String),
+    /// Set a configuration key to a specific value
+    Set(String, String),
+}
+
+impl ConfigCommand {
+    /// Parse a config command from string arguments
+    fn parse(args: &[&str]) -> Result<ConfigCommand> {
+        match args.first().copied() {
+            None => Ok(ConfigCommand::List),
+            Some("set") => {
+                if args.len() < 3 {
+                    return Err(Error::CommandParse(
+                        "Usage: /config set <key> <value>".to_string(),
+                    ));
+                }
+                Ok(ConfigCommand::Set(
+                    args[1].to_string(),
+                    args[2..].join(" "),
+                ))
+            }
+            Some("get") => {
+                if args.len() != 2 {
+                    return Err(Error::CommandParse(
+                        "Usage: /config get <key>".to_string(),
+                    ));
+                }
+                Ok(ConfigCommand::Get(args[1].to_string()))
+            }
+            Some(x) => Err(Error::CommandParse(format!(
+                "Invalid config subcommand: {}. Use 'set', 'get', or no subcommand to list all options",
+                x
+            ))),
+        }
     }
 }
 
@@ -78,35 +113,10 @@ impl Command {
     pub fn parse(input: &str) -> Result<Self> {
         let trimmed = input.trim();
 
-        // Handle config commands first
+        // Handle config commands
         if trimmed.starts_with("/config") {
-            let parts: Vec<&str> = trimmed.split_whitespace().skip(1).collect();
-            match parts.first().copied() {
-                None => return Ok(Command::empty_config()),
-                Some("set") => {
-                    if parts.len() < 3 {
-                        return Err(Error::CommandParse(
-                            "Usage: /config set <key> <value>".to_string(),
-                        ));
-                    }
-                    return Ok(Command::Config {
-                        key: Some(parts[1].to_string()),
-                        value: Some(parts[2..].join(" ")),
-                    });
-                }
-                Some("get") => {
-                    if parts.len() < 2 {
-                        return Err(Error::CommandParse("Usage: /config get <key>".to_string()));
-                    }
-                    return Ok(Command::Config { key: Some(parts[1].to_string()), value: None });
-                }
-                Some(x) => {
-                    return Err(Error::CommandParse(format!(
-                        "Invalid config subcommand: {}. Use 'set' or 'get'",
-                        x
-                    )));
-                }
-            }
+            let args: Vec<&str> = trimmed.split_whitespace().skip(1).collect();
+            return Ok(Command::Config(ConfigCommand::parse(&args)?));
         }
 
         match trimmed {
