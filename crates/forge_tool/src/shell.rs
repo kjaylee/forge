@@ -187,7 +187,6 @@ impl ToolCallService for Shell {
         };
 
         cmd.current_dir(input.cwd)
-            .env("CLICOLOR_FORCE", "1") // enable color output
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
