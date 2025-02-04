@@ -156,11 +156,6 @@ impl WorkflowEngine {
             .ok_or(Error::AgentUndefined(id.clone()))?)
     }
 
-    // TODO: should be a method on Context
-    fn context_as_text(&self, _context: &Context) -> String {
-        todo!()
-    }
-
     #[async_recursion(?Send)]
     async fn execute_transform(
         &self,
@@ -172,7 +167,7 @@ impl WorkflowEngine {
                 Transform::Summarize { agent_id, token_limit, input: input_key } => {
                     let count = self.token_count(&context).await?;
                     if &count >= token_limit {
-                        let context_content = self.context_as_text(&context);
+                        let context_content = context.as_text();
 
                         let mut input = Variables::default();
                         input.add(input_key, context_content);

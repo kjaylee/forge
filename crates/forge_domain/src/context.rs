@@ -144,6 +144,11 @@ impl Context {
     pub(crate) fn insert_summary(&self, _summary: &str) -> Context {
         todo!()
     }
+
+    /// Converts the context to textual format
+    pub fn as_text(&self) -> String {
+        todo!()
+    }
 }
 
 #[async_trait]
