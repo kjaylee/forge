@@ -140,6 +140,7 @@ impl Context {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn insert_summary(&self, _summary: &str) -> Context {
         todo!()
     }
