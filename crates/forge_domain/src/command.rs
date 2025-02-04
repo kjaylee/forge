@@ -30,7 +30,7 @@ pub enum Command {
     /// Exit the application without any further action.
     Exit,
     /// Lists the models available for use.
-    Models
+    Models,
 }
 
 impl Command {
