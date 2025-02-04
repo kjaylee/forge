@@ -54,7 +54,7 @@ impl ToolService for Live {
         let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Wrap tool call with timeout
-                let timeout_in_seconds = self.timeout.read().await.clone();
+                let timeout_in_seconds = *self.timeout.read().await;
                 match timeout(timeout_in_seconds, tool.executable.call(input)).await {
                     Ok(result) => result,
                     Err(_) => Err(format!(

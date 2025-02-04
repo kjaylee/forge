@@ -95,7 +95,7 @@ impl From<&Environment> for Config {
 impl Config {
     pub fn tool_timeout(&self) -> Option<u64> {
         self.values.get(&ConfigKey::ToolTimeout).map(|v| match v {
-            ConfigValue::ToolTimeout(t) => *t as u64,
+            ConfigValue::ToolTimeout(t) => { *t },
             _ => unreachable!(),
         })
     }
