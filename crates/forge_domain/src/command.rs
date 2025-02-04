@@ -109,7 +109,6 @@ impl Command {
             "/config".to_string(),
             "/config set".to_string(),
             "/config get".to_string(),
-            "/models".to_string(),
         ]
     }
 
