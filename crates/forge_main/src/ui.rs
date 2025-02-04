@@ -82,7 +82,7 @@ impl UI {
         let model = self
             .config
             .get("primary-model")
-            .map(|m| ModelId::new(m))
+            .map(ModelId::new)
             .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 
         loop {
@@ -135,23 +135,23 @@ impl UI {
                         },
                         (Some(k), None) => {
                             if let Some(value) = self.config.get(k) {
-                                CONSOLE.writeln(&format!(
+                                CONSOLE.writeln(format!(
                                     "{}: {}",
                                     k.bright_blue(),
                                     value.green()
                                 ))?;
                             } else {
-                                CONSOLE.writeln(&format!(
+                                CONSOLE.writeln(format!(
                                     "Config key '{}' not found",
                                     k.bright_red()
                                 ))?;
                             }
                         }
                         (None, None) => {
-                            CONSOLE.writeln(&self.config.to_display_string())?;
+                            CONSOLE.writeln(self.config.to_display_string())?;
                         }
                         (None, Some(_)) => {
-                            CONSOLE.writeln(&format!(
+                            CONSOLE.writeln(format!(
                                 "{}",
                                 "Error: Cannot set value without a key".bright_red()
                             ))?;

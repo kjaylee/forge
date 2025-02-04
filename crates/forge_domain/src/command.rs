@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 
-use crate::{error::Result, Error};
+use crate::error::Result;
+use crate::Error;
 
 /// Represents user input types in the chat application.
 ///
@@ -29,7 +30,8 @@ pub enum Command {
     Info,
     /// Exit the application without any further action.
     Exit,
-    /// Config command, can be used to get or set or display configuration values.
+    /// Config command, can be used to get or set or display configuration
+    /// values.
     Config {
         key: Option<String>,
         value: Option<String>,
@@ -79,7 +81,7 @@ impl Command {
         // Handle config commands first
         if trimmed.starts_with("/config") {
             let parts: Vec<&str> = trimmed.split_whitespace().skip(1).collect();
-            match parts.get(0).map(|s| *s) {
+            match parts.first().copied() {
                 None => return Ok(Command::empty_config()),
                 Some("set") => {
                     if parts.len() < 3 {

@@ -1,6 +1,7 @@
 mod banner;
 mod cli;
 mod completer;
+mod config;
 mod console;
 mod editor;
 mod info;
@@ -10,6 +11,5 @@ mod normalize;
 mod prompt;
 mod status;
 mod ui;
-mod config;
 
 pub use ui::UI;

@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+use std::str::FromStr;
+
 use anyhow::{anyhow, Result};
 use colored::Colorize;
 use forge_domain::Environment;
-use std::collections::HashMap;
-use std::str::FromStr;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConfigKey {
@@ -70,6 +71,7 @@ impl ConfigValue {
     }
 }
 
+#[derive(Default)]
 pub struct Config {
     values: HashMap<ConfigKey, ConfigValue>,
 }
@@ -136,14 +138,11 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::str::FromStr;
 
-    impl Default for Config {
-        fn default() -> Self {
-            Self { values: HashMap::new() }
-        }
-    }
+    use super::*;
+
+    
 
     #[test]
     fn test_config_key_from_str() {
