@@ -5,7 +5,9 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_domain::{
+    ChatRequest, ChatResponse, Command, ConfigCommand, ConversationId, ModelId, Usage, UserInput,
+};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -69,16 +71,6 @@ impl UI {
             .to_string()
     }
 
-    /// This function is called when the config is updated to perform any
-    /// necessary actions.
-    async fn on_config_update(&self) {
-        if let Some(timeout_secs) = self.config.tool_timeout() {
-            let timeout = Duration::from_secs(timeout_secs);
-            // if we fail, it's okay, we'll just keep the old timeout.
-            let _ = self.api.set_tool_timeout(timeout).await;
-        }
-    }
-
     pub async fn run(&mut self) -> Result<()> {
         // Display the banner in dimmed colors
         banner::display()?;
@@ -95,15 +87,14 @@ impl UI {
                 .set_tool_timeout(Duration::from_secs(timeout_secs))
                 .await?;
         }
+        // read the model from the config or fallback to environment.
+        let mut model = self
+            .config
+            .primary_model()
+            .map(ModelId::new)
+            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 
         loop {
-            // read the model from the config or fallback to environment.
-            let model = self
-                .config
-                .primary_model()
-                .map(ModelId::new)
-                .unwrap_or(ModelId::from_env(&self.api.environment().await?));
-
             match input {
                 Command::End => break,
                 Command::New => {
@@ -141,39 +132,45 @@ impl UI {
                 Command::Exit => {
                     break;
                 }
-                Command::Config { ref key, ref value } => {
-                    match (key, value) {
-                        (Some(k), Some(v)) => match self.config.insert(k, v) {
+                Command::Config(config_cmd) => {
+                    match config_cmd {
+                        ConfigCommand::Set(key, value) => match self.config.insert(&key, &value) {
                             Ok(()) => {
-                                self.on_config_update().await;
-                                CONSOLE.writeln(format!("{}: {}", k.bright_blue(), v.green()))?;
+                                if let Some(timeout_secs) = self.config.tool_timeout() {
+                                    let timeout = Duration::from_secs(timeout_secs);
+                                    // if we fail, it's okay, we'll just keep the old timeout.
+                                    let _ = self.api.set_tool_timeout(timeout).await;
+                                }
+                                model =
+                                    self.config.primary_model().map(ModelId::new).unwrap_or(
+                                        ModelId::from_env(&self.api.environment().await?),
+                                    );
+                                CONSOLE.writeln(format!(
+                                    "{}: {}",
+                                    key.bright_blue(),
+                                    value.green()
+                                ))?;
                             }
                             Err(e) => {
                                 CONSOLE.writeln(format!("{}", e.to_string().bright_red()))?;
                             }
                         },
-                        (Some(k), None) => {
-                            if let Some(value) = self.config.get(k) {
+                        ConfigCommand::Get(key) => {
+                            if let Some(value) = self.config.get(&key) {
                                 CONSOLE.writeln(format!(
                                     "{}: {}",
-                                    k.bright_blue(),
+                                    key.bright_blue(),
                                     value.green()
                                 ))?;
                             } else {
                                 CONSOLE.writeln(format!(
                                     "Config key '{}' not found",
-                                    k.bright_red()
+                                    key.bright_red()
                                 ))?;
                             }
                         }
-                        (None, None) => {
+                        ConfigCommand::List => {
                             CONSOLE.writeln(self.config.to_display_string())?;
-                        }
-                        (None, Some(_)) => {
-                            CONSOLE.writeln(format!(
-                                "{}",
-                                "Error: Cannot set value without a key".bright_red()
-                            ))?;
                         }
                     }
                     input = self.console.prompt(None).await?;

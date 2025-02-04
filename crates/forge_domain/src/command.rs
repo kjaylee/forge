@@ -32,15 +32,63 @@ pub enum Command {
     Exit,
     /// Config command, can be used to get or set or display configuration
     /// values.
-    Config {
-        key: Option<String>,
-        value: Option<String>,
-    },
+    Config(ConfigCommand),
 }
 
-impl Command {
-    pub fn empty_config() -> Command {
-        Command::Config { key: None, value: None }
+/// Represents different configuration operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConfigCommand {
+    /// List all available configuration options
+    List,
+    /// Get the value of a specific configuration key
+    Get(String),
+    /// Set a configuration key to a specific value
+    Set(String, String),
+}
+
+impl ConfigCommand {
+    /// Parse a config command from string arguments
+    ///
+    /// # Arguments
+    /// * `args` - Command arguments (without "config" command itself)
+    ///
+    /// # Returns
+    /// * `Ok(ConfigCommand)` - Successfully parsed command
+    /// * `Err` - Parse error with usage information
+    fn parse(args: &[&str]) -> Result<ConfigCommand> {
+        // No arguments = list command
+        if args.is_empty() {
+            return Ok(ConfigCommand::List);
+        }
+
+        // Get command type and ensure it's valid
+        match args.first().copied() {
+            Some("get") => {
+                let key = args
+                    .get(1)
+                    .ok_or_else(|| Error::CommandParse("Usage: /config get <key>".into()))?;
+                Ok(ConfigCommand::Get(key.to_string()))
+            }
+            Some("set") => {
+                let key = args.get(1).ok_or_else(|| {
+                    Error::CommandParse("Usage: /config set <key> <value>".into())
+                })?;
+                let value = args
+                    .get(2..)
+                    .filter(|rest| !rest.is_empty())
+                    .ok_or_else(|| Error::CommandParse("Usage: /config set <key> <value>".into()))?
+                    .join(" ");
+
+                if value.is_empty() {
+                    return Err(Error::CommandParse("Value cannot be empty".into()));
+                }
+
+                Ok(ConfigCommand::Set(key.to_string(), value))
+            }
+            _ => Err(Error::CommandParse(
+                "Usage: /config [get <key> | set <key> <value>]".into(),
+            )),
+        }
     }
 }
 
@@ -61,7 +109,6 @@ impl Command {
             "/config".to_string(),
             "/config set".to_string(),
             "/config get".to_string(),
-            "/models".to_string(),
         ]
     }
 
@@ -78,35 +125,10 @@ impl Command {
     pub fn parse(input: &str) -> Result<Self> {
         let trimmed = input.trim();
 
-        // Handle config commands first
+        // Handle config commands
         if trimmed.starts_with("/config") {
-            let parts: Vec<&str> = trimmed.split_whitespace().skip(1).collect();
-            match parts.first().copied() {
-                None => return Ok(Command::empty_config()),
-                Some("set") => {
-                    if parts.len() < 3 {
-                        return Err(Error::CommandParse(
-                            "Usage: /config set <key> <value>".to_string(),
-                        ));
-                    }
-                    return Ok(Command::Config {
-                        key: Some(parts[1].to_string()),
-                        value: Some(parts[2..].join(" ")),
-                    });
-                }
-                Some("get") => {
-                    if parts.len() < 2 {
-                        return Err(Error::CommandParse("Usage: /config get <key>".to_string()));
-                    }
-                    return Ok(Command::Config { key: Some(parts[1].to_string()), value: None });
-                }
-                Some(x) => {
-                    return Err(Error::CommandParse(format!(
-                        "Invalid config subcommand: {}. Use 'set' or 'get'",
-                        x
-                    )));
-                }
-            }
+            let args: Vec<&str> = trimmed.split_whitespace().skip(1).collect();
+            return Ok(Command::Config(ConfigCommand::parse(&args)?));
         }
 
         match trimmed {
@@ -148,4 +170,112 @@ pub trait UserInput {
     /// * `Ok(Input)` - Successfully processed input
     /// * `Err` - An error occurred during input processing
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod config_command {
+        use super::*;
+
+        #[test]
+        fn parse_empty_args_returns_list() {
+            let args: Vec<&str> = vec![];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::List));
+        }
+
+        #[test]
+        fn parse_get_command_with_key() {
+            let args = vec!["get", "test-key"];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::Get(key) if key == "test-key"));
+        }
+
+        #[test]
+        fn parse_get_command_without_key_returns_error() {
+            let args = vec!["get"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_command_with_key_value() {
+            let args = vec!["set", "test-key", "test value with spaces"];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::Set(key, value) 
+                if key == "test-key" && value == "test value with spaces"));
+        }
+
+        #[test]
+        fn parse_set_command_without_value_returns_error() {
+            let args = vec!["set", "test-key"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_command_without_key_returns_error() {
+            let args = vec!["set"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_command_with_empty_value_returns_error() {
+            let args = vec!["set", "test-key", ""];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("empty")));
+        }
+
+        #[test]
+        fn parse_invalid_command_returns_error() {
+            let args = vec!["invalid"];
+            let err = ConfigCommand::parse(&args).unwrap_err();
+            assert!(matches!(err, Error::CommandParse(msg) if msg.contains("Usage")));
+        }
+
+        #[test]
+        fn parse_set_preserves_value_whitespace() {
+            let args = vec!["set", "test-key", "value", "with", "  multiple  ", "spaces"];
+            let cmd = ConfigCommand::parse(&args).unwrap();
+            assert!(matches!(cmd, ConfigCommand::Set(key, value) 
+                if key == "test-key" && value == "value with   multiple   spaces"));
+        }
+    }
+
+    mod command_parsing {
+        use super::*;
+
+        #[test]
+        fn parse_config_list() {
+            let result = Command::parse("/config").unwrap();
+            assert!(matches!(result, Command::Config(ConfigCommand::List)));
+        }
+
+        #[test]
+        fn parse_config_get() {
+            let result = Command::parse("/config get key").unwrap();
+            assert!(matches!(result, Command::Config(ConfigCommand::Get(key)) if key == "key"));
+        }
+
+        #[test]
+        fn parse_config_set_single_value() {
+            let result = Command::parse("/config set key value").unwrap();
+            assert!(
+                matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
+                if key == "key" && value == "value")
+            );
+        }
+
+        #[test]
+        fn parse_config_set_multiple_words() {
+            let result = Command::parse("/config set key multiple words").unwrap();
+            assert!(
+                matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
+                if key == "key" && value == "multiple words")
+            );
+        }
+    }
 }
