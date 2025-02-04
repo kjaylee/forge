@@ -141,7 +141,7 @@ impl Context {
     }
 
     /// Converts the context to textual format
-    pub fn as_text(&self) -> String {
+    pub fn to_text(&self) -> String {
         todo!()
     }
 }

@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::{
     Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextExtension,
-    ContextMessage, FlowId, ProviderService, Role, Schema, SystemContext, ToolCallFull,
+    ContextMessage, FlowId, ProviderService, Role, Schema, Summarize, SystemContext, ToolCallFull,
     ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
@@ -95,14 +95,8 @@ impl WorkflowEngine {
 
     pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
         match id {
-            FlowId::Agent(id) => {
-                let id = self.find_agent(id)?;
-                self.init_agent(id, input).await
-            }
-            FlowId::Workflow(id) => {
-                let id = self.find_workflow(id)?;
-                self.init_workflow(id, input).await
-            }
+            FlowId::Agent(id) => self.init_agent(id, input).await,
+            FlowId::Workflow(id) => self.init_workflow(id, input).await,
         }
     }
 
@@ -218,18 +212,24 @@ impl WorkflowEngine {
     ) -> anyhow::Result<Context> {
         for transform in transforms.iter() {
             match transform {
-                Transform::Summarize { agent_id, token_limit, input: input_key } => {
-                    let count = self.token_count(&context).await?;
-                    if &count >= token_limit {
-                        let context_content = context.as_text();
+                Transform::Summarize {
+                    agent_id,
+                    token_limit,
+                    input: input_key,
+                    output: output_key,
+                } => {
+                    let s = Summarize::new(context.clone(), *token_limit);
 
+                    while let Some(mut replace) = s.into_iter().next() {
                         let mut input = Variables::default();
-                        input.add(input_key, context_content);
+                        input.add(input_key, replace.get());
 
-                        let agent = self.find_agent(agent_id)?;
-                        let output = self.init_agent(agent, &input).await?;
+                        let output = self.init_agent(agent_id, &input).await?;
+                        let value = output
+                            .get(output_key)
+                            .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
-                        context = ContextExtension.insert_summary(context, &output);
+                        replace.set(serde_json::to_string(&value)?);
                     }
                 }
                 Transform::EnhanceUserPrompt { agent_id, input: input_key } => {
@@ -242,8 +242,7 @@ impl WorkflowEngine {
                         let mut input = Variables::default();
                         input.add(input_key, Value::from(content.clone()));
 
-                        let agent = self.find_agent(agent_id)?;
-                        let output = self.init_agent(agent, &input).await?;
+                        let output = self.init_agent(agent_id, &input).await?;
 
                         context = ContextExtension.enhance_user_message(context, &output);
                     }
@@ -254,7 +253,8 @@ impl WorkflowEngine {
         Ok(context)
     }
 
-    async fn init_agent(&self, agent: &Agent, input: &Variables) -> anyhow::Result<Variables> {
+    async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
+        let agent = self.find_agent(agent)?;
         let mut context = self.init_agent_context(agent, input);
         let content = agent.user_prompt.render(input);
         let mut output = Variables::default();
@@ -287,22 +287,15 @@ impl WorkflowEngine {
         }
     }
 
-    async fn init_workflow_with(
+    async fn init_flow(
         &self,
-        workflow: &Workflow,
-        input: &Variables,
         flow_id: &FlowId,
+        input: &Variables,
+        workflow: &Workflow,
     ) -> anyhow::Result<Variables> {
         match flow_id {
             FlowId::Agent(agent_id) => {
-                let agent = self
-                    .arena
-                    .agents
-                    .iter()
-                    .find(|a| &a.id == agent_id)
-                    .ok_or(Error::AgentUndefined(agent_id.clone()))?;
-
-                let variables = self.init_agent(agent, input).await?;
+                let variables = self.init_agent(agent_id, input).await?;
                 let flows = workflow
                     .handovers
                     .get(&agent_id.clone().into())
@@ -311,44 +304,28 @@ impl WorkflowEngine {
                 join_all(
                     flows
                         .iter()
-                        .map(|flow_id| self.init_workflow_with(workflow, &variables, flow_id)),
+                        .map(|flow_id| self.init_flow(flow_id, &variables, workflow)),
                 )
                 .await
                 .into_iter()
                 .collect::<anyhow::Result<Vec<_>>>()
                 .map(Variables::from)
             }
-            FlowId::Workflow(id) => {
-                let id = self
-                    .arena
-                    .workflows
-                    .iter()
-                    .find(|w| &w.id == id)
-                    .ok_or(Error::WorkflowUndefined(id.clone()))?;
-
-                self.init_workflow(id, input).await
-            }
+            FlowId::Workflow(id) => self.init_workflow(id, input).await,
         }
     }
 
-    async fn init_workflow(
-        &self,
-        workflow: &Workflow,
-        input: &Variables,
-    ) -> anyhow::Result<Variables> {
+    async fn init_workflow(&self, id: &WorkflowId, input: &Variables) -> anyhow::Result<Variables> {
+        let workflow = self.find_workflow(id)?;
         join_all(
             workflow
                 .head_flow()
                 .iter()
-                .map(|flow_id| self.init_workflow_with(workflow, input, flow_id)),
+                .map(|flow_id| self.init_flow(flow_id, input, workflow)),
         )
         .await
         .into_iter()
         .collect::<anyhow::Result<Vec<_>>>()
         .map(Variables::from)
-    }
-
-    async fn token_count(&self, _context: &Context) -> anyhow::Result<usize> {
-        todo!()
     }
 }

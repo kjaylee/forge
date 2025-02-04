@@ -25,6 +25,10 @@ impl Variables {
         merged.0.extend(other.0);
         merged
     }
+
+    pub fn default_key() -> &'static str {
+        "value"
+    }
 }
 
 impl From<Vec<Variables>> for Variables {
@@ -42,16 +46,16 @@ impl From<Value> for Variables {
         match value {
             Value::Null => {}
             Value::Bool(value) => {
-                variables.add("value", value.to_string());
+                variables.add(Self::default_key(), value.to_string());
             }
             Value::Number(value) => {
-                variables.add("value", value.to_string());
+                variables.add(Self::default_key(), value.to_string());
             }
             Value::String(value) => {
-                variables.add("value", value);
+                variables.add(Self::default_key(), value);
             }
             Value::Array(values) => {
-                variables.add("value", values);
+                variables.add(Self::default_key(), values);
             }
             Value::Object(map) => {
                 for (key, value) in map {
@@ -124,6 +128,7 @@ pub struct Agent {
 pub enum Transform {
     Summarize {
         input: String,
+        output: String,
         agent_id: AgentId,
         token_limit: usize,
     },
