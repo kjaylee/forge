@@ -81,7 +81,7 @@ impl UI {
         // read the model from the config or fallback to environment.
         let model = self
             .config
-            .get("primary-model")
+            .primary_model()
             .map(ModelId::new)
             .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 

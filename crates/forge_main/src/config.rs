@@ -93,6 +93,12 @@ impl From<&Environment> for Config {
 }
 
 impl Config {
+    pub fn primary_model(&self) -> Option<String> {
+        self.values
+            .get(&ConfigKey::PrimaryModel)
+            .map(|v| v.as_str().to_string())
+    }
+
     pub fn get(&self, key: &str) -> Option<String> {
         key.parse::<ConfigKey>()
             .ok()
