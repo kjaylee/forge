@@ -36,6 +36,17 @@ pub struct SmartTool<S> {
     pub input: Schema<S>,
 }
 
+impl<S> From<SmartTool<S>> for ToolDefinition {
+    fn from(value: SmartTool<S>) -> Self {
+        Self {
+            name: value.name,
+            description: value.description,
+            input_schema: value.input.schema,
+            output_schema: None,
+        }
+    }
+}
+
 pub enum FlowContext {
     Agent(Agent),
     Workflow(Workflow),
