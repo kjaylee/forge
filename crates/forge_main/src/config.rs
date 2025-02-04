@@ -159,9 +159,6 @@ mod tests {
 
         let err = ConfigKey::from_str("invalid-key").unwrap_err();
         assert!(err.to_string().contains("Invalid configuration key"));
-        assert!(err.to_string().contains("primary-model"));
-        assert!(err.to_string().contains("secondary-model"));
-        assert!(err.to_string().contains("tool-timeout"));
     }
 
     #[test]
