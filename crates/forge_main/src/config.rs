@@ -142,11 +142,8 @@ mod tests {
 
     use super::*;
 
-    
-
     #[test]
     fn test_config_key_from_str() {
-        // Valid keys
         assert_eq!(
             ConfigKey::from_str("primary-model").unwrap(),
             ConfigKey::PrimaryModel
@@ -160,7 +157,6 @@ mod tests {
             ConfigKey::ToolTimeout
         );
 
-        // Invalid key
         let err = ConfigKey::from_str("invalid-key").unwrap_err();
         assert!(err.to_string().contains("Invalid configuration key"));
         assert!(err.to_string().contains("primary-model"));
