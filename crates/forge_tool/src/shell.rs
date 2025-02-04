@@ -401,8 +401,7 @@ mod tests {
             })
             .await
             .unwrap();
-
-        assert!(result.contains("<stdout>"));
+        assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
     }
 
     #[tokio::test]
