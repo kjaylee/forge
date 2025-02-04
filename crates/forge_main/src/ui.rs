@@ -79,6 +79,10 @@ impl UI {
         loop {
             match input {
                 Command::End => break,
+                Command::Retry => {
+                    input =
+                        Command::Message(self.state.current_content.clone().unwrap_or_default());
+                }
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
