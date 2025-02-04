@@ -117,7 +117,7 @@ impl WorkflowEngine {
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
-        todo!()
+        self.tool.list()
     }
 
     fn init_smart_tool_definitions(&self) -> Vec<ToolDefinition> {
