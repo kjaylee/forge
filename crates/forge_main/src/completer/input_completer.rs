@@ -7,18 +7,18 @@ use tracing::info;
 use crate::completer::{search_term::SearchTerm, CommandCompleter};
 
 #[derive(Clone)]
-pub struct FileCompleter {
+pub struct InputCompleter {
     walker: Walker,
 }
 
-impl FileCompleter {
+impl InputCompleter {
     pub fn new(cwd: PathBuf) -> Self {
         let walker = Walker::max_all().cwd(cwd).skip_binary(true);
         Self { walker }
     }
 }
 
-impl Completer for FileCompleter {
+impl Completer for InputCompleter {
     fn complete(&mut self, line: &str, pos: usize) -> Vec<Suggestion> {
         info!("Completing line: '{}' pos: {}", line, pos);
 

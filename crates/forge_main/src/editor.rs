@@ -5,7 +5,7 @@ use reedline::{
     KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
 
-use super::completer::FileCompleter;
+use super::completer::InputCompleter;
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;
@@ -78,7 +78,7 @@ impl ForgeEditor {
         let edit_mode = Box::new(Emacs::new(Self::init()));
 
         let editor = Reedline::create()
-            .with_completer(Box::new(FileCompleter::new(env.cwd)))
+            .with_completer(Box::new(InputCompleter::new(env.cwd)))
             .with_history(history)
             .with_hinter(Box::new(
                 DefaultHinter::default().with_style(Style::new().fg(Color::DarkGray)),
