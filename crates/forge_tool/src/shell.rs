@@ -310,8 +310,7 @@ mod tests {
             })
             .await
             .unwrap();
-
-        assert!(result.contains("<stdout>"));
+        assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
     }
 
     #[tokio::test]
@@ -388,7 +387,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result, format!("<stdout>{}\n</stdout>",current_dir.display()));
+        assert_eq!(
+            result,
+            format!("<stdout>{}\n</stdout>", current_dir.display())
+        );
     }
 
     #[tokio::test]
