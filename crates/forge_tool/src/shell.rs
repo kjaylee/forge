@@ -388,8 +388,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.contains("<stdout>"));
-        assert!(!result.contains("<stderr>"));
+        assert_eq!(result, format!("<stdout>{}\n</stdout>",current_dir.display()));
     }
 
     #[tokio::test]
