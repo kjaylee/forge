@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use forge_domain::{
@@ -6,7 +7,6 @@ use forge_domain::{
     ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
     ProviderService, ResultStream, ToolDefinition, ToolService,
 };
-use std::time::Duration;
 
 use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;

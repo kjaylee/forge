@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
 use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
-use tokio::{
-    sync::RwLock,
-    time::{timeout, Duration},
-};
+use tokio::sync::RwLock;
+use tokio::time::{timeout, Duration};
 use tracing::debug;
 
 use super::Service;

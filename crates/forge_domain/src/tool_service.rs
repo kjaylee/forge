@@ -1,8 +1,8 @@
 use std::time::Duration;
+
 use serde::de::DeserializeOwned;
 
 use crate::{ToolCallFull, ToolDefinition, ToolResult};
-
 
 #[async_trait::async_trait]
 pub trait ToolCallService {

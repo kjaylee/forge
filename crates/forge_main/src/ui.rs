@@ -69,7 +69,8 @@ impl UI {
             .to_string()
     }
 
-    /// This function is called when the config is updated to perform any necessary actions.
+    /// This function is called when the config is updated to perform any
+    /// necessary actions.
     async fn on_config_update(&self) {
         if let Some(timeout_secs) = self.config.tool_timeout() {
             let timeout = Duration::from_secs(timeout_secs);
