@@ -81,7 +81,8 @@ impl UI {
                 Command::End => break,
                 Command::Retry => {
                     if let Some(content) = self.state.current_content.as_ref() {
-                        // if we've the content from the last message, use it as the input for retry.
+                        // if we've the content from the last message, use it as the input for
+                        // retry.
                         input = Command::Message(content.to_owned());
                     } else {
                         // if we don't have the content, prompt the user for new input.
