@@ -86,7 +86,7 @@ impl Command {
                 Some("set") => {
                     if parts.len() < 3 {
                         return Err(Error::CommandParse(
-                            "Invalid config set command".to_string(),
+                            "Usage: /config set <key> <value>".to_string(),
                         ));
                     }
                     return Ok(Command::Config {
@@ -96,15 +96,13 @@ impl Command {
                 }
                 Some("get") => {
                     if parts.len() < 2 {
-                        return Err(Error::CommandParse(
-                            "Invalid config get command".to_string(),
-                        ));
+                        return Err(Error::CommandParse("Usage: /config get <key>".to_string()));
                     }
                     return Ok(Command::Config { key: Some(parts[1].to_string()), value: None });
                 }
                 Some(x) => {
                     return Err(Error::CommandParse(format!(
-                        "Invalid config command: {}",
+                        "Invalid config subcommand: {}. Use 'set' or 'get'",
                         x
                     )));
                 }
