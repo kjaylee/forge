@@ -186,12 +186,8 @@ impl ToolCallService for Shell {
             c
         };
 
-        cmd.current_dir(input.cwd);
-
-        // Force color output by setting environment variables
-        cmd.env("FORCE_COLOR", "true")
-            .env("CLICOLOR_FORCE", "1")
-            .env("TERM", "xterm-256color");
+        // set the cwd and env for enabling color output
+        cmd.current_dir(input.cwd).env("CLICOLOR_FORCE", "1");
 
         // Configure stdio
         cmd.stdin(std::process::Stdio::inherit());
