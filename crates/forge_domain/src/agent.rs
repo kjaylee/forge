@@ -2,15 +2,25 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use derive_more::derive::Display;
+use derive_setters::Setters;
 use schemars::schema::RootSchema;
 use serde::Serialize;
 
 use crate::{Environment, ModelId, Provider, ToolName};
 
-#[derive(Default)]
+#[derive(Default, Serialize)]
 pub struct Variables(HashMap<String, String>);
+impl Variables {
+    pub fn add(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.0.insert(key.into(), value.into());
+    }
 
-#[derive(Serialize)]
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.0.get(key)
+    }
+}
+
+#[derive(Serialize, Setters, Clone)]
 pub struct SystemContext {
     pub env: Environment,
     pub tool_information: String,
@@ -59,17 +69,24 @@ pub struct Agent {
     pub transforms: Vec<Transform>,
 }
 
+/// Possible use cases for transforms:
+/// - Summarization (TokenLimit)
+///   - Remove all, except first, and add summary as an assistant message
+/// - Enhance user prompt
+///   - Add additional meta information to the last user prompt
+/// - Standard middle-out implementation like in Open Router
+/// NOTE: The transforms are applied in the order they are defined (0th to last)
 pub enum Transform {
-    SuccessfulToolCalls(Action),
-    FailedToolCalls(Action),
-    Middle(Action),
-    Agent(AgentId),
-}
+    Summarize {
+        input: String,
+        agent_id: AgentId,
+        token_limit: usize,
+    },
 
-pub enum Action {
-    Remove,
-    Summarize,
-    RemoveDuplicate,
+    EnhanceUserPrompt {
+        agent_id: AgentId,
+        input: String,
+    },
 }
 
 impl Agent {

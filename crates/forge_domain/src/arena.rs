@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
+use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::Stream;
 
 use crate::{
-    Agent, AgentId, ChatCompletionMessage, Context, ContextMessage, FlowId, ProviderService, Schema, ToolCallFull, ToolName, ToolResult,
-    Transform, Variables, Workflow, WorkflowId,
+    Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextExtension,
+    ContextMessage, FlowId, ProviderService, Role, Schema, SystemContext, ToolCallFull,
+    ToolDefinition, ToolName, ToolResult, Transform, Variables, Workflow, WorkflowId,
 };
 
 #[async_trait::async_trait]
@@ -44,6 +46,9 @@ pub enum Error {
 
     #[error("Workflow not found in the arena: {0}")]
     WorkflowUndefined(WorkflowId),
+
+    #[error("Variable not found in output: {0}")]
+    UndefinedVariable(String),
 }
 
 pub struct HandoverValue<T> {
@@ -56,12 +61,17 @@ pub type Result<A> = std::result::Result<A, Error>;
 
 pub struct WorkflowEngine {
     arena: Arena,
+    system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
 }
 
 impl WorkflowEngine {
-    pub fn new(provider: Arc<dyn ProviderService>, arena: Arena) -> Self {
-        Self { arena, provider }
+    pub fn new(
+        provider: Arc<dyn ProviderService>,
+        arena: Arena,
+        system_context: SystemContext,
+    ) -> Self {
+        Self { arena, provider, system_context }
     }
 
     pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<()> {
@@ -90,8 +100,30 @@ impl WorkflowEngine {
         }
     }
 
-    fn agent_context(&self, agent: &Agent) -> Context {
+    fn init_tool_definitions(&self, tools: &[ToolName]) -> Vec<ToolDefinition> {
         todo!()
+    }
+
+    fn init_agent_context(&self, agent: &Agent, input: &Variables) -> Context {
+        let tool_defs = self.init_tool_definitions(&agent.tools);
+
+        let tool_usage_prompt = tool_defs.iter().fold("".to_string(), |acc, tool| {
+            format!("{}\n{}", acc, tool.usage_prompt())
+        });
+
+        let system_message = agent.system_prompt.render(
+            &self
+                .system_context
+                .clone()
+                .tool_information(tool_usage_prompt),
+        );
+
+        let user_message = ContextMessage::user(agent.user_prompt.render(input));
+
+        Context::default()
+            .set_system_message(system_message)
+            .add_message(user_message)
+            .extend_tools(tool_defs)
     }
 
     async fn collect_content(
@@ -113,16 +145,66 @@ impl WorkflowEngine {
         todo!()
     }
 
-    async fn execute_transform(
-        &self,
-        transform: &Vec<Transform>,
-        context: Context,
-    ) -> anyhow::Result<Context> {
+    fn agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
+        Ok(self
+            .arena
+            .agents
+            .iter()
+            .find(|a| a.id == *id)
+            .ok_or(Error::AgentUndefined(id.clone()))?)
+    }
+
+    // TODO: should be a method on Context
+    fn context_as_text(&self, context: &Context) -> String {
         todo!()
     }
 
+    #[async_recursion(?Send)]
+    async fn execute_transform(
+        &self,
+        transforms: &Vec<Transform>,
+        mut context: Context,
+    ) -> anyhow::Result<Context> {
+        for transform in transforms.iter() {
+            match transform {
+                Transform::Summarize { agent_id, token_limit, input: input_key } => {
+                    let count = self.token_count(&context).await?;
+                    if &count >= token_limit {
+                        let context_content = self.context_as_text(&context);
+
+                        let mut input = Variables::default();
+                        input.add(input_key, context_content);
+
+                        let agent = self.agent(agent_id)?;
+                        let output = self.init_agent(agent, &input).await?;
+
+                        context = ContextExtension.insert_summary(context, &output);
+                    }
+                }
+                Transform::EnhanceUserPrompt { agent_id, input: input_key } => {
+                    if let Some(ContextMessage::ContentMessage(ContentMessage {
+                        role: Role::User,
+                        content,
+                        ..
+                    })) = context.messages.last()
+                    {
+                        let mut input = Variables::default();
+                        input.add(input_key, content);
+
+                        let agent = self.agent(agent_id)?;
+                        let output = self.init_agent(agent, &input).await?;
+
+                        context = ContextExtension.enhance_user_message(context, &output);
+                    }
+                }
+            }
+        }
+
+        Ok(context)
+    }
+
     async fn init_agent(&self, agent: &Agent, input: &Variables) -> anyhow::Result<Variables> {
-        let mut context = self.agent_context(agent);
+        let mut context = self.init_agent_context(agent, input);
         let content = agent.user_prompt.render(input);
         let mut output = Variables::default();
         context = context.add_message(ContextMessage::user(content));
@@ -207,5 +289,9 @@ impl WorkflowEngine {
         .await
         .into_iter()
         .collect::<anyhow::Result<()>>()
+    }
+
+    async fn token_count(&self, context: &Context) -> anyhow::Result<usize> {
+        todo!()
     }
 }

@@ -139,6 +139,10 @@ impl Context {
             self
         }
     }
+
+    pub(crate) fn insert_summary(&self, summary: &str) -> Context {
+        todo!()
+    }
 }
 
 #[async_trait]
