@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use derive_more::derive::Display;
 use schemars::schema::RootSchema;
 use serde::Serialize;
 
 use crate::{Environment, ModelId, Provider, ToolName};
 
+#[derive(Default)]
 pub struct Variables(HashMap<String, String>);
 
 #[derive(Serialize)]
@@ -27,6 +29,12 @@ pub struct Prompt<V> {
     pub variables: Schema<V>,
 }
 
+impl<V> Prompt<V> {
+    pub fn render(&self, variables: &V) -> String {
+        todo!()
+    }
+}
+
 pub struct Schema<S> {
     pub schema: RootSchema,
     _marker: std::marker::PhantomData<S>,
@@ -37,6 +45,7 @@ pub enum PromptTemplate {
     Literal(String),
 }
 
+#[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
 pub struct AgentId(String);
 
 pub struct Agent {
