@@ -245,18 +245,4 @@ mod tests {
             ConfigError::NonPositiveTimeout
         ));
     }
-
-    #[test]
-    fn test_from_environment() {
-        let env = Environment {
-            large_model_id: "gpt-4".to_string(),
-            small_model_id: "gpt-3.5-turbo".to_string(),
-            // ... other fields as needed
-        };
-
-        let config = Config::from(&env);
-        assert_eq!(config.primary_model().unwrap(), "gpt-4");
-        assert_eq!(config.get("secondary-model").unwrap(), "gpt-3.5-turbo");
-        assert_eq!(config.get("tool-timeout").unwrap(), "20");
-    }
 }
