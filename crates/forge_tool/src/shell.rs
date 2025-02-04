@@ -30,7 +30,7 @@ impl TeeWriter {
             if n == 0 {
                 break;
             }
-            self.write(&buffer[..n])?;
+            self.write_all(&buffer[..n])?;
         }
         Ok(self.buffer)
     }
