@@ -7,14 +7,14 @@ use forge_domain::Environment;
 /// Custom error type for configuration-related errors
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("Invalid configuration key: {0}")]
-    Key(String),
+    #[error("Unknown configuration key: {0}")]
+    UnknownKey(String),
     #[error("Model name cannot be empty")]
-    EmptyModel,
-    #[error("Tool timeout must be greater than 0")]
-    ZeroTimeout,
-    #[error("Invalid tool timeout value: {0}")]
-    TimeoutParse(String),
+    EmptyModelName,
+    #[error("Tool timeout must be greater than zero")]
+    NonPositiveTimeout,
+    #[error("Failed to parse timeout value: {0}")]
+    MalformedTimeout(String),
 }
 
 /// Represents configuration keys available in the system
@@ -53,7 +53,7 @@ impl FromStr for ConfigKey {
             "primary-model" => Ok(ConfigKey::PrimaryModel),
             "secondary-model" => Ok(ConfigKey::SecondaryModel),
             "tool-timeout" => Ok(ConfigKey::ToolTimeout),
-            _ => Err(ConfigError::Key(s.to_string())),
+            _ => Err(ConfigError::UnknownKey(s.to_string())),
         }
     }
 }
@@ -81,15 +81,15 @@ impl ConfigValue {
         match key {
             ConfigKey::PrimaryModel | ConfigKey::SecondaryModel => {
                 if value.trim().is_empty() {
-                    Err(ConfigError::EmptyModel)
+                    Err(ConfigError::EmptyModelName)
                 } else {
                     Ok(ConfigValue::Model(value.to_string()))
                 }
             }
             ConfigKey::ToolTimeout => match value.parse::<u32>() {
-                Ok(0) => Err(ConfigError::ZeroTimeout),
+                Ok(0) => Err(ConfigError::NonPositiveTimeout),
                 Ok(timeout) => Ok(ConfigValue::ToolTimeout(timeout)),
-                Err(_) => Err(ConfigError::TimeoutParse(value.to_string())),
+                Err(_) => Err(ConfigError::MalformedTimeout(value.to_string())),
             },
         }
     }
@@ -199,7 +199,7 @@ mod tests {
         );
 
         let err = ConfigKey::from_str("invalid-key").unwrap_err();
-        assert!(matches!(err, ConfigError::Key(_)));
+        assert!(matches!(err, ConfigError::UnknownKey(_)));
     }
 
     #[test]
@@ -234,15 +234,15 @@ mod tests {
         // Test invalid operations
         assert!(matches!(
             config.insert("invalid-key", "value").unwrap_err(),
-            ConfigError::Key(_)
+            ConfigError::UnknownKey(_)
         ));
         assert!(matches!(
             config.insert("tool-timeout", "invalid").unwrap_err(),
-            ConfigError::TimeoutParse(_)
+            ConfigError::MalformedTimeout(_)
         ));
         assert!(matches!(
             config.insert("tool-timeout", "0").unwrap_err(),
-            ConfigError::ZeroTimeout
+            ConfigError::NonPositiveTimeout
         ));
     }
 
