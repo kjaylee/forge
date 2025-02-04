@@ -5,8 +5,9 @@ use derive_more::derive::Display;
 use derive_setters::Setters;
 use schemars::schema::RootSchema;
 use serde::Serialize;
+use serde_json::Value;
 
-use crate::{Environment, ModelId, Provider, ToolName};
+use crate::{Environment, ModelId, Provider, ToolName, ToolResult};
 
 #[derive(Default, Serialize)]
 pub struct Variables(HashMap<String, String>);
@@ -17,6 +18,33 @@ impl Variables {
 
     pub fn get(&self, key: &str) -> Option<&String> {
         self.0.get(key)
+    }
+
+    pub fn merge(self, other: Self) -> Self {
+        let mut merged = self;
+        merged.0.extend(other.0);
+        merged
+    }
+}
+
+impl From<Vec<Variables>> for Variables {
+    fn from(value: Vec<Variables>) -> Self {
+        value
+            .into_iter()
+            .reduce(|a, b| a.merge(b))
+            .unwrap_or_default()
+    }
+}
+
+impl From<Value> for Variables {
+    fn from(value: Value) -> Self {
+        todo!()
+    }
+}
+
+impl From<Variables> for ToolResult {
+    fn from(value: Variables) -> Self {
+        todo!()
     }
 }
 

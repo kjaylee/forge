@@ -10,7 +10,7 @@ use futures::Stream;
 use crate::{
     Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextExtension,
     ContextMessage, FlowId, ProviderService, Role, Schema, SystemContext, ToolCallFull,
-    ToolDefinition, ToolName, ToolResult, Transform, Variables, Workflow, WorkflowId,
+    ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
 #[async_trait::async_trait]
@@ -78,18 +78,20 @@ pub struct WorkflowEngine {
     arena: Arena,
     system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
+    tool: Arc<dyn ToolService>,
 }
 
 impl WorkflowEngine {
     pub fn new(
         provider: Arc<dyn ProviderService>,
+        tool: Arc<dyn ToolService>,
         arena: Arena,
         system_context: SystemContext,
     ) -> Self {
-        Self { arena, provider, system_context }
+        Self { arena, provider, system_context, tool }
     }
 
-    pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<()> {
+    pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
         match id {
             FlowId::Agent(id) => {
                 let id = self
@@ -99,8 +101,7 @@ impl WorkflowEngine {
                     .find(|a| &a.id == id)
                     .ok_or(Error::AgentUndefined(id.clone()))?;
 
-                self.init_agent(id, input).await?;
-                Ok(())
+                self.init_agent(id, input).await
             }
             FlowId::Workflow(id) => {
                 let id = self
@@ -176,11 +177,22 @@ impl WorkflowEngine {
         todo!()
     }
 
-    async fn execute_tool(&self, _tool_call: &ToolCallFull) -> ToolResult {
-        todo!()
+    fn find_tool(&self, name: &ToolName) -> Option<&SmartTool<Variables>> {
+        self.arena.tools.iter().find(|tool| tool.name == *name)
     }
 
-    fn agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
+    async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<ToolResult> {
+        let smart_tool = self.find_tool(&tool_call.name);
+        if let Some(tool) = smart_tool {
+            let input = Variables::from(tool_call.arguments.clone());
+            let output = self.execute(&tool.run, &input).await?;
+            Ok(ToolResult::from(output))
+        } else {
+            Ok(self.tool.call(tool_call.clone()).await)
+        }
+    }
+
+    fn find_agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
         Ok(self
             .arena
             .agents
@@ -205,7 +217,7 @@ impl WorkflowEngine {
                         let mut input = Variables::default();
                         input.add(input_key, context_content);
 
-                        let agent = self.agent(agent_id)?;
+                        let agent = self.find_agent(agent_id)?;
                         let output = self.init_agent(agent, &input).await?;
 
                         context = ContextExtension.insert_summary(context, &output);
@@ -221,7 +233,7 @@ impl WorkflowEngine {
                         let mut input = Variables::default();
                         input.add(input_key, content);
 
-                        let agent = self.agent(agent_id)?;
+                        let agent = self.find_agent(agent_id)?;
                         let output = self.init_agent(agent, &input).await?;
 
                         context = ContextExtension.enhance_user_message(context, &output);
@@ -256,7 +268,9 @@ impl WorkflowEngine {
                     .iter()
                     .map(|tool_call| self.execute_tool(tool_call)),
             )
-            .await;
+            .await
+            .into_iter()
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
@@ -269,7 +283,7 @@ impl WorkflowEngine {
         workflow: &Workflow,
         input: &Variables,
         flow_id: &FlowId,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Variables> {
         match flow_id {
             FlowId::Agent(agent_id) => {
                 let agent = self
@@ -292,9 +306,8 @@ impl WorkflowEngine {
                 )
                 .await
                 .into_iter()
-                .collect::<anyhow::Result<Vec<_>>>()?;
-
-                Ok(())
+                .collect::<anyhow::Result<Vec<_>>>()
+                .map(Variables::from)
             }
             FlowId::Workflow(id) => {
                 let id = self
@@ -309,7 +322,11 @@ impl WorkflowEngine {
         }
     }
 
-    async fn init_workflow(&self, workflow: &Workflow, input: &Variables) -> anyhow::Result<()> {
+    async fn init_workflow(
+        &self,
+        workflow: &Workflow,
+        input: &Variables,
+    ) -> anyhow::Result<Variables> {
         join_all(
             workflow
                 .head_flow()
@@ -318,7 +335,8 @@ impl WorkflowEngine {
         )
         .await
         .into_iter()
-        .collect::<anyhow::Result<()>>()
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map(Variables::from)
     }
 
     async fn token_count(&self, _context: &Context) -> anyhow::Result<usize> {
