@@ -48,10 +48,10 @@ pub enum ConfigCommand {
 
 impl ConfigCommand {
     /// Parse a config command from string arguments
-    /// 
+    ///
     /// # Arguments
     /// * `args` - Command arguments (without "config" command itself)
-    /// 
+    ///
     /// # Returns
     /// * `Ok(ConfigCommand)` - Successfully parsed command
     /// * `Err` - Parse error with usage information
@@ -62,16 +62,19 @@ impl ConfigCommand {
         }
 
         // Get command type and ensure it's valid
-        match args.get(0).map(|s| *s) {
+        match args.first().copied() {
             Some("get") => {
-                let key = args.get(1)
+                let key = args
+                    .get(1)
                     .ok_or_else(|| Error::CommandParse("Usage: /config get <key>".into()))?;
                 Ok(ConfigCommand::Get(key.to_string()))
             }
             Some("set") => {
-                let key = args.get(1)
-                    .ok_or_else(|| Error::CommandParse("Usage: /config set <key> <value>".into()))?;
-                let value = args.get(2..)
+                let key = args.get(1).ok_or_else(|| {
+                    Error::CommandParse("Usage: /config set <key> <value>".into())
+                })?;
+                let value = args
+                    .get(2..)
                     .filter(|rest| !rest.is_empty())
                     .ok_or_else(|| Error::CommandParse("Usage: /config set <key> <value>".into()))?
                     .join(" ");
@@ -83,8 +86,8 @@ impl ConfigCommand {
                 Ok(ConfigCommand::Set(key.to_string(), value))
             }
             _ => Err(Error::CommandParse(
-                "Usage: /config [get <key> | set <key> <value>]".into()
-            ))
+                "Usage: /config [get <key> | set <key> <value>]".into(),
+            )),
         }
     }
 }
@@ -261,15 +264,19 @@ mod tests {
         #[test]
         fn parse_config_set_single_value() {
             let result = Command::parse("/config set key value").unwrap();
-            assert!(matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
-                if key == "key" && value == "value"));
+            assert!(
+                matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
+                if key == "key" && value == "value")
+            );
         }
 
         #[test]
         fn parse_config_set_multiple_words() {
             let result = Command::parse("/config set key multiple words").unwrap();
-            assert!(matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
-                if key == "key" && value == "multiple words"));
+            assert!(
+                matches!(result, Command::Config(ConfigCommand::Set(key, value)) 
+                if key == "key" && value == "multiple words")
+            );
         }
     }
 }

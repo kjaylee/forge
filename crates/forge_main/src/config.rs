@@ -1,8 +1,9 @@
-use colored::Colorize;
-use forge_domain::Environment;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+
+use colored::Colorize;
+use forge_domain::Environment;
 
 /// Custom error type for configuration-related errors
 #[derive(Debug, thiserror::Error)]
