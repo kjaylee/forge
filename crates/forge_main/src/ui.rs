@@ -4,7 +4,9 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_domain::{
+    ChatRequest, ChatResponse, Command, ConversationId, Model, ModelId, Usage, UserInput,
+};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -36,6 +38,7 @@ pub struct UI {
     api: Arc<dyn APIService>,
     console: Console,
     cli: Cli,
+    models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -53,6 +56,7 @@ impl UI {
             api: api.clone(),
             console: Console::new(api.environment().await?),
             cli,
+            models: None,
             _guard: guard,
         })
     }
@@ -113,6 +117,28 @@ impl UI {
                 }
                 Command::Exit => {
                     break;
+                }
+                Command::Models => {
+                    let models = if let Some(models) = self.models.as_ref() {
+                        models
+                    } else {
+                        let models = self.api.models().await?;
+                        self.models = Some(models);
+                        self.models.as_ref().unwrap()
+                    };
+
+                    CONSOLE.newline()?;
+                    for (index, model) in models.iter().enumerate() {
+                        CONSOLE.writeln(format!(
+                            "{:>3}. {} {} {}",
+                            index + 1,
+                            model.id.to_string().cyan(),
+                            "-".dimmed(),
+                            model.name.green()
+                        ))?;
+                        CONSOLE.newline()?;
+                    }
+                    input = self.console.prompt(None).await?;
                 }
             }
         }
