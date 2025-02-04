@@ -8,6 +8,7 @@ use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, 
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
+use crate::config::Config;
 use crate::console::CONSOLE;
 use crate::info::display_info;
 use crate::input::{Console, PromptInput};
@@ -36,6 +37,7 @@ pub struct UI {
     api: Arc<dyn APIService>,
     console: Console,
     cli: Cli,
+    config: Config,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -45,12 +47,14 @@ impl UI {
         // NOTE: This has to be first line
         let env = EnvironmentFactory::new(std::env::current_dir()?).create()?;
         let guard = log::init_tracing(env.clone())?;
+        let config = Config::from(&env);
         let api = Arc::new(Service::api_service(env)?);
 
         let cli = Cli::parse();
         Ok(Self {
             state: Default::default(),
             api: api.clone(),
+            config,
             console: Console::new(api.environment().await?),
             cli,
             _guard: guard,
@@ -113,6 +117,38 @@ impl UI {
                 }
                 Command::Exit => {
                     break;
+                }
+                Command::Config { ref key, ref value } => {
+                    match (key, value) {
+                        (Some(k), Some(v)) => {
+                            self.config.insert(k, v)?;
+                            CONSOLE.writeln(format!("{}: {}", k.bright_blue(), v.green()))?;
+                        }
+                        (Some(k), None) => {
+                            if let Some(value) = self.config.get(k) {
+                                CONSOLE.writeln(&format!(
+                                    "{}: {}",
+                                    k.bright_blue(),
+                                    value.green()
+                                ))?;
+                            } else {
+                                CONSOLE.writeln(&format!(
+                                    "Config key '{}' not found",
+                                    k.bright_red()
+                                ))?;
+                            }
+                        }
+                        (None, None) => {
+                            CONSOLE.writeln(&self.config.to_display_string())?;
+                        }
+                        (None, Some(_)) => {
+                            CONSOLE.writeln(&format!(
+                                "{}",
+                                "Error: Cannot set value without a key".bright_red()
+                            ))?;
+                        }
+                    }
+                    input = self.console.prompt(None).await?;
                 }
             }
         }

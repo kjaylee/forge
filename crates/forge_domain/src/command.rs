@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 
-use crate::error::Result;
+use crate::{error::Result, Error};
 
 /// Represents user input types in the chat application.
 ///
@@ -29,6 +29,17 @@ pub enum Command {
     Info,
     /// Exit the application without any further action.
     Exit,
+    /// Config command, can be used to get or set or display configuration values.
+    Config {
+        key: Option<String>,
+        value: Option<String>,
+    },
+}
+
+impl Command {
+    pub fn empty_config() -> Command {
+        Command::Config { key: None, value: None }
+    }
 }
 
 impl Command {
@@ -45,6 +56,10 @@ impl Command {
             "/reload".to_string(),
             "/info".to_string(),
             "/exit".to_string(),
+            "/config".to_string(),
+            "/config set".to_string(),
+            "/config get".to_string(),
+            "/models".to_string(),
         ]
     }
 
@@ -60,6 +75,40 @@ impl Command {
     /// - `Err` - Input was an invalid command
     pub fn parse(input: &str) -> Result<Self> {
         let trimmed = input.trim();
+
+        // Handle config commands first
+        if trimmed.starts_with("/config") {
+            let parts: Vec<&str> = trimmed.split_whitespace().skip(1).collect();
+            match parts.get(0).map(|s| *s) {
+                None => return Ok(Command::empty_config()),
+                Some("set") => {
+                    if parts.len() < 3 {
+                        return Err(Error::CommandParse(
+                            "Invalid config set command".to_string(),
+                        ));
+                    }
+                    return Ok(Command::Config {
+                        key: Some(parts[1].to_string()),
+                        value: Some(parts[2..].join(" ")),
+                    });
+                }
+                Some("get") => {
+                    if parts.len() < 2 {
+                        return Err(Error::CommandParse(
+                            "Invalid config get command".to_string(),
+                        ));
+                    }
+                    return Ok(Command::Config { key: Some(parts[1].to_string()), value: None });
+                }
+                Some(x) => {
+                    return Err(Error::CommandParse(format!(
+                        "Invalid config command: {}",
+                        x
+                    )));
+                }
+            }
+        }
+
         match trimmed {
             "/end" => Ok(Command::End),
             "/new" => Ok(Command::New),

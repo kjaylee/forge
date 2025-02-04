@@ -22,6 +22,9 @@ pub enum Error {
 
     #[error("Invalid template rendering params: {0}")]
     Template(handlebars::RenderError),
+
+    #[error("Error parsing command: {0}. Please ensure the command syntax is correct.")]
+    CommandParse(String),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;
