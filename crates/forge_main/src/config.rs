@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-
 use colored::Colorize;
 use forge_domain::Environment;
 
@@ -9,11 +8,13 @@ use forge_domain::Environment;
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
     #[error("Invalid configuration key: {0}")]
-    InvalidKey(String),
-    #[error("Invalid model name: {0}")]
-    InvalidModel(String),
-    #[error("Invalid tool timeout: {0}")]
-    InvalidTimeout(String),
+    Key(String),
+    #[error("Model name cannot be empty")]
+    EmptyModel,
+    #[error("Tool timeout must be greater than 0")]
+    ZeroTimeout,
+    #[error("Invalid tool timeout value: {0}")]
+    TimeoutParse(String),
 }
 
 /// Represents configuration keys available in the system
@@ -52,7 +53,7 @@ impl FromStr for ConfigKey {
             "primary-model" => Ok(ConfigKey::PrimaryModel),
             "secondary-model" => Ok(ConfigKey::SecondaryModel),
             "tool-timeout" => Ok(ConfigKey::ToolTimeout),
-            _ => Err(ConfigError::InvalidKey(s.to_string())),
+            _ => Err(ConfigError::Key(s.to_string())),
         }
     }
 }
@@ -80,22 +81,15 @@ impl ConfigValue {
         match key {
             ConfigKey::PrimaryModel | ConfigKey::SecondaryModel => {
                 if value.trim().is_empty() {
-                    Err(ConfigError::InvalidModel(
-                        "Model name cannot be empty".to_string(),
-                    ))
+                    Err(ConfigError::EmptyModel)
                 } else {
                     Ok(ConfigValue::Model(value.to_string()))
                 }
             }
             ConfigKey::ToolTimeout => match value.parse::<u32>() {
-                Ok(0) => Err(ConfigError::InvalidTimeout(
-                    "Tool timeout must be greater than 0".to_string(),
-                )),
+                Ok(0) => Err(ConfigError::ZeroTimeout),
                 Ok(timeout) => Ok(ConfigValue::ToolTimeout(timeout)),
-                Err(_) => Err(ConfigError::InvalidTimeout(format!(
-                    "Invalid tool timeout value: {}. Must be a positive number.",
-                    value
-                ))),
+                Err(_) => Err(ConfigError::TimeoutParse(value.to_string())),
             },
         }
     }
@@ -115,17 +109,12 @@ pub struct Config {
 
 impl From<&Environment> for Config {
     fn from(env: &Environment) -> Self {
-        let mut values = HashMap::new();
-        values.insert(
-            ConfigKey::PrimaryModel,
-            ConfigValue::Model(env.large_model_id.clone()),
-        );
-        values.insert(
-            ConfigKey::SecondaryModel,
-            ConfigValue::Model(env.small_model_id.clone()),
-        );
-        values.insert(ConfigKey::ToolTimeout, ConfigValue::ToolTimeout(20));
-        Self { values }
+        let mut config = Config::default();
+        // No need to handle errors here as we control the input values
+        let _ = config.insert("primary-model", &env.large_model_id);
+        let _ = config.insert("secondary-model", &env.small_model_id);
+        let _ = config.insert("tool-timeout", "20");
+        config
     }
 }
 
@@ -210,7 +199,7 @@ mod tests {
         );
 
         let err = ConfigKey::from_str("invalid-key").unwrap_err();
-        assert!(matches!(err, ConfigError::InvalidKey(_)));
+        assert!(matches!(err, ConfigError::Key(_)));
     }
 
     #[test]
@@ -243,8 +232,31 @@ mod tests {
         assert!(config.get("non-existent").is_none());
 
         // Test invalid operations
-        assert!(config.insert("invalid-key", "value").is_err());
-        assert!(config.insert("tool-timeout", "invalid").is_err());
-        assert!(config.insert("tool-timeout", "0").is_err());
+        assert!(matches!(
+            config.insert("invalid-key", "value").unwrap_err(),
+            ConfigError::Key(_)
+        ));
+        assert!(matches!(
+            config.insert("tool-timeout", "invalid").unwrap_err(),
+            ConfigError::TimeoutParse(_)
+        ));
+        assert!(matches!(
+            config.insert("tool-timeout", "0").unwrap_err(),
+            ConfigError::ZeroTimeout
+        ));
+    }
+
+    #[test]
+    fn test_from_environment() {
+        let env = Environment {
+            large_model_id: "gpt-4".to_string(),
+            small_model_id: "gpt-3.5-turbo".to_string(),
+            // ... other fields as needed
+        };
+
+        let config = Config::from(&env);
+        assert_eq!(config.primary_model().unwrap(), "gpt-4");
+        assert_eq!(config.get("secondary-model").unwrap(), "gpt-3.5-turbo");
+        assert_eq!(config.get("tool-timeout").unwrap(), "20");
     }
 }
