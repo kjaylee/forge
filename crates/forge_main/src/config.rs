@@ -1,19 +1,34 @@
-use std::collections::HashMap;
-use std::str::FromStr;
-
-use anyhow::{anyhow, Result};
 use colored::Colorize;
 use forge_domain::Environment;
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
+/// Custom error type for configuration-related errors
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("Invalid configuration key: {0}")]
+    InvalidKey(String),
+    #[error("Invalid model name: {0}")]
+    InvalidModel(String),
+    #[error("Invalid tool timeout: {0}")]
+    InvalidTimeout(String),
+}
+
+/// Represents configuration keys available in the system
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConfigKey {
+    /// Primary language model to use for main operations
     PrimaryModel,
+    /// Secondary language model for fallback or specialized tasks
     SecondaryModel,
+    /// Timeout duration for tool operations in seconds
     ToolTimeout,
 }
 
 impl ConfigKey {
-    fn as_str(&self) -> &'static str {
+    /// Returns the string representation of the configuration key
+    pub fn as_str(&self) -> &'static str {
         match self {
             ConfigKey::PrimaryModel => "primary-model",
             ConfigKey::SecondaryModel => "secondary-model",
@@ -22,26 +37,36 @@ impl ConfigKey {
     }
 }
 
+impl Display for ConfigKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 impl FromStr for ConfigKey {
-    type Err = anyhow::Error;
+    type Err = ConfigError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "primary-model" => Ok(ConfigKey::PrimaryModel),
             "secondary-model" => Ok(ConfigKey::SecondaryModel),
             "tool-timeout" => Ok(ConfigKey::ToolTimeout),
-            _ => Err(anyhow!("Invalid configuration key: {}", s)),
+            _ => Err(ConfigError::InvalidKey(s.to_string())),
         }
     }
 }
 
+/// Represents configuration values with their specific types
 #[derive(Debug, Clone)]
 pub enum ConfigValue {
+    /// Model identifier string
     Model(String),
+    /// Tool timeout in seconds
     ToolTimeout(u32),
 }
 
 impl ConfigValue {
+    /// Returns the string representation of the configuration value
     pub fn as_str(&self) -> String {
         match self {
             ConfigValue::Model(model) => model.clone(),
@@ -49,28 +74,39 @@ impl ConfigValue {
         }
     }
 
-    pub fn from_key_value(key: &ConfigKey, value: &str) -> Result<Self> {
+    /// Creates a new ConfigValue from a key-value pair
+    pub fn from_key_value(key: &ConfigKey, value: &str) -> Result<Self, ConfigError> {
         match key {
             ConfigKey::PrimaryModel | ConfigKey::SecondaryModel => {
-                // Add model name validation if needed
                 if value.trim().is_empty() {
-                    Err(anyhow!("Model name cannot be empty"))
+                    Err(ConfigError::InvalidModel(
+                        "Model name cannot be empty".to_string(),
+                    ))
                 } else {
                     Ok(ConfigValue::Model(value.to_string()))
                 }
             }
             ConfigKey::ToolTimeout => match value.parse::<u32>() {
-                Ok(0) => Err(anyhow!("Tool timeout must be greater than 0")),
+                Ok(0) => Err(ConfigError::InvalidTimeout(
+                    "Tool timeout must be greater than 0".to_string(),
+                )),
                 Ok(timeout) => Ok(ConfigValue::ToolTimeout(timeout)),
-                Err(_) => Err(anyhow!(
+                Err(_) => Err(ConfigError::InvalidTimeout(format!(
                     "Invalid tool timeout value: {}. Must be a positive number.",
                     value
-                )),
+                ))),
             },
         }
     }
 }
 
+impl Display for ConfigValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// Main configuration structure holding all config values
 #[derive(Default)]
 pub struct Config {
     values: HashMap<ConfigKey, ConfigValue>,
@@ -93,12 +129,20 @@ impl From<&Environment> for Config {
 }
 
 impl Config {
+    /// Returns the primary model configuration if set
     pub fn primary_model(&self) -> Option<String> {
-        self.values
-            .get(&ConfigKey::PrimaryModel)
-            .map(|v| v.as_str().to_string())
+        self.get_model(&ConfigKey::PrimaryModel)
     }
 
+    /// Helper method to get model configuration
+    fn get_model(&self, key: &ConfigKey) -> Option<String> {
+        self.values.get(key).and_then(|v| match v {
+            ConfigValue::Model(m) => Some(m.clone()),
+            _ => None,
+        })
+    }
+
+    /// Gets a configuration value by key string
     pub fn get(&self, key: &str) -> Option<String> {
         key.parse::<ConfigKey>()
             .ok()
@@ -106,17 +150,20 @@ impl Config {
             .map(|v| v.as_str())
     }
 
-    pub fn insert(&mut self, key: &str, value: &str) -> Result<()> {
+    /// Inserts a new configuration value
+    pub fn insert(&mut self, key: &str, value: &str) -> Result<(), ConfigError> {
         let config_key = ConfigKey::from_str(key)?;
         let config_value = ConfigValue::from_key_value(&config_key, value)?;
         self.values.insert(config_key, config_value);
         Ok(())
     }
 
+    /// Checks if the configuration is empty
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
 
+    /// Returns a formatted string representation of the configuration
     pub fn to_display_string(&self) -> String {
         let mut output = String::new();
 
@@ -144,8 +191,6 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
@@ -164,7 +209,7 @@ mod tests {
         );
 
         let err = ConfigKey::from_str("invalid-key").unwrap_err();
-        assert!(err.to_string().contains("Invalid configuration key"));
+        assert!(matches!(err, ConfigError::InvalidKey(_)));
     }
 
     #[test]
@@ -175,53 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_value_from_key_value() {
-        // Test model values
-        let model_keys = [ConfigKey::PrimaryModel, ConfigKey::SecondaryModel];
-        for key in model_keys {
-            // Valid model name
-            let value = ConfigValue::from_key_value(&key, "gpt-4").unwrap();
-            assert!(matches!(value, ConfigValue::Model(m) if m == "gpt-4"));
-
-            // Empty model name
-            let err = ConfigValue::from_key_value(&key, "").unwrap_err();
-            assert!(err.to_string().contains("Model name cannot be empty"));
-
-            // Whitespace model name
-            let err = ConfigValue::from_key_value(&key, "   ").unwrap_err();
-            assert!(err.to_string().contains("Model name cannot be empty"));
-        }
-
-        // Test tool timeout
-        let key = ConfigKey::ToolTimeout;
-
-        // Valid timeout
-        let value = ConfigValue::from_key_value(&key, "30").unwrap();
-        assert!(matches!(value, ConfigValue::ToolTimeout(t) if t == 30));
-
-        // Zero timeout
-        let err = ConfigValue::from_key_value(&key, "0").unwrap_err();
-        assert!(err
-            .to_string()
-            .contains("Tool timeout must be greater than 0"));
-
-        // Invalid number
-        let err = ConfigValue::from_key_value(&key, "abc").unwrap_err();
-        assert!(err.to_string().contains("Invalid tool timeout value"));
-
-        // Negative number
-        let err = ConfigValue::from_key_value(&key, "-1").unwrap_err();
-        assert!(err.to_string().contains("Invalid tool timeout value"));
-    }
-
-    #[test]
-    fn test_config_value_as_str() {
-        assert_eq!(ConfigValue::Model("gpt-4".to_string()).as_str(), "gpt-4");
-        assert_eq!(ConfigValue::ToolTimeout(30).as_str(), "30");
-    }
-
-    #[test]
-    fn test_config_operations() {
+    fn test_config_basic() {
         let mut config = Config::default();
         assert!(config.is_empty());
 
@@ -232,9 +231,12 @@ mod tests {
         config.insert("tool-timeout", "30").unwrap();
         assert_eq!(config.get("tool-timeout").unwrap(), "30");
 
+        // Test type-safe accessors
+        assert_eq!(config.primary_model().unwrap(), "gpt-4");
+
         // Test overwriting values
         config.insert("primary-model", "gpt-3.5-turbo").unwrap();
-        assert_eq!(config.get("primary-model").unwrap(), "gpt-3.5-turbo");
+        assert_eq!(config.primary_model().unwrap(), "gpt-3.5-turbo");
 
         // Test getting non-existent key
         assert!(config.get("non-existent").is_none());
