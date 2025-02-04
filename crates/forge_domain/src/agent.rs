@@ -40,7 +40,7 @@ pub struct Prompt<V> {
 }
 
 impl<V> Prompt<V> {
-    pub fn render(&self, variables: &V) -> String {
+    pub fn render(&self, _variables: &V) -> String {
         todo!()
     }
 }
@@ -74,8 +74,8 @@ pub struct Agent {
 ///   - Remove all, except first, and add summary as an assistant message
 /// - Enhance user prompt
 ///   - Add additional meta information to the last user prompt
-/// - Standard middle-out implementation like in Open Router
-/// NOTE: The transforms are applied in the order they are defined (0th to last)
+/// - Standard middle-out implementation like in Open Router NOTE: The
+///   transforms are applied in the order they are defined (0th to last)
 pub enum Transform {
     Summarize {
         input: String,
@@ -90,7 +90,7 @@ pub enum Transform {
 }
 
 impl Agent {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(_name: impl Into<String>) -> Self {
         todo!()
     }
 }

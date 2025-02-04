@@ -140,7 +140,7 @@ impl Context {
         }
     }
 
-    pub(crate) fn insert_summary(&self, summary: &str) -> Context {
+    pub(crate) fn insert_summary(&self, _summary: &str) -> Context {
         todo!()
     }
 }

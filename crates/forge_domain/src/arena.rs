@@ -100,7 +100,7 @@ impl WorkflowEngine {
         }
     }
 
-    fn init_tool_definitions(&self, tools: &[ToolName]) -> Vec<ToolDefinition> {
+    fn init_tool_definitions(&self, _tools: &[ToolName]) -> Vec<ToolDefinition> {
         todo!()
     }
 
@@ -128,20 +128,20 @@ impl WorkflowEngine {
 
     async fn collect_content(
         &self,
-        response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
+        _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
     ) -> String {
         todo!()
     }
 
     async fn collect_tool_calls(
         &self,
-        response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
-        variables: &mut Variables,
+        _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
+        _variables: &mut Variables,
     ) -> Vec<ToolCallFull> {
         todo!()
     }
 
-    async fn execute_tool(&self, tool_call: &ToolCallFull) -> ToolResult {
+    async fn execute_tool(&self, _tool_call: &ToolCallFull) -> ToolResult {
         todo!()
     }
 
@@ -155,14 +155,14 @@ impl WorkflowEngine {
     }
 
     // TODO: should be a method on Context
-    fn context_as_text(&self, context: &Context) -> String {
+    fn context_as_text(&self, _context: &Context) -> String {
         todo!()
     }
 
     #[async_recursion(?Send)]
     async fn execute_transform(
         &self,
-        transforms: &Vec<Transform>,
+        transforms: &[Transform],
         mut context: Context,
     ) -> anyhow::Result<Context> {
         for transform in transforms.iter() {
@@ -291,7 +291,7 @@ impl WorkflowEngine {
         .collect::<anyhow::Result<()>>()
     }
 
-    async fn token_count(&self, context: &Context) -> anyhow::Result<usize> {
+    async fn token_count(&self, _context: &Context) -> anyhow::Result<usize> {
         todo!()
     }
 }
