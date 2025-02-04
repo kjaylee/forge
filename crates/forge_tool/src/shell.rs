@@ -275,8 +275,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.contains("<stderr>"));
-        assert!(result.contains("<stdout>"));
+        assert_eq!(
+            result,
+            "<stdout>to stdout\n</stdout>\n<stderr>to stderr\n</stderr>"
+        );
     }
 
     #[tokio::test]
@@ -290,8 +292,10 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.contains("<stderr>"));
-        assert!(result.contains("<stdout>"));
+        assert_eq!(
+            result,
+            "<stdout>to stdout\n</stdout>\n<stderr>to stderr\n</stderr>"
+        );
     }
 
     #[tokio::test]
