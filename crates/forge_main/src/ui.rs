@@ -69,6 +69,15 @@ impl UI {
             .to_string()
     }
 
+    /// This function is called when the config is updated to perform any necessary actions.
+    async fn on_config_update(&self) {
+        if let Some(timeout_secs) = self.config.tool_timeout() {
+            let timeout = Duration::from_secs(timeout_secs);
+            // if we fail, it's okay, we'll just keep the old timeout.
+            let _ = self.api.set_tool_timeout(timeout).await;
+        }
+    }
+
     pub async fn run(&mut self) -> Result<()> {
         // Display the banner in dimmed colors
         banner::display()?;
@@ -79,19 +88,21 @@ impl UI {
             None => self.console.prompt(None).await?,
         };
 
-        // read the model from the config or fallback to environment.
-        let model = self
-            .config
-            .primary_model()
-            .map(ModelId::new)
-            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
-
         // Initialize tool timeout from config
         if let Some(timeout_secs) = self.config.tool_timeout() {
-            self.api.set_tool_timeout(Duration::from_secs(timeout_secs)).await?;
+            self.api
+                .set_tool_timeout(Duration::from_secs(timeout_secs))
+                .await?;
         }
 
         loop {
+            // read the model from the config or fallback to environment.
+            let model = self
+                .config
+                .primary_model()
+                .map(ModelId::new)
+                .unwrap_or(ModelId::from_env(&self.api.environment().await?));
+
             match input {
                 Command::End => break,
                 Command::New => {
@@ -133,6 +144,7 @@ impl UI {
                     match (key, value) {
                         (Some(k), Some(v)) => match self.config.insert(k, v) {
                             Ok(()) => {
+                                self.on_config_update().await;
                                 CONSOLE.writeln(format!("{}: {}", k.bright_blue(), v.green()))?;
                             }
                             Err(e) => {
