@@ -4,7 +4,8 @@ use forge_walker::Walker;
 use reedline::{Completer, Suggestion};
 use tracing::info;
 
-use crate::completer::{search_term::SearchTerm, CommandCompleter};
+use crate::completer::search_term::SearchTerm;
+use crate::completer::CommandCompleter;
 
 #[derive(Clone)]
 pub struct InputCompleter {
@@ -23,8 +24,9 @@ impl Completer for InputCompleter {
         info!("Completing line: '{}' pos: {}", line, pos);
 
         if line.starts_with("/") {
-            // if the line starts with '/' it's probably a command, so we delegate to the command completer.
-            let result = CommandCompleter::default().complete(line, pos);
+            // if the line starts with '/' it's probably a command, so we delegate to the
+            // command completer.
+            let result = CommandCompleter.complete(line, pos);
             if !result.is_empty() {
                 return result;
             }
