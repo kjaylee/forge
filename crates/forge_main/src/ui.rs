@@ -80,8 +80,13 @@ impl UI {
             match input {
                 Command::End => break,
                 Command::Retry => {
-                    input =
-                        Command::Message(self.state.current_content.clone().unwrap_or_default());
+                    if let Some(content) = self.state.current_content.as_ref() {
+                        // if we've the content from the last message, use it as the input for retry.
+                        input = Command::Message(content.to_owned());
+                    } else {
+                        // if we don't have the content, prompt the user for new input.
+                        input = self.console.prompt(None).await?;
+                    }
                 }
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
