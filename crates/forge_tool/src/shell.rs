@@ -5,12 +5,15 @@ use std::path::PathBuf;
 use anyhow::Result;
 use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
+use nu_ansi_term::Style;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
-// Custom writer that both captures and forwards output
+const AI_INDICATOR: &str = "⚡";
+
+/// A writer that captures output while forwarding it to another writer
 struct TeeWriter {
     buffer: Vec<u8>,
     writer: Box<dyn Write + Send>,
@@ -39,7 +42,6 @@ impl TeeWriter {
 impl Write for TeeWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.writer.write_all(buf)?;
-        self.flush()?;
         self.buffer.extend_from_slice(buf);
         Ok(buf.len())
     }
@@ -191,6 +193,19 @@ impl ToolCallService for Shell {
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
+
+        // Print the command before execution
+        println!(
+            "{} {}",
+            Style::new()
+                .fg(nu_ansi_term::Color::Green)
+                .bold()
+                .paint(AI_INDICATOR),
+            Style::new()
+                .fg(nu_ansi_term::Color::White)
+                .bold()
+                .paint(&input.command)
+        );
 
         // Spawn the command
         let mut child = cmd
