@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use clap::Parser;
@@ -84,6 +85,11 @@ impl UI {
             .primary_model()
             .map(ModelId::new)
             .unwrap_or(ModelId::from_env(&self.api.environment().await?));
+
+        // Initialize tool timeout from config
+        if let Some(timeout_secs) = self.config.tool_timeout() {
+            self.api.set_tool_timeout(Duration::from_secs(timeout_secs)).await?;
+        }
 
         loop {
             match input {

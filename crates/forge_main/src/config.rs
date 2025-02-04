@@ -38,7 +38,7 @@ impl FromStr for ConfigKey {
 #[derive(Debug, Clone)]
 pub enum ConfigValue {
     Model(String),
-    ToolTimeout(u32),
+    ToolTimeout(u64),
 }
 
 impl ConfigValue {
@@ -59,7 +59,7 @@ impl ConfigValue {
                     Ok(ConfigValue::Model(value.to_string()))
                 }
             }
-            ConfigKey::ToolTimeout => match value.parse::<u32>() {
+            ConfigKey::ToolTimeout => match value.parse::<u64>() {
                 Ok(0) => Err(anyhow!("Tool timeout must be greater than 0")),
                 Ok(timeout) => Ok(ConfigValue::ToolTimeout(timeout)),
                 Err(_) => Err(anyhow!(
@@ -87,12 +87,19 @@ impl From<&Environment> for Config {
             ConfigKey::SecondaryModel,
             ConfigValue::Model(env.small_model_id.clone()),
         );
-        values.insert(ConfigKey::ToolTimeout, ConfigValue::ToolTimeout(20));
+        values.insert(ConfigKey::ToolTimeout, ConfigValue::ToolTimeout(300));
         Self { values }
     }
 }
 
 impl Config {
+    pub fn tool_timeout(&self) -> Option<u64> {
+        self.values.get(&ConfigKey::ToolTimeout).map(|v| match v {
+            ConfigValue::ToolTimeout(t) => *t as u64,
+            _ => unreachable!(),
+        })
+    }
+
     pub fn primary_model(&self) -> Option<String> {
         self.values
             .get(&ConfigKey::PrimaryModel)

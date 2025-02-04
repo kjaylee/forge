@@ -6,6 +6,7 @@ use forge_domain::{
     ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
     ProviderService, ResultStream, ToolDefinition, ToolService,
 };
+use std::time::Duration;
 
 use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;
@@ -13,6 +14,7 @@ use super::Service;
 
 #[async_trait::async_trait]
 pub trait APIService: Send + Sync {
+    async fn set_tool_timeout(&self, duration: Duration) -> Result<()>;
     async fn suggestions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
     async fn context(&self, conversation_id: ConversationId) -> Result<Context>;
@@ -95,6 +97,11 @@ impl Live {
 
 #[async_trait::async_trait]
 impl APIService for Live {
+    async fn set_tool_timeout(&self, duration: Duration) -> Result<()> {
+        let _ = self.tool.set_timeout(duration).await?;
+        Ok(())
+    }
+
     async fn suggestions(&self) -> Result<Vec<File>> {
         self.completions.suggestions().await
     }
