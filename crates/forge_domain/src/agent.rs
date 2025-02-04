@@ -45,6 +45,7 @@ impl<V> Prompt<V> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Schema<S> {
     pub schema: RootSchema,
     _marker: std::marker::PhantomData<S>,

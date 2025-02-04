@@ -20,7 +20,7 @@ impl Workflow {
     }
 }
 
-#[derive(Debug, Display, Eq, PartialEq, From, Hash)]
+#[derive(Debug, Display, Eq, PartialEq, From, Hash, Clone)]
 pub enum FlowId {
     Agent(AgentId),
     Workflow(WorkflowId),

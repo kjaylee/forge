@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_recursion::async_recursion;
@@ -29,6 +30,7 @@ impl Arena {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct SmartTool<S> {
     pub name: ToolName,
     pub description: String,
@@ -36,12 +38,12 @@ pub struct SmartTool<S> {
     pub input: Schema<S>,
 }
 
-impl<S> From<SmartTool<S>> for ToolDefinition {
-    fn from(value: SmartTool<S>) -> Self {
-        Self {
-            name: value.name,
-            description: value.description,
-            input_schema: value.input.schema,
+impl<S> SmartTool<S> {
+    pub fn to_tool_definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: self.name.clone(),
+            description: self.description.clone(),
+            input_schema: self.input.schema.clone(),
             output_schema: None,
         }
     }
@@ -113,8 +115,28 @@ impl WorkflowEngine {
         }
     }
 
-    fn init_tool_definitions(&self, _tools: &[ToolName]) -> Vec<ToolDefinition> {
+    fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
         todo!()
+    }
+
+    fn init_smart_tool_definitions(&self) -> Vec<ToolDefinition> {
+        self.arena
+            .tools
+            .iter()
+            .map(|a| a.to_tool_definition())
+            .collect()
+    }
+
+    fn init_tool_definitions(&self, tools: &[ToolName]) -> Vec<ToolDefinition> {
+        let required_tools = tools.iter().collect::<HashSet<_>>();
+        let default_tools = self.init_default_tool_definitions();
+        let smart_tools = self.init_smart_tool_definitions();
+
+        default_tools
+            .into_iter()
+            .chain(smart_tools)
+            .filter(|tool| required_tools.contains(&tool.name))
+            .collect::<Vec<_>>()
     }
 
     fn init_agent_context(&self, agent: &Agent, input: &Variables) -> Context {
