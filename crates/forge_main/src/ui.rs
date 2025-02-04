@@ -78,7 +78,12 @@ impl UI {
             None => self.console.prompt(None).await?,
         };
 
-        let model = ModelId::from_env(&self.api.environment().await?);
+        // read the model from the config or fallback to environment.
+        let model = self
+            .config
+            .get("primary-model")
+            .map(|m| ModelId::new(m))
+            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 
         loop {
             match input {
