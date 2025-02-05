@@ -9,10 +9,11 @@ use futures::future::join_all;
 use futures::Stream;
 use serde_json::Value;
 
+use crate::chat_stream_ext::BoxStreamExt;
 use crate::{
     Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextMessage, FlowId,
-    ProviderService, Role, Schema, Summarize, SystemContext, ToolCallFull, ToolDefinition,
-    ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
+    ProviderService, Role, Schema, Summarize, SystemContext, ToolCall, ToolCallFull,
+    ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
 #[async_trait::async_trait]
@@ -148,17 +149,69 @@ impl Orchestrator {
 
     async fn collect_content(
         &self,
-        _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
+        response: &mut (impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
+                  + Send
+                  + Unpin),
     ) -> String {
-        todo!()
+        use futures::StreamExt;
+
+        // Create a boxed stream and collect content
+        let mut stream = response.boxed().collect_content();
+
+        // Collect all messages and get the last one's content
+        let mut messages = Vec::new();
+        while let Some(result) = stream.next().await {
+            if let Ok(msg) = result {
+                messages.push(msg);
+            }
+        }
+
+        // Get the last message's content
+        messages
+            .last()
+            .and_then(|msg| msg.content.as_ref())
+            .map(|content| content.as_str().to_string())
+            .unwrap_or_default()
     }
 
     async fn collect_tool_calls(
         &self,
-        _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
-        _variables: &mut Variables,
+        response: &mut (impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
+                  + Send
+                  + Unpin),
+        tool_supported: bool,
     ) -> Vec<ToolCallFull> {
-        todo!()
+        use futures::StreamExt;
+
+        // First collect all messages
+        let mut messages = Vec::new();
+
+        let boxed = response.boxed();
+        let mut stream: Box<
+            dyn Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
+                + Send
+                + Unpin,
+        > = if tool_supported {
+            Box::new(boxed.collect_tool_call_parts())
+        } else {
+            Box::new(boxed.collect_tool_call_xml_content())
+        };
+
+        while let Some(result) = stream.next().await {
+            if let Ok(msg) = result {
+                messages.push(msg);
+            }
+        }
+
+        // Extract all full tool calls
+        messages
+            .into_iter()
+            .flat_map(|msg| msg.tool_call)
+            .filter_map(|call| match call {
+                ToolCall::Full(full) => Some(full),
+                _ => None,
+            })
+            .collect()
     }
 
     fn find_tool(&self, name: &ToolName) -> Option<&SmartTool<Variables>> {
@@ -261,20 +314,22 @@ impl Orchestrator {
         let agent = self.find_agent(agent)?;
         let mut context = self.init_agent_context(agent, input)?;
         let content = agent.user_prompt.render(input)?;
-        let mut output = Variables::default();
+        let output = Variables::default();
         context = context.add_message(ContextMessage::user(content));
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
 
-            let response = self.provider.chat(&agent.model, context.clone()).await?;
-            let tool_calls = self.collect_tool_calls(&response, &mut output).await;
+            let mut response = self.provider.chat(&agent.model, context.clone()).await?;
+            let tool_supported = self.provider.parameters(&agent.model).await?.tool_supported;
+            let tool_calls = self.collect_tool_calls(&mut response, tool_supported).await;
 
             if tool_calls.is_empty() {
                 return Ok(output);
             }
 
-            let content = self.collect_content(&response).await;
+            let mut response = self.provider.chat(&agent.model, context.clone()).await?;
+            let content = self.collect_content(&mut response).await;
 
             let tool_results = join_all(
                 tool_calls
