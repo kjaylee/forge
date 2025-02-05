@@ -149,7 +149,39 @@ impl Context {
 
     /// Converts the context to textual format
     pub fn to_text(&self) -> String {
-        todo!()
+        let mut lines = String::new();
+
+        for message in self.messages.iter() {
+            match message {
+                ContextMessage::ContentMessage(message) => {
+                    lines.push_str(&format!("<message role=\"{}\">", message.role));
+                    lines.push_str(&format!("<content>{}</content>", message.content));
+                    if let Some(tool_calls) = &message.tool_calls {
+                        for call in tool_calls {
+                            lines.push_str(&format!(
+                                "<tool_call name=\"{}\"><![CDATA[{}]]></tool_call>",
+                                call.name.as_str(),
+                                serde_json::to_string(&call.arguments).unwrap()
+                            ));
+                        }
+                    }
+
+                    lines.push_str("</message>");
+                }
+                ContextMessage::ToolMessage(result) => {
+                    lines.push_str("<message role=\"tool\">");
+
+                    lines.push_str(&format!(
+                        "<tool_result name=\"{}\"><![CDATA[{}]]></tool_result>",
+                        result.name.as_str(),
+                        serde_json::to_string(&result.content).unwrap()
+                    ));
+                    lines.push_str("</message>");
+                }
+            }
+        }
+
+        format!("<chat_history>{}</chat_history>", lines)
     }
 }
 
