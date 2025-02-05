@@ -45,6 +45,7 @@ pub use file::*;
 pub use learning::*;
 pub use message::*;
 pub use model::*;
+pub use orch::*;
 pub use provider::*;
 pub use stream_ext::*;
 pub use summarize::*;
@@ -59,7 +60,6 @@ pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
 pub use workflow::*;
-pub use orch::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
