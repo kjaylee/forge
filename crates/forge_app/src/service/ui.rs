@@ -100,6 +100,15 @@ impl Live {
     }
 }
 
+impl Live {
+    fn find_last_user_message(context: &Context) -> Option<(usize, &ContextMessage)> {
+        context.messages.iter().enumerate().rev()
+            .find(|(_, msg)| {
+                matches!(msg, ContextMessage::ContentMessage(content_msg) if content_msg.role == forge_domain::Role::User)
+            })
+    }
+}
+
 #[async_trait::async_trait]
 impl UIService for Live {
     async fn retry(
@@ -108,30 +117,25 @@ impl UIService for Live {
         model_id: ModelId,
     ) -> ResultStream<ChatResponse, anyhow::Error> {
         let mut conversation = self.conversation_service.get(conversation_id).await?;
-
-        let mut last_user_message_index: Option<usize> = None;
-        for (index, msg) in conversation.context.messages.iter().enumerate() {
-            if let ContextMessage::ContentMessage(ref content_msg) = msg {
-                if content_msg.role == forge_domain::Role::User {
-                    last_user_message_index = Some(index); // Track the index of
-                                                           // the last user
-                                                           // message
-                }
+        
+        // Find and extract last user message and prepare context
+        let (last_index, user_message) = if let Some((idx, msg)) = Self::find_last_user_message(&conversation.context) {
+            if let ContextMessage::ContentMessage(content_msg) = msg {
+                (idx, content_msg.content.clone())
+            } else {
+                return Err(anyhow::anyhow!("Invalid message type found"));
             }
-        }
-        // If we found a last user message, truncate the context_messages to that point
-        if let Some(last_index) = last_user_message_index {
-            conversation.context.messages.truncate(last_index + 1);
-            if let Some(last_user_message) = conversation.context.messages.pop() {
-                if let ContextMessage::ContentMessage(content_msg) = last_user_message {
-                    let request = ChatRequest::new(model_id, content_msg.content)
-                        .conversation_id(conversation_id);
-                    return Ok(Box::pin(self.execute(request, conversation, false).await?));
-                }
-            }
-        }
+        } else {
+            return Err(anyhow::anyhow!("No user message found to retry"));
+        };
 
-        Err(anyhow::anyhow!("No user message found to retry"))
+        // Truncate to remove messages after the last user message
+        conversation.context.messages.truncate(last_index);
+        
+        // Create request with context up to the last user message
+        let request = ChatRequest::new(model_id, user_message)
+            .conversation_id(conversation_id);
+        Ok(Box::pin(self.execute(request, conversation, false).await?))
     }
 
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
