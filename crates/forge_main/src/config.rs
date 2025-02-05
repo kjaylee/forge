@@ -157,25 +157,20 @@ impl Config {
     /// Returns a formatted string representation of the configuration
     pub fn to_display_string(&self) -> String {
         let mut output = String::new();
-
-        output.push_str(&format!("\n{}\n", "Current Configuration:".bold().cyan()));
-        output.push_str(&format!("{}\n", "--------------------".dimmed()));
-
         if self.is_empty() {
             output.push_str(&format!("{}\n", "No configurations set".italic().yellow()));
         } else {
+            output.push_str("\n");
             let mut configs: Vec<_> = self.values.iter().collect();
             configs.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str())); // Sort by key string
             for (key, value) in configs {
                 output.push_str(&format!(
-                    "{:<20}  {}\n",
-                    key.as_str().bright_green(),
-                    value.as_str().bright_white()
+                    "{}: {}\n",
+                    key.as_str().bold().yellow(),
+                    value.as_str().white()
                 ));
             }
         }
-
-        output.push_str(&format!("{}\n", "--------------------".dimmed()));
         output
     }
 }
