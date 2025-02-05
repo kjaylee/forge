@@ -124,7 +124,7 @@ impl WorkflowEngine {
             .collect::<Vec<_>>()
     }
 
-    fn init_agent_context(&self, agent: &Agent, input: &Variables) -> Context {
+    fn init_agent_context(&self, agent: &Agent, input: &Variables) -> anyhow::Result<Context> {
         let tool_defs = self.init_tool_definitions(&agent.tools);
 
         let tool_usage_prompt = tool_defs.iter().fold("".to_string(), |acc, tool| {
@@ -136,14 +136,14 @@ impl WorkflowEngine {
                 .system_context
                 .clone()
                 .tool_information(tool_usage_prompt),
-        );
+        )?;
 
-        let user_message = ContextMessage::user(agent.user_prompt.render(input));
+        let user_message = ContextMessage::user(agent.user_prompt.render(input)?);
 
-        Context::default()
+        Ok(Context::default()
             .set_system_message(system_message)
             .add_message(user_message)
-            .extend_tools(tool_defs)
+            .extend_tools(tool_defs))
     }
 
     async fn collect_content(
@@ -259,8 +259,8 @@ impl WorkflowEngine {
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
         let agent = self.find_agent(agent)?;
-        let mut context = self.init_agent_context(agent, input);
-        let content = agent.user_prompt.render(input);
+        let mut context = self.init_agent_context(agent, input)?;
+        let content = agent.user_prompt.render(input)?;
         let mut output = Variables::default();
         context = context.add_message(ContextMessage::user(content));
 

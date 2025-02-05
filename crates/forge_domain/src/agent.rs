@@ -3,11 +3,12 @@ use std::path::PathBuf;
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
+use handlebars::Handlebars;
 use schemars::schema::RootSchema;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::{Environment, ModelId, Provider, ToolName};
+use crate::{Environment, Error, ModelId, Provider, ToolName};
 
 #[derive(Default, Serialize)]
 pub struct Variables(HashMap<String, Value>);
@@ -87,9 +88,14 @@ pub struct Prompt<V> {
     pub variables: Schema<V>,
 }
 
-impl<V> Prompt<V> {
-    pub fn render(&self, _variables: &V) -> String {
-        todo!()
+impl<V: Serialize> Prompt<V> {
+    pub fn render(&self, ctx: &V) -> crate::Result<String> {
+        let mut hb = Handlebars::new();
+        hb.set_strict_mode(true);
+        hb.register_escape_fn(|str| str.to_string());
+
+        hb.render_template(self.template.as_str(), &ctx)
+            .map_err(Error::Template)
     }
 }
 
@@ -99,9 +105,11 @@ pub struct Schema<S> {
     _marker: std::marker::PhantomData<S>,
 }
 
-pub enum PromptTemplate {
-    File(PathBuf),
-    Literal(String),
+pub struct PromptTemplate(String);
+impl PromptTemplate {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
 }
 
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]

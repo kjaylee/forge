@@ -20,14 +20,11 @@ impl Workflow {
             .handovers
             .values()
             .clone()
-            .into_iter()
             .flatten()
             .collect::<HashSet<_>>();
 
         self.handovers
-            .keys()
-            .cloned()
-            .filter(|flow| !values.contains(flow))
+            .keys().filter(|&flow| !values.contains(flow)).cloned()
             .collect::<Vec<_>>()
     }
 }
