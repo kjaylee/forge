@@ -19,7 +19,7 @@ impl OutputStream {
         &mut self,
         mut reader: T,
     ) -> Result<(), String> {
-        let mut buf = [0u8; 1024];
+        let mut buf = [0; 1024];
 
         loop {
             match reader.read(&mut buf).await {
