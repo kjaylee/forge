@@ -75,10 +75,10 @@ impl CommandStreamer {
             .ok_or_else(|| "Child process stderr not configured".to_string())?;
 
         // Process streams concurrently
-        let (stdout, stderr) = tokio::try_join!(
+        let (stdout, stderr) = tokio::join!(
             OutputStream::new(Box::new(io::stdout())).process(stdout),
             OutputStream::new(Box::new(io::stderr())).process(stderr)
-        )?;
+        );
 
         // Wait for command completion
         let status = self
@@ -87,6 +87,6 @@ impl CommandStreamer {
             .await
             .map_err(|e| format!("Failed to wait for command: {}", e))?;
 
-        Ok((stdout, stderr, status.success()))
+        Ok((stdout?, stderr?, status.success()))
     }
 }
