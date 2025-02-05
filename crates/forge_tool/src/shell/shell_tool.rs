@@ -2,8 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_display::StatusDisplay;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName, Usage};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -137,11 +136,17 @@ impl ExecutableTool for Shell {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         // Validate command
         self.validate_command(&input.command)?;
-
-        println!(
-            "{}",
-            StatusDisplay::execute(&input.command, Usage::default()).format()
-        );
+        #[cfg(not(test))]
+        {
+            use forge_display::StatusDisplay;
+            use forge_domain::Usage;
+            
+            println!(
+                "{}",
+                StatusDisplay::execute(format!("sh -c {}", &input.command), Usage::default())
+                    .format()
+            );
+        }
 
         // Create and execute command
         let (stdout, stderr, success) = CommandExecutor::new(&input.command)
