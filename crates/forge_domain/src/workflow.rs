@@ -24,7 +24,9 @@ impl Workflow {
             .collect::<HashSet<_>>();
 
         self.handovers
-            .keys().filter(|&flow| !values.contains(flow)).cloned()
+            .keys()
+            .filter(|&flow| !values.contains(flow))
+            .cloned()
             .collect::<Vec<_>>()
     }
 }
