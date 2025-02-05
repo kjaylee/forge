@@ -47,15 +47,15 @@ impl OutputStream {
 /// A stream processor that handles command output streams
 pub struct CommandStreamer {
     child: Child,
-    stdout: Option<OutputStream>,
-    stderr: Option<OutputStream>,
+    stdout: OutputStream,
+    stderr: OutputStream,
 }
 
 impl CommandStreamer {
     pub fn new(child: Child) -> Self {
         // Initialize output streams without taking ownership yet
-        let stdout = Some(OutputStream::new(Box::new(io::stdout())));
-        let stderr = Some(OutputStream::new(Box::new(io::stderr())));
+        let stdout = OutputStream::new(Box::new(io::stdout()));
+        let stderr = OutputStream::new(Box::new(io::stderr()));
 
         Self { child, stdout, stderr }
     }
@@ -74,20 +74,8 @@ impl CommandStreamer {
             .take()
             .ok_or_else(|| "Child process stderr not configured".to_string())?;
 
-        let mut stdout_handler = self
-            .stdout
-            .take()
-            .ok_or_else(|| "Stdout handler not initialized".to_string())?;
-        let mut stderr_handler = self
-            .stderr
-            .take()
-            .ok_or_else(|| "Stderr handler not initialized".to_string())?;
-
         // Process streams concurrently
-        tokio::try_join!(
-            stdout_handler.process(stdout),
-            stderr_handler.process(stderr)
-        )?;
+        tokio::try_join!(self.stdout.process(stdout), self.stderr.process(stderr))?;
 
         // Wait for command completion
         let status = self
@@ -97,8 +85,8 @@ impl CommandStreamer {
             .map_err(|e| format!("Failed to wait for command: {}", e))?;
 
         Ok((
-            stdout_handler.into_string()?,
-            stderr_handler.into_string()?,
+            self.stdout.into_string()?,
+            self.stderr.into_string()?,
             status.success(),
         ))
     }
