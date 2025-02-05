@@ -14,6 +14,7 @@ mod file;
 mod learning;
 mod message;
 mod model;
+mod orch;
 mod provider;
 mod stream_ext;
 mod summarize;
@@ -58,6 +59,7 @@ pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
 pub use workflow::*;
+pub use orch::*;
 
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
