@@ -160,7 +160,7 @@ impl Config {
         if self.is_empty() {
             output.push_str(&format!("{}\n", "No configurations set".italic().yellow()));
         } else {
-            output.push_str("\n");
+            output.push('\n');
             let mut configs: Vec<_> = self.values.iter().collect();
             configs.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str())); // Sort by key string
             for (key, value) in configs {
