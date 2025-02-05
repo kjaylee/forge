@@ -135,8 +135,8 @@ impl UI {
                                     );
                                 CONSOLE.writeln(format!(
                                     "{}: {}",
-                                    key.bright_blue(),
-                                    value.green()
+                                    key.bold().yellow(),
+                                    value.white()
                                 ))?;
                             }
                             Err(e) => {
@@ -150,8 +150,8 @@ impl UI {
                             if let Some(value) = self.config.get(&key) {
                                 CONSOLE.writeln(format!(
                                     "{}: {}",
-                                    key.bright_blue(),
-                                    value.green()
+                                    key.bold().yellow(),
+                                    value.white()
                                 ))?;
                             } else {
                                 CONSOLE.writeln(
