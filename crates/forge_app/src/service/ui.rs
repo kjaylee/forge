@@ -113,7 +113,9 @@ impl UIService for Live {
         for (index, msg) in conversation.context.messages.iter().enumerate() {
             if let ContextMessage::ContentMessage(ref content_msg) = msg {
                 if content_msg.role == forge_domain::Role::User {
-                    last_user_message_index = Some(index); // Track the index of the last user message
+                    last_user_message_index = Some(index); // Track the index of
+                                                           // the last user
+                                                           // message
                 }
             }
         }
