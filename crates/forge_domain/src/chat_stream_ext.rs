@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::{Stream, StreamExt as _};
 
 use super::stream_ext::StreamExt;
@@ -41,7 +41,10 @@ pub trait BoxStreamExt: Stream<Item = Result<ChatCompletionMessage>> + Sized {
             let mut message = message?;
             if let Some(content @ Content::Full(_)) = message.content.as_ref() {
                 let tool_calls = ToolCallFull::try_from_xml(content.as_str())
-                    .map_err(crate::Error::ToolCallParse)?;
+                    .map_err(crate::Error::ToolCallParse)
+                    .with_context(|| {
+                        format!("Tool call content collected: {}", content.as_str())
+                    })?;
                 for tool_call in tool_calls {
                     message = message.add_tool_call(tool_call);
                 }
