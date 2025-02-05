@@ -97,13 +97,55 @@ impl Fixture {
     }
 }
 
-#[tokio::test]
-async fn test_find_cat_name() {
-    let errors = Fixture::new(
-        "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file, but not in the docs directory. You can use any tool at your disposal to find it. Do not ask me any questions.",
-    )
-    .test_models(|response| response.to_lowercase().contains("juniper"))
-    .await;
+/// Macro to generate model-specific tests
+macro_rules! generate_model_test {
+    ($model:expr) => {
+        #[tokio::test]
+        async fn test_find_cat_name() {
+            let fixture = Fixture::new(
+                "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file, but not in the docs directory. You can use any tool at your disposal to find it. Do not ask me any questions.",
+            );
+            
+            let result = fixture
+                .test_single_model($model, |response| response.to_lowercase().contains("juniper"))
+                .await;
+            
+            assert!(result.is_ok(), "Test failure for {}: {:?}", $model, result);
+        }
+    };
+}
 
-    assert!(errors.is_empty(), "Test failures:\n{}", errors.join("\n"));
+mod anthropic_claude_3_5_sonnet_beta {
+    use super::*;
+    generate_model_test!("anthropic/claude-3.5-sonnet:beta");
+}
+
+mod openai_gpt_4o_2024_11_20 {
+    use super::*;
+    generate_model_test!("openai/gpt-4o-2024-11-20");
+}
+
+mod anthropic_claude_3_5_sonnet {
+    use super::*;
+    generate_model_test!("anthropic/claude-3.5-sonnet");
+}
+
+mod openai_gpt_4o {
+    use super::*;
+    generate_model_test!("openai/gpt-4o");
+}
+
+mod openai_gpt_4o_mini {
+    use super::*;
+    generate_model_test!("openai/gpt-4o-mini");
+}
+
+mod qwen_2_5_7b_instruct {
+    use super::*;
+    generate_model_test!("qwen/qwen-2.5-7b-instruct");
+}
+
+mod anthropic_claude_3_sonnet {
+    use super::*;
+    generate_model_test!("anthropic/claude-3-sonnet");
 }
