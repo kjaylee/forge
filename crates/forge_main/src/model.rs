@@ -8,7 +8,7 @@ use crate::console::CONSOLE;
 
 pub fn display_models(models: &[Model]) -> Result<()> {
     CONSOLE.newline()?;
-    
+
     // Group models by provider
     let mut models_by_provider: BTreeMap<String, Vec<&Model>> = BTreeMap::new();
     for model in models {

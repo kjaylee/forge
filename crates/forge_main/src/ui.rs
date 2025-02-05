@@ -13,9 +13,9 @@ use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::display_info;
 use crate::input::{Console, PromptInput};
+use crate::model::display_models;
 use crate::status::StatusDisplay;
 use crate::{banner, log};
-use crate::model::display_models;
 
 #[derive(Default)]
 struct UIState {
