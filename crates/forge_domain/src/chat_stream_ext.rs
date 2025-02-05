@@ -40,9 +40,8 @@ pub trait BoxStreamExt: Stream<Item = Result<ChatCompletionMessage>> + Sized {
         self.map(|message| {
             let mut message = message?;
             if let Some(content @ Content::Full(_)) = message.content.as_ref() {
-                let tool_calls = ToolCallFull::try_from_xml(content.as_str())
-                    .map_err(crate::Error::ToolCallParse)
-                    .with_context(|| {
+                let tool_calls =
+                    ToolCallFull::try_from_xml(content.as_str()).with_context(|| {
                         format!("Tool call content collected: {}", content.as_str())
                     })?;
                 for tool_call in tool_calls {
