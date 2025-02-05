@@ -26,10 +26,10 @@ pub fn display_models(models: &[Model]) -> Result<()> {
     for (_, provider_models) in models_by_provider.iter() {
         for model in provider_models {
             CONSOLE.writeln(format!(
-                "  {}({}): {}",
+                "  {}: {}({})",
                 model.id.to_string().yellow(),
+                model.name,
                 model.context_length,
-                model.name
             ))?;
         }
         CONSOLE.newline()?;
