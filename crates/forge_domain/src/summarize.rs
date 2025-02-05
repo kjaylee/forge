@@ -14,7 +14,7 @@
 use std::collections::VecDeque;
 use std::ops::Range;
 
-use crate::{Context, ContextMessage};
+use crate::{Context, ContextMessage, Role};
 
 pub struct Summarize<'context> {
     context: &'context mut Context,
@@ -72,5 +72,21 @@ fn token_count(text: &str) -> usize {
 }
 
 fn turns(context: &Context) -> Vec<Range<usize>> {
-    todo!()
+    let starts = context
+        .messages
+        .iter()
+        .enumerate()
+        .filter(|(_, m)| m.has_role(Role::User))
+        .map(|(i, _)| i);
+
+    let ends = starts
+        .clone()
+        .skip(1)
+        .chain(std::iter::once(context.messages.len()))
+        .map(|i| i - 1);
+
+    starts
+        .zip(ends)
+        .map(|(start, end)| start..end)
+        .collect::<Vec<_>>()
 }

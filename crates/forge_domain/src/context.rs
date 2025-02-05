@@ -55,6 +55,13 @@ impl ContextMessage {
     pub fn tool_result(result: ToolResult) -> Self {
         Self::ToolMessage(result)
     }
+
+    pub fn has_role(&self, role: Role) -> bool {
+        match self {
+            ContextMessage::ContentMessage(message) => message.role == role,
+            ContextMessage::ToolMessage(_) => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Setters)]
