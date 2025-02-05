@@ -38,7 +38,7 @@ impl OutputStream {
     }
 
     /// Convert the captured output to a string, removing ANSI escape codes
-    fn into_string(self) -> Result<String, String> {
+    fn into_output(self) -> Result<String, String> {
         String::from_utf8(strip_ansi_escapes::strip(self.buffer))
             .map_err(|e| format!("Failed to convert output to string: {}", e))
     }
@@ -85,8 +85,8 @@ impl CommandStreamer {
             .map_err(|e| format!("Failed to wait for command: {}", e))?;
 
         Ok((
-            self.stdout.into_string()?,
-            self.stderr.into_string()?,
+            self.stdout.into_output()?,
+            self.stderr.into_output()?,
             status.success(),
         ))
     }
