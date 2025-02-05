@@ -3,8 +3,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use forge_display::StatusDisplay;
-use forge_domain::Usage;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName, Usage};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
