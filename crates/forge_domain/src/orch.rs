@@ -124,14 +124,10 @@ impl Orchestrator {
         let mut messages = Vec::new();
 
         let boxed = response.boxed();
-        let mut stream: Box<
-            dyn Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
-                + Send
-                + Unpin,
-        > = if tool_supported {
-            Box::new(boxed.collect_tool_call_parts())
+        let mut stream = if tool_supported {
+            boxed.collect_tool_call_parts().boxed()
         } else {
-            Box::new(boxed.collect_tool_call_xml_content())
+            boxed.collect_tool_call_xml_content().boxed()
         };
 
         while let Some(result) = stream.next().await {
