@@ -140,7 +140,7 @@ impl ExecutableTool for Shell {
         {
             use forge_display::StatusDisplay;
             use forge_domain::Usage;
-            
+
             println!(
                 "{}",
                 StatusDisplay::execute(format!("sh -c {}", &input.command), Usage::default())
