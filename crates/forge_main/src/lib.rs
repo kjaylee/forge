@@ -10,5 +10,6 @@ mod normalize;
 mod prompt;
 mod status;
 mod ui;
+mod model;
 
 pub use ui::UI;

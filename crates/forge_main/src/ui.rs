@@ -15,6 +15,7 @@ use crate::info::display_info;
 use crate::input::{Console, PromptInput};
 use crate::status::StatusDisplay;
 use crate::{banner, log};
+use crate::model::display_models;
 
 #[derive(Default)]
 struct UIState {
@@ -126,18 +127,7 @@ impl UI {
                         self.models = Some(models);
                         self.models.as_ref().unwrap()
                     };
-
-                    CONSOLE.newline()?;
-                    for (index, model) in models.iter().enumerate() {
-                        CONSOLE.writeln(format!(
-                            "{:>3}. {} {} {}",
-                            index + 1,
-                            model.id.to_string().cyan(),
-                            "-".dimmed(),
-                            model.name.green()
-                        ))?;
-                        CONSOLE.newline()?;
-                    }
+                    display_models(models)?;
                     input = self.console.prompt(None).await?;
                 }
             }
