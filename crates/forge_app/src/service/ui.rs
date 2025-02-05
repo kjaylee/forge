@@ -117,24 +117,24 @@ impl UIService for Live {
         model_id: ModelId,
     ) -> ResultStream<ChatResponse, anyhow::Error> {
         let mut conversation = self.conversation_service.get(conversation_id).await?;
-        
+
         // Find and extract last user message and prepare context
-        let (last_index, user_message) = if let Some((idx, msg)) = Self::find_last_user_message(&conversation.context) {
-            if let ContextMessage::ContentMessage(content_msg) = msg {
-                (idx, content_msg.content.clone())
+        let (last_index, user_message) =
+            if let Some((idx, msg)) = Self::find_last_user_message(&conversation.context) {
+                if let ContextMessage::ContentMessage(content_msg) = msg {
+                    (idx, content_msg.content.clone())
+                } else {
+                    return Err(anyhow::anyhow!("Invalid message type found"));
+                }
             } else {
-                return Err(anyhow::anyhow!("Invalid message type found"));
-            }
-        } else {
-            return Err(anyhow::anyhow!("No user message found to retry"));
-        };
+                return Err(anyhow::anyhow!("No user message found to retry"));
+            };
 
         // Truncate to remove messages after the last user message
         conversation.context.messages.truncate(last_index);
-        
+
         // Create request with context up to the last user message
-        let request = ChatRequest::new(model_id, user_message)
-            .conversation_id(conversation_id);
+        let request = ChatRequest::new(model_id, user_message).conversation_id(conversation_id);
         Ok(Box::pin(self.execute(request, conversation, false).await?))
     }
 
