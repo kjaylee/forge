@@ -21,19 +21,15 @@ impl OutputStream {
     ) -> Result<(), String> {
         let mut buf = [0; 1024];
 
-        loop {
-            match reader.read(&mut buf).await {
-                Ok(0) => break, // EOF
-                Ok(n) => {
-                    self.writer
-                        .write_all(&buf[..n])
-                        .map_err(|e| format!("Failed to write to stream: {}", e))?;
-                    self.buffer.extend_from_slice(&buf[..n]);
-                }
-                Err(e) => return Err(format!("Failed to read from stream: {}", e)),
+        while let Ok(n) = reader.read(&mut buf).await {
+            if n == 0 {
+                break;
             }
+            self.writer
+                .write_all(&buf[..n])
+                .map_err(|e| format!("Failed to write to stream: {}", e))?;
+            self.buffer.extend_from_slice(&buf[..n]);
         }
-
         Ok(())
     }
 
@@ -47,17 +43,11 @@ impl OutputStream {
 /// A stream processor that handles command output streams
 pub struct CommandStreamer {
     child: Child,
-    stdout: OutputStream,
-    stderr: OutputStream,
 }
 
 impl CommandStreamer {
     pub fn new(child: Child) -> Self {
-        // Initialize output streams without taking ownership yet
-        let stdout = OutputStream::new(Box::new(io::stdout()));
-        let stderr = OutputStream::new(Box::new(io::stderr()));
-
-        Self { child, stdout, stderr }
+        Self { child }
     }
 
     /// Stream and process command output
@@ -74,8 +64,15 @@ impl CommandStreamer {
             .take()
             .ok_or_else(|| "Child process stderr not configured".to_string())?;
 
+        // Initialize output streams without taking ownership yet
+        let mut stdout_streamer = OutputStream::new(Box::new(io::stdout()));
+        let mut stderr_streamer = OutputStream::new(Box::new(io::stderr()));
+
         // Process streams concurrently
-        tokio::try_join!(self.stdout.process(stdout), self.stderr.process(stderr))?;
+        tokio::try_join!(
+            stdout_streamer.process(stdout),
+            stderr_streamer.process(stderr)
+        )?;
 
         // Wait for command completion
         let status = self
@@ -85,8 +82,8 @@ impl CommandStreamer {
             .map_err(|e| format!("Failed to wait for command: {}", e))?;
 
         Ok((
-            self.stdout.into_output()?,
-            self.stderr.into_output()?,
+            stdout_streamer.into_output()?,
+            stderr_streamer.into_output()?,
             status.success(),
         ))
     }
