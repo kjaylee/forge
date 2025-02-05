@@ -9,7 +9,9 @@ use serde_json::Value;
 
 use crate::arena::{Arena, SmartTool};
 use crate::{
-    Agent, AgentId, BoxStreamExt, ChatCompletionMessage, ContentMessage, Context, ContextMessage, Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCall, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId
+    Agent, AgentId, BoxStreamExt, ChatCompletionMessage, ContentMessage, Context, ContextMessage,
+    Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCall, ToolCallFull,
+    ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
 pub struct Orchestrator {
@@ -92,7 +94,7 @@ impl Orchestrator {
 
         // Create a boxed stream and collect content
         let mut stream = response.boxed().collect_content().boxed();
-        
+
         let mut assistant_message: String = String::new();
         while let Some(chunk) = stream.next().await {
             let message = chunk?;
@@ -100,10 +102,9 @@ impl Orchestrator {
             if let Some(ref content) = message.content {
                 if !content.is_empty() && !content.is_part() {
                     assistant_message = content.clone().as_str().to_string();
-                    break;  
+                    break;
                 }
             }
-
         }
         Ok(assistant_message)
     }
