@@ -16,9 +16,9 @@ impl OutputStream {
 
     /// Process stream data from a reader
     async fn process<T: tokio::io::AsyncRead + Unpin>(
-        &mut self,
+        mut self,
         mut reader: T,
-    ) -> Result<(), String> {
+    ) -> Result<String, String> {
         let mut buf = [0; 1024];
 
         while let Ok(n) = reader.read(&mut buf).await {
@@ -28,7 +28,7 @@ impl OutputStream {
             self.write_all(&buf[..n])
                 .map_err(|e| format!("Failed to write to stream: {}", e))?;
         }
-        Ok(())
+        self.into_output()
     }
 
     /// Convert the captured output to a string, removing ANSI escape codes
@@ -74,14 +74,10 @@ impl CommandStreamer {
             .take()
             .ok_or_else(|| "Child process stderr not configured".to_string())?;
 
-        // Initialize output streams without taking ownership yet
-        let mut stdout_streamer = OutputStream::new(Box::new(io::stdout()));
-        let mut stderr_streamer = OutputStream::new(Box::new(io::stderr()));
-
         // Process streams concurrently
-        tokio::try_join!(
-            stdout_streamer.process(stdout),
-            stderr_streamer.process(stderr)
+        let (stdout, stderr) = tokio::try_join!(
+            OutputStream::new(Box::new(io::stdout())).process(stdout),
+            OutputStream::new(Box::new(io::stderr())).process(stderr)
         )?;
 
         // Wait for command completion
@@ -91,10 +87,6 @@ impl CommandStreamer {
             .await
             .map_err(|e| format!("Failed to wait for command: {}", e))?;
 
-        Ok((
-            stdout_streamer.into_output()?,
-            stderr_streamer.into_output()?,
-            status.success(),
-        ))
+        Ok((stdout, stderr, status.success()))
     }
 }
