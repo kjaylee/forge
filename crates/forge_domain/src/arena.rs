@@ -76,14 +76,14 @@ pub struct HandoverValue<T> {
 
 pub type Result<A> = std::result::Result<A, Error>;
 
-pub struct WorkflowEngine {
+pub struct Orchestrator {
     arena: Arena,
     system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
 }
 
-impl WorkflowEngine {
+impl Orchestrator {
     pub fn new(
         provider: Arc<dyn ProviderService>,
         tool: Arc<dyn ToolService>,
