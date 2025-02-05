@@ -11,43 +11,66 @@
 //!   then all the turns have to summarized again (summary of summary)
 //! - NOTE: User and System messages are never summarized
 
-use crate::Context;
+use std::collections::VecDeque;
+use std::ops::Range;
 
-pub struct Summarize {
-    input: Context,
-    output: Context,
+use crate::{Context, ContextMessage};
+
+pub struct Summarize<'context> {
+    context: &'context mut Context,
     token_limit: usize,
+    turns: VecDeque<Range<usize>>,
 }
 
-impl Summarize {
-    pub fn new(context: Context, token_limit: usize) -> Self {
-        Self { input: context, output: Context::default(), token_limit }
+impl<'context> Summarize<'context> {
+    pub fn new(context: &'context mut Context, token_limit: usize) -> Self {
+        let turns = turns(context);
+        Self { context, token_limit, turns: turns.into() }
     }
 
-    fn replace(&mut self, message: impl ToString) {
-        todo!()
+    fn replace(&mut self, content: impl ToString, range: Range<usize>) {
+        // TODO: improve the quality of summary message
+        let content = format!("\n<work_summary>\n{}\n</work_summary>", content.to_string());
+        let message = ContextMessage::assistant(content, None);
+        self.context.messages[range].fill(message);
+    }
+
+    /// Get a replaceable item while the total token count is above the limit
+    pub fn summarize(&mut self) -> Option<Summary<'_, 'context>> {
+        let total = token_count(&self.context.to_text());
+
+        if total <= self.token_limit {
+            return None;
+        }
+
+        self.turns
+            .pop_front()
+            .map(|turn| Summary { summarize: self, next_turn: turn })
     }
 }
 
-impl<'a> Iterator for &'a Summarize {
-    type Item = Replace<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        todo!()
-    }
+pub struct Summary<'this, 'context> {
+    summarize: &'this mut Summarize<'context>,
+    next_turn: Range<usize>,
 }
 
-pub struct Replace<'a> {
-    context: Context,
-    summary: &'a mut Summarize,
-}
-
-impl Replace<'_> {
+impl Summary<'_, '_> {
     pub fn set(&mut self, message: impl ToString) {
-        self.summary.replace(message);
+        self.summarize.replace(message, self.next_turn.clone());
     }
 
     pub fn get(&self) -> String {
-        self.context.to_text()
+        Context::default()
+            .messages(self.summarize.context.messages[self.next_turn.clone()].to_vec())
+            .to_text()
     }
+}
+
+// TODO: this is a quick hack to get a ballpark token count
+fn token_count(text: &str) -> usize {
+    text.split_whitespace().count() * 75 / 100
+}
+
+fn turns(context: &Context) -> Vec<Range<usize>> {
+    todo!()
 }

@@ -218,18 +218,17 @@ impl WorkflowEngine {
                     input: input_key,
                     output: output_key,
                 } => {
-                    let s = Summarize::new(context.clone(), *token_limit);
-
-                    while let Some(mut replace) = s.into_iter().next() {
+                    let mut s = Summarize::new(&mut context, *token_limit);
+                    while let Some(mut summary) = s.summarize() {
                         let mut input = Variables::default();
-                        input.add(input_key, replace.get());
+                        input.add(input_key, summary.get());
 
                         let output = self.init_agent(agent_id, &input).await?;
                         let value = output
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
-                        replace.set(serde_json::to_string(&value)?);
+                        summary.set(serde_json::to_string(&value)?);
                     }
                 }
                 Transform::EnhanceUserPrompt { agent_id, input: input_key } => {
