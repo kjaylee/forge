@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use forge_domain::{ChatRequest, ChatResponse, Context, ConversationRepository, ResultStream};
+use forge_domain::{
+    ChatRequest, ChatResponse, Context, ContextMessage, Conversation, ConversationId,
+    ConversationRepository, ModelId, ResultStream,
+};
 use tokio_stream::{once, StreamExt};
 use tracing::debug;
 
@@ -10,6 +13,11 @@ use super::Service;
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {
+    async fn retry(
+        &self,
+        conversation_id: ConversationId,
+        model_id: ModelId,
+    ) -> ResultStream<ChatResponse, anyhow::Error>;
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
 }
 
@@ -39,23 +47,13 @@ impl Service {
     }
 }
 
-#[async_trait::async_trait]
-impl UIService for Live {
-    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
-        let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
-            let context = self.conversation_service.get(*conversation_id).await?;
-            (context, false)
-        } else {
-            let conversation = self
-                .conversation_service
-                .insert(&Context::default(), None)
-                .await?;
-            (conversation, true)
-        };
-
-        debug!("Job {} started", conversation.id);
-        let request = request.conversation_id(conversation.id);
-
+impl Live {
+    pub async fn execute(
+        &self,
+        request: ChatRequest,
+        conversation: Conversation,
+        is_new: bool,
+    ) -> ResultStream<ChatResponse, anyhow::Error> {
         let mut stream = self
             .chat_service
             .chat(request.clone(), conversation.context)
@@ -99,6 +97,56 @@ impl UIService for Live {
             .filter(|message| !matches!(message, Ok(ChatResponse::ModifyContext { .. })));
 
         Ok(Box::pin(stream))
+    }
+}
+
+#[async_trait::async_trait]
+impl UIService for Live {
+    async fn retry(
+        &self,
+        conversation_id: ConversationId,
+        model_id: ModelId,
+    ) -> ResultStream<ChatResponse, anyhow::Error> {
+        let mut conversation = self.conversation_service.get(conversation_id).await?;
+
+        let mut last_user_message_index: Option<usize> = None;
+        for (index, msg) in conversation.context.messages.iter().enumerate() {
+            if let ContextMessage::ContentMessage(ref content_msg) = msg {
+                if content_msg.role == forge_domain::Role::User {
+                    last_user_message_index = Some(index); // Track the index of the last user message
+                }
+            }
+        }
+        // If we found a last user message, truncate the context_messages to that point
+        if let Some(last_index) = last_user_message_index {
+            conversation.context.messages.truncate(last_index + 1);
+            if let Some(last_user_message) = conversation.context.messages.pop() {
+                if let ContextMessage::ContentMessage(content_msg) = last_user_message {
+                    let request = ChatRequest::new(model_id, content_msg.content)
+                        .conversation_id(conversation_id);
+                    return Ok(Box::pin(self.execute(request, conversation, false).await?));
+                }
+            }
+        }
+
+        Err(anyhow::anyhow!("No user message found to retry"))
+    }
+
+    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
+        let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
+            let context = self.conversation_service.get(*conversation_id).await?;
+            (context, false)
+        } else {
+            let conversation = self
+                .conversation_service
+                .insert(&Context::default(), None)
+                .await?;
+            (conversation, true)
+        };
+
+        debug!("Job {} started", conversation.id);
+        let request = request.conversation_id(conversation.id);
+        self.execute(request, conversation, is_new).await
     }
 }
 

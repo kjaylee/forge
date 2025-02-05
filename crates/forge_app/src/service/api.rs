@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation,
-    ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
-    ProviderService, ResultStream, ToolDefinition, ToolService,
+    ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation, ConversationHistory, ConversationId, ConversationRepository, Environment, Model, ModelId, ProviderService, ResultStream, ToolDefinition, ToolService
 };
 
 use super::suggestion::{File, SuggestionService};
@@ -17,6 +15,11 @@ pub trait APIService: Send + Sync {
     async fn tools(&self) -> Vec<ToolDefinition>;
     async fn context(&self, conversation_id: ConversationId) -> Result<Context>;
     async fn models(&self) -> Result<Vec<Model>>;
+    async fn retry(
+        &self,
+        conversation_id: ConversationId,
+        model_id: ModelId,
+    ) -> ResultStream<ChatResponse, anyhow::Error>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
@@ -109,6 +112,14 @@ impl APIService for Live {
 
     async fn models(&self) -> Result<Vec<Model>> {
         Ok(self.provider.models().await?)
+    }
+
+    async fn retry(
+        &self,
+        conversation_id: ConversationId,
+        model_id: ModelId,
+    ) -> ResultStream<ChatResponse, anyhow::Error> {
+        Ok(self.ui_service.retry(conversation_id, model_id).await?)
     }
 
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {

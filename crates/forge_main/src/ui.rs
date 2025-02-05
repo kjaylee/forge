@@ -80,14 +80,15 @@ impl UI {
             match input {
                 Command::End => break,
                 Command::Retry => {
-                    if let Some(content) = self.state.current_content.as_ref() {
-                        // if we've the content from the last message, use it as the input for
-                        // retry.
-                        input = Command::Message(content.to_owned());
+                    if let Some(conversation_id) = self.state.current_conversation_id {
+                        self.retry(conversation_id, model.clone()).await?;
                     } else {
-                        // if we don't have the content, prompt the user for new input.
-                        input = self.console.prompt(None).await?;
+                        CONSOLE.writeln(
+                            StatusDisplay::failed("No conversation to retry", Usage::default())
+                                .format(),
+                        )?;
                     }
+                    input = self.console.prompt(None).await?;
                 }
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
@@ -128,6 +129,13 @@ impl UI {
         }
 
         Ok(())
+    }
+
+    async fn retry(&mut self, conversation_id: ConversationId, model: ModelId) -> Result<()> {
+        match self.api.retry(conversation_id, model).await {
+            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
+            Err(err) => Err(err),
+        }
     }
 
     async fn chat(&mut self, content: String, model: &ModelId) -> Result<()> {
