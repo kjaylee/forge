@@ -181,16 +181,19 @@ impl UI {
                 CONSOLE.newline()?;
             }
             ChatResponse::ToolCallEnd(tool_result) => {
-                let tool_name = tool_result.name.as_str();
-                // Always show result content for errors, or in verbose mode
-                if tool_result.is_error || self.cli.verbose {
-                    CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
+                if !self.cli.verbose {
+                    return Ok(());
                 }
+
+                let tool_name = tool_result.name.as_str();
+
+                CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
+
                 if tool_result.is_error {
                     CONSOLE.writeln(
                         StatusDisplay::failed(tool_name, self.state.usage.clone()).format(),
                     )?;
-                } else if self.cli.verbose {
+                } else {
                     CONSOLE.writeln(
                         StatusDisplay::success(tool_name, self.state.usage.clone()).format(),
                     )?;
