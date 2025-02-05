@@ -10,9 +10,9 @@ use futures::Stream;
 use serde_json::Value;
 
 use crate::{
-    Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextExtension,
-    ContextMessage, FlowId, ProviderService, Role, Schema, Summarize, SystemContext, ToolCallFull,
-    ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
+    Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextMessage, FlowId,
+    ProviderService, Role, Schema, Summarize, SystemContext, ToolCallFull, ToolDefinition,
+    ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
 #[async_trait::async_trait]
@@ -231,19 +231,24 @@ impl WorkflowEngine {
                         summary.set(serde_json::to_string(&value)?);
                     }
                 }
-                Transform::EnhanceUserPrompt { agent_id, input: input_key } => {
+                Transform::EnhanceUserPrompt { agent_id, input: input_key, output: output_key } => {
                     if let Some(ContextMessage::ContentMessage(ContentMessage {
                         role: Role::User,
                         content,
                         ..
-                    })) = context.messages.last()
+                    })) = context.messages.last_mut()
                     {
                         let mut input = Variables::default();
                         input.add(input_key, Value::from(content.clone()));
 
                         let output = self.init_agent(agent_id, &input).await?;
+                        let value = output
+                            .get(output_key)
+                            .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
-                        context = ContextExtension.enhance_user_message(context, &output);
+                        let message = serde_json::to_string(&value)?;
+
+                        content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
                     }
                 }
             }

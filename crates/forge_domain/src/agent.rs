@@ -136,6 +136,7 @@ pub enum Transform {
     EnhanceUserPrompt {
         agent_id: AgentId,
         input: String,
+        output: String,
     },
 }
 
