@@ -140,7 +140,10 @@ impl UI {
                                 ))?;
                             }
                             Err(e) => {
-                                CONSOLE.writeln(format!("{}", e.to_string().bright_red()))?;
+                                CONSOLE.writeln(
+                                    StatusDisplay::failed(e.to_string(), self.state.usage.clone())
+                                        .format(),
+                                )?;
                             }
                         },
                         ConfigCommand::Get(key) => {
@@ -151,10 +154,13 @@ impl UI {
                                     value.green()
                                 ))?;
                             } else {
-                                CONSOLE.writeln(format!(
-                                    "Config key '{}' not found",
-                                    key.bright_red()
-                                ))?;
+                                CONSOLE.writeln(
+                                    StatusDisplay::failed(
+                                        format!("Config key '{}' not found", key),
+                                        self.state.usage.clone(),
+                                    )
+                                    .format(),
+                                )?;
                             }
                         }
                         ConfigCommand::List => {
