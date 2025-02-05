@@ -386,4 +386,27 @@ mod tests {
             panic!("Expected error");
         }
     }
+
+    #[tokio::test]
+    async fn test_retry_with_empty_context() {
+        let conversation_service = Arc::new(TestConversationStorage::in_memory().unwrap());
+        let model_id = ModelId::new("gpt-3.5-turbo");
+
+        // Create a conversation with a user message
+        let context = Context::default();
+        let conversation = conversation_service.insert(&context, None).await.unwrap();
+        let chat_svc = Arc::new(TestChatService::single());
+        let service = Service::ui_service(
+            conversation_service.clone(),
+            chat_svc.clone(),
+            Arc::new(TestTitleService::single()),
+        );
+        let responses = service.retry(conversation.id, model_id).await;
+
+        if let Err(e) = responses {
+            assert_eq!(e.to_string(), "No user message found to retry");
+        } else {
+            panic!("Expected error");
+        }
+    }
 }
