@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::io::{self, Write};
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -8,48 +7,10 @@ use forge_tool_macros::ToolDescription;
 use nu_ansi_term::Style;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncReadExt;
-use tokio::process::Command;
+
+use crate::shell::executor::CommandExecutor;
 
 const AI_INDICATOR: &str = "⚡";
-
-/// A writer that captures output while forwarding it to another writer
-struct TeeWriter {
-    buffer: Vec<u8>,
-    writer: Box<dyn Write + Send>,
-}
-
-impl TeeWriter {
-    fn new(writer: Box<dyn Write + Send>) -> Self {
-        Self { buffer: Vec::new(), writer }
-    }
-
-    async fn handle<T: tokio::io::AsyncRead + Unpin>(
-        mut self,
-        mut reader: T,
-    ) -> io::Result<Vec<u8>> {
-        let mut buffer = [0; 1024];
-        while let Ok(n) = reader.read(&mut buffer).await {
-            if n == 0 {
-                break;
-            }
-            self.write_all(&buffer[..n])?;
-        }
-        Ok(self.buffer)
-    }
-}
-
-impl Write for TeeWriter {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.writer.write_all(buf)?;
-        self.buffer.extend_from_slice(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -176,25 +137,10 @@ impl ToolCallService for Shell {
     type Input = ShellInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
+        // Validate command
         self.validate_command(&input.command)?;
 
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut c = Command::new("cmd");
-            c.args(["/C", &input.command]);
-            c
-        } else {
-            let mut c = Command::new("sh");
-            c.args(["-c", &input.command]);
-            c
-        };
-
-        cmd.current_dir(input.cwd)
-            .env("CLICOLOR_FORCE", "1")
-            .stdin(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
-
-        // Print the command before execution
+        // Print command indicator
         println!(
             "{} {}",
             Style::new()
@@ -207,36 +153,16 @@ impl ToolCallService for Shell {
                 .paint(&input.command)
         );
 
-        // Spawn the command
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| format!("Failed to execute command '{}': {}", input.command, e))?;
-
-        // Get handles to stdout and stderr
-        let stdout = child.stdout.take().expect("Failed to capture stdout");
-        let stderr = child.stderr.take().expect("Failed to capture stderr");
-
-        // Process both streams concurrently
-        let (stdout_result, stderr_result) = tokio::join!(
-            TeeWriter::new(Box::new(io::stdout())).handle(stdout),
-            TeeWriter::new(Box::new(io::stderr())).handle(stderr)
-        );
-
-        let stdout_bytes = stdout_result.map_err(|e| format!("Failed to read stdout: {}", e))?;
-        let stderr_bytes = stderr_result.map_err(|e| format!("Failed to read stderr: {}", e))?;
-
-        // Wait for the command to complete
-        let status = child
-            .wait()
-            .await
-            .map_err(|e| format!("Failed to wait for command '{}': {}", input.command, e))?;
-
-        // stripe ANSI codes from command ouput.
-        let stdout = String::from_utf8_lossy(&strip_ansi_escapes::strip(&stdout_bytes)).to_string();
-        let stderr = String::from_utf8_lossy(&strip_ansi_escapes::strip(&stderr_bytes)).to_string();
-
-        // Format and return the output
-        format_output(&stdout, &stderr, status.success())
+        // Create and execute command
+        let (stdout, stderr, success) = CommandExecutor::new(&input.command)
+            .with_cwd(input.cwd)
+            .piped()
+            .execute()
+            .map_err(|e| e.to_string())?
+            .stream()
+            .await?;
+        // Format and return output
+        format_output(&stdout, &stderr, success)
     }
 }
 
