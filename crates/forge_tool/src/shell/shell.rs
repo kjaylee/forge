@@ -149,7 +149,6 @@ impl ExecutableTool for Shell {
                 .paint(AI_INDICATOR),
             Style::new()
                 .fg(nu_ansi_term::Color::White)
-                .bold()
                 .paint(&input.command)
         );
 
