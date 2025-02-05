@@ -19,33 +19,7 @@ Important:
 - Do NOT mix formats in the same message
 - If you need to make multiple tool calls, send them in separate messages
 
-Here's a correct example structure:
-
-```xml
-<tool_call>
-<tool_forge_fs_read>
-<path>/path/to/file</path>
-<recursive>true</recursive>
-</tool_forge_fs_read>
-</tool_call>
-```
-
-Example of correct multi-step tool usage:
-
-First message:
-<tool_call>
-<tool_forge_fs_read>
-<path>/path/to/file</path>
-</tool_forge_fs_read>
-</tool_call>
-
-After receiving response, second message:
-<tool_call>
-<tool_forge_fs_create>
-<path>/path/to/file</path>
-<content>New content</content>
-</tool_forge_fs_create>
-</tool_call>
+{{> tool_use_example}}
 
 Before using a tool, ensure all required parameters are available. If any required parameters are missing, do not attempt to use the tool.
 
