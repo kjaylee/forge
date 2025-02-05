@@ -126,26 +126,27 @@ pub struct Agent {
     pub transforms: Vec<Transform>,
 }
 
-/// Possible use cases for transforms:
-/// - Summarization (TokenLimit)
-///   - Remove all, except first, and add summary as an assistant message
-/// - Enhance user prompt
-///   - Add additional meta information to the last user prompt
-/// - Standard middle-out implementation like in Open Router NOTE: The
-///   transforms are applied in the order they are defined (0th to last)
+/// Transformations that can be applied to the agent's context before sending it
+/// upstream to the provider.
 pub enum Transform {
-    Summarize {
+    /// Compresses multiple assistant messages into a single message
+    Assistant {
         input: String,
         output: String,
         agent_id: AgentId,
         token_limit: usize,
     },
 
-    EnhanceUserPrompt {
+    /// Works on the user prompt by enriching it with additional information
+    User {
         agent_id: AgentId,
         input: String,
         output: String,
     },
+
+    /// Intercepts the context and performs an operation without changing the
+    /// context
+    Tap { agent_id: AgentId, input: String },
 }
 
 impl Agent {

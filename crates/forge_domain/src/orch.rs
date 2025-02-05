@@ -150,14 +150,14 @@ impl Orchestrator {
     ) -> anyhow::Result<Context> {
         for transform in transforms.iter() {
             match transform {
-                Transform::Summarize {
+                Transform::Assistant {
                     agent_id,
                     token_limit,
                     input: input_key,
                     output: output_key,
                 } => {
-                    let mut s = Summarize::new(&mut context, *token_limit);
-                    while let Some(mut summary) = s.summarize() {
+                    let mut summarize = Summarize::new(&mut context, *token_limit);
+                    while let Some(mut summary) = summarize.summarize() {
                         let mut input = Variables::default();
                         input.add(input_key, summary.get());
 
@@ -169,7 +169,7 @@ impl Orchestrator {
                         summary.set(serde_json::to_string(&value)?);
                     }
                 }
-                Transform::EnhanceUserPrompt { agent_id, input: input_key, output: output_key } => {
+                Transform::User { agent_id, input: input_key, output: output_key } => {
                     if let Some(ContextMessage::ContentMessage(ContentMessage {
                         role: Role::User,
                         content,
@@ -188,6 +188,13 @@ impl Orchestrator {
 
                         content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
                     }
+                }
+                Transform::Tap { agent_id, input: input_key } => {
+                    let mut input = Variables::default();
+                    input.add(input_key, context.to_text());
+
+                    // NOTE: Tap transformers will not modify the context
+                    self.init_agent(agent_id, &input).await?;
                 }
             }
         }
