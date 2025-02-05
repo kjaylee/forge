@@ -99,6 +99,7 @@ impl Live {
         Ok(Box::pin(stream))
     }
 
+    // finds the last user message in the context
     fn find_last_user_message(context: &Context) -> Option<(usize, &ContextMessage)> {
         context.messages.iter().enumerate().rev()
             .find(|(_, msg)| {
@@ -133,7 +134,7 @@ impl UIService for Live {
 
         // Create request with context up to the last user message
         let request = ChatRequest::new(model_id, user_message).conversation_id(conversation_id);
-        Ok(Box::pin(self.execute(request, conversation, false).await?))
+        self.execute(request, conversation, false).await
     }
 
     async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
