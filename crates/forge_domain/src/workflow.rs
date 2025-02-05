@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use derive_more::derive::{Display, From};
 
@@ -16,7 +16,19 @@ pub struct Workflow {
 impl Workflow {
     /// Returns flows that have no predecessors
     pub fn head_flow(&self) -> Vec<FlowId> {
-        todo!()
+        let values = self
+            .handovers
+            .values()
+            .clone()
+            .into_iter()
+            .flatten()
+            .collect::<HashSet<_>>();
+
+        self.handovers
+            .keys()
+            .cloned()
+            .filter(|flow| !values.contains(flow))
+            .collect::<Vec<_>>()
     }
 }
 
