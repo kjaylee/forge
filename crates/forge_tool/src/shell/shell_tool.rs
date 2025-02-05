@@ -2,15 +2,14 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use forge_display::StatusDisplay;
+use forge_domain::Usage;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
-use nu_ansi_term::Style;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::shell::executor::CommandExecutor;
-
-const AI_INDICATOR: &str = "⚡";
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -140,16 +139,9 @@ impl ExecutableTool for Shell {
         // Validate command
         self.validate_command(&input.command)?;
 
-        // Print command indicator
         println!(
-            "{} {}",
-            Style::new()
-                .fg(nu_ansi_term::Color::Green)
-                .bold()
-                .paint(AI_INDICATOR),
-            Style::new()
-                .fg(nu_ansi_term::Color::White)
-                .paint(&input.command)
+            "{}",
+            StatusDisplay::execute(&input.command, Usage::default()).format()
         );
 
         // Create and execute command
