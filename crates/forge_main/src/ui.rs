@@ -186,13 +186,15 @@ impl UI {
                 if tool_result.is_error || self.cli.verbose {
                     CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
                 }
-                let status = if tool_result.is_error {
-                    StatusDisplay::failed(tool_name, self.state.usage.clone())
-                } else {
-                    StatusDisplay::success(tool_name, self.state.usage.clone())
-                };
-
-                CONSOLE.writeln(status.format())?;
+                if tool_result.is_error {
+                    CONSOLE.writeln(
+                        StatusDisplay::failed(tool_name, self.state.usage.clone()).format(),
+                    )?;
+                } else if self.cli.verbose {
+                    CONSOLE.writeln(
+                        StatusDisplay::success(tool_name, self.state.usage.clone()).format(),
+                    )?;
+                }
             }
             ChatResponse::ConversationStarted(conversation_id) => {
                 self.state.current_conversation_id = Some(conversation_id);
