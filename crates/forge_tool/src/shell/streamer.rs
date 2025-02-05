@@ -25,10 +25,8 @@ impl OutputStream {
             if n == 0 {
                 break;
             }
-            self.writer
-                .write_all(&buf[..n])
+            self.write_all(&buf[..n])
                 .map_err(|e| format!("Failed to write to stream: {}", e))?;
-            self.buffer.extend_from_slice(&buf[..n]);
         }
         Ok(())
     }
@@ -37,6 +35,18 @@ impl OutputStream {
     fn into_output(self) -> Result<String, String> {
         String::from_utf8(strip_ansi_escapes::strip(self.buffer))
             .map_err(|e| format!("Failed to convert output to string: {}", e))
+    }
+}
+
+impl Write for OutputStream {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.writer.write_all(buf)?;
+        self.flush()?;
+        self.buffer.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.writer.flush()
     }
 }
 
