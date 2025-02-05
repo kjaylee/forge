@@ -9,9 +9,7 @@ use serde_json::Value;
 
 use crate::arena::{Arena, SmartTool};
 use crate::{
-    Agent, AgentId, BoxStreamExt, ChatCompletionMessage, ContentMessage, Context, ContextMessage,
-    Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCall, ToolCallFull,
-    ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
+    Agent, AgentId, BoxStreamExt, ChatCompletionMessage, ContentMessage, Context, ContextMessage, Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCall, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId
 };
 
 pub struct Orchestrator {
@@ -89,26 +87,25 @@ impl Orchestrator {
         response: &mut (impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
                   + Send
                   + Unpin),
-    ) -> String {
+    ) -> anyhow::Result<String> {
         use futures::StreamExt;
 
         // Create a boxed stream and collect content
-        let mut stream = response.boxed().collect_content();
+        let mut stream = response.boxed().collect_content().boxed();
+        
+        let mut assistant_message: String = String::new();
+        while let Some(chunk) = stream.next().await {
+            let message = chunk?;
 
-        // Collect all messages and get the last one's content
-        let mut messages = Vec::new();
-        while let Some(result) = stream.next().await {
-            if let Ok(msg) = result {
-                messages.push(msg);
+            if let Some(ref content) = message.content {
+                if !content.is_empty() && !content.is_part() {
+                    assistant_message = content.clone().as_str().to_string();
+                    break;  
+                }
             }
-        }
 
-        // Get the last message's content
-        messages
-            .last()
-            .and_then(|msg| msg.content.as_ref())
-            .map(|content| content.as_str().to_string())
-            .unwrap_or_default()
+        }
+        Ok(assistant_message)
     }
 
     async fn collect_tool_calls(
@@ -268,7 +265,7 @@ impl Orchestrator {
                 return Ok(output);
             }
 
-            let content = self.collect_content(&mut response).await;
+            let content = self.collect_content(&mut response).await?;
 
             let tool_results = join_all(
                 tool_calls
