@@ -154,8 +154,12 @@ impl UIService for Live {
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::ModelId;
+    use core::panic;
+    use std::sync::Mutex;
+
+    use forge_domain::{ModelId, Role};
     use pretty_assertions::assert_eq;
+    use tokio_stream::StreamExt;
 
     use super::*;
     use crate::repo::test::TestConversationStorage;
@@ -185,11 +189,17 @@ mod tests {
 
     struct TestChatService {
         events: Vec<ChatResponse>,
+        request: Mutex<Option<ChatRequest>>,
+        context: Mutex<Option<Context>>,
     }
 
     impl TestChatService {
         fn single() -> Self {
-            Self { events: vec![ChatResponse::Text("test message".to_string())] }
+            Self {
+                events: vec![ChatResponse::Text("test message".to_string())],
+                request: Mutex::new(None),
+                context: Mutex::new(None),
+            }
         }
     }
 
@@ -197,9 +207,11 @@ mod tests {
     impl ChatService for TestChatService {
         async fn chat(
             &self,
-            _: ChatRequest,
-            _: Context,
+            request: ChatRequest,
+            context: Context,
         ) -> ResultStream<ChatResponse, anyhow::Error> {
+            self.request.lock().unwrap().replace(request.clone());
+            self.context.lock().unwrap().replace(context.clone());
             Ok(Box::pin(tokio_stream::iter(
                 self.events.clone().into_iter().map(Ok),
             )))
@@ -231,5 +243,144 @@ mod tests {
         }
 
         assert!(responses.next().await.is_none(), "Expected end of stream");
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_user_message() {
+        let conversation_service = Arc::new(TestConversationStorage::in_memory().unwrap());
+        let model_id = ModelId::new("gpt-3.5-turbo");
+
+        // Create a conversation with a user message
+        let mut context = Context::default();
+        context.messages.push(ContextMessage::ContentMessage(
+            forge_domain::ContentMessage {
+                role: Role::User,
+                content: "hey there".to_string(),
+                tool_calls: None,
+            },
+        ));
+        context.messages.push(ContextMessage::ContentMessage(
+            forge_domain::ContentMessage {
+                role: Role::Assistant,
+                content: "hi, i'm code forge an coding assistant. how can i help you".to_string(),
+                tool_calls: None,
+            },
+        ));
+        context.messages.push(ContextMessage::ContentMessage(
+            forge_domain::ContentMessage {
+                role: Role::User,
+                content: "what's 2 + 2 = ?".to_string(),
+                tool_calls: None,
+            },
+        ));
+
+        let conversation = conversation_service.insert(&context, None).await.unwrap();
+        let chat_svc = Arc::new(TestChatService::single());
+        let service = Service::ui_service(
+            conversation_service.clone(),
+            chat_svc.clone(),
+            Arc::new(TestTitleService::single()),
+        );
+        let mut responses = service.retry(conversation.id, model_id).await.unwrap();
+
+        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
+            assert_eq!(content, "test message");
+        } else {
+            panic!("Expected Text response");
+        }
+
+        let mut expected_context = context.clone();
+        let last_user_message = expected_context.messages.pop().unwrap(); // remove the last user message
+        if let ContextMessage::ContentMessage(content_msg) = last_user_message {
+            assert!(content_msg.role == Role::User);
+            assert_eq!(
+                chat_svc.context.lock().unwrap().clone().unwrap().clone(),
+                expected_context
+            );
+            assert_eq!(
+                chat_svc.request.lock().unwrap().clone().unwrap().content,
+                content_msg.content
+            );
+        } else {
+            panic!("Expected ContentMessage");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_last_user_message() {
+        let conversation_service = Arc::new(TestConversationStorage::in_memory().unwrap());
+        let model_id = ModelId::new("gpt-3.5-turbo");
+
+        // Create a conversation with a user message
+        let mut context = Context::default();
+        context.messages.push(ContextMessage::ContentMessage(
+            forge_domain::ContentMessage {
+                role: Role::User,
+                content: "hey there".to_string(),
+                tool_calls: None,
+            },
+        ));
+        context.messages.push(ContextMessage::ContentMessage(
+            forge_domain::ContentMessage {
+                role: Role::Assistant,
+                content: "hi, i'm code forge an coding assistant. how can i help you".to_string(),
+                tool_calls: None,
+            },
+        ));
+
+        let conversation = conversation_service.insert(&context, None).await.unwrap();
+        let chat_svc = Arc::new(TestChatService::single());
+        let service = Service::ui_service(
+            conversation_service.clone(),
+            chat_svc.clone(),
+            Arc::new(TestTitleService::single()),
+        );
+        let mut responses = service.retry(conversation.id, model_id).await.unwrap();
+
+        if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
+            assert_eq!(content, "test message");
+        } else {
+            panic!("Expected Text response");
+        }
+
+        assert_eq!(
+            chat_svc.context.lock().unwrap().clone().unwrap().clone(),
+            Context::default()
+        );
+        assert_eq!(
+            chat_svc.request.lock().unwrap().clone().unwrap().content,
+            "hey there"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_no_user_message() {
+        let conversation_service = Arc::new(TestConversationStorage::in_memory().unwrap());
+        let model_id = ModelId::new("gpt-3.5-turbo");
+
+        // Create a conversation with a user message
+        let mut context = Context::default();
+        context.messages.push(ContextMessage::ContentMessage(
+            forge_domain::ContentMessage {
+                role: Role::Assistant,
+                content: "hi, i'm code forge an coding assistant. how can i help you".to_string(),
+                tool_calls: None,
+            },
+        ));
+
+        let conversation = conversation_service.insert(&context, None).await.unwrap();
+        let chat_svc = Arc::new(TestChatService::single());
+        let service = Service::ui_service(
+            conversation_service.clone(),
+            chat_svc.clone(),
+            Arc::new(TestTitleService::single()),
+        );
+        let responses = service.retry(conversation.id, model_id).await;
+
+        if let Err(e) = responses {
+            assert_eq!(e.to_string(), "No user message found to retry");
+        } else {
+            panic!("Expected error");
+        }
     }
 }
