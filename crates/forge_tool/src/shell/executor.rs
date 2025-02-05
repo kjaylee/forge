@@ -11,7 +11,8 @@ pub struct CommandExecutor {
 }
 
 impl CommandExecutor {
-    /// Create a new command executor with the specified command and working directory
+    /// Create a new command executor with the specified command and working
+    /// directory
     pub fn new(command: &str) -> Self {
         let command = if cfg!(target_os = "windows") {
             let mut c = Command::new("cmd");

@@ -1,6 +1,6 @@
 use std::io::{self, Write};
-use tokio::io::AsyncReadExt;
 
+use tokio::io::AsyncReadExt;
 use tokio::process::Child;
 
 /// An output stream handler that captures and processes command output
@@ -8,7 +8,6 @@ pub struct OutputStream {
     buffer: Vec<u8>,
     writer: Box<dyn Write + Send>,
 }
-
 
 impl OutputStream {
     fn new(writer: Box<dyn Write + Send>) -> Self {
@@ -64,19 +63,23 @@ impl CommandStreamer {
     /// Stream and process command output
     pub async fn stream(mut self) -> Result<(String, String, bool), String> {
         // Get stream handles
-        let stdout = self.child
+        let stdout = self
+            .child
             .stdout
             .take()
             .ok_or_else(|| "Child process stdout not configured".to_string())?;
-        let stderr = self.child
+        let stderr = self
+            .child
             .stderr
             .take()
             .ok_or_else(|| "Child process stderr not configured".to_string())?;
 
-        let mut stdout_handler = self.stdout
+        let mut stdout_handler = self
+            .stdout
             .take()
             .ok_or_else(|| "Stdout handler not initialized".to_string())?;
-        let mut stderr_handler = self.stderr
+        let mut stderr_handler = self
+            .stderr
             .take()
             .ok_or_else(|| "Stderr handler not initialized".to_string())?;
 
