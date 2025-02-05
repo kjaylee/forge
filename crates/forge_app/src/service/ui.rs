@@ -98,9 +98,7 @@ impl Live {
 
         Ok(Box::pin(stream))
     }
-}
 
-impl Live {
     fn find_last_user_message(context: &Context) -> Option<(usize, &ContextMessage)> {
         context.messages.iter().enumerate().rev()
             .find(|(_, msg)| {
