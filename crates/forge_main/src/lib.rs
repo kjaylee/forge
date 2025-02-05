@@ -8,7 +8,6 @@ mod input;
 mod log;
 mod normalize;
 mod prompt;
-mod status;
 mod ui;
 
 pub use ui::UI;

@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
+use forge_display::StatusDisplay;
 use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
 use tokio_stream::StreamExt;
 
@@ -11,7 +12,6 @@ use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::display_info;
 use crate::input::{Console, PromptInput};
-use crate::status::StatusDisplay;
 use crate::{banner, log};
 
 #[derive(Default)]

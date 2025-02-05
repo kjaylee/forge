@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+use forge_display::StatusDisplay;
 use forge_domain::{Command, Environment, Usage, UserInput};
 use tokio::fs;
 
 use crate::console::CONSOLE;
 use crate::editor::{ForgeEditor, ReadResult};
 use crate::prompt::ForgePrompt;
-use crate::status::StatusDisplay;
 
 /// Console implementation for handling user input via command line.
 #[derive(Debug, Default)]
