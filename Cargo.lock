@@ -981,7 +981,6 @@ dependencies = [
  "forge_domain",
  "forge_tool_macros",
  "forge_walker",
- "futures",
  "glob",
  "html2md",
  "inquire",
