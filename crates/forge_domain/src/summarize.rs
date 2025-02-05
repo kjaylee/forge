@@ -20,6 +20,7 @@ pub struct Summarize<'context> {
     context: &'context mut Context,
     token_limit: usize,
     turns: VecDeque<Range<usize>>,
+    // TODO: use a persistent cache to avoid re-summarizing
 }
 
 impl<'context> Summarize<'context> {
