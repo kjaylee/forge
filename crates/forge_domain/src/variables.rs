@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 use serde_json::Value;
 
-#[derive(Default, Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct Variables(HashMap<String, Value>);
 
 impl Variables {

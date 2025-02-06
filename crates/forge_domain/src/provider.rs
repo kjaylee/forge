@@ -16,4 +16,5 @@ pub trait ProviderService: Send + Sync + 'static {
     async fn parameters(&self, model: &ModelId) -> Result<Parameters>;
 }
 
+#[derive(Clone)]
 pub struct Provider(Url);

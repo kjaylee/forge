@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Context as _;
@@ -6,6 +6,7 @@ use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::Stream;
 use serde_json::Value;
+use tokio::sync::Mutex;
 
 use crate::arena::{Arena, SmartTool};
 use crate::{
@@ -19,6 +20,7 @@ pub struct Orchestrator {
     system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
+    state: Arc<Mutex<HashMap<AgentId, Context>>>,
 }
 
 impl Orchestrator {
@@ -28,13 +30,29 @@ impl Orchestrator {
         arena: Arena,
         system_context: SystemContext,
     ) -> Self {
-        Self { arena, provider, system_context, tool }
+        Self {
+            arena,
+            provider,
+            system_context,
+            tool,
+            state: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
-    pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
+    pub async fn state(&self, id: &AgentId) -> Option<Context> {
+        let guard = self.state.lock().await;
+        guard.get(id).cloned()
+    }
+
+    pub async fn execute(
+        &self,
+        id: &FlowId,
+        input: &Variables,
+        context: &Option<Context>,
+    ) -> anyhow::Result<Variables> {
         match id {
-            FlowId::Agent(id) => self.init_agent(id, input).await,
-            FlowId::Workflow(id) => self.init_workflow(id, input).await,
+            FlowId::Agent(id) => self.init_agent(id, input, context).await,
+            FlowId::Workflow(id) => self.init_workflow(id, input, context).await,
         }
     }
 
@@ -94,7 +112,7 @@ impl Orchestrator {
     async fn collect_tool_calls(
         &self,
         _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
-        _variables: &mut Variables,
+        _variables: &Variables,
     ) -> Vec<ToolCallFull> {
         todo!()
     }
@@ -107,7 +125,9 @@ impl Orchestrator {
         let smart_tool = self.find_tool(&tool_call.name);
         if let Some(tool) = smart_tool {
             let input = Variables::from(tool_call.arguments.clone());
-            match self.execute(&tool.run, &input).await {
+
+            // Tools start fresh with no initial context
+            match self.execute(&tool.run, &input, &None).await {
                 Ok(output) => {
                     let output = serde_json::to_string(&output).with_context(|| {
                         format!(
@@ -161,7 +181,7 @@ impl Orchestrator {
                         let mut input = Variables::default();
                         input.add(input_key, summary.get());
 
-                        let output = self.init_agent(agent_id, &input).await?;
+                        let output = self.init_agent(agent_id, &input, &None).await?;
                         let value = output
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
@@ -179,7 +199,7 @@ impl Orchestrator {
                         let mut input = Variables::default();
                         input.add(input_key, Value::from(content.clone()));
 
-                        let output = self.init_agent(agent_id, &input).await?;
+                        let output = self.init_agent(agent_id, &input, &None).await?;
                         let value = output
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
@@ -194,7 +214,7 @@ impl Orchestrator {
                     input.add(input_key, context.to_text());
 
                     // NOTE: Tap transformers will not modify the context
-                    self.init_agent(agent_id, &input).await?;
+                    self.init_agent(agent_id, &input, &None).await?;
                 }
             }
         }
@@ -202,9 +222,19 @@ impl Orchestrator {
         Ok(context)
     }
 
-    async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
+    async fn init_agent(
+        &self,
+        agent: &AgentId,
+        input: &Variables,
+        context: &Option<Context>,
+    ) -> anyhow::Result<Variables> {
         let agent = self.find_agent(agent)?;
-        let mut context = self.init_agent_context(agent, input)?;
+
+        let mut context = context
+            .clone()
+            .map(Ok)
+            .unwrap_or_else(|| self.init_agent_context(&agent, input))?;
+
         let content = agent.user_prompt.render(input)?;
         let mut output = Variables::default();
         context = context.add_message(ContextMessage::user(content));
@@ -233,6 +263,11 @@ impl Orchestrator {
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results);
+
+            self.state
+                .lock()
+                .await
+                .insert(agent.id.clone(), context.clone());
         }
     }
 
@@ -241,10 +276,11 @@ impl Orchestrator {
         flow_id: &FlowId,
         input: &Variables,
         workflow: &Workflow,
+        context: &Option<Context>,
     ) -> anyhow::Result<Variables> {
         match flow_id {
             FlowId::Agent(agent_id) => {
-                let variables = self.init_agent(agent_id, input).await?;
+                let variables = self.init_agent(agent_id, input, context).await?;
                 let flows = workflow
                     .handovers
                     .get(&agent_id.clone().into())
@@ -253,24 +289,29 @@ impl Orchestrator {
                 join_all(
                     flows
                         .iter()
-                        .map(|flow_id| self.init_flow(flow_id, &variables, workflow)),
+                        .map(|flow_id| self.init_flow(flow_id, &variables, workflow, &None)),
                 )
                 .await
                 .into_iter()
                 .collect::<anyhow::Result<Vec<_>>>()
                 .map(Variables::from)
             }
-            FlowId::Workflow(id) => self.init_workflow(id, input).await,
+            FlowId::Workflow(id) => self.init_workflow(id, input, context).await,
         }
     }
 
-    async fn init_workflow(&self, id: &WorkflowId, input: &Variables) -> anyhow::Result<Variables> {
+    async fn init_workflow(
+        &self,
+        id: &WorkflowId,
+        input: &Variables,
+        context: &Option<Context>,
+    ) -> anyhow::Result<Variables> {
         let workflow = self.find_workflow(id)?;
         join_all(
             workflow
                 .head_flow()
                 .iter()
-                .map(|flow_id| self.init_flow(flow_id, input, workflow)),
+                .map(|flow_id| self.init_flow(flow_id, input, workflow, context)),
         )
         .await
         .into_iter()

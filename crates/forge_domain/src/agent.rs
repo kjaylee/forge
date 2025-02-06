@@ -23,6 +23,7 @@ pub enum PromptContent {
     File(PathBuf),
 }
 
+#[derive(Clone)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
     pub variables: Schema<V>,
@@ -45,6 +46,7 @@ pub struct Schema<S> {
     _marker: std::marker::PhantomData<S>,
 }
 
+#[derive(Clone)]
 pub struct PromptTemplate(String);
 impl PromptTemplate {
     pub fn as_str(&self) -> &str {
@@ -55,6 +57,7 @@ impl PromptTemplate {
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
 pub struct AgentId(String);
 
+#[derive(Clone)]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -68,6 +71,7 @@ pub struct Agent {
 
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
+#[derive(Clone)]
 pub enum Transform {
     /// Compresses multiple assistant messages into a single message
     Assistant {
