@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::str::FromStr;
 
 use forge_domain::Environment;
+use crate::model::ConfigKey;
 use crate::info::Info;
 
 impl From<&Config> for Info {
@@ -24,55 +24,12 @@ impl From<&Config> for Info {
 /// Custom error type for configuration-related errors
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
-    #[error("Unknown configuration key: {0}")]
-    UnknownKey(String),
     #[error("Model name cannot be empty")]
     EmptyModelName,
     #[error("Tool timeout must be greater than zero")]
     NonPositiveTimeout,
     #[error("Failed to parse timeout value: {0}")]
     MalformedTimeout(String),
-}
-
-/// Represents configuration keys available in the system
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ConfigKey {
-    /// Primary language model to use for main operations
-    PrimaryModel,
-    /// Secondary language model for fallback or specialized tasks
-    SecondaryModel,
-    /// Timeout duration for tool operations in seconds
-    ToolTimeout,
-}
-
-impl ConfigKey {
-    /// Returns the string representation of the configuration key
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ConfigKey::PrimaryModel => "primary-model",
-            ConfigKey::SecondaryModel => "secondary-model",
-            ConfigKey::ToolTimeout => "tool-timeout",
-        }
-    }
-}
-
-impl Display for ConfigKey {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
-    }
-}
-
-impl FromStr for ConfigKey {
-    type Err = ConfigError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "primary-model" => Ok(ConfigKey::PrimaryModel),
-            "secondary-model" => Ok(ConfigKey::SecondaryModel),
-            "tool-timeout" => Ok(ConfigKey::ToolTimeout),
-            _ => Err(ConfigError::UnknownKey(s.to_string())),
-        }
-    }
 }
 
 /// Represents configuration values with their specific types
@@ -128,9 +85,9 @@ impl From<&Environment> for Config {
     fn from(env: &Environment) -> Self {
         let mut config = Config::default();
         // No need to handle errors here as we control the input values
-        let _ = config.insert("primary-model", &env.large_model_id);
-        let _ = config.insert("secondary-model", &env.small_model_id);
-        let _ = config.insert("tool-timeout", "20");
+        let _ = config.insert(&ConfigKey::PrimaryModel, &env.large_model_id);
+        let _ = config.insert(&ConfigKey::SecondaryModel, &env.small_model_id);
+        let _ = config.insert(&ConfigKey::ToolTimeout, "20");
         config
     }
 }
@@ -150,18 +107,14 @@ impl Config {
     }
 
     /// Gets a configuration value by key string
-    pub fn get(&self, key: &str) -> Option<String> {
-        key.parse::<ConfigKey>()
-            .ok()
-            .and_then(|k| self.values.get(&k))
-            .map(|v| v.as_str())
+    pub fn get(&self, key: &ConfigKey) -> Option<String> {
+        self.values.get(key).map(|v| v.as_str())
     }
 
     /// Inserts a new configuration value
-    pub fn insert(&mut self, key: &str, value: &str) -> Result<(), ConfigError> {
-        let config_key = ConfigKey::from_str(key)?;
-        let config_value = ConfigValue::from_key_value(&config_key, value)?;
-        self.values.insert(config_key, config_value);
+    pub fn insert(&mut self, key: &ConfigKey, value: &str) -> Result<(), ConfigError> {
+        let config_value = ConfigValue::from_key_value(key, value)?;
+        self.values.insert(key.clone(), config_value);
         Ok(())
     }
 
@@ -177,64 +130,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_config_key_from_str() {
-        assert_eq!(
-            ConfigKey::from_str("primary-model").unwrap(),
-            ConfigKey::PrimaryModel
-        );
-        assert_eq!(
-            ConfigKey::from_str("secondary-model").unwrap(),
-            ConfigKey::SecondaryModel
-        );
-        assert_eq!(
-            ConfigKey::from_str("tool-timeout").unwrap(),
-            ConfigKey::ToolTimeout
-        );
-
-        let err = ConfigKey::from_str("invalid-key").unwrap_err();
-        assert!(matches!(err, ConfigError::UnknownKey(_)));
-    }
-
-    #[test]
-    fn test_config_key_as_str() {
-        assert_eq!(ConfigKey::PrimaryModel.as_str(), "primary-model");
-        assert_eq!(ConfigKey::SecondaryModel.as_str(), "secondary-model");
-        assert_eq!(ConfigKey::ToolTimeout.as_str(), "tool-timeout");
-    }
-
-    #[test]
     fn test_config_basic() {
         let mut config = Config::default();
         assert!(config.is_empty());
 
         // Test setting and getting values
-        config.insert("primary-model", "gpt-4").unwrap();
-        assert_eq!(config.get("primary-model").unwrap(), "gpt-4");
+        config.insert(&ConfigKey::PrimaryModel, "gpt-4").unwrap();
+        assert_eq!(config.get(&ConfigKey::PrimaryModel).unwrap(), "gpt-4");
 
-        config.insert("tool-timeout", "30").unwrap();
-        assert_eq!(config.get("tool-timeout").unwrap(), "30");
+        config.insert(&ConfigKey::ToolTimeout, "30").unwrap();
+        assert_eq!(config.get(&ConfigKey::ToolTimeout).unwrap(), "30");
 
         // Test type-safe accessors
         assert_eq!(config.primary_model().unwrap(), "gpt-4");
 
         // Test overwriting values
-        config.insert("primary-model", "gpt-3.5-turbo").unwrap();
+        config.insert(&ConfigKey::PrimaryModel, "gpt-3.5-turbo").unwrap();
         assert_eq!(config.primary_model().unwrap(), "gpt-3.5-turbo");
 
         // Test getting non-existent key
-        assert!(config.get("non-existent").is_none());
+        assert!(config.get(&ConfigKey::SecondaryModel).is_none());
 
         // Test invalid operations
         assert!(matches!(
-            config.insert("invalid-key", "value").unwrap_err(),
-            ConfigError::UnknownKey(_)
-        ));
-        assert!(matches!(
-            config.insert("tool-timeout", "invalid").unwrap_err(),
+            config.insert(&ConfigKey::ToolTimeout, "invalid").unwrap_err(),
             ConfigError::MalformedTimeout(_)
         ));
         assert!(matches!(
-            config.insert("tool-timeout", "0").unwrap_err(),
+            config.insert(&ConfigKey::ToolTimeout, "0").unwrap_err(),
             ConfigError::NonPositiveTimeout
         ));
     }

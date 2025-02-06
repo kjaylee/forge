@@ -5,9 +5,9 @@ use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_domain::{
-    ChatRequest, ChatResponse, Command, ConfigCommand, ConversationId, Model, ModelId, Usage,
-    UserInput,
+    ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage,
 };
+use crate::model::{Command, ConfigCommand, UserInput};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -155,7 +155,7 @@ impl UI {
                                     );
                                 CONSOLE.writeln(format!(
                                     "{}: {}",
-                                    key.bold().yellow(),
+                                    key.to_string().bold().yellow(),
                                     value.white()
                                 ))?;
                             }
@@ -170,7 +170,7 @@ impl UI {
                             if let Some(value) = self.config.get(&key) {
                                 CONSOLE.writeln(format!(
                                     "{}: {}",
-                                    key.bold().yellow(),
+                                    key.to_string().bold().yellow(),
                                     value.white()
                                 ))?;
                             } else {

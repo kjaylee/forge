@@ -34,8 +34,6 @@ pub enum Error {
     #[error("Variable not found in output: {0}")]
     UndefinedVariable(String),
 
-    #[error("Error parsing command: {0}. Please ensure the command syntax is correct.")]
-    CommandParse(String),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;

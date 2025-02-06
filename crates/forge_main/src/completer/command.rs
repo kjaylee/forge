@@ -1,4 +1,4 @@
-use forge_domain::Command;
+use crate::model::Command;
 use reedline::{Completer, Span, Suggestion};
 
 #[derive(Default)]

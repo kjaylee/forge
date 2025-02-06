@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use forge_domain::{Command, Environment, Usage, UserInput};
+use forge_domain::{Environment, Usage};
+use crate::model::{Command, UserInput};
 use tokio::fs;
 
 use crate::console::CONSOLE;
