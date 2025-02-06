@@ -31,7 +31,7 @@ impl From<&[Model]> for Info {
         }
 
         for (provider, provider_models) in models_by_provider.iter() {
-            info = info.add_title(format!("{}", provider));
+            info = info.add_title(provider.to_string());
             for model in provider_models {
                 info = info.add_item(
                     &model.name,
