@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use forge_domain::{
@@ -16,8 +16,9 @@ impl Service {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
+        system_prompt_path: Option<PathBuf>,
     ) -> impl PromptService {
-        Live::new(env, tool, provider, file_read)
+        Live::new(env, tool, provider, file_read, system_prompt_path)
     }
 }
 
@@ -27,6 +28,7 @@ struct Live {
     tool: Arc<dyn ToolService>,
     provider: Arc<dyn ProviderService>,
     file_read: Arc<dyn FileReadService>,
+    system_prompt_path: Option<PathBuf>,
 }
 
 impl Live {
@@ -35,8 +37,9 @@ impl Live {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
+        system_prompt_path: Option<PathBuf>,
     ) -> Self {
-        Self { env, tool, provider, file_read }
+        Self { env, tool, provider, file_read, system_prompt_path }
     }
 }
 
@@ -83,7 +86,12 @@ impl PromptService for Live {
             files,
         };
 
-        let prompt = Prompt::new(include_str!("../prompts/coding/system.md"));
+        let prompt = if let Some(path) = self.system_prompt_path.clone() {
+            self.file_read.read(path).await?
+        } else {
+            include_str!("../prompts/coding/system.md").to_owned()
+        };
+        let prompt = Prompt::new(prompt);
         Ok(prompt.render(&ctx)?)
     }
 }
@@ -131,7 +139,7 @@ mod tests {
         );
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file)
+        let prompt = Live::new(env, tools, provider, file, None)
             .get(&request)
             .await
             .unwrap()
@@ -151,7 +159,7 @@ mod tests {
         )]));
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file)
+        let prompt = Live::new(env, tools, provider, file, None)
             .get(&request)
             .await
             .unwrap()
@@ -171,7 +179,7 @@ mod tests {
         let file = Arc::new(TestFileReadService::default().add(".custom.md", "Woof woof!"));
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task")
             .custom_instructions(".custom.md");
-        let prompt = Live::new(env, tools, provider, file)
+        let prompt = Live::new(env, tools, provider, file, None)
             .get(&request)
             .await
             .unwrap()

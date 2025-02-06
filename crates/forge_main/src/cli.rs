@@ -14,4 +14,7 @@ pub struct Cli {
     /// Path to runtime configuration file for AI customization
     #[arg(long, short = 'c')]
     pub custom_instructions: Option<PathBuf>,
+    /// Path to the system prompt file
+    #[arg(long, short = 's')]
+    pub system_prompt_path: Option<PathBuf>,
 }
