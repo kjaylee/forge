@@ -140,7 +140,7 @@ impl UI {
 
     async fn chat(&mut self, content: String, model: &ModelId) -> Result<()> {
         let chat = ChatRequest {
-            content,
+            content: Some(content),
             model: model.clone(),
             conversation_id: self.state.current_conversation_id,
             custom_instructions: self.cli.custom_instructions.clone(),

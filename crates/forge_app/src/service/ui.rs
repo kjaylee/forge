@@ -100,11 +100,11 @@ impl Live {
     }
 
     // finds the last user message in the context
-    fn find_last_user_message(context: &Context) -> Option<(usize, &ContextMessage)> {
+    fn find_last_user_message(context: &Context) -> Option<usize> {
         context.messages.iter().enumerate().rev()
             .find(|(_, msg)| {
                 matches!(msg, ContextMessage::ContentMessage(content_msg) if content_msg.role == forge_domain::Role::User)
-            })
+            }).map(|(index, _)| index)
     }
 }
 
@@ -117,23 +117,15 @@ impl UIService for Live {
     ) -> ResultStream<ChatResponse, anyhow::Error> {
         let mut conversation = self.conversation_service.get(conversation_id).await?;
 
-        // Find and extract last user message and prepare context
-        let (last_index, user_message) =
-            if let Some((idx, msg)) = Self::find_last_user_message(&conversation.context) {
-                if let ContextMessage::ContentMessage(content_msg) = msg {
-                    (idx, content_msg.content.clone())
-                } else {
-                    return Err(anyhow::anyhow!("Invalid message type found"));
-                }
-            } else {
-                return Err(anyhow::anyhow!("No user message found to retry"));
-            };
+        // find the last user message in the context
+        let last_index = Self::find_last_user_message(&conversation.context)
+            .ok_or_else(|| anyhow::anyhow!("No user message found to retry"))?;
 
         // Truncate to remove messages after the last user message
-        conversation.context.messages.truncate(last_index);
+        conversation.context.messages.truncate(last_index + 1);
 
         // Create request with context up to the last user message
-        let request = ChatRequest::new(model_id, user_message).conversation_id(conversation_id);
+        let request = ChatRequest::new(model_id).conversation_id(conversation_id);
         self.execute(request, conversation, false).await
     }
 
@@ -236,7 +228,9 @@ mod tests {
             .await
             .unwrap();
 
-        let request = ChatRequest::new(model_id, "test").conversation_id(conversation.id);
+        let request = ChatRequest::new(model_id)
+            .content("test")
+            .conversation_id(conversation.id);
         let mut responses = service.chat(request).await.unwrap();
 
         if let Some(Ok(ChatResponse::Text(content))) = responses.next().await {
@@ -292,21 +286,18 @@ mod tests {
             panic!("Expected Text response");
         }
 
-        let mut expected_context = context.clone();
-        let last_user_message = expected_context.messages.pop().unwrap(); // remove the last user message
-        if let ContextMessage::ContentMessage(content_msg) = last_user_message {
-            assert!(content_msg.role == Role::User);
-            assert_eq!(
-                chat_svc.context.lock().unwrap().clone().unwrap().clone(),
-                expected_context
-            );
-            assert_eq!(
-                chat_svc.request.lock().unwrap().clone().unwrap().content,
-                content_msg.content
-            );
-        } else {
-            panic!("Expected ContentMessage");
-        }
+        assert_eq!(
+            chat_svc.context.lock().unwrap().clone().unwrap().clone(),
+            context.clone()
+        );
+        assert!(chat_svc
+            .request
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap()
+            .content
+            .is_none());
     }
 
     #[tokio::test]
@@ -346,14 +337,29 @@ mod tests {
             panic!("Expected Text response");
         }
 
+        let mut expected_context = Context::default();
+        expected_context
+            .messages
+            .push(ContextMessage::ContentMessage(
+                forge_domain::ContentMessage {
+                    role: Role::User,
+                    content: "hey there".to_string(),
+                    tool_calls: None,
+                },
+            ));
+
         assert_eq!(
             chat_svc.context.lock().unwrap().clone().unwrap().clone(),
-            Context::default()
+            expected_context
         );
-        assert_eq!(
-            chat_svc.request.lock().unwrap().clone().unwrap().content,
-            "hey there"
-        );
+        assert!(chat_svc
+            .request
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap()
+            .content
+            .is_none());
     }
 
     #[tokio::test]

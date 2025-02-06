@@ -135,7 +135,7 @@ mod tests {
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let file = Arc::new(TestFileReadService::default());
-        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo")).content("test task");
         let prompt = Live::new(env, tools, provider, file)
             .get(&request)
             .await
@@ -155,7 +155,7 @@ mod tests {
             Parameters::new(false),
         )]));
         let file = Arc::new(TestFileReadService::default());
-        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo")).content("test task");
         let prompt = Live::new(env, tools, provider, file)
             .get(&request)
             .await
@@ -174,7 +174,7 @@ mod tests {
             Parameters::new(false),
         )]));
         let file = Arc::new(TestFileReadService::default().add(".custom.md", "Woof woof!"));
-        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task")
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), ).content("test task")
             .custom_instructions(".custom.md");
         let prompt = Live::new(env, tools, provider, file)
             .get(&request)
