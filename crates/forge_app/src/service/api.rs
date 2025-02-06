@@ -215,13 +215,13 @@ impl APIService for Live {
         // Spawn the execution task
         tokio::spawn(async move {
             if let Err(e) = orchestrator.execute(&flow_id, &input).await {
-                let _ = tx.send(ChatResponse::Error(e.into()));
+                let _ = tx.send(Err(e));
             }
-            let _ = tx.send(ChatResponse::Complete);
+            let _ = tx.send(Ok(ChatResponse::Complete));
         });
         
         // Return the receiver as a stream, mapping each value to Result<ChatResponse, anyhow::Error>
         Ok(Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx)
-            .map(Ok)))
+            ))
     }
 }

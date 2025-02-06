@@ -21,7 +21,7 @@ pub struct Orchestrator {
     system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
-    response_tx: Option<tokio::sync::mpsc::UnboundedSender<ChatResponse>>,
+    response_tx: Option<tokio::sync::mpsc::UnboundedSender<anyhow::Result<ChatResponse>>>,
     workflow_context: Arc<RwLock<Context>>,
 }
 
@@ -43,14 +43,14 @@ impl Orchestrator {
     }
 
     /// Set a channel to receive chat responses
-    pub fn with_response_channel(mut self, tx: tokio::sync::mpsc::UnboundedSender<ChatResponse>) -> Arc<Self> {
+    pub fn with_response_channel(mut self, tx: tokio::sync::mpsc::UnboundedSender<anyhow::Result<ChatResponse>>) -> Arc<Self> {
         self.response_tx = Some(tx);
         Arc::new(self)
     }
 
     fn emit_response(&self, response: ChatResponse) {
         if let Some(tx) = &self.response_tx {
-            let _ = tx.send(response);
+            let _ = tx.send(Ok(response));
         }
     }
 
