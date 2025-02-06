@@ -120,7 +120,7 @@ impl TitleService for Live {
             return Err(anyhow::anyhow!("task not found for title generation!"));
         }
 
-        let user_prompt = self.user_prompt(&chat.content.as_ref().unwrap());
+        let user_prompt = self.user_prompt(chat.content.as_ref().unwrap());
         let tool = Title::definition();
         let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
         let system_prompt = self.system_prompt(tool_supported, tool.clone())?;
@@ -283,13 +283,16 @@ mod tests {
         );
     }
 
-
     #[tokio::test]
     async fn test_raise_error_when_content_is_none() {
-        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"))
-            .conversation_id(ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap());
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo")).conversation_id(
+            ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+        );
         let actual = Fixture(vec![]).run(request).await;
         assert!(actual.is_err());
-        assert_eq!(actual.unwrap_err().to_string(), "task not found for title generation!");
+        assert_eq!(
+            actual.unwrap_err().to_string(),
+            "task not found for title generation!"
+        );
     }
 }
