@@ -5,14 +5,15 @@ use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_domain::{
-    ChatRequest, ChatResponse, Command, ConfigCommand, ConversationId, ModelId, Usage, UserInput,
+    ChatRequest, ChatResponse, Command, ConfigCommand, ConversationId, Model, ModelId, Usage,
+    UserInput,
 };
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
 use crate::config::Config;
 use crate::console::CONSOLE;
-use crate::info::display_info;
+use crate::info::Info;
 use crate::input::{Console, PromptInput};
 use crate::status::StatusDisplay;
 use crate::{banner, log};
@@ -40,6 +41,7 @@ pub struct UI {
     console: Console,
     cli: Cli,
     config: Config,
+    models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -59,6 +61,7 @@ impl UI {
             config,
             console: Console::new(api.environment().await?),
             cli,
+            models: None,
             _guard: guard,
         })
     }
@@ -106,7 +109,11 @@ impl UI {
                     continue;
                 }
                 Command::Info => {
-                    display_info(&self.api.environment().await?, &self.state.usage)?;
+                    let info = Info::from(&self.api.environment().await?)
+                        .extend(Info::from(&self.state.usage));
+
+                    CONSOLE.writeln(info.to_string())?;
+
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
@@ -124,6 +131,19 @@ impl UI {
                 }
                 Command::Exit => {
                     break;
+                }
+                Command::Models => {
+                    let models = if let Some(models) = self.models.as_ref() {
+                        models
+                    } else {
+                        let models = self.api.models().await?;
+                        self.models = Some(models);
+                        self.models.as_ref().unwrap()
+                    };
+                    let info: Info = models.as_slice().into();
+                    CONSOLE.writeln(info.to_string())?;
+
+                    input = self.console.prompt(None).await?;
                 }
                 Command::Config(config_cmd) => {
                     match config_cmd {

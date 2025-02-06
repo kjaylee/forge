@@ -2,6 +2,8 @@ use std::pin::Pin;
 
 use thiserror::Error;
 
+use crate::{AgentId, WorkflowId};
+
 // NOTE: Deriving From for error is a really bad idea. This is because you end
 // up converting errors incorrectly without much context. For eg: You don't want
 // all serde error to be treated as the same. Instead we want to know exactly
@@ -22,6 +24,15 @@ pub enum Error {
 
     #[error("Invalid template rendering params: {0}")]
     Template(handlebars::RenderError),
+
+    #[error("Agent not found in the arena: {0}")]
+    AgentUndefined(AgentId),
+
+    #[error("Workflow not found in the arena: {0}")]
+    WorkflowUndefined(WorkflowId),
+
+    #[error("Variable not found in output: {0}")]
+    UndefinedVariable(String),
 
     #[error("Error parsing command: {0}. Please ensure the command syntax is correct.")]
     CommandParse(String),

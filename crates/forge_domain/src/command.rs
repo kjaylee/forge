@@ -30,6 +30,8 @@ pub enum Command {
     Info,
     /// Exit the application without any further action.
     Exit,
+    /// Lists the models available for use.
+    Models,
     /// Config command, can be used to get or set or display configuration
     /// values.
     Config(ConfigCommand),
@@ -106,6 +108,7 @@ impl Command {
             "/reload".to_string(),
             "/info".to_string(),
             "/exit".to_string(),
+            "/models".to_string(),
             "/config".to_string(),
             "/config set".to_string(),
             "/config get".to_string(),
@@ -137,6 +140,7 @@ impl Command {
             "/reload" => Ok(Command::Reload),
             "/info" => Ok(Command::Info),
             "/exit" => Ok(Command::Exit),
+            "/models" => Ok(Command::Models),
             text => Ok(Command::Message(text.to_string())),
         }
     }
