@@ -105,11 +105,11 @@ macro_rules! generate_model_test {
             let fixture = Fixture::new(
                 "There is a cat hidden in the codebase. What is its name? hint: it's present in *.md file, but not in the docs directory. You can use any tool at your disposal to find it. Do not ask me any questions.",
             );
-            
+
             let result = fixture
                 .test_single_model($model, |response| response.to_lowercase().contains("juniper"))
                 .await;
-            
+
             assert!(result.is_ok(), "Test failure for {}: {:?}", $model, result);
         }
     };
