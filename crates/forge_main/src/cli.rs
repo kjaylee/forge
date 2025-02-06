@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-
 use clap::Parser;
+use std::fs;
+use std::path::PathBuf;
 
 /// Command line arguments for the application
 #[derive(Parser)]
@@ -15,6 +15,40 @@ pub struct Cli {
     #[arg(long, short = 'c')]
     pub custom_instructions: Option<PathBuf>,
     /// Path to the system prompt file
-    #[arg(long, short = 's')]
+    #[arg(
+        long,
+        short = 's',
+        value_parser = validate_system_prompt_path
+    )]
     pub system_prompt_path: Option<PathBuf>,
+}
+
+fn validate_system_prompt_path(path: &str) -> Result<PathBuf, String> {
+    let path_buf = PathBuf::from(path);
+
+    // check if the path exists
+    if !path_buf.exists() {
+        return Err(format!(
+            "System prompt path does not exist: '{}'",
+            path_buf.display()
+        ));
+    }
+
+    // Check if it's a file
+    if !path_buf.is_file() {
+        return Err(format!(
+            "System prompt path is not a file: '{}'",
+            path_buf.display()
+        ));
+    }
+
+    // Check if readable by attempting to read metadata
+    if fs::metadata(&path_buf).is_err() {
+        return Err(format!(
+            "Unable to read system prompt file: '{}'",
+            path_buf.display()
+        ));
+    }
+
+    Ok(path_buf)
 }
