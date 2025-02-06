@@ -7,12 +7,13 @@ use std::path::PathBuf;
 #[command(version = env!("CARGO_PKG_VERSION"))]
 pub struct Cli {
     /// Optional file path to execute commands from
-    pub prompt: Option<String>,
+    #[arg(long, short = 'c')]
+    pub command: Option<String>,
     /// Enable verbose output, showing additional tool information
     #[arg(long, default_value_t = false)]
     pub verbose: bool,
-    /// Path to runtime configuration file for AI customization
-    #[arg(long, short = 'c',value_parser = validate_path)]
+    /// Path to custom instructions
+    #[arg(long, short = 'i',value_parser = validate_path)]
     pub custom_instructions: Option<PathBuf>,
     /// Path to the system prompt file
     #[arg(
@@ -38,7 +39,10 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
 
     // Check if readable by attempting to read metadata
     if fs::metadata(&path_buf).is_err() {
-        return Err(format!("Unable to read file from path '{}'", path_buf.display()));
+        return Err(format!(
+            "Unable to read file from path '{}'",
+            path_buf.display()
+        ));
     }
     Ok(path_buf)
 }
