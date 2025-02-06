@@ -44,24 +44,32 @@ impl CommandExecutor {
         self
     }
 
-    /// executes the command and streams the output of command to stdout and
-    /// stderr.
-    pub async fn execute(mut self) -> anyhow::Result<Output> {
-        // don't change this configuration else it will break the cli output.
+    fn configure_pipes(&mut self) {
+        // in order to stream the output of the command to stdout and stderr,
+        // we need to set it to piped. but to pass the input to the child process
+        // we need to set the stdin to inherit.
         self.command
             .stdin(std::process::Stdio::inherit())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
+    }
+
+    /// executes the command and streams the output of command to stdout,
+    /// stderr and it returns the captured output.
+    pub async fn execute(mut self) -> anyhow::Result<Output> {
+        self.configure_pipes();
 
         let mut child = self.command.spawn()?;
-
         let mut stdout_pipe = child.stdout.take();
         let mut stderr_pipe = child.stderr.take();
 
-        let stdout_fut = stream(&mut stdout_pipe, io::stdout());
-        let stderr_fut = stream(&mut stderr_pipe, io::stderr());
+        // stream the output of the command to stdout and stderr.
+        let (status, stdout, stderr) = tokio::try_join!(
+            child.wait(),
+            stream(&mut stdout_pipe, io::stdout()),
+            stream(&mut stderr_pipe, io::stderr())
+        )?;
 
-        let (status, stdout, stderr) = tokio::try_join!(child.wait(), stdout_fut, stderr_fut)?;
         // Drop happens after `try_join` due to <https://github.com/tokio-rs/tokio/issues/4309>
         drop(stdout_pipe);
         drop(stderr_pipe);
@@ -83,7 +91,7 @@ impl CommandExecutor {
     }
 }
 
-// streams the output from child process to stdout and stderr.
+/// reads the output from A and writes it to W
 async fn stream<A: AsyncRead + Unpin, W: Write>(
     io: &mut Option<A>,
     mut writer: W,
@@ -98,6 +106,7 @@ async fn stream<A: AsyncRead + Unpin, W: Write>(
                 break;
             }
             writer.write_all(&buff[..n])?;
+            // note: flush is necessary else we get the cursor could not be found error.
             writer.flush()?;
             output.extend_from_slice(&buff[..n]);
         }
