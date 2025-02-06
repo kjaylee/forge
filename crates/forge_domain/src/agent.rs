@@ -44,7 +44,8 @@ impl<V: Serialize> Prompt<V> {
             include_str!("../../../crates/forge_app/src/prompts/tool_use.md"),
         )?;
 
-        Ok(hb.render_template(self.template.as_str(), &ctx)
+        Ok(hb
+            .render_template(self.template.as_str(), &ctx)
             .map_err(Error::Template)?)
     }
 }
