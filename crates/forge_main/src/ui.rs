@@ -120,7 +120,7 @@ impl UI {
                     self.state.current_content = Some(content.clone());
                     if let Err(err) = self.chat(content.clone(), &model).await {
                         CONSOLE.writeln(
-                            StatusDisplay::failed(err.to_string(), self.state.usage.clone())
+                            StatusDisplay::failed(format!("{:?}", err), self.state.usage.clone())
                                 .format(),
                         )?;
                     }
