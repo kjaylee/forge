@@ -5,9 +5,8 @@ use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_display::StatusDisplay;
-use forge_domain::{ChatRequest, ChatResponse, ConversationId, ModelId, Usage};
+use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
 use tokio_stream::StreamExt;
-use forge_domain::Model;
 
 use crate::cli::Cli;
 use crate::config::Config;

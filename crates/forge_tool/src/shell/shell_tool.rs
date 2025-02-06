@@ -7,9 +7,8 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::shell::executor::CommandExecutor;
-
 use super::executor::Output;
+use crate::shell::executor::CommandExecutor;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
