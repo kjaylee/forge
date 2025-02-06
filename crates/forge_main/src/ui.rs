@@ -4,7 +4,9 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage, Variables, WorkflowId};
+use forge_domain::{
+    ChatResponse, ConversationId, Model, ModelId, Usage, Variables, WorkflowId,
+};
 use serde_json::json;
 use tokio_stream::StreamExt;
 
