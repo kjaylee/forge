@@ -4,7 +4,11 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_domain::{
+    ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput, Variables,
+    WorkflowId,
+};
+use serde_json::{json, Value};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -121,16 +125,21 @@ impl UI {
     }
 
     async fn chat(&mut self, content: String, model: &ModelId) -> Result<()> {
-        let chat = ChatRequest {
-            content,
-            model: model.clone(),
-            conversation_id: self.state.current_conversation_id,
-            custom_instructions: self.cli.custom_instructions.clone(),
-        };
-        match self.api.chat(chat).await {
-            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
-            Err(err) => Err(err),
+        let variables = Variables::from(json!({
+            "task": content,
+        }));
+        let id = WorkflowId::new("main-workflow");
+        match self.api.init_workflow(id, variables).await {
+            Ok(vars) => {
+                dbg!(vars);
+            }
+            Err(err) => {
+                CONSOLE.writeln(
+                    StatusDisplay::failed(err.to_string(), self.state.usage.clone()).format(),
+                )?;
+            }
         }
+        Ok(())
     }
 
     async fn handle_chat_stream(

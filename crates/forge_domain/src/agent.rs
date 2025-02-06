@@ -5,12 +5,13 @@ use derive_more::derive::Display;
 use derive_setters::Setters;
 use handlebars::Handlebars;
 use schemars::schema::RootSchema;
+use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
 
 use crate::{Environment, Error, ModelId, Provider, ToolName};
 
-#[derive(Default, Serialize)]
+#[derive(Debug, Default, Serialize, JsonSchema, Clone)]
 pub struct Variables(HashMap<String, Value>);
 impl Variables {
     pub fn add(&mut self, key: impl Into<String>, value: impl Into<Value>) {
@@ -69,7 +70,7 @@ impl From<Value> for Variables {
     }
 }
 
-#[derive(Serialize, Setters, Clone)]
+#[derive(Debug, Serialize, Setters, Clone, JsonSchema)]
 pub struct SystemContext {
     pub env: Environment,
     pub tool_information: String,
@@ -83,6 +84,7 @@ pub enum PromptContent {
     File(PathBuf),
 }
 
+#[derive(Debug, Clone)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
     pub variables: Schema<V>,
@@ -105,16 +107,33 @@ pub struct Schema<S> {
     _marker: std::marker::PhantomData<S>,
 }
 
+impl<S> Schema<S> {
+    pub fn new(schema: RootSchema) -> Self {
+        Self { schema, _marker: std::marker::PhantomData }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PromptTemplate(String);
 impl PromptTemplate {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
+    }
+    pub fn new(template: impl Into<String>) -> Self {
+        Self(template.into())
     }
 }
 
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
 pub struct AgentId(String);
 
+impl AgentId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+}
+
+#[derive(Debug)]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -126,6 +145,7 @@ pub struct Agent {
     pub transforms: Vec<Transform>,
 }
 
+#[derive(Debug)]
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
 pub enum Transform {

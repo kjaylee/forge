@@ -31,6 +31,7 @@ mod user_interaction;
 mod workflow;
 
 pub use agent::*;
+pub use arena::*;
 pub use chat_request::*;
 pub use chat_response::*;
 pub use chat_stream_ext::*;

@@ -7,6 +7,12 @@ use crate::AgentId;
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
 pub struct WorkflowId(String);
 
+impl WorkflowId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+}
+
 pub struct Workflow {
     pub id: WorkflowId,
     pub description: String,

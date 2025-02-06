@@ -16,4 +16,12 @@ pub trait ProviderService: Send + Sync + 'static {
     async fn parameters(&self, model: &ModelId) -> Result<Parameters>;
 }
 
+#[derive(Debug, Clone)]
 pub struct Provider(Url);
+
+impl Provider {
+    pub fn try_new(url: impl Into<String>) -> Result<Self> {
+        let url = Url::parse(&url.into())?;
+        Ok(Self(url))
+    }
+}

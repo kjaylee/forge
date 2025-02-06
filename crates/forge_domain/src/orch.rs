@@ -77,7 +77,6 @@ impl Orchestrator {
         )?;
 
         let user_message = ContextMessage::user(agent.user_prompt.render(input)?);
-
         Ok(Context::default()
             .set_system_message(system_message)
             .add_message(user_message)
@@ -111,38 +110,38 @@ impl Orchestrator {
 
     async fn collect_tool_calls(
         &self,
-        response: &mut (impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
-                  + Send
-                  + Unpin),
+        response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>>,
         tool_supported: bool,
-    ) -> Vec<ToolCallFull> {
+    ) -> anyhow::Result<(String, Vec<ToolCallFull>)> {
         use futures::StreamExt;
-
-        // First collect all messages
-        let mut messages = Vec::new();
-
-        let boxed = response.boxed();
-        let mut stream = if tool_supported {
-            boxed.collect_tool_call_parts().boxed()
-        } else {
-            boxed.collect_tool_call_xml_content().boxed()
-        };
-
-        while let Some(result) = stream.next().await {
-            if let Ok(msg) = result {
-                messages.push(msg);
-            }
-        }
-
-        // Extract all full tool calls
-        messages
+        let messages = response
+            .collect::<Vec<_>>()
+            .await
             .into_iter()
-            .flat_map(|msg| msg.tool_call)
-            .filter_map(|call| match call {
-                ToolCall::Full(full) => Some(full),
-                _ => None,
-            })
-            .collect()
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let content = messages
+            .iter()
+            .filter_map(|m| m.content.clone())
+            .map(|s| s.as_str().to_string())
+            .collect::<String>();
+        let tool_calls = if tool_supported {
+            let parts = messages
+                .iter()
+                .flat_map(|m| m.tool_call.iter())
+                .filter_map(|c| match c {
+                    ToolCall::Part(p) => Some(p.clone()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if parts.is_empty() {
+                vec![]
+            } else {
+                ToolCallFull::try_from_parts(&parts)?
+            }
+        } else {
+            ToolCallFull::try_from_xml(&content).map_err(crate::Error::ToolCallParse)?
+        };
+        Ok((content, tool_calls))
     }
 
     fn find_tool(&self, name: &ToolName) -> Option<&SmartTool<Variables>> {
@@ -188,7 +187,7 @@ impl Orchestrator {
             .ok_or(Error::AgentUndefined(id.clone()))?)
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn execute_transform(
         &self,
         transforms: &[Transform],
@@ -251,23 +250,18 @@ impl Orchestrator {
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
         let agent = self.find_agent(agent)?;
         let mut context = self.init_agent_context(agent, input)?;
-        let content = agent.user_prompt.render(input)?;
         let output = Variables::default();
-        context = context.add_message(ContextMessage::user(content));
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
-
+            dbg!(&context.messages[1..]);
             let mut response = self.provider.chat(&agent.model, context.clone()).await?;
             let tool_supported = self.provider.parameters(&agent.model).await?.tool_supported;
-            let tool_calls = self.collect_tool_calls(&mut response, tool_supported).await;
 
-            if tool_calls.is_empty() {
-                return Ok(output);
-            }
-
-            let content = self.collect_content(&mut response).await?;
-
+            let (content, tool_calls) = self
+                .collect_tool_calls(&mut response, tool_supported)
+                .await?;
+            dbg!(&tool_calls);
             let tool_results = join_all(
                 tool_calls
                     .iter()
@@ -279,7 +273,11 @@ impl Orchestrator {
 
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
-                .add_tool_results(tool_results);
+                .add_tool_results(tool_results.clone());
+            if tool_results.is_empty() {
+                dbg!(&context.messages.last());
+                return Ok(output);
+            }
         }
     }
 

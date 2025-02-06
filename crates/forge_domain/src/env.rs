@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use derive_setters::Setters;
+use schemars::JsonSchema;
 use serde::Serialize;
 
-#[derive(Default, Serialize, Debug, Setters, Clone)]
+#[derive(Default, Serialize, Debug, Setters, Clone, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[setters(strip_option)]
 /// Represents the environment in which the application is running.

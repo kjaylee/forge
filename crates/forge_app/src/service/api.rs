@@ -1,11 +1,14 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation,
-    ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
-    ProviderService, ResultStream, ToolDefinition, ToolService,
+    Agent, AgentId, Arena, ChatRequest, ChatResponse, Config, ConfigRepository, Context,
+    Conversation, ConversationHistory, ConversationId, ConversationRepository, Environment, FlowId,
+    Model, ModelId, Orchestrator, Prompt, PromptTemplate, Provider, ProviderService, ResultStream,
+    Schema, SystemContext, ToolDefinition, ToolService, Variables, Workflow, WorkflowId,
 };
+use forge_tool::tools;
 
 use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;
@@ -23,6 +26,7 @@ pub trait APIService: Send + Sync {
     async fn get_config(&self) -> Result<Config>;
     async fn set_config(&self, request: Config) -> Result<Config>;
     async fn environment(&self) -> Result<Environment>;
+    async fn init_workflow(&self, id: WorkflowId, input: Variables) -> Result<Variables>;
 }
 
 impl Service {
@@ -40,6 +44,7 @@ struct Live {
     conversation_repo: Arc<dyn ConversationRepository>,
     config_repo: Arc<dyn ConfigRepository>,
     environment: Environment,
+    orchestrator: Arc<Orchestrator>,
 }
 
 impl Live {
@@ -54,6 +59,61 @@ impl Live {
             provider.clone(),
             file_read.clone(),
         ));
+        // Initialize system context with environment and tool information
+        let system_context = SystemContext {
+            env: env.clone(),
+            tool_information: tool.usage_prompt(),
+            tool_supported: true,
+            custom_instructions: None,
+            files: vec![],
+        };
+
+        let schema = Schema::<SystemContext>::new(schemars::schema_for!(SystemContext));
+
+        let system = Prompt {
+            template: PromptTemplate::new(include_str!("../prompts/coding/system.md")),
+            variables: schema,
+        };
+
+        let user_prompt = Prompt {
+            template: PromptTemplate::new(include_str!("../prompts/coding/user_task.md")),
+            variables: Schema::<Variables>::new(schemars::schema_for!(Variables)),
+        };
+
+        let main_agent = Agent {
+            id: AgentId::new("main-agent".to_string()),
+            provider: Provider::try_new("https://openrouter.ai")?,
+            model: ModelId::new(env.large_model_id.clone().as_str()),
+            description: "Main agent".to_string(),
+            system_prompt: system,
+            user_prompt,
+            tools: tools().iter().map(|t| t.definition.name.clone()).collect(),
+            transforms: vec![],
+        };
+
+        let mut handovers = HashMap::new();
+        handovers.insert(
+            FlowId::Agent(AgentId::new("main-agent".to_string())),
+            vec![],
+        );
+        let workflow = Workflow {
+            id: WorkflowId::new("main-workflow"),
+            description: "Main workflow".to_string(),
+            handovers: handovers,
+        };
+
+        let arena = Arena {
+            agents: vec![main_agent],
+            workflows: vec![workflow],
+            tools: vec![],
+        };
+
+        let orchestrator = Arc::new(Orchestrator::new(
+            provider.clone(),
+            tool.clone(),
+            arena,
+            system_context,
+        ));
 
         let user_prompt = Arc::new(Service::user_prompt_service());
 
@@ -61,7 +121,6 @@ impl Live {
         let sqlite = Arc::new(Service::db_pool_service(env.db_path()));
 
         let conversation_repo = Arc::new(Service::conversation_repo(sqlite.clone()));
-
         let config_repo = Arc::new(Service::config_repo(sqlite.clone()));
 
         let chat_service = Arc::new(Service::chat_service(
@@ -70,6 +129,7 @@ impl Live {
             tool.clone(),
             user_prompt,
         ));
+
         // Use the environment's cwd for completions since that's always available
         let completions = Arc::new(Service::completion_service(env.cwd.clone()));
 
@@ -89,6 +149,7 @@ impl Live {
             conversation_repo,
             config_repo,
             environment: env,
+            orchestrator,
         })
     }
 }
@@ -138,5 +199,11 @@ impl APIService for Live {
 
     async fn environment(&self) -> Result<Environment> {
         Ok(self.environment.clone())
+    }
+
+    async fn init_workflow(&self, id: WorkflowId, input: Variables) -> Result<Variables> {
+        let flow_id = FlowId::Workflow(id);
+        let res = self.orchestrator.execute(&flow_id, &input).await?;
+        Ok(res)
     }
 }
