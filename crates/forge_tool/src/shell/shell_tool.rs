@@ -139,7 +139,7 @@ impl ExecutableTool for Shell {
             );
         }
 
-        let output = CommandExecutor::new(&input.command, &input.cwd)
+        let output = CommandExecutor::new(&input.cwd, &input.command)
             .colored()
             .execute()
             .await
