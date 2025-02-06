@@ -79,7 +79,7 @@ impl Orchestrator {
         let user_message = ContextMessage::user(agent.user_prompt.render(input)?);
 
         Ok(Context::default()
-            .set_system_message(system_message)
+            .set_first_system_message(system_message)
             .add_message(user_message)
             .extend_tools(tool_defs))
     }
