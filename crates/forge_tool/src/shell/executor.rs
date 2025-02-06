@@ -94,6 +94,7 @@ async fn stream<A: AsyncRead + Unpin, W: Write>(
                 break;
             }
             writer.write_all(&buff[..n])?;
+            writer.flush()?;
             output.extend_from_slice(&buff[..n]);
         }
     }
