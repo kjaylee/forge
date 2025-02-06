@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::shell::executor::CommandExecutor;
 
+use super::executor::Output;
+
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
     /// The shell command to execute.
@@ -22,31 +24,31 @@ pub struct ShellInput {
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
 /// empty.
-fn format_output(stdout: &str, stderr: &str, success: bool) -> Result<String, String> {
-    let mut output = String::new();
+fn format_output(output: Output) -> Result<String, String> {
+    let mut formatted_output = String::new();
 
-    if !stdout.trim().is_empty() {
-        output.push_str(&format!("<stdout>{}</stdout>", stdout));
+    if !output.stdout.trim().is_empty() {
+        formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
     }
 
-    if !stderr.trim().is_empty() {
-        if !output.is_empty() {
-            output.push('\n');
+    if !output.stderr.trim().is_empty() {
+        if !formatted_output.is_empty() {
+            formatted_output.push('\n');
         }
-        output.push_str(&format!("<stderr>{}</stderr>", stderr));
+        formatted_output.push_str(&format!("<stderr>{}</stderr>", output.stderr));
     }
 
-    let result = if output.is_empty() {
-        if success {
+    let result = if formatted_output.is_empty() {
+        if output.success {
             "Command executed successfully with no output.".to_string()
         } else {
             "Command failed with no output.".to_string()
         }
     } else {
-        output
+        formatted_output
     };
 
-    if success {
+    if output.success {
         Ok(result)
     } else {
         Err(result)
@@ -139,12 +141,13 @@ impl ExecutableTool for Shell {
             );
         }
 
-        let output = CommandExecutor::new(&input.cwd, &input.command)
-            .colored()
-            .execute()
-            .await
-            .map_err(|e| e.to_string())?;
-        format_output(&output.stdout, &output.stderr, output.success)
+        format_output(
+            CommandExecutor::new(&input.cwd, &input.command)
+                .colored()
+                .execute()
+                .await
+                .map_err(|e| e.to_string())?,
+        )
     }
 }
 
