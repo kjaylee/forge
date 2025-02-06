@@ -37,7 +37,7 @@ impl CommandExecutor {
         Self { command, colored: false }
     }
 
-    /// Enable colored output for the command
+    /// Enable colored output for the command. bydefault it's disabled.
     pub fn colored(mut self) -> Self {
         self.command.env("CLICOLOR_FORCE", "1");
         self.colored = true;
@@ -67,12 +67,16 @@ impl CommandExecutor {
         drop(stderr_pipe);
 
         let (stdout, stderr) = if self.colored {
+            // if the output is colored, then strip the ansi escape codes and return the output.
             (
-                String::from_utf8(strip_ansi_escapes::strip(stdout))?,
-                String::from_utf8(strip_ansi_escapes::strip(stderr))?,
+                String::from_utf8_lossy(&strip_ansi_escapes::strip(stdout)).to_string(),
+                String::from_utf8_lossy(&strip_ansi_escapes::strip(stderr)).to_string(),
             )
         } else {
-            (String::from_utf8(stdout)?, String::from_utf8(stderr)?)
+            (
+                String::from_utf8_lossy(&stdout).to_string(),
+                String::from_utf8_lossy(&stderr).to_string(),
+            )
         };
 
         Ok(Output { success: status.success(), stdout, stderr })
