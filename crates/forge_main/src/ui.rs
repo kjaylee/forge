@@ -76,7 +76,7 @@ impl UI {
         banner::display()?;
 
         // Get initial input from file or prompt
-        let mut input = match &self.cli.prompt {
+        let mut input = match &self.cli.command {
             Some(path) => self.console.upload(path).await?,
             None => self.console.prompt(None).await?,
         };
@@ -100,7 +100,7 @@ impl UI {
                 Command::Reload => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
-                    input = match &self.cli.prompt {
+                    input = match &self.cli.command {
                         Some(path) => self.console.upload(path).await?,
                         None => self.console.prompt(None).await?,
                     };
