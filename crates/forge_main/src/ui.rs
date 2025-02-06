@@ -272,11 +272,6 @@ impl UI {
             }
             ChatResponse::ModifyContext(_) => {}
             ChatResponse::Complete => {}
-            ChatResponse::Error(err) => {
-                CONSOLE.writeln(
-                    StatusDisplay::failed(err.to_string(), self.state.usage.clone()).format(),
-                )?;
-            }
             ChatResponse::PartialTitle(_) => {}
             ChatResponse::CompleteTitle(title) => {
                 self.state.current_title = Some(title);
