@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use tokio_retry::{Retry, strategy::ExponentialBackoff};
 
 use anyhow::{Context, Result};
 use diesel::prelude::*;
@@ -29,56 +30,62 @@ impl Driver {
     }
 
     async fn init(&self) -> Result<SQLConnection> {
-        let mut live_pool = self.pool.lock().await;
+        let retry_strategy = ExponentialBackoff::from_millis(100)
+            .factor(2)
+            .take(5);
 
-        if let Some(pool) = live_pool.as_ref() {
-            return Ok(pool.clone());
-        }
+        Retry::spawn(retry_strategy, || async {
+            let mut live_pool = self.pool.lock().await;
 
-        if !self.db_path.exists() {
-            tokio::fs::create_dir(&self.db_path)
-                .await
-                .with_context(|| {
-                    format!(
-                        "Failed to create db directory on {}",
-                        self.db_path.display()
-                    )
-                })?;
-        }
+            if let Some(pool) = live_pool.as_ref() {
+                return Ok(pool.clone());
+            }
 
-        let db_path = self.db_path.join(DB_NAME).display().to_string();
+            if !self.db_path.exists() {
+                tokio::fs::create_dir(&self.db_path)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "Failed to create db directory on {}",
+                            self.db_path.display()
+                        )
+                    })?;
+            }
 
-        // Run migrations first
-        let mut conn = SqliteConnection::establish(&db_path)
-            .with_context(|| format!("Failed to establish db connection on {}", db_path))?;
+            let db_path = self.db_path.join(DB_NAME).display().to_string();
 
-        let migrations = conn
-            .run_pending_migrations(MIGRATIONS)
-            .map_err(|e| anyhow::anyhow!("Database initialization failed with error: {}", e))
-            .with_context(|| format!("Failed to run database migrations on {}", db_path))?;
+            // Run migrations first
+            let mut conn = SqliteConnection::establish(&db_path)
+                .with_context(|| format!("Failed to establish db connection on {}", db_path))?;
 
-        debug!(
-            "Running {} migrations for database: {}",
-            migrations.len(),
-            db_path
-        );
+            let migrations = conn
+                .run_pending_migrations(MIGRATIONS)
+                .map_err(|e| anyhow::anyhow!("Database migrations failed with error: {}", e))
+                .with_context(|| format!("Failed to run database migrations on {}", db_path))?;
 
-        drop(conn);
+            debug!(
+                "Running {} migrations for database: {}",
+                migrations.len(),
+                db_path
+            );
 
-        // Create connection pool with default options
-        let manager = ConnectionManager::new(db_path);
-        let options = ConnectionOptions::default();
+            drop(conn);
 
-        let pool = Pool::builder()
-            .connection_customizer(Box::new(options.clone()))
-            .max_size(options.max_connections)
-            .connection_timeout(options.connection_timeout)
-            .test_on_check_out(true)
-            .build(manager)?;
+            // Create connection pool with default options
+            let manager = ConnectionManager::new(db_path);
+            let options = ConnectionOptions::default();
 
-        *live_pool = Some(pool.clone());
+            let pool = Pool::builder()
+                .connection_customizer(Box::new(options.clone()))
+                .max_size(options.max_connections)
+                .connection_timeout(options.connection_timeout)
+                .test_on_check_out(true)
+                .build(manager)?;
 
-        Ok(pool)
+            *live_pool = Some(pool.clone());
+
+            Ok(pool)
+        }).await
     }
 }
 
