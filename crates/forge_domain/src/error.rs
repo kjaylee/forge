@@ -33,7 +33,6 @@ pub enum Error {
 
     #[error("Variable not found in output: {0}")]
     UndefinedVariable(String),
-
 }
 
 pub type Result<A> = std::result::Result<A, Error>;

@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
 use forge_domain::Environment;
-use crate::model::ConfigKey;
+
 use crate::info::Info;
+use crate::model::ConfigKey;
 
 impl From<&Config> for Info {
     fn from(config: &Config) -> Self {
@@ -122,7 +123,6 @@ impl Config {
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
-
 }
 
 #[cfg(test)]
@@ -145,7 +145,9 @@ mod tests {
         assert_eq!(config.primary_model().unwrap(), "gpt-4");
 
         // Test overwriting values
-        config.insert(&ConfigKey::PrimaryModel, "gpt-3.5-turbo").unwrap();
+        config
+            .insert(&ConfigKey::PrimaryModel, "gpt-3.5-turbo")
+            .unwrap();
         assert_eq!(config.primary_model().unwrap(), "gpt-3.5-turbo");
 
         // Test getting non-existent key
@@ -153,7 +155,9 @@ mod tests {
 
         // Test invalid operations
         assert!(matches!(
-            config.insert(&ConfigKey::ToolTimeout, "invalid").unwrap_err(),
+            config
+                .insert(&ConfigKey::ToolTimeout, "invalid")
+                .unwrap_err(),
             ConfigError::MalformedTimeout(_)
         ));
         assert!(matches!(

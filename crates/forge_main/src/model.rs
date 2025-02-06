@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::info::Info;
 use forge_domain::Model;
-use crate::error::{Result, Error};
+
+use crate::error::{Error, Result};
+use crate::info::Info;
 
 fn humanize_context_length(length: u64) -> String {
     if length >= 1_000_000 {
@@ -53,7 +54,6 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use strum_macros::{Display, EnumString};
-
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, EnumString, Display)]
 pub enum ConfigKey {
@@ -144,7 +144,8 @@ impl ConfigCommand {
                 Ok(ConfigCommand::Get(key))
             }
             Some("set") => {
-                let key_str = args.get(1)
+                let key_str = args
+                    .get(1)
                     .ok_or_else(|| Error::MissingParameter("key".into()))?;
                 let key = ConfigKey::from_str(key_str)
                     .map_err(|_| Error::UnsupportedParameter(key_str.to_string()))?;
@@ -280,8 +281,10 @@ mod tests {
         fn parse_set_command_with_key_value() {
             let args = vec!["set", "primary-model", "test value with spaces"];
             let cmd = ConfigCommand::parse(&args).unwrap();
-            assert!(matches!(cmd, ConfigCommand::Set(ConfigKey::PrimaryModel, value) 
-                if value == "test value with spaces"));
+            assert!(
+                matches!(cmd, ConfigCommand::Set(ConfigKey::PrimaryModel, value) 
+                if value == "test value with spaces")
+            );
         }
 
         #[test]
@@ -302,7 +305,9 @@ mod tests {
         fn parse_set_command_with_empty_value_returns_error() {
             let args = vec!["set", "primary-model", ""];
             let err = ConfigCommand::parse(&args).unwrap_err();
-            assert!(matches!(err, Error::MissingParameterValue(msg) if msg == "value cannot be empty"));
+            assert!(
+                matches!(err, Error::MissingParameterValue(msg) if msg == "value cannot be empty")
+            );
         }
 
         #[test]
@@ -314,10 +319,19 @@ mod tests {
 
         #[test]
         fn parse_set_preserves_value_whitespace() {
-            let args = vec!["set", "primary-model", "value", "with", "  multiple  ", "spaces"];
+            let args = vec![
+                "set",
+                "primary-model",
+                "value",
+                "with",
+                "  multiple  ",
+                "spaces",
+            ];
             let cmd = ConfigCommand::parse(&args).unwrap();
-            assert!(matches!(cmd, ConfigCommand::Set(ConfigKey::PrimaryModel, value) 
-                if value == "value with   multiple   spaces"));
+            assert!(
+                matches!(cmd, ConfigCommand::Set(ConfigKey::PrimaryModel, value) 
+                if value == "value with   multiple   spaces")
+            );
         }
     }
 
@@ -333,7 +347,10 @@ mod tests {
         #[test]
         fn parse_config_get() {
             let result = Command::parse("/config get primary-model").unwrap();
-            assert!(matches!(result, Command::Config(ConfigCommand::Get(ConfigKey::PrimaryModel))));
+            assert!(matches!(
+                result,
+                Command::Config(ConfigCommand::Get(ConfigKey::PrimaryModel))
+            ));
         }
 
         #[test]

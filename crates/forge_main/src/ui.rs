@@ -4,10 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{
-    ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage,
-};
-use crate::model::{Command, ConfigCommand, UserInput};
+use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -15,6 +12,7 @@ use crate::config::Config;
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::{Console, PromptInput};
+use crate::model::{Command, ConfigCommand, UserInput};
 use crate::status::StatusDisplay;
 use crate::{banner, log};
 
