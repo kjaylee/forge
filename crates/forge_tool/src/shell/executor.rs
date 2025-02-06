@@ -74,20 +74,21 @@ impl CommandExecutor {
         drop(stdout_pipe);
         drop(stderr_pipe);
 
-        let (stdout, stderr) = if self.colored {
-            // if the output is colored, then strip the ansi escape codes and return the output.
-            (
-                String::from_utf8_lossy(&strip_ansi_escapes::strip(stdout)).to_string(),
-                String::from_utf8_lossy(&strip_ansi_escapes::strip(stderr)).to_string(),
-            )
-        } else {
-            (
-                String::from_utf8_lossy(&stdout).to_string(),
-                String::from_utf8_lossy(&stderr).to_string(),
-            )
+        // Helper function to process output bytes into string depending on the
+        // colored flag.
+        let process_output = |bytes: &[u8]| {
+            if self.colored {
+                String::from_utf8_lossy(&strip_ansi_escapes::strip(bytes)).into_owned()
+            } else {
+                String::from_utf8_lossy(bytes).into_owned()
+            }
         };
 
-        Ok(Output { success: status.success(), stdout, stderr })
+        Ok(Output {
+            success: status.success(),
+            stdout: process_output(&stdout),
+            stderr: process_output(&stderr),
+        })
     }
 }
 
