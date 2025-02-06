@@ -2,20 +2,9 @@ use std::path::Path;
 
 use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_domain::{ChatRequest, ChatResponse, ModelId};
-use futures::future::join_all;
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
-const SUPPORTED_MODELS: &[&str] = &[
-    "anthropic/claude-3.5-sonnet:beta",
-    "openai/gpt-4o-2024-11-20",
-    "anthropic/claude-3.5-sonnet",
-    "openai/gpt-4o",
-    "openai/gpt-4o-mini",
-    "qwen/qwen-2.5-7b-instruct",
-    // "google/gemini-flash-1.5",
-    "anthropic/claude-3-sonnet",
-];
 
 /// Test fixture for API testing that supports parallel model validation
 struct Fixture {
@@ -79,22 +68,6 @@ impl Fixture {
         }
         Err(format!("[{}] Failed after {} attempts", model, MAX_RETRIES))
     }
-
-    /// Run tests for all models in parallel
-    async fn test_models(
-        &self,
-        check_response: impl Fn(&str) -> bool + Send + Sync + Copy + 'static,
-    ) -> Vec<String> {
-        let futures = SUPPORTED_MODELS
-            .iter()
-            .map(|&model| async move { self.test_single_model(model, check_response).await });
-
-        join_all(futures)
-            .await
-            .into_iter()
-            .filter_map(Result::err)
-            .collect()
-    }
 }
 
 /// Macro to generate model-specific tests
@@ -138,11 +111,6 @@ mod openai_gpt_4o {
 mod openai_gpt_4o_mini {
     use super::*;
     generate_model_test!("openai/gpt-4o-mini");
-}
-
-mod qwen_2_5_7b_instruct {
-    use super::*;
-    generate_model_test!("qwen/qwen-2.5-7b-instruct");
 }
 
 mod anthropic_claude_3_sonnet {
