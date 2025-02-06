@@ -844,6 +844,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
+name = "forge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "clap",
+ "colored 3.0.0",
+ "crossterm 0.28.1",
+ "derive_setters",
+ "dirs",
+ "forge_app",
+ "forge_display",
+ "forge_domain",
+ "forge_walker",
+ "inquire",
+ "insta",
+ "lazy_static",
+ "nu-ansi-term 0.50.1",
+ "once_cell",
+ "pretty_assertions",
+ "reedline",
+ "regex",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "forge_app"
 version = "0.1.0"
 dependencies = [
@@ -873,6 +909,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "tokio-retry",
  "tokio-stream",
  "tracing",
  "uuid",
@@ -938,42 +975,6 @@ dependencies = [
  "futures",
  "tokio",
  "tokio-stream",
-]
-
-[[package]]
-name = "forge_main"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "clap",
- "colored 3.0.0",
- "crossterm 0.28.1",
- "derive_setters",
- "dirs",
- "forge_app",
- "forge_display",
- "forge_domain",
- "forge_walker",
- "inquire",
- "insta",
- "lazy_static",
- "nu-ansi-term 0.50.1",
- "once_cell",
- "pretty_assertions",
- "reedline",
- "regex",
- "serde_json",
- "strum",
- "strum_macros",
- "tempfile",
- "thiserror 2.0.11",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -3461,6 +3462,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-retry"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f57eb36ecbe0fc510036adff84824dd3c24bb781e21bfa67b69d556aa85214f"
+dependencies = [
+ "pin-project",
+ "rand",
  "tokio",
 ]
 
