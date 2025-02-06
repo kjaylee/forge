@@ -17,15 +17,6 @@ pub struct ShellInput {
     pub cwd: PathBuf,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
-pub struct ShellOutput {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stdout: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stderr: Option<String>,
-    pub success: bool,
-}
-
 /// Formats command output by wrapping non-empty stdout/stderr in XML tags.
 /// stderr is commonly used for warnings and progress info, so success is
 /// determined by exit status, not stderr presence. Returns Ok(output) on
@@ -148,16 +139,12 @@ impl ExecutableTool for Shell {
             );
         }
 
-        // Create and execute command
-        let (stdout, stderr, success) = CommandExecutor::new(&input.command)
-            .with_cwd(input.cwd)
-            .piped()
+        let output = CommandExecutor::new(&input.command, &input.cwd)
+            .colored()
             .execute()
-            .map_err(|e| e.to_string())?
-            .stream()
-            .await?;
-        // Format and return output
-        format_output(&stdout, &stderr, success)
+            .await
+            .map_err(|e| e.to_string())?;
+        format_output(&output.stdout, &output.stderr, output.success)
     }
 }
 
