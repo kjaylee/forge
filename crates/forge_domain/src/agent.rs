@@ -82,7 +82,7 @@ impl AgentId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -94,7 +94,7 @@ pub struct Agent {
     pub transforms: Vec<Transform>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
 pub enum Transform {

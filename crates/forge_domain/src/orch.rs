@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::sync::Arc;
+use parking_lot::RwLock;
 
 use anyhow::Context as _;
 use async_recursion::async_recursion;
@@ -9,16 +10,19 @@ use serde_json::Value;
 
 use crate::arena::{Arena, SmartTool};
 use crate::{
-    Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextMessage, Error, FlowId,
+    Agent, AgentId, ChatCompletionMessage, ChatResponse, ContentMessage, Context, ContextMessage, Error, FlowId,
     ProviderService, Role, Summarize, SystemContext, ToolCall, ToolCallFull, ToolDefinition,
     ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
+#[derive(Clone)]
 pub struct Orchestrator {
     arena: Arena,
     system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
+    response_tx: Option<tokio::sync::mpsc::UnboundedSender<ChatResponse>>,
+    workflow_context: Arc<RwLock<Context>>,
 }
 
 impl Orchestrator {
@@ -28,10 +32,34 @@ impl Orchestrator {
         arena: Arena,
         system_context: SystemContext,
     ) -> Self {
-        Self { arena, provider, system_context, tool }
+        Self { 
+            arena, 
+            provider, 
+            system_context, 
+            tool,
+            response_tx: None,
+            workflow_context: Arc::new(RwLock::new(Context::default())),
+        }
+    }
+
+    /// Set a channel to receive chat responses
+    pub fn with_response_channel(mut self, tx: tokio::sync::mpsc::UnboundedSender<ChatResponse>) -> Arc<Self> {
+        self.response_tx = Some(tx);
+        Arc::new(self)
+    }
+
+    fn emit_response(&self, response: ChatResponse) {
+        if let Some(tx) = &self.response_tx {
+            let _ = tx.send(response);
+        }
     }
 
     pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
+        // Check if this is a new conversation
+        if input.get("new_conversation").is_some_and(|v| v.as_bool().unwrap_or(false)) {
+            *self.workflow_context.write() = Context::default();
+        }
+        
         match id {
             FlowId::Agent(id) => self.init_agent(id, input).await,
             FlowId::Workflow(id) => self.init_workflow(id, input).await,
@@ -63,8 +91,8 @@ impl Orchestrator {
     }
 
     fn init_agent_context(&self, agent: &Agent, input: &Variables) -> anyhow::Result<Context> {
+        let current_context = self.workflow_context.read().clone();
         let tool_defs = self.init_tool_definitions(&agent.tools);
-
         let tool_usage_prompt = tool_defs.iter().fold("".to_string(), |acc, tool| {
             format!("{}\n{}", acc, tool.usage_prompt())
         });
@@ -76,47 +104,94 @@ impl Orchestrator {
                 .tool_information(tool_usage_prompt),
         )?;
 
-        let user_message = ContextMessage::user(agent.user_prompt.render(input)?);
-        Ok(Context::default()
-            .set_first_system_message(system_message)
-            .add_message(user_message)
-            .extend_tools(tool_defs))
+        let user_message = agent.user_prompt.render(input)?;
+        
+        // Keep existing context messages except system message
+        let mut new_context = Context::default();
+        
+        // First add system message
+        new_context = new_context.set_first_system_message(system_message);
+        
+        // Then add all non-system messages from existing context
+        if !current_context.messages.is_empty() {
+            for msg in current_context.messages.iter() {
+                match msg {
+                    ContextMessage::ContentMessage(content_msg) if content_msg.role != Role::System => {
+                        new_context = new_context.add_message(msg.clone());
+                    }
+                    ContextMessage::ToolMessage(_) => {
+                        new_context = new_context.add_message(msg.clone());
+                    }
+                    _ => {} // Skip system messages
+                }
+            }
+        }
+        
+        // Add the new user message
+        new_context = new_context.add_message(ContextMessage::user(user_message));
+        
+        // Add tools
+        new_context = new_context.extend_tools(tool_defs);
+        
+        Ok(new_context)
     }
 
     async fn collect_tool_calls(
         &self,
-        response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>>,
+        response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + Unpin,
         tool_supported: bool,
-    ) -> anyhow::Result<(String, Vec<ToolCallFull>)> {
+    ) -> anyhow::Result<(String, Vec<ToolCallFull>, Option<ChatCompletionMessage>)> {
         use futures::StreamExt;
-        let messages = response
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<anyhow::Result<Vec<_>>>()?;
-        let content = messages
-            .iter()
-            .filter_map(|m| m.content.clone())
-            .map(|s| s.as_str().to_string())
-            .collect::<String>();
+        let mut content_buffer = String::new();
+        let mut tool_parts = Vec::new();
+
+        let mut last_message = None;
+        let mut messages = response;
+        while let Some(message_result) = messages.next().await {
+            let message = message_result?;
+            last_message = Some(message.clone());
+            
+            // Handle content
+            if let Some(content) = message.content {
+                self.emit_response(ChatResponse::Text(content.as_str().to_string()));
+                content_buffer.push_str(content.as_str());
+            }
+
+            // Handle tool calls
+            if tool_supported {
+                for tool_call in message.tool_call.iter() {
+                    if let ToolCall::Part(part) = tool_call {
+                        if part.name.is_some() {
+                            if let Some(name) = &part.name {
+                                self.emit_response(ChatResponse::ToolCallDetected(name.clone()));
+                            }
+                        }
+                        self.emit_response(ChatResponse::ToolCallArgPart(part.arguments_part.clone()));
+                        tool_parts.push(part.clone());
+                    }
+                }
+            }
+        }
+
         let tool_calls = if tool_supported {
-            let parts = messages
-                .iter()
-                .flat_map(|m| m.tool_call.iter())
-                .filter_map(|c| match c {
-                    ToolCall::Part(p) => Some(p.clone()),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            if parts.is_empty() {
+            if tool_parts.is_empty() {
                 vec![]
             } else {
-                ToolCallFull::try_from_parts(&parts)?
+                let calls = ToolCallFull::try_from_parts(&tool_parts)?;
+                for call in &calls {
+                    self.emit_response(ChatResponse::ToolCallStart(call.clone()));
+                }
+                calls
             }
         } else {
-            ToolCallFull::try_from_xml(&content)?
+            let calls = ToolCallFull::try_from_xml(&content_buffer)?;
+            for call in &calls {
+                self.emit_response(ChatResponse::ToolCallStart(call.clone()));
+            }
+            calls
         };
-        Ok((content, tool_calls))
+        
+        Ok((content_buffer, tool_calls, last_message))
     }
 
     fn find_tool(&self, name: &ToolName) -> Option<&SmartTool<Variables>> {
@@ -124,6 +199,7 @@ impl Orchestrator {
     }
 
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<ToolResult> {
+        self.emit_response(ChatResponse::ToolCallDetected(tool_call.name.clone()));
         let smart_tool = self.find_tool(&tool_call.name);
         if let Some(tool) = smart_tool {
             let input = Variables::from(tool_call.arguments.clone());
@@ -135,12 +211,16 @@ impl Orchestrator {
                             tool.name.as_str()
                         )
                     })?;
-                    Ok(ToolResult::from(tool_call.clone()).success(output))
+                    let result = ToolResult::from(tool_call.clone()).success(output);
+                    self.emit_response(ChatResponse::ToolCallEnd(result.clone()));
+                    Ok(result)
                 }
                 Err(error) => Ok(ToolResult::from(tool_call.clone()).failure(error.to_string())),
             }
         } else {
-            Ok(self.tool.call(tool_call.clone()).await)
+            let result = self.tool.call(tool_call.clone()).await;
+            self.emit_response(ChatResponse::ToolCallEnd(result.clone()));
+            Ok(result)
         }
     }
 
@@ -229,14 +309,21 @@ impl Orchestrator {
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
-            dbg!(&context.messages[1..]);
+            self.update_workflow_context(context.clone());
             let mut response = self.provider.chat(&agent.model, context.clone()).await?;
             let tool_supported = self.provider.parameters(&agent.model).await?.tool_supported;
 
-            let (content, tool_calls) = self
+            let (content, tool_calls, message) = self
                 .collect_tool_calls(&mut response, tool_supported)
                 .await?;
-            dbg!(&tool_calls);
+            
+            // Get usage from the last message
+            if let Some(msg) = message {
+                if let Some(usage) = msg.usage {
+                    self.emit_response(ChatResponse::Usage(usage));
+                }
+            }
+            
             let tool_results = join_all(
                 tool_calls
                     .iter()
@@ -249,8 +336,10 @@ impl Orchestrator {
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results.clone());
+            
+            self.update_workflow_context(context.clone());
+            
             if tool_results.is_empty() {
-                dbg!(&context.messages.last());
                 return Ok(output);
             }
         }
@@ -282,6 +371,10 @@ impl Orchestrator {
             }
             FlowId::Workflow(id) => self.init_workflow(id, input).await,
         }
+    }
+
+    fn update_workflow_context(&self, context: Context) {
+        *self.workflow_context.write() = context;
     }
 
     async fn init_workflow(&self, id: &WorkflowId, input: &Variables) -> anyhow::Result<Variables> {

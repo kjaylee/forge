@@ -13,6 +13,7 @@ impl WorkflowId {
     }
 }
 
+#[derive(Clone)]
 pub struct Workflow {
     pub id: WorkflowId,
     pub description: String,

@@ -905,6 +905,7 @@ dependencies = [
  "html-escape",
  "insta",
  "nom 8.0.0",
+ "parking_lot",
  "petgraph",
  "pretty_assertions",
  "quick-xml",

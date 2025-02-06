@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
+use futures::StreamExt;
 use forge_domain::{
     Agent, AgentId, Arena, ChatRequest, ChatResponse, Config, ConfigRepository, Context,
     Conversation, ConversationHistory, ConversationId, ConversationRepository, Environment, FlowId,
@@ -26,7 +27,7 @@ pub trait APIService: Send + Sync {
     async fn get_config(&self) -> Result<Config>;
     async fn set_config(&self, request: Config) -> Result<Config>;
     async fn environment(&self) -> Result<Environment>;
-    async fn init_workflow(&self, id: WorkflowId, input: Variables) -> Result<Variables>;
+    async fn init_workflow(&self, id: WorkflowId, input: Variables) -> ResultStream<ChatResponse, anyhow::Error>;
 }
 
 impl Service {
@@ -201,9 +202,26 @@ impl APIService for Live {
         Ok(self.environment.clone())
     }
 
-    async fn init_workflow(&self, id: WorkflowId, input: Variables) -> Result<Variables> {
+    async fn init_workflow(&self, id: WorkflowId, input: Variables) -> ResultStream<ChatResponse, anyhow::Error> {
         let flow_id = FlowId::Workflow(id);
-        let res = self.orchestrator.execute(&flow_id, &input).await?;
-        Ok(res)
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        
+        // Get the orchestrator from Arc and create a new instance with the response channel
+        let orchestrator = {
+            let orch = (*self.orchestrator).clone();
+            orch.with_response_channel(tx.clone())
+        };
+        
+        // Spawn the execution task
+        tokio::spawn(async move {
+            if let Err(e) = orchestrator.execute(&flow_id, &input).await {
+                let _ = tx.send(ChatResponse::Error(e.into()));
+            }
+            let _ = tx.send(ChatResponse::Complete);
+        });
+        
+        // Return the receiver as a stream, mapping each value to Result<ChatResponse, anyhow::Error>
+        Ok(Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx)
+            .map(Ok)))
     }
 }

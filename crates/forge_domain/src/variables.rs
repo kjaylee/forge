@@ -4,7 +4,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
 
-#[derive(Debug, Default, Serialize, JsonSchema)]
+#[derive(Debug, Default, Serialize, JsonSchema, Clone)]
 pub struct Variables(HashMap<String, Value>);
 
 impl Variables {

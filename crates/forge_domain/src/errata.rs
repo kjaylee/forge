@@ -25,6 +25,16 @@ impl Display for Errata {
     }
 }
 
+impl From<anyhow::Error> for Errata {
+    fn from(error: anyhow::Error) -> Self {
+        Self {
+            message: error.to_string(),
+            description: None,
+            code: None,
+        }
+    }
+}
+
 impl Debug for Errata {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.message)?;

@@ -123,14 +123,14 @@ impl UI {
         Ok(())
     }
 
-    async fn chat(&mut self, content: String, model: &ModelId) -> Result<()> {
+    async fn chat(&mut self, content: String, _model: &ModelId) -> Result<()> {
         let variables = Variables::from(json!({
             "task": content,
         }));
         let id = WorkflowId::new("main-workflow");
         match self.api.init_workflow(id, variables).await {
-            Ok(vars) => {
-                dbg!(vars);
+            Ok(mut stream) => {
+                self.handle_chat_stream(&mut stream).await?;
             }
             Err(err) => {
                 CONSOLE.writeln(
