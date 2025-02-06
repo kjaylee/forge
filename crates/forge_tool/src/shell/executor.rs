@@ -1,9 +1,8 @@
-use std::{
-    io::{self, Write},
-    path::PathBuf,
-};
+use std::io::{self, Write};
+use std::path::PathBuf;
 
-use tokio::{io::AsyncRead, process::Command};
+use tokio::io::AsyncRead;
+use tokio::process::Command;
 
 /// A command executor that handles command creation and execution
 #[derive(Debug)]
@@ -45,7 +44,8 @@ impl CommandExecutor {
         self
     }
 
-    /// executes the command and streams the output of command to stdout and stderr.
+    /// executes the command and streams the output of command to stdout and
+    /// stderr.
     pub async fn execute(mut self) -> anyhow::Result<Output> {
         // don't change this configuration else it will break the cli output.
         self.command
