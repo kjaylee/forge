@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::arena::{Arena, SmartTool};
 use crate::{
-    Agent, AgentId, BoxStreamExt, ChatCompletionMessage, ContentMessage, Context, ContextMessage,
+    Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextMessage,
     Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCall, ToolCallFull,
     ToolDefinition, ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
@@ -81,31 +81,6 @@ impl Orchestrator {
             .set_first_system_message(system_message)
             .add_message(user_message)
             .extend_tools(tool_defs))
-    }
-
-    async fn collect_content(
-        &self,
-        response: &mut (impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
-                  + Send
-                  + Unpin),
-    ) -> anyhow::Result<String> {
-        use futures::StreamExt;
-
-        // Create a boxed stream and collect content
-        let mut stream = response.boxed().collect_content().boxed();
-
-        let mut assistant_message: String = String::new();
-        while let Some(chunk) = stream.next().await {
-            let message = chunk?;
-
-            if let Some(ref content) = message.content {
-                if !content.is_empty() && !content.is_part() {
-                    assistant_message = content.clone().as_str().to_string();
-                    break;
-                }
-            }
-        }
-        Ok(assistant_message)
     }
 
     async fn collect_tool_calls(

@@ -31,13 +31,21 @@ pub struct Prompt<V> {
 }
 
 impl<V: Serialize> Prompt<V> {
-    pub fn render(&self, ctx: &V) -> crate::Result<String> {
+    pub fn render(&self, ctx: &V) -> anyhow::Result<String> {
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
         hb.register_escape_fn(|str| str.to_string());
+        hb.register_partial(
+            "tool_use_example",
+            include_str!("../../../crates/forge_app/src/prompts/tool_use_example.md"),
+        )?;
+        hb.register_partial(
+            "tool_use",
+            include_str!("../../../crates/forge_app/src/prompts/tool_use.md"),
+        )?;
 
-        hb.render_template(self.template.as_str(), &ctx)
-            .map_err(Error::Template)
+        Ok(hb.render_template(self.template.as_str(), &ctx)
+            .map_err(Error::Template)?)
     }
 }
 
