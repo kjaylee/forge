@@ -186,4 +186,31 @@ mod tests {
             .replace(&dir.path().display().to_string(), "[TEMP_DIR]");
         assert!(prompt.contains("Woof woof!"));
     }
+
+    #[tokio::test]
+    async fn test_system_prompt_file_path() {
+        let dir = TempDir::new().unwrap();
+        let env = test_env(dir.path().to_path_buf()).await;
+        let tools = Arc::new(Service::tool_service());
+        let provider = Arc::new(TestProvider::default().parameters(vec![(
+            ModelId::new("gpt-3.5-turbo"),
+            Parameters::new(false),
+        )]));
+        let file = Arc::new(TestFileReadService::default().add(
+            "./custom_system_prompt.md",
+            "You're expert at solving puzzles!",
+        ));
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
+        let prompt = Live::new(
+            env,
+            tools,
+            provider,
+            file,
+            Some(PathBuf::from("./custom_system_prompt.md")),
+        )
+        .get(&request)
+        .await
+        .unwrap();
+        assert_eq!(prompt, "You're expert at solving puzzles!");
+    }
 }
