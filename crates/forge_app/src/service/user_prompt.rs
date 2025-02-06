@@ -1,9 +1,9 @@
 use anyhow::{Context as _, Result};
 use forge_domain::ChatRequest;
-use handlebars::Handlebars;
 use serde::Serialize;
 
 use super::{PromptService, Service};
+use crate::prompts::Prompt;
 
 impl Service {
     pub fn user_prompt_service() -> impl PromptService {
@@ -22,16 +22,10 @@ struct PromptContext {
 impl PromptService for Live {
     async fn get(&self, request: &ChatRequest) -> Result<String> {
         if let Some(content) = &request.content {
-            let template = include_str!("../prompts/coding/user_task.md");
-
-            let mut hb = Handlebars::new();
-            hb.set_strict_mode(true);
-            hb.register_escape_fn(|str| str.to_string());
-
             let ctx = PromptContext { task: content.to_string() };
-
-            Ok(hb
-                .render_template(template, &ctx)
+            let prompt = Prompt::new(include_str!("../prompts/coding/user_task.md"));
+            Ok(prompt
+                .render(&ctx)
                 .with_context(|| "Failed to render user task template")?)
         } else {
             return Err(anyhow::anyhow!("no task found in request."));

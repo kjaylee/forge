@@ -4,13 +4,15 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
+use crate::config::Config;
 use crate::console::CONSOLE;
-use crate::info::display_info;
+use crate::info::Info;
 use crate::input::{Console, PromptInput};
+use crate::model::{Command, ConfigCommand, UserInput};
 use crate::status::StatusDisplay;
 use crate::{banner, log};
 
@@ -36,6 +38,8 @@ pub struct UI {
     api: Arc<dyn APIService>,
     console: Console,
     cli: Cli,
+    config: Config,
+    models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
@@ -45,14 +49,17 @@ impl UI {
         // NOTE: This has to be first line
         let env = EnvironmentFactory::new(std::env::current_dir()?).create()?;
         let guard = log::init_tracing(env.clone())?;
+        let config = Config::from(&env);
         let api = Arc::new(Service::api_service(env)?);
 
         let cli = Cli::parse();
         Ok(Self {
             state: Default::default(),
             api: api.clone(),
+            config,
             console: Console::new(api.environment().await?),
             cli,
+            models: None,
             _guard: guard,
         })
     }
@@ -74,7 +81,12 @@ impl UI {
             None => self.console.prompt(None).await?,
         };
 
-        let model = ModelId::from_env(&self.api.environment().await?);
+        // read the model from the config or fallback to environment.
+        let mut model = self
+            .config
+            .primary_model()
+            .map(ModelId::new)
+            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 
         loop {
             match input {
@@ -106,7 +118,11 @@ impl UI {
                     continue;
                 }
                 Command::Info => {
-                    display_info(&self.api.environment().await?, &self.state.usage)?;
+                    let info = Info::from(&self.api.environment().await?)
+                        .extend(Info::from(&self.state.usage));
+
+                    CONSOLE.writeln(info.to_string())?;
+
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
@@ -124,6 +140,63 @@ impl UI {
                 }
                 Command::Exit => {
                     break;
+                }
+                Command::Models => {
+                    let models = if let Some(models) = self.models.as_ref() {
+                        models
+                    } else {
+                        let models = self.api.models().await?;
+                        self.models = Some(models);
+                        self.models.as_ref().unwrap()
+                    };
+                    let info: Info = models.as_slice().into();
+                    CONSOLE.writeln(info.to_string())?;
+
+                    input = self.console.prompt(None).await?;
+                }
+                Command::Config(config_cmd) => {
+                    match config_cmd {
+                        ConfigCommand::Set(key, value) => match self.config.insert(&key, &value) {
+                            Ok(()) => {
+                                model =
+                                    self.config.primary_model().map(ModelId::new).unwrap_or(
+                                        ModelId::from_env(&self.api.environment().await?),
+                                    );
+                                CONSOLE.writeln(format!(
+                                    "{}: {}",
+                                    key.to_string().bold().yellow(),
+                                    value.white()
+                                ))?;
+                            }
+                            Err(e) => {
+                                CONSOLE.writeln(
+                                    StatusDisplay::failed(e.to_string(), self.state.usage.clone())
+                                        .format(),
+                                )?;
+                            }
+                        },
+                        ConfigCommand::Get(key) => {
+                            if let Some(value) = self.config.get(&key) {
+                                CONSOLE.writeln(format!(
+                                    "{}: {}",
+                                    key.to_string().bold().yellow(),
+                                    value.white()
+                                ))?;
+                            } else {
+                                CONSOLE.writeln(
+                                    StatusDisplay::failed(
+                                        format!("Config key '{}' not found", key),
+                                        self.state.usage.clone(),
+                                    )
+                                    .format(),
+                                )?;
+                            }
+                        }
+                        ConfigCommand::List => {
+                            CONSOLE.writeln(Info::from(&self.config).to_string())?;
+                        }
+                    }
+                    input = self.console.prompt(None).await?;
                 }
             }
         }
