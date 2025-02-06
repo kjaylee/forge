@@ -9,7 +9,6 @@ use forge_domain::{
     Schema, SystemContext, ToolDefinition, ToolService, Variables, Workflow, WorkflowId,
 };
 use forge_tool::tools;
-use futures::StreamExt;
 
 use super::suggestion::{File, SuggestionService};
 use super::ui::UIService;
