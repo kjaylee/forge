@@ -163,7 +163,7 @@ impl ChatService for Live {
         chat: forge_domain::ChatRequest,
         context: Context,
     ) -> ResultStream<ChatResponse, anyhow::Error> {
-        let context = if chat.content.is_none() {
+        let context = if chat.content.is_some() {
             let user_prompt = self.user_prompt.get(&chat).await?;
             context.add_message(ContextMessage::user(user_prompt))
         } else {

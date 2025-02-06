@@ -93,7 +93,12 @@ impl UI {
                 Command::End => break,
                 Command::Retry => {
                     if let Some(conversation_id) = self.state.current_conversation_id {
-                        self.retry(conversation_id, model.clone()).await?;
+                        if let Err(e) = self.retry(conversation_id, model.clone()).await {
+                            CONSOLE.writeln(
+                                StatusDisplay::failed(e.to_string(), self.state.usage.clone())
+                                    .format(),
+                            )?;
+                        }
                     } else {
                         CONSOLE.writeln(
                             StatusDisplay::failed("No conversation to retry", Usage::default())
