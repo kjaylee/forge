@@ -9,11 +9,12 @@ use serde::Serialize;
 use crate::variables::Variables;
 use crate::{Environment, Error, ModelId, Provider, ToolName};
 
-#[derive(Serialize, Setters, Clone)]
+#[derive(Default, Serialize, Setters, Clone)]
+#[setters(strip_option)]
 pub struct SystemContext {
-    pub env: Environment,
-    pub tool_information: String,
-    pub tool_supported: bool,
+    pub env: Option<Environment>,
+    pub tool_information: Option<String>,
+    pub tool_supported: Option<bool>,
     pub custom_instructions: Option<String>,
     pub files: Vec<String>,
 }

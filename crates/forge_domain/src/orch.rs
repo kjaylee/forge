@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use async_recursion::async_recursion;
+use derive_setters::Setters;
 use futures::future::join_all;
 use futures::Stream;
 use serde_json::Value;
@@ -10,36 +11,39 @@ use tokio::sync::Mutex;
 
 use crate::arena::{Arena, SmartTool};
 use crate::{
-    Agent, AgentId, ChatCompletionMessage, ContentMessage, Context, ContextMessage, Error, FlowId,
-    ProviderService, Role, Summarize, SystemContext, ToolCallFull, ToolDefinition, ToolName,
-    ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
+    Agent, AgentId, ChatCompletionMessage, ChatResponse, ContentMessage, Context, ContextMessage,
+    Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCallFull, ToolDefinition,
+    ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
 };
 
+pub struct AgentMessage<T> {
+    pub agent: AgentId,
+    pub message: T,
+}
+
+#[derive(Setters)]
 pub struct Orchestrator {
-    arena: Arena,
-    system_context: SystemContext,
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
+    arena: Arena,
+    system_context: SystemContext,
     state: Arc<Mutex<HashMap<AgentId, Context>>>,
+    sender: Option<tokio::sync::mpsc::Sender<AgentMessage<anyhow::Result<ChatResponse>>>>,
 }
 
 impl Orchestrator {
-    pub fn new(
-        provider: Arc<dyn ProviderService>,
-        tool: Arc<dyn ToolService>,
-        arena: Arena,
-        system_context: SystemContext,
-    ) -> Self {
+    pub fn new(provider: Arc<dyn ProviderService>, tool: Arc<dyn ToolService>) -> Self {
         Self {
-            arena,
             provider,
-            system_context,
             tool,
+            arena: Arena::default(),
+            system_context: SystemContext::default(),
             state: Arc::new(Mutex::new(HashMap::new())),
+            sender: None,
         }
     }
 
-    pub async fn state(&self, id: &AgentId) -> Option<Context> {
+    pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
         let guard = self.state.lock().await;
         guard.get(id).cloned()
     }
@@ -54,6 +58,27 @@ impl Orchestrator {
             FlowId::Agent(id) => self.init_agent(id, input, context).await,
             FlowId::Workflow(id) => self.init_workflow(id, input, context).await,
         }
+    }
+
+    async fn send_message(
+        &self,
+        agent_id: &AgentId,
+        message: anyhow::Result<ChatResponse>,
+    ) -> anyhow::Result<()> {
+        if let Some(sender) = &self.sender {
+            sender
+                .send(AgentMessage { agent: agent_id.clone(), message: message })
+                .await?
+        }
+        Ok(())
+    }
+
+    async fn send(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
+        self.send_message(agent_id, Ok(message)).await
+    }
+
+    async fn send_error(&self, agent_id: &AgentId, error: anyhow::Error) -> anyhow::Result<()> {
+        self.send_message(agent_id, Err(error)).await
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {

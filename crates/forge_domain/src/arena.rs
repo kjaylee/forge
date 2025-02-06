@@ -8,6 +8,7 @@ pub trait AgentExecutor {
     async fn execute(&self, agent: &Agent) -> anyhow::Result<Variables>;
 }
 
+#[derive(Default)]
 pub struct Arena {
     pub agents: Vec<Agent>,
     pub workflows: Vec<Workflow>,
