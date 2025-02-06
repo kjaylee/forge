@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-use tokio_retry::{Retry, strategy::ExponentialBackoff};
 
 use anyhow::{Context, Result};
 use diesel::prelude::*;
@@ -7,6 +6,8 @@ use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use tokio::sync::Mutex;
+use tokio_retry::strategy::ExponentialBackoff;
+use tokio_retry::Retry;
 use tracing::debug;
 
 use super::conn::ConnectionOptions;
@@ -29,72 +30,76 @@ impl Driver {
         Driver { pool: Mutex::new(None), db_path }
     }
 
-    async fn init(&self) -> Result<SQLConnection> {
+    async fn init(&self, attempts: usize) -> Result<SQLConnection> {
         let retry_strategy = ExponentialBackoff::from_millis(100)
             .factor(2)
-            .take(5);
+            .take(attempts);
 
-        Retry::spawn(retry_strategy, || async {
-            let mut live_pool = self.pool.lock().await;
+        Retry::spawn(retry_strategy, || self.init_once()).await
+    }
 
-            if let Some(pool) = live_pool.as_ref() {
-                return Ok(pool.clone());
-            }
+    async fn init_once(&self) -> Result<SQLConnection> {
+        let mut live_pool = self.pool.lock().await;
 
-            if !self.db_path.exists() {
-                tokio::fs::create_dir(&self.db_path)
-                    .await
-                    .with_context(|| {
-                        format!(
-                            "Failed to create db directory on {}",
-                            self.db_path.display()
-                        )
-                    })?;
-            }
+        if let Some(pool) = live_pool.as_ref() {
+            return Ok(pool.clone());
+        }
 
-            let db_path = self.db_path.join(DB_NAME).display().to_string();
+        if !self.db_path.exists() {
+            tokio::fs::create_dir(&self.db_path)
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to create db directory on {}",
+                        self.db_path.display()
+                    )
+                })?;
+        }
 
-            // Run migrations first
-            let mut conn = SqliteConnection::establish(&db_path)
-                .with_context(|| format!("Failed to establish db connection on {}", db_path))?;
+        let db_path = self.db_path.join(DB_NAME).display().to_string();
 
-            let migrations = conn
-                .run_pending_migrations(MIGRATIONS)
-                .map_err(|e| anyhow::anyhow!("Database migrations failed with error: {}", e))
-                .with_context(|| format!("Failed to run database migrations on {}", db_path))?;
+        // Run migrations first
+        let mut conn = SqliteConnection::establish(&db_path)
+            .with_context(|| format!("Failed to establish db connection on {}", db_path))?;
 
-            debug!(
-                "Running {} migrations for database: {}",
-                migrations.len(),
-                db_path
-            );
+        let migrations = conn
+            .run_pending_migrations(MIGRATIONS)
+            .map_err(|e| anyhow::anyhow!("Database migrations failed with error: {}", e))
+            .with_context(|| format!("Failed to run database migrations on {}", db_path))?;
 
-            drop(conn);
+        debug!(
+            "Running {} migrations for database: {}",
+            migrations.len(),
+            db_path
+        );
 
-            // Create connection pool with default options
-            let manager = ConnectionManager::new(db_path);
-            let options = ConnectionOptions::default();
+        drop(conn);
 
-            let pool = Pool::builder()
-                .connection_customizer(Box::new(options.clone()))
-                .max_size(options.max_connections)
-                .connection_timeout(options.connection_timeout)
-                .test_on_check_out(true)
-                .build(manager)?;
+        // Create connection pool with default options
+        let manager = ConnectionManager::new(db_path);
+        let options = ConnectionOptions::default();
 
-            *live_pool = Some(pool.clone());
+        let pool = Pool::builder()
+            .connection_customizer(Box::new(options.clone()))
+            .max_size(options.max_connections)
+            .connection_timeout(options.connection_timeout)
+            .test_on_check_out(true)
+            .build(manager)?;
 
-            Ok(pool)
-        }).await
+        *live_pool = Some(pool.clone());
+
+        Ok(pool)
     }
 }
 
 #[async_trait::async_trait]
 impl Sqlite for Driver {
     async fn connection(&self) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
-        self.init().await?.get().with_context(|| {
-            "Failed to acquire connection from pool - pool may be exhausted or database locked"
-        })
+        const ATTEMPTS: usize = 10;
+        self.init(ATTEMPTS)
+            .await?
+            .get()
+            .with_context(|| format!("Failed to acquire connection after {ATTEMPTS} attempts"))
     }
 }
 
