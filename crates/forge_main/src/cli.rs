@@ -38,7 +38,7 @@ fn validate_path(path: &str) -> Result<PathBuf, String> {
 
     // Check if readable by attempting to read metadata
     if fs::metadata(&path_buf).is_err() {
-        return Err(format!("Unable to file from path '{}'", path_buf.display()));
+        return Err(format!("Unable to read file from path '{}'", path_buf.display()));
     }
     Ok(path_buf)
 }
