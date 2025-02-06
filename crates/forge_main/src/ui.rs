@@ -184,7 +184,7 @@ impl UI {
                             }
                         }
                         ConfigCommand::List => {
-                            CONSOLE.writeln(self.config.to_display_string())?;
+                            CONSOLE.writeln(Info::from(&self.config).to_string())?;
                         }
                     }
                     input = self.console.prompt(None).await?;
