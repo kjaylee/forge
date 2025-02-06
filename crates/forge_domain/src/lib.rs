@@ -28,6 +28,7 @@ mod tool_result;
 mod tool_service;
 mod tool_usage;
 mod user_interaction;
+mod variables;
 mod workflow;
 
 pub use agent::*;
@@ -60,6 +61,7 @@ pub use tool_result::*;
 pub use tool_service::*;
 pub use tool_usage::*;
 pub use user_interaction::*;
+pub use variables::*;
 pub use workflow::*;
 
 /// Core domain trait providing access to services and repositories.

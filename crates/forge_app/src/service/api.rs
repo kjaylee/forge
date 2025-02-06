@@ -99,7 +99,7 @@ impl Live {
         let workflow = Workflow {
             id: WorkflowId::new("main-workflow"),
             description: "Main workflow".to_string(),
-            handovers: handovers,
+            handovers,
         };
 
         let arena = Arena {

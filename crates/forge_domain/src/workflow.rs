@@ -42,8 +42,3 @@ pub enum FlowId {
     Agent(AgentId),
     Workflow(WorkflowId),
 }
-
-pub struct Handover {
-    pub from: FlowId,
-    pub to: FlowId,
-}

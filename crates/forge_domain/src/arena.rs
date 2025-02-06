@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use crate::{Agent, AgentId, FlowId, Schema, ToolDefinition, ToolName, Variables, Workflow};
+use crate::variables::Variables;
+use crate::{Agent, AgentId, FlowId, Schema, ToolDefinition, ToolName, Workflow};
 
 #[async_trait::async_trait]
 pub trait AgentExecutor {
