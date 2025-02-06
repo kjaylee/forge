@@ -1,6 +1,7 @@
-use clap::Parser;
 use std::fs;
 use std::path::PathBuf;
+
+use clap::Parser;
 
 /// Command line arguments for the application
 #[derive(Parser)]

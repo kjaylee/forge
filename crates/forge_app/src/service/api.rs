@@ -27,7 +27,10 @@ pub trait APIService: Send + Sync {
 }
 
 impl Service {
-    pub fn api_service(env: Environment, system_prompt_path: Option<PathBuf>) -> Result<impl APIService> {
+    pub fn api_service(
+        env: Environment,
+        system_prompt_path: Option<PathBuf>,
+    ) -> Result<impl APIService> {
         Live::new(env, system_prompt_path)
     }
 }
