@@ -11,9 +11,8 @@ use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
 use crate::console::CONSOLE;
-use crate::info::display_info;
+use crate::info::Info;
 use crate::input::{Console, PromptInput};
-use crate::model::display_models;
 use crate::status::StatusDisplay;
 use crate::{banner, log};
 
@@ -100,7 +99,11 @@ impl UI {
                     continue;
                 }
                 Command::Info => {
-                    display_info(&self.api.environment().await?, &self.state.usage)?;
+                    let info = Info::from(&self.api.environment().await?)
+                        .extend(Info::from(&self.state.usage));
+
+                    CONSOLE.writeln(info.to_string())?;
+
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
@@ -127,7 +130,9 @@ impl UI {
                         self.models = Some(models);
                         self.models.as_ref().unwrap()
                     };
-                    display_models(models)?;
+                    let info: Info = models.as_slice().into();
+                    CONSOLE.writeln(info.to_string())?;
+
                     input = self.console.prompt(None).await?;
                 }
             }
