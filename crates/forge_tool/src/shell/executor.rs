@@ -8,7 +8,6 @@ use tokio::process::Command;
 #[derive(Debug)]
 pub struct CommandExecutor {
     command: Command,
-    colored: bool,
 }
 
 pub struct Output {
@@ -34,13 +33,12 @@ impl CommandExecutor {
         command.current_dir(cwd);
         // Kill the command when the handler is dropped
         command.kill_on_drop(true);
-        Self { command, colored: false }
+        Self { command }
     }
 
     /// Enable colored output for the command. bydefault it's disabled.
     pub fn colored(mut self) -> Self {
         self.command.env("CLICOLOR_FORCE", "1");
-        self.colored = true;
         self
     }
 
@@ -74,15 +72,8 @@ impl CommandExecutor {
         drop(stdout_pipe);
         drop(stderr_pipe);
 
-        // Helper function to process output bytes into string depending on the
-        // colored flag.
-        let process_output = |bytes: &[u8]| {
-            if self.colored {
-                String::from_utf8_lossy(&strip_ansi_escapes::strip(bytes)).into_owned()
-            } else {
-                String::from_utf8_lossy(bytes).into_owned()
-            }
-        };
+        // Helper function to process output bytes into string.
+        let process_output = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
 
         Ok(Output {
             success: status.success(),
