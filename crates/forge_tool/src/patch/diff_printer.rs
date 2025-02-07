@@ -14,7 +14,7 @@ impl fmt::Display for Line {
     }
 }
 
-pub fn diff_printer(old: &str, new: &str, _file_path: &str) {
+pub fn pretty_diff_print(old: &str, new: &str, _file_path: &str) {
     let diff = TextDiff::from_lines(old, new);
 
     // Print header with styled file path

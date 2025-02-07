@@ -7,6 +7,7 @@ use serde::Deserialize;
 use thiserror::Error;
 use tokio::fs;
 
+use super::diff_printer::pretty_diff_print;
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
 use crate::syn;
@@ -192,7 +193,8 @@ impl ExecutableTool for ApplyPatch {
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
 
-        super::diff_printer::diff_printer(&unchanged_content, &changed_content, &input.path);
+        // Print diff between old and new content to console
+        pretty_diff_print(&unchanged_content, &changed_content, &input.path);
 
         result.map_err(|e| e.to_string())
     }
