@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use forge_domain::{ChatRequest, ChatResponse, ProviderService, ResultStream, ToolService, Workflow};
+use forge_domain::{
+    ChatRequest, ChatResponse, ProviderService, ResultStream, ToolService, Workflow,
+};
 
 use super::Service;
 
@@ -41,5 +43,5 @@ impl ChatService for Live {
         workflow: Workflow,
     ) -> ResultStream<ChatResponse, anyhow::Error> {
         todo!()
-    } 
+    }
 }

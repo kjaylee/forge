@@ -63,10 +63,7 @@ impl Live {
 
         let config_repo = Arc::new(Service::config_repo(sqlite.clone()));
 
-        let chat_service = Arc::new(Service::chat_service(
-            provider.clone(),
-            tool.clone(),
-        ));
+        let chat_service = Arc::new(Service::chat_service(provider.clone(), tool.clone()));
         // Use the environment's cwd for completions since that's always available
         let completions = Arc::new(Service::completion_service(env.cwd.clone()));
 

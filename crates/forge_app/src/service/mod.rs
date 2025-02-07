@@ -1,6 +1,6 @@
 mod api;
-mod neo_chat;
 mod file_read;
+mod neo_chat;
 mod provider;
 mod suggestion;
 mod system_prompt;

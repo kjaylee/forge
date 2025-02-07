@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Agent, AgentId, Context, Variables};
 
-#[derive(Debug,Clone,Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
     pub state: HashMap<AgentId, Context>,
