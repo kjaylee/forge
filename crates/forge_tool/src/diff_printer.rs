@@ -116,10 +116,7 @@ impl DiffPrinter {
         let mut output =
             self.format_file_paths_section(old_file_path, new_file_path, String::new());
         if ops.is_empty() {
-            output.push_str(&format!(
-                "{}\n",
-                style("No changes found").dim()
-            ));
+            output.push_str(&format!("{}\n", style("No changes found").dim()));
             return output;
         }
 
@@ -177,6 +174,19 @@ mod tests {
         let printer = DiffPrinter::new(old, new);
         let diff = printer.diff();
         assert!(diff.contains("No changes found"));
+    }
+
+    #[test]
+    fn test_file_source() {
+        let old = Source::Path {
+            path: "text.txt".into(),
+            content: "line 1\nline 2\nline 3\nline 4\nline 5".to_string(),
+        };
+        let new = Source::Content("line 1\nline 2\nline 3".to_string());
+        let printer = DiffPrinter::new(old, new);
+        let diff = printer.diff();
+        let clean_diff = strip_ansi_codes(&diff);
+        assert_snapshot!(clean_diff);
     }
 
     #[test]
