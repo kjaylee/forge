@@ -67,7 +67,7 @@ impl DiffPrinter {
         if old_path.is_some() || new_path.is_some() {
             output.push_str(&format!(
                 "\n{}\n",
-                style("┌─── File Changes ").bold().cyan()
+                style("┌─── File Changes ")
             ));
 
             match (old_path, new_path) {
@@ -76,24 +76,24 @@ impl DiffPrinter {
                     if old == new {
                         output.push_str(&format!(
                             "{}  {} {}",
-                            style("│").bold().cyan(),
+                            style("│"),
                             style("Path:").dim(),
-                            style(old.display()).bold().underlined()
+                            style(old.display())
                         ));
                         output.push('\n');
                     } else {
                         // Different paths
                         output.push_str(&format!(
                             "{}  {} {}\n",
-                            style("│").bold().cyan(),
+                            style("│"),
                             style("Old:").dim(),
-                            style(old.display()).bold().underlined()
+                            style(old.display())
                         ));
                         output.push_str(&format!(
                             "{}  {} {}\n",
-                            style("│").bold().cyan(),
+                            style("│"),
                             style("New:").dim(),
-                            style(new.display()).bold().underlined()
+                            style(new.display())
                         ));
                     }
                 }
@@ -101,9 +101,9 @@ impl DiffPrinter {
                     // Only one path available
                     output.push_str(&format!(
                         "{}  {} {}\n",
-                        style("│").bold().cyan(),
+                        style("│"),
                         style("Path:").dim(),
-                        style(path.display()).bold().underlined()
+                        style(path.display())
                     ));
                 }
                 _ => {
@@ -111,7 +111,7 @@ impl DiffPrinter {
                 }
             }
 
-            output.push_str(&format!("{}\n", style("└───────────────").bold().cyan()));
+            output.push_str(&format!("{}\n", style("└───────────────")));
         }
         output
     }
