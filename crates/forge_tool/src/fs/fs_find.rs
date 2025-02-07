@@ -4,6 +4,7 @@ use std::path::Path;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
+use owo_colors::OwoColorize;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -109,19 +110,56 @@ impl ExecutableTool for FSSearch {
             // Process the file line by line
             for (line_num, line) in content.lines().enumerate() {
                 if regex.is_match(line) {
-                    // Format match in ripgrep style: filepath:line_num:content
-                    matches.push(format!("{}:{}:{}", full_path.display(), line_num + 1, line));
+                    // Color format:
+                    // - File path in green
+                    // - Line number in purple
+                    // - Separators in gray
+                    // - Matching text in red & bold
+                    let path_string = full_path.display().to_string();
+                    let colored_path = path_string.green();
+                    let line_num_string = (line_num + 1).to_string();
+                    let colored_line_num = line_num_string.purple();
+                    let colored_separator = ":".dimmed();
+
+                    // Highlight matching portions of the line
+                    let mut colored_line = String::new();
+                    let mut last_end = 0;
+
+                    for mat in regex.find_iter(line) {
+                        // Add text before match
+                        colored_line.push_str(&line[last_end..mat.start()]);
+                        // Add highlighted match
+                        colored_line.push_str(&mat.as_str().red().bold().to_string());
+                        last_end = mat.end();
+                    }
+                    // Add remaining text after last match
+                    colored_line.push_str(&line[last_end..]);
+
+                    matches.push(format!(
+                        "{}{}{}{}{}",
+                        colored_path,
+                        colored_separator,
+                        colored_line_num,
+                        colored_separator,
+                        colored_line
+                    ));
                 }
             }
         }
 
         if matches.is_empty() {
-            Ok(format!(
-                "No matches found for pattern '{}' in path '{}'",
-                input.regex, input.path
-            ))
+            let output = format!(
+                "{} No matches found for pattern '{}' in path '{}'",
+                "Note:".blue().bold(),
+                input.regex.yellow(),
+                input.path.cyan()
+            );
+            println!("{}", output);
+            Ok(strip_ansi_escapes::strip_str(output))
         } else {
-            Ok(matches.join("\n"))
+            let colored_matches = matches.join("\n");
+            println!("Matches:\n{}", colored_matches);
+            Ok(strip_ansi_escapes::strip_str(colored_matches))
         }
     }
 }
