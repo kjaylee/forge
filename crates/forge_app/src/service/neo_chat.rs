@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use forge_domain::{
-    ChatRequest, ChatResponse, ProviderService, ResultStream, ToolService, Workflow,
+    ChatRequest, ChatResponse, ConversationRepository, ProviderService, ResultStream, ToolService,
+    Workflow,
 };
 
 use super::Service;
@@ -19,19 +20,25 @@ impl Service {
     pub fn chat_service(
         provider: Arc<dyn ProviderService>,
         tool: Arc<dyn ToolService>,
+        conversation: Arc<dyn ConversationRepository>,
     ) -> impl ChatService {
-        Live::new(provider, tool)
+        Live::new(provider, tool, conversation)
     }
 }
 
 struct Live {
     provider: Arc<dyn ProviderService>,
     tool: Arc<dyn ToolService>,
+    conversation: Arc<dyn ConversationRepository>,
 }
 
 impl Live {
-    fn new(provider: Arc<dyn ProviderService>, tool: Arc<dyn ToolService>) -> Self {
-        Self { provider, tool }
+    fn new(
+        provider: Arc<dyn ProviderService>,
+        tool: Arc<dyn ToolService>,
+        conversation: Arc<dyn ConversationRepository>,
+    ) -> Self {
+        Self { provider, tool, conversation }
     }
 }
 
