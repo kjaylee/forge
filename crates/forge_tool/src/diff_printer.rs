@@ -37,7 +37,7 @@ impl Source {
         }
     }
 
-    /// Get the path if this source is a Path variant
+    /// Get the path if this source
     pub fn path(&self) -> Option<&Path> {
         match self {
             Source::Path { path, .. } => Some(path),
