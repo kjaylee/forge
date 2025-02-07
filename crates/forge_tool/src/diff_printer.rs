@@ -127,7 +127,16 @@ impl DiffPrinter {
         let mut output =
             self.format_file_paths_section(old_file_path, new_file_path, String::new());
 
-        for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
+        let ops = diff.grouped_ops(3);
+        if ops.is_empty() {
+            output.push_str(&format!(
+                "{}",
+                style("\nNo differences found.\n").dim()
+            ));
+            return output;
+        }
+
+        for (idx, group) in ops.iter().enumerate() {
             if idx > 0 {
                 output.push_str(&format!("{:-^1$}\n", "-", 80));
             }
@@ -163,5 +172,32 @@ impl DiffPrinter {
             }
         }
         output
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use console::strip_ansi_codes;
+    use insta::assert_snapshot;
+
+    #[test]
+    fn test_diff_printer_no_differences() {
+        let content = "line 1\nline 2\nline 3";
+        let old = Source::Content(content.to_string());
+        let new = Source::Content(content.to_string());
+        let printer = DiffPrinter::new(old, new);
+        let diff = printer.diff();
+        assert!(diff.contains("No differences found."));
+    }
+
+    #[test]
+    fn test_diff_printer_simple_diff() {
+        let old = Source::Content("line 1\nline 2\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string());
+        let new = Source::Content("line 1\nmodified line\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string());
+        let printer = DiffPrinter::new(old, new);
+        let diff = printer.diff();
+        let clean_diff = strip_ansi_codes(&diff);
+        assert_snapshot!(clean_diff);
     }
 }
