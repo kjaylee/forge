@@ -80,7 +80,7 @@ impl DiffPrinter {
                             style("Path:").dim(),
                             style(old.display()).bold().underlined()
                         ));
-                        output.push_str("\n");
+                        output.push('\n');
                     } else {
                         // Different paths
                         output.push_str(&format!(
