@@ -70,6 +70,10 @@ impl ToolCallFull {
     }
 
     pub fn try_from_parts(parts: &[ToolCallPart]) -> Result<Vec<Self>> {
+        if parts.is_empty() {
+            return Ok(vec![]);
+        }
+
         let mut tool_name: Option<&ToolName> = None;
         let mut tool_call_id = None;
 
