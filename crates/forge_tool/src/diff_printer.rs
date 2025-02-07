@@ -26,8 +26,8 @@ pub enum Source {
 
 impl Source {
     pub async fn file(path: PathBuf) -> std::io::Result<Self> {
-        let content = tokio::fs::read(path.clone()).await?;
-        Ok(Source::Path { path, content: String::from_utf8(content).unwrap() })
+        let content = tokio::fs::read_to_string(path.clone()).await?;
+        Ok(Source::Path { path, content })
     }
     /// Get the content of the source
     pub fn content(&self) -> &str {
