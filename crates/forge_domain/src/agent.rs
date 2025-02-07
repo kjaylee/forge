@@ -116,9 +116,3 @@ pub enum Transform {
     /// context
     Tap { agent_id: AgentId, input: String },
 }
-
-impl Agent {
-    pub fn new(_name: impl Into<String>) -> Self {
-        todo!()
-    }
-}

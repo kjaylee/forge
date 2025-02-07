@@ -153,21 +153,16 @@ impl Orchestrator {
         Ok(ChatCompletionResult { content, tool_calls })
     }
 
-    fn find_workflow(&self, id: &WorkflowId) -> Option<&Workflow> {
-        self.arena.workflows.iter().find(|w| w.id == *id)
-    }
-
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<ToolResult> {
         // Check if agent exists
-
-        if let Some(agent) = self.find_agent(&tool_call.name.clone().into()) {
+        if let Some(agent) = self.arena.find_agent(&tool_call.name.clone().into()) {
             let input = Variables::from(tool_call.arguments.clone());
 
             // Tools start fresh with no initial context
             let output = self.init_agent(&agent.id, &input).await;
             into_tool_result(tool_call, output)
                 .with_context(|| format!("Failed to serialize output of agent: {}", agent.id))
-        } else if let Some(workflow) = self.find_workflow(&tool_call.name.clone().into()) {
+        } else if let Some(workflow) = self.arena.find_workflow(&tool_call.name.clone().into()) {
             let input = Variables::from(tool_call.arguments.clone());
             let output = self.init_workflow(&workflow.id, &input).await;
             into_tool_result(tool_call, output)
@@ -176,25 +171,6 @@ impl Orchestrator {
             // TODO: Can check if tool exists
             Ok(self.tool_svc.call(tool_call.clone()).await)
         }
-    }
-
-    fn get_workflow(&self, id: &WorkflowId) -> anyhow::Result<&Workflow> {
-        Ok(self
-            .arena
-            .workflows
-            .iter()
-            .find(|w| w.id == *id)
-            .ok_or(Error::WorkflowUndefined(id.clone()))?)
-    }
-
-    fn get_agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
-        Ok(self
-            .find_agent(id)
-            .ok_or(Error::AgentUndefined(id.clone()))?)
-    }
-
-    fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
-        self.arena.agents.iter().find(|a| a.id == *id)
     }
 
     #[async_recursion(?Send)]
@@ -258,7 +234,7 @@ impl Orchestrator {
     }
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
-        let agent = self.get_agent(agent)?;
+        let agent = self.arena.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
             self.init_agent_context(agent, input)?
@@ -343,7 +319,7 @@ impl Orchestrator {
 
     #[async_recursion(?Send)]
     async fn init_workflow(&self, id: &WorkflowId, input: &Variables) -> anyhow::Result<Variables> {
-        let workflow = self.get_workflow(id)?;
+        let workflow = self.arena.get_workflow(id)?;
         self.init_flow(&workflow.head_flow, input, workflow).await
     }
 }
