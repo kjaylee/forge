@@ -403,4 +403,68 @@ mod test {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Path must be absolute"));
     }
+
+    #[cfg(test)]
+    mod rip_grep_formatter_tests {
+        use crate::fs::fs_find::RipGrepFormatter;
+        use pretty_assertions::assert_eq;
+
+        #[test]
+        fn test_ripgrep_formatter_single_file() {
+            let input = vec!["file.txt:1:first match", "file.txt:2:second match"]
+                .into_iter()
+                .map(String::from)
+                .collect();
+
+            let formatter = RipGrepFormatter(input);
+            let result = formatter.format();
+
+            let expected = "file.txt\n1:first match\n2:second match\n\n";
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_ripgrep_formatter_multiple_files() {
+            let input = vec![
+                "file1.txt:1:match in file1",
+                "file2.txt:1:first match in file2",
+                "file2.txt:2:second match in file2",
+                "file3.txt:1:match in file3",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect();
+
+            let formatter = RipGrepFormatter(input);
+            let result = formatter.format();
+
+            let expected = "file1.txt\n1:match in file1\n\nfile2.txt\n1:first match in file2\n2:second match in file2\n\nfile3.txt\n1:match in file3\n\n";
+            assert_eq!(result, expected);
+        }
+
+        #[test]
+        fn test_ripgrep_formatter_empty_input() {
+            let formatter = RipGrepFormatter(vec![]);
+            let result = formatter.format();
+            assert_eq!(result, "");
+        }
+
+        #[test]
+        fn test_ripgrep_formatter_malformed_input() {
+            let input = vec![
+                "file.txt:1:valid match",
+                "malformed line without separator",
+                "file.txt:2:another valid match",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect();
+
+            let formatter = RipGrepFormatter(input);
+            let result = formatter.format();
+
+            let expected = "file.txt\n1:valid match\n2:another valid match\n\n";
+            assert_eq!(result, expected);
+        }
+    }
 }
