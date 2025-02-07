@@ -70,7 +70,7 @@ impl DiffPrinter {
                 style("┌─── File Changes ").bold().cyan()
             ));
 
-            match (old_path.as_deref(), new_path.as_deref()) {
+            match (old_path, new_path) {
                 (Some(old), Some(new)) => {
                     // Check if paths are the same
                     if old == new {
@@ -80,7 +80,7 @@ impl DiffPrinter {
                             style("Path:").dim(),
                             style(old.display()).bold().underlined()
                         ));
-                        output.push_str(&format!("\n"));
+                        output.push_str("\n");
                     } else {
                         // Different paths
                         output.push_str(&format!(
