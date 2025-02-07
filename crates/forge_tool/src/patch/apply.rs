@@ -188,7 +188,7 @@ impl ExecutableTool for ApplyPatch {
         .map_err(|e: Error| e.to_string())?;
 
         // record the content of the file after applying the patch
-        let new_content = Source::from_file(path.to_path_buf())
+        let new_content = Source::from_path(path.to_path_buf())
             .await
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;

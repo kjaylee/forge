@@ -36,7 +36,7 @@ impl From<String> for Source {
 }
 
 impl Source {
-    pub async fn from_file(path: PathBuf) -> std::io::Result<Self> {
+    pub async fn from_path(path: PathBuf) -> std::io::Result<Self> {
         let content = tokio::fs::read_to_string(&path).await?;
         Ok(Source::Path { path, content })
     }

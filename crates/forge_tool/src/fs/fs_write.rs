@@ -54,7 +54,7 @@ impl ExecutableTool for FSWrite {
         // record the file content before they're modified
         let old_source = if path.is_file() {
             // if file already exists, we should be able to read it.
-            Source::from_file(path.to_path_buf())
+            Source::from_path(path.to_path_buf())
                 .await
                 .map_err(|e| e.to_string())?
         } else {
@@ -78,7 +78,7 @@ impl ExecutableTool for FSWrite {
         }
 
         // record the file content after they're modified
-        let new_source = Source::from_file(path.to_path_buf())
+        let new_source = Source::from_path(path.to_path_buf())
             .await
             .map_err(|e| e.to_string())?;
         let diff = PrettyDiffer::new(old_source, new_source).format();
