@@ -24,7 +24,7 @@ pub struct Orchestrator {
     system_context: SystemContext,
     state: Arc<Mutex<HashMap<AgentId, Context>>>,
     variables: Arc<Mutex<Variables>>,
-    sender: Option<tokio::sync::mpsc::Sender<AgentMessage<anyhow::Result<ChatResponse>>>>,
+    sender: Option<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>,
 }
 
 struct ChatCompletionResult {
@@ -50,11 +50,7 @@ impl Orchestrator {
         guard.get(id).cloned()
     }
 
-    async fn send_message(
-        &self,
-        agent_id: &AgentId,
-        message: anyhow::Result<ChatResponse>,
-    ) -> anyhow::Result<()> {
+    async fn send_message(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             sender
                 .send(AgentMessage { agent: agent_id.clone(), message })
@@ -64,11 +60,7 @@ impl Orchestrator {
     }
 
     async fn send(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
-        self.send_message(agent_id, Ok(message)).await
-    }
-
-    async fn send_error(&self, agent_id: &AgentId, error: anyhow::Error) -> anyhow::Result<()> {
-        self.send_message(agent_id, Err(error)).await
+        self.send_message(agent_id, message).await
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
@@ -113,13 +105,24 @@ impl Orchestrator {
 
     async fn collect_messages(
         &self,
-        response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
+        agent: &AgentId,
+        mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
+            + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
-        let messages = response
-            .collect::<Vec<_>>()
-            .await
-            .into_iter()
-            .collect::<anyhow::Result<Vec<_>>>()?;
+        let mut messages = Vec::new();
+
+        while let Some(message) = response.next().await {
+            let message = message?;
+            messages.push(message.clone());
+            if let Some(content) = message.content {
+                self.send(agent, ChatResponse::Text(content.as_str().to_string()))
+                    .await?;
+            }
+
+            if let Some(usage) = message.usage {
+                self.send(agent, ChatResponse::Usage(usage)).await?;
+            }
+        }
 
         let content = messages
             .iter()
@@ -292,13 +295,17 @@ impl Orchestrator {
                 .chat(&agent.model, context.clone())
                 .await?;
             let ChatCompletionResult { tool_calls, content } =
-                self.collect_messages(response).await?;
+                self.collect_messages(&agent.id, response).await?;
 
             let mut tool_results = Vec::new();
 
             for tool_call in tool_calls.iter() {
-                if let Some(result) = self.execute_tool(tool_call).await? {
-                    tool_results.push(result);
+                self.send(&agent.id, ChatResponse::ToolCallStart(tool_call.clone()))
+                    .await?;
+                if let Some(tool_result) = self.execute_tool(tool_call).await? {
+                    tool_results.push(tool_result.clone());
+                    self.send(&agent.id, ChatResponse::ToolCallEnd(tool_result))
+                        .await?;
                 }
             }
 
