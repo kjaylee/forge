@@ -157,8 +157,11 @@ impl ExecutableTool for FSSearch {
             println!("{}", output);
             Ok(strip_ansi_escapes::strip_str(output))
         } else {
-            println!("Matches:");
-            println!("{}", RipGrepFormatter(matches.clone()).format());
+            println!(
+                "{}\n{}",
+                style("Matches:").dim(),
+                RipGrepFormatter(matches.clone()).format()
+            );
             Ok(strip_ansi_escapes::strip_str(matches.join("\n")))
         }
     }
@@ -191,8 +194,7 @@ impl RipGrepFormatter {
                         lines.next(); // Skip malformed line
                     }
                 }
-                output.push('\n');
-                output.push('\n');
+                output.push_str("\n\n");
             }
         }
 
