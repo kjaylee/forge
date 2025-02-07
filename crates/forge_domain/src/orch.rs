@@ -319,9 +319,11 @@ impl Orchestrator {
             }
 
             if tool_results.is_empty() {
-                return Ok(());
+                break;
             }
         }
+        self.send(&agent.id, ChatResponse::Complete).await?;
+        Ok(())
     }
 
     pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
