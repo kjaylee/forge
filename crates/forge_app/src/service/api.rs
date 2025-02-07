@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Config, ConfigRepository, Conversation,
-    ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
-    ProviderService, ResultStream, ToolDefinition, ToolService,
+    ChatRequest, ChatResponse, Config, ConfigRepository, Conversation, ConversationHistory,
+    ConversationId, ConversationRepository, Environment, Model, ProviderService, ResultStream,
+    ToolDefinition, ToolService,
 };
 
 use super::suggestion::{File, SuggestionService};
