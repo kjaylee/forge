@@ -11,24 +11,7 @@ pub struct Workflow {
     pub id: WorkflowId,
     pub description: String,
     pub handovers: HashMap<FlowId, Vec<FlowId>>,
-}
-
-impl Workflow {
-    /// Returns flows that have no predecessors
-    pub fn head_flow(&self) -> Vec<FlowId> {
-        let values = self
-            .handovers
-            .values()
-            .clone()
-            .flatten()
-            .collect::<HashSet<_>>();
-
-        self.handovers
-            .keys()
-            .filter(|&flow| !values.contains(flow))
-            .cloned()
-            .collect::<Vec<_>>()
-    }
+    pub head_flow: FlowId,
 }
 
 #[derive(Debug, Display, Eq, PartialEq, From, Hash, Clone)]

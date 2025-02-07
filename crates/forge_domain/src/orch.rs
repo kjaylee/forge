@@ -354,6 +354,7 @@ impl Orchestrator {
         }
     }
 
+    #[async_recursion(?Send)]
     async fn init_workflow(
         &self,
         id: &WorkflowId,
@@ -361,15 +362,8 @@ impl Orchestrator {
         context: &Option<Context>,
     ) -> anyhow::Result<Variables> {
         let workflow = self.find_workflow(id)?;
-        join_all(
-            workflow
-                .head_flow()
-                .iter()
-                .map(|flow_id| self.init_flow(flow_id, input, workflow, context)),
-        )
-        .await
-        .into_iter()
-        .collect::<anyhow::Result<Vec<_>>>()
-        .map(Variables::from)
+        Ok(self
+            .init_flow(&workflow.head_flow, input, workflow, context)
+            .await?)
     }
 }
