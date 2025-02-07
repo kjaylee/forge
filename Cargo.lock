@@ -1018,6 +1018,7 @@ dependencies = [
  "Inflector",
  "anyhow",
  "async-trait",
+ "console",
  "dissimilar",
  "forge_display",
  "forge_domain",
@@ -1030,7 +1031,6 @@ dependencies = [
  "insta",
  "mockito",
  "nom 8.0.0",
- "owo-colors",
  "pretty_assertions",
  "regex",
  "reqwest",
@@ -2224,12 +2224,6 @@ name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
-
-[[package]]
-name = "owo-colors"
-version = "4.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb37767f6569cd834a413442455e0f066d0d522de8630436e2a1761d9726ba56"
 
 [[package]]
 name = "parking"

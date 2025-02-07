@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use console::style;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
-use owo_colors::OwoColorize;
 use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -116,10 +116,10 @@ impl ExecutableTool for FSSearch {
                     // - Separators in gray
                     // - Matching text in red & bold
                     let path_string = full_path.display().to_string();
-                    let colored_path = path_string.green();
+                    let colored_path = style(path_string).magenta();
                     let line_num_string = (line_num + 1).to_string();
-                    let colored_line_num = line_num_string.purple();
-                    let colored_separator = ":".dimmed();
+                    let colored_line_num = style(line_num_string).green();
+                    let colored_separator = style(":").dim();
 
                     // Highlight matching portions of the line
                     let mut colored_line = String::new();
@@ -129,7 +129,7 @@ impl ExecutableTool for FSSearch {
                         // Add text before match
                         colored_line.push_str(&line[last_end..mat.start()]);
                         // Add highlighted match
-                        colored_line.push_str(&mat.as_str().red().bold().to_string());
+                        colored_line.push_str(&style(mat.as_str()).red().bold().to_string());
                         last_end = mat.end();
                     }
                     // Add remaining text after last match
@@ -150,17 +150,65 @@ impl ExecutableTool for FSSearch {
         if matches.is_empty() {
             let output = format!(
                 "{} No matches found for pattern '{}' in path '{}'",
-                "Note:".blue().bold(),
-                input.regex.yellow(),
-                input.path.cyan()
+                style("Note:").blue().bold(),
+                style(&input.regex).yellow(),
+                style(&input.path).cyan()
             );
             println!("{}", output);
             Ok(strip_ansi_escapes::strip_str(output))
         } else {
-            let colored_matches = matches.join("\n");
-            println!("Matches:\n{}", colored_matches);
-            Ok(strip_ansi_escapes::strip_str(colored_matches))
+            println!("Matches:");
+            println!("{}", RipGrepFormatter(matches.clone()).format());
+            Ok(strip_ansi_escapes::strip_str(matches.join("\n")))
         }
+    }
+}
+
+struct RipGrepFormatter(Vec<String>);
+
+impl RipGrepFormatter {
+    /// this function groups by the file path and then formats the as per rip grep format.
+    fn format(self) -> String {
+        let mut last_path: Option<String> = None;
+        let mut collected_lines = vec![];
+        let mut output = String::new();
+        for line in self.0 {
+            let mut splits = line.split(':');
+            let file_path = splits.next().unwrap_or_default().to_owned();
+            let rest = splits.collect::<Vec<_>>().join(":");
+
+            match last_path {
+                Some(ref last_file_path) if last_file_path == &file_path => {
+                    collected_lines.push(rest);
+                }
+                Some(ref last_file_path) if last_file_path != &file_path => {
+                    // collect the output.
+                    output.push_str(&last_file_path);
+                    output.push('\n');
+                    output.push_str(&collected_lines.join("\n"));
+                    output.push('\n');
+                    collected_lines.clear();
+
+                    // start collectiong new path.
+                    last_path = Some(file_path.clone());
+                    collected_lines = vec![rest];
+                }
+                _ => {
+                    last_path = Some(file_path.clone());
+                    collected_lines = vec![rest];
+                }
+            }
+        }
+        if let Some(last_path) = last_path {
+            if !collected_lines.is_empty() {
+                output.push_str(&last_path);
+                output.push('\n');
+                output.push_str(&collected_lines.join("\n"));
+                output.push('\n');
+            }
+        }
+
+        output
     }
 }
 
