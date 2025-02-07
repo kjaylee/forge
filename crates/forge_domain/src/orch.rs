@@ -5,7 +5,7 @@ use anyhow::Context as _;
 use async_recursion::async_recursion;
 use derive_setters::Setters;
 use futures::future::join_all;
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
@@ -29,6 +29,11 @@ pub struct Orchestrator {
     system_context: SystemContext,
     state: Arc<Mutex<HashMap<AgentId, Context>>>,
     sender: Option<tokio::sync::mpsc::Sender<AgentMessage<anyhow::Result<ChatResponse>>>>,
+}
+
+struct ChatCompletionResult {
+    pub content: String,
+    pub tool_calls: Vec<ToolCallFull>,
 }
 
 impl Orchestrator {
@@ -127,19 +132,44 @@ impl Orchestrator {
             .extend_tools(tool_defs))
     }
 
-    async fn collect_content(
+    async fn collect_messages(
         &self,
-        _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
-    ) -> String {
-        todo!()
-    }
+        response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
+    ) -> anyhow::Result<ChatCompletionResult> {
+        let messages = response
+            .collect::<Vec<_>>()
+            .await
+            .into_iter()
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
-    async fn collect_tool_calls(
-        &self,
-        _response: &impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>,
-        _variables: &Variables,
-    ) -> Vec<ToolCallFull> {
-        todo!()
+        let content = messages
+            .iter()
+            .flat_map(|m| m.content.iter())
+            .map(|content| content.as_str())
+            .collect::<Vec<_>>()
+            .join("");
+
+        // From Complete (incase streaming is disabled)
+        let mut tool_calls: Vec<ToolCallFull> = messages
+            .iter()
+            .flat_map(|message| message.tool_call.iter())
+            .filter_map(|message| message.as_full().cloned())
+            .collect::<Vec<_>>();
+
+        // From partial tool calls
+        tool_calls.extend(ToolCallFull::try_from_parts(
+            &messages
+                .iter()
+                .filter_map(|message| message.tool_call.first())
+                .clone()
+                .filter_map(|tool_call| tool_call.as_partial().cloned())
+                .collect::<Vec<_>>(),
+        )?);
+
+        // From XML
+        tool_calls.extend(ToolCallFull::try_from_xml(&content)?);
+
+        Ok(ChatCompletionResult { content, tool_calls: tool_calls })
     }
 
     fn find_tool(&self, name: &ToolName) -> Option<&SmartTool<Variables>> {
@@ -268,13 +298,12 @@ impl Orchestrator {
             context = self.execute_transform(&agent.transforms, context).await?;
 
             let response = self.provider.chat(&agent.model, context.clone()).await?;
-            let tool_calls = self.collect_tool_calls(&response, &mut output).await;
+            let ChatCompletionResult { tool_calls, content } =
+                self.collect_messages(response).await?;
 
             if tool_calls.is_empty() {
                 return Ok(output);
             }
-
-            let content = self.collect_content(&response).await;
 
             let tool_results = join_all(
                 tool_calls
