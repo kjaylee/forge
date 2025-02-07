@@ -54,7 +54,7 @@ impl ExecutableTool for FSWrite {
         // record the file content before they're modified
         let old_source = Source::file(path.to_path_buf())
             .await
-            .map_err(|e| e.to_string())?;
+            .unwrap_or(Source::direct("")); // if file doesn't exist, create a empty source for diffing.
 
         // Write file only after validation passes and directories are created
         tokio::fs::write(&input.path, &input.content)

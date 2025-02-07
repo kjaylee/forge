@@ -20,8 +20,7 @@ pub enum Source {
     /// Content from a file path
     Path { path: PathBuf, content: String },
     /// Direct string content
-    #[allow(dead_code)]
-    Content(String),
+    Direct(String),
 }
 
 impl Source {
@@ -29,11 +28,16 @@ impl Source {
         let content = tokio::fs::read_to_string(path.clone()).await?;
         Ok(Source::Path { path, content })
     }
+
+    pub fn direct<S: Into<String>>(content: S) -> Self {
+        Source::Direct(content.into())
+    }
+
     /// Get the content of the source
     pub fn content(&self) -> &str {
         match self {
             Source::Path { content, .. } => content,
-            Source::Content(content) => content,
+            Source::Direct(content) => content,
         }
     }
 
@@ -41,7 +45,7 @@ impl Source {
     pub fn path(&self) -> Option<&Path> {
         match self {
             Source::Path { path, .. } => Some(path),
-            Source::Content(_) => None,
+            Source::Direct(_) => None,
         }
     }
 }
@@ -169,8 +173,8 @@ mod tests {
     #[test]
     fn test_diff_printer_no_differences() {
         let content = "line 1\nline 2\nline 3";
-        let old = Source::Content(content.to_string());
-        let new = Source::Content(content.to_string());
+        let old = Source::Direct(content.to_string());
+        let new = Source::Direct(content.to_string());
         let printer = DiffPrinter::new(old, new);
         let diff = printer.diff();
         assert!(diff.contains("No changes found"));
@@ -182,7 +186,7 @@ mod tests {
             path: "text.txt".into(),
             content: "line 1\nline 2\nline 3\nline 4\nline 5".to_string(),
         };
-        let new = Source::Content("line 1\nline 2\nline 3".to_string());
+        let new = Source::Direct("line 1\nline 2\nline 3".to_string());
         let printer = DiffPrinter::new(old, new);
         let diff = printer.diff();
         let clean_diff = strip_ansi_codes(&diff);
@@ -191,10 +195,10 @@ mod tests {
 
     #[test]
     fn test_diff_printer_simple_diff() {
-        let old = Source::Content(
+        let old = Source::Direct(
             "line 1\nline 2\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
         );
-        let new = Source::Content(
+        let new = Source::Direct(
             "line 1\nmodified line\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
         );
         let printer = DiffPrinter::new(old, new);
