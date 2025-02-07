@@ -184,22 +184,15 @@ impl Orchestrator {
 
     #[async_recursion(?Send)]
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<Option<ToolResult>> {
-        // FIXME: Missing variable set tool call
-
         if let Some(read) = ReadVariable::parse(tool_call) {
             self.read_variable(tool_call, read).await.map(Some)
         } else if let Some(write) = WriteVariable::parse(tool_call) {
             self.write_variable(tool_call, write).await.map(Some)
-        }
-        // Check if agent exists
-        else if let Some(agent) = self.workflow.find_agent(&tool_call.name.clone().into()) {
+        } else if let Some(agent) = self.workflow.find_agent(&tool_call.name.clone().into()) {
             let input = Variables::from(tool_call.arguments.clone());
-
-            // Tools start fresh with no initial context
             self.init_agent(&agent.id, &input).await?;
             Ok(None)
         } else {
-            // TODO: Can check if tool exists
             Ok(Some(self.tool_svc.call(tool_call.clone()).await))
         }
     }
