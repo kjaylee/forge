@@ -5,7 +5,7 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::pretty_differ::{PrettyDiffer, Source};
+use crate::pretty_differ::PrettyDiffer;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -52,14 +52,14 @@ impl ExecutableTool for FSWrite {
         }
 
         // record the file content before they're modified
-        let old_source = if path.is_file() {
+        let old_content = if path.is_file() {
             // if file already exists, we should be able to read it.
-            Source::from_path(path.to_path_buf())
+            tokio::fs::read_to_string(path)
                 .await
                 .map_err(|e| e.to_string())?
         } else {
-            // If the file doesn't exist, use an empty source for diff.
-            Source::default()
+            // if file doesn't exist, we should record it as an empty string.
+            "".to_string()
         };
 
         // Write file only after validation passes and directories are created
@@ -78,10 +78,10 @@ impl ExecutableTool for FSWrite {
         }
 
         // record the file content after they're modified
-        let new_source = Source::from_path(path.to_path_buf())
+        let new_content = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| e.to_string())?;
-        let diff = PrettyDiffer::new(old_source, new_source).format();
+        let diff = PrettyDiffer::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
         Ok(result)

@@ -9,7 +9,7 @@ use tokio::fs;
 
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
-use crate::pretty_differ::{PrettyDiffer, Source};
+use crate::pretty_differ::PrettyDiffer;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -188,12 +188,12 @@ impl ExecutableTool for ApplyPatch {
         .map_err(|e: Error| e.to_string())?;
 
         // record the content of the file after applying the patch
-        let new_content = Source::from_path(path.to_path_buf())
+        let new_content = fs::read_to_string(path)
             .await
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
         // Generate diff between old and new content
-        let diff = PrettyDiffer::new(old_content.into(), new_content).format();
+        let diff = PrettyDiffer::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
         Ok(result)
