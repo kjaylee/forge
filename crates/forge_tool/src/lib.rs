@@ -1,5 +1,6 @@
 mod approve;
 mod ask;
+mod diff_printer;
 mod fetch;
 mod fs;
 mod outline;
@@ -9,7 +10,6 @@ mod shell;
 mod syn;
 mod think;
 mod utils;
-mod diff_printer;
 
 use fetch::Fetch;
 use forge_domain::Tool;

@@ -1,7 +1,5 @@
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-};
+use std::fmt;
+use std::path::{Path, PathBuf};
 
 use console::{style, Style};
 use similar::{ChangeTag, TextDiff};
