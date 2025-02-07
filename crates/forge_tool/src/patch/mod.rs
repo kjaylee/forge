@@ -1,7 +1,7 @@
 mod apply;
 mod apply_json;
+mod diff_printer;
 mod marker;
 mod parse;
-mod diff_printer;
 
 pub use apply::ApplyPatch;
