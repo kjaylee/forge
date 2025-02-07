@@ -52,9 +52,15 @@ impl ExecutableTool for FSWrite {
         }
 
         // record the file content before they're modified
-        let old_source = Source::file(path.to_path_buf())
-            .await
-            .unwrap_or(Source::direct("")); // if file doesn't exist, create a empty source for diffing.
+        let old_source = if path.is_file() {
+            // if file already exists, we should be able to read it.
+            Source::from_file(path.to_path_buf())
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            // If the file doesn't exist, use an empty source for diff.
+            Source::default()
+        };
 
         // Write file only after validation passes and directories are created
         tokio::fs::write(&input.path, &input.content)
@@ -72,10 +78,10 @@ impl ExecutableTool for FSWrite {
         }
 
         // record the file content after they're modified
-        let new_source = Source::file(path.to_path_buf())
+        let new_source = Source::from_file(path.to_path_buf())
             .await
             .map_err(|e| e.to_string())?;
-        let diff = PrettyDiffer::new(old_source, new_source).diff();
+        let diff = PrettyDiffer::new(old_source, new_source).format();
         println!("{}", diff);
 
         Ok(result)

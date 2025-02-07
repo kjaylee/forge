@@ -153,19 +153,14 @@ impl ExecutableTool for ApplyPatch {
 
         let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
 
-        // record the content of the file before applying the patch
-        let old_source = Source::file(path.to_path_buf())
+        // Read the content of the file before applying the patch
+        let old_content = fs::read_to_string(&input.path)
             .await
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
 
-        let result: Result<_, Error> = async {
-            let content = fs::read_to_string(&input.path)
-                .await
-                .map_err(Error::FileOperation)?;
-
-            let modified = apply_patches(content, blocks).await?;
-
+        let result = async {
+            let modified = apply_patches(old_content.clone(), blocks).await?;
             fs::write(&input.path, &modified)
                 .await
                 .map_err(Error::FileOperation)?;
@@ -187,21 +182,21 @@ impl ExecutableTool for ApplyPatch {
                     modified.trim_end()
                 )
             };
-
             Ok(output)
         }
-        .await;
+        .await
+        .map_err(|e: Error| e.to_string())?;
 
         // record the content of the file after applying the patch
-        let new_content = Source::file(path.to_path_buf())
+        let new_content = Source::from_file(path.to_path_buf())
             .await
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
-
-        let diff = PrettyDiffer::new(old_source, new_content).diff();
+        // Generate diff between old and new content
+        let diff = PrettyDiffer::new(old_content.into(), new_content).format();
         println!("{}", diff);
 
-        result.map_err(|e| e.to_string())
+        Ok(result)
     }
 }
 

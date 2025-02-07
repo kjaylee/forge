@@ -20,24 +20,32 @@ pub enum Source {
     /// Content from a file path
     Path { path: PathBuf, content: String },
     /// Direct string content
-    Direct(String),
+    Content(String),
+}
+
+impl Default for Source {
+    fn default() -> Self {
+        Source::Content(String::new())
+    }
+}
+
+impl From<String> for Source {
+    fn from(content: String) -> Self {
+        Source::Content(content)
+    }
 }
 
 impl Source {
-    pub async fn file(path: PathBuf) -> std::io::Result<Self> {
-        let content = tokio::fs::read_to_string(path.clone()).await?;
+    pub async fn from_file(path: PathBuf) -> std::io::Result<Self> {
+        let content = tokio::fs::read_to_string(&path).await?;
         Ok(Source::Path { path, content })
-    }
-
-    pub fn direct<S: Into<String>>(content: S) -> Self {
-        Source::Direct(content.into())
     }
 
     /// Get the content of the source
     pub fn content(&self) -> &str {
         match self {
             Source::Path { content, .. } => content,
-            Source::Direct(content) => content,
+            Source::Content(content) => content,
         }
     }
 
@@ -45,7 +53,7 @@ impl Source {
     pub fn path(&self) -> Option<&Path> {
         match self {
             Source::Path { path, .. } => Some(path),
-            Source::Direct(_) => None,
+            Source::Content(_) => None,
         }
     }
 }
@@ -108,7 +116,7 @@ impl PrettyDiffer {
         output
     }
 
-    pub fn diff(&self) -> String {
+    pub fn format(&self) -> String {
         let old_content = self.old.content();
         let new_content = self.new.content();
         let new_file_path = self.new.path();
@@ -173,10 +181,10 @@ mod tests {
     #[test]
     fn test_diff_printer_no_differences() {
         let content = "line 1\nline 2\nline 3";
-        let old = Source::Direct(content.to_string());
-        let new = Source::Direct(content.to_string());
+        let old = Source::Content(content.to_string());
+        let new = Source::Content(content.to_string());
         let printer = PrettyDiffer::new(old, new);
-        let diff = printer.diff();
+        let diff = printer.format();
         assert!(diff.contains("No changes found"));
     }
 
@@ -186,23 +194,23 @@ mod tests {
             path: "text.txt".into(),
             content: "line 1\nline 2\nline 3\nline 4\nline 5".to_string(),
         };
-        let new = Source::Direct("line 1\nline 2\nline 3".to_string());
+        let new = Source::Content("line 1\nline 2\nline 3".to_string());
         let printer = PrettyDiffer::new(old, new);
-        let diff = printer.diff();
+        let diff = printer.format();
         let clean_diff = strip_ansi_codes(&diff);
         assert_snapshot!(clean_diff);
     }
 
     #[test]
     fn test_diff_printer_simple_diff() {
-        let old = Source::Direct(
+        let old = Source::Content(
             "line 1\nline 2\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
         );
-        let new = Source::Direct(
+        let new = Source::Content(
             "line 1\nmodified line\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
         );
         let printer = PrettyDiffer::new(old, new);
-        let diff = printer.diff();
+        let diff = printer.format();
         let clean_diff = strip_ansi_codes(&diff);
         assert_snapshot!(clean_diff);
     }
