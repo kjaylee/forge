@@ -151,7 +151,10 @@ impl ExecutableTool for ApplyPatch {
         }
 
         let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
-
+        let unchanged_content = tokio::fs::read_to_string(input.path.clone())
+            .await
+            .map_err(Error::FileOperation)
+            .map_err(|e| e.to_string())?;
         let result: Result<_, Error> = async {
             let content = fs::read_to_string(&input.path)
                 .await
@@ -184,6 +187,12 @@ impl ExecutableTool for ApplyPatch {
             Ok(output)
         }
         .await;
+        let changed_content = tokio::fs::read_to_string(input.path.clone())
+            .await
+            .map_err(Error::FileOperation)
+            .map_err(|e| e.to_string())?;
+
+        super::diff_printer::diff_printer(&unchanged_content, &changed_content, &input.path);
 
         result.map_err(|e| e.to_string())
     }
