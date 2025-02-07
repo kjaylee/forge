@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::Context as _;
 use async_recursion::async_recursion;
 use derive_setters::Setters;
-use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use schemars::{schema_for, JsonSchema};
+use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::Mutex;
 
@@ -23,6 +23,7 @@ pub struct Orchestrator {
     workflow: Workflow,
     system_context: SystemContext,
     state: Arc<Mutex<HashMap<AgentId, Context>>>,
+    variables: Arc<Mutex<Variables>>,
     sender: Option<tokio::sync::mpsc::Sender<AgentMessage<anyhow::Result<ChatResponse>>>>,
 }
 
@@ -39,6 +40,7 @@ impl Orchestrator {
             workflow: Workflow::default(),
             system_context: SystemContext::default(),
             state: Arc::new(Mutex::new(HashMap::new())),
+            variables: Arc::new(Mutex::new(Variables::default())),
             sender: None,
         }
     }
@@ -75,7 +77,11 @@ impl Orchestrator {
 
     fn init_tool_definitions(&self, agent: &Agent) -> Vec<ToolDefinition> {
         let allowed = agent.tools.iter().collect::<HashSet<_>>();
-        let forge_tools = self.init_default_tool_definitions();
+        let mut forge_tools = self.init_default_tool_definitions();
+
+        // Adding self to the list of tool definitions
+        forge_tools.push(ReadVariable::tool_definition());
+        forge_tools.push(WriteVariable::tool_definition());
 
         forge_tools
             .into_iter()
@@ -145,18 +151,53 @@ impl Orchestrator {
         Ok(ChatCompletionResult { content, tool_calls })
     }
 
-    async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<ToolResult> {
+    async fn write_variable(
+        &self,
+        tool_call: &ToolCallFull,
+        write: WriteVariable,
+    ) -> anyhow::Result<ToolResult> {
+        let mut guard = self.variables.lock().await;
+        guard.add(write.name.clone(), write.value.clone());
+        Ok(ToolResult::from(tool_call.clone())
+            .success(format!("Variable {} set to {}", write.name, write.value)))
+    }
+
+    async fn read_variable(
+        &self,
+        tool_call: &ToolCallFull,
+        read: ReadVariable,
+    ) -> anyhow::Result<ToolResult> {
+        let guard = self.variables.lock().await;
+        let output = guard.get(&read.name);
+        let result = match output {
+            Some(value) => {
+                ToolResult::from(tool_call.clone()).success(serde_json::to_string(value)?)
+            }
+            None => ToolResult::from(tool_call.clone())
+                .failure(format!("Variable {} not found", read.name)),
+        };
+        Ok(result)
+    }
+
+    #[async_recursion(?Send)]
+    async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<Option<ToolResult>> {
+        // FIXME: Missing variable set tool call
+
+        if let Some(read) = ReadVariable::parse(tool_call) {
+            self.read_variable(tool_call, read).await.map(Some)
+        } else if let Some(write) = WriteVariable::parse(tool_call) {
+            self.write_variable(tool_call, write).await.map(Some)
+        }
         // Check if agent exists
-        if let Some(agent) = self.workflow.find_agent(&tool_call.name.clone().into()) {
+        else if let Some(agent) = self.workflow.find_agent(&tool_call.name.clone().into()) {
             let input = Variables::from(tool_call.arguments.clone());
 
             // Tools start fresh with no initial context
-            let output = self.init_agent(&agent.id, &input).await;
-            into_tool_result(tool_call, output)
-                .with_context(|| format!("Failed to serialize output of agent: {}", agent.id))
+            self.init_agent(&agent.id, &input).await?;
+            Ok(None)
         } else {
             // TODO: Can check if tool exists
-            Ok(self.tool_svc.call(tool_call.clone()).await)
+            Ok(Some(self.tool_svc.call(tool_call.clone()).await))
         }
     }
 
@@ -179,8 +220,11 @@ impl Orchestrator {
                         let mut input = Variables::default();
                         input.add(input_key, summary.get());
 
-                        let output = self.init_agent(agent_id, &input).await?;
-                        let value = output
+                        self.init_agent(agent_id, &input).await?;
+
+                        let guard = self.variables.lock().await;
+
+                        let value = guard
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
@@ -197,8 +241,9 @@ impl Orchestrator {
                         let mut input = Variables::default();
                         input.add(input_key, Value::from(content.clone()));
 
-                        let output = self.init_agent(agent_id, &input).await?;
-                        let value = output
+                        self.init_agent(agent_id, &input).await?;
+                        let guard = self.variables.lock().await;
+                        let value = guard
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
@@ -220,7 +265,7 @@ impl Orchestrator {
         Ok(context)
     }
 
-    async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
+    async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<()> {
         let agent = self.workflow.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
@@ -236,7 +281,7 @@ impl Orchestrator {
         };
 
         let content = agent.user_prompt.render(input)?;
-        let output = Variables::default();
+
         context = context.add_message(ContextMessage::user(content));
 
         loop {
@@ -248,20 +293,18 @@ impl Orchestrator {
                 .await?;
             let ChatCompletionResult { tool_calls, content } =
                 self.collect_messages(response).await?;
-            let tool_call_count = tool_calls.len();
 
-            let tool_results = join_all(
-                tool_calls
-                    .iter()
-                    .map(|tool_call| self.execute_tool(tool_call)),
-            )
-            .await
-            .into_iter()
-            .collect::<anyhow::Result<Vec<_>>>()?;
+            let mut tool_results = Vec::new();
+
+            for tool_call in tool_calls.iter() {
+                if let Some(result) = self.execute_tool(tool_call).await? {
+                    tool_results.push(result);
+                }
+            }
 
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
-                .add_tool_results(tool_results);
+                .add_tool_results(tool_results.clone());
 
             if !agent.ephemeral {
                 self.state
@@ -270,27 +313,73 @@ impl Orchestrator {
                     .insert(agent.id.clone(), context.clone());
             }
 
-            if tool_call_count == 0 {
-                return Ok(output);
+            if tool_results.is_empty() {
+                return Ok(());
             }
         }
     }
 
-    pub async fn execute(&self, input: &Variables) -> anyhow::Result<Variables> {
+    pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
         let agent = self.workflow.get_head()?;
         self.init_agent(&agent.id, input).await
     }
 }
 
-fn into_tool_result(
-    tool_call: &ToolCallFull,
-    output: anyhow::Result<Variables>,
-) -> anyhow::Result<ToolResult> {
-    match output {
-        Ok(output) => {
-            let output = serde_json::to_string(&output)?;
-            Ok(ToolResult::from(tool_call.clone()).success(output))
+#[derive(Debug, JsonSchema, Deserialize)]
+struct ReadVariable {
+    name: String,
+}
+
+impl ReadVariable {
+    fn tool_definition() -> ToolDefinition {
+        ToolDefinition {
+            name: ToolName::new("forge_read_variable"),
+            description: "Reads a global workflow variable".to_string(),
+            input_schema: schema_for!(Self),
+            output_schema: None,
         }
-        Err(error) => Ok(ToolResult::from(tool_call.clone()).failure(error.to_string())),
+    }
+
+    fn parse(tool_call: &ToolCallFull) -> Option<Self> {
+        if tool_call.name != Self::tool_definition().name {
+            return None;
+        }
+        serde_json::from_value(tool_call.arguments.clone()).ok()
+    }
+}
+
+impl NamedTool for ReadVariable {
+    fn tool_name() -> ToolName {
+        Self::tool_definition().name
+    }
+}
+
+#[derive(Debug, JsonSchema, Deserialize)]
+struct WriteVariable {
+    name: String,
+    value: String,
+}
+
+impl WriteVariable {
+    fn tool_definition() -> ToolDefinition {
+        ToolDefinition {
+            name: ToolName::new("forge_write_variable"),
+            description: "Writes a global workflow variable".to_string(),
+            input_schema: schema_for!(Self),
+            output_schema: None,
+        }
+    }
+
+    fn parse(tool_call: &ToolCallFull) -> Option<Self> {
+        if tool_call.name != Self::tool_definition().name {
+            return None;
+        }
+        serde_json::from_value(tool_call.arguments.clone()).ok()
+    }
+}
+
+impl NamedTool for WriteVariable {
+    fn tool_name() -> ToolName {
+        Self::tool_definition().name
     }
 }
