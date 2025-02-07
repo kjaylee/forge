@@ -7,7 +7,7 @@ use schemars::schema::RootSchema;
 use serde::Serialize;
 
 use crate::variables::Variables;
-use crate::{Environment, Error, ModelId, Provider, ToolName};
+use crate::{Environment, Error, ModelId, Provider, ToolDefinition, ToolName};
 
 #[derive(Default, Serialize, Setters, Clone)]
 #[setters(strip_option)]
@@ -58,6 +58,12 @@ impl PromptTemplate {
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
 pub struct AgentId(String);
 
+impl From<ToolName> for AgentId {
+    fn from(value: ToolName) -> Self {
+        Self(value.into_string())
+    }
+}
+
 #[derive(Clone)]
 pub struct Agent {
     pub id: AgentId,
@@ -66,8 +72,25 @@ pub struct Agent {
     pub description: String,
     pub system_prompt: Prompt<SystemContext>,
     pub user_prompt: Prompt<Variables>,
+
+    /// Suggests if the agent needs to maintain its state for the lifetime of
+    /// the program.
+    pub ephemeral: bool,
+
+    /// Tools that the agent can use
     pub tools: Vec<ToolName>,
     pub transforms: Vec<Transform>,
+}
+
+impl From<Agent> for ToolDefinition {
+    fn from(value: Agent) -> Self {
+        ToolDefinition {
+            name: ToolName::new(value.id.0),
+            description: value.description,
+            input_schema: value.user_prompt.variables.schema,
+            output_schema: None,
+        }
+    }
 }
 
 /// Transformations that can be applied to the agent's context before sending it

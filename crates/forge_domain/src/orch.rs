@@ -9,7 +9,7 @@ use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
-use crate::arena::{Arena, SmartTool};
+use crate::arena::Arena;
 use crate::*;
 
 pub struct AgentMessage<T> {
@@ -49,15 +49,10 @@ impl Orchestrator {
         guard.get(id).cloned()
     }
 
-    pub async fn execute(
-        &self,
-        id: &FlowId,
-        input: &Variables,
-        context: &Option<Context>,
-    ) -> anyhow::Result<Variables> {
+    pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
         match id {
-            FlowId::Agent(id) => self.init_agent(id, input, context).await,
-            FlowId::Workflow(id) => self.init_workflow(id, input, context).await,
+            FlowId::Agent(id) => self.init_agent(id, input).await,
+            FlowId::Workflow(id) => self.init_workflow(id, input).await,
         }
     }
 
@@ -68,7 +63,7 @@ impl Orchestrator {
     ) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             sender
-                .send(AgentMessage { agent: agent_id.clone(), message: message })
+                .send(AgentMessage { agent: agent_id.clone(), message })
                 .await?
         }
         Ok(())
@@ -86,22 +81,12 @@ impl Orchestrator {
         self.tool_svc.list()
     }
 
-    fn init_smart_tool_definitions(&self) -> Vec<ToolDefinition> {
-        self.arena
-            .tools
-            .iter()
-            .map(|a| a.to_tool_definition())
-            .collect()
-    }
-
     fn init_tool_definitions(&self, tools: &[ToolName]) -> Vec<ToolDefinition> {
         let required_tools = tools.iter().collect::<HashSet<_>>();
         let default_tools = self.init_default_tool_definitions();
-        let smart_tools = self.init_smart_tool_definitions();
 
         default_tools
             .into_iter()
-            .chain(smart_tools)
             .filter(|tool| required_tools.contains(&tool.name))
             .collect::<Vec<_>>()
     }
@@ -165,37 +150,35 @@ impl Orchestrator {
         // From XML
         tool_calls.extend(ToolCallFull::try_from_xml(&content)?);
 
-        Ok(ChatCompletionResult { content, tool_calls: tool_calls })
+        Ok(ChatCompletionResult { content, tool_calls })
     }
 
-    fn find_tool(&self, name: &ToolName) -> Option<&SmartTool<Variables>> {
-        self.arena.tools.iter().find(|tool| tool.name == *name)
+    fn find_workflow(&self, id: &WorkflowId) -> Option<&Workflow> {
+        self.arena.workflows.iter().find(|w| w.id == *id)
     }
 
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<ToolResult> {
-        let smart_tool = self.find_tool(&tool_call.name);
-        if let Some(tool) = smart_tool {
+        // Check if agent exists
+
+        if let Some(agent) = self.find_agent(&tool_call.name.clone().into()) {
             let input = Variables::from(tool_call.arguments.clone());
 
             // Tools start fresh with no initial context
-            match self.execute(&tool.run, &input, &None).await {
-                Ok(output) => {
-                    let output = serde_json::to_string(&output).with_context(|| {
-                        format!(
-                            "Failed to serialize output of smart tool: {}",
-                            tool.name.as_str()
-                        )
-                    })?;
-                    Ok(ToolResult::from(tool_call.clone()).success(output))
-                }
-                Err(error) => Ok(ToolResult::from(tool_call.clone()).failure(error.to_string())),
-            }
+            let output = self.init_agent(&agent.id, &input).await;
+            into_tool_result(tool_call, output)
+                .with_context(|| format!("Failed to serialize output of agent: {}", agent.id))
+        } else if let Some(workflow) = self.find_workflow(&tool_call.name.clone().into()) {
+            let input = Variables::from(tool_call.arguments.clone());
+            let output = self.init_workflow(&workflow.id, &input).await;
+            into_tool_result(tool_call, output)
+                .with_context(|| format!("Failed to serialize output of workflow: {}", workflow.id))
         } else {
+            // TODO: Can check if tool exists
             Ok(self.tool_svc.call(tool_call.clone()).await)
         }
     }
 
-    fn find_workflow(&self, id: &WorkflowId) -> anyhow::Result<&Workflow> {
+    fn get_workflow(&self, id: &WorkflowId) -> anyhow::Result<&Workflow> {
         Ok(self
             .arena
             .workflows
@@ -204,13 +187,14 @@ impl Orchestrator {
             .ok_or(Error::WorkflowUndefined(id.clone()))?)
     }
 
-    fn find_agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
+    fn get_agent(&self, id: &AgentId) -> anyhow::Result<&Agent> {
         Ok(self
-            .arena
-            .agents
-            .iter()
-            .find(|a| a.id == *id)
+            .find_agent(id)
             .ok_or(Error::AgentUndefined(id.clone()))?)
+    }
+
+    fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
+        self.arena.agents.iter().find(|a| a.id == *id)
     }
 
     #[async_recursion(?Send)]
@@ -232,7 +216,7 @@ impl Orchestrator {
                         let mut input = Variables::default();
                         input.add(input_key, summary.get());
 
-                        let output = self.init_agent(agent_id, &input, &None).await?;
+                        let output = self.init_agent(agent_id, &input).await?;
                         let value = output
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
@@ -250,7 +234,7 @@ impl Orchestrator {
                         let mut input = Variables::default();
                         input.add(input_key, Value::from(content.clone()));
 
-                        let output = self.init_agent(agent_id, &input, &None).await?;
+                        let output = self.init_agent(agent_id, &input).await?;
                         let value = output
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
@@ -265,7 +249,7 @@ impl Orchestrator {
                     input.add(input_key, context.to_text());
 
                     // NOTE: Tap transformers will not modify the context
-                    self.init_agent(agent_id, &input, &None).await?;
+                    self.init_agent(agent_id, &input).await?;
                 }
             }
         }
@@ -273,18 +257,20 @@ impl Orchestrator {
         Ok(context)
     }
 
-    async fn init_agent(
-        &self,
-        agent: &AgentId,
-        input: &Variables,
-        context: &Option<Context>,
-    ) -> anyhow::Result<Variables> {
-        let agent = self.find_agent(agent)?;
+    async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
+        let agent = self.get_agent(agent)?;
 
-        let mut context = context
-            .clone()
-            .map(Ok)
-            .unwrap_or_else(|| self.init_agent_context(&agent, input))?;
+        let mut context = if agent.ephemeral {
+            self.init_agent_context(agent, input)?
+        } else {
+            self.state
+                .lock()
+                .await
+                .get(&agent.id)
+                .cloned()
+                .map(Ok)
+                .unwrap_or_else(|| self.init_agent_context(agent, input))?
+        };
 
         let content = agent.user_prompt.render(input)?;
         let output = Variables::default();
@@ -314,10 +300,12 @@ impl Orchestrator {
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results);
 
-            self.state
-                .lock()
-                .await
-                .insert(agent.id.clone(), context.clone());
+            if !agent.ephemeral {
+                self.state
+                    .lock()
+                    .await
+                    .insert(agent.id.clone(), context.clone());
+            }
 
             if tool_call_count == 0 {
                 return Ok(output);
@@ -330,11 +318,10 @@ impl Orchestrator {
         flow_id: &FlowId,
         input: &Variables,
         workflow: &Workflow,
-        context: &Option<Context>,
     ) -> anyhow::Result<Variables> {
         match flow_id {
             FlowId::Agent(agent_id) => {
-                let variables = self.init_agent(agent_id, input, context).await?;
+                let variables = self.init_agent(agent_id, input).await?;
                 let flows = workflow
                     .handovers
                     .get(&agent_id.clone().into())
@@ -343,27 +330,33 @@ impl Orchestrator {
                 join_all(
                     flows
                         .iter()
-                        .map(|flow_id| self.init_flow(flow_id, &variables, workflow, &None)),
+                        .map(|handovers| self.init_flow(&handovers.flow_id, &variables, workflow)),
                 )
                 .await
                 .into_iter()
                 .collect::<anyhow::Result<Vec<_>>>()
                 .map(Variables::from)
             }
-            FlowId::Workflow(id) => self.init_workflow(id, input, context).await,
+            FlowId::Workflow(id) => self.init_workflow(id, input).await,
         }
     }
 
     #[async_recursion(?Send)]
-    async fn init_workflow(
-        &self,
-        id: &WorkflowId,
-        input: &Variables,
-        context: &Option<Context>,
-    ) -> anyhow::Result<Variables> {
-        let workflow = self.find_workflow(id)?;
-        Ok(self
-            .init_flow(&workflow.head_flow, input, workflow, context)
-            .await?)
+    async fn init_workflow(&self, id: &WorkflowId, input: &Variables) -> anyhow::Result<Variables> {
+        let workflow = self.get_workflow(id)?;
+        self.init_flow(&workflow.head_flow, input, workflow).await
+    }
+}
+
+fn into_tool_result(
+    tool_call: &ToolCallFull,
+    output: anyhow::Result<Variables>,
+) -> anyhow::Result<ToolResult> {
+    match output {
+        Ok(output) => {
+            let output = serde_json::to_string(&output)?;
+            Ok(ToolResult::from(tool_call.clone()).success(output))
+        }
+        Err(error) => Ok(ToolResult::from(tool_call.clone()).failure(error.to_string())),
     }
 }
