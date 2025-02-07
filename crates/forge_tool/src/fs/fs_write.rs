@@ -5,6 +5,7 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::diff_printer::DiffPrinter;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -50,6 +51,12 @@ impl ExecutableTool for FSWrite {
                 .map_err(|e| format!("Failed to create directories: {}", e))?;
         }
 
+        // record the file content before they're modified
+        let diff = DiffPrinter::default()
+            .old_path(path)
+            .await
+            .map_err(|e| e.to_string())?;
+
         // Write file only after validation passes and directories are created
         tokio::fs::write(&input.path, &input.content)
             .await
@@ -64,6 +71,10 @@ impl ExecutableTool for FSWrite {
             result.push_str("\nWarning: ");
             result.push_str(&warning.to_string());
         }
+
+        // record the file content after they're modified
+        let diff = diff.new_path(path).await.map_err(|e| e.to_string())?.diff();
+        println!("{}", diff);
 
         Ok(result)
     }

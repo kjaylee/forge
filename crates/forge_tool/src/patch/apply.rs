@@ -7,9 +7,9 @@ use serde::Deserialize;
 use thiserror::Error;
 use tokio::fs;
 
-use super::diff_printer::pretty_diff_print;
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
+use crate::diff_printer::DiffPrinter;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -152,7 +152,10 @@ impl ExecutableTool for ApplyPatch {
         }
 
         let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
-        let unchanged_content = tokio::fs::read_to_string(input.path.clone())
+
+        // record the content of the file before applying the patch
+        let differ = DiffPrinter::default()
+            .old_path(path)
             .await
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
@@ -188,13 +191,17 @@ impl ExecutableTool for ApplyPatch {
             Ok(output)
         }
         .await;
-        let changed_content = tokio::fs::read_to_string(input.path.clone())
+
+        // record the content of the file after applying the patch
+        let diff = differ
+            .new_path(path)
             .await
             .map_err(Error::FileOperation)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_string())?
+            .diff();
 
-        // Print diff between old and new content to console
-        pretty_diff_print(&unchanged_content, &changed_content, &input.path);
+        // print the diff
+        println!("{}", diff);
 
         result.map_err(|e| e.to_string())
     }
