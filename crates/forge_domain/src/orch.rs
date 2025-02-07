@@ -10,11 +10,7 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 
 use crate::arena::{Arena, SmartTool};
-use crate::{
-    Agent, AgentId, ChatCompletionMessage, ChatResponse, ContentMessage, Context, ContextMessage,
-    Error, FlowId, ProviderService, Role, Summarize, SystemContext, ToolCallFull, ToolDefinition,
-    ToolName, ToolResult, ToolService, Transform, Variables, Workflow, WorkflowId,
-};
+use crate::*;
 
 pub struct AgentMessage<T> {
     pub agent: AgentId,
@@ -23,8 +19,8 @@ pub struct AgentMessage<T> {
 
 #[derive(Setters)]
 pub struct Orchestrator {
-    provider: Arc<dyn ProviderService>,
-    tool: Arc<dyn ToolService>,
+    provider_svc: Arc<dyn ProviderService>,
+    tool_svc: Arc<dyn ToolService>,
     arena: Arena,
     system_context: SystemContext,
     state: Arc<Mutex<HashMap<AgentId, Context>>>,
@@ -39,8 +35,8 @@ struct ChatCompletionResult {
 impl Orchestrator {
     pub fn new(provider: Arc<dyn ProviderService>, tool: Arc<dyn ToolService>) -> Self {
         Self {
-            provider,
-            tool,
+            provider_svc: provider,
+            tool_svc: tool,
             arena: Arena::default(),
             system_context: SystemContext::default(),
             state: Arc::new(Mutex::new(HashMap::new())),
@@ -87,7 +83,7 @@ impl Orchestrator {
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
-        self.tool.list()
+        self.tool_svc.list()
     }
 
     fn init_smart_tool_definitions(&self) -> Vec<ToolDefinition> {
@@ -195,7 +191,7 @@ impl Orchestrator {
                 Err(error) => Ok(ToolResult::from(tool_call.clone()).failure(error.to_string())),
             }
         } else {
-            Ok(self.tool.call(tool_call.clone()).await)
+            Ok(self.tool_svc.call(tool_call.clone()).await)
         }
     }
 
@@ -291,19 +287,19 @@ impl Orchestrator {
             .unwrap_or_else(|| self.init_agent_context(&agent, input))?;
 
         let content = agent.user_prompt.render(input)?;
-        let mut output = Variables::default();
+        let output = Variables::default();
         context = context.add_message(ContextMessage::user(content));
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
 
-            let response = self.provider.chat(&agent.model, context.clone()).await?;
+            let response = self
+                .provider_svc
+                .chat(&agent.model, context.clone())
+                .await?;
             let ChatCompletionResult { tool_calls, content } =
                 self.collect_messages(response).await?;
-
-            if tool_calls.is_empty() {
-                return Ok(output);
-            }
+            let tool_call_count = tool_calls.len();
 
             let tool_results = join_all(
                 tool_calls
@@ -322,6 +318,10 @@ impl Orchestrator {
                 .lock()
                 .await
                 .insert(agent.id.clone(), context.clone());
+
+            if tool_call_count == 0 {
+                return Ok(output);
+            }
         }
     }
 
