@@ -2,6 +2,7 @@
 source: crates/forge_tool/src/pretty_differ.rs
 expression: clean_diff
 ---
+File: abc.txt
 1   1    | line 1
 2        |-line 2
     2    |+modified line
