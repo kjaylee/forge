@@ -3,9 +3,8 @@ use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use derive_setters::Setters;
+use futures::future::join_all;
 use futures::{Stream, StreamExt};
-use schemars::{schema_for, JsonSchema};
-use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::Mutex;
 
@@ -327,66 +326,17 @@ impl Orchestrator {
 
     pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
         let guard = self.workflow.lock().await;
-        let agent = guard.get_head()?;
-        self.init_agent(&agent.id, input).await
-    }
-}
 
-#[derive(Debug, JsonSchema, Deserialize)]
-struct ReadVariable {
-    name: String,
-}
+        join_all(
+            guard
+                .get_entries()
+                .iter()
+                .map(|agent| self.init_agent(&agent.id, input)),
+        )
+        .await
+        .into_iter()
+        .collect::<anyhow::Result<Vec<()>>>()?;
 
-impl ReadVariable {
-    fn tool_definition() -> ToolDefinition {
-        ToolDefinition {
-            name: ToolName::new("forge_read_variable"),
-            description: "Reads a global workflow variable".to_string(),
-            input_schema: schema_for!(Self),
-            output_schema: None,
-        }
-    }
-
-    fn parse(tool_call: &ToolCallFull) -> Option<Self> {
-        if tool_call.name != Self::tool_definition().name {
-            return None;
-        }
-        serde_json::from_value(tool_call.arguments.clone()).ok()
-    }
-}
-
-impl NamedTool for ReadVariable {
-    fn tool_name() -> ToolName {
-        Self::tool_definition().name
-    }
-}
-
-#[derive(Debug, JsonSchema, Deserialize)]
-struct WriteVariable {
-    name: String,
-    value: String,
-}
-
-impl WriteVariable {
-    fn tool_definition() -> ToolDefinition {
-        ToolDefinition {
-            name: ToolName::new("forge_write_variable"),
-            description: "Writes a global workflow variable".to_string(),
-            input_schema: schema_for!(Self),
-            output_schema: None,
-        }
-    }
-
-    fn parse(tool_call: &ToolCallFull) -> Option<Self> {
-        if tool_call.name != Self::tool_definition().name {
-            return None;
-        }
-        serde_json::from_value(tool_call.arguments.clone()).ok()
-    }
-}
-
-impl NamedTool for WriteVariable {
-    fn tool_name() -> ToolName {
-        Self::tool_definition().name
+        Ok(())
     }
 }

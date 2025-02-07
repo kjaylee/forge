@@ -85,6 +85,9 @@ pub struct Agent {
 
     /// Downstream agents that this agent can handover to
     pub handovers: Vec<Downstream>,
+
+    /// Represents that the agent is the entry point to the workflow
+    pub entry: bool,
 }
 
 impl From<Agent> for ToolDefinition {
