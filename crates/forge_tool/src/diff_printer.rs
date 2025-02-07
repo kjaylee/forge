@@ -43,7 +43,7 @@ impl DiffPrinter {
     }
 
     /// Display the paths if they exist.
-    fn display_file_name(&self, mut output: String) -> String {
+    fn format_file_paths_section(&self, mut output: String) -> String {
         // Only show file paths section if at least one path is present
         if self.old_path.is_some() || self.new_path.is_some() {
             output.push_str(&format!(
@@ -56,12 +56,12 @@ impl DiffPrinter {
                     // Check if paths are the same
                     if old == new {
                         output.push_str(&format!(
-                            "{}  {} {}\n",
+                            "{}  {} {}",
                             style("│").bold().cyan(),
                             style("Path:").dim(),
                             style(old.display()).bold().underlined()
                         ));
-                        output.push_str(&format!("{}\n", style("│").bold().cyan(),));
+                        output.push_str(&format!("\n"));
                     } else {
                         // Different paths
                         output.push_str(&format!(
@@ -100,7 +100,7 @@ impl DiffPrinter {
     pub fn diff(&self) -> String {
         let diff = TextDiff::from_lines(&self.old_content, &self.new_content);
 
-        let mut output = self.display_file_name(String::new());
+        let mut output = self.format_file_paths_section(String::new());
 
         for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
             if idx > 0 {
