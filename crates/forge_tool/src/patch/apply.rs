@@ -9,7 +9,7 @@ use tokio::fs;
 
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
-use crate::diff_printer::DiffPrinter;
+use crate::diff_printer::{DiffPrinter, Source};
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -154,11 +154,11 @@ impl ExecutableTool for ApplyPatch {
         let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
 
         // record the content of the file before applying the patch
-        let differ = DiffPrinter::default()
-            .old_path(path)
+        let old_source = Source::file(path.to_path_buf())
             .await
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
+
         let result: Result<_, Error> = async {
             let content = fs::read_to_string(&input.path)
                 .await
@@ -193,14 +193,12 @@ impl ExecutableTool for ApplyPatch {
         .await;
 
         // record the content of the file after applying the patch
-        let diff = differ
-            .new_path(path)
+        let new_content = Source::file(path.to_path_buf())
             .await
             .map_err(Error::FileOperation)
-            .map_err(|e| e.to_string())?
-            .diff();
+            .map_err(|e| e.to_string())?;
 
-        // print the diff
+        let diff = DiffPrinter::new(old_source, new_content).diff();
         println!("{}", diff);
 
         result.map_err(|e| e.to_string())

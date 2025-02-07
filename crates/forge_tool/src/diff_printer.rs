@@ -15,43 +15,62 @@ impl fmt::Display for Line {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Clone)]
+pub enum Source {
+    /// Content from a file path
+    Path { path: PathBuf, content: String },
+    /// Direct string content
+    #[allow(dead_code)]
+    Content(String),
+}
+
+impl Source {
+    pub async fn file(path: PathBuf) -> std::io::Result<Self> {
+        let content = tokio::fs::read(path.clone()).await?;
+        Ok(Source::Path { path, content: String::from_utf8(content).unwrap() })
+    }
+    /// Get the content of the source
+    pub fn content(&self) -> &str {
+        match self {
+            Source::Path { content, .. } => content,
+            Source::Content(content) => content,
+        }
+    }
+
+    /// Get the path if this source is a Path variant
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Source::Path { path, .. } => Some(path),
+            Source::Content(_) => None,
+        }
+    }
+}
+
 pub struct DiffPrinter {
-    old_content: String,
-    new_content: String,
-    old_path: Option<PathBuf>,
-    new_path: Option<PathBuf>,
+    old: Source,
+    new: Source,
 }
 
 impl DiffPrinter {
-    /// reads the path if it exists.
-    pub async fn old_path(mut self, path: &Path) -> std::io::Result<Self> {
-        if path.exists() {
-            self.old_path = Some(path.to_path_buf());
-            self.old_content = tokio::fs::read_to_string(path).await?;
-        }
-        Ok(self)
-    }
-
-    /// reads the path if it exists.
-    pub async fn new_path(mut self, path: &Path) -> std::io::Result<Self> {
-        if path.exists() {
-            self.new_path = Some(path.to_path_buf());
-            self.new_content = tokio::fs::read_to_string(path).await?;
-        }
-        Ok(self)
+    pub fn new(old: Source, new: Source) -> Self {
+        DiffPrinter { old, new }
     }
 
     /// Display the paths if they exist.
-    fn format_file_paths_section(&self, mut output: String) -> String {
+    fn format_file_paths_section(
+        &self,
+        old_path: Option<&Path>,
+        new_path: Option<&Path>,
+        mut output: String,
+    ) -> String {
         // Only show file paths section if at least one path is present
-        if self.old_path.is_some() || self.new_path.is_some() {
+        if old_path.is_some() || new_path.is_some() {
             output.push_str(&format!(
                 "\n{}\n",
                 style("┌─── File Changes ").bold().cyan()
             ));
 
-            match (self.old_path.as_deref(), self.new_path.as_deref()) {
+            match (old_path.as_deref(), new_path.as_deref()) {
                 (Some(old), Some(new)) => {
                     // Check if paths are the same
                     if old == new {
@@ -98,9 +117,15 @@ impl DiffPrinter {
     }
 
     pub fn diff(&self) -> String {
-        let diff = TextDiff::from_lines(&self.old_content, &self.new_content);
+        let old_content = self.old.content();
+        let new_content = self.new.content();
+        let new_file_path = self.new.path();
+        let old_file_path = self.old.path();
 
-        let mut output = self.format_file_paths_section(String::new());
+        let diff = TextDiff::from_lines(old_content, new_content);
+
+        let mut output =
+            self.format_file_paths_section(old_file_path, new_file_path, String::new());
 
         for (idx, group) in diff.grouped_ops(3).iter().enumerate() {
             if idx > 0 {
