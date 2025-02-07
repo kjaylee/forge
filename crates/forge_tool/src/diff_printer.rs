@@ -65,7 +65,7 @@ impl DiffPrinter {
     ) -> String {
         // Only show file paths section if at least one path is present
         if old_path.is_some() || new_path.is_some() {
-            output.push_str("\n");
+            output.push('\n');
             match (old_path, new_path) {
                 (Some(old), Some(new)) => {
                     // Check if paths are the same
@@ -99,7 +99,7 @@ impl DiffPrinter {
                 }
                 _ => {}
             }
-            output.push_str("\n");
+            output.push('\n');
         }
         output
     }
@@ -118,7 +118,7 @@ impl DiffPrinter {
         if ops.is_empty() {
             output.push_str(&format!(
                 "{}\n",
-                style("No changes found").dim().to_string()
+                style("No changes found").dim()
             ));
             return output;
         }
