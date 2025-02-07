@@ -112,12 +112,16 @@ impl DiffPrinter {
 
         let diff = TextDiff::from_lines(old_content, new_content);
         let ops = diff.grouped_ops(3);
-        if ops.is_empty() {
-            return style("No changes found").dim().to_string();
-        }
 
         let mut output =
             self.format_file_paths_section(old_file_path, new_file_path, String::new());
+        if ops.is_empty() {
+            output.push_str(&format!(
+                "{}\n",
+                style("No changes found").dim().to_string()
+            ));
+            return output;
+        }
 
         for (idx, group) in ops.iter().enumerate() {
             if idx > 0 {
