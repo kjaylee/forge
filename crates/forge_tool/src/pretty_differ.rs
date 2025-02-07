@@ -50,14 +50,14 @@ impl Source {
     }
 }
 
-pub struct DiffPrinter {
+pub struct PrettyDiffer {
     old: Source,
     new: Source,
 }
 
-impl DiffPrinter {
+impl PrettyDiffer {
     pub fn new(old: Source, new: Source) -> Self {
-        DiffPrinter { old, new }
+        PrettyDiffer { old, new }
     }
 
     /// Display the paths if they exist.
@@ -175,7 +175,7 @@ mod tests {
         let content = "line 1\nline 2\nline 3";
         let old = Source::Direct(content.to_string());
         let new = Source::Direct(content.to_string());
-        let printer = DiffPrinter::new(old, new);
+        let printer = PrettyDiffer::new(old, new);
         let diff = printer.diff();
         assert!(diff.contains("No changes found"));
     }
@@ -187,7 +187,7 @@ mod tests {
             content: "line 1\nline 2\nline 3\nline 4\nline 5".to_string(),
         };
         let new = Source::Direct("line 1\nline 2\nline 3".to_string());
-        let printer = DiffPrinter::new(old, new);
+        let printer = PrettyDiffer::new(old, new);
         let diff = printer.diff();
         let clean_diff = strip_ansi_codes(&diff);
         assert_snapshot!(clean_diff);
@@ -201,7 +201,7 @@ mod tests {
         let new = Source::Direct(
             "line 1\nmodified line\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
         );
-        let printer = DiffPrinter::new(old, new);
+        let printer = PrettyDiffer::new(old, new);
         let diff = printer.diff();
         let clean_diff = strip_ansi_codes(&diff);
         assert_snapshot!(clean_diff);

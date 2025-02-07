@@ -9,7 +9,7 @@ use tokio::fs;
 
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
-use crate::diff_printer::{DiffPrinter, Source};
+use crate::pretty_differ::{PrettyDiffer, Source};
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -198,7 +198,7 @@ impl ExecutableTool for ApplyPatch {
             .map_err(Error::FileOperation)
             .map_err(|e| e.to_string())?;
 
-        let diff = DiffPrinter::new(old_source, new_content).diff();
+        let diff = PrettyDiffer::new(old_source, new_content).diff();
         println!("{}", diff);
 
         result.map_err(|e| e.to_string())

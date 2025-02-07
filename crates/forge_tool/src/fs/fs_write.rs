@@ -5,7 +5,7 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::diff_printer::{DiffPrinter, Source};
+use crate::pretty_differ::{PrettyDiffer, Source};
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -75,7 +75,7 @@ impl ExecutableTool for FSWrite {
         let new_source = Source::file(path.to_path_buf())
             .await
             .map_err(|e| e.to_string())?;
-        let diff = DiffPrinter::new(old_source, new_source).diff();
+        let diff = PrettyDiffer::new(old_source, new_source).diff();
         println!("{}", diff);
 
         Ok(result)

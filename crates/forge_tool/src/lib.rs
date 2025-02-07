@@ -1,6 +1,6 @@
 mod approve;
 mod ask;
-mod diff_printer;
+mod pretty_differ;
 mod fetch;
 mod fs;
 mod outline;
