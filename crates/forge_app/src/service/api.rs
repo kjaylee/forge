@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation,
+    ChatRequest, ChatResponse, Config, ConfigRepository, Conversation,
     ConversationHistory, ConversationId, ConversationRepository, Environment, Model,
     ProviderService, ResultStream, ToolDefinition, ToolService,
 };
@@ -15,7 +15,6 @@ use super::Service;
 pub trait APIService: Send + Sync {
     async fn suggestions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
-    async fn context(&self, conversation_id: ConversationId) -> Result<Context>;
     async fn models(&self) -> Result<Vec<Model>>;
     async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
@@ -101,10 +100,6 @@ impl APIService for Live {
 
     async fn tools(&self) -> Vec<ToolDefinition> {
         self.tool.list()
-    }
-
-    async fn context(&self, conversation_id: ConversationId) -> Result<Context> {
-        Ok(self.conversation_repo.get(conversation_id).await?.context)
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
