@@ -80,6 +80,9 @@ pub struct Agent {
     /// Tools that the agent can use
     pub tools: Vec<ToolName>,
     pub transforms: Vec<Transform>,
+
+    /// Downstream agents that this agent can handover to
+    pub handovers: Vec<Downstream>,
 }
 
 impl From<Agent> for ToolDefinition {
@@ -115,4 +118,10 @@ pub enum Transform {
     /// Intercepts the context and performs an operation without changing the
     /// context
     Tap { agent_id: AgentId, input: String },
+}
+
+#[derive(Debug, Clone)]
+pub struct Downstream {
+    pub agent: AgentId,
+    pub wait: bool,
 }

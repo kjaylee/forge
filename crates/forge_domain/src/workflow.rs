@@ -1,32 +1,38 @@
-use std::collections::HashMap;
+#![allow(dead_code)]
 
-use derive_more::derive::{Display, From};
+use std::collections::HashSet;
 
-use crate::{AgentId, ToolName};
+use crate::{Agent, AgentId};
 
-#[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
-pub struct WorkflowId(String);
-
+#[derive(Default)]
 pub struct Workflow {
-    pub id: WorkflowId,
-    pub description: String,
-    pub handovers: HashMap<FlowId, Vec<Downstream>>,
-    pub head_flow: FlowId,
+    pub agents: Vec<Agent>,
 }
 
-pub struct Downstream {
-    pub flow_id: FlowId,
-    pub wait: bool,
-}
+impl Workflow {
+    pub fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
+        self.agents.iter().find(|a| a.id == *id)
+    }
 
-#[derive(Debug, Display, Eq, PartialEq, From, Hash, Clone)]
-pub enum FlowId {
-    Agent(AgentId),
-    Workflow(WorkflowId),
-}
+    pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
+        self.find_agent(id)
+            .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
+    }
 
-impl From<ToolName> for WorkflowId {
-    fn from(value: ToolName) -> Self {
-        Self(value.into_string())
+    pub fn find_head(&self) -> Option<&Agent> {
+        let downstream_agents = self
+            .agents
+            .iter()
+            .flat_map(|a| a.handovers.iter().map(|h| &h.agent))
+            .collect::<HashSet<_>>();
+
+        self.agents
+            .iter()
+            .find(|a| !downstream_agents.contains(&a.id))
+    }
+
+    pub fn get_head(&self) -> crate::Result<&Agent> {
+        self.find_head()
+            .ok_or_else(|| crate::Error::HeadAgentUndefined)
     }
 }

@@ -9,7 +9,6 @@ use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
-use crate::arena::Arena;
 use crate::*;
 
 pub struct AgentMessage<T> {
@@ -21,7 +20,7 @@ pub struct AgentMessage<T> {
 pub struct Orchestrator {
     provider_svc: Arc<dyn ProviderService>,
     tool_svc: Arc<dyn ToolService>,
-    arena: Arena,
+    workflow: Workflow,
     system_context: SystemContext,
     state: Arc<Mutex<HashMap<AgentId, Context>>>,
     sender: Option<tokio::sync::mpsc::Sender<AgentMessage<anyhow::Result<ChatResponse>>>>,
@@ -37,7 +36,7 @@ impl Orchestrator {
         Self {
             provider_svc: provider,
             tool_svc: tool,
-            arena: Arena::default(),
+            workflow: Workflow::default(),
             system_context: SystemContext::default(),
             state: Arc::new(Mutex::new(HashMap::new())),
             sender: None,
@@ -47,13 +46,6 @@ impl Orchestrator {
     pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
         let guard = self.state.lock().await;
         guard.get(id).cloned()
-    }
-
-    pub async fn execute(&self, id: &FlowId, input: &Variables) -> anyhow::Result<Variables> {
-        match id {
-            FlowId::Agent(id) => self.init_agent(id, input).await,
-            FlowId::Workflow(id) => self.init_workflow(id, input).await,
-        }
     }
 
     async fn send_message(
@@ -81,18 +73,18 @@ impl Orchestrator {
         self.tool_svc.list()
     }
 
-    fn init_tool_definitions(&self, tools: &[ToolName]) -> Vec<ToolDefinition> {
-        let required_tools = tools.iter().collect::<HashSet<_>>();
-        let default_tools = self.init_default_tool_definitions();
+    fn init_tool_definitions(&self, agent: &Agent) -> Vec<ToolDefinition> {
+        let allowed = agent.tools.iter().collect::<HashSet<_>>();
+        let forge_tools = self.init_default_tool_definitions();
 
-        default_tools
+        forge_tools
             .into_iter()
-            .filter(|tool| required_tools.contains(&tool.name))
+            .filter(|tool| allowed.contains(&tool.name))
             .collect::<Vec<_>>()
     }
 
     fn init_agent_context(&self, agent: &Agent, input: &Variables) -> anyhow::Result<Context> {
-        let tool_defs = self.init_tool_definitions(&agent.tools);
+        let tool_defs = self.init_tool_definitions(agent);
 
         let tool_usage_prompt = tool_defs.iter().fold("".to_string(), |acc, tool| {
             format!("{}\n{}", acc, tool.usage_prompt())
@@ -155,18 +147,13 @@ impl Orchestrator {
 
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<ToolResult> {
         // Check if agent exists
-        if let Some(agent) = self.arena.find_agent(&tool_call.name.clone().into()) {
+        if let Some(agent) = self.workflow.find_agent(&tool_call.name.clone().into()) {
             let input = Variables::from(tool_call.arguments.clone());
 
             // Tools start fresh with no initial context
             let output = self.init_agent(&agent.id, &input).await;
             into_tool_result(tool_call, output)
                 .with_context(|| format!("Failed to serialize output of agent: {}", agent.id))
-        } else if let Some(workflow) = self.arena.find_workflow(&tool_call.name.clone().into()) {
-            let input = Variables::from(tool_call.arguments.clone());
-            let output = self.init_workflow(&workflow.id, &input).await;
-            into_tool_result(tool_call, output)
-                .with_context(|| format!("Failed to serialize output of workflow: {}", workflow.id))
         } else {
             // TODO: Can check if tool exists
             Ok(self.tool_svc.call(tool_call.clone()).await)
@@ -234,7 +221,7 @@ impl Orchestrator {
     }
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<Variables> {
-        let agent = self.arena.get_agent(agent)?;
+        let agent = self.workflow.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
             self.init_agent_context(agent, input)?
@@ -289,38 +276,9 @@ impl Orchestrator {
         }
     }
 
-    async fn init_flow(
-        &self,
-        flow_id: &FlowId,
-        input: &Variables,
-        workflow: &Workflow,
-    ) -> anyhow::Result<Variables> {
-        match flow_id {
-            FlowId::Agent(agent_id) => {
-                let variables = self.init_agent(agent_id, input).await?;
-                let flows = workflow
-                    .handovers
-                    .get(&agent_id.clone().into())
-                    .ok_or(Error::AgentUndefined(agent_id.clone()))?;
-
-                join_all(
-                    flows
-                        .iter()
-                        .map(|handovers| self.init_flow(&handovers.flow_id, &variables, workflow)),
-                )
-                .await
-                .into_iter()
-                .collect::<anyhow::Result<Vec<_>>>()
-                .map(Variables::from)
-            }
-            FlowId::Workflow(id) => self.init_workflow(id, input).await,
-        }
-    }
-
-    #[async_recursion(?Send)]
-    async fn init_workflow(&self, id: &WorkflowId, input: &Variables) -> anyhow::Result<Variables> {
-        let workflow = self.arena.get_workflow(id)?;
-        self.init_flow(&workflow.head_flow, input, workflow).await
+    pub async fn execute(&self, input: &Variables) -> anyhow::Result<Variables> {
+        let agent = self.workflow.get_head()?;
+        self.init_agent(&agent.id, input).await
     }
 }
 
