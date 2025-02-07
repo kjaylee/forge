@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use crate::{NamedTool, ToolCallFull, ToolDefinition, ToolName};
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Debug,Clone, Default, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Variables(HashMap<String, Value>);
 

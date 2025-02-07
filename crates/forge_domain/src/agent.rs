@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::variables::Variables;
 use crate::{Environment, Error, ModelId, Provider, ToolDefinition, ToolName};
 
-#[derive(Default, Setters, Clone, Serialize, Deserialize)]
+#[derive(Debug,Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
 pub struct SystemContext {
     pub env: Option<Environment>,
@@ -24,7 +24,7 @@ pub enum PromptContent {
     File(PathBuf),
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug,Clone, Serialize, Deserialize)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
     pub variables: Schema<V>,
@@ -47,7 +47,7 @@ pub struct Schema<S> {
     _marker: std::marker::PhantomData<S>,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug,Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PromptTemplate(String);
 impl PromptTemplate {
@@ -66,7 +66,7 @@ impl From<ToolName> for AgentId {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug,Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -103,7 +103,7 @@ impl From<Agent> for ToolDefinition {
 
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug,Clone, Serialize, Deserialize)]
 pub enum Transform {
     /// Compresses multiple assistant messages into a single message
     Assistant {

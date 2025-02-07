@@ -43,7 +43,7 @@ impl TryFrom<ConversationEntity> for Conversation {
                 created_at: DateTime::from_naive_utc_and_offset(raw.created_at, Utc),
                 updated_at: DateTime::from_naive_utc_and_offset(raw.updated_at, Utc),
             }),
-            context: serde_json::from_str(&raw.content)
+            workflow: serde_json::from_str(&raw.content)
                 .with_context(|| "Failed to parse conversation context")?,
             archived: raw.archived,
             title: raw.title,
@@ -209,7 +209,8 @@ pub mod tests {
         let retrieved = storage.get(id).await.unwrap();
 
         assert_eq!(saved.id, retrieved.id);
-        assert_eq!(saved.context, retrieved.context);
+        // assert_eq!(saved.workflow, retrieved.workflow);
+        todo!("Implement PartialEq for Workflow");
     }
 
     #[tokio::test]

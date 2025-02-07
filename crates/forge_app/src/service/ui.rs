@@ -4,7 +4,7 @@ use forge_domain::{ChatRequest, ChatResponse, Context, ConversationRepository, R
 use tokio_stream::{once, StreamExt};
 use tracing::debug;
 
-use super::chat::ChatService;
+use super::neo_chat::ChatService;
 use super::workflow_title::TitleService;
 use super::Service;
 
@@ -58,7 +58,7 @@ impl UIService for Live {
 
         let mut stream = self
             .chat_service
-            .chat(request.clone(), conversation.context)
+            .chat(request.clone(), conversation.workflow)
             .await?;
 
         if is_new {
@@ -104,7 +104,7 @@ impl UIService for Live {
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::ModelId;
+    use forge_domain::{ModelId, Workflow};
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -148,7 +148,7 @@ mod tests {
         async fn chat(
             &self,
             _: ChatRequest,
-            _: Context,
+            _: Workflow,
         ) -> ResultStream<ChatResponse, anyhow::Error> {
             Ok(Box::pin(tokio_stream::iter(
                 self.events.clone().into_iter().map(Ok),

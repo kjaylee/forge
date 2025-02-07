@@ -6,7 +6,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{ChatResponse, Context, ContextMessage, Error, Role};
+use crate::{ChatResponse, Context, ContextMessage, Error, Role, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
 #[serde(transparent)]
@@ -33,17 +33,17 @@ pub struct Conversation {
     pub id: ConversationId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub meta: Option<ConversationMeta>,
-    pub context: Context,
+    pub workflow: Workflow,
     pub archived: bool,
     pub title: Option<String>,
 }
 
 impl Conversation {
-    pub fn new(context: Context) -> Self {
+    pub fn new(workflow: Workflow) -> Self {
         Self {
             id: ConversationId::generate(),
             meta: None,
-            context,
+            workflow,
             archived: false,
             title: None,
         }
@@ -51,7 +51,7 @@ impl Conversation {
 
     /// Get the conversation history representation of this conversation
     pub fn history(&self) -> ConversationHistory {
-        self.context.clone().into()
+        todo!()
     }
 }
 

@@ -65,9 +65,7 @@ impl Live {
 
         let chat_service = Arc::new(Service::chat_service(
             provider.clone(),
-            system_prompt.clone(),
             tool.clone(),
-            user_prompt,
         ));
         // Use the environment's cwd for completions since that's always available
         let completions = Arc::new(Service::completion_service(env.cwd.clone()));
@@ -115,12 +113,7 @@ impl APIService for Live {
     }
 
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory> {
-        Ok(self
-            .conversation_repo
-            .get(conversation_id)
-            .await?
-            .context
-            .into())
+        todo!()
     }
 
     async fn get_config(&self) -> Result<Config> {
