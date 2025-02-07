@@ -65,53 +65,41 @@ impl DiffPrinter {
     ) -> String {
         // Only show file paths section if at least one path is present
         if old_path.is_some() || new_path.is_some() {
-            output.push_str(&format!(
-                "\n{}\n",
-                style("┌─── File Changes ")
-            ));
-
+            output.push_str("\n");
             match (old_path, new_path) {
                 (Some(old), Some(new)) => {
                     // Check if paths are the same
                     if old == new {
                         output.push_str(&format!(
-                            "{}  {} {}",
-                            style("│"),
-                            style("Path:").dim(),
-                            style(old.display())
+                            "{} {}",
+                            style("File: ").bold(),
+                            style(old.display()).dim()
                         ));
-                        output.push('\n');
                     } else {
                         // Different paths
                         output.push_str(&format!(
-                            "{}  {} {}\n",
-                            style("│"),
-                            style("Old:").dim(),
-                            style(old.display())
+                            "{} {}\n",
+                            style("Old:").bold(),
+                            style(old.display()).dim()
                         ));
                         output.push_str(&format!(
-                            "{}  {} {}\n",
-                            style("│"),
-                            style("New:").dim(),
-                            style(new.display())
+                            "{} {}",
+                            style("New:").bold(),
+                            style(new.display()).dim()
                         ));
                     }
                 }
                 (Some(path), None) | (None, Some(path)) => {
                     // Only one path available
                     output.push_str(&format!(
-                        "{}  {} {}\n",
-                        style("│"),
-                        style("Path:").dim(),
-                        style(path.display())
+                        "{} {}",
+                        style("File:").bold(),
+                        style(path.display()).dim()
                     ));
                 }
-                _ => {
-                    // no-op, we won't reach here bcoz of the if condition
-                }
+                _ => {}
             }
-
-            output.push_str(&format!("{}\n", style("└───────────────")));
+            output.push_str("\n");
         }
         output
     }
@@ -123,19 +111,17 @@ impl DiffPrinter {
         let old_file_path = self.old.path();
 
         let diff = TextDiff::from_lines(old_content, new_content);
+        let ops = diff.grouped_ops(3);
+        if ops.is_empty() {
+            return style("No changes found").dim().to_string();
+        }
 
         let mut output =
             self.format_file_paths_section(old_file_path, new_file_path, String::new());
 
-        let ops = diff.grouped_ops(3);
-        if ops.is_empty() {
-            output.push_str(&format!("{}", style("\nNo differences found.\n").dim()));
-            return output;
-        }
-
         for (idx, group) in ops.iter().enumerate() {
             if idx > 0 {
-                output.push_str(&format!("{:-^1$}\n", "-", 80));
+                output.push_str(&format!("{}\n", style("...").dim()));
             }
             for op in group {
                 for change in diff.iter_inline_changes(op) {
@@ -186,7 +172,7 @@ mod tests {
         let new = Source::Content(content.to_string());
         let printer = DiffPrinter::new(old, new);
         let diff = printer.diff();
-        assert!(diff.contains("No differences found."));
+        assert!(diff.contains("No changes found"));
     }
 
     #[test]
