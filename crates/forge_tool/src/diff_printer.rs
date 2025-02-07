@@ -129,10 +129,7 @@ impl DiffPrinter {
 
         let ops = diff.grouped_ops(3);
         if ops.is_empty() {
-            output.push_str(&format!(
-                "{}",
-                style("\nNo differences found.\n").dim()
-            ));
+            output.push_str(&format!("{}", style("\nNo differences found.\n").dim()));
             return output;
         }
 
@@ -177,9 +174,10 @@ impl DiffPrinter {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use console::strip_ansi_codes;
     use insta::assert_snapshot;
+
+    use super::*;
 
     #[test]
     fn test_diff_printer_no_differences() {
@@ -193,8 +191,12 @@ mod tests {
 
     #[test]
     fn test_diff_printer_simple_diff() {
-        let old = Source::Content("line 1\nline 2\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string());
-        let new = Source::Content("line 1\nmodified line\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string());
+        let old = Source::Content(
+            "line 1\nline 2\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
+        );
+        let new = Source::Content(
+            "line 1\nmodified line\nline 3\nline 5\nline 6\nline 7\nline 8\nline 9".to_string(),
+        );
         let printer = DiffPrinter::new(old, new);
         let diff = printer.diff();
         let clean_diff = strip_ansi_codes(&diff);
