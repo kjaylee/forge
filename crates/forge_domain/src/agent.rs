@@ -4,12 +4,12 @@ use derive_more::derive::Display;
 use derive_setters::Setters;
 use handlebars::Handlebars;
 use schemars::schema::RootSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::variables::Variables;
 use crate::{Environment, Error, ModelId, Provider, ToolDefinition, ToolName};
 
-#[derive(Default, Serialize, Setters, Clone)]
+#[derive(Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
 pub struct SystemContext {
     pub env: Option<Environment>,
@@ -24,7 +24,7 @@ pub enum PromptContent {
     File(PathBuf),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
     pub variables: Schema<V>,
@@ -41,13 +41,14 @@ impl<V: Serialize> Prompt<V> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema<S> {
     pub schema: RootSchema,
     _marker: std::marker::PhantomData<S>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PromptTemplate(String);
 impl PromptTemplate {
     pub fn as_str(&self) -> &str {
@@ -55,7 +56,8 @@ impl PromptTemplate {
     }
 }
 
-#[derive(Debug, Display, Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct AgentId(String);
 
 impl From<ToolName> for AgentId {
@@ -64,7 +66,7 @@ impl From<ToolName> for AgentId {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -98,7 +100,7 @@ impl From<Agent> for ToolDefinition {
 
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Transform {
     /// Compresses multiple assistant messages into a single message
     Assistant {
@@ -120,7 +122,7 @@ pub enum Transform {
     Tap { agent_id: AgentId, input: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Downstream {
     pub agent: AgentId,
     pub wait: bool,

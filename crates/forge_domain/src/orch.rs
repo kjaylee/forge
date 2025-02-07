@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_recursion::async_recursion;
@@ -20,10 +20,8 @@ pub struct AgentMessage<T> {
 pub struct Orchestrator {
     provider_svc: Arc<dyn ProviderService>,
     tool_svc: Arc<dyn ToolService>,
-    workflow: Workflow,
+    workflow: Arc<Mutex<Workflow>>,
     system_context: SystemContext,
-    state: Arc<Mutex<HashMap<AgentId, Context>>>,
-    variables: Arc<Mutex<Variables>>,
     sender: Option<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>,
 }
 
@@ -37,17 +35,15 @@ impl Orchestrator {
         Self {
             provider_svc: provider,
             tool_svc: tool,
-            workflow: Workflow::default(),
+            workflow: Arc::new(Mutex::new(Workflow::default())),
             system_context: SystemContext::default(),
-            state: Arc::new(Mutex::new(HashMap::new())),
-            variables: Arc::new(Mutex::new(Variables::default())),
             sender: None,
         }
     }
 
     pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
-        let guard = self.state.lock().await;
-        guard.get(id).cloned()
+        let guard = self.workflow.lock().await;
+        guard.state.get(id).cloned()
     }
 
     async fn send_message(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
@@ -159,8 +155,8 @@ impl Orchestrator {
         tool_call: &ToolCallFull,
         write: WriteVariable,
     ) -> anyhow::Result<ToolResult> {
-        let mut guard = self.variables.lock().await;
-        guard.add(write.name.clone(), write.value.clone());
+        let mut guard = self.workflow.lock().await;
+        guard.variables.add(write.name.clone(), write.value.clone());
         Ok(ToolResult::from(tool_call.clone())
             .success(format!("Variable {} set to {}", write.name, write.value)))
     }
@@ -170,8 +166,8 @@ impl Orchestrator {
         tool_call: &ToolCallFull,
         read: ReadVariable,
     ) -> anyhow::Result<ToolResult> {
-        let guard = self.variables.lock().await;
-        let output = guard.get(&read.name);
+        let guard = self.workflow.lock().await;
+        let output = guard.variables.get(&read.name);
         let result = match output {
             Some(value) => {
                 ToolResult::from(tool_call.clone()).success(serde_json::to_string(value)?)
@@ -188,7 +184,12 @@ impl Orchestrator {
             self.read_variable(tool_call, read).await.map(Some)
         } else if let Some(write) = WriteVariable::parse(tool_call) {
             self.write_variable(tool_call, write).await.map(Some)
-        } else if let Some(agent) = self.workflow.find_agent(&tool_call.name.clone().into()) {
+        } else if let Some(agent) = self
+            .workflow
+            .lock()
+            .await
+            .find_agent(&tool_call.name.clone().into())
+        {
             let input = Variables::from(tool_call.arguments.clone());
             self.init_agent(&agent.id, &input).await?;
             Ok(None)
@@ -218,9 +219,10 @@ impl Orchestrator {
 
                         self.init_agent(agent_id, &input).await?;
 
-                        let guard = self.variables.lock().await;
+                        let guard = self.workflow.lock().await;
 
                         let value = guard
+                            .variables
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
@@ -238,8 +240,9 @@ impl Orchestrator {
                         input.add(input_key, Value::from(content.clone()));
 
                         self.init_agent(agent_id, &input).await?;
-                        let guard = self.variables.lock().await;
+                        let guard = self.workflow.lock().await;
                         let value = guard
+                            .variables
                             .get(output_key)
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
@@ -262,14 +265,16 @@ impl Orchestrator {
     }
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<()> {
-        let agent = self.workflow.get_agent(agent)?;
+        let guard = self.workflow.lock().await;
+        let agent = guard.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
             self.init_agent_context(agent, input)?
         } else {
-            self.state
+            self.workflow
                 .lock()
                 .await
+                .state
                 .get(&agent.id)
                 .cloned()
                 .map(Ok)
@@ -307,9 +312,10 @@ impl Orchestrator {
                 .add_tool_results(tool_results.clone());
 
             if !agent.ephemeral {
-                self.state
+                self.workflow
                     .lock()
                     .await
+                    .state
                     .insert(agent.id.clone(), context.clone());
             }
 
@@ -320,7 +326,8 @@ impl Orchestrator {
     }
 
     pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
-        let agent = self.workflow.get_head()?;
+        let guard = self.workflow.lock().await;
+        let agent = guard.get_head()?;
         self.init_agent(&agent.id, input).await
     }
 }

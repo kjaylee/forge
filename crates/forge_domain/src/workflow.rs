@@ -1,12 +1,16 @@
 #![allow(dead_code)]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::{Agent, AgentId};
+use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
+use crate::{Agent, AgentId, Context, Variables};
+
+#[derive(Default, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
+    pub state: HashMap<AgentId, Context>,
+    pub variables: Variables,
 }
 
 impl Workflow {

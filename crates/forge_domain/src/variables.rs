@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Variables(HashMap<String, Value>);
 
 impl Variables {
