@@ -170,8 +170,8 @@ impl ExecutableTool for FSSearch {
 struct RipGrepFormatter(Vec<String>);
 
 impl RipGrepFormatter {
-    /// Format search results in ripgrep-like output format, grouping results by file path.
-    /// Each file path is followed by its matching lines.
+    /// Format search results in ripgrep-like output format, grouping results by
+    /// file path. Each file path is followed by its matching lines.
     fn format(self) -> String {
         let mut output = String::with_capacity(self.0.len() * 64);
         let mut lines = self.0.into_iter().peekable();
