@@ -167,43 +167,31 @@ impl ExecutableTool for FSSearch {
 struct RipGrepFormatter(Vec<String>);
 
 impl RipGrepFormatter {
-    /// this function groups by the file path and then formats the as per rip grep format.
+    /// Format search results in ripgrep-like output format, grouping results by file path.
+    /// Each file path is followed by its matching lines.
     fn format(self) -> String {
-        let mut last_path: Option<String> = None;
-        let mut collected_lines = vec![];
-        let mut output = String::new();
-        for line in self.0 {
-            let mut splits = line.split(':');
-            let file_path = splits.next().unwrap_or_default().to_owned();
-            let rest = splits.collect::<Vec<_>>().join(":");
+        let mut output = String::with_capacity(self.0.len() * 64);
+        let mut lines = self.0.into_iter().peekable();
 
-            match last_path {
-                Some(ref last_file_path) if last_file_path == &file_path => {
-                    collected_lines.push(rest);
-                }
-                Some(ref last_file_path) if last_file_path != &file_path => {
-                    // collect the output.
-                    output.push_str(&last_file_path);
-                    output.push('\n');
-                    output.push_str(&collected_lines.join("\n"));
-                    output.push('\n');
-                    collected_lines.clear();
-
-                    // start collectiong new path.
-                    last_path = Some(file_path.clone());
-                    collected_lines = vec![rest];
-                }
-                _ => {
-                    last_path = Some(file_path.clone());
-                    collected_lines = vec![rest];
-                }
-            }
-        }
-        if let Some(last_path) = last_path {
-            if !collected_lines.is_empty() {
-                output.push_str(&last_path);
+        while let Some(line) = lines.next() {
+            if let Some((file_path, content)) = line.split_once(':') {
+                output.push_str(file_path);
                 output.push('\n');
-                output.push_str(&collected_lines.join("\n"));
+                output.push_str(content);
+
+                while let Some(next_line) = lines.peek() {
+                    if let Some((next_path, next_content)) = next_line.split_once(':') {
+                        if next_path != file_path {
+                            break;
+                        }
+                        output.push('\n');
+                        output.push_str(next_content);
+                        lines.next(); // Consume the peeked line
+                    } else {
+                        lines.next(); // Skip malformed line
+                    }
+                }
+                output.push('\n');
                 output.push('\n');
             }
         }
