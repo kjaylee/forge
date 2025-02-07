@@ -406,8 +406,9 @@ mod test {
 
     #[cfg(test)]
     mod rip_grep_formatter_tests {
-        use crate::fs::fs_find::RipGrepFormatter;
         use pretty_assertions::assert_eq;
+
+        use crate::fs::fs_find::RipGrepFormatter;
 
         #[test]
         fn test_ripgrep_formatter_single_file() {
