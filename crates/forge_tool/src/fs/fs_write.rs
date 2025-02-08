@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_pretty_diff::Format;
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::pretty_differ::PrettyDiffer;
 use crate::syn;
 use crate::utils::assert_absolute_path;
 
@@ -81,7 +81,7 @@ impl ExecutableTool for FSWrite {
         let new_content = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| e.to_string())?;
-        let diff = PrettyDiffer::format(path.to_path_buf(), &old_content, &new_content);
+        let diff = Format::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
         Ok(result)

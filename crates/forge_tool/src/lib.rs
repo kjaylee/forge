@@ -4,7 +4,6 @@ mod fetch;
 mod fs;
 mod outline;
 mod patch;
-mod pretty_differ;
 mod select;
 mod shell;
 mod syn;

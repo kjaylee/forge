@@ -1003,16 +1003,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_pretty_diff"
+version = "0.1.0"
+dependencies = [
+ "console",
+ "insta",
+ "similar",
+]
+
+[[package]]
 name = "forge_tool"
 version = "0.1.0"
 dependencies = [
  "Inflector",
  "anyhow",
  "async-trait",
- "console",
  "dissimilar",
  "forge_display",
  "forge_domain",
+ "forge_pretty_diff",
  "forge_tool_macros",
  "forge_walker",
  "glob",
@@ -1027,7 +1036,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "similar",
  "streaming-iterator",
  "tempfile",
  "thiserror 2.0.11",
