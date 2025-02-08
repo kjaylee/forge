@@ -136,7 +136,8 @@ impl ExecutableTool for FSSearch {
     }
 }
 
-/// RipGrepFormatter responsible for formatting search results in ripgrep format.
+/// RipGrepFormatter responsible for formatting search results in ripgrep
+/// format.
 struct RipGrepFormatter(Vec<String>);
 
 impl RipGrepFormatter {
@@ -150,7 +151,8 @@ impl RipGrepFormatter {
         let separator = style(":").dim();
 
         for line in self.0 {
-            // since we get the matches separated by ':', we can split the line to get the parts.
+            // since we get the matches separated by ':', we can split the line to get the
+            // parts.
             let mut parts = line.splitn(3, ':');
             let (path, line_num, content) = match (parts.next(), parts.next(), parts.next()) {
                 (Some(p), Some(l), Some(c)) => (p, l, c),
