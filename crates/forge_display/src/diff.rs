@@ -24,7 +24,10 @@ impl DiffFormat {
         let diff = TextDiff::from_lines(old, new);
         let ops = diff.grouped_ops(3);
 
-        let mut output = format!("{}\n\n", TitleFormat::success(path.display().to_string()));
+        let mut output = format!(
+            "{}\n\n",
+            TitleFormat::success("diff").sub_title(path.display().to_string())
+        );
 
         if ops.is_empty() {
             output.push_str(&format!("{}\n", style("No changes found").dim()));
