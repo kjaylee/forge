@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
+use forge_domain::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -208,7 +208,7 @@ impl UI {
 
     async fn handle_chat_stream(
         &mut self,
-        stream: &mut (impl StreamExt<Item = Result<ChatResponse>> + Unpin),
+        stream: &mut (impl StreamExt<Item = Result<AgentMessage<ChatResponse>>> + Unpin),
     ) -> Result<()> {
         loop {
             tokio::select! {
@@ -228,7 +228,8 @@ impl UI {
         }
     }
 
-    fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
+    fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
+        let message = message.message;
         match message {
             ChatResponse::Text(text) => {
                 CONSOLE.write(&text)?;

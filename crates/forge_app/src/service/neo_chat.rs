@@ -1,9 +1,12 @@
 use std::sync::Arc;
-
 use forge_domain::{
-    ChatRequest, ChatResponse, ConversationRepository, ProviderService, ResultStream, ToolService,
-    Workflow,
+    AgentMessage, ChatRequest, ChatResponse, ConversationRepository,
+    Orchestrator, ProviderService, ToolService, Variables, Workflow,
+    ResultStream,
 };
+use tokio::sync::Mutex;
+use futures::StreamExt;
+use crate::mpsc_stream::MpscStream;
 
 use super::Service;
 
@@ -13,7 +16,7 @@ pub trait ChatService: Send + Sync {
         &self,
         prompt: ChatRequest,
         workflow: Workflow,
-    ) -> ResultStream<ChatResponse, anyhow::Error>;
+    ) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error>;
 }
 
 impl Service {
@@ -48,7 +51,29 @@ impl ChatService for Live {
         &self,
         prompt: ChatRequest,
         workflow: Workflow,
-    ) -> ResultStream<ChatResponse, anyhow::Error> {
-        todo!()
+    ) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error> {
+        let provider = self.provider.clone();
+        let tool = self.tool.clone();
+        let workflow = Arc::new(Mutex::new(workflow));
+        let mut input = Variables::default();
+        input.add("task", prompt.content);
+        let input = Arc::new(input);
+
+        let stream = MpscStream::spawn(move |tx| {
+            let orch = Arc::new(
+                Orchestrator::new(provider, tool)
+                    .workflow(workflow)
+                    .sender(tx),
+            );
+            let input = input.clone();
+            
+            async move {
+                if let Err(e) = orch.execute(&input).await {
+                    eprintln!("Orchestrator execution error: {}", e);
+                }
+            }
+        });
+
+        Ok(Box::pin(stream.map(Ok)))
     }
 }

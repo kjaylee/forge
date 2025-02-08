@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Config, ConfigRepository, Conversation, ConversationHistory,
-    ConversationId, ConversationRepository, Environment, Model, ProviderService, ResultStream,
-    ToolDefinition, ToolService,
+    AgentMessage, ChatRequest, ChatResponse, Config, ConfigRepository, Conversation, ConversationHistory, ConversationId, ConversationRepository, Environment, Model, ProviderService, ResultStream, ToolDefinition, ToolService
 };
 
 use super::suggestion::{File, SuggestionService};
@@ -16,7 +14,7 @@ pub trait APIService: Send + Sync {
     async fn suggestions(&self) -> Result<Vec<File>>;
     async fn tools(&self) -> Vec<ToolDefinition>;
     async fn models(&self) -> Result<Vec<Model>>;
-    async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
+    async fn chat(&self, chat: ChatRequest) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error>;
     async fn conversations(&self) -> Result<Vec<Conversation>>;
     async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory>;
     async fn get_config(&self) -> Result<Config>;
@@ -105,7 +103,7 @@ impl APIService for Live {
         Ok(self.provider.models().await?)
     }
 
-    async fn chat(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
+    async fn chat(&self, chat: ChatRequest) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error> {
         Ok(self.ui_service.chat(chat).await?)
     }
 

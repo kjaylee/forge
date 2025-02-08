@@ -10,18 +10,21 @@ use tokio::sync::Mutex;
 
 use crate::*;
 
+#[derive(Debug, Clone)]
 pub struct AgentMessage<T> {
     pub agent: AgentId,
     pub message: T,
 }
 
 #[derive(Setters)]
+#[setters(strip_option)]
 pub struct Orchestrator {
     provider_svc: Arc<dyn ProviderService>,
     tool_svc: Arc<dyn ToolService>,
     workflow: Arc<Mutex<Workflow>>,
     system_context: SystemContext,
-    sender: Option<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>,
+    #[setters(skip)]
+    sender: Option<Arc<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>>,
 }
 
 struct ChatCompletionResult {
@@ -43,6 +46,13 @@ impl Orchestrator {
     pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
         let guard = self.workflow.lock().await;
         guard.state.get(id).cloned()
+    }
+
+    pub fn sender(self, sender: tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>) -> Self {
+        Self{
+            sender: Some(Arc::new(sender)),
+            ..self
+        }
     }
 
     async fn send_message(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
@@ -177,7 +187,7 @@ impl Orchestrator {
         Ok(result)
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<Option<ToolResult>> {
         if let Some(read) = ReadVariable::parse(tool_call) {
             self.read_variable(tool_call, read).await.map(Some)
@@ -197,7 +207,7 @@ impl Orchestrator {
         }
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn execute_transform(
         &self,
         transforms: &[Transform],

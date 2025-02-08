@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{ChatRequest, ChatResponse, Context, ConversationRepository, ResultStream};
+use forge_domain::{AgentMessage, ChatRequest, ChatResponse, Context, ConversationRepository, ResultStream, ToolName};
 use tokio_stream::{once, StreamExt};
 use tracing::debug;
 
@@ -10,7 +10,7 @@ use super::Service;
 
 #[async_trait::async_trait]
 pub trait UIService: Send + Sync {
-    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
+    async fn chat(&self, request: ChatRequest) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error>;
 }
 
 struct Live {
@@ -41,7 +41,7 @@ impl Service {
 
 #[async_trait::async_trait]
 impl UIService for Live {
-    async fn chat(&self, request: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
+    async fn chat(&self, request: ChatRequest) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error> {
         let (conversation, is_new) = if let Some(conversation_id) = &request.conversation_id {
             let context = self.conversation_service.get(*conversation_id).await?;
             (context, false)
@@ -50,6 +50,7 @@ impl UIService for Live {
                 .conversation_service
                 .insert(&Context::default(), None)
                 .await?;
+            
             (conversation, true)
         };
 
@@ -65,7 +66,9 @@ impl UIService for Live {
             let title_stream = self.title_service.get_title(request.clone()).await?;
             let id = conversation.id;
             stream = Box::pin(
-                once(Ok(ChatResponse::ConversationStarted(id)))
+                once(Ok(AgentMessage{
+                    agent:  ToolName::new("System").into(),
+                    message: ChatResponse::ConversationStarted(id)}))
                     .chain(title_stream)
                     .merge(stream),
             );
@@ -77,7 +80,7 @@ impl UIService for Live {
                 let conversation_service = conversation_service.clone();
                 async move {
                     match &message {
-                        Ok(ChatResponse::CompleteTitle(title)) => {
+                        Ok(AgentMessage{agent: _ , message: ChatResponse::CompleteTitle(title)}) => {
                             let conversation_id = request
                                 .conversation_id
                                 .expect("`conversation_id` must be set at this point.");
@@ -86,7 +89,7 @@ impl UIService for Live {
                                 .await?;
                             message
                         }
-                        Ok(ChatResponse::ModifyContext(context)) => {
+                        Ok(AgentMessage{agent: _ , message: ChatResponse::ModifyContext(context)}) => {
                             conversation_service
                                 .insert(context, request.conversation_id)
                                 .await?;
@@ -96,7 +99,7 @@ impl UIService for Live {
                     }
                 }
             })
-            .filter(|message| !matches!(message, Ok(ChatResponse::ModifyContext { .. })));
+            .filter(|message| !matches!(message, Ok(AgentMessage{agent: _ , message: ChatResponse::ModifyContext { .. }})));
 
         Ok(Box::pin(stream))
     }

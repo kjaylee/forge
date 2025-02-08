@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService,
-    ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition,
+    AgentMessage, BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService, ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition, ToolName
 };
 use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
@@ -28,7 +27,7 @@ impl Service {
 #[async_trait::async_trait]
 pub trait TitleService: Send + Sync {
     /// Generates a title for the given chat request
-    async fn get_title(&self, content: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error>;
+    async fn get_title(&self, content: ChatRequest) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error>;
 }
 
 #[derive(Clone)]
@@ -65,7 +64,7 @@ impl Live {
     async fn execute(
         &self,
         request: Context,
-        tx: tokio::sync::mpsc::Sender<Result<ChatResponse>>,
+        tx: tokio::sync::mpsc::Sender<Result<AgentMessage<ChatResponse>>>,
         chat: ChatRequest,
     ) -> Result<()> {
         let mut response = self.provider.chat(&chat.model, request.clone()).await?;
@@ -81,7 +80,10 @@ impl Live {
             for tool_call in message.tool_call {
                 if let ToolCall::Full(tool_call) = tool_call {
                     let title: Title = serde_json::from_value(tool_call.arguments)?;
-                    tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
+                    tx.send(Ok(AgentMessage{
+                        agent: ToolName::new("System").into(),
+                        message: ChatResponse::CompleteTitle(title.text)
+                    }))
                         .await
                         .unwrap();
                     break;
@@ -110,7 +112,7 @@ impl Title {
 
 #[async_trait::async_trait]
 impl TitleService for Live {
-    async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
+    async fn get_title(&self, chat: ChatRequest) -> ResultStream<AgentMessage<ChatResponse>, anyhow::Error> {
         let user_prompt = self.user_prompt(&chat.content);
         let tool = Title::definition();
         let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
