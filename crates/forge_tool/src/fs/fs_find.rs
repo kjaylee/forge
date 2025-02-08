@@ -182,9 +182,7 @@ impl RipGrepFormatter {
                 std::collections::BTreeMap::new(),
                 |mut acc: std::collections::BTreeMap<&str, Vec<(&str, &str)>>,
                  (path, num, content)| {
-                    acc.entry(path)
-                        .or_default()
-                        .push((num, content));
+                    acc.entry(path).or_default().push((num, content));
                     acc
                 },
             )
