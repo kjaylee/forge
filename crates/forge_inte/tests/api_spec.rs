@@ -102,3 +102,17 @@ mod openai_gpt_4o_mini {
     use super::*;
     generate_model_test!("openai/gpt-4o-mini");
 }
+
+// Add a test so for gpt-4o-mini which whill return mutliple toolcalls in one message and runs the results and respond with summary of values produced by the toolcalls
+#[tokio::test]
+async fn test_gpt_4o_multiple_toolcalls() {
+    let prompt = "use shell tool to check the time in New York, London, and Tokyo and show the time in each city and then sleep for 5 seconds and then show the time in each city again";
+    let fixture = Fixture::new(prompt);
+    fixture
+        .test_single_model("openai/gpt-4o", |response| {
+            response.contains("New York") && response.contains("London") && response.contains("Tokyo")
+        })
+        .await
+        .unwrap();
+    
+}
