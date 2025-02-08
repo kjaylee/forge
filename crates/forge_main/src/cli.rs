@@ -22,7 +22,7 @@ pub struct Cli {
         short = 's',
         value_parser = validate_path
     )]
-    pub system_prompt_path: Option<PathBuf>,
+    pub system_prompt: Option<PathBuf>,
 }
 
 fn validate_path(path: &str) -> Result<PathBuf, String> {

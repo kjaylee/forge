@@ -51,7 +51,7 @@ impl UI {
         let guard = log::init_tracing(env.clone())?;
         let config = Config::from(&env);
         let cli = Cli::parse();
-        let api = Arc::new(Service::api_service(env, cli.system_prompt_path.clone())?);
+        let api = Arc::new(Service::api_service(env, cli.system_prompt.clone())?);
 
         Ok(Self {
             state: Default::default(),
