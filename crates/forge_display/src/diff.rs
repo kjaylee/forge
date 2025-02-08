@@ -53,12 +53,8 @@ impl DiffFormat {
                         s.apply_to(sign),
                     ));
 
-                    for (emphasized, value) in change.iter_strings_lossy() {
-                        if emphasized {
-                            output.push_str(&format!("{}", s.apply_to(value).underlined()));
-                        } else {
-                            output.push_str(&format!("{}", s.apply_to(value)));
-                        }
+                    for (_, value) in change.iter_strings_lossy() {
+                        output.push_str(&format!("{}", s.apply_to(value)));
                     }
                     if change.missing_newline() {
                         output.push('\n');
