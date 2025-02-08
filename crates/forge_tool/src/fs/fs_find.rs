@@ -180,9 +180,10 @@ impl RipGrepFormatter {
             })
             .fold(
                 std::collections::BTreeMap::new(),
-                |mut acc, (path, num, content)| {
+                |mut acc: std::collections::BTreeMap<&str, Vec<(&str, &str)>>,
+                 (path, num, content)| {
                     acc.entry(path)
-                        .or_insert_with(Vec::new)
+                        .or_default()
                         .push((num, content));
                     acc
                 },
