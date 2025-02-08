@@ -40,8 +40,10 @@ impl Format {
             for op in group {
                 for change in diff.iter_inline_changes(op) {
                     let (sign, s) = match change.tag() {
-                        ChangeTag::Delete => ("-", Style::new().red()),
-                        ChangeTag::Insert => ("+", Style::new().green()),
+                        // Use blue (RGB: 0, 0, 255) for deletions
+                        ChangeTag::Delete => ("-", Style::new().blue()),
+                        // Use yellow (RGB: 255, 223, 0) for insertions
+                        ChangeTag::Insert => ("+", Style::new().yellow()),
                         ChangeTag::Equal => (" ", Style::new().dim()),
                     };
 
@@ -49,7 +51,7 @@ impl Format {
                         "{}{} |{}",
                         style(Line(change.old_index())).dim(),
                         style(Line(change.new_index())).dim(),
-                        s.apply_to(sign).bold(),
+                        s.apply_to(sign),
                     ));
 
                     for (emphasized, value) in change.iter_strings_lossy() {
@@ -75,6 +77,14 @@ mod tests {
     use insta::assert_snapshot;
 
     use super::*;
+
+    #[test]
+    fn test_color_output() {
+        let old = "Hello World\nThis is a test\nThird line\nFourth line";
+        let new = "Hello World\nThis is a modified test\nNew line\nFourth line";
+        let diff = Format::format("example.txt".into(), old, new);
+        println!("\nColor Output Test:\n{}", diff);
+    }
 
     #[test]
     fn test_diff_printer_no_differences() {
