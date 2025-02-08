@@ -136,6 +136,7 @@ impl ExecutableTool for FSSearch {
     }
 }
 
+/// RipGrepFormatter responsible for formatting search results in ripgrep format.
 struct RipGrepFormatter(Vec<String>);
 
 impl RipGrepFormatter {
@@ -146,12 +147,11 @@ impl RipGrepFormatter {
     // - Matching text in red & bold
     fn colorize(mut self, regex: &Regex) -> Self {
         let mut colorized = Vec::with_capacity(self.0.len());
+        let separator = style(":").dim();
 
         for line in self.0 {
-            // Split into exactly 3 parts, collecting any remaining ':' characters into the content
+            // since we get the matches separated by ':', we can split the line to get the parts.
             let mut parts = line.splitn(3, ':');
-
-            // Use match to safely handle all possible cases
             let (path, line_num, content) = match (parts.next(), parts.next(), parts.next()) {
                 (Some(p), Some(l), Some(c)) => (p, l, c),
                 _ => {
@@ -162,7 +162,6 @@ impl RipGrepFormatter {
 
             let colored_path = style(path).green();
             let colored_line_num = style(line_num).magenta();
-            let separator = style(":").dim();
 
             // Color the content matches in red & bold
             let mut colored_content = content.to_string();
@@ -502,7 +501,9 @@ mod test {
 
             let regex = Regex::new(r"test").unwrap();
             let formatter = RipGrepFormatter(input);
-            let result = formatter.colorize(&regex).format(&Regex::new("test").unwrap());
+            let result = formatter
+                .colorize(&regex)
+                .format(&Regex::new("test").unwrap());
             let actual = strip_ansi_escapes::strip_str(&result);
 
             // Note: actual color codes will be stripped in the format() output
