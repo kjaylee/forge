@@ -136,88 +136,68 @@ impl ExecutableTool for FSSearch {
     }
 }
 
-/// RipGrepFormatter responsible for formatting search results in ripgrep
-/// format.
+/// RipGrepFormatter formats search results in ripgrep-like style.
 struct RipGrepFormatter(Vec<String>);
 
 impl RipGrepFormatter {
-    // Color format:
-    // - File path in green
-    // - Line number in purple
-    // - Separators in gray
-    // - Matching text in red & bold
-    fn colorize(mut self, regex: &Regex) -> Self {
-        let mut colorized = Vec::with_capacity(self.0.len());
-        let separator = style(":").dim();
+    /// Format a single line with colorization.
+    fn format_line(num: &str, content: &str, regex: &Regex) -> String {
+        let mut line = format!("{}{}", style(num).magenta(), style(":").dim());
 
-        for line in self.0 {
-            // since we get the matches separated by ':', we can split the line to get the
-            // parts.
-            let mut parts = line.splitn(3, ':');
-            let (path, line_num, content) = match (parts.next(), parts.next(), parts.next()) {
-                (Some(p), Some(l), Some(c)) => (p, l, c),
-                _ => {
-                    // Skip malformed lines
-                    continue;
-                }
-            };
-
-            let colored_path = style(path).green();
-            let colored_line_num = style(line_num).magenta();
-
-            // Color the content matches in red & bold
-            let mut colored_content = content.to_string();
-            if let Some(mat) = regex.find(content) {
-                let before = &content[..mat.start()];
-                let matched = style(&content[mat.start()..mat.end()]).red().bold();
-                let after = &content[mat.end()..];
-                colored_content = format!("{}{}{}", before, matched, after);
+        match regex.find(content) {
+            Some(mat) => {
+                line.push_str(&content[..mat.start()]);
+                line.push_str(
+                    &style(&content[mat.start()..mat.end()])
+                        .red()
+                        .bold()
+                        .to_string(),
+                );
+                line.push_str(&content[mat.end()..]);
             }
-
-            // Combine all parts
-            let colorized_line = format!(
-                "{}{}{}{}{}",
-                colored_path, separator, colored_line_num, separator, colored_content
-            );
-            colorized.push(colorized_line);
+            None => line.push_str(content),
         }
 
-        self.0 = colorized;
-        self
+        line.push('\n');
+        line
     }
 
-    /// Format search results in ripgrep-like output format, grouping results by
-    /// file path. Each file path is followed by its matching lines.
-    fn format(mut self, regex: &Regex) -> String {
-        // apply colorization as per the ripgrep formatter.
-        self = self.colorize(regex);
-
-        let mut output = String::with_capacity(self.0.len() * 64);
-        let mut lines = self.0.into_iter().peekable();
-
-        while let Some(line) = lines.next() {
-            if let Some((file_path, content)) = line.split_once(':') {
-                output.push_str(file_path);
-                output.push('\n');
-                output.push_str(content);
-
-                while let Some(next_line) = lines.peek() {
-                    if let Some((next_path, next_content)) = next_line.split_once(':') {
-                        if next_path != file_path {
-                            break;
-                        }
-                        output.push('\n');
-                        output.push_str(next_content);
-                        lines.next(); // Consume the peeked line
-                    } else {
-                        lines.next(); // Skip malformed line
-                    }
-                }
-                output.push_str("\n\n");
-            }
+    /// Format search results with colorized output grouped by path.
+    fn format(self, regex: &Regex) -> String {
+        // Early return for empty results
+        if self.0.is_empty() {
+            return String::new();
         }
 
-        output
+        self.0
+            .iter()
+            .filter_map(|line| {
+                let mut parts = line.splitn(3, ':');
+                match (parts.next(), parts.next(), parts.next()) {
+                    (Some(path), Some(num), Some(content)) => Some((path, num, content)),
+                    _ => None,
+                }
+            })
+            .fold(
+                std::collections::BTreeMap::new(),
+                |mut acc, (path, num, content)| {
+                    acc.entry(path)
+                        .or_insert_with(Vec::new)
+                        .push((num, content));
+                    acc
+                },
+            )
+            .into_iter()
+            .map(|(path, group)| {
+                let file_header = style(path).green().to_string();
+                let formatted_lines: String = group
+                    .into_iter()
+                    .map(|(num, content)| Self::format_line(num, content, regex))
+                    .collect();
+                format!("{}\n{}", file_header, formatted_lines)
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
@@ -487,29 +467,6 @@ mod test {
             let actual = strip_ansi_escapes::strip_str(&result);
 
             let expected = "file.txt\n1:valid match\n2:another valid match\n\n";
-            assert_eq!(actual, expected);
-        }
-
-        #[test]
-        fn test_ripgrep_formatter_colorize() {
-            let input = vec![
-                "file.txt:1:test match test",
-                "malformed line",
-                "file.txt:2:another test",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect();
-
-            let regex = Regex::new(r"test").unwrap();
-            let formatter = RipGrepFormatter(input);
-            let result = formatter
-                .colorize(&regex)
-                .format(&Regex::new("test").unwrap());
-            let actual = strip_ansi_escapes::strip_str(&result);
-
-            // Note: actual color codes will be stripped in the format() output
-            let expected = "file.txt\n1:test match test\n2:another test\n\n";
             assert_eq!(actual, expected);
         }
     }
