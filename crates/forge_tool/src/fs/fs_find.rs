@@ -420,7 +420,7 @@ mod test {
             let formatter = RipGrepFormatter(input);
             let result = formatter.format(&Regex::new("match").unwrap());
             let actual = strip_ansi_escapes::strip_str(&result);
-            let expected = "file.txt\n1:first match\n2:second match\n\n";
+            let expected = "file.txt\n1:first match\n2:second match\n";
             assert_eq!(actual, expected);
         }
 
@@ -440,7 +440,7 @@ mod test {
             let result = formatter.format(&Regex::new("file").unwrap());
             let actual = strip_ansi_escapes::strip_str(&result);
 
-            let expected = "file1.txt\n1:match in file1\n\nfile2.txt\n1:first match in file2\n2:second match in file2\n\nfile3.txt\n1:match in file3\n\n";
+            let expected = "file1.txt\n1:match in file1\n\nfile2.txt\n1:first match in file2\n2:second match in file2\n\nfile3.txt\n1:match in file3\n";
             assert_eq!(actual, expected);
         }
 
@@ -466,7 +466,7 @@ mod test {
             let result = formatter.format(&Regex::new("match").unwrap());
             let actual = strip_ansi_escapes::strip_str(&result);
 
-            let expected = "file.txt\n1:valid match\n2:another valid match\n\n";
+            let expected = "file.txt\n1:valid match\n2:another valid match\n";
             assert_eq!(actual, expected);
         }
     }
