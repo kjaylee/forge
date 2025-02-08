@@ -120,7 +120,8 @@ impl UI {
                     self.state.current_content = Some(content.clone());
                     if let Err(err) = self.chat(content.clone(), &model).await {
                         CONSOLE.writeln(
-                            TitleFormat::failed(format!("{:?}", err)).usage(self.state.usage.clone())
+                            TitleFormat::failed(format!("{:?}", err))
+                                .usage(self.state.usage.clone())
                                 .format(),
                         )?;
                     }
@@ -159,7 +160,8 @@ impl UI {
                             }
                             Err(e) => {
                                 CONSOLE.writeln(
-                                    TitleFormat::failed(e.to_string()).usage(self.state.usage.clone())
+                                    TitleFormat::failed(e.to_string())
+                                        .usage(self.state.usage.clone())
                                         .format(),
                                 )?;
                             }
@@ -236,7 +238,9 @@ impl UI {
                     CONSOLE.newline()?;
                     CONSOLE.newline()?;
                     CONSOLE.writeln(
-                        TitleFormat::execute(tool_name.as_str()).usage(self.state.usage.clone()).format(),
+                        TitleFormat::execute(tool_name.as_str())
+                            .usage(self.state.usage.clone())
+                            .format(),
                     )?;
                     CONSOLE.newline()?;
                 }
@@ -261,11 +265,15 @@ impl UI {
 
                 if tool_result.is_error {
                     CONSOLE.writeln(
-                        TitleFormat::failed(tool_name).usage(self.state.usage.clone()).format(),
+                        TitleFormat::failed(tool_name)
+                            .usage(self.state.usage.clone())
+                            .format(),
                     )?;
                 } else {
                     CONSOLE.writeln(
-                        TitleFormat::success(tool_name).usage(self.state.usage.clone()).format(),
+                        TitleFormat::success(tool_name)
+                            .usage(self.state.usage.clone())
+                            .format(),
                     )?;
                 }
             }

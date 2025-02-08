@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use console::{style, Style};
 use similar::{ChangeTag, TextDiff};
 
+use crate::TitleFormat;
+
 struct Line(Option<usize>);
 
 impl fmt::Display for Line {
@@ -22,11 +24,7 @@ impl DiffFormat {
         let diff = TextDiff::from_lines(old, new);
         let ops = diff.grouped_ops(3);
 
-        let mut output = format!(
-            "{} {}\n",
-            style("File:").bold(),
-            style(path.display()).dim()
-        );
+        let mut output = format!("{}\n\n", TitleFormat::success(path.display().to_string()));
 
         if ops.is_empty() {
             output.push_str(&format!("{}\n", style("No changes found").dim()));

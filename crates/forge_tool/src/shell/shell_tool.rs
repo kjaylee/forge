@@ -134,8 +134,7 @@ impl ExecutableTool for Shell {
 
             println!(
                 "{}",
-                TitleFormat::execute(format!("sh -c {}", &input.command))
-                    .format()
+                TitleFormat::execute(format!("sh -c {}", &input.command)).format()
             );
         }
 
