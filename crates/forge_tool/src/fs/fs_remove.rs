@@ -54,7 +54,7 @@ impl ExecutableTool for FSRemove {
 
 #[cfg(test)]
 mod test {
-    
+
     use tokio::fs;
 
     use super::*;
