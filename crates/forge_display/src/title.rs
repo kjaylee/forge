@@ -1,8 +1,11 @@
+use std::fmt::{self, Display, Formatter};
+
 use colored::Colorize;
+use derive_setters::Setters;
 use forge_domain::Usage;
 
 #[derive(Clone)]
-enum Kind {
+pub enum Kind {
     Execute,
     Success,
     Failed,
@@ -26,42 +29,56 @@ impl Kind {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Setters)]
 pub struct TitleFormat {
-    kind: Kind,
-    message: String,
-    error_details: Option<String>,
-    usage: Usage,
+    pub kind: Kind,
+    pub message: String,
+    pub error_details: Option<String>,
+    #[setters(into)]
+    pub usage: Usage,
+}
+
+pub trait TitleExt {
+    fn title_fmt(&self) -> TitleFormat;
+}
+
+impl<T> TitleExt for T
+where
+    T: Into<TitleFormat> + Clone,
+{
+    fn title_fmt(&self) -> TitleFormat {
+        self.clone().into()
+    }
 }
 
 impl TitleFormat {
     /// Create a status for executing a tool
-    pub fn execute(message: impl Into<String>, usage: Usage) -> Self {
+    pub fn execute(message: impl Into<String>) -> Self {
         Self {
             kind: Kind::Execute,
             message: message.into(),
             error_details: None,
-            usage,
+            usage: Usage::default(),
         }
     }
 
     /// Create a success status
-    pub fn success(message: impl Into<String>, usage: Usage) -> Self {
+    pub fn success(message: impl Into<String>) -> Self {
         Self {
             kind: Kind::Success,
             message: message.into(),
             error_details: None,
-            usage,
+            usage: Usage::default(),
         }
     }
 
     /// Create a failure status
-    pub fn failed(message: impl Into<String>, usage: Usage) -> Self {
+    pub fn failed(message: impl Into<String>) -> Self {
         Self {
             kind: Kind::Failed,
             message: message.into(),
             error_details: None,
-            usage,
+            usage: Usage::default(),
         }
     }
 
@@ -114,5 +131,11 @@ impl TitleFormat {
 
     fn label(&self) -> &'static str {
         self.kind.label()
+    }
+}
+
+impl Display for TitleFormat {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.format())
     }
 }

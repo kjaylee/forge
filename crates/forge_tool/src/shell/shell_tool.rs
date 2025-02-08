@@ -131,11 +131,10 @@ impl ExecutableTool for Shell {
         #[cfg(not(test))]
         {
             use forge_display::TitleFormat;
-            use forge_domain::Usage;
 
             println!(
                 "{}",
-                TitleFormat::execute(format!("sh -c {}", &input.command), Usage::default())
+                TitleFormat::execute(format!("sh -c {}", &input.command))
                     .format()
             );
         }

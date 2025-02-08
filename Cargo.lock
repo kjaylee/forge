@@ -933,6 +933,7 @@ dependencies = [
  "chrono",
  "colored 3.0.0",
  "console",
+ "derive_setters",
  "forge_domain",
  "insta",
  "pretty_assertions",

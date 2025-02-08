@@ -49,13 +49,13 @@ impl UserInput for Console {
                     Ok(input) => return Ok(input),
                     Err(e) => {
                         CONSOLE.writeln(
-                            TitleFormat::failed(e.to_string(), Usage::default()).format(),
+                            TitleFormat::failed(e.to_string()).format(),
                         )?;
                     }
                 },
                 Err(e) => {
                     CONSOLE
-                        .writeln(TitleFormat::failed(e.to_string(), Usage::default()).format())?;
+                        .writeln(TitleFormat::failed(e.to_string()).format())?;
                 }
             }
         }
