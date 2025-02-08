@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use colored::Colorize;
 use forge_app::{APIService, EnvironmentFactory, Service};
+use forge_display::TitleFormat;
 use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
 use tokio_stream::StreamExt;
 
@@ -13,7 +14,6 @@ use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::{Console, PromptInput};
 use crate::model::{Command, ConfigCommand, UserInput};
-use crate::status::StatusDisplay;
 use crate::{banner, log};
 
 #[derive(Default)]
@@ -50,9 +50,9 @@ impl UI {
         let env = EnvironmentFactory::new(std::env::current_dir()?).create()?;
         let guard = log::init_tracing(env.clone())?;
         let config = Config::from(&env);
-        let api = Arc::new(Service::api_service(env)?);
-
         let cli = Cli::parse();
+        let api = Arc::new(Service::api_service(env, cli.system_prompt.clone())?);
+
         Ok(Self {
             state: Default::default(),
             api: api.clone(),
@@ -76,7 +76,7 @@ impl UI {
         banner::display()?;
 
         // Get initial input from file or prompt
-        let mut input = match &self.cli.prompt {
+        let mut input = match &self.cli.command {
             Some(path) => self.console.upload(path).await?,
             None => self.console.prompt(None).await?,
         };
@@ -95,15 +95,14 @@ impl UI {
                     if let Some(conversation_id) = self.state.current_conversation_id {
                         if let Err(e) = self.retry(conversation_id, model.clone()).await {
                             CONSOLE.writeln(
-                                StatusDisplay::failed(e.to_string(), self.state.usage.clone())
+                                TitleFormat::failed(e.to_string())
+                                    .sub_title(self.state.usage.to_string())
                                     .format(),
                             )?;
                         }
                     } else {
-                        CONSOLE.writeln(
-                            StatusDisplay::failed("No conversation to retry", Usage::default())
-                                .format(),
-                        )?;
+                        CONSOLE
+                            .writeln(TitleFormat::failed("No conversation to retry").format())?;
                     }
                     input = self.console.prompt(None).await?;
                 }
@@ -116,7 +115,7 @@ impl UI {
                 Command::Reload => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
-                    input = match &self.cli.prompt {
+                    input = match &self.cli.command {
                         Some(path) => self.console.upload(path).await?,
                         None => self.console.prompt(None).await?,
                     };
@@ -136,7 +135,8 @@ impl UI {
                     self.state.current_content = Some(content.clone());
                     if let Err(err) = self.chat(content.clone(), &model).await {
                         CONSOLE.writeln(
-                            StatusDisplay::failed(err.to_string(), self.state.usage.clone())
+                            TitleFormat::failed(format!("{:?}", err))
+                                .sub_title(self.state.usage.to_string())
                                 .format(),
                         )?;
                     }
@@ -175,7 +175,8 @@ impl UI {
                             }
                             Err(e) => {
                                 CONSOLE.writeln(
-                                    StatusDisplay::failed(e.to_string(), self.state.usage.clone())
+                                    TitleFormat::failed(e.to_string())
+                                        .sub_title(self.state.usage.to_string())
                                         .format(),
                                 )?;
                             }
@@ -189,11 +190,9 @@ impl UI {
                                 ))?;
                             } else {
                                 CONSOLE.writeln(
-                                    StatusDisplay::failed(
-                                        format!("Config key '{}' not found", key),
-                                        self.state.usage.clone(),
-                                    )
-                                    .format(),
+                                    TitleFormat::failed(format!("Config key '{}' not found", key))
+                                        .sub_title(self.state.usage.to_string())
+                                        .format(),
                                 )?;
                             }
                         }
@@ -261,7 +260,8 @@ impl UI {
                     CONSOLE.newline()?;
                     CONSOLE.newline()?;
                     CONSOLE.writeln(
-                        StatusDisplay::execute(tool_name.as_str(), self.state.usage.clone())
+                        TitleFormat::execute(tool_name.as_str())
+                            .sub_title(self.state.usage.to_string())
                             .format(),
                     )?;
                     CONSOLE.newline()?;
@@ -277,29 +277,33 @@ impl UI {
                 CONSOLE.newline()?;
             }
             ChatResponse::ToolCallEnd(tool_result) => {
-                let tool_name = tool_result.name.as_str();
-                // Always show result content for errors, or in verbose mode
-                if tool_result.is_error || self.cli.verbose {
-                    CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
+                if !self.cli.verbose {
+                    return Ok(());
                 }
-                let status = if tool_result.is_error {
-                    StatusDisplay::failed(tool_name, self.state.usage.clone())
-                } else {
-                    StatusDisplay::success(tool_name, self.state.usage.clone())
-                };
 
-                CONSOLE.writeln(status.format())?;
+                let tool_name = tool_result.name.as_str();
+
+                CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
+
+                if tool_result.is_error {
+                    CONSOLE.writeln(
+                        TitleFormat::failed(tool_name)
+                            .sub_title(self.state.usage.to_string())
+                            .format(),
+                    )?;
+                } else {
+                    CONSOLE.writeln(
+                        TitleFormat::success(tool_name)
+                            .sub_title(self.state.usage.to_string())
+                            .format(),
+                    )?;
+                }
             }
             ChatResponse::ConversationStarted(conversation_id) => {
                 self.state.current_conversation_id = Some(conversation_id);
             }
             ChatResponse::ModifyContext(_) => {}
             ChatResponse::Complete => {}
-            ChatResponse::Error(err) => {
-                CONSOLE.writeln(
-                    StatusDisplay::failed(err.to_string(), self.state.usage.clone()).format(),
-                )?;
-            }
             ChatResponse::PartialTitle(_) => {}
             ChatResponse::CompleteTitle(title) => {
                 self.state.current_title = Some(title);

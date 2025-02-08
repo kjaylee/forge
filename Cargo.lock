@@ -370,6 +370,7 @@ dependencies = [
  "encode_unicode",
  "libc",
  "once_cell",
+ "unicode-width 0.2.0",
  "windows-sys 0.59.0",
 ]
 
@@ -844,6 +845,42 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
+name = "forge"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "clap",
+ "colored 3.0.0",
+ "crossterm 0.28.1",
+ "derive_setters",
+ "dirs",
+ "forge_app",
+ "forge_display",
+ "forge_domain",
+ "forge_walker",
+ "inquire",
+ "insta",
+ "lazy_static",
+ "nu-ansi-term 0.50.1",
+ "once_cell",
+ "pretty_assertions",
+ "reedline",
+ "regex",
+ "serde_json",
+ "strum",
+ "strum_macros",
+ "tempfile",
+ "thiserror 2.0.11",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "forge_app"
 version = "0.1.0"
 dependencies = [
@@ -890,6 +927,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_display"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "colored 3.0.0",
+ "console",
+ "derive_setters",
+ "insta",
+ "pretty_assertions",
+ "regex",
+ "similar",
+ "strip-ansi-escapes",
+]
+
+[[package]]
 name = "forge_domain"
 version = "0.1.0"
 dependencies = [
@@ -933,41 +985,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "forge_main"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "clap",
- "colored 3.0.0",
- "crossterm 0.28.1",
- "derive_setters",
- "dirs",
- "forge_app",
- "forge_domain",
- "forge_walker",
- "inquire",
- "insta",
- "lazy_static",
- "nu-ansi-term 0.50.1",
- "once_cell",
- "pretty_assertions",
- "reedline",
- "regex",
- "serde_json",
- "strum",
- "strum_macros",
- "tempfile",
- "thiserror 2.0.11",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "forge_open_router"
 version = "0.1.0"
 dependencies = [
@@ -998,7 +1015,9 @@ dependencies = [
  "Inflector",
  "anyhow",
  "async-trait",
+ "console",
  "dissimilar",
+ "forge_display",
  "forge_domain",
  "forge_tool_macros",
  "forge_walker",
@@ -1015,6 +1034,7 @@ dependencies = [
  "serde",
  "serde_json",
  "streaming-iterator",
+ "strip-ansi-escapes",
  "tempfile",
  "thiserror 2.0.11",
  "tokio",
@@ -1202,7 +1222,7 @@ version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14dbbfd5c71d70241ecf9e6f13737f7b5ce823821063188d7e46c41d371eebd5"
 dependencies = [
- "unicode-width",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -1708,7 +1728,7 @@ dependencies = [
  "newline-converter",
  "once_cell",
  "unicode-segmentation",
- "unicode-width",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -2648,7 +2668,7 @@ dependencies = [
  "strum_macros",
  "thiserror 1.0.69",
  "unicode-segmentation",
- "unicode-width",
+ "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -3812,6 +3832,12 @@ name = "unicode-width"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dd6e30e90baa6f72411720665d41d89b9a3d039dc45b8faea1ddd07f617f6af"
+
+[[package]]
+name = "unicode-width"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fc81956842c57dac11422a97c3b8195a1ff727f06e85c84ed2e8aa277c9a0fd"
 
 [[package]]
 name = "unicode-xid"

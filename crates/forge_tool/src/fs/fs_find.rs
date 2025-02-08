@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use console::style;
+use forge_display::GrepFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
@@ -116,11 +118,20 @@ impl ExecutableTool for FSSearch {
         }
 
         if matches.is_empty() {
-            Ok(format!(
-                "No matches found for pattern '{}' in path '{}'",
-                input.regex, input.path
-            ))
+            let output = format!(
+                "{} No matches found for pattern '{}' in path '{}'",
+                style("Note:").blue().bold(),
+                style(&input.regex).yellow(),
+                style(&input.path).cyan()
+            );
+            println!("{}", output);
+            Ok(strip_ansi_escapes::strip_str(output))
         } else {
+            println!(
+                "{}\n{}",
+                style("Matches:").dim(),
+                GrepFormat::new(matches.clone()).format(&regex)
+            );
             Ok(matches.join("\n"))
         }
     }
