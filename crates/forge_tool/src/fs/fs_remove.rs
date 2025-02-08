@@ -54,8 +54,9 @@ impl ExecutableTool for FSRemove {
 
 #[cfg(test)]
 mod test {
+    
     use tokio::fs;
-    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::utils::TempDir;
 
@@ -63,16 +64,14 @@ mod test {
     async fn test_fs_remove_success() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        
+
         // Create a test file
         fs::write(&file_path, "test content").await.unwrap();
         assert!(file_path.exists());
 
         let fs_remove = FSRemove;
         let result = fs_remove
-            .call(FSRemoveInput {
-                path: file_path.to_string_lossy().to_string(),
-            })
+            .call(FSRemoveInput { path: file_path.to_string_lossy().to_string() })
             .await
             .unwrap();
 
@@ -87,9 +86,7 @@ mod test {
 
         let fs_remove = FSRemove;
         let result = fs_remove
-            .call(FSRemoveInput {
-                path: nonexistent_file.to_string_lossy().to_string(),
-            })
+            .call(FSRemoveInput { path: nonexistent_file.to_string_lossy().to_string() })
             .await;
 
         assert!(result.is_err());
@@ -100,16 +97,14 @@ mod test {
     async fn test_fs_remove_directory() {
         let temp_dir = TempDir::new().unwrap();
         let dir_path = temp_dir.path().join("test_dir");
-        
+
         // Create a test directory
         fs::create_dir(&dir_path).await.unwrap();
         assert!(dir_path.exists());
 
         let fs_remove = FSRemove;
         let result = fs_remove
-            .call(FSRemoveInput {
-                path: dir_path.to_string_lossy().to_string(),
-            })
+            .call(FSRemoveInput { path: dir_path.to_string_lossy().to_string() })
             .await;
 
         assert!(result.is_err());
@@ -121,9 +116,7 @@ mod test {
     async fn test_fs_remove_relative_path() {
         let fs_remove = FSRemove;
         let result = fs_remove
-            .call(FSRemoveInput {
-                path: "relative/path.txt".to_string(),
-            })
+            .call(FSRemoveInput { path: "relative/path.txt".to_string() })
             .await;
 
         assert!(result.is_err());
