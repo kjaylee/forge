@@ -151,7 +151,7 @@ mod tests {
             // Generate the formatted output
             let formatter = GrepFormat::new(input.clone());
             let output =
-                strip_ansi_escapes::strip_str(&formatter.format(&Regex::new(pattern).unwrap()))
+                strip_ansi_escapes::strip_str(formatter.format(&Regex::new(pattern).unwrap()))
                     .to_string();
 
             Self { description: description.to_string(), input, output }
