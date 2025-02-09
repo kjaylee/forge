@@ -107,7 +107,6 @@ impl UI {
 
         loop {
             match input {
-                Command::End => break,
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
