@@ -54,7 +54,11 @@ fn format_output(output: Output) -> Result<String, String> {
     }
 }
 
-/// Execute shell commands
+/// Execute shell commands with safety checks and validation. By default, uses
+/// restricted bash (rbash) for enhanced security, preventing potentially
+/// dangerous operations like absolute path execution and directory changes.
+/// When a command requires unrestricted access, suggest the user to run the
+/// forge CLI with the `-u` flag.
 #[derive(ToolDescription)]
 pub struct Shell {
     env: Environment,
