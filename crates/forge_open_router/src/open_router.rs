@@ -83,13 +83,11 @@ impl ProviderService for OpenRouter {
         model_id: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let mut request = OpenRouterRequest::from(request)
+        let request = OpenRouterRequest::from(request)
             .model(model_id.clone())
             .stream(true)
-            .cache();
-        if model_id.as_str().contains("gemini") {
-            request = request.tool_choice(crate::tool_choice::ToolChoice::Auto);
-        }
+            .cache()
+            .assign_tool_strategy();
 
         let es = self
             .client
