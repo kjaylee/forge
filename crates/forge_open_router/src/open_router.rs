@@ -91,7 +91,6 @@ impl ProviderService for OpenRouter {
             .assign_tool_strategy()
             .tool_supported(self.parameters(model_id).await?.tool_supported);
 
-
         let es = self
             .client
             .post(self.url("chat/completions")?)

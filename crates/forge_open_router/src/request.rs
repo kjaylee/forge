@@ -303,7 +303,10 @@ impl OpenRouterRequest {
         if let (Some(mut messages), Some(model)) = (self.messages.take(), self.model.take()) {
             let model_id = model.as_str();
             let should_cache = !CACHE_UNSUPPORTED_MODELS.contains(&model_id)
-                && (!model_id.contains("anthropic") || CLAUDE_CACHE_SUPPORTED_MODELS.iter().any(|m| model_id.contains(m)));
+                && (!model_id.contains("anthropic")
+                    || CLAUDE_CACHE_SUPPORTED_MODELS
+                        .iter()
+                        .any(|m| model_id.contains(m)));
             if should_cache {
                 if let Some(msg) = messages
                     .iter_mut()
@@ -336,7 +339,6 @@ impl OpenRouterRequest {
             }
         }
         self
-
     }
     pub fn assign_tool_strategy(mut self) -> Self {
         if let Some(model) = self.model.as_ref() {
