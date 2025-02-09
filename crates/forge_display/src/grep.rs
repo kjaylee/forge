@@ -6,67 +6,125 @@ use regex::Regex;
 /// RipGrepFormatter formats search results in ripgrep-like style.
 pub struct GrepFormat(Vec<String>);
 
+/// Represents a parsed line from grep-like output format
+/// (path:line_num:content)
+#[derive(Debug)]
+struct ParsedLine<'a> {
+    /// File path where the match was found
+    path: &'a str,
+    /// Line number of the match
+    line_num: &'a str,
+    /// Content of the matching line
+    content: &'a str,
+}
+
+impl<'a> ParsedLine<'a> {
+    /// Parse a line in the format "path:line_num:content"
+    ///
+    /// # Arguments
+    /// * `line` - The line to parse in the format "path:line_num:content"
+    ///
+    /// # Returns
+    /// * `Some(ParsedLine)` if the line matches the expected format
+    /// * `None` if the line is malformed
+    pub fn parse(line: &'a str) -> Option<Self> {
+        let parts: Vec<_> = line.split(':').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+
+        // Validate that path and line number parts are not empty
+        // and that line number contains only digits
+        if parts[0].is_empty()
+            || parts[1].is_empty()
+            || !parts[1].chars().all(|c| c.is_ascii_digit())
+        {
+            return None;
+        }
+
+        Some(Self { path: parts[0], line_num: parts[1], content: parts[2] })
+    }
+}
+
 impl GrepFormat {
     pub fn new(lines: Vec<String>) -> Self {
         Self(lines)
     }
 
-    /// Format a single line with colorization.
-    fn format_line(num: &str, content: &str, regex: &Regex) -> String {
-        let mut line = format!("{}{}", style(num).magenta(), style(":").dim());
-
-        match regex.find(content) {
-            Some(mat) => {
-                line.push_str(&content[..mat.start()]);
-                line.push_str(
-                    &style(&content[mat.start()..mat.end()])
-                        .red()
-                        .bold()
-                        .to_string(),
-                );
-                line.push_str(&content[mat.end()..]);
-            }
-            None => line.push_str(content),
-        }
-
-        line.push('\n');
-        line
+    /// Collect file entries and determine the maximum line number width
+    fn collect_entries<'a>(
+        lines: &'a [String],
+    ) -> (BTreeMap<&'a str, Vec<(&'a str, &'a str)>>, usize) {
+        lines
+            .iter()
+            .map(String::as_str)
+            .filter_map(ParsedLine::parse)
+            .fold((BTreeMap::new(), 0), |(mut entries, max_width), parsed| {
+                let new_width = max_width.max(parsed.line_num.len());
+                entries
+                    .entry(parsed.path)
+                    .or_default()
+                    .push((parsed.line_num, parsed.content));
+                (entries, new_width)
+            })
     }
 
-    /// Format search results with colorized output grouped by path.
+    /// Format a single line with colorization and consistent padding
+    fn format_line(num: &str, content: &str, regex: &Regex, padding: usize) -> String {
+        // Format the line number with both left and right padding
+        let line_prefix = format!("{:>padding$}:", num, padding = padding);
+        let padded_prefix = format!("{} ", line_prefix);
+        let styled_prefix = style(padded_prefix).dim().to_string();
+
+        // Format the content with highlighting
+        let styled_content = regex.find(content).map_or_else(
+            || content.to_string(),
+            |mat| {
+                format!(
+                    "{}{}{}",
+                    &content[..mat.start()],
+                    style(&content[mat.start()..mat.end()]).yellow().bold(),
+                    &content[mat.end()..]
+                )
+            },
+        );
+
+        // Add 4 spaces between colon and content
+        format!("{}    {}\n", styled_prefix, styled_content)
+    }
+
+    /// Format a group of lines for a single file
+    fn format_file_group(
+        path: &str,
+        group: Vec<(&str, &str)>,
+        regex: &Regex,
+        max_num_width: usize,
+    ) -> String {
+        let file_header = style(path).cyan().to_string();
+        let formatted_lines = group
+            .into_iter()
+            .map(|(num, content)| Self::format_line(num, content, regex, max_num_width))
+            .collect::<String>();
+        format!("{}\n{}", file_header, formatted_lines)
+    }
+
+    /// Format search results with colorized output grouped by path
     pub fn format(&self, regex: &Regex) -> String {
-        // Early return for empty results
         if self.0.is_empty() {
             return String::new();
         }
 
-        self.0
-            .iter()
-            .filter_map(|line| {
-                let mut parts = line.splitn(3, ':');
-                match (parts.next(), parts.next(), parts.next()) {
-                    (Some(path), Some(num), Some(content)) => Some((path, num, content)),
-                    _ => None,
-                }
-            })
-            .fold(
-                BTreeMap::new(),
-                |mut acc: BTreeMap<&str, Vec<(&str, &str)>>, (path, num, content)| {
-                    acc.entry(path).or_default().push((num, content));
-                    acc
-                },
-            )
+        // First pass: collect entries and find max width
+        let (entries, max_num_width) = Self::collect_entries(&self.0);
+
+        // Print the results on separate lines
+        let formatted_entries: Vec<_> = entries
             .into_iter()
-            .map(|(path, group)| {
-                let file_header = style(path).green().to_string();
-                let formatted_lines: String = group
-                    .into_iter()
-                    .map(|(num, content)| Self::format_line(num, content, regex))
-                    .collect();
-                format!("{}\n{}", file_header, formatted_lines)
-            })
-            .collect::<Vec<_>>()
-            .join("\n")
+            .map(|(path, group)| Self::format_file_group(path, group, regex, max_num_width))
+            .collect();
+
+        // Join all results with newlines
+        formatted_entries.join("\n")
     }
 }
 
@@ -86,7 +144,7 @@ mod tests {
         let formatter = GrepFormat(input);
         let result = formatter.format(&Regex::new("match").unwrap());
         let actual = strip_ansi_escapes::strip_str(&result);
-        let expected = "file.txt\n1:first match\n2:second match\n";
+        let expected = "file.txt\n    1:    first match\n    2:    second match\n";
         assert_eq!(actual, expected);
     }
 
@@ -106,7 +164,7 @@ mod tests {
         let result = formatter.format(&Regex::new("file").unwrap());
         let actual = strip_ansi_escapes::strip_str(&result);
 
-        let expected = "file1.txt\n1:match in file1\n\nfile2.txt\n1:first match in file2\n2:second match in file2\n\nfile3.txt\n1:match in file3\n";
+        let expected = "file1.txt\n    1:    match in file1\n\nfile2.txt\n    1:    first match in file2\n    2:    second match in file2\n\nfile3.txt\n    1:    match in file3\n";
         assert_eq!(actual, expected);
     }
 
@@ -115,6 +173,43 @@ mod tests {
         let formatter = GrepFormat(vec![]);
         let result = formatter.format(&Regex::new("file").unwrap());
         assert_eq!(result, "");
+    }
+
+    #[test]
+    fn test_ripgrep_formatter_line_number_padding() {
+        let input = vec![
+            "file.txt:1:first line",
+            "file.txt:5:fifth line",
+            "file.txt:10:tenth line",
+            "file.txt:100:hundredth line",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+
+        let formatter = GrepFormat(input);
+        let result = formatter.format(&Regex::new("line").unwrap());
+        let actual = strip_ansi_escapes::strip_str(&result);
+
+        // Verify that all line numbers are right-aligned to the same width
+        let expected = "file.txt\n      1:    first line\n      5:    fifth line\n     10:    tenth line\n    100:    hundredth line\n";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_parsed_line_valid_input() {
+        let line = "path/to/file.txt:123:some content";
+        let parsed = ParsedLine::parse(line).unwrap();
+        assert_eq!(parsed.path, "path/to/file.txt");
+        assert_eq!(parsed.line_num, "123");
+        assert_eq!(parsed.content, "some content");
+    }
+
+    #[test]
+    fn test_parsed_line_invalid_input() {
+        assert!(ParsedLine::parse("invalid").is_none());
+        assert!(ParsedLine::parse("only:one:separator").is_none());
+        assert!(ParsedLine::parse("too:many:separators:here").is_none());
     }
 
     #[test]
@@ -132,7 +227,7 @@ mod tests {
         let result = formatter.format(&Regex::new("match").unwrap());
         let actual = strip_ansi_escapes::strip_str(&result);
 
-        let expected = "file.txt\n1:valid match\n2:another valid match\n";
+        let expected = "file.txt\n    1:    valid match\n    2:    another valid match\n";
         assert_eq!(actual, expected);
     }
 }
