@@ -307,7 +307,7 @@ mod test {
             .await
             .unwrap();
 
-        assert!(result.contains("No matches found"));
+        assert!(result.is_empty());
     }
 
     #[tokio::test]
