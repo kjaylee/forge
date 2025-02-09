@@ -51,13 +51,14 @@ impl<'a> ParsedLine<'a> {
     }
 }
 
+type Lines<'a> = Vec<(&'a str, &'a str)>;
 impl GrepFormat {
     pub fn new(lines: Vec<String>) -> Self {
         Self(lines)
     }
 
     /// Collect file entries and determine the maximum line number width
-    fn collect_entries(lines: &[String]) -> (BTreeMap<&str, Vec<(&str, &str)>>, usize) {
+    fn collect_entries(lines: &[String]) -> (BTreeMap<&str, Lines>, usize) {
         lines
             .iter()
             .map(String::as_str)
