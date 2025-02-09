@@ -1,8 +1,8 @@
-mod conv_tool_calls;
+mod drop_tool_call;
 mod set_cache;
 mod tool_choice;
 
-use conv_tool_calls::ConvertToolCalls;
+use drop_tool_call::DropToolCalls;
 use set_cache::SetCache;
 use tool_choice::SetToolChoice;
 
@@ -69,7 +69,7 @@ impl<A: Transformer, B: Transformer> Transformer for Combine<A, B> {
 
 pub fn pipeline() -> impl Transformer {
     Identity
-        .combine(ConvertToolCalls.when_name(|name| name.contains("mistral")))
-        .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("mistral")))
+        .combine(DropToolCalls.when_name(|name| name.contains("mistral")))
+        .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("gemini")))
         .combine(SetCache.when_name(|name| !name.contains("mistral")))
 }
