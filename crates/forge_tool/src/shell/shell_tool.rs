@@ -131,23 +131,30 @@ impl ExecutableTool for Shell {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         // Validate command
         self.validate_command(&input.command)?;
+        let parameter = if cfg!(target_os = "windows") {
+            "/C"
+        } else {
+            "-c"
+        };
+
         #[cfg(not(test))]
         {
             use forge_display::TitleFormat;
 
             println!(
                 "{}",
-                TitleFormat::execute(format!("{} -c {}", self.env.shell, &input.command)).format()
+                TitleFormat::execute(format!(
+                    "{} {} {}",
+                    self.env.shell, parameter, &input.command
+                ))
+                .format()
             );
         }
 
         let mut command = Command::new(&self.env.shell);
 
-        if cfg!(target_os = "windows") {
-            command.args(["/C", &input.command]);
-        } else {
-            command.args(["-c", &input.command]);
-        };
+        command.args([parameter, &input.command]);
+
         // Set the current working directory for the command
         command.current_dir(input.cwd);
         // Kill the command when the handler is dropped
