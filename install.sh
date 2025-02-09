@@ -45,7 +45,7 @@ fi
 echo -e "${GREEN}Latest release: $LATEST_RELEASE${NC}"
 
 # Download URL
-DOWNLOAD_URL="https://github.com/antinomyhq/forge/releases/download/$LATEST_RELEASE/code-forge-$OS-$ARCH"
+DOWNLOAD_URL="https://github.com/antinomyhq/forge/releases/download/$LATEST_RELEASE/forge-$ARCH-unknown-$OSTYPE"
 
 # Create temp directory
 TMP_DIR=$(mktemp -d)
