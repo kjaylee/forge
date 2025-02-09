@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -55,66 +54,16 @@ fn format_output(output: Output) -> Result<String, String> {
     }
 }
 
-/// Execute shell commands with safety checks and validation. This tool provides
-/// controlled access to system shell commands while preventing dangerous
-/// operations through a comprehensive blacklist and validation system.
+/// Execute shell commands
 #[derive(ToolDescription)]
 pub struct Shell {
-    blacklist: HashSet<String>,
     env: Environment,
 }
 
 impl Shell {
     /// Create a new Shell with environment configuration
     pub fn new(env: Environment) -> Self {
-        let mut blacklist = HashSet::new();
-        // File System Destruction Commands
-        blacklist.insert("rm".to_string());
-        blacklist.insert("rmdir".to_string());
-        blacklist.insert("del".to_string());
-
-        // Disk/Filesystem Commands
-        blacklist.insert("format".to_string());
-        blacklist.insert("mkfs".to_string());
-        blacklist.insert("dd".to_string());
-
-        // Permission/Ownership Commands
-        blacklist.insert("chmod".to_string());
-        blacklist.insert("chown".to_string());
-
-        // Privilege Escalation Commands
-        blacklist.insert("sudo".to_string());
-        blacklist.insert("su".to_string());
-
-        // Code Execution Commands
-        blacklist.insert("exec".to_string());
-        blacklist.insert("eval".to_string());
-
-        // System Communication Commands
-        blacklist.insert("write".to_string());
-        blacklist.insert("wall".to_string());
-
-        // System Control Commands
-        blacklist.insert("shutdown".to_string());
-        blacklist.insert("reboot".to_string());
-        blacklist.insert("init".to_string());
-
-        Self { blacklist, env }
-    }
-}
-
-impl Shell {
-    fn validate_command(&self, command: &str) -> Result<(), String> {
-        let base_command = command
-            .split_whitespace()
-            .next()
-            .ok_or_else(|| "Command string is empty or contains only whitespace".to_string())?;
-
-        if self.blacklist.contains(base_command) {
-            return Err(format!("Command '{}' is not allowed", base_command));
-        }
-
-        Ok(())
+        Self { env }
     }
 }
 
@@ -129,8 +78,6 @@ impl ExecutableTool for Shell {
     type Input = ShellInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
-        // Validate command
-        self.validate_command(&input.command)?;
         let parameter = if cfg!(target_os = "windows") {
             "/C"
         } else {
@@ -304,20 +251,6 @@ mod tests {
             "Error message '{}' did not match any expected patterns for this platform: {:?}",
             err, COMMAND_NOT_FOUND_PATTERNS
         );
-    }
-
-    #[tokio::test]
-    async fn test_shell_blacklisted_command() {
-        let shell = Shell::new(test_env());
-        let result = shell
-            .call(ShellInput {
-                command: "rm -rf /".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
-            .await;
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("not allowed"));
     }
 
     #[tokio::test]
