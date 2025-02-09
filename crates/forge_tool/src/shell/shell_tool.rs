@@ -351,4 +351,26 @@ mod tests {
         assert!(!result.is_empty());
         assert!(!result.contains("Error:"));
     }
+
+    #[tokio::test]
+    async fn test_shell_full_path_command() {
+        let shell = Shell::new(test_env());
+        // Using a full path command which would be restricted in rbash
+        let cmd = if cfg!(target_os = "windows") {
+            r"C:\Windows\System32\whoami.exe"
+        } else {
+            "/bin/ls"
+        };
+
+        let result = shell
+            .call(ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() })
+            .await;
+
+        // In rbash, this would fail with a permission error
+        // For our normal shell test, it should succeed
+        assert!(
+            result.is_ok(),
+            "Full path commands should work in normal shell"
+        );
+    }
 }
