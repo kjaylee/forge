@@ -2,10 +2,11 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 
 use super::executor::Output;
 use crate::shell::executor::CommandExecutor;
@@ -60,10 +61,12 @@ fn format_output(output: Output) -> Result<String, String> {
 #[derive(ToolDescription)]
 pub struct Shell {
     blacklist: HashSet<String>,
+    env: Environment,
 }
 
-impl Default for Shell {
-    fn default() -> Self {
+impl Shell {
+    /// Create a new Shell with environment configuration
+    pub fn new(env: Environment) -> Self {
         let mut blacklist = HashSet::new();
         // File System Destruction Commands
         blacklist.insert("rm".to_string());
@@ -96,7 +99,7 @@ impl Default for Shell {
         blacklist.insert("reboot".to_string());
         blacklist.insert("init".to_string());
 
-        Shell { blacklist }
+        Self { blacklist, env }
     }
 }
 
@@ -134,12 +137,24 @@ impl ExecutableTool for Shell {
 
             println!(
                 "{}",
-                TitleFormat::execute(format!("sh -c {}", &input.command)).format()
+                TitleFormat::execute(format!("{} -c {}", self.env.shell, &input.command)).format()
             );
         }
 
+        let mut command = Command::new(&self.env.shell);
+
+        if cfg!(target_os = "windows") {
+            command.args(["/C", &input.command]);
+        } else {
+            command.args(["-c", &input.command]);
+        };
+        // Set the current working directory for the command
+        command.current_dir(input.cwd);
+        // Kill the command when the handler is dropped
+        command.kill_on_drop(true);
+
         format_output(
-            CommandExecutor::new(&input.cwd, &input.command)
+            CommandExecutor::new(command)
                 .colored()
                 .execute()
                 .await
@@ -155,6 +170,24 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    /// Create a default test environment
+    fn test_env() -> Environment {
+        Environment {
+            os: std::env::consts::OS.to_string(),
+            cwd: std::env::current_dir().unwrap_or_default(),
+            home: Some("/home/user".into()),
+            shell: if cfg!(windows) {
+                "cmd.exe".to_string()
+            } else {
+                "/bin/sh".to_string()
+            },
+            api_key: String::new(),
+            large_model_id: String::new(),
+            small_model_id: String::new(),
+            base_path: PathBuf::new(),
+        }
+    }
 
     /// Platform-specific error message patterns for command not found errors
     #[cfg(target_os = "windows")]
@@ -172,7 +205,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "echo 'Hello, World!'".to_string(),
@@ -185,7 +218,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_stderr_with_success() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         // Use a command that writes to both stdout and stderr
         let result = shell
             .call(ShellInput {
@@ -207,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_both_streams() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
@@ -224,7 +257,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
@@ -243,7 +276,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "non_existent_command".to_string(),
@@ -268,7 +301,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_blacklisted_command() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "rm -rf /".to_string(),
@@ -282,7 +315,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
@@ -296,12 +329,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_description() {
-        assert!(Shell::default().description().len() > 100)
+        assert!(Shell::new(test_env()).description().len() > 100)
     }
 
     #[tokio::test]
     async fn test_shell_pwd() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let current_dir = env::current_dir().unwrap();
         let result = shell
             .call(ShellInput {
@@ -323,7 +356,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_multiple_commands() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "echo 'first' && echo 'second'".to_string(),
@@ -336,7 +369,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_output() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "true".to_string(),
@@ -351,7 +384,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_whitespace_only_output() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "echo ''".to_string(),
@@ -366,7 +399,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
-        let shell = Shell::default();
+        let shell = Shell::new(test_env());
         let result = shell
             .call(ShellInput {
                 command: "echo $PATH".to_string(),
