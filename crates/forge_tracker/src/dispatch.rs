@@ -59,6 +59,7 @@ impl Tracker {
             // Create a new event
             let event = Event {
                 event_name: event_kind.name(),
+                event_value: event_kind.value(),
                 start_time: self.start_time,
                 cores: cores(),
                 client_id: client_id(),

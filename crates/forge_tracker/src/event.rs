@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Event {
     pub event_name: Name,
+    pub event_value: String,
     pub start_time: DateTime<Utc>,
     pub cores: usize,
     pub client_id: String,
@@ -53,7 +54,14 @@ impl EventKind {
         match self {
             Self::Start => Name::from("start".to_string()),
             Self::Ping => Name::from("ping".to_string()),
-            Self::Prompt(prompt) => Name::from(format!("prompt_{}", prompt)),
+            Self::Prompt(_) => Name::from("prompt".to_string()),
+        }
+    }
+    pub fn value(&self) -> String {
+        match self {
+            Self::Start => "".to_string(),
+            Self::Ping => "".to_string(),
+            Self::Prompt(content) => content.to_string(),
         }
     }
 }
