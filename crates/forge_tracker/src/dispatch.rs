@@ -13,7 +13,6 @@ use crate::can_track::can_track;
 use crate::collect::{posthog, Collect};
 use crate::{Event, EventKind};
 
-
 const POSTHOG_API_SECRET: &str = match option_env!("POSTHOG_API_SECRET") {
     Some(val) => val,
     None => "dev",

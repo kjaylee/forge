@@ -7,6 +7,7 @@ use forge_app::{APIService, EnvironmentFactory, Service};
 use forge_display::TitleFormat;
 use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
 use forge_tracker::EventKind;
+use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
 
 use crate::cli::Cli;
@@ -16,7 +17,6 @@ use crate::info::Info;
 use crate::input::{Console, PromptInput};
 use crate::model::{Command, ConfigCommand, UserInput};
 use crate::{banner, log};
-use lazy_static::lazy_static;
 
 lazy_static! {
     pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();
@@ -225,7 +225,7 @@ impl UI {
         tokio::spawn({
             let content = content.clone();
             async move {
-            let _ = TRACKER.dispatch(EventKind::Prompt(content)).await;
+                let _ = TRACKER.dispatch(EventKind::Prompt(content)).await;
             }
         });
         match self.api.chat(chat).await {

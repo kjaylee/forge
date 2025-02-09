@@ -1,6 +1,5 @@
 use std::env;
 
-
 const LONG_ENV_FILTER_VAR_NAME: &str = "FORGE_TRACKER";
 
 /// Version information
