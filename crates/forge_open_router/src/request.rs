@@ -15,6 +15,8 @@ const CLAUDE_CACHE_SUPPORTED_MODELS: &[&str] = &[
     "anthropic/claude-3-haiku",
     "anthropic/claude-3-opus",
 ];
+// Cache unsupported models
+const CACHE_UNSUPPORTED_MODELS: &[&str] = &["mistralai/codestral-2501"];
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -300,11 +302,8 @@ impl OpenRouterRequest {
     pub fn cache(mut self) -> Self {
         if let (Some(mut messages), Some(model)) = (self.messages.take(), self.model.take()) {
             let model_id = model.as_str();
-            let should_cache = !model_id.contains("anthropic")
-                || CLAUDE_CACHE_SUPPORTED_MODELS
-                    .iter()
-                    .any(|m| model_id.contains(m));
-
+            let should_cache = !CACHE_UNSUPPORTED_MODELS.contains(&model_id)
+                && (!model_id.contains("anthropic") || CLAUDE_CACHE_SUPPORTED_MODELS.iter().any(|m| model_id.contains(m)));
             if should_cache {
                 if let Some(msg) = messages
                     .iter_mut()
@@ -319,6 +318,25 @@ impl OpenRouterRequest {
             self.model = Some(model);
         }
         self
+    }
+    pub fn tool_supported(mut self, supported: bool) -> Self {
+        if !supported {
+            if let Some(messages) = self.messages.as_mut() {
+                for message in messages.iter_mut() {
+                    if message.role == OpenRouterRole::Tool {
+                        message.role = OpenRouterRole::User;
+                        message.tool_calls = None;
+                        message.tool_call_id = None;
+                        message.name = None;
+                    }
+                    if message.role == OpenRouterRole::Assistant {
+                        message.tool_calls = None;
+                    }
+                }
+            }
+        }
+        self
+
     }
     pub fn assign_tool_strategy(mut self) -> Self {
         if let Some(model) = self.model.as_ref() {

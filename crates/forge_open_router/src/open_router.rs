@@ -88,7 +88,9 @@ impl ProviderService for OpenRouter {
             .stream(true)
             .cache()
             .parallel_tool_calls(false)
-            .assign_tool_strategy();
+            .assign_tool_strategy()
+            .tool_supported(self.parameters(model_id).await?.tool_supported);
+
 
         let es = self
             .client
