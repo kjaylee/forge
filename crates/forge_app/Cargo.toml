@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tokio-retry = "0.3"
 diesel = { version = "2.1.0", features = ["sqlite", "r2d2", "chrono", "uuid"] }
+# We need this, else it's a huge overhead to install sqlite.lib
+rusqlite = { version = "0.33.0", features = ["bundled"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 diesel_migrations = "2.1.0"
@@ -12,12 +15,10 @@ tokio = { version = "1", features = ["full", "test-util"] }
 derive_more = { version = "1.0.0", features = ["full"] }
 clap = { version = "4.5.23", features = ["derive"] }
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1.83"
 forge_tool = { path = "../forge_tool" }
 forge_open_router = { path = "../forge_open_router" }
 forge_walker = { path = "../forge_walker" }
-forge_prompt = { path = "../forge_prompt" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.133"
 derive_setters = "0.1.6"
@@ -34,9 +35,9 @@ anyhow = "1.0.75"
 sqlite-vec = "0.1.6"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 fastembed = "4.4.0"
+futures = "0.3.31"
 
 [dev-dependencies]
-futures = "0.3.31"
 insta = "1.41.1"
 pretty_assertions = "1.4.1"
 tempfile = "3.10.1"

@@ -1,354 +1,132 @@
-use std::fmt;
-use std::marker::PhantomData;
 use std::path::PathBuf;
 
-use async_trait::async_trait;
+use derive_more::derive::Display;
 use derive_setters::Setters;
 use handlebars::Handlebars;
 use schemars::schema::RootSchema;
-use schemars::{schema_for, JsonSchema};
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::error::Result;
-use crate::{Context, ContextMessage};
+use crate::variables::Variables;
+use crate::{Environment, Error, ModelId, Provider, ToolDefinition, ToolName};
 
-/// Represents which model (primary/secondary) should be used for the agent
-#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum ModelType {
-    #[default]
-    Primary,
-    Secondary,
+#[derive(Default, Setters, Clone, Serialize, Deserialize)]
+#[setters(strip_option)]
+pub struct SystemContext {
+    pub env: Option<Environment>,
+    pub tool_information: Option<String>,
+    pub tool_supported: Option<bool>,
+    pub custom_instructions: Option<String>,
+    pub files: Vec<String>,
 }
 
-/// Represents the contents of a prompt, which can either be direct text or a
-/// file reference
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
 pub enum PromptContent {
     Text(String),
     File(PathBuf),
 }
 
-impl From<String> for PromptContent {
-    fn from(s: String) -> Self {
-        PromptContent::Text(s)
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Prompt<V> {
+    pub template: PromptTemplate,
+    pub variables: Schema<V>,
+}
+
+impl<V: Serialize> Prompt<V> {
+    pub fn render(&self, ctx: &V) -> crate::Result<String> {
+        let mut hb = Handlebars::new();
+        hb.set_strict_mode(true);
+        hb.register_escape_fn(|str| str.to_string());
+
+        hb.render_template(self.template.as_str(), &ctx)
+            .map_err(Error::Template)
     }
 }
 
-impl From<&str> for PromptContent {
-    fn from(s: &str) -> Self {
-        PromptContent::Text(s.to_string())
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Schema<S> {
+    pub schema: RootSchema,
+    _marker: std::marker::PhantomData<S>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct PromptTemplate(String);
+impl PromptTemplate {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
     }
 }
 
-impl From<PathBuf> for PromptContent {
-    fn from(p: PathBuf) -> Self {
-        PromptContent::File(p)
+#[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct AgentId(String);
+
+impl From<ToolName> for AgentId {
+    fn from(value: ToolName) -> Self {
+        Self(value.into_string())
     }
 }
 
-impl fmt::Display for PromptContent {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PromptContent::Text(content) => write!(f, "{}", content),
-            PromptContent::File(path) => write!(f, "@{}", path.display()),
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Agent {
+    pub id: AgentId,
+    pub provider: Provider,
+    pub model: ModelId,
+    pub description: String,
+    pub system_prompt: Prompt<SystemContext>,
+    pub user_prompt: Prompt<Variables>,
+
+    /// Suggests if the agent needs to maintain its state for the lifetime of
+    /// the program.
+    pub ephemeral: bool,
+
+    /// Tools that the agent can use
+    pub tools: Vec<ToolName>,
+    pub transforms: Vec<Transform>,
+
+    /// Downstream agents that this agent can handover to
+    pub handovers: Vec<Downstream>,
+
+    /// Represents that the agent is the entry point to the workflow
+    pub entry: bool,
+}
+
+impl From<Agent> for ToolDefinition {
+    fn from(value: Agent) -> Self {
+        ToolDefinition {
+            name: ToolName::new(value.id.0),
+            description: value.description,
+            input_schema: value.user_prompt.variables.schema,
+            output_schema: None,
         }
     }
 }
 
-impl PromptContent {
-    pub fn new(content: impl Into<String>) -> Self {
-        PromptContent::Text(content.into())
-    }
+/// Transformations that can be applied to the agent's context before sending it
+/// upstream to the provider.
+#[derive(Clone, Serialize, Deserialize)]
+pub enum Transform {
+    /// Compresses multiple assistant messages into a single message
+    Assistant {
+        input: String,
+        output: String,
+        agent_id: AgentId,
+        token_limit: usize,
+    },
 
-    pub fn from_file<P: AsRef<std::path::Path>>(path: P) -> Self {
-        PromptContent::File(path.as_ref().to_path_buf())
-    }
+    /// Works on the user prompt by enriching it with additional information
+    User {
+        agent_id: AgentId,
+        input: String,
+        output: String,
+    },
+
+    /// Intercepts the context and performs an operation without changing the
+    /// context
+    Tap { agent_id: AgentId, input: String },
 }
 
-/// Represents an AI agent with specific system and user prompts, templated with
-/// a context type
-#[derive(Clone, Debug, Default, Deserialize, Serialize, Setters)]
-#[setters(into, strip_option)]
-pub struct Agent<S: JsonSchema> {
-    /// Name of the agent
-    pub name: String,
-
-    /// Description of what the agent does
-    #[serde(rename = "description", skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-
-    /// Which model to use for this agent (primary/secondary)
-    #[serde(default)]
-    pub model: ModelType,
-
-    /// The system prompt that defines the agent's behavior
-    #[serde(rename = "system", skip_serializing_if = "Option::is_none")]
-    pub system_prompt: Option<PromptContent>,
-
-    /// Optional user prompt template for consistent interactions
-    #[serde(rename = "user", skip_serializing_if = "Option::is_none")]
-    pub user_prompt: Option<PromptContent>,
-
-    /// Schema defining the expected arguments or configuration for the agent
-    arguments: Schema<S>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, Setters)]
-pub struct Schema<A> {
-    _schema: PhantomData<A>,
-    schema: RootSchema,
-}
-
-impl<A: JsonSchema> Default for Schema<A> {
-    fn default() -> Self {
-        Self { _schema: PhantomData, schema: schema_for!(A) }
-    }
-}
-
-impl<C> Agent<C>
-where
-    C: Serialize + DeserializeOwned + JsonSchema,
-{
-    /// Creates a new agent
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            description: None,
-            model: ModelType::Primary,
-            system_prompt: None,
-            user_prompt: None,
-            arguments: Schema::default(),
-        }
-    }
-
-    fn render_system_prompt(&self, binding: &C) -> Result<Option<String>> {
-        if let Some(system_prompt) = &self.system_prompt {
-            let handlebars = Handlebars::new();
-            let prompt = system_prompt.to_string();
-            Ok(Some(handlebars.render_template(&prompt, binding)?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn render_user_prompt(&self, binding: &C) -> Result<Option<String>> {
-        if let Some(user_prompt) = &self.user_prompt {
-            let handlebars = Handlebars::new();
-            let prompt = user_prompt.to_string();
-            Ok(Some(handlebars.render_template(&prompt, binding)?))
-        } else {
-            Ok(None)
-        }
-    }
-
-    /// Converts the agent to a Context by rendering its prompts with the
-    /// provided template binding.
-    ///
-    /// The binding contains values for handlebars template variables in both
-    /// system and user prompts. The resulting Context will contain the
-    /// rendered prompts as messages in the correct order (system message
-    /// first, if present, followed by user message if present).
-    ///
-    /// # Example
-    /// ```rust,ignore
-    /// let binding = CodeContext {
-    ///     role: "helpful".to_string(),
-    ///     language: "Rust".to_string()
-    /// };
-    /// let context = agent.to_context(&binding)?;
-    /// ```
-    pub fn to_context(&self, binding: &C) -> Result<Context> {
-        let mut messages = Vec::new();
-
-        // Add system message if present
-        if let Some(system_message) = self.render_system_prompt(binding)? {
-            messages.push(ContextMessage::system(system_message));
-        }
-
-        // Add user message if present
-        if let Some(user_message) = self.render_user_prompt(binding)? {
-            messages.push(ContextMessage::user(user_message));
-        }
-
-        Ok(Context::default().extend_messages(messages))
-    }
-}
-
-/// Loader trait for loading Agent definitions. The loader should be able to
-/// load all available agents from a source (e.g., configuration files).
-#[async_trait]
-pub trait AgentLoader<C>
-where
-    C: Send + Sync + DeserializeOwned + JsonSchema,
-{
-    /// Load all available agents. Returns a Vec of agents in the order they
-    /// were defined in the source.
-    async fn load_agents(&self) -> anyhow::Result<Vec<Agent<C>>>;
-}
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-    use serde::Deserialize;
-
-    use super::*;
-
-    #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-    struct CodeContext {
-        role: String,
-        language: String,
-    }
-
-    use std::path::Path;
-
-    #[test]
-    fn test_create_agent() {
-        let agent: Agent<CodeContext> = Agent::new("Coder");
-
-        assert_eq!(agent.name, "Coder");
-        assert_eq!(agent.description, None);
-        assert_eq!(agent.model, ModelType::Primary);
-        assert_eq!(agent.system_prompt, None);
-        assert_eq!(agent.user_prompt, None);
-    }
-
-    #[test]
-    fn test_create_with_prompts() {
-        let agent: Agent<CodeContext> = Agent::new("Coder")
-            .description("A coding assistant")
-            .system_prompt("You are a helpful coding assistant")
-            .model(ModelType::Secondary);
-
-        assert_eq!(agent.name, "Coder");
-        assert_eq!(agent.description, Some("A coding assistant".to_string()));
-        assert_eq!(agent.model, ModelType::Secondary);
-        assert_eq!(
-            agent.system_prompt,
-            Some(PromptContent::Text(
-                "You are a helpful coding assistant".to_string()
-            ))
-        );
-        assert_eq!(agent.user_prompt, None);
-    }
-
-    #[test]
-    fn test_agent_with_file_prompts() {
-        let agent: Agent<CodeContext> = Agent::new("Coder")
-            .description("A coding assistant")
-            .system_prompt(PromptContent::from_file("prompts/system.md"))
-            .user_prompt(PromptContent::from_file("prompts/user.md"));
-
-        assert_eq!(
-            agent.system_prompt,
-            Some(PromptContent::File(
-                Path::new("prompts/system.md").to_path_buf()
-            ))
-        );
-        assert_eq!(
-            agent.user_prompt,
-            Some(PromptContent::File(
-                Path::new("prompts/user.md").to_path_buf()
-            ))
-        );
-    }
-
-    #[test]
-    fn test_render_prompts_with_context() {
-        let agent: Agent<CodeContext> = Agent::new("Coder")
-            .description("A coding assistant")
-            .system_prompt("You are a {{role}} coding assistant")
-            .user_prompt("How can I help with {{language}} code today?");
-
-        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
-
-        assert_eq!(
-            agent.render_system_prompt(&binding).unwrap(),
-            Some("You are a helpful coding assistant".to_string())
-        );
-        assert_eq!(
-            agent.render_user_prompt(&binding).unwrap(),
-            Some("How can I help with Rust code today?".to_string())
-        );
-    }
-
-    #[test]
-    fn test_to_context_with_messages() {
-        let agent: Agent<CodeContext> = Agent::new("Coder")
-            .description("A coding assistant")
-            .system_prompt("You are a {{role}} coding assistant")
-            .user_prompt("How can I help with {{language}} code today?")
-            .model(ModelType::Secondary);
-
-        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
-
-        let result = agent.to_context(&binding).unwrap();
-        assert_eq!(result.messages.len(), 2);
-        assert_eq!(
-            result.messages[0],
-            ContextMessage::system("You are a helpful coding assistant")
-        );
-        assert_eq!(
-            result.messages[1],
-            ContextMessage::user("How can I help with Rust code today?")
-        );
-    }
-
-    #[test]
-    fn test_to_context_primary_model_with_messages() {
-        let agent: Agent<CodeContext> =
-            Agent::new("Coder").system_prompt("You are a {{role}} coding assistant");
-
-        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
-
-        let result = agent.to_context(&binding).unwrap();
-        assert_eq!(result.messages.len(), 1);
-        assert_eq!(
-            result.messages[0],
-            ContextMessage::system("You are a helpful coding assistant")
-        );
-    }
-
-    #[test]
-    fn test_to_context_user_only() {
-        let agent: Agent<CodeContext> =
-            Agent::new("Coder").user_prompt("How can I help with {{language}} code today?");
-
-        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
-
-        let result = agent.to_context(&binding).unwrap();
-        assert_eq!(result.messages.len(), 1);
-        assert_eq!(
-            result.messages[0],
-            ContextMessage::user("How can I help with Rust code today?")
-        );
-    }
-
-    #[test]
-    fn test_to_context_no_prompts() {
-        let agent: Agent<CodeContext> = Agent::new("Coder");
-
-        let binding = CodeContext { role: "helpful".to_string(), language: "Rust".to_string() };
-
-        let result = agent.to_context(&binding).unwrap();
-        assert_eq!(result.messages.len(), 0);
-    }
-
-    #[test]
-    fn test_agent_roundtrip() {
-        let agent: Agent<CodeContext> = Agent::new("Coder")
-            .description("A coding assistant")
-            .system_prompt(PromptContent::Text("System prompt".to_string()))
-            .user_prompt("User prompt");
-
-        let serialized = serde_json::to_string(&agent).unwrap();
-        let deserialized: Agent<CodeContext> = serde_json::from_str(&serialized).unwrap();
-
-        assert_eq!(deserialized.name, agent.name);
-        assert_eq!(deserialized.description, agent.description);
-        assert_eq!(deserialized.system_prompt, agent.system_prompt);
-        assert_eq!(deserialized.user_prompt, agent.user_prompt);
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Downstream {
+    pub agent: AgentId,
+    pub wait: bool,
 }

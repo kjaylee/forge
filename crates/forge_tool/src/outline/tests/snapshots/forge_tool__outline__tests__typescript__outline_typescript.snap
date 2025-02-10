@@ -1,6 +1,7 @@
 ---
 source: crates/forge_tool/src/outline/tests/typescript.rs
 expression: result
+snapshot_kind: text
 ---
 test.ts
 │interface User {

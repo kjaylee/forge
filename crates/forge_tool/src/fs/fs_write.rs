@@ -1,53 +1,45 @@
 use std::path::Path;
 
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_display::DiffFormat;
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::syn;
+use crate::utils::assert_absolute_path;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
-    /// The path of the file to write to (relative to the current working
-    /// directory)
+    /// The path of the file to write to (absolute path required)
     pub path: String,
     /// The content to write to the file. ALWAYS provide the COMPLETE intended
     /// content of the file, without any truncation or omissions. You MUST
     /// include ALL parts of the file, even if they haven't been modified.
     pub content: String,
-    /// When set to true, allows overwriting of existing files. Defaults to
-    /// false.
-    pub overwrite: Option<bool>,
 }
 
 /// Use it to create a new file at a specified path with the provided content.
-/// By default, if the file already exists, the tool will return an error to
-/// prevent overwriting. Set overwrite=true to allow overwriting existing files.
-/// The tool automatically handles the creation of any missing
-/// intermediary directories in the specified path.
+/// Always provide absolute paths for file locations. The tool
+/// automatically handles the creation of any missing intermediary directories
+/// in the specified path.
 #[derive(ToolDescription)]
 pub struct FSWrite;
 
 impl NamedTool for FSWrite {
-    fn tool_name(&self) -> ToolName {
-        ToolName::new("tool_forge_fs_write")
+    fn tool_name() -> ToolName {
+        ToolName::new("tool_forge_fs_create")
     }
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for FSWrite {
+impl ExecutableTool for FSWrite {
     type Input = FSWriteInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
-        // Check if file already exists
-        let file_exists = tokio::fs::metadata(&input.path).await.is_ok();
-        if file_exists && !input.overwrite.unwrap_or(false) {
-            return Err(format!(
-                "File {} already exists. Set overwrite=true to overwrite.",
-                input.path
-            ));
-        }
+        // Validate absolute path requirement
+        let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
 
         // Validate file content if it's a supported language file
         let syntax_warning = syn::validate(&input.path, &input.content);
@@ -58,6 +50,17 @@ impl ToolCallService for FSWrite {
                 .await
                 .map_err(|e| format!("Failed to create directories: {}", e))?;
         }
+
+        // record the file content before they're modified
+        let old_content = if path.is_file() {
+            // if file already exists, we should be able to read it.
+            tokio::fs::read_to_string(path)
+                .await
+                .map_err(|e| e.to_string())?
+        } else {
+            // if file doesn't exist, we should record it as an empty string.
+            "".to_string()
+        };
 
         // Write file only after validation passes and directories are created
         tokio::fs::write(&input.path, &input.content)
@@ -74,6 +77,13 @@ impl ToolCallService for FSWrite {
             result.push_str(&warning.to_string());
         }
 
+        // record the file content after they're modified
+        let new_content = tokio::fs::read_to_string(path)
+            .await
+            .map_err(|e| e.to_string())?;
+        let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
+        println!("{}", diff);
+
         Ok(result)
     }
 }
@@ -83,10 +93,10 @@ mod test {
     use std::path::Path;
 
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::utils::TempDir;
 
     async fn assert_path_exists(path: impl AsRef<Path>) {
         assert!(fs::metadata(path).await.is_ok(), "Path should exist");
@@ -103,7 +113,6 @@ mod test {
             .call(FSWriteInput {
                 path: file_path.to_string_lossy().to_string(),
                 content: content.to_string(),
-                overwrite: Some(false),
             })
             .await
             .unwrap();
@@ -127,7 +136,6 @@ mod test {
             .call(FSWriteInput {
                 path: file_path.to_string_lossy().to_string(),
                 content: "fn main() { let x = ".to_string(),
-                overwrite: Some(false),
             })
             .await;
 
@@ -146,7 +154,6 @@ mod test {
             .call(FSWriteInput {
                 path: file_path.to_string_lossy().to_string(),
                 content: content.to_string(),
-                overwrite: Some(false),
             })
             .await;
 
@@ -161,32 +168,6 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_fs_write_file_exists() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Create the file first
-        fs::write(&file_path, "Existing content").await.unwrap();
-
-        let fs_write = FSWrite;
-        let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: "New content".to_string(),
-                overwrite: Some(false),
-            })
-            .await;
-
-        // Check that the result is an error
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("already exists"));
-
-        // Verify original content remains unchanged
-        let content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(content, "Existing content");
-    }
-
-    #[tokio::test]
     async fn test_fs_write_single_directory_creation() {
         let temp_dir = TempDir::new().unwrap();
         let nested_path = temp_dir.path().join("new_dir").join("test.txt");
@@ -197,7 +178,6 @@ mod test {
             .call(FSWriteInput {
                 path: nested_path.to_string_lossy().to_string(),
                 content: content.to_string(),
-                overwrite: Some(false),
             })
             .await
             .unwrap();
@@ -228,7 +208,6 @@ mod test {
             .call(FSWriteInput {
                 path: deep_path.to_string_lossy().to_string(),
                 content: content.to_string(),
-                overwrite: Some(false),
             })
             .await
             .unwrap();
@@ -258,11 +237,7 @@ mod test {
 
         let fs_write = FSWrite;
         let result = fs_write
-            .call(FSWriteInput {
-                path: path_str,
-                content: content.to_string(),
-                overwrite: Some(false),
-            })
+            .call(FSWriteInput { path: path_str, content: content.to_string() })
             .await
             .unwrap();
 
@@ -282,88 +257,16 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_fs_write_with_overwrite() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Create initial file
-        let initial_content = "Initial content";
-        fs::write(&file_path, initial_content).await.unwrap();
-
-        // Try to overwrite with overwrite flag
-        let new_content = "New content";
+    async fn test_fs_write_relative_path() {
         let fs_write = FSWrite;
         let result = fs_write
             .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: new_content.to_string(),
-                overwrite: Some(true),
+                path: "relative/path/file.txt".to_string(),
+                content: "test content".to_string(),
             })
             .await;
 
-        // Verify overwrite was successful
-        assert!(result.is_ok());
-        let written_content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(written_content, new_content);
-    }
-
-    #[tokio::test]
-    async fn test_fs_write_without_overwrite() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Create initial file
-        let initial_content = "Initial content";
-        fs::write(&file_path, initial_content).await.unwrap();
-
-        // Try to write without overwrite flag
-        let fs_write = FSWrite;
-        let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: "New content".to_string(),
-                overwrite: Some(false),
-            })
-            .await;
-
-        // Verify write was prevented
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Set overwrite=true to overwrite"));
-
-        // Verify original content remains unchanged
-        let content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(content, initial_content);
-    }
-
-    #[tokio::test]
-    async fn test_fs_write_overwrite_not_provided() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Create initial file
-        let initial_content = "Initial content";
-        fs::write(&file_path, initial_content).await.unwrap();
-
-        // Try to write without providing overwrite parameter
-        let fs_write = FSWrite;
-        let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: "New content".to_string(),
-                overwrite: None,
-            })
-            .await;
-
-        // Verify write was prevented
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Set overwrite=true to overwrite"));
-
-        // Verify original content remains unchanged
-        let content = fs::read_to_string(&file_path).await.unwrap();
-        assert_eq!(content, initial_content);
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 }

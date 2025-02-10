@@ -1,11 +1,15 @@
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use std::path::Path;
+
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::utils::assert_absolute_path;
+
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReadInput {
-    /// The path of the file to read (relative to the current working directory)
+    /// The path of the file to read, always provide absolute paths.
     pub path: String,
 }
 
@@ -19,30 +23,32 @@ pub struct FSReadInput {
 pub struct FSRead;
 
 impl NamedTool for FSRead {
-    fn tool_name(&self) -> ToolName {
+    fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_read")
     }
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for FSRead {
+impl ExecutableTool for FSRead {
     type Input = FSReadInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
-        let content = tokio::fs::read_to_string(&input.path)
+        let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
+
+        tokio::fs::read_to_string(path)
             .await
-            .map_err(|e| e.to_string())?;
-        Ok(content)
+            .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e))
     }
 }
 
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::utils::TempDir;
 
     #[tokio::test]
     async fn test_fs_read_success() {
@@ -92,5 +98,16 @@ mod test {
     #[test]
     fn test_description() {
         assert!(FSRead.description().len() > 100)
+    }
+
+    #[tokio::test]
+    async fn test_fs_read_relative_path() {
+        let fs_read = FSRead;
+        let result = fs_read
+            .call(FSReadInput { path: "relative/path.txt".to_string() })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 }

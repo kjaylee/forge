@@ -2,15 +2,16 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, ChatResponse, Context, ContextMessage, ProviderService, ResultStream, ToolCall,
-    ToolCallFull, ToolChoice, ToolDefinition,
+    BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService,
+    ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition,
 };
 use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
 
 use super::Service;
+use crate::mpsc_stream::MpscStream;
+use crate::prompts::Prompt;
 
 impl Service {
     /// Creates a new title service with the specified provider
@@ -40,9 +41,21 @@ impl Live {
         Self { provider }
     }
 
-    fn system_prompt(&self) -> String {
-        let template = include_str!("../prompts/title.md");
-        template.to_owned()
+    pub(crate) fn system_prompt(
+        &self,
+        tool_supported: bool,
+        tool: ToolDefinition,
+    ) -> Result<String> {
+        let ctx = SystemContext {
+            tool_information: Some(tool.usage_prompt().to_string()),
+            tool_supported: Some(tool_supported),
+            env: Some(Environment::default()),
+            custom_instructions: None,
+            files: vec![],
+        };
+
+        let prompt = Prompt::new(include_str!("../prompts/title.md"));
+        prompt.render(&ctx)
     }
 
     fn user_prompt(&self, content: &str) -> String {
@@ -56,22 +69,25 @@ impl Live {
         chat: ChatRequest,
     ) -> Result<()> {
         let mut response = self.provider.chat(&chat.model, request.clone()).await?;
-        let mut parts = Vec::new();
+        let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
+        response = if !tool_supported {
+            Box::pin(response.collect_tool_call_xml_content())
+        } else {
+            Box::pin(response.collect_tool_call_parts())
+        };
 
         while let Some(chunk) = response.next().await {
             let message = chunk?;
-            if let Some(ToolCall::Part(args)) = message.tool_call.first() {
-                parts.push(args.clone());
+            for tool_call in message.tool_call {
+                if let ToolCall::Full(tool_call) = tool_call {
+                    let title: Title = serde_json::from_value(tool_call.arguments)?;
+                    tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
+                        .await
+                        .unwrap();
+                    break;
+                }
             }
         }
-
-        // Extract title from parts if present
-        let tool_call = ToolCallFull::try_from_parts(&parts)?;
-        let title: Title = serde_json::from_value(tool_call.arguments)?;
-
-        tx.send(Ok(ChatResponse::CompleteTitle(title.text)))
-            .await
-            .unwrap();
 
         Ok(())
     }
@@ -95,26 +111,29 @@ impl Title {
 #[async_trait::async_trait]
 impl TitleService for Live {
     async fn get_title(&self, chat: ChatRequest) -> ResultStream<ChatResponse, anyhow::Error> {
-        let system_prompt = self.system_prompt();
         let user_prompt = self.user_prompt(&chat.content);
         let tool = Title::definition();
-
-        let request = Context::default()
-            .add_message(ContextMessage::system(system_prompt))
-            .add_message(ContextMessage::user(user_prompt))
-            .add_tool(tool.clone())
-            .tool_choice(ToolChoice::Call(tool.name));
-
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let tool_supported = self.provider.parameters(&chat.model).await?.tool_supported;
+        let system_prompt = self.system_prompt(tool_supported, tool.clone())?;
+        let request = if !tool_supported {
+            Context::default()
+                .add_message(ContextMessage::system(system_prompt))
+                .add_message(ContextMessage::user(user_prompt))
+        } else {
+            Context::default()
+                .add_message(ContextMessage::system(system_prompt))
+                .add_message(ContextMessage::user(user_prompt))
+                .add_tool(tool.clone())
+                .tool_choice(ToolChoice::Call(tool.name))
+        };
 
         let that = self.clone();
-        tokio::spawn(async move {
+
+        Ok(Box::pin(MpscStream::spawn(move |tx| async move {
             if let Err(e) = that.execute(request, tx.clone(), chat.clone()).await {
                 tx.send(Err(e)).await.unwrap();
             }
-            drop(tx);
-        });
-        Ok(Box::pin(ReceiverStream::new(rx)))
+        })))
     }
 }
 
@@ -124,9 +143,10 @@ mod tests {
     use std::vec;
 
     use forge_domain::{
-        ChatCompletionMessage, ChatResponse, ConversationId, ModelId, ToolCallPart,
+        ChatCompletionMessage, ChatResponse, ConversationId, FinishReason, ModelId, Parameters,
+        ToolCallId, ToolCallPart,
     };
-    // Remove unused import
+    use insta::assert_snapshot;
     use tokio_stream::StreamExt;
 
     use super::{ChatRequest, Live, TitleService};
@@ -137,19 +157,34 @@ mod tests {
     struct Fixture(Vec<Vec<ChatCompletionMessage>>);
 
     impl Fixture {
-        pub async fn run(&self, request: ChatRequest) -> Vec<ChatResponse> {
-            let provider = Arc::new(TestProvider::default().with_messages(self.0.clone()));
+        pub async fn run(&self, request: ChatRequest) -> anyhow::Result<Vec<ChatResponse>> {
+            let provider = Arc::new(
+                TestProvider::default()
+                    .with_messages(self.0.clone())
+                    .parameters(vec![
+                        (ModelId::new("gpt-3.5-turbo"), Parameters::new(true)),
+                        (ModelId::new("gpt-5"), Parameters::new(true)),
+                    ]),
+            );
             let chat = Live::new(provider.clone());
 
-            chat.get_title(request)
-                .await
-                .unwrap()
-                .collect::<Vec<_>>()
-                .await
-                .into_iter()
-                .map(|message| message.unwrap())
-                .collect::<Vec<_>>()
+            let mut stream = chat.get_title(request).await.unwrap();
+
+            let mut responses = vec![];
+            while let Some(response) = stream.next().await {
+                responses.push(response?);
+            }
+
+            Ok(responses)
         }
+    }
+
+    #[test]
+    fn test_system_prompt() {
+        let provider = Arc::new(TestProvider::default());
+        let chat = Live::new(provider);
+        let snap = chat.system_prompt(false, Title::definition()).unwrap();
+        assert_snapshot!(snap);
     }
 
     #[tokio::test]
@@ -163,6 +198,7 @@ mod tests {
             ChatCompletionMessage::default().add_tool_call(
                 ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#),
             ),
+            ChatCompletionMessage::default().finish_reason(FinishReason::ToolCalls),
         ]];
 
         let actual = Fixture(mock_llm_responses)
@@ -175,7 +211,8 @@ mod tests {
                     ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
                 ),
             )
-            .await;
+            .await
+            .unwrap();
 
         assert_eq!(
             actual,
@@ -192,6 +229,52 @@ mod tests {
         assert_eq!(
             chat.user_prompt("write an rust program to generate an fibo seq."),
             "<technical_content>write an rust program to generate an fibo seq.</technical_content>"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mutliple_tool_calls() {
+        let mock_llm_responses = vec![vec![
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default()
+                    .call_id(ToolCallId::new("call_1"))
+                    .arguments_part(r#"{"text": "Rust Fib"#)
+                    .name(Title::definition().name),
+            ),
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#),
+            ),
+            ChatCompletionMessage::default().add_tool_call(
+                ToolCallPart::default()
+                    .call_id(ToolCallId::new("call_2"))
+                    .arguments_part(r#"{"text": "Fib"#)
+                    .name(Title::definition().name),
+            ),
+            ChatCompletionMessage::default()
+                .add_tool_call(ToolCallPart::default().arguments_part(r#"onacci Implementation"}"#))
+                .finish_reason(FinishReason::ToolCalls),
+        ]];
+
+        let actual = Fixture(mock_llm_responses)
+            .run(
+                ChatRequest::new(
+                    ModelId::new("gpt-3.5-turbo"),
+                    "write an rust program to generate an fibo seq.",
+                )
+                .conversation_id(
+                    ConversationId::parse("5af97419-0277-410a-8ca6-0e2a252152c5").unwrap(),
+                ),
+            )
+            .await
+            .unwrap();
+
+        // even though we have multiple tool calls, we only expect the first one to be
+        // processed.
+        assert_eq!(
+            actual,
+            vec![ChatResponse::CompleteTitle(
+                "Rust Fibonacci Implementation".to_string()
+            )]
         );
     }
 }

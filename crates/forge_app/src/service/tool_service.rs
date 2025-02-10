@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    EmbeddingsRepository, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
 };
 use tokio::time::{timeout, Duration};
 use tracing::debug;
@@ -10,11 +10,11 @@ use tracing::debug;
 use super::Service;
 
 // Timeout duration for tool calls
-const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(30);
+const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 impl Service {
-    pub fn tool_service(embedding_repository: Arc<dyn EmbeddingsRepository>) -> impl ToolService {
-        Live::from_iter(forge_tool::tools(embedding_repository))
+    pub fn tool_service(env: &Environment) -> impl ToolService {
+        Live::from_iter(forge_tool::tools(env))
     }
 }
 
@@ -38,7 +38,7 @@ impl ToolService for Live {
     async fn call(&self, call: ToolCallFull) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
-        debug!("Calling tool: {}", name.as_str());
+        debug!("{:?}", call);
         let mut available_tools = self
             .tools
             .keys()
@@ -52,9 +52,9 @@ impl ToolService for Live {
                 match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input)).await {
                     Ok(result) => result,
                     Err(_) => Err(format!(
-                        "Tool '{}' timed out after {} seconds",
+                        "Tool '{}' timed out after {} minutes",
                         name.as_str(),
-                        TOOL_CALL_TIMEOUT.as_secs()
+                        TOOL_CALL_TIMEOUT.as_secs() / 60
                     )),
                 }
             }
@@ -65,10 +65,14 @@ impl ToolService for Live {
             )),
         };
 
-        match output {
+        let result = match output {
             Ok(output) => ToolResult::from(call).success(output),
             Err(output) => ToolResult::from(call).failure(output),
-        }
+        };
+
+        debug!("{:?}", result);
+
+        result
     }
 
     fn list(&self) -> Vec<ToolDefinition> {
@@ -112,7 +116,7 @@ mod test {
     // Mock tool that always succeeds
     struct SuccessTool;
     #[async_trait::async_trait]
-    impl forge_domain::ToolCallService for SuccessTool {
+    impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
         async fn call(&self, input: Self::Input) -> Result<String, String> {
@@ -123,11 +127,11 @@ mod test {
     // Mock tool that always fails
     struct FailureTool;
     #[async_trait::async_trait]
-    impl forge_domain::ToolCallService for FailureTool {
+    impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
         async fn call(&self, _input: Self::Input) -> Result<String, String> {
-            Err("Tool execution failed".to_string())
+            Err("Tool call failed with simulated failure".to_string())
         }
     }
 
@@ -197,12 +201,12 @@ mod test {
     // Mock tool that simulates a long-running task
     struct SlowTool;
     #[async_trait::async_trait]
-    impl forge_domain::ToolCallService for SlowTool {
+    impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
         async fn call(&self, _input: Self::Input) -> Result<String, String> {
             // Simulate a long-running task that exceeds the timeout
-            tokio::time::sleep(Duration::from_secs(40)).await;
+            tokio::time::sleep(Duration::from_secs(400)).await;
             Ok("Slow tool completed".to_string())
         }
     }
@@ -229,13 +233,12 @@ mod test {
         };
 
         // Advance time to trigger timeout
-        test::time::advance(Duration::from_secs(35)).await;
+        test::time::advance(Duration::from_secs(305)).await;
 
         let result = service.call(call).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;
-
         assert!(
             content_str.contains("timed out"),
             "Expected timeout error message"

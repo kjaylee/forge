@@ -5,7 +5,7 @@ use schemars::schema::RootSchema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{NamedTool, ToolCallService, ToolName, UsageParameterPrompt, UsagePrompt};
+use crate::{ExecutableTool, NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 
 ///
 /// Refer to the specification over here:
@@ -59,7 +59,7 @@ impl ToolDefinition {
 
 impl<T> From<&T> for ToolDefinition
 where
-    T: NamedTool + ToolCallService + ToolDescription + Send + Sync + 'static,
+    T: NamedTool + ExecutableTool + ToolDescription + Send + Sync + 'static,
     T::Input: serde::de::DeserializeOwned + JsonSchema,
 {
     fn from(t: &T) -> Self {
@@ -108,7 +108,7 @@ where
         }
 
         ToolDefinition {
-            name: t.tool_name(),
+            name: T::tool_name(),
             description: full_description,
             input_schema: input,
             output_schema: Some(output),

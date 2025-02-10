@@ -1,8 +1,12 @@
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{Context as _, Result};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use diesel::prelude::*;
 use diesel::sql_types::{Bool, Nullable, Text, Timestamp};
-use forge_domain::{Context, Conversation, ConversationId, ConversationMeta};
+use forge_domain::{
+    Context, Conversation, ConversationId, ConversationMeta, ConversationRepository,
+};
 
 use crate::schema::conversations;
 use crate::service::Service;
@@ -10,7 +14,7 @@ use crate::sqlite::Sqlite;
 
 #[derive(Debug, Insertable, Queryable, QueryableByName)]
 #[diesel(table_name = conversations)]
-struct RawConversation {
+struct ConversationEntity {
     #[diesel(sql_type = Text)]
     id: String,
     #[diesel(sql_type = Timestamp)]
@@ -25,61 +29,46 @@ struct RawConversation {
     title: Option<String>,
 }
 
-impl TryFrom<RawConversation> for Conversation {
-    type Error = forge_domain::Error;
+impl TryFrom<ConversationEntity> for Conversation {
+    type Error = anyhow::Error;
 
-    fn try_from(raw: RawConversation) -> Result<Self, Self::Error> {
+    fn try_from(raw: ConversationEntity) -> Result<Self, Self::Error> {
         Ok(Conversation {
-            id: ConversationId::parse(raw.id)?,
+            id: {
+                let id_str = raw.id.clone();
+                ConversationId::parse(raw.id)
+                    .with_context(|| format!("Failed to parse conversation ID: {}", id_str))?
+            },
             meta: Some(ConversationMeta {
                 created_at: DateTime::from_naive_utc_and_offset(raw.created_at, Utc),
                 updated_at: DateTime::from_naive_utc_and_offset(raw.updated_at, Utc),
             }),
-            context: serde_json::from_str(&raw.content)?,
+            context: serde_json::from_str(&raw.content)
+                .with_context(|| "Failed to parse conversation context")?,
             archived: raw.archived,
             title: raw.title,
         })
     }
 }
-#[async_trait::async_trait]
-pub trait ConversationRepository: Send + Sync {
-    async fn set_conversation(
-        &self,
-        request: &Context,
-        id: Option<ConversationId>,
-    ) -> Result<Conversation>;
-    async fn get_conversation(&self, id: ConversationId) -> Result<Conversation>;
-    async fn list_conversations(&self) -> Result<Vec<Conversation>>;
-    async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation>;
-    async fn set_conversation_title(
-        &self,
-        id: &ConversationId,
-        title: String,
-    ) -> Result<Conversation>;
+pub struct Live {
+    pool_service: Arc<dyn Sqlite>,
 }
 
-pub struct Live<P: Sqlite> {
-    pool_service: P,
-}
-
-impl<P: Sqlite> Live<P> {
-    pub fn new(pool_service: P) -> Self {
+impl Live {
+    pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
         Self { pool_service }
     }
 }
 
 #[async_trait::async_trait]
-impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
-    async fn set_conversation(
-        &self,
-        request: &Context,
-        id: Option<ConversationId>,
-    ) -> Result<Conversation> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+impl ConversationRepository for Live {
+    async fn insert(&self, request: &Context, id: Option<ConversationId>) -> Result<Conversation> {
+        let mut conn = self.pool_service.connection().await.with_context(|| {
+            "Failed to acquire database connection to insert conversation".to_string()
+        })?;
         let id = id.unwrap_or_else(ConversationId::generate);
 
-        let raw = RawConversation {
+        let raw = ConversationEntity {
             id: id.into_string(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
@@ -96,31 +85,38 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
                 conversations::content.eq(&raw.content),
                 conversations::updated_at.eq(&raw.updated_at),
             ))
-            .execute(&mut conn)?;
+            .execute(&mut conn)
+            .with_context(|| {
+                format!(
+                    "Failed to save conversation with id: {} - database insert/update failed",
+                    id
+                )
+            })?;
 
-        let raw: RawConversation = conversations::table
+        let raw: ConversationEntity = conversations::table
             .find(id.into_string())
-            .first(&mut conn)?;
+            .first(&mut conn)
+            .with_context(|| format!("Failed to retrieve conversation after save - id: {}", id))?;
 
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn get_conversation(&self, id: ConversationId) -> Result<Conversation> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
-        let raw: RawConversation = conversations::table
+    async fn get(&self, id: ConversationId) -> Result<Conversation> {
+        let mut conn = self.pool_service.connection().await?;
+        let raw: ConversationEntity = conversations::table
             .find(id.into_string())
-            .first(&mut conn)?;
+            .first(&mut conn)
+            .with_context(|| format!("Failed to retrieve conversation - id: {}", id))?;
 
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn list_conversations(&self) -> Result<Vec<Conversation>> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
-        let raw: Vec<RawConversation> = conversations::table
+    async fn list(&self) -> Result<Vec<Conversation>> {
+        let mut conn = self.pool_service.connection().await?;
+        let raw: Vec<ConversationEntity> = conversations::table
             .filter(conversations::archived.eq(false))
-            .load(&mut conn)?;
+            .load(&mut conn)
+            .with_context(|| "Failed to retrieve active conversations from database")?;
 
         Ok(raw
             .into_iter()
@@ -128,66 +124,72 @@ impl<P: Sqlite + Send + Sync> ConversationRepository for Live<P> {
             .collect::<Result<Vec<_>, _>>()?)
     }
 
-    async fn archive_conversation(&self, id: ConversationId) -> Result<Conversation> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+    async fn archive(&self, id: ConversationId) -> Result<Conversation> {
+        let mut conn = self.pool_service.connection().await?;
 
         diesel::update(conversations::table.find(id.into_string()))
             .set(conversations::archived.eq(true))
-            .execute(&mut conn)?;
+            .execute(&mut conn)
+            .with_context(|| format!("Failed to archive conversation - id: {}", id))?;
 
-        let raw: RawConversation = conversations::table
+        let raw: ConversationEntity = conversations::table
             .find(id.into_string())
-            .first(&mut conn)?;
+            .first(&mut conn)
+            .with_context(|| {
+                format!(
+                    "Failed to retrieve conversation after archiving - id: {}",
+                    id
+                )
+            })?;
 
         Ok(Conversation::try_from(raw)?)
     }
 
-    async fn set_conversation_title(
-        &self,
-        id: &ConversationId,
-        title: String,
-    ) -> Result<Conversation> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+    async fn set_title(&self, id: &ConversationId, title: String) -> Result<Conversation> {
+        let mut conn = self.pool_service.connection().await?;
 
         diesel::update(conversations::table.find(id.into_string()))
             .set(conversations::title.eq(title))
-            .execute(&mut conn)?;
+            .execute(&mut conn)
+            .with_context(|| format!("Failed to set title for conversation - id: {}", id))?;
 
-        let raw: RawConversation = conversations::table
+        let raw: ConversationEntity = conversations::table
             .find(id.into_string())
-            .first(&mut conn)?;
+            .first(&mut conn)
+            .with_context(|| {
+                format!(
+                    "Failed to retrieve conversation after setting title - id: {}",
+                    id
+                )
+            })?;
 
         Ok(raw.try_into()?)
     }
 }
 
 impl Service {
-    pub fn storage_service(database_url: &str) -> Result<impl ConversationRepository> {
-        let pool_service = Service::db_pool_service(database_url)?;
-        Ok(Live::new(pool_service))
+    pub fn conversation_repo(sql: Arc<dyn Sqlite>) -> impl ConversationRepository {
+        Live::new(sql)
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::sqlite::tests::TestSqlite;
+    use crate::sqlite::TestDriver;
 
-    pub struct TestStorage;
-    impl TestStorage {
+    pub struct TestConversationStorage;
+    impl TestConversationStorage {
         pub fn in_memory() -> Result<impl ConversationRepository> {
-            let pool_service = TestSqlite::new()?;
+            let pool_service = Arc::new(TestDriver::new()?);
             Ok(Live::new(pool_service))
         }
     }
 
     async fn setup_storage() -> Result<impl ConversationRepository> {
-        TestStorage::in_memory()
+        TestConversationStorage::in_memory()
     }
 
     async fn create_conversation(
@@ -195,7 +197,7 @@ pub mod tests {
         id: Option<ConversationId>,
     ) -> Result<Conversation> {
         let request = Context::default();
-        storage.set_conversation(&request, id).await
+        storage.insert(&request, id).await
     }
 
     #[tokio::test]
@@ -204,7 +206,7 @@ pub mod tests {
         let id = ConversationId::generate();
 
         let saved = create_conversation(&storage, Some(id)).await.unwrap();
-        let retrieved = storage.get_conversation(id).await.unwrap();
+        let retrieved = storage.get(id).await.unwrap();
 
         assert_eq!(saved.id, retrieved.id);
         assert_eq!(saved.context, retrieved.context);
@@ -219,9 +221,9 @@ pub mod tests {
         let conv3 = create_conversation(&storage, None).await.unwrap();
 
         // Archive one conversation
-        storage.archive_conversation(conv2.id).await.unwrap();
+        storage.archive(conv2.id).await.unwrap();
 
-        let conversations = storage.list_conversations().await.unwrap();
+        let conversations = storage.list().await.unwrap();
 
         assert_eq!(conversations.len(), 2);
         assert!(conversations.iter().all(|c| !c.archived));
@@ -235,7 +237,7 @@ pub mod tests {
         let storage = setup_storage().await.unwrap();
         let conversation = create_conversation(&storage, None).await.unwrap();
 
-        let archived = storage.archive_conversation(conversation.id).await.unwrap();
+        let archived = storage.archive(conversation.id).await.unwrap();
 
         assert!(archived.archived);
         assert_eq!(archived.id, conversation.id);
@@ -246,7 +248,7 @@ pub mod tests {
         let storage = setup_storage().await.unwrap();
         let conversation = create_conversation(&storage, None).await.unwrap();
         let result = storage
-            .set_conversation_title(&conversation.id, "test-title".to_string())
+            .set_title(&conversation.id, "test-title".to_string())
             .await
             .unwrap();
 

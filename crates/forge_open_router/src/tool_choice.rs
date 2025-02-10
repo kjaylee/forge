@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolChoice {
     None,
     Auto,
+    Required,
     #[serde(untagged)]
     Function {
         r#type: FunctionType,
@@ -12,13 +13,13 @@ pub enum ToolChoice {
     },
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub struct FunctionName {
     pub name: String,
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct FunctionType;
 
 impl Serialize for FunctionType {
@@ -44,6 +45,7 @@ impl From<forge_domain::ToolChoice> for ToolChoice {
         match value {
             forge_domain::ToolChoice::None => ToolChoice::None,
             forge_domain::ToolChoice::Auto => ToolChoice::Auto,
+            forge_domain::ToolChoice::Required => ToolChoice::Required,
             forge_domain::ToolChoice::Call(tool_name) => ToolChoice::Function {
                 function: FunctionName { name: tool_name.into_string() },
                 r#type: FunctionType,

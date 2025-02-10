@@ -1,14 +1,15 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{ChatRequest, EmbeddingsRepository, Environment, ProviderService, ToolService};
-use handlebars::Handlebars;
-use serde::Serialize;
+use forge_domain::{
+    ChatRequest, Environment, FileReadService, ProviderService, SystemContext, ToolService,
+};
+use forge_walker::Walker;
 use tracing::debug;
 
-use super::file_read::FileReadService;
 use super::{PromptService, Service};
-use crate::embeddings::Embedder;
+use crate::prompts::Prompt;
 
 impl Service {
     pub fn system_prompt(
@@ -16,19 +17,10 @@ impl Service {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
-        learning_repository: Arc<dyn EmbeddingsRepository>,
+        system_prompt_path: Option<PathBuf>,
     ) -> impl PromptService {
-        Live::new(env, tool, provider, file_read, learning_repository)
+        Live::new(env, tool, provider, file_read, system_prompt_path)
     }
-}
-
-#[derive(Clone, Serialize)]
-struct SystemContext {
-    env: Environment,
-    tool_information: String,
-    tool_supported: bool,
-    custom_instructions: Option<String>,
-    learnings: Option<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -37,7 +29,7 @@ struct Live {
     tool: Arc<dyn ToolService>,
     provider: Arc<dyn ProviderService>,
     file_read: Arc<dyn FileReadService>,
-    learning_repository: Arc<dyn EmbeddingsRepository>,
+    system_prompt_path: Option<PathBuf>,
 }
 
 impl Live {
@@ -46,17 +38,15 @@ impl Live {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
-        learning_repository: Arc<dyn EmbeddingsRepository>,
+        system_prompt_path: Option<PathBuf>,
     ) -> Self {
-        Self { env, tool, provider, file_read, learning_repository }
+        Self { env, tool, provider, file_read, system_prompt_path }
     }
 }
 
 #[async_trait::async_trait]
 impl PromptService for Live {
     async fn get(&self, request: &ChatRequest) -> Result<String> {
-        let template = include_str!("../prompts/coding/system.md");
-
         let custom_instructions = match request.custom_instructions {
             None => None,
             Some(ref path) => {
@@ -65,15 +55,10 @@ impl PromptService for Live {
             }
         };
 
-        let mut hb = Handlebars::new();
-        hb.set_strict_mode(true);
-        hb.register_escape_fn(|str| str.to_string());
-
         let tool_supported = self
             .provider
             .parameters(&request.model)
-            .await
-            .unwrap()
+            .await?
             .tool_supported;
 
         debug!(
@@ -82,114 +67,113 @@ impl PromptService for Live {
             tool_supported
         );
 
-        let learnings = self
-            .learning_repository
-            .search(
-                Embedder::embed(request.content.clone())?,
-                vec!["learning".to_owned()],
-                3,
-            )
-            .await?;
-        let learnings = if learnings.is_empty() {
-            None
-        } else {
-            Some(learnings.into_iter().map(|l| l.data).collect())
-        };
+        let mut files = Walker::max_all()
+            .max_depth(2)
+            .cwd(self.env.cwd.clone())
+            .get()
+            .await?
+            .iter()
+            .map(|f| f.path.to_string())
+            .collect::<Vec<_>>();
 
-        debug!("Learnings used: {:#?}", learnings);
+        // Sort the files alphabetically to ensure consistent ordering
+        files.sort();
 
         let ctx = SystemContext {
-            env: self.env.clone(),
-            tool_information: self.tool.usage_prompt(),
-            tool_supported,
+            env: Some(self.env.clone()),
+            tool_information: Some(self.tool.usage_prompt()),
+            tool_supported: Some(tool_supported),
             custom_instructions,
-            learnings,
+            files,
         };
 
-        Ok(hb.render_template(template, &ctx)?)
+        let prompt = if let Some(path) = self.system_prompt_path.clone() {
+            self.file_read.read(path).await?
+        } else {
+            include_str!("../prompts/coding/system.md").to_owned()
+        };
+        let prompt = Prompt::new(prompt);
+        Ok(prompt.render(&ctx)?)
     }
 }
 
 #[cfg(test)]
 mod tests {
 
+    use std::path::PathBuf;
+
     use forge_domain::{ModelId, Parameters};
     use insta::assert_snapshot;
+    use tempfile::TempDir;
+    use tokio::fs;
 
     use super::*;
     use crate::service::test::{TestFileReadService, TestProvider};
     use crate::tests::TestLearningEmbedding;
 
-    fn test_env() -> Environment {
+    async fn test_env(dir: PathBuf) -> Environment {
+        fs::write(dir.join("file1.txt"), "A").await.unwrap();
+        fs::write(dir.join("file2.txt"), "B").await.unwrap();
+        fs::create_dir_all(dir.join("nested")).await.unwrap();
+        fs::write(dir.join("nested").join("file3.txt"), "B")
+            .await
+            .unwrap();
         Environment {
             os: "linux".to_string(),
-            cwd: "/home/user/project".to_string(),
+            cwd: dir,
             shell: "/bin/bash".to_string(),
-            home: Some("/home/user".to_string()),
-            files: vec!["file1.txt".to_string(), "file2.txt".to_string()],
             api_key: "test".to_string(),
             large_model_id: "open-ai/gpt-4o".to_string(),
             small_model_id: "open-ai/gpt-4o-mini".to_string(),
+            base_path: PathBuf::from("/home/user/.forge/globalConfig"),
+            home: Some(PathBuf::from("/home/user")),
         }
     }
 
     #[tokio::test]
     async fn test_tool_supported() {
-        let env = test_env();
-        let embedding_repository = Arc::new(TestLearningEmbedding::init().await);
-        let _ = embedding_repository
-            .insert(
-                "Always write unit tests to ensure the correctness of solution".to_string(),
-                vec!["learning".to_owned()],
-            )
-            .await
-            .unwrap();
-        let _ = embedding_repository
-            .insert(
-                "with rust always use pattern matching for exhuastive matching".to_string(),
-                vec!["learning".to_owned()],
-            )
-            .await
-            .unwrap();
-
-        let tools = Arc::new(Service::tool_service(embedding_repository.clone()));
+        let dir = TempDir::new().unwrap();
+        let env = test_env(dir.path().to_path_buf()).await;
+        let tools = Arc::new(Service::tool_service(&env));
         let provider = Arc::new(
             TestProvider::default()
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let file = Arc::new(TestFileReadService::default());
-        let request =
-            ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "write fibo sequence in rust");
-        let prompt = Live::new(env, tools, provider, file, embedding_repository)
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
+        let prompt = Live::new(env, tools, provider, file, None)
             .get(&request)
             .await
-            .unwrap();
+            .unwrap()
+            .replace(&dir.path().display().to_string(), "[TEMP_DIR]");
+
         assert_snapshot!(prompt);
     }
 
     #[tokio::test]
     async fn test_tool_unsupported() {
-        let env = test_env();
-        let embedding_repository = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(embedding_repository.clone()));
+        let dir = TempDir::new().unwrap();
+        let env = test_env(dir.path().to_path_buf()).await;
+        let tools = Arc::new(Service::tool_service(&env));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
         )]));
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file, embedding_repository)
+        let prompt = Live::new(env, tools, provider, file, None)
             .get(&request)
             .await
-            .unwrap();
+            .unwrap()
+            .replace(&dir.path().display().to_string(), "[TEMP_DIR]");
         assert_snapshot!(prompt);
     }
 
     #[tokio::test]
     async fn test_system_prompt_custom_prompt() {
-        let env = test_env();
-        let embedding_repository = Arc::new(TestLearningEmbedding::init().await);
-        let tools = Arc::new(Service::tool_service(embedding_repository.clone()));
+        let dir = TempDir::new().unwrap();
+        let env = test_env(dir.path().to_path_buf()).await;
+        let tools = Arc::new(Service::tool_service(&env));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -197,10 +181,38 @@ mod tests {
         let file = Arc::new(TestFileReadService::default().add(".custom.md", "Woof woof!"));
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task")
             .custom_instructions(".custom.md");
-        let prompt = Live::new(env, tools, provider, file, embedding_repository)
+        let prompt = Live::new(env, tools, provider, file, None)
             .get(&request)
             .await
-            .unwrap();
+            .unwrap()
+            .replace(&dir.path().display().to_string(), "[TEMP_DIR]");
         assert!(prompt.contains("Woof woof!"));
+    }
+
+    #[tokio::test]
+    async fn test_system_prompt_file_path() {
+        let dir = TempDir::new().unwrap();
+        let env = test_env(dir.path().to_path_buf()).await;
+        let tools = Arc::new(Service::tool_service(&env));
+        let provider = Arc::new(TestProvider::default().parameters(vec![(
+            ModelId::new("gpt-3.5-turbo"),
+            Parameters::new(false),
+        )]));
+        let file = Arc::new(TestFileReadService::default().add(
+            "./custom_system_prompt.md",
+            "You're expert at solving puzzles!",
+        ));
+        let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
+        let prompt = Live::new(
+            env,
+            tools,
+            provider,
+            file,
+            Some(PathBuf::from("./custom_system_prompt.md")),
+        )
+        .get(&request)
+        .await
+        .unwrap();
+        assert_eq!(prompt, "You're expert at solving puzzles!");
     }
 }

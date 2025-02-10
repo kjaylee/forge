@@ -1,13 +1,26 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
+use clap::Parser;
 use colored::Colorize;
-use forge_app::{APIService, Service};
-use forge_domain::{ChatRequest, ChatResponse, Command, ConversationId, ModelId, Usage, UserInput};
+use forge_app::{APIService, EnvironmentFactory, Service};
+use forge_display::TitleFormat;
+use forge_domain::{ChatRequest, ChatResponse, ConversationId, Model, ModelId, Usage};
+use forge_tracker::EventKind;
+use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
 
-use crate::{Console, StatusDisplay, CONSOLE};
+use crate::cli::Cli;
+use crate::config::Config;
+use crate::console::CONSOLE;
+use crate::info::Info;
+use crate::input::{Console, PromptInput};
+use crate::model::{Command, ConfigCommand, UserInput};
+use crate::{banner, log};
+
+lazy_static! {
+    pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();
+}
 
 #[derive(Default)]
 struct UIState {
@@ -17,30 +30,55 @@ struct UIState {
     usage: Usage,
 }
 
+impl From<&UIState> for PromptInput {
+    fn from(state: &UIState) -> Self {
+        PromptInput::Update {
+            title: state.current_title.clone(),
+            usage: Some(state.usage.clone()),
+        }
+    }
+}
+
 pub struct UI {
     state: UIState,
     api: Arc<dyn APIService>,
     console: Console,
-    verbose: bool,
-    exec: Option<String>,
-    custom_instructions: Option<PathBuf>,
+    cli: Cli,
+    config: Config,
+    models: Option<Vec<Model>>,
+    #[allow(dead_code)] // The guard is kept alive by being held in the struct
+    _guard: tracing_appender::non_blocking::WorkerGuard,
 }
 
 impl UI {
-    pub async fn new(
-        verbose: bool,
-        exec: Option<String>,
-        custom_instructions: Option<PathBuf>,
-    ) -> Result<Self> {
-        let api = Arc::new(Service::api_service().await?);
+    async fn process_message(&mut self, content: &str) -> Result<()> {
+        let model = self
+            .config
+            .primary_model()
+            .map(ModelId::new)
+            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
+
+        self.chat(content.to_string(), &model).await
+    }
+
+    pub async fn init() -> Result<Self> {
+        // Parse CLI arguments first to get flags
+        let cli = Cli::parse();
+
+        // Create environment with CLI flags
+        let env = EnvironmentFactory::new(std::env::current_dir()?, cli.unrestricted).create()?;
+        let guard = log::init_tracing(env.clone())?;
+        let config = Config::from(&env);
+        let api = Arc::new(Service::api_service(env, cli.system_prompt.clone())?);
 
         Ok(Self {
             state: Default::default(),
-            api,
-            console: Console,
-            verbose,
-            exec,
-            custom_instructions,
+            api: api.clone(),
+            config,
+            console: Console::new(api.environment().await?),
+            cli,
+            models: None,
+            _guard: guard,
         })
     }
 
@@ -52,51 +90,126 @@ impl UI {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        // Handle direct prompt if provided
+        let prompt = self.cli.prompt.clone();
+        if let Some(prompt) = prompt {
+            self.process_message(&prompt).await?;
+            return Ok(());
+        }
+
+        // Display the banner in dimmed colors since we're in interactive mode
+        banner::display()?;
+
         // Get initial input from file or prompt
-        let mut input = match &self.exec {
-            Some(ref path) => self.console.upload(path).await?,
-            None => self.console.prompt(None, None).await?,
+        let mut input = match &self.cli.command {
+            Some(path) => self.console.upload(path).await?,
+            None => self.console.prompt(None).await?,
         };
 
-        let model = ModelId::from_env(&self.api.environment().await?);
+        // read the model from the config or fallback to environment.
+        let mut model = self
+            .config
+            .primary_model()
+            .map(ModelId::new)
+            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 
         loop {
             match input {
-                Command::End => break,
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
-                    input = self.console.prompt(None, None).await?;
+                    input = self.console.prompt(None).await?;
                     continue;
                 }
                 Command::Reload => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
-                    input = match &self.exec {
-                        Some(ref path) => self.console.upload(path).await?,
-                        None => {
-                            self.console
-                                .prompt(None, self.state.current_content.as_deref())
-                                .await?
-                        }
+                    input = match &self.cli.command {
+                        Some(path) => self.console.upload(path).await?,
+                        None => self.console.prompt(None).await?,
                     };
                     continue;
                 }
                 Command::Info => {
-                    crate::display_info(&self.api.environment().await?, &self.state.usage)?;
-                    input = self
-                        .console
-                        .prompt(self.format_title().as_deref(), None)
-                        .await?;
+                    let info = Info::from(&self.api.environment().await?)
+                        .extend(Info::from(&self.state.usage));
+
+                    CONSOLE.writeln(info.to_string())?;
+
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Message(ref content) => {
                     self.state.current_content = Some(content.clone());
-                    self.handle_message(content.clone(), &model).await?;
-                    input = self
-                        .console
-                        .prompt(self.format_title().as_deref(), None)
-                        .await?;
+                    if let Err(err) = self.chat(content.clone(), &model).await {
+                        CONSOLE.writeln(
+                            TitleFormat::failed(format!("{:?}", err))
+                                .sub_title(self.state.usage.to_string())
+                                .format(),
+                        )?;
+                    }
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                }
+                Command::Exit => {
+                    break;
+                }
+                Command::Models => {
+                    let models = if let Some(models) = self.models.as_ref() {
+                        models
+                    } else {
+                        let models = self.api.models().await?;
+                        self.models = Some(models);
+                        self.models.as_ref().unwrap()
+                    };
+                    let info: Info = models.as_slice().into();
+                    CONSOLE.writeln(info.to_string())?;
+
+                    input = self.console.prompt(None).await?;
+                }
+                Command::Config(config_cmd) => {
+                    match config_cmd {
+                        ConfigCommand::Set(key, value) => match self.config.insert(&key, &value) {
+                            Ok(()) => {
+                                model =
+                                    self.config.primary_model().map(ModelId::new).unwrap_or(
+                                        ModelId::from_env(&self.api.environment().await?),
+                                    );
+                                CONSOLE.writeln(format!(
+                                    "{}: {}",
+                                    key.to_string().bold().yellow(),
+                                    value.white()
+                                ))?;
+                            }
+                            Err(e) => {
+                                CONSOLE.writeln(
+                                    TitleFormat::failed(e.to_string())
+                                        .sub_title(self.state.usage.to_string())
+                                        .format(),
+                                )?;
+                            }
+                        },
+                        ConfigCommand::Get(key) => {
+                            if let Some(value) = self.config.get(&key) {
+                                CONSOLE.writeln(format!(
+                                    "{}: {}",
+                                    key.to_string().bold().yellow(),
+                                    value.white()
+                                ))?;
+                            } else {
+                                CONSOLE.writeln(
+                                    TitleFormat::failed(format!("Config key '{}' not found", key))
+                                        .sub_title(self.state.usage.to_string())
+                                        .format(),
+                                )?;
+                            }
+                        }
+                        ConfigCommand::List => {
+                            CONSOLE.writeln(Info::from(&self.config).to_string())?;
+                        }
+                    }
+                    input = self.console.prompt(None).await?;
                 }
             }
         }
@@ -104,41 +217,45 @@ impl UI {
         Ok(())
     }
 
-    async fn handle_message(&mut self, content: String, model: &ModelId) -> Result<()> {
+    async fn chat(&mut self, content: String, model: &ModelId) -> Result<()> {
         let chat = ChatRequest {
-            content,
+            content: content.clone(),
             model: model.clone(),
             conversation_id: self.state.current_conversation_id,
-            custom_instructions: self.custom_instructions.clone(),
+            custom_instructions: self.cli.custom_instructions.clone(),
         };
-
+        tokio::spawn({
+            let content = content.clone();
+            async move {
+                let _ = TRACKER.dispatch(EventKind::Prompt(content)).await;
+            }
+        });
         match self.api.chat(chat).await {
-            Ok(mut stream) => {
-                while let Some(message) = stream.next().await {
-                    match message {
-                        Ok(message) => self.handle_chat_response(message)?,
-                        Err(err) => {
-                            CONSOLE.writeln(
-                                StatusDisplay::failed(err.to_string(), self.state.usage.clone())
-                                    .format(),
-                            )?;
+            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn handle_chat_stream(
+        &mut self,
+        stream: &mut (impl StreamExt<Item = Result<ChatResponse>> + Unpin),
+    ) -> Result<()> {
+        loop {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {
+                    return Ok(());
+                }
+                maybe_message = stream.next() => {
+                    match maybe_message {
+                        Some(Ok(message)) => self.handle_chat_response(message)?,
+                        Some(Err(err)) => {
+                            return Err(err);
                         }
+                        None => return Ok(()),
                     }
                 }
             }
-            Err(err) => {
-                CONSOLE.writeln(
-                    StatusDisplay::failed_with(
-                        err.to_string().as_str(),
-                        "Failed to establish chat stream",
-                        self.state.usage.clone(),
-                    )
-                    .format(),
-                )?;
-            }
         }
-
-        Ok(())
     }
 
     fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
@@ -147,43 +264,54 @@ impl UI {
                 CONSOLE.write(&text)?;
             }
             ChatResponse::ToolCallDetected(tool_name) => {
-                CONSOLE.newline()?;
-                CONSOLE.writeln(
-                    StatusDisplay::execute(tool_name.as_str(), self.state.usage.clone()).format(),
-                )?;
-                CONSOLE.newline()?;
+                if self.cli.verbose {
+                    CONSOLE.newline()?;
+                    CONSOLE.newline()?;
+                    CONSOLE.writeln(
+                        TitleFormat::execute(tool_name.as_str())
+                            .sub_title(self.state.usage.to_string())
+                            .format(),
+                    )?;
+                    CONSOLE.newline()?;
+                }
             }
             ChatResponse::ToolCallArgPart(arg) => {
-                CONSOLE.write(format!("{}", arg.dimmed()))?;
+                if self.cli.verbose {
+                    CONSOLE.write(format!("{}", arg.dimmed()))?;
+                }
             }
             ChatResponse::ToolCallStart(_) => {
                 CONSOLE.newline()?;
                 CONSOLE.newline()?;
             }
             ChatResponse::ToolCallEnd(tool_result) => {
-                let tool_name = tool_result.name.as_str();
-                // Always show result content for errors, or in verbose mode
-                if tool_result.is_error || self.verbose {
-                    CONSOLE.writeln(format!("{}", tool_result.to_string().dimmed()))?;
+                if !self.cli.verbose {
+                    return Ok(());
                 }
-                let status = if tool_result.is_error {
-                    StatusDisplay::failed(tool_name, self.state.usage.clone())
-                } else {
-                    StatusDisplay::success(tool_name, self.state.usage.clone())
-                };
 
-                CONSOLE.writeln(status.format())?;
+                let tool_name = tool_result.name.as_str();
+
+                CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
+
+                if tool_result.is_error {
+                    CONSOLE.writeln(
+                        TitleFormat::failed(tool_name)
+                            .sub_title(self.state.usage.to_string())
+                            .format(),
+                    )?;
+                } else {
+                    CONSOLE.writeln(
+                        TitleFormat::success(tool_name)
+                            .sub_title(self.state.usage.to_string())
+                            .format(),
+                    )?;
+                }
             }
             ChatResponse::ConversationStarted(conversation_id) => {
                 self.state.current_conversation_id = Some(conversation_id);
             }
             ChatResponse::ModifyContext(_) => {}
             ChatResponse::Complete => {}
-            ChatResponse::Error(err) => {
-                CONSOLE.writeln(
-                    StatusDisplay::failed(err.to_string(), self.state.usage.clone()).format(),
-                )?;
-            }
             ChatResponse::PartialTitle(_) => {}
             ChatResponse::CompleteTitle(title) => {
                 self.state.current_title = Some(title);
@@ -194,12 +322,5 @@ impl UI {
             }
         }
         Ok(())
-    }
-
-    fn format_title(&self) -> Option<String> {
-        self.state
-            .current_title
-            .as_ref()
-            .map(|title| StatusDisplay::task(title, self.state.usage.clone()).format())
     }
 }

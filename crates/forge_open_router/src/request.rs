@@ -1,18 +1,12 @@
 use derive_more::derive::Display;
 use derive_setters::Setters;
-use forge_domain::{Context, ContextMessage, ModelId, Role, ToolCallId, ToolDefinition, ToolName};
+use forge_domain::{
+    Context, ContextMessage, ModelId, Role, ToolCallFull, ToolCallId, ToolDefinition, ToolName,
+};
 use serde::{Deserialize, Serialize};
 
 use super::response::{FunctionCall, OpenRouterToolCall};
 use super::tool_choice::{FunctionType, ToolChoice};
-
-// NOTE: only some of the anthropic models support caching.
-const CLAUDE_CACHE_SUPPORTED_MODELS: &[&str] = &[
-    "anthropic/claude-3.5-sonnet",
-    "anthropic/claude-3.5-haiku",
-    "anthropic/claude-3-haiku",
-    "anthropic/claude-3-opus",
-];
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TextContent {
@@ -121,7 +115,7 @@ pub struct ProviderPreferences {
     // Define fields as necessary
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Setters)]
+#[derive(Debug, Deserialize, Serialize, Clone, Setters, Default)]
 #[setters(strip_option)]
 pub struct OpenRouterRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -167,13 +161,23 @@ pub struct OpenRouterRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prediction: Option<Prediction>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub transforms: Option<Vec<String>>,
+    pub transforms: Option<Vec<Transform>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub models: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<ProviderPreferences>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
+}
+
+/// ref: https://openrouter.ai/docs/transforms
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub enum Transform {
+    #[default]
+    #[serde(rename = "middle-out")]
+    MiddleOut,
 }
 
 impl From<ToolDefinition> for OpenRouterTool {
@@ -232,10 +236,24 @@ impl From<Context> for OpenRouterRequest {
             min_p: Default::default(),
             top_a: Default::default(),
             prediction: Default::default(),
-            transforms: Default::default(),
+            transforms: Some(vec![Transform::default()]),
             models: Default::default(),
             route: Default::default(),
             provider: Default::default(),
+            parallel_tool_calls: Some(false),
+        }
+    }
+}
+
+impl From<ToolCallFull> for OpenRouterToolCall {
+    fn from(value: ToolCallFull) -> Self {
+        Self {
+            id: value.call_id,
+            r#type: FunctionType,
+            function: FunctionCall {
+                arguments: serde_json::to_string(&value.arguments).unwrap(),
+                name: Some(value.name),
+            },
         }
     }
 }
@@ -248,16 +266,11 @@ impl From<ContextMessage> for OpenRouterMessage {
                 content: Some(MessageContent::Text(chat_message.content)),
                 name: None,
                 tool_call_id: None,
-                tool_calls: chat_message.tool_call.map(|tool_call| {
-                    // FIXME: All the tool_calls should be added, instead of just one of them
-                    vec![OpenRouterToolCall {
-                        id: tool_call.call_id,
-                        r#type: FunctionType,
-                        function: FunctionCall {
-                            arguments: serde_json::to_string(&tool_call.arguments).unwrap(),
-                            name: Some(tool_call.name),
-                        },
-                    }]
+                tool_calls: chat_message.tool_calls.map(|tool_calls| {
+                    tool_calls
+                        .into_iter()
+                        .map(OpenRouterToolCall::from)
+                        .collect()
                 }),
             },
             ContextMessage::ToolMessage(tool_result) => OpenRouterMessage {
@@ -268,36 +281,6 @@ impl From<ContextMessage> for OpenRouterMessage {
                 tool_calls: None,
             },
         }
-    }
-}
-
-impl OpenRouterRequest {
-    /// Inserts cache control information into the last system or user message
-    /// if model supports it.
-    /// NOTE: This helps reduce context window usage
-    /// by caching only the most recent system/user message
-    pub fn cache(mut self) -> Self {
-        if let (Some(mut messages), Some(model)) = (self.messages.take(), self.model.take()) {
-            let model_id = model.as_str();
-            let should_cache = !model_id.contains("anthropic")
-                || CLAUDE_CACHE_SUPPORTED_MODELS
-                    .iter()
-                    .any(|m| model_id.contains(m));
-
-            if should_cache {
-                if let Some(msg) = messages
-                    .iter_mut()
-                    .rev()
-                    .find(|msg| matches!(msg.role, OpenRouterRole::System | OpenRouterRole::User))
-                {
-                    msg.content = msg.content.take().map(|content| content.cached());
-                }
-            }
-
-            self.messages = Some(messages);
-            self.model = Some(model);
-        }
-        self
     }
 }
 
@@ -335,7 +318,7 @@ mod tests {
         let user_message = ContextMessage::ContentMessage(ContentMessage {
             role: Role::User,
             content: "Hello".to_string(),
-            tool_call: None,
+            tool_calls: None,
         });
         let router_message = OpenRouterMessage::from(user_message);
         assert_json_snapshot!(router_message);
@@ -356,7 +339,7 @@ mod tests {
         let message = ContextMessage::ContentMessage(ContentMessage {
             role: Role::User,
             content: xml_content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         });
         let router_message = OpenRouterMessage::from(message);
         assert_json_snapshot!(router_message);
@@ -373,7 +356,7 @@ mod tests {
         let assistant_message = ContextMessage::ContentMessage(ContentMessage {
             role: Role::Assistant,
             content: "Using tool".to_string(),
-            tool_call: Some(tool_call),
+            tool_calls: Some(vec![tool_call]),
         });
         let router_message = OpenRouterMessage::from(assistant_message);
         assert_json_snapshot!(router_message);
@@ -428,127 +411,10 @@ mod tests {
     }
 
     #[test]
-    fn test_message_caching() {
-        let context = Context {
-            messages: vec![
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::System,
-                    content: "First system message".to_string(),
-                    tool_call: None,
-                }),
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::User,
-                    content: "Last user message".to_string(),
-                    tool_call: None,
-                }),
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::Assistant,
-                    content: "Assistant message".to_string(),
-                    tool_call: None,
-                }),
-            ],
-            tools: vec![],
-            tool_choice: None,
-        };
-
-        let request = OpenRouterRequest::from(context)
-            .model(ModelId::new("anthropic/claude-3.5-sonnet"))
-            .cache();
-        let messages = request.messages.unwrap();
-
-        // Verify first system message is NOT cached (it's not the last system/user
-        // message)
-        if let Some(MessageContent::Text(_)) = &messages[0].content {
-            // System message should be plain text (not cached)
-        } else {
-            panic!("First system message should not be cached");
-        }
-
-        // Verify last user message IS cached
-        if let Some(MessageContent::Parts(parts)) = &messages[1].content {
-            assert!(matches!(
-                parts[0],
-                ContentPart::Text { cache_control: Some(_), .. }
-            ));
-        } else {
-            panic!("Last user message should be cached");
-        }
-
-        // Verify assistant message is not cached
-        if let Some(MessageContent::Text(_)) = &messages[2].content {
-            // Assistant message remains as Text, not converted to Parts with
-            // caching
-        } else {
-            panic!("Assistant message should not be cached");
-        }
-
-        // Test with only system messages
-        let context_system_only = Context {
-            messages: vec![
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::System,
-                    content: "First system message".to_string(),
-                    tool_call: None,
-                }),
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::System,
-                    content: "Last system message".to_string(),
-                    tool_call: None,
-                }),
-            ],
-            tools: vec![],
-            tool_choice: None,
-        };
-
-        let request = OpenRouterRequest::from(context_system_only)
-            .model(ModelId::new("anthropic/claude-3.5-sonnet"))
-            .cache();
-        let messages = request.messages.unwrap();
-
-        // Verify first system message is NOT cached
-        if let Some(MessageContent::Text(_)) = &messages[0].content {
-            // First system message should be plain text (not cached)
-        } else {
-            panic!("First system message should not be cached");
-        }
-
-        // Verify last system message IS cached
-        if let Some(MessageContent::Parts(parts)) = &messages[1].content {
-            assert!(matches!(
-                parts[0],
-                ContentPart::Text { cache_control: Some(_), .. }
-            ));
-        } else {
-            panic!("Last system message should be cached");
-        }
-    }
-
-    #[test]
-    fn test_should_not_cache_when_model_doesnt_support() {
-        let context = Context {
-            messages: vec![
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::System,
-                    content: "First system message".to_string(),
-                    tool_call: None,
-                }),
-                ContextMessage::ContentMessage(ContentMessage {
-                    role: Role::User,
-                    content: "Last user message".to_string(),
-                    tool_call: None,
-                }),
-            ],
-            tools: vec![],
-            tool_choice: None,
-        };
-
-        let request = OpenRouterRequest::from(context)
-            .model(ModelId::new("anthropic/claude-3-sonnet"))
-            .cache();
-
-        let messages = request.messages.unwrap();
-        for msg in messages {
-            assert!(matches!(msg.content, Some(MessageContent::Text(_))));
-        }
+    fn test_transform_display() {
+        assert_eq!(
+            serde_json::to_string(&Transform::MiddleOut).unwrap(),
+            "\"middle-out\""
+        );
     }
 }

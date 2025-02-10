@@ -9,6 +9,8 @@ pub struct Model {
     pub id: ModelId,
     pub name: String,
     pub description: Option<String>,
+    pub context_length: u64,
+    // TODO: add provider information to the model
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -27,8 +29,8 @@ impl Parameters {
 pub struct ModelId(String);
 
 impl ModelId {
-    pub fn new(id: &str) -> Self {
-        Self(id.to_string())
+    pub fn new<T: Into<String>>(id: T) -> Self {
+        Self(id.into())
     }
 }
 

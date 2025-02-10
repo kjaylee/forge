@@ -1,4 +1,4 @@
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -18,13 +18,13 @@ pub struct AskFollowUpQuestionInput {
 pub struct AskFollowUpQuestion;
 
 impl NamedTool for AskFollowUpQuestion {
-    fn tool_name(&self) -> ToolName {
+    fn tool_name() -> ToolName {
         ToolName::new("tool_forge_ui_ask")
     }
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for AskFollowUpQuestion {
+impl ExecutableTool for AskFollowUpQuestion {
     type Input = AskFollowUpQuestionInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {

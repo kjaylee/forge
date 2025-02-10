@@ -1,13 +1,16 @@
-pub mod banner;
-pub mod console;
-pub mod info;
-pub mod input;
+mod banner;
+mod cli;
+mod completer;
+mod config;
+mod console;
+mod editor;
+mod error;
+mod info;
+mod input;
+mod log;
+mod model;
 mod normalize;
-pub mod status;
-pub mod ui;
+mod prompt;
+mod ui;
 
-pub use console::CONSOLE;
-pub use info::display_info;
-pub use input::Console;
-pub use status::StatusDisplay;
 pub use ui::UI;

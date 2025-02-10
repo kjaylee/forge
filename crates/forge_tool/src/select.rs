@@ -1,5 +1,5 @@
 use anyhow::Result;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use inquire::Select as InquireSelect;
 use schemars::JsonSchema;
@@ -35,13 +35,13 @@ pub struct SelectInput {
 pub struct SelectTool;
 
 impl NamedTool for SelectTool {
-    fn tool_name(&self) -> ToolName {
+    fn tool_name() -> ToolName {
         ToolName::new("tool_forge_ui_select")
     }
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for SelectTool {
+impl ExecutableTool for SelectTool {
     type Input = SelectInput;
 
     async fn call(&self, input: SelectInput) -> Result<String, String> {

@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use dissimilar::Chunk;
-use forge_domain::{NamedTool, ToolCallService, ToolDescription, ToolName};
+use forge_display::DiffFormat;
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use thiserror::Error;
@@ -10,6 +11,7 @@ use tokio::fs;
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
 use crate::syn;
+use crate::utils::assert_absolute_path;
 
 #[derive(Debug, Error)]
 enum Error {
@@ -22,7 +24,7 @@ enum Error {
 /// Input parameters for the fs_replace tool.
 #[derive(Deserialize, JsonSchema)]
 pub struct ApplyPatchInput {
-    /// File path relative to the current working directory
+    /// File path (absolute path required)
     pub path: String,
     /// Multiple SEARCH/REPLACE blocks separated by newlines, defining changes
     /// to make to the file.
@@ -32,7 +34,7 @@ pub struct ApplyPatchInput {
 pub struct ApplyPatch;
 
 impl NamedTool for ApplyPatch {
-    fn tool_name(&self) -> ToolName {
+    fn tool_name() -> ToolName {
         ToolName::new("tool_forge_patch")
     }
 }
@@ -138,24 +140,27 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for ApplyPatch {
+impl ExecutableTool for ApplyPatch {
     type Input = ApplyPatchInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
+
         if !path.exists() {
             return Err(Error::FileNotFound(path.to_path_buf()).to_string());
         }
 
         let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
 
-        let result: Result<_, Error> = async {
-            let content = fs::read_to_string(&input.path)
-                .await
-                .map_err(Error::FileOperation)?;
+        // Read the content of the file before applying the patch
+        let old_content = fs::read_to_string(&input.path)
+            .await
+            .map_err(Error::FileOperation)
+            .map_err(|e| e.to_string())?;
 
-            let modified = apply_patches(content, blocks).await?;
-
+        let result = async {
+            let modified = apply_patches(old_content.clone(), blocks).await?;
             fs::write(&input.path, &modified)
                 .await
                 .map_err(Error::FileOperation)?;
@@ -177,12 +182,21 @@ impl ToolCallService for ApplyPatch {
                     modified.trim_end()
                 )
             };
-
             Ok(output)
         }
-        .await;
+        .await
+        .map_err(|e: Error| e.to_string())?;
 
-        result.map_err(|e| e.to_string())
+        // record the content of the file after applying the patch
+        let new_content = fs::read_to_string(path)
+            .await
+            .map_err(Error::FileOperation)
+            .map_err(|e| e.to_string())?;
+        // Generate diff between old and new content
+        let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
+        println!("{}", diff);
+
+        Ok(result)
     }
 }
 
@@ -190,35 +204,8 @@ impl ToolCallService for ApplyPatch {
 mod test {
     use std::io::{Error as IoError, ErrorKind as IoErrorKind};
 
-    use tempfile::TempDir;
-
     use super::*;
-
-    /// Normalize paths in snapshot content by replacing temporary directory
-    /// paths with [TEMP_DIR]
-    fn normalize_path(content: &str) -> String {
-        let path_attribute = regex::Regex::new(r#"[a-zA-Z]*\.([a-z]*)""#).unwrap();
-        let file_name = path_attribute
-            .find(content)
-            .unwrap()
-            .as_str()
-            .replace("\"", "");
-
-        let new_path = format!("path=\"[TEMP_DIR]/{}\"", file_name);
-        let pattern = regex::Regex::new(r#"path="[a-zA-Z0-9_/.]*""#).unwrap();
-        let content = pattern.replace_all(content, &new_path);
-        content.to_string()
-    }
-
-    #[test]
-    fn test_normalize_path() {
-        let input = "<file_content path=\"/var/folders/xy/1234567890/T/.tmpABCDEF/test.txt\">Some test content</file_content>";
-        let normalized = normalize_path(input);
-        assert_eq!(
-            normalized,
-            "<file_content path=\"[TEMP_DIR]/test.txt\">Some test content</file_content>"
-        );
-    }
+    use crate::utils::TempDir;
 
     async fn write_test_file(path: impl AsRef<Path>, content: &str) -> Result<(), Error> {
         fs::write(&path, content)
@@ -242,15 +229,18 @@ mod test {
 
     #[tokio::test]
     async fn test_file_not_found() {
+        let temp_dir = TempDir::new().unwrap();
+        let nonexistent = temp_dir.path().join("nonexistent.txt");
+
         let fs_replace = ApplyPatch;
         let result = fs_replace
             .call(ApplyPatchInput {
-                path: "nonexistent.txt".to_string(),
+                path: nonexistent.to_string_lossy().to_string(),
                 diff: format!("{SEARCH}\nHello\n{DIVIDER}\nWorld\n{REPLACE}\n"),
             })
             .await;
 
-        insta::assert_snapshot!(result.unwrap_err());
+        assert!(result.unwrap_err().contains("File not found"));
     }
 
     #[tokio::test]
@@ -273,7 +263,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content to verify whitespace preservation
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -296,7 +286,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -319,7 +309,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content to verify both replacements
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -341,7 +331,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
 
         // Also snapshot the final file content to verify the line was removed
         let final_content = fs::read_to_string(&file_path).await.unwrap();
@@ -368,7 +358,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -384,7 +374,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
 
@@ -400,7 +390,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content3 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content3);
     }
@@ -431,7 +421,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -444,7 +434,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
     }
@@ -475,7 +465,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content1 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content1);
 
@@ -488,7 +478,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content2 = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content2);
     }
@@ -513,7 +503,7 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content);
     }
@@ -535,8 +525,22 @@ mod test {
             .await
             .unwrap();
 
-        insta::assert_snapshot!(normalize_path(&result));
+        insta::assert_snapshot!(TempDir::normalize(&result));
         let content = fs::read_to_string(&file_path).await.unwrap();
         insta::assert_snapshot!(content);
+    }
+
+    #[tokio::test]
+    async fn test_patch_relative_path() {
+        let fs_replace = ApplyPatch;
+        let result = fs_replace
+            .call(ApplyPatchInput {
+                path: "relative/path.txt".to_string(),
+                diff: format!("{SEARCH}\ntest\n{DIVIDER}\nreplacement\n{REPLACE}\n"),
+            })
+            .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Path must be absolute"));
     }
 }

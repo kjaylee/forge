@@ -20,7 +20,7 @@ impl ContextMessage {
         ContentMessage {
             role: Role::User,
             content: content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         }
         .into()
     }
@@ -29,16 +29,18 @@ impl ContextMessage {
         ContentMessage {
             role: Role::System,
             content: content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         }
         .into()
     }
 
-    pub fn assistant(content: impl ToString, tool_call: Option<ToolCallFull>) -> Self {
+    pub fn assistant(content: impl ToString, tool_calls: Option<Vec<ToolCallFull>>) -> Self {
+        let tool_calls =
+            tool_calls.and_then(|calls| if calls.is_empty() { None } else { Some(calls) });
         ContentMessage {
             role: Role::Assistant,
             content: content.to_string(),
-            tool_call,
+            tool_calls,
         }
         .into()
     }
@@ -49,6 +51,17 @@ impl ContextMessage {
             ContextMessage::ToolMessage(result) => serde_json::to_string(&result.content).unwrap(),
         }
     }
+
+    pub fn tool_result(result: ToolResult) -> Self {
+        Self::ToolMessage(result)
+    }
+
+    pub fn has_role(&self, role: Role) -> bool {
+        match self {
+            ContextMessage::ContentMessage(message) => message.role == role,
+            ContextMessage::ToolMessage(_) => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Setters)]
@@ -56,9 +69,7 @@ impl ContextMessage {
 pub struct ContentMessage {
     pub role: Role,
     pub content: String,
-
-    // FIXME: Message could contain multiple tool calls
-    pub tool_call: Option<ToolCallFull>,
+    pub tool_calls: Option<Vec<ToolCallFull>>,
 }
 
 impl ContentMessage {
@@ -66,7 +77,7 @@ impl ContentMessage {
         Self {
             role: Role::Assistant,
             content: content.to_string(),
-            tool_call: None,
+            tool_calls: None,
         }
     }
 }
@@ -111,8 +122,14 @@ impl Context {
         self
     }
 
+    pub fn add_tool_results(mut self, results: Vec<ToolResult>) -> Self {
+        self.messages
+            .extend(results.into_iter().map(ContextMessage::tool_result));
+        self
+    }
+
     /// Updates the set system message
-    pub fn set_system_message(mut self, content: impl Into<String>) -> Self {
+    pub fn set_first_system_message(mut self, content: impl Into<String>) -> Self {
         if self.messages.is_empty() {
             self.add_message(ContextMessage::system(content.into()))
         } else {
@@ -128,6 +145,43 @@ impl Context {
 
             self
         }
+    }
+
+    /// Converts the context to textual format
+    pub fn to_text(&self) -> String {
+        let mut lines = String::new();
+
+        for message in self.messages.iter() {
+            match message {
+                ContextMessage::ContentMessage(message) => {
+                    lines.push_str(&format!("<message role=\"{}\">", message.role));
+                    lines.push_str(&format!("<content>{}</content>", message.content));
+                    if let Some(tool_calls) = &message.tool_calls {
+                        for call in tool_calls {
+                            lines.push_str(&format!(
+                                "<tool_call name=\"{}\"><![CDATA[{}]]></tool_call>",
+                                call.name.as_str(),
+                                serde_json::to_string(&call.arguments).unwrap()
+                            ));
+                        }
+                    }
+
+                    lines.push_str("</message>");
+                }
+                ContextMessage::ToolMessage(result) => {
+                    lines.push_str("<message role=\"tool\">");
+
+                    lines.push_str(&format!(
+                        "<tool_result name=\"{}\"><![CDATA[{}]]></tool_result>",
+                        result.name.as_str(),
+                        serde_json::to_string(&result.content).unwrap()
+                    ));
+                    lines.push_str("</message>");
+                }
+            }
+        }
+
+        format!("<chat_history>{}</chat_history>", lines)
     }
 }
 
@@ -156,7 +210,7 @@ mod tests {
     fn test_override_system_message() {
         let request = Context::default()
             .add_message(ContextMessage::system("Initial system message"))
-            .set_system_message("Updated system message");
+            .set_first_system_message("Updated system message");
 
         assert_eq!(
             request.messages[0],
@@ -166,7 +220,7 @@ mod tests {
 
     #[test]
     fn test_set_system_message() {
-        let request = Context::default().set_system_message("A system message");
+        let request = Context::default().set_first_system_message("A system message");
 
         assert_eq!(
             request.messages[0],
@@ -178,7 +232,7 @@ mod tests {
     fn test_insert_system_message() {
         let request = Context::default()
             .add_message(ContextMessage::user("Do something"))
-            .set_system_message("A system message");
+            .set_first_system_message("A system message");
 
         assert_eq!(
             request.messages[0],

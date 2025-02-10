@@ -18,7 +18,7 @@
 name: ci
 env:
   RUSTFLAGS: -Dwarnings
-  FORGE_KEY: ${{secrets.FORGE_KEY}}
+  OPEN_ROUTER_KEY: ${{secrets.OPEN_ROUTER_KEY}}
 on:
   pull_request:
     types:
@@ -71,3 +71,106 @@ jobs:
       run: cargo +nightly fmt --all --check
     - name: Cargo Clippy
       run: cargo +nightly clippy --all-features --workspace -- -D warnings
+  draft_release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: draft_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+    - id: create_release
+      uses: release-drafter/release-drafter@v6
+      with:
+        config-name: release-drafter.yml
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - id: set_output
+      run: echo "create_release_id=${{ steps.create_release.outputs.id }}" >> $GITHUB_OUTPUT && echo "create_release_name=${{ steps.create_release.outputs.tag_name }}" >> $GITHUB_OUTPUT
+    outputs:
+      create_release_name: ${{ steps.set_output.outputs.create_release_name }}
+      create_release_id: ${{ steps.set_output.outputs.create_release_id }}
+  build-release:
+    needs:
+    - build
+    - draft_release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: build-release
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      matrix:
+        include:
+        - binary_name: forge-x86_64-unknown-linux-gnu
+          binary_path: target/x86_64-unknown-linux-gnu/release/forge
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+        - binary_name: forge-x86_64-apple-darwin
+          binary_path: target/x86_64-apple-darwin/release/forge
+          os: macos-latest
+          target: x86_64-apple-darwin
+        - binary_name: forge-aarch64-apple-darwin
+          binary_path: target/aarch64-apple-darwin/release/forge
+          os: macos-latest
+          target: aarch64-apple-darwin
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    - uses: ClementTsang/cargo-action@v0.0.3
+      with:
+        command: build --release
+        args: --target ${{ matrix.target }}
+      env:
+        RUSTFLAGS: -C target-feature=+crt-static
+        POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
+        APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
+    - run: cp ${{ matrix.binary_path }} forge-${{ matrix.target }}
+    - uses: xresloader/upload-to-github-release@v1
+      with:
+        release_id: ${{ needs.draft_release.outputs.create_release_id }}
+        file: forge-${{ matrix.target }}
+        overwrite: 'true'
+  semantic_release:
+    needs:
+    - draft_release
+    - build-release
+    if: (startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    name: semantic_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
+    steps:
+    - uses: test-room-7/action-publish-release-drafts@v0
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        tag-name: ${{ needs.draft_release.outputs.create_release_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  homebrew_release:
+    needs:
+    - draft_release
+    - build-release
+    - semantic_release
+    if: (startsWith(github.event.head_commit.message, 'feat') || startsWith(github.event.head_commit.message, 'fix')) && (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    name: homebrew_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: antinomyhq/homebrew-code-forge
+        ref: main
+        token: ${{ secrets.HOMEBREW_ACCESS }}
+    - run: GITHUB_TOKEN="${{ secrets.HOMEBREW_ACCESS }}" ./update-formula.sh ${{needs.draft_release.outputs.create_release_name }}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
