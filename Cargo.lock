@@ -879,6 +879,7 @@ dependencies = [
  "crossterm 0.28.1",
  "derive_setters",
  "dirs",
+ "dotenv",
  "forge_app",
  "forge_display",
  "forge_domain",

@@ -40,18 +40,12 @@ impl EnvironmentFactory {
         dotenv::dotenv().ok();
         let cwd = self.cwd.clone();
         let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
-        let large_model_id =
-            std::env::var("FORGE_LARGE_MODEL").unwrap_or("anthropic/claude-3.5-sonnet".to_owned());
-        let small_model_id =
-            std::env::var("FORGE_SMALL_MODEL").unwrap_or("anthropic/claude-3.5-haiku".to_owned());
 
         Ok(Environment {
             os: std::env::consts::OS.to_string(),
             cwd,
             shell: Self::get_shell_path(self.unrestricted),
             api_key,
-            large_model_id,
-            small_model_id,
             base_path: dirs::config_dir()
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),

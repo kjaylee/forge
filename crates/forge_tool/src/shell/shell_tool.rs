@@ -146,8 +146,6 @@ mod tests {
                 "/bin/sh".to_string()
             },
             api_key: String::new(),
-            large_model_id: String::new(),
-            small_model_id: String::new(),
             base_path: PathBuf::new(),
         }
     }

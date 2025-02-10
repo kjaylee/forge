@@ -4,7 +4,6 @@ mod completer;
 mod config;
 mod console;
 mod editor;
-mod error;
 mod info;
 mod input;
 mod log;

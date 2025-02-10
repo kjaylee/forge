@@ -15,7 +15,7 @@ use crate::config::Config;
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::{Console, PromptInput};
-use crate::model::{Command, ConfigCommand, UserInput};
+use crate::model::{Command, UserInput};
 use crate::{banner, log};
 
 lazy_static! {
@@ -52,30 +52,24 @@ pub struct UI {
 
 impl UI {
     async fn process_message(&mut self, content: &str) -> Result<()> {
-        let model = self
-            .config
-            .primary_model()
-            .map(ModelId::new)
-            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
-
+        let model = ModelId::new(self.config.primary_model());
         self.chat(content.to_string(), &model).await
     }
 
     pub async fn init() -> Result<Self> {
         // Parse CLI arguments first to get flags
         let cli = Cli::parse();
-
+        let config = Config::load();
         // Create environment with CLI flags
         let env = EnvironmentFactory::new(std::env::current_dir()?, cli.unrestricted).create()?;
         let guard = log::init_tracing(env.clone())?;
-        let config = Config::from(&env);
         let api = Arc::new(Service::api_service(env, cli.system_prompt.clone())?);
 
         Ok(Self {
             state: Default::default(),
             api: api.clone(),
-            config,
             console: Console::new(api.environment().await?),
+            config,
             cli,
             models: None,
             _guard: guard,
@@ -106,14 +100,12 @@ impl UI {
             None => self.console.prompt(None).await?,
         };
 
-        // read the model from the config or fallback to environment.
-        let mut model = self
-            .config
-            .primary_model()
-            .map(ModelId::new)
-            .unwrap_or(ModelId::from_env(&self.api.environment().await?));
 
         loop {
+            // load config on each iteration
+            self.config = Config::load();
+            let model = ModelId::new(self.config.primary_model());
+
             match input {
                 Command::New => {
                     CONSOLE.writeln(self.context_reset_message(&input))?;
@@ -166,49 +158,6 @@ impl UI {
                     let info: Info = models.as_slice().into();
                     CONSOLE.writeln(info.to_string())?;
 
-                    input = self.console.prompt(None).await?;
-                }
-                Command::Config(config_cmd) => {
-                    match config_cmd {
-                        ConfigCommand::Set(key, value) => match self.config.insert(&key, &value) {
-                            Ok(()) => {
-                                model =
-                                    self.config.primary_model().map(ModelId::new).unwrap_or(
-                                        ModelId::from_env(&self.api.environment().await?),
-                                    );
-                                CONSOLE.writeln(format!(
-                                    "{}: {}",
-                                    key.to_string().bold().yellow(),
-                                    value.white()
-                                ))?;
-                            }
-                            Err(e) => {
-                                CONSOLE.writeln(
-                                    TitleFormat::failed(e.to_string())
-                                        .sub_title(self.state.usage.to_string())
-                                        .format(),
-                                )?;
-                            }
-                        },
-                        ConfigCommand::Get(key) => {
-                            if let Some(value) = self.config.get(&key) {
-                                CONSOLE.writeln(format!(
-                                    "{}: {}",
-                                    key.to_string().bold().yellow(),
-                                    value.white()
-                                ))?;
-                            } else {
-                                CONSOLE.writeln(
-                                    TitleFormat::failed(format!("Config key '{}' not found", key))
-                                        .sub_title(self.state.usage.to_string())
-                                        .format(),
-                                )?;
-                            }
-                        }
-                        ConfigCommand::List => {
-                            CONSOLE.writeln(Info::from(&self.config).to_string())?;
-                        }
-                    }
                     input = self.console.prompt(None).await?;
                 }
             }

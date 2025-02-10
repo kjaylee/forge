@@ -122,8 +122,6 @@ mod tests {
             cwd: dir,
             shell: "/bin/bash".to_string(),
             api_key: "test".to_string(),
-            large_model_id: "open-ai/gpt-4o".to_string(),
-            small_model_id: "open-ai/gpt-4o-mini".to_string(),
             base_path: PathBuf::from("/home/user/.forge/globalConfig"),
             home: Some(PathBuf::from("/home/user")),
         }
