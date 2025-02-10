@@ -26,7 +26,7 @@ impl Workflow {
             .system_prompt(Prompt::<SystemContext>::new(include_str!(
                 "./prompts/learning_extractor.md"
             ))) // fix the path.
-            .user_prompt(Prompt::<Variables>::new("{{task}}"))
+            .user_prompt(Prompt::<Variables>::new("{{context}}"))
             .provider(Provider::new("open-ai"))
             .tools(vec![])
             .build()
@@ -38,7 +38,7 @@ impl Workflow {
             .system_prompt(Prompt::<SystemContext>::new(include_str!(
                 "./prompts/learning_finder.md"
             ))) // fix the path.
-            .user_prompt(Prompt::<Variables>::new("{{task}}"))
+            .user_prompt(Prompt::<Variables>::new("{{user_message}}"))
             .provider(Provider::new("open-ai"))
             .tools(vec![]) // add a tool that helps agent retrive the relevent learnings from db.
             .build()
@@ -55,8 +55,8 @@ impl Workflow {
             .entry(true)
             .ephemeral(true)
             .transforms(vec![Transform::Tap {
-                agent_id: AgentId::new("learning-finder"),
-                input: "...".into(),
+                agent_id: AgentId::new("learning-extractor"),
+                input: "context".into(),
             }])
             .build()
             .unwrap();
