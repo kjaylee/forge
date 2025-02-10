@@ -1,5 +1,6 @@
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, Prompt, Provider, SystemContext, Variables,
+    Agent, AgentBuilder, AgentId, Environment, ModelId, Prompt, Provider, SystemContext, Transform,
+    Variables,
 };
 
 pub struct Workflow {
@@ -51,6 +52,12 @@ impl Workflow {
             .user_prompt(Prompt::<Variables>::new("<task>{{task}}</task"))
             .provider(Provider::new("open-ai"))
             .tools(vec![]) // add all relevent tools for coding agent.
+            .entry(true)
+            .ephemeral(true)
+            .transforms(vec![Transform::Tap {
+                agent_id: AgentId::new("learning-finder"),
+                input: "...".into(),
+            }])
             .build()
             .unwrap();
 
