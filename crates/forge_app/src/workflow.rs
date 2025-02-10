@@ -9,7 +9,8 @@ struct Workflow {
 
 impl Workflow {
     pub fn new(env: Environment) -> Self {
-        let mut agent = AgentBuilder::default()
+        let mut agent = AgentBuilder::default();
+        agent
             .entry(false)
             .ephemeral(false)
             .handovers(vec![])
@@ -17,9 +18,10 @@ impl Workflow {
             .model(ModelId::from_env(&env));
 
         let learning_extractor_agent = agent
+            .clone()
             .id(AgentId::new("learning-extractor"))
             .system_prompt(Prompt::<SystemContext>::new(include_str!(
-                "../prompts/learning_extractor.md"
+                "./prompts/learning_extractor.md"
             ))) // fix the path.
             .user_prompt(Prompt::<Variables>::new("{{task}}"))
             .provider(Provider::new("open-ai"))
@@ -30,7 +32,7 @@ impl Workflow {
         let learning_finder_agent = agent
             .id(AgentId::new("learning-finder"))
             .system_prompt(Prompt::<SystemContext>::new(include_str!(
-                "../prompts/learning_finder.md"
+                "./prompts/learning_finder.md"
             ))) // fix the path.
             .user_prompt(Prompt::<Variables>::new("{{task}}"))
             .provider(Provider::new("open-ai"))
