@@ -5,11 +5,11 @@ use forge_domain::{
     BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, ProviderService,
     ResultStream, ToolCall, ToolCallFull, ToolResult, ToolService,
 };
+use forge_stream::MpscStream;
 use futures::StreamExt;
 use tracing::debug;
 
 use super::{PromptService, Service};
-use crate::mpsc_stream::MpscStream;
 
 #[async_trait::async_trait]
 pub trait ChatService: Send + Sync {

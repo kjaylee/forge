@@ -5,12 +5,12 @@ use forge_domain::{
     BoxStreamExt, ChatRequest, ChatResponse, Context, ContextMessage, Environment, ProviderService,
     ResultStream, SystemContext, ToolCall, ToolChoice, ToolDefinition,
 };
+use forge_stream::MpscStream;
 use schemars::{schema_for, JsonSchema};
 use serde::Deserialize;
 use tokio_stream::StreamExt;
 
 use super::Service;
-use crate::mpsc_stream::MpscStream;
 use crate::prompts::Prompt;
 
 impl Service {
