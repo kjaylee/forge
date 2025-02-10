@@ -326,10 +326,11 @@ impl Orchestrator {
 
     pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
         let guard = self.workflow.lock().await;
+        let agent_list = guard.get_entries();
+        drop(guard);
 
         join_all(
-            guard
-                .get_entries()
+            agent_list
                 .iter()
                 .map(|agent| self.init_agent(&agent.id, input)),
         )
