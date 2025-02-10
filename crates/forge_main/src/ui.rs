@@ -162,7 +162,7 @@ impl UI {
                     continue;
                 }
                 Command::Config => {
-                    CONSOLE.writeln(&Info::from(&config).to_string())?;
+                    CONSOLE.writeln(Info::from(&config).to_string())?;
                     input = self.console.prompt(None).await?;
                     continue;
                 }

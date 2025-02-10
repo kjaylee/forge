@@ -77,7 +77,7 @@ pub enum Command {
     /// Lists the models available for use.
     Models,
     /// Displays the loaded configuration.
-    Config
+    Config,
 }
 
 impl Command {
