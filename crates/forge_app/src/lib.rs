@@ -7,4 +7,7 @@ mod sqlite;
 mod workflow;
 
 pub use env::*;
+use forge_domain::ForgeDomain;
 pub use service::{APIService, Service};
+
+pub trait ForgeApp: ForgeDomain {}

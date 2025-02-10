@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, Environment, ModelId, NamedTool, Prompt, Provider, SystemContext,
-    Variables, Workflow, WriteVariable,
+    Agent, AgentBuilder, Environment, ModelId, NamedTool, Prompt, SystemContext, Variables,
+    Workflow, WriteVariable,
 };
 use forge_tool::tools;
 
@@ -13,13 +13,12 @@ pub struct ForgeWorkflow {
 }
 
 impl ForgeWorkflow {
-    pub fn new(provider: Provider, model: ModelId, env: Environment) -> Self {
+    pub fn new(env: Environment) -> Self {
         let mut agent = AgentBuilder::default();
 
         // Set default configurations
         agent
-            .provider(provider)
-            .model(model)
+            .model(ModelId::from_env(&env))
             .ephemeral(true)
             .entry(true);
 

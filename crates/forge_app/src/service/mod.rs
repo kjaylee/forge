@@ -1,5 +1,6 @@
 mod api;
 mod chat;
+mod executor;
 mod file_read;
 mod provider;
 mod suggestion;
