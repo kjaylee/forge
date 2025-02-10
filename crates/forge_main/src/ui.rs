@@ -100,7 +100,6 @@ impl UI {
             None => self.console.prompt(None).await?,
         };
 
-
         loop {
             // load config on each iteration
             self.config = Config::load();
