@@ -16,12 +16,11 @@ pub struct AgentMessage<T> {
 }
 
 #[derive(Setters)]
-pub struct Orchestrator {
-    provider_svc: Arc<dyn ProviderService>,
-    tool_svc: Arc<dyn ToolService>,
+pub struct Orchestrator<ForgeDomain> {
+    svc: ForgeDomain,
     workflow: Arc<Mutex<Workflow>>,
     system_context: SystemContext,
-    sender: Option<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>,
+    sender: Option<Arc<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>>,
 }
 
 struct ChatCompletionResult {
@@ -29,11 +28,10 @@ struct ChatCompletionResult {
     pub tool_calls: Vec<ToolCallFull>,
 }
 
-impl Orchestrator {
-    pub fn new(provider: Arc<dyn ProviderService>, tool: Arc<dyn ToolService>) -> Self {
+impl<F: ForgeDomain> Orchestrator<F> {
+    pub fn new(svc: F) -> Self {
         Self {
-            provider_svc: provider,
-            tool_svc: tool,
+            svc,
             workflow: Arc::new(Mutex::new(Workflow::default())),
             system_context: SystemContext::default(),
             sender: None,
@@ -59,7 +57,7 @@ impl Orchestrator {
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
-        self.tool_svc.list()
+        self.svc.tool_service().list()
     }
 
     fn init_tool_definitions(&self, agent: &Agent) -> Vec<ToolDefinition> {
@@ -193,7 +191,7 @@ impl Orchestrator {
             self.init_agent(&agent.id, &input).await?;
             Ok(None)
         } else {
-            Ok(Some(self.tool_svc.call(tool_call.clone()).await))
+            Ok(Some(self.svc.tool_service().call(tool_call.clone()).await))
         }
     }
 
@@ -288,7 +286,8 @@ impl Orchestrator {
             context = self.execute_transform(&agent.transforms, context).await?;
 
             let response = self
-                .provider_svc
+                .svc
+                .provider_service()
                 .chat(&agent.model, context.clone())
                 .await?;
             let ChatCompletionResult { tool_calls, content } =
