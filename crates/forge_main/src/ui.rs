@@ -44,22 +44,19 @@ pub struct UI {
     api: Arc<dyn APIService>,
     console: Console,
     cli: Cli,
-    config: Config,
     models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: tracing_appender::non_blocking::WorkerGuard,
 }
 
 impl UI {
-    async fn process_message(&mut self, content: &str) -> Result<()> {
-        let model = ModelId::new(self.config.primary_model());
+    async fn process_message(&mut self, content: &str, model: &ModelId) -> Result<()> {
         self.chat(content.to_string(), &model).await
     }
 
     pub async fn init() -> Result<Self> {
         // Parse CLI arguments first to get flags
         let cli = Cli::parse();
-        let config = Config::load();
         // Create environment with CLI flags
         let env = EnvironmentFactory::new(std::env::current_dir()?, cli.unrestricted).create()?;
         let guard = log::init_tracing(env.clone())?;
@@ -69,7 +66,6 @@ impl UI {
             state: Default::default(),
             api: api.clone(),
             console: Console::new(api.environment().await?),
-            config,
             cli,
             models: None,
             _guard: guard,
@@ -84,10 +80,14 @@ impl UI {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        // load the configuration.
+        let mut config = Config::load();
+
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
-            self.process_message(&prompt).await?;
+            let model_id = ModelId::new(config.primary_model());
+            self.process_message(&prompt, &model_id).await?;
             return Ok(());
         }
 
@@ -102,8 +102,8 @@ impl UI {
 
         loop {
             // load config on each iteration
-            self.config = Config::load();
-            let model = ModelId::new(self.config.primary_model());
+            config = Config::load();
+            let model = ModelId::new(config.primary_model());
 
             match input {
                 Command::New => {
