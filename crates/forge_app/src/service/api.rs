@@ -62,6 +62,7 @@ impl Live {
             tool.clone(),
             provider.clone(),
             file_read.clone(),
+            embedding_repo,
             system_prompt,
         ));
 

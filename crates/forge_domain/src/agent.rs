@@ -17,6 +17,7 @@ pub struct SystemContext {
     pub tool_supported: Option<bool>,
     pub custom_instructions: Option<String>,
     pub files: Vec<String>,
+    pub learnings: Option<Vec<String>>,
 }
 
 pub enum PromptContent {

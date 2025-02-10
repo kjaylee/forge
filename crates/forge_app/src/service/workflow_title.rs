@@ -52,6 +52,7 @@ impl Live {
             env: Some(Environment::default()),
             custom_instructions: None,
             files: vec![],
+            learnings: None,
         };
 
         let prompt = Prompt::new(include_str!("../prompts/title.md"));

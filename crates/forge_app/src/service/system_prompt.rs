@@ -3,13 +3,16 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    ChatRequest, Environment, FileReadService, ProviderService, SystemContext, ToolService,
+    ChatRequest, EmbeddingsRepository, Environment, FileReadService, ProviderService,
+    SystemContext, ToolService,
 };
 use forge_walker::Walker;
 use tracing::debug;
 
 use super::{PromptService, Service};
-use crate::prompts::Prompt;
+use crate::{embeddings::Embedder, prompts::Prompt};
+
+const LEARNINGS: usize = 3;
 
 impl Service {
     pub fn system_prompt(
@@ -17,9 +20,17 @@ impl Service {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
+        embedding_repo: Arc<dyn EmbeddingsRepository>,
         system_prompt_path: Option<PathBuf>,
     ) -> impl PromptService {
-        Live::new(env, tool, provider, file_read, system_prompt_path)
+        Live::new(
+            env,
+            tool,
+            provider,
+            file_read,
+            embedding_repo,
+            system_prompt_path,
+        )
     }
 }
 
@@ -29,6 +40,7 @@ struct Live {
     tool: Arc<dyn ToolService>,
     provider: Arc<dyn ProviderService>,
     file_read: Arc<dyn FileReadService>,
+    embedding_repo: Arc<dyn EmbeddingsRepository>,
     system_prompt_path: Option<PathBuf>,
 }
 
@@ -38,9 +50,17 @@ impl Live {
         tool: Arc<dyn ToolService>,
         provider: Arc<dyn ProviderService>,
         file_read: Arc<dyn FileReadService>,
+        embedding_repo: Arc<dyn EmbeddingsRepository>,
         system_prompt_path: Option<PathBuf>,
     ) -> Self {
-        Self { env, tool, provider, file_read, system_prompt_path }
+        Self {
+            env,
+            tool,
+            provider,
+            file_read,
+            system_prompt_path,
+            embedding_repo,
+        }
     }
 }
 
@@ -79,12 +99,27 @@ impl PromptService for Live {
         // Sort the files alphabetically to ensure consistent ordering
         files.sort();
 
+        let learnings = self
+            .embedding_repo
+            .search(
+                Embedder::embed(request.content.clone())?,
+                vec!["learning".to_owned()],
+                LEARNINGS,
+            )
+            .await?;
+        let learnings = if learnings.is_empty() {
+            None
+        } else {
+            Some(learnings.into_iter().map(|l| l.data).collect())
+        };
+
         let ctx = SystemContext {
             env: Some(self.env.clone()),
             tool_information: Some(self.tool.usage_prompt()),
             tool_supported: Some(tool_supported),
             custom_instructions,
             files,
+            learnings,
         };
 
         let prompt = if let Some(path) = self.system_prompt_path.clone() {
@@ -152,14 +187,14 @@ mod tests {
             .await
             .unwrap();
 
-        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo.clone()));
         let provider = Arc::new(
             TestProvider::default()
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
         );
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file, None)
+        let prompt = Live::new(env, tools, provider, file, embedding_repo, None)
             .get(&request)
             .await
             .unwrap()
@@ -173,14 +208,14 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
         let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
-        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
         )]));
         let file = Arc::new(TestFileReadService::default());
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task");
-        let prompt = Live::new(env, tools, provider, file, None)
+        let prompt = Live::new(env, tools, provider, file, embedding_repo, None)
             .get(&request)
             .await
             .unwrap()
@@ -193,7 +228,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
         let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
-        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -201,7 +236,7 @@ mod tests {
         let file = Arc::new(TestFileReadService::default().add(".custom.md", "Woof woof!"));
         let request = ChatRequest::new(ModelId::new("gpt-3.5-turbo"), "test task")
             .custom_instructions(".custom.md");
-        let prompt = Live::new(env, tools, provider, file, None)
+        let prompt = Live::new(env, tools, provider, file, embedding_repo, None)
             .get(&request)
             .await
             .unwrap()
@@ -214,7 +249,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
         let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
-        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo.clone()));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -229,6 +264,7 @@ mod tests {
             tools,
             provider,
             file,
+            embedding_repo,
             Some(PathBuf::from("./custom_system_prompt.md")),
         )
         .get(&request)
