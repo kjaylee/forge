@@ -1,17 +1,26 @@
+use std::sync::Arc;
+
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, Prompt, Provider, SystemContext, Transform,
-    Variables,
+    AgentBuilder, AgentId, AgentMessage, ChatResponse, Environment, ModelId, Orchestrator, Prompt,
+    Provider, ProviderService, SystemContext, ToolService, Transform, Variables, Workflow,
 };
 
-pub struct Workflow {
-    coding_agent: Agent,
-    learning_extractor_agent: Agent,
-    learning_finder_agent: Agent,
+use crate::mpsc_stream::MpscStream;
+
+pub struct AgenticWorkflow {
+    workflow: Workflow,
+    env: Environment,
+    tool: Arc<dyn ToolService>,
+    provider: Arc<dyn ProviderService>,
 }
 
-impl Workflow {
+impl AgenticWorkflow {
     // TODO: figure out better way to add tools for specific agent.
-    pub fn new(env: Environment) -> Self {
+    pub fn new(
+        env: Environment,
+        tool: Arc<dyn ToolService>,
+        provider: Arc<dyn ProviderService>,
+    ) -> Self {
         let mut agent = AgentBuilder::default();
         agent
             .entry(false)
@@ -69,9 +78,43 @@ impl Workflow {
             .unwrap();
 
         Self {
-            learning_extractor_agent,
-            learning_finder_agent,
-            coding_agent,
+            workflow: Workflow::default().agents(vec![
+                coding_agent,
+                learning_extractor_agent,
+                learning_finder_agent,
+            ]),
+            tool,
+            provider,
+            env,
         }
+    }
+
+    pub fn run(&mut self, content: &str) -> MpscStream<AgentMessage<ChatResponse>> {
+        let env = self.env.clone();
+        let provider = self.provider.clone();
+        let tool = self.tool.clone();
+        let workflow = self.workflow.clone();
+        let content = content.to_string();
+
+        let value = MpscStream::spawn(|tx| async move {
+            // fill these values up.
+            let context = SystemContext {
+                env: Some(env.clone()),
+                tool_information: None,
+                tool_supported: None,
+                custom_instructions: None,
+                files: vec![],
+            };
+
+            let mut input = Variables::default();
+            input.add("task", content);
+            Orchestrator::new(provider.clone(), tool.clone(), workflow)
+                .system_context(context)
+                .sender(Some(tx))
+                .execute(&input)
+                .await;
+        });
+
+        value
     }
 }

@@ -2,11 +2,12 @@
 
 use std::collections::HashMap;
 
+use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
 use crate::{Agent, AgentId, Context, Variables};
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Setters, Clone)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
     pub state: HashMap<AgentId, Context>,

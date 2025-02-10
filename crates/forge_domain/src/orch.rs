@@ -30,11 +30,11 @@ struct ChatCompletionResult {
 }
 
 impl Orchestrator {
-    pub fn new(provider: Arc<dyn ProviderService>, tool: Arc<dyn ToolService>) -> Self {
+    pub fn new(provider: Arc<dyn ProviderService>, tool: Arc<dyn ToolService>, workflow: Workflow) -> Self {
         Self {
             provider_svc: provider,
             tool_svc: tool,
-            workflow: Arc::new(RwLock::new(Workflow::default())),
+            workflow: Arc::new(RwLock::new(workflow)),
             system_context: SystemContext::default(),
             sender: None,
         }
