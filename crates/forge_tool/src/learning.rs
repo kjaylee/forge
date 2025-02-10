@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{EmbeddingsRepository, NamedTool, ToolCallService, ToolDescription};
+use forge_domain::{EmbeddingsRepository, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -18,8 +18,8 @@ pub struct Learning {
 }
 
 impl NamedTool for Learning {
-    fn tool_name(&self) -> forge_domain::ToolName {
-        forge_domain::ToolName::new("tool_forge_code_learning")
+    fn tool_name() -> ToolName {
+        ToolName::new("tool_forge_code_learning")
     }
 }
 
@@ -38,7 +38,7 @@ pub struct LearningInput {
 }
 
 #[async_trait::async_trait]
-impl ToolCallService for Learning {
+impl ExecutableTool for Learning {
     type Input = LearningInput;
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         if input.learnings.is_empty() {

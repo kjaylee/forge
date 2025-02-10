@@ -102,14 +102,14 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use forge_domain::{ModelId, Parameters};
+    use forge_domain::{EmbeddingsRepository, ModelId, Parameters};
     use insta::assert_snapshot;
     use tempfile::TempDir;
     use tokio::fs;
 
     use super::*;
+    use crate::repo::test::EmbeddingRepositoryTest;
     use crate::service::test::{TestFileReadService, TestProvider};
-    use crate::tests::TestLearningEmbedding;
 
     async fn test_env(dir: PathBuf) -> Environment {
         fs::write(dir.join("file1.txt"), "A").await.unwrap();
@@ -134,7 +134,25 @@ mod tests {
     async fn test_tool_supported() {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
-        let tools = Arc::new(Service::tool_service(&env));
+
+        // setup of embedding repository, add some examples in repo.
+        let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
+        let _ = embedding_repo
+            .insert(
+                "Always write unit tests to ensure the correctness of solution".to_string(),
+                vec!["learning".to_owned()],
+            )
+            .await
+            .unwrap();
+        let _ = embedding_repo
+            .insert(
+                "with rust always use pattern matching for exhuastive matching".to_string(),
+                vec!["learning".to_owned()],
+            )
+            .await
+            .unwrap();
+
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
         let provider = Arc::new(
             TestProvider::default()
                 .parameters(vec![(ModelId::new("gpt-3.5-turbo"), Parameters::new(true))]),
@@ -154,7 +172,8 @@ mod tests {
     async fn test_tool_unsupported() {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
-        let tools = Arc::new(Service::tool_service(&env));
+        let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -173,7 +192,8 @@ mod tests {
     async fn test_system_prompt_custom_prompt() {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
-        let tools = Arc::new(Service::tool_service(&env));
+        let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),
@@ -193,7 +213,8 @@ mod tests {
     async fn test_system_prompt_file_path() {
         let dir = TempDir::new().unwrap();
         let env = test_env(dir.path().to_path_buf()).await;
-        let tools = Arc::new(Service::tool_service(&env));
+        let embedding_repo = Arc::new(EmbeddingRepositoryTest::init());
+        let tools = Arc::new(Service::tool_service(&env, embedding_repo));
         let provider = Arc::new(TestProvider::default().parameters(vec![(
             ModelId::new("gpt-3.5-turbo"),
             Parameters::new(false),

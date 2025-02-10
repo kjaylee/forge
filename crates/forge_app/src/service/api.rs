@@ -48,10 +48,14 @@ struct Live {
 
 impl Live {
     fn new(env: Environment, system_prompt: Option<PathBuf>) -> Result<Self> {
-        let provider = Arc::new(Service::provider_service(env.api_key.clone()));
-        let tool = Arc::new(Service::tool_service(&env));
-        let file_read = Arc::new(Service::file_read_service());
+        // Create an owned String that will live for 'static
+        let sqlite = Arc::new(Service::db_pool_service(env.db_path()));
+        let embedding_repo = Arc::new(Service::embedding_repository(sqlite.clone()));
+        let conversation_repo = Arc::new(Service::conversation_repo(sqlite.clone()));
 
+        let provider = Arc::new(Service::provider_service(env.api_key.clone()));
+        let tool = Arc::new(Service::tool_service(&env, embedding_repo.clone()));
+        let file_read = Arc::new(Service::file_read_service());
 
         let system_prompt = Arc::new(Service::system_prompt(
             env.clone(),
@@ -62,12 +66,6 @@ impl Live {
         ));
 
         let user_prompt = Arc::new(Service::user_prompt_service());
-
-        // Create an owned String that will live for 'static
-        let sqlite = Arc::new(Service::db_pool_service(env.db_path()));
-
-        let embedding_repository = Arc::new(Service::embedding_repository(sqlite.clone()));
-        let conversation_repo = Arc::new(Service::conversation_repo(sqlite.clone()));
 
         let config_repo = Arc::new(Service::config_repo(sqlite.clone()));
 

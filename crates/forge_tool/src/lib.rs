@@ -11,8 +11,10 @@ mod syn;
 mod think;
 mod utils;
 
+use std::sync::Arc;
+
 use fetch::Fetch;
-use forge_domain::{Environment, Tool};
+use forge_domain::{EmbeddingsRepository, Environment, Tool};
 use fs::*;
 use learning::Learning;
 use outline::Outline;
@@ -20,7 +22,7 @@ use patch::*;
 use shell::Shell;
 use think::Think;
 
-pub fn tools(env: &Environment) -> Vec<Tool> {
+pub fn tools(env: &Environment, learning_repo: Arc<dyn EmbeddingsRepository>) -> Vec<Tool> {
     vec![
         // Approve.into(),
         FSRead.into(),
@@ -37,13 +39,37 @@ pub fn tools(env: &Environment) -> Vec<Tool> {
         Shell::new(env.clone()).into(),
         Think::default().into(),
         Fetch::default().into(),
-        Learning::new(embedding_repository).into(),
+        Learning::new(learning_repo).into(),
     ]
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+
+    // Mock embedding repository
+    struct TestEmbeddingRepo;
+    #[async_trait::async_trait]
+    impl EmbeddingsRepository for TestEmbeddingRepo {
+        async fn get(&self, _: Uuid) -> anyhow::Result<Option<Information>> {
+            Ok(None)
+        }
+
+        async fn insert(&self, _: String, _: Vec<String>) -> anyhow::Result<Embedding> {
+            Ok(Embedding::new(vec![]))
+        }
+        async fn search(
+            &self,
+            _: Embedding,
+            _: Vec<String>,
+            _: usize,
+        ) -> anyhow::Result<Vec<Information>> {
+            Ok(vec![])
+        }
+    }
+
+    use forge_domain::{Embedding, Information};
+    use uuid::Uuid;
 
     use super::*;
 
@@ -73,7 +99,7 @@ mod tests {
 
         let mut any_exceeded = false;
         let env = test_env();
-        for tool in tools(&env) {
+        for tool in tools(&env, Arc::new(TestEmbeddingRepo)) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",

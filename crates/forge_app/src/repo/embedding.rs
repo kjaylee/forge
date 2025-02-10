@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use diesel::sql_types::{Binary, Float, Text, Timestamp};
@@ -56,36 +58,19 @@ struct SearchResult {
     distance: f32,
 }
 
-pub struct Live<P: Sqlite> {
-    pool_service: P,
+pub struct Live {
+    pool_service: Arc<dyn Sqlite>,
 }
 
 impl Service {
-    pub async fn embedding_repository(database_url: &str) -> Result<impl EmbeddingsRepository> {
-        let db_svc = Service::db_pool_service(database_url)?;
-        Live::new(db_svc).await
+    pub fn embedding_repository(sql: Arc<dyn Sqlite>) -> impl EmbeddingsRepository {
+        Live::new(sql)
     }
 }
 
-impl<P: Sqlite> Live<P> {
-    pub async fn new(pool_service: P) -> Result<Self> {
-        let pool = pool_service.pool().await?;
-        let mut conn = pool.get()?;
-        // Create virtual table for vector search
-        // TODO: implement custom migration setup that can work with diesel.
-        diesel::sql_query(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS embedding_index USING vec0(
-                id TEXT PRIMARY KEY,
-                data TEXT,
-                created_at TEXT,
-                updated_at TEXT,
-                tags TEXT,
-                embedding FLOAT[384]
-            );",
-        )
-        .execute(&mut conn)?;
-
-        Ok(Self { pool_service })
+impl Live {
+    pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
+        Self { pool_service }
     }
 }
 
@@ -128,10 +113,11 @@ impl TryFrom<SearchResult> for Information {
 }
 
 #[async_trait::async_trait]
-impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
+impl EmbeddingsRepository for Live {
     async fn get(&self, id: Uuid) -> Result<Option<Information>> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+        let mut conn = self.pool_service.connection().await.with_context(|| {
+            "Failed to acquire database connection to get embedding".to_string()
+        })?;
 
         let result = embedding_index::table
             .filter(embedding_index::id.eq(id.to_string()))
@@ -142,8 +128,9 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
     }
 
     async fn insert(&self, data: String, tags: Vec<String>) -> Result<Embedding> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+        let mut conn = self.pool_service.connection().await.with_context(|| {
+            "Failed to acquire database connection to insert embedding".to_string()
+        })?;
 
         let id = Uuid::new_v4();
         let now = chrono::Local::now().naive_local();
@@ -172,8 +159,9 @@ impl<P: Send + Sync + Sqlite> EmbeddingsRepository for Live<P> {
         tags: Vec<String>,
         k: usize,
     ) -> Result<Vec<Information>> {
-        let pool = self.pool_service.pool().await?;
-        let mut conn = pool.get()?;
+        let mut conn = self.pool_service.connection().await.with_context(|| {
+            "Failed to acquire database connection to search embedding".to_string()
+        })?;
 
         let query_embedding = vec_to_bytes(embedding.as_slice());
         let tags_json = serde_json::to_string(&tags)?;
@@ -236,19 +224,20 @@ fn bytes_to_vec(v: &[u8]) -> Result<Vec<f32>> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::sqlite::tests::TestSqlite;
+    use crate::sqlite::TestDriver;
 
     pub struct EmbeddingRepositoryTest;
 
     impl EmbeddingRepositoryTest {
-        pub async fn init() -> impl EmbeddingsRepository {
-            Live::new(TestSqlite::new().unwrap()).await.unwrap()
+        pub fn init() -> impl EmbeddingsRepository {
+            let pool_service = Arc::new(TestDriver::new().unwrap());
+            Live::new(pool_service)
         }
     }
 
     #[tokio::test]
     async fn test_insertion() {
-        let repo = EmbeddingRepositoryTest::init().await;
+        let repo = EmbeddingRepositoryTest::init();
         let data = "learning about vector indexing".to_string();
         let tags = vec!["learning".to_owned()];
         let result = repo.insert(data, tags).await;
@@ -258,7 +247,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_search() {
-        let repo = EmbeddingRepositoryTest::init().await;
+        let repo = EmbeddingRepositoryTest::init();
 
         // Insert some test data
         let data1 = "learning about vector indexing".to_string();
@@ -288,7 +277,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_get() {
-        let repo = EmbeddingRepositoryTest::init().await;
+        let repo = EmbeddingRepositoryTest::init();
 
         // Insert test data
         let data = "test embedding data".to_string();
@@ -311,7 +300,7 @@ pub mod tests {
 
     #[tokio::test]
     async fn test_comprehensive_search() {
-        let repo = EmbeddingRepositoryTest::init().await;
+        let repo = EmbeddingRepositoryTest::init();
         // Insert multiple learning examples about different topics
         let rust_async = vec![
             "Rust's async/await syntax enables concurrent programming without data races.",

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use forge_domain::{
-    Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    EmbeddingsRepository, Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult,
+    ToolService,
 };
 use tokio::time::{timeout, Duration};
 use tracing::debug;
@@ -13,8 +13,11 @@ use super::Service;
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 impl Service {
-    pub fn tool_service(env: &Environment) -> impl ToolService {
-        Live::from_iter(forge_tool::tools(env))
+    pub fn tool_service(
+        env: &Environment,
+        learning_repo: Arc<dyn EmbeddingsRepository>,
+    ) -> impl ToolService {
+        Live::from_iter(forge_tool::tools(env, learning_repo))
     }
 }
 

@@ -10,6 +10,9 @@ use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 use tracing::debug;
 
+use rusqlite::ffi::sqlite3_auto_extension;
+use sqlite_vec::sqlite3_vec_init;
+
 use super::conn::ConnectionOptions;
 use super::Sqlite;
 
@@ -58,9 +61,28 @@ impl Driver {
 
         let db_path = self.db_path.join(DB_NAME).display().to_string();
 
+        // register custom extensions via rusqlite.
+        unsafe {
+            sqlite3_auto_extension(Some(std::mem::transmute(sqlite3_vec_init as *const ())));
+        }
+
         // Run migrations first
         let mut conn = SqliteConnection::establish(&db_path)
             .with_context(|| format!("Failed to establish db connection on {}", db_path))?;
+
+        // Create virtual table for vector search
+        // TODO: implement custom migration setup that can work with diesel.
+        diesel::sql_query(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS embedding_index USING vec0(
+                    id TEXT PRIMARY KEY,
+                    data TEXT,
+                    created_at TEXT,
+                    updated_at TEXT,
+                    tags TEXT,
+                    embedding FLOAT[384]
+                );",
+        )
+        .execute(&mut conn)?;
 
         let migrations = conn
             .run_pending_migrations(MIGRATIONS)
