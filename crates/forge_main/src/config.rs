@@ -67,12 +67,14 @@ impl std::fmt::Display for ConfigValue {
 impl Config {
     /// Returns the primary model configuration if set
     pub fn primary_model(&self) -> String {
-        self.get_model(&ConfigKey::PrimaryModel).unwrap()
+        self.get_model(&ConfigKey::PrimaryModel)
+            .unwrap_or("anthropic/claude-3.5-sonnet".to_string())
     }
 
     /// Returns the secondary model configuration if set
     pub fn secondary_model(&self) -> String {
-        self.get_model(&ConfigKey::SecondaryModel).unwrap()
+        self.get_model(&ConfigKey::SecondaryModel)
+            .unwrap_or("anthropic/claude-3.5-haiku".to_string())
     }
 
     /// Returns the tool timeout configuration if set
@@ -82,7 +84,7 @@ impl Config {
                 ConfigValue::ToolTimeout(t) => Some(*t),
                 _ => None,
             })
-            .unwrap()
+            .unwrap_or(300)
     }
 
     /// Helper method to get model configuration
