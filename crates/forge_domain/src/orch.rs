@@ -183,12 +183,10 @@ impl Orchestrator {
             self.read_variable(tool_call, read).await.map(Some)
         } else if let Some(write) = WriteVariable::parse(tool_call) {
             self.write_variable(tool_call, write).await.map(Some)
-        } else if let Some(agent) = self
-            .workflow
-            .read()
-            .await
-            .find_agent(&tool_call.name.clone().into())
-        {
+        } else if let Some(agent) = {
+            let guard = self.workflow.read().await;
+            guard.find_agent(&tool_call.name.clone().into()).cloned()
+        } {
             let input = Variables::from(tool_call.arguments.clone());
             self.init_agent(&agent.id, &input).await?;
             Ok(None)
@@ -265,18 +263,19 @@ impl Orchestrator {
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<()> {
         let guard = self.workflow.read().await;
-        let agent = guard.get_agent(agent)?;
+        let agent = guard.get_agent(agent)?.clone();
 
         let mut context = if agent.ephemeral {
-            self.init_agent_context(agent, input)?
+            self.init_agent_context(&agent, input)?
         } else {
             guard
                 .state
                 .get(&agent.id)
                 .cloned()
                 .map(Ok)
-                .unwrap_or_else(|| self.init_agent_context(agent, input))?
+                .unwrap_or_else(|| self.init_agent_context(&agent, input))?
         };
+        drop(guard);
 
         let content = agent.user_prompt.render(input)?;
 
