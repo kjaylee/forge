@@ -29,7 +29,7 @@ pub struct Config(HashMap<ConfigKey, ConfigValue>);
 impl Config {
     pub fn load() -> Self {
         // load the config from the .forgerc file
-        dotenv::from_filename(".forgerc").expect("failed to load `.forgerc` file");
+        dotenv::from_filename(".forgerc").ok();
 
         // load the config from environment variables if not set use defaults.
         let primary_model = std::env::var("FORGE_LARGE_MODEL").unwrap_or(PRIMARY_MODEL.to_string());
