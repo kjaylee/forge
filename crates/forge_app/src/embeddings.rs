@@ -30,8 +30,9 @@ impl Embedder {
 
         #[cfg(test)]
         {
-            // in case of tests, instead of referring to temp dir and always downloading the model info
-            // refer to the actual cache dir where this information is stored.
+            // in case of tests, instead of referring to temp dir and always downloading the
+            // model info refer to the actual cache dir where this information
+            // is stored.
             use crate::EnvironmentFactory;
             let cache_dir = EnvironmentFactory::new(".".into(), false)
                 .create()

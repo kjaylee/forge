@@ -50,7 +50,10 @@ impl Live {
     fn new(env: Environment, system_prompt: Option<PathBuf>) -> Result<Self> {
         // Create an owned String that will live for 'static
         let sqlite = Arc::new(Service::db_pool_service(env.db_path()));
-        let embedding_repo = Arc::new(Service::embedding_repository(env.cache_dir(), sqlite.clone()));
+        let embedding_repo = Arc::new(Service::embedding_repository(
+            env.cache_dir(),
+            sqlite.clone(),
+        ));
         let conversation_repo = Arc::new(Service::conversation_repo(sqlite.clone()));
 
         let provider = Arc::new(Service::provider_service(env.api_key.clone()));

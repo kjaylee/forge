@@ -10,7 +10,8 @@ use forge_walker::Walker;
 use tracing::debug;
 
 use super::{PromptService, Service};
-use crate::{embeddings::Embedder, prompts::Prompt};
+use crate::embeddings::Embedder;
+use crate::prompts::Prompt;
 
 const LEARNINGS: usize = 3;
 

@@ -5,13 +5,12 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sqlite::SqliteConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use rusqlite::ffi::sqlite3_auto_extension;
+use sqlite_vec::sqlite3_vec_init;
 use tokio::sync::Mutex;
 use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 use tracing::debug;
-
-use rusqlite::ffi::sqlite3_auto_extension;
-use sqlite_vec::sqlite3_vec_init;
 
 use super::conn::ConnectionOptions;
 use super::Sqlite;
