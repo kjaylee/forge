@@ -10,19 +10,37 @@ pub struct Embedder {
 
 impl Default for Embedder {
     fn default() -> Self {
-        let options =
-            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true);
-        Self { options }
+        Self { options: Self::init_options(None) }
     }
 }
 
 impl Embedder {
     pub fn new(cache_dir: PathBuf) -> Self {
-        let init_options = InitOptions::new(EmbeddingModel::AllMiniLML6V2)
-            .with_show_download_progress(true)
-            .with_cache_dir(cache_dir);
+        Self { options: Self::init_options(Some(cache_dir)) }
+    }
 
-        Self { options: init_options }
+    // Private method to create InitOptions
+    fn init_options(cache_dir: Option<PathBuf>) -> InitOptions {
+        let mut init_options =
+            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true);
+
+        if let Some(cache_dir) = cache_dir {
+            init_options = init_options.with_cache_dir(cache_dir);
+        }
+
+        #[cfg(test)]
+        {
+            // in case of tests, instead of referring to temp dir and always downloading the model info
+            // refer to the actual cache dir where this information is stored.
+            use crate::EnvironmentFactory;
+            let cache_dir = EnvironmentFactory::new(".".into(), false)
+                .create()
+                .unwrap()
+                .cache_dir();
+            init_options = init_options.with_cache_dir(cache_dir);
+        }
+
+        init_options
     }
 }
 
