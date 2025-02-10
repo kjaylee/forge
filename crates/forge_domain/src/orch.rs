@@ -270,9 +270,7 @@ impl Orchestrator {
         let mut context = if agent.ephemeral {
             self.init_agent_context(agent, input)?
         } else {
-            self.workflow
-                .lock()
-                .await
+            guard
                 .state
                 .get(&agent.id)
                 .cloned()
