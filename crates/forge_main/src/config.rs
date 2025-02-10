@@ -1,6 +1,11 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
+/// decent defaults for the config.
+const PRIMARY_MODEL: &str = "anthropic/claude-3.5-sonnet";
+const SECONDARY_MODEL: &str = "anthropic/claude-3.5-haiku";
+const TOOL_TIMEOUT: u64 = 300;
+
 #[derive(Debug, Eq, PartialEq, Hash)]
 enum ConfigKey {
     PrimaryModel,
@@ -27,11 +32,10 @@ impl Config {
         dotenv::from_filename(".forgerc").expect("failed to load `.forgerc` file");
 
         // load the config from environment variables if not set use defaults.
-        let primary_model =
-            std::env::var("FORGE_LARGE_MODEL").unwrap_or("anthropic/claude-3.5-sonnet".to_string());
+        let primary_model = std::env::var("FORGE_LARGE_MODEL").unwrap_or(PRIMARY_MODEL.to_string());
         let secondary_model =
-            std::env::var("FORGE_SMALL_MODEL").unwrap_or("anthropic/claude-3.5-haiku".to_string());
-        let tool_timeout = std::env::var("TOOL_TIMEOUT").unwrap_or("300".to_string());
+            std::env::var("FORGE_SMALL_MODEL").unwrap_or(SECONDARY_MODEL.to_string());
+        let tool_timeout = std::env::var("TOOL_TIMEOUT").unwrap_or(TOOL_TIMEOUT.to_string());
 
         // create a new config map
         let mut values = HashMap::new();
@@ -68,13 +72,13 @@ impl Config {
     /// Returns the primary model configuration if set
     pub fn primary_model(&self) -> String {
         self.get_model(&ConfigKey::PrimaryModel)
-            .unwrap_or("anthropic/claude-3.5-sonnet".to_string())
+            .unwrap_or(PRIMARY_MODEL.to_string())
     }
 
     /// Returns the secondary model configuration if set
     pub fn secondary_model(&self) -> String {
         self.get_model(&ConfigKey::SecondaryModel)
-            .unwrap_or("anthropic/claude-3.5-haiku".to_string())
+            .unwrap_or(SECONDARY_MODEL.to_string())
     }
 
     /// Returns the tool timeout configuration if set
@@ -84,7 +88,7 @@ impl Config {
                 ConfigValue::ToolTimeout(t) => Some(*t),
                 _ => None,
             })
-            .unwrap_or(300)
+            .unwrap_or(TOOL_TIMEOUT)
     }
 
     /// Helper method to get model configuration
