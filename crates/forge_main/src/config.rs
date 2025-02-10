@@ -69,19 +69,19 @@ impl std::fmt::Display for ConfigValue {
 }
 
 impl Config {
-    /// Returns the primary model configuration if set
+    /// Returns the primary model configuration
     pub fn primary_model(&self) -> String {
         self.get_model(&ConfigKey::PrimaryModel)
             .unwrap_or(PRIMARY_MODEL.to_string())
     }
 
-    /// Returns the secondary model configuration if set
+    /// Returns the secondary model configuration
     pub fn secondary_model(&self) -> String {
         self.get_model(&ConfigKey::SecondaryModel)
             .unwrap_or(SECONDARY_MODEL.to_string())
     }
 
-    /// Returns the tool timeout configuration if set
+    /// Returns the tool timeout configuration
     pub fn tool_timeout(&self) -> u64 {
         self.get(&ConfigKey::ToolTimeout)
             .and_then(|v| match v {
