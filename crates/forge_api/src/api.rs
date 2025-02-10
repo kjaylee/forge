@@ -1,43 +1,38 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{ExecutorService, ForgeApp, SuggestionService};
-use forge_domain::{
-    AgentMessage, ChatRequest, ChatResponse, Config, ConfigRepository, Context, Conversation,
-    ConversationHistory, ConversationId, ConversationRepository, Environment, EnvironmentService,
-    File, Model, ProviderService, ToolDefinition, ToolService,
-};
+use forge_app::{EnvironmentService, Infrastructure};
+use forge_domain::*;
 use forge_stream::MpscStream;
 
-use crate::ForgeAPI;
+use crate::executor::ForgeExecutorService;
+use crate::suggestion::ForgeSuggestionService;
+use crate::{API, ExecutorService, SuggestionService};
 
-pub struct API<F> {
+pub struct ForgeAPI<F> {
     app: Arc<F>,
+    _executor_service: ForgeExecutorService<F>,
+    _suggestion_service: ForgeSuggestionService<F>,
 }
 
-impl<F: ForgeApp> API<F> {
+impl<F: App + Infrastructure> ForgeAPI<F> {
     pub fn new(app: Arc<F>) -> Result<Self> {
-        Ok(Self { app })
+        Ok(Self {
+            app: app.clone(),
+            _executor_service: ForgeExecutorService::new(app.clone()),
+            _suggestion_service: ForgeSuggestionService::new(app.clone()),
+        })
     }
 }
 
 #[async_trait::async_trait]
-impl<F: ForgeApp> ForgeAPI for API<F> {
+impl<F: App + Infrastructure> API for ForgeAPI<F> {
     async fn suggestions(&self) -> Result<Vec<File>> {
-        self.app.suggestion_service().suggestions().await
+        self._suggestion_service.suggestions().await
     }
 
     async fn tools(&self) -> Vec<ToolDefinition> {
         self.app.tool_service().list()
-    }
-
-    async fn context(&self, conversation_id: ConversationId) -> Result<Context> {
-        Ok(self
-            .app
-            .conversation_repository()
-            .get(conversation_id)
-            .await?
-            .context)
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
@@ -48,37 +43,10 @@ impl<F: ForgeApp> ForgeAPI for API<F> {
         &self,
         chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
-        Ok(self.app.executor_service().chat(chat).await?)
+        Ok(self._executor_service.chat(chat).await?)
     }
 
-    async fn conversations(&self) -> Result<Vec<Conversation>> {
-        self.app.conversation_repository().list().await
-    }
-
-    async fn conversation(&self, conversation_id: ConversationId) -> Result<ConversationHistory> {
-        Ok(self
-            .app
-            .conversation_repository()
-            .get(conversation_id)
-            .await?
-            .context
-            .into())
-    }
-
-    async fn get_config(&self) -> Result<Config> {
-        Ok(self.app.config_repository().get().await?)
-    }
-
-    async fn set_config(&self, config: Config) -> Result<Config> {
-        self.app.config_repository().set(config).await
-    }
-
-    async fn environment(&self) -> Result<Environment> {
-        Ok(self
-            .app
-            .environment_service()
-            .get_environment()
-            .await?
-            .clone())
+    fn environment(&self) -> Environment {
+        self.app.environment_service().get_environment().clone()
     }
 }

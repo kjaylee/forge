@@ -9,3 +9,4 @@ async-trait = "0.1.86"
 forge_domain = { path = "../forge_domain" }
 forge_stream = { path = "../forge_stream" }
 forge_app = { path = "../forge_app" }
+forge_walker = { path = "../forge_walker" }
