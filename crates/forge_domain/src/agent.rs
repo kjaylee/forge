@@ -1,9 +1,11 @@
 use std::path::PathBuf;
 
+use derive_builder::Builder;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use handlebars::Handlebars;
 use schemars::schema::RootSchema;
+use schemars::schema_for;
 use serde::{Deserialize, Serialize};
 
 use crate::variables::Variables;
@@ -27,7 +29,16 @@ pub enum PromptContent {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
-    pub variables: Schema<V>,
+    _marker: std::marker::PhantomData<V>,
+}
+
+impl<V> Prompt<V> {
+    pub fn new<S: Into<String>>(template: S) -> Self {
+        Self {
+            template: PromptTemplate(template.into()),
+            _marker: std::marker::PhantomData,
+        }
+    }
 }
 
 impl<V: Serialize> Prompt<V> {
@@ -41,11 +52,6 @@ impl<V: Serialize> Prompt<V> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Schema<S> {
-    pub schema: RootSchema,
-    _marker: std::marker::PhantomData<S>,
-}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -60,13 +66,20 @@ impl PromptTemplate {
 #[serde(transparent)]
 pub struct AgentId(String);
 
+impl AgentId {
+    pub fn new<T: Into<String>>(id: T) -> Self {
+        Self(id.into())
+    }
+}
+
 impl From<ToolName> for AgentId {
     fn from(value: ToolName) -> Self {
         Self(value.into_string())
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(into))]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -95,7 +108,7 @@ impl From<Agent> for ToolDefinition {
         ToolDefinition {
             name: ToolName::new(value.id.0),
             description: value.description,
-            input_schema: value.user_prompt.variables.schema,
+            input_schema: schema_for!(Variables),
             output_schema: None,
         }
     }

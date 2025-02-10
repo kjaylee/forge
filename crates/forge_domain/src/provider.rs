@@ -19,3 +19,9 @@ pub trait ProviderService: Send + Sync + 'static {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct Provider(String);
+
+impl Provider {
+    pub fn new<T: Into<String>>(value: T) -> Self {
+        Self(value.into())
+    }
+}
