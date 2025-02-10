@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -60,17 +61,21 @@ struct SearchResult {
 
 pub struct Live {
     pool_service: Arc<dyn Sqlite>,
+    embedder: Embedder,
 }
 
 impl Service {
-    pub fn embedding_repository(sql: Arc<dyn Sqlite>) -> impl EmbeddingsRepository {
-        Live::new(sql)
+    pub fn embedding_repository(
+        cache_dir: PathBuf,
+        sql: Arc<dyn Sqlite>,
+    ) -> impl EmbeddingsRepository {
+        Live::new(Embedder::new(cache_dir), sql)
     }
 }
 
 impl Live {
-    pub fn new(pool_service: Arc<dyn Sqlite>) -> Self {
-        Self { pool_service }
+    pub fn new(embedder: Embedder, pool_service: Arc<dyn Sqlite>) -> Self {
+        Self { pool_service, embedder }
     }
 }
 
@@ -134,7 +139,8 @@ impl EmbeddingsRepository for Live {
 
         let id = Uuid::new_v4();
         let now = chrono::Local::now().naive_local();
-        let embedding = Embedder::embed(data.clone())?;
+
+        let embedding = self.embedder.embed(data.clone())?;
         let embedding_bytes = vec_to_bytes(embedding.as_slice());
         let tags_json = serde_json::to_string(&tags)?;
 
@@ -231,7 +237,7 @@ pub mod tests {
     impl EmbeddingRepositoryTest {
         pub fn init() -> impl EmbeddingsRepository {
             let pool_service = Arc::new(TestDriver::new().unwrap());
-            Live::new(pool_service)
+            Live::new(Embedder::default(), pool_service)
         }
     }
 
@@ -269,7 +275,9 @@ pub mod tests {
 
         // Search with tags
 
-        let new_search = Embedder::embed("i like eating food".to_string()).unwrap();
+        let new_search = Embedder::default()
+            .embed("i like eating food".to_string())
+            .unwrap();
         let results = repo.search(new_search, vec![], 2).await.unwrap();
         assert!(!results.is_empty());
         assert!(results[0].data.contains("cooking"));
@@ -347,7 +355,7 @@ pub mod tests {
         // Search with tags
         let query = "Tell me about APIs";
 
-        let query_embedding = Embedder::embed(query.to_string()).unwrap();
+        let query_embedding = Embedder::default().embed(query.to_string()).unwrap();
         let results = repo.search(query_embedding, vec![], 2).await.unwrap();
 
         // Verify we get GraphQL results when searching with the graphql tag

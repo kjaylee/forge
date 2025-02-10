@@ -102,7 +102,7 @@ impl PromptService for Live {
         let learnings = self
             .embedding_repo
             .search(
-                Embedder::embed(request.content.clone())?,
+                Embedder::new(self.env.cache_dir()).embed(request.content.clone())?,
                 vec!["learning".to_owned()],
                 LEARNINGS,
             )
@@ -147,22 +147,28 @@ mod tests {
     use crate::service::test::{TestFileReadService, TestProvider};
 
     async fn test_env(dir: PathBuf) -> Environment {
+        let path = dir.display().to_string();
         fs::write(dir.join("file1.txt"), "A").await.unwrap();
         fs::write(dir.join("file2.txt"), "B").await.unwrap();
         fs::create_dir_all(dir.join("nested")).await.unwrap();
         fs::write(dir.join("nested").join("file3.txt"), "B")
             .await
             .unwrap();
-        Environment {
+
+        let env = Environment {
             os: "linux".to_string(),
             cwd: dir,
             shell: "/bin/bash".to_string(),
             api_key: "test".to_string(),
             large_model_id: "open-ai/gpt-4o".to_string(),
             small_model_id: "open-ai/gpt-4o-mini".to_string(),
-            base_path: PathBuf::from("/home/user/.forge/globalConfig"),
+            base_path: PathBuf::from(path),
             home: Some(PathBuf::from("/home/user")),
-        }
+        };
+
+        fs::create_dir_all(env.cache_dir()).await.unwrap();
+
+        env
     }
 
     #[tokio::test]

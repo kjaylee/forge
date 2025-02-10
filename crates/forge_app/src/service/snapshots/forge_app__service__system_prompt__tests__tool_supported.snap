@@ -13,6 +13,7 @@ First, let's establish the current system information:
 <home_directory>/home/user</home_directory>
 <file_list>
  - /
+ - cache/
  - file1.txt
  - file2.txt
  - nested/

@@ -33,6 +33,10 @@ impl Environment {
         self.base_path.clone()
     }
 
+    pub fn cache_dir(&self) -> PathBuf {
+        self.base_path.join("cache")
+    }
+
     pub fn log_path(&self) -> PathBuf {
         self.base_path.join("logs")
     }
