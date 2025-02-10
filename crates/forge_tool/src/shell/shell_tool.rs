@@ -82,6 +82,11 @@ impl ExecutableTool for Shell {
     type Input = ShellInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
+        // Validate empty command
+        if input.command.trim().is_empty() {
+            return Err("Command string is empty or contains only whitespace".to_string());
+        }
+
         let parameter = if cfg!(target_os = "windows") {
             "/C"
         } else {
@@ -263,7 +268,6 @@ mod tests {
         let result = shell
             .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
             .await;
-
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err(),
