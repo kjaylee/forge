@@ -2,7 +2,7 @@ use forge_domain::{
     Agent, AgentBuilder, AgentId, Environment, ModelId, Prompt, Provider, SystemContext, Variables,
 };
 
-struct Workflow {
+pub struct Workflow {
     coding_agent: Agent,
     learning_extractor_agent: Agent,
     learning_finder_agent: Agent,
@@ -39,7 +39,7 @@ impl Workflow {
             ))) // fix the path.
             .user_prompt(Prompt::<Variables>::new("{{task}}"))
             .provider(Provider::new("open-ai"))
-            .tools(vec![])
+            .tools(vec![]) // add a tool that helps agent retrive the relevent learnings from db.
             .build()
             .unwrap();
 
@@ -50,7 +50,7 @@ impl Workflow {
             )))
             .user_prompt(Prompt::<Variables>::new("<task>{{task}}</task"))
             .provider(Provider::new("open-ai"))
-            .tools(vec![])
+            .tools(vec![]) // add all relevent tools for coding agent.
             .build()
             .unwrap();
 
