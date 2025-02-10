@@ -43,7 +43,7 @@ impl Environment {
 }
 /// Repository for accessing system environment information
 #[async_trait]
-pub trait EnvironmentRepository {
+pub trait EnvironmentService {
     /// Get the current environment information including:
     /// - Operating system
     /// - Current working directory

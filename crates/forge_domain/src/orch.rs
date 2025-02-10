@@ -17,7 +17,7 @@ pub struct AgentMessage<T> {
 }
 
 pub struct Orchestrator<ForgeDomain> {
-    svc: ForgeDomain,
+    svc: Arc<ForgeDomain>,
     workflow: Arc<Mutex<Workflow>>,
     system_context: SystemContext,
     sender: Option<Arc<ArcSender>>,
@@ -30,7 +30,7 @@ struct ChatCompletionResult {
 
 impl<F: ForgeDomain> Orchestrator<F> {
     pub fn new(
-        svc: F,
+        svc: Arc<F>,
         workflow: Workflow,
         system_context: SystemContext,
         sender: Option<ArcSender>,

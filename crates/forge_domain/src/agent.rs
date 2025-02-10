@@ -8,7 +8,7 @@ use schemars::schema_for;
 use serde::{Deserialize, Serialize};
 
 use crate::variables::Variables;
-use crate::{Environment, Error, ModelId, Provider, ToolDefinition, ToolName};
+use crate::{Environment, Error, ModelId, ToolDefinition, ToolName};
 
 #[derive(Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
@@ -79,7 +79,6 @@ impl From<ToolName> for AgentId {
 #[builder(setter(into))]
 pub struct Agent {
     pub id: AgentId,
-    pub provider: Provider,
     pub model: ModelId,
     pub description: String,
     pub system_prompt: Prompt<SystemContext>,

@@ -73,7 +73,7 @@ pub trait ForgeDomain: Send + Sync + 'static {
     /// The concrete type implementing configuration repository
     type ConfigRepo: ConfigRepository;
     /// The concrete type implementing environment repository
-    type EnvironmentRepo: EnvironmentRepository;
+    type EnvironmentService: EnvironmentService;
 
     /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
@@ -84,7 +84,7 @@ pub trait ForgeDomain: Send + Sync + 'static {
     /// Get a reference to the configuration repository instance
     fn config_repository(&self) -> &Self::ConfigRepo;
     /// Get a reference to the environment repository instance
-    fn environment_repository(&self) -> &Self::EnvironmentRepo;
+    fn environment_service(&self) -> &Self::EnvironmentService;
 
     /// Get a reference to the file read service instance
     fn file_read_service(&self) -> &Self::FileReadService;

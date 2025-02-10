@@ -28,6 +28,12 @@ impl Variables {
     pub fn default_key() -> &'static str {
         "value"
     }
+
+    pub fn new_pair(key: impl Into<String>, value: impl Into<Value>) -> Self {
+        let mut variables = Self::default();
+        variables.set(key, value);
+        variables
+    }
 }
 
 impl From<Vec<Variables>> for Variables {

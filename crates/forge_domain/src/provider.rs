@@ -1,5 +1,4 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 
 use crate::{ChatCompletionMessage, Context, Model, ModelId, Parameters, ResultStream};
 
@@ -13,7 +12,3 @@ pub trait ProviderService: Send + Sync + 'static {
     async fn models(&self) -> Result<Vec<Model>>;
     async fn parameters(&self, model: &ModelId) -> Result<Parameters>;
 }
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct Provider(String);

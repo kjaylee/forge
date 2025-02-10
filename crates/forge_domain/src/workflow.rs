@@ -29,9 +29,9 @@ impl Workflow {
         self.agents.iter().filter(|a| a.entry).collect::<Vec<_>>()
     }
 
-    pub fn execute<F: ForgeDomain>(
-        &self,
-        domain: F,
+    pub fn execute<'a, F: ForgeDomain + 'a>(
+        &'a self,
+        domain: Arc<F>,
         input: Variables,
         ctx: SystemContext,
     ) -> MpscStream<anyhow::Result<crate::AgentMessage<ChatResponse>>> {
