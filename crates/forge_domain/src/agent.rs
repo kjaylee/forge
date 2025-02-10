@@ -4,7 +4,6 @@ use derive_builder::Builder;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use handlebars::Handlebars;
-use schemars::schema::RootSchema;
 use schemars::schema_for;
 use serde::{Deserialize, Serialize};
 
