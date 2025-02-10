@@ -54,10 +54,17 @@ impl Workflow {
             .tools(vec![]) // add all relevent tools for coding agent.
             .entry(true)
             .ephemeral(true)
-            .transforms(vec![Transform::Tap {
-                agent_id: AgentId::new("learning-extractor"),
-                input: "context".into(),
-            }])
+            .transforms(vec![
+                Transform::Tap {
+                    agent_id: AgentId::new("learning-extractor"),
+                    input: "context".into(),
+                },
+                Transform::User {
+                    agent_id: AgentId::new("learning-finder"),
+                    input: "user_message".into(),
+                    output: "task".into(),
+                },
+            ])
             .build()
             .unwrap();
 
