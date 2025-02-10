@@ -1,16 +1,33 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
+use strum_macros::{Display, EnumString};
+
+use crate::info::Info;
+
 /// decent defaults for the config.
 const PRIMARY_MODEL: &str = "anthropic/claude-3.5-sonnet";
 const SECONDARY_MODEL: &str = "anthropic/claude-3.5-haiku";
 const TOOL_TIMEOUT: u64 = 300;
 
-#[derive(Debug, Eq, PartialEq, Hash)]
-enum ConfigKey {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, EnumString, Display)]
+pub enum ConfigKey {
+    #[strum(serialize = "primary-model")]
     PrimaryModel,
+    #[strum(serialize = "secondary-model")]
     SecondaryModel,
+    #[strum(serialize = "tool-timeout")]
     ToolTimeout,
+}
+
+impl ConfigKey {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConfigKey::PrimaryModel => "primary-model",
+            ConfigKey::SecondaryModel => "secondary-model",
+            ConfigKey::ToolTimeout => "tool-timeout",
+        }
+    }
 }
 
 /// Represents configuration values with their specific types
@@ -102,6 +119,22 @@ impl Config {
     /// Gets a configuration value by key string
     fn get(&self, key: &ConfigKey) -> Option<&ConfigValue> {
         self.0.get(key)
+    }
+}
+
+impl From<&Config> for Info {
+    fn from(config: &Config) -> Self {
+        let mut info = Info::new().add_title("Configuration");
+        if config.0.is_empty() {
+            info = info.add_item("Status", "No configurations set");
+        } else {
+            let mut configs: Vec<_> = config.0.iter().collect();
+            configs.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str())); // Sort by key string
+            for (key, value) in configs {
+                info = info.add_item(key.as_str(), value.as_str());
+            }
+        }
+        info
     }
 }
 

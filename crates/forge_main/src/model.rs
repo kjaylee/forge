@@ -76,6 +76,8 @@ pub enum Command {
     Exit,
     /// Lists the models available for use.
     Models,
+    /// Displays the loaded configuration.
+    Config
 }
 
 impl Command {
@@ -93,6 +95,7 @@ impl Command {
             "/info".to_string(),
             "/exit".to_string(),
             "/models".to_string(),
+            "/config".to_string(),
         ]
     }
 
@@ -115,6 +118,7 @@ impl Command {
             "/info" => Ok(Command::Info),
             "/exit" => Ok(Command::Exit),
             "/models" => Ok(Command::Models),
+            "/config" => Ok(Command::Config),
             text => Ok(Command::Message(text.to_string())),
         }
     }

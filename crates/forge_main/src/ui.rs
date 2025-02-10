@@ -142,6 +142,7 @@ impl UI {
                     }
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
+                    continue;
                 }
                 Command::Exit => {
                     break;
@@ -158,6 +159,12 @@ impl UI {
                     CONSOLE.writeln(info.to_string())?;
 
                     input = self.console.prompt(None).await?;
+                    continue;
+                }
+                Command::Config => {
+                    CONSOLE.writeln(&Info::from(&config).to_string())?;
+                    input = self.console.prompt(None).await?;
+                    continue;
                 }
             }
         }
