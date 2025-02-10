@@ -6,12 +6,12 @@ use serde_json::Value;
 
 use crate::{NamedTool, ToolCallFull, ToolDefinition, ToolName};
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[serde(transparent)]
 pub struct Variables(HashMap<String, Value>);
 
 impl Variables {
-    pub fn add(&mut self, key: impl Into<String>, value: impl Into<Value>) {
+    pub fn set(&mut self, key: impl Into<String>, value: impl Into<Value>) {
         self.0.insert(key.into(), value.into());
     }
 
@@ -45,20 +45,20 @@ impl From<Value> for Variables {
         match value {
             Value::Null => {}
             Value::Bool(value) => {
-                variables.add(Self::default_key(), value.to_string());
+                variables.set(Self::default_key(), value.to_string());
             }
             Value::Number(value) => {
-                variables.add(Self::default_key(), value.to_string());
+                variables.set(Self::default_key(), value.to_string());
             }
             Value::String(value) => {
-                variables.add(Self::default_key(), value);
+                variables.set(Self::default_key(), value);
             }
             Value::Array(values) => {
-                variables.add(Self::default_key(), values);
+                variables.set(Self::default_key(), values);
             }
             Value::Object(map) => {
                 for (key, value) in map {
-                    variables.add(key, value);
+                    variables.set(key, value);
                 }
             }
         };

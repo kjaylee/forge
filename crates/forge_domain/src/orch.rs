@@ -164,11 +164,17 @@ impl<F: ForgeDomain> Orchestrator<F> {
 
     async fn write_variable(
         &self,
+        agent_id: &AgentId,
         tool_call: &ToolCallFull,
         write: WriteVariable,
     ) -> anyhow::Result<ToolResult> {
         let mut guard = self.workflow.lock().await;
-        guard.variables.add(write.name.clone(), write.value.clone());
+        guard.variables.set(write.name.clone(), write.value.clone());
+        self.send_message(
+            agent_id,
+            ChatResponse::VariableSet { key: write.name.clone(), value: write.value.clone() },
+        )
+        .await?;
         Ok(ToolResult::from(tool_call.clone())
             .success(format!("Variable {} set to {}", write.name, write.value)))
     }
@@ -191,11 +197,17 @@ impl<F: ForgeDomain> Orchestrator<F> {
     }
 
     #[async_recursion]
-    async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<Option<ToolResult>> {
+    async fn execute_tool(
+        &self,
+        agent_id: &AgentId,
+        tool_call: &ToolCallFull,
+    ) -> anyhow::Result<Option<ToolResult>> {
         if let Some(read) = ReadVariable::parse(tool_call) {
             self.read_variable(tool_call, read).await.map(Some)
         } else if let Some(write) = WriteVariable::parse(tool_call) {
-            self.write_variable(tool_call, write).await.map(Some)
+            self.write_variable(agent_id, tool_call, write)
+                .await
+                .map(Some)
         } else if let Some(agent) = self
             .workflow
             .lock()
@@ -227,7 +239,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
                     let mut summarize = Summarize::new(&mut context, *token_limit);
                     while let Some(mut summary) = summarize.summarize() {
                         let mut input = Variables::default();
-                        input.add(input_key, summary.get());
+                        input.set(input_key, summary.get());
 
                         self.init_agent(agent_id, &input).await?;
 
@@ -249,7 +261,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
                     })) = context.messages.last_mut()
                     {
                         let mut input = Variables::default();
-                        input.add(input_key, Value::from(content.clone()));
+                        input.set(input_key, Value::from(content.clone()));
 
                         self.init_agent(agent_id, &input).await?;
                         let guard = self.workflow.lock().await;
@@ -265,7 +277,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
                 }
                 Transform::Tap { agent_id, input: input_key } => {
                     let mut input = Variables::default();
-                    input.add(input_key, context.to_text());
+                    input.set(input_key, context.to_text());
 
                     // NOTE: Tap transformers will not modify the context
                     self.init_agent(agent_id, &input).await?;
@@ -313,7 +325,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
             for tool_call in tool_calls.iter() {
                 self.send(&agent.id, ChatResponse::ToolCallStart(tool_call.clone()))
                     .await?;
-                if let Some(tool_result) = self.execute_tool(tool_call).await? {
+                if let Some(tool_result) = self.execute_tool(&agent.id, tool_call).await? {
                     tool_results.push(tool_result.clone());
                     self.send(&agent.id, ChatResponse::ToolCallEnd(tool_result))
                         .await?;

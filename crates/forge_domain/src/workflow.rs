@@ -10,7 +10,7 @@ use crate::{
     Agent, AgentId, ChatResponse, Context, ForgeDomain, Orchestrator, SystemContext, Variables,
 };
 
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
     pub state: HashMap<AgentId, Context>,

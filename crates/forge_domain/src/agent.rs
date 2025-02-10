@@ -1,9 +1,10 @@
 use std::path::PathBuf;
 
+use derive_builder::Builder;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use handlebars::Handlebars;
-use schemars::schema::RootSchema;
+use schemars::schema_for;
 use serde::{Deserialize, Serialize};
 
 use crate::variables::Variables;
@@ -30,6 +31,15 @@ pub struct Prompt<V> {
     pub variables: Schema<V>,
 }
 
+impl<V> Prompt<V> {
+    pub fn new(template: impl ToString) -> Self {
+        Self {
+            template: PromptTemplate(template.to_string()),
+            variables: Schema { _marker: std::marker::PhantomData },
+        }
+    }
+}
+
 impl<V: Serialize> Prompt<V> {
     pub fn render(&self, ctx: &V) -> crate::Result<String> {
         let mut hb = Handlebars::new();
@@ -43,7 +53,6 @@ impl<V: Serialize> Prompt<V> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema<S> {
-    pub schema: RootSchema,
     _marker: std::marker::PhantomData<S>,
 }
 
@@ -66,7 +75,8 @@ impl From<ToolName> for AgentId {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(into))]
 pub struct Agent {
     pub id: AgentId,
     pub provider: Provider,
@@ -95,7 +105,7 @@ impl From<Agent> for ToolDefinition {
         ToolDefinition {
             name: ToolName::new(value.id.0),
             description: value.description,
-            input_schema: value.user_prompt.variables.schema,
+            input_schema: schema_for!(Variables),
             output_schema: None,
         }
     }

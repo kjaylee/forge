@@ -316,6 +316,11 @@ impl UI {
             ChatResponse::CompleteTitle(title) => {
                 self.state.current_title = Some(title);
             }
+            ChatResponse::VariableSet { key, value } => {
+                if key == "title" {
+                    self.state.current_title = Some(value);
+                }
+            }
             ChatResponse::FinishReason(_) => {}
             ChatResponse::Usage(u) => {
                 self.state.usage = u;

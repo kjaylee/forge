@@ -22,4 +22,8 @@ pub enum ChatResponse {
     CompleteTitle(String),
     FinishReason(FinishReason),
     Usage(Usage),
+    VariableSet {
+        key: String,
+        value: String,
+    },
 }
