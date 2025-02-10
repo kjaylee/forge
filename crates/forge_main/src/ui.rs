@@ -51,7 +51,7 @@ pub struct UI {
 
 impl UI {
     async fn process_message(&mut self, content: &str, model: &ModelId) -> Result<()> {
-        self.chat(content.to_string(), &model).await
+        self.chat(content.to_string(), model).await
     }
 
     pub async fn init() -> Result<Self> {
