@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use async_recursion::async_recursion;
-use derive_setters::Setters;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
@@ -10,17 +9,18 @@ use tokio::sync::Mutex;
 
 use crate::*;
 
+type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
+
 pub struct AgentMessage<T> {
     pub agent: AgentId,
     pub message: T,
 }
 
-#[derive(Setters)]
 pub struct Orchestrator<ForgeDomain> {
     svc: ForgeDomain,
     workflow: Arc<Mutex<Workflow>>,
     system_context: SystemContext,
-    sender: Option<Arc<tokio::sync::mpsc::Sender<AgentMessage<ChatResponse>>>>,
+    sender: Option<Arc<ArcSender>>,
 }
 
 struct ChatCompletionResult {
@@ -29,13 +29,28 @@ struct ChatCompletionResult {
 }
 
 impl<F: ForgeDomain> Orchestrator<F> {
-    pub fn new(svc: F) -> Self {
+    pub fn new(
+        svc: F,
+        workflow: Workflow,
+        system_context: SystemContext,
+        sender: Option<ArcSender>,
+    ) -> Self {
         Self {
             svc,
-            workflow: Arc::new(Mutex::new(Workflow::default())),
-            system_context: SystemContext::default(),
-            sender: None,
+            workflow: Arc::new(Mutex::new(workflow)),
+            system_context,
+            sender: sender.map(Arc::new),
         }
+    }
+
+    pub fn system_context(mut self, system_context: SystemContext) -> Self {
+        self.system_context = system_context;
+        self
+    }
+
+    pub fn sender(mut self, sender: ArcSender) -> Self {
+        self.sender = Some(Arc::new(sender));
+        self
     }
 
     pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
@@ -46,7 +61,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
     async fn send_message(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             sender
-                .send(AgentMessage { agent: agent_id.clone(), message })
+                .send(Ok(AgentMessage { agent: agent_id.clone(), message }))
                 .await?
         }
         Ok(())
@@ -175,7 +190,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
         Ok(result)
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn execute_tool(&self, tool_call: &ToolCallFull) -> anyhow::Result<Option<ToolResult>> {
         if let Some(read) = ReadVariable::parse(tool_call) {
             self.read_variable(tool_call, read).await.map(Some)
@@ -195,7 +210,7 @@ impl<F: ForgeDomain> Orchestrator<F> {
         }
     }
 
-    #[async_recursion(?Send)]
+    #[async_recursion]
     async fn execute_transform(
         &self,
         transforms: &[Transform],

@@ -1,12 +1,16 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, AgentId, Context, Variables};
+use crate::{
+    Agent, AgentId, ChatResponse, Context, ForgeDomain, Orchestrator, SystemContext, Variables,
+};
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
     pub state: HashMap<AgentId, Context>,
@@ -25,5 +29,23 @@ impl Workflow {
 
     pub fn get_entries(&self) -> Vec<&Agent> {
         self.agents.iter().filter(|a| a.entry).collect::<Vec<_>>()
+    }
+
+    pub fn execute<F: ForgeDomain>(
+        &self,
+        domain: F,
+        input: Variables,
+        ctx: SystemContext,
+    ) -> MpscStream<anyhow::Result<crate::AgentMessage<ChatResponse>>> {
+        let workflow = self.clone();
+        MpscStream::spawn(move |tx| async move {
+            let tx = Arc::new(tx);
+            let orch = Orchestrator::new(domain, workflow, ctx, Some(tx.clone()));
+
+            match orch.execute(&input).await {
+                Ok(_) => {}
+                Err(err) => tx.send(Err(err)).await.unwrap(),
+            }
+        })
     }
 }

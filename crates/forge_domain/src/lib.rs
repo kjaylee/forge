@@ -61,7 +61,7 @@ pub use workflow::*;
 /// Core domain trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
-pub trait ForgeDomain {
+pub trait ForgeDomain: Send + Sync + 'static {
     /// The concrete type implementing file read service capabilities
     type FileReadService: file::FileReadService;
     /// The concrete type implementing tool service capabilities
