@@ -5,7 +5,7 @@ use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Agent, AgentId, ChatResponse, Context, ForgeDomain, Orchestrator, SystemContext, Variables,
+    Agent, AgentId, ChatResponse, Context, App, Orchestrator, SystemContext, Variables,
 };
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ impl Workflow {
         self.agents.iter().filter(|a| a.entry).collect::<Vec<_>>()
     }
 
-    pub fn execute<'a, F: ForgeDomain + 'a>(
+    pub fn execute<'a, F: App + 'a>(
         &'a self,
         domain: Arc<F>,
         input: Variables,

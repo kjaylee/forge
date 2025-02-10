@@ -41,13 +41,4 @@ impl Environment {
         self.base_path.join(".forge_history")
     }
 }
-/// Repository for accessing system environment information
-#[async_trait]
-pub trait EnvironmentService {
-    /// Get the current environment information including:
-    /// - Operating system
-    /// - Current working directory
-    /// - Home directory
-    /// - Default shell
-    async fn get_environment(&self) -> anyhow::Result<Environment>;
-}
+

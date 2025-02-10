@@ -16,8 +16,8 @@ pub struct AgentMessage<T> {
     pub message: T,
 }
 
-pub struct Orchestrator<ForgeDomain> {
-    svc: Arc<ForgeDomain>,
+pub struct Orchestrator<F> {
+    svc: Arc<F>,
     workflow: Arc<Mutex<Workflow>>,
     system_context: SystemContext,
     sender: Option<Arc<ArcSender>>,
@@ -28,7 +28,7 @@ struct ChatCompletionResult {
     pub tool_calls: Vec<ToolCallFull>,
 }
 
-impl<F: ForgeDomain> Orchestrator<F> {
+impl<F: App> Orchestrator<F> {
     pub fn new(
         svc: Arc<F>,
         workflow: Workflow,
