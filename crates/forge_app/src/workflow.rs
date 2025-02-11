@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use forge_domain::{
     Agent, AgentBuilder, AgentId, Environment, NamedTool, Prompt, SystemContext, Variables,
     Workflow, WriteVariable,
@@ -31,6 +29,7 @@ impl ForgeWorkflow {
                 "<technical_content>{{task}}</technical_content>",
             ))
             .system_prompt(Prompt::<SystemContext>::new(TITLE_GENERATOR_TEMPLATE))
+            .max_turns(1u64)
             .tools(vec![WriteVariable::tool_name()]);
 
         let developer_agent = agent
@@ -59,7 +58,6 @@ impl From<ForgeWorkflow> for Workflow {
     fn from(value: ForgeWorkflow) -> Self {
         Self {
             agents: vec![value.title_agent, value.developer_agent],
-            state: HashMap::new(),
             variables: Variables::default(),
         }
     }

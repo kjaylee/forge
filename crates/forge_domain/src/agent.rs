@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::prompt::Prompt;
 use crate::variables::Variables;
-use crate::{Environment, ModelId, ToolDefinition, ToolName};
+use crate::{Context, Environment, ModelId, ToolDefinition, ToolName};
 
 fn is_false(b: &bool) -> bool {
     !*b
@@ -87,6 +87,21 @@ pub struct Agent {
     #[builder(default = true)]
     #[serde(default = "default_entry", skip_serializing_if = "is_true")]
     pub entry: bool,
+
+    /// Maximum number of turns the agent can take
+    #[builder(default = "1024")]
+    pub max_turns: u64,
+
+    /// Internal state of the agent
+    #[serde(skip)]
+    #[builder(default)]
+    pub(crate) state: AgentState,
+}
+
+#[derive(Clone, Default)]
+pub struct AgentState {
+    pub turn_count: u64,
+    pub context: Option<Context>,
 }
 
 impl From<Agent> for ToolDefinition {

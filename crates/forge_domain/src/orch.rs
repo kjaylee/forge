@@ -329,14 +329,18 @@ impl<F: App> Orchestrator<F> {
 
             if !agent.ephemeral {
                 self.workflow
-                    .set_context(agent.id.clone(), context.clone())
-                    .await;
+                    .set_context(&agent.id, context.clone())
+                    .await?;
             }
 
             if tool_results.is_empty() {
-                return Ok(());
+                break;
             }
         }
+
+        self.workflow.complete_turn(&agent.id).await?;
+
+        Ok(())
     }
 
     pub async fn execute(&self, chat_request: ChatRequest) -> anyhow::Result<()> {

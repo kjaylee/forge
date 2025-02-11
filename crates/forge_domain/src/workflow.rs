@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_stream::MpscStream;
@@ -13,15 +12,22 @@ use crate::{
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub state: HashMap<AgentId, Context>,
     #[serde(skip_serializing_if = "Variables::is_empty")]
     pub variables: Variables,
 }
 
 impl Workflow {
+    pub fn find_agent_mut(&mut self, id: &AgentId) -> Option<&mut Agent> {
+        self.agents.iter_mut().find(|a| a.id == *id)
+    }
+
     pub fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
         self.agents.iter().find(|a| a.id == *id)
+    }
+
+    pub fn get_agent_mut(&mut self, id: &AgentId) -> crate::Result<&mut Agent> {
+        self.find_agent_mut(id)
+            .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
     }
 
     pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
@@ -33,6 +39,7 @@ impl Workflow {
         self.agents
             .iter()
             .filter(|a| a.entry)
+            .filter(|a| a.state.turn_count < a.max_turns)
             .cloned()
             .collect::<Vec<_>>()
     }
@@ -50,7 +57,7 @@ impl ConcurrentWorkflow {
 
     pub async fn context(&self, id: &AgentId) -> Option<Context> {
         let guard = self.workflow.read().await;
-        guard.state.get(id).cloned()
+        guard.find_agent(id).and_then(|a| a.state.context.clone())
     }
 
     pub async fn write_variable(&self, name: impl ToString, value: Value) {
@@ -73,14 +80,28 @@ impl ConcurrentWorkflow {
         guard.get_agent(agent).cloned()
     }
 
-    pub async fn set_context(&self, agent: AgentId, context: Context) {
+    pub async fn set_context(&self, agent: &AgentId, context: Context) -> crate::Result<()> {
         let mut guard = self.workflow.write().await;
-        guard.state.insert(agent, context);
+        guard.get_agent_mut(agent)?.state.context = Some(context);
+        Ok(())
     }
 
     pub async fn entries(&self) -> Vec<Agent> {
         let guard = self.workflow.read().await;
         guard.entries()
+    }
+
+    pub async fn complete_turn(&self, agent: &AgentId) -> crate::Result<()> {
+        let mut guard = self.workflow.write().await;
+        let agent = guard.get_agent_mut(agent)?;
+        let max_turns = agent.max_turns.clone();
+        if agent.state.turn_count >= max_turns {
+            return Err(crate::Error::MaxTurnsReached(agent.id.clone(), max_turns));
+        } else {
+            agent.state.turn_count += 1;
+        }
+
+        Ok(())
     }
 
     pub fn execute<'a, F: App + 'a>(
