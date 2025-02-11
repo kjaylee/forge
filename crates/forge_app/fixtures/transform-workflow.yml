@@ -1,0 +1,37 @@
+id: transformer-workflow
+agents:
+  - id: title-generator
+    entry: false
+    model: anthropic/claude-3.5-haiku
+    description: Generates a title for the provided user task
+    user_prompt: "<technical_content>{{task}}</technical_content>"
+    system_prompt: ../../../templates/roles/title-generator.mustache
+    tools:
+      - forge_write_variable
+  - id: developer
+    entry: true
+    ephemeral: false
+    model: anthropic/claude-3.5-sonnet
+    description: Does all the engineering tasks provided by the user
+    user_prompt: "<task>{{task}}</task>"
+    system_prompt: ../../../templates/roles/software-engineer.mustache
+    tools:
+      - forge_write_variable
+      - forge_read_variable
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_list
+      - tool_forge_fs_search
+      - tool_forge_fs_info
+      - tool_forge_patch
+      - tool_forge_code_outline
+      - tool_forge_process_shell
+      - tool_forge_process_think
+      - tool_forge_net_fetch
+    transforms:
+      - type: User
+        agent_id: title-generator
+        input: task
+        output: title
+

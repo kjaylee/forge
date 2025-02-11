@@ -163,7 +163,6 @@ mod tests {
             .find(|a| a.id.as_str() == "title-generator")
             .expect("Title generator agent not found");
         assert!(title_agent.handovers.is_empty());
-
         assert_eq!(
             title_agent.description,
             "Generates a title for the provided user task"
@@ -176,7 +175,45 @@ mod tests {
             .find(|a| a.id.as_str() == "developer")
             .expect("Developer agent not found");
 
-        assert!(!dev_agent.handovers.is_empty());
+        assert!(dev_agent.handovers.is_empty());
+        assert_eq!(
+            dev_agent.description,
+            "Does all the engineering tasks provided by the user"
+        );
+        assert!(dev_agent.entry);
+    }
+
+    #[test]
+    fn test_load_transform() {
+        let workflow_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/transform-workflow.yml");
+        let workflows = WorkflowLoader::load(workflow_path).unwrap();
+
+        // Title generator agent
+        let title_agent = workflows
+            .agents
+            .iter()
+            .find(|a| a.id.as_str() == "title-generator")
+            .expect("Title generator agent not found");
+        assert!(title_agent.handovers.is_empty());
+        assert!(title_agent.transforms.is_empty());
+        assert_eq!(
+            title_agent.description,
+            "Generates a title for the provided user task"
+        );
+        assert!(!title_agent.entry);
+
+
+        // Developer agent
+        let dev_agent = workflows
+            .agents
+            .iter()
+            .find(|a| a.id.as_str() == "developer")
+            .expect("Developer agent not found");
+
+
+        assert!(dev_agent.handovers.is_empty());
+        assert!(!dev_agent.transforms.is_empty());
         assert_eq!(
             dev_agent.description,
             "Does all the engineering tasks provided by the user"
