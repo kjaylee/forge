@@ -11,7 +11,7 @@ use crate::model::{Command, UserInput};
 use crate::prompt::ForgePrompt;
 
 /// Console implementation for handling user input via command line.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Console {
     env: Environment,
 }

@@ -56,7 +56,7 @@ impl<F: API> UI<F> {
             .config
             .primary_model()
             .map(ModelId::new)
-            .unwrap_or(ModelId::from_env(&self.api.environment()));
+            .unwrap_or(self.api.environment().large_model_id.clone());
 
         self.chat(content.to_string(), &model).await
     }
@@ -108,7 +108,7 @@ impl<F: API> UI<F> {
             .config
             .primary_model()
             .map(ModelId::new)
-            .unwrap_or(ModelId::from_env(&self.api.environment()));
+            .unwrap_or(self.api.environment().large_model_id.clone());
 
         loop {
             match input {
@@ -173,7 +173,7 @@ impl<F: API> UI<F> {
                                     .config
                                     .primary_model()
                                     .map(ModelId::new)
-                                    .unwrap_or(ModelId::from_env(&self.api.environment()));
+                                    .unwrap_or(self.api.environment().large_model_id.clone());
                                 CONSOLE.writeln(format!(
                                     "{}: {}",
                                     key.to_string().bold().yellow(),

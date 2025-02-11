@@ -86,8 +86,8 @@ impl From<&Environment> for Config {
     fn from(env: &Environment) -> Self {
         let mut config = Config::default();
         // No need to handle errors here as we control the input values
-        let _ = config.insert(&ConfigKey::PrimaryModel, &env.large_model_id);
-        let _ = config.insert(&ConfigKey::SecondaryModel, &env.small_model_id);
+        let _ = config.insert(&ConfigKey::PrimaryModel, &env.large_model_id.as_str());
+        let _ = config.insert(&ConfigKey::SecondaryModel, &env.small_model_id.as_str());
         let _ = config.insert(&ConfigKey::ToolTimeout, "20");
         config
     }

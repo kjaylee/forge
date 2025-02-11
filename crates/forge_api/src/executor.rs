@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use forge_app::{EnvironmentService, FileReadService, ForgeWorkflow, Infrastructure};
 use forge_domain::{
-    AgentMessage, App, ChatRequest, ChatResponse, ProviderService, SystemContext, ToolService,
-    Workflow,
+    AgentMessage, App, ChatRequest, ChatResponse, ConcurrentWorkflow, ProviderService,
+    SystemContext, ToolService, Workflow,
 };
 use forge_stream::MpscStream;
 use forge_walker::Walker;
@@ -12,10 +12,16 @@ use crate::ExecutorService;
 
 pub struct ForgeExecutorService<F> {
     app: Arc<F>,
+    workflow: ConcurrentWorkflow,
 }
-impl<F> ForgeExecutorService<F> {
+impl<F: Infrastructure + App> ForgeExecutorService<F> {
     pub fn new(app: Arc<F>) -> Self {
-        Self { app }
+        let env = app.environment_service().get_environment();
+
+        // TODO: Load the workflow from a YAML/TOML file
+        let workflow: Workflow = ForgeWorkflow::new(env.clone()).into();
+
+        Self { app, workflow: ConcurrentWorkflow::new(workflow) }
     }
 }
 
@@ -26,10 +32,6 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
         chat_request: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>>>> {
         let env = self.app.environment_service().get_environment();
-
-        // TODO: Load the workflow from a YAML/TOML file
-        let workflow = ForgeWorkflow::new(env.clone());
-        let workflow: Workflow = workflow.into();
         let custom_instructions = match chat_request.custom_instructions {
             Some(ref path) => Some(self.app.file_read_service().read(path.clone()).await?),
             None => None,
@@ -61,6 +63,6 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
             files,
         };
 
-        Ok(workflow.execute(self.app.clone(), chat_request, ctx))
+        Ok(self.workflow.execute(self.app.clone(), chat_request, ctx))
     }
 }

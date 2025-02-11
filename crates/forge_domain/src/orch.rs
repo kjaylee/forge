@@ -5,7 +5,6 @@ use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
-use tokio::sync::RwLock;
 
 use crate::*;
 
@@ -23,51 +22,6 @@ pub struct Orchestrator<F> {
     sender: Option<Arc<ArcSender>>,
 }
 
-struct ConcurrentWorkflow {
-    workflow: Arc<RwLock<Workflow>>,
-}
-
-impl ConcurrentWorkflow {
-    fn new(workflow: Workflow) -> Self {
-        Self { workflow: Arc::new(RwLock::new(workflow)) }
-    }
-
-    async fn context(&self, id: &AgentId) -> Option<Context> {
-        let guard = self.workflow.read().await;
-        guard.state.get(id).cloned()
-    }
-
-    async fn write_variable(&self, name: impl ToString, value: Value) {
-        let mut guard = self.workflow.write().await;
-        guard.variables.set(name.to_string(), value);
-    }
-
-    async fn read_variable(&self, name: &str) -> Option<Value> {
-        let guard = self.workflow.read().await;
-        guard.variables.get(name).cloned()
-    }
-
-    async fn find_agent(&self, id: &AgentId) -> Option<Agent> {
-        let guard = self.workflow.read().await;
-        guard.find_agent(id).cloned()
-    }
-
-    async fn get_agent(&self, agent: &AgentId) -> crate::Result<Agent> {
-        let guard = self.workflow.read().await;
-        guard.get_agent(agent).cloned()
-    }
-
-    async fn set_context(&self, agent: AgentId, context: Context) {
-        let mut guard = self.workflow.write().await;
-        guard.state.insert(agent, context);
-    }
-
-    async fn entries(&self) -> Vec<Agent> {
-        let guard = self.workflow.read().await;
-        guard.entries()
-    }
-}
-
 struct ChatCompletionResult {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
@@ -76,16 +30,11 @@ struct ChatCompletionResult {
 impl<F: App> Orchestrator<F> {
     pub fn new(
         svc: Arc<F>,
-        workflow: Workflow,
+        workflow: ConcurrentWorkflow,
         system_context: SystemContext,
         sender: Option<ArcSender>,
     ) -> Self {
-        Self {
-            svc,
-            workflow: ConcurrentWorkflow::new(workflow),
-            system_context,
-            sender: sender.map(Arc::new),
-        }
+        Self { svc, workflow, system_context, sender: sender.map(Arc::new) }
     }
 
     pub fn system_context(mut self, system_context: SystemContext) -> Self {
@@ -129,7 +78,7 @@ impl<F: App> Orchestrator<F> {
             .collect::<Vec<_>>()
     }
 
-    fn init_agent_context(&self, agent: &Agent, input: &Variables) -> anyhow::Result<Context> {
+    fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
         let tool_defs = self.init_tool_definitions(agent);
 
         let tool_usage_prompt = tool_defs.iter().fold("".to_string(), |acc, tool| {
@@ -143,11 +92,8 @@ impl<F: App> Orchestrator<F> {
                 .tool_information(tool_usage_prompt),
         )?;
 
-        let user_message = ContextMessage::user(agent.user_prompt.render(input)?);
-
         Ok(Context::default()
             .set_first_system_message(system_message)
-            .add_message(user_message)
             .extend_tools(tool_defs))
     }
 
@@ -331,14 +277,17 @@ impl<F: App> Orchestrator<F> {
         let agent = self.workflow.get_agent(agent).await?;
 
         let mut context = if agent.ephemeral {
-            self.init_agent_context(&agent, input)?
+            self.init_agent_context(&agent)?
         } else {
             self.workflow
                 .context(&agent.id)
                 .await
                 .map(Ok)
-                .unwrap_or_else(|| self.init_agent_context(&agent, input))?
+                .unwrap_or_else(|| self.init_agent_context(&agent))?
         };
+
+        let content = agent.user_prompt.render(input)?;
+        context = context.add_message(ContextMessage::user(content));
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;

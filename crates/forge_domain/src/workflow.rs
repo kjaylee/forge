@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tokio::sync::RwLock;
 
 use crate::{
     Agent, AgentId, App, ChatRequest, ChatResponse, Context, Orchestrator, SystemContext, Variables,
@@ -33,6 +35,52 @@ impl Workflow {
             .filter(|a| a.entry)
             .cloned()
             .collect::<Vec<_>>()
+    }
+}
+
+#[derive(Clone)]
+pub struct ConcurrentWorkflow {
+    workflow: Arc<RwLock<Workflow>>,
+}
+
+impl ConcurrentWorkflow {
+    pub fn new(workflow: Workflow) -> Self {
+        Self { workflow: Arc::new(RwLock::new(workflow)) }
+    }
+
+    pub async fn context(&self, id: &AgentId) -> Option<Context> {
+        let guard = self.workflow.read().await;
+        guard.state.get(id).cloned()
+    }
+
+    pub async fn write_variable(&self, name: impl ToString, value: Value) {
+        let mut guard = self.workflow.write().await;
+        guard.variables.set(name.to_string(), value);
+    }
+
+    pub async fn read_variable(&self, name: &str) -> Option<Value> {
+        let guard = self.workflow.read().await;
+        guard.variables.get(name).cloned()
+    }
+
+    pub async fn find_agent(&self, id: &AgentId) -> Option<Agent> {
+        let guard = self.workflow.read().await;
+        guard.find_agent(id).cloned()
+    }
+
+    pub async fn get_agent(&self, agent: &AgentId) -> crate::Result<Agent> {
+        let guard = self.workflow.read().await;
+        guard.get_agent(agent).cloned()
+    }
+
+    pub async fn set_context(&self, agent: AgentId, context: Context) {
+        let mut guard = self.workflow.write().await;
+        guard.state.insert(agent, context);
+    }
+
+    pub async fn entries(&self) -> Vec<Agent> {
+        let guard = self.workflow.read().await;
+        guard.entries()
     }
 
     pub fn execute<'a, F: App + 'a>(

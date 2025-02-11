@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Setters, Clone, Serialize, Deserialize)]
+use crate::ModelId;
+
+#[derive(Debug, Setters, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[setters(strip_option)]
 /// Represents the environment in which the application is running.
@@ -19,9 +21,9 @@ pub struct Environment {
     /// The Forge API key.
     pub api_key: String,
     /// The large model ID.
-    pub large_model_id: String,
+    pub large_model_id: ModelId,
     /// The small model ID.
-    pub small_model_id: String,
+    pub small_model_id: ModelId,
 
     /// The base path relative to which everything else stored.
     pub base_path: PathBuf,

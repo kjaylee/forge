@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt, SystemContext,
-    Variables, Workflow, WriteVariable,
+    Agent, AgentBuilder, AgentId, Environment, NamedTool, Prompt, SystemContext, Variables,
+    Workflow, WriteVariable,
 };
 
 const TITLE_GENERATOR_TEMPLATE: &str =
@@ -23,16 +23,14 @@ impl ForgeWorkflow {
         let mut agent = AgentBuilder::default();
 
         // Set default configurations
-        agent
-            .model(ModelId::from_env(&env))
-            .ephemeral(true)
-            .entry(true);
+        agent.ephemeral(true).entry(true);
 
         let mut title_agent = agent.clone();
         let mut developer_agent = agent.clone();
 
         title_agent
             .id(AgentId::new("title"))
+            .model(env.small_model_id.clone())
             .description("Generates a title for the provided user task")
             .user_prompt(Prompt::<Variables>::new(
                 "<technical_content>{{task}}</technical_content>",
@@ -42,6 +40,7 @@ impl ForgeWorkflow {
 
         developer_agent
             .id(AgentId::new("developer"))
+            .model(env.large_model_id.clone())
             .ephemeral(false)
             .description("Does all the engineering tasks provided by the user")
             .user_prompt(Prompt::<Variables>::new("<task>{{task}}</task>"))
