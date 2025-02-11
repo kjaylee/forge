@@ -68,6 +68,15 @@ impl PromptTemplate {
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct AgentId(String);
+impl AgentId {
+    pub fn new(id: impl ToString) -> Self {
+        Self(id.to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
 
 impl From<ToolName> for AgentId {
     fn from(value: ToolName) -> Self {
@@ -86,16 +95,22 @@ pub struct Agent {
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.
+    #[builder(default)]
     pub ephemeral: bool,
 
     /// Tools that the agent can use
+    #[builder(default)]
     pub tools: Vec<ToolName>,
+
+    #[builder(default)]
     pub transforms: Vec<Transform>,
 
     /// Downstream agents that this agent can handover to
+    #[builder(default)]
     pub handovers: Vec<Downstream>,
 
     /// Represents that the agent is the entry point to the workflow
+    #[builder(default = true)]
     pub entry: bool,
 }
 

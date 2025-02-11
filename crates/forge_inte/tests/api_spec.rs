@@ -1,7 +1,6 @@
 use std::path::Path;
 
-use forge_app::{APIService, EnvironmentFactory, Service};
-use forge_domain::{ChatRequest, ChatResponse, ModelId};
+use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, ModelId, API};
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
@@ -18,12 +17,11 @@ impl Fixture {
     }
 
     /// Get the API service, panicking if not validated
-    fn api(&self) -> impl APIService {
+    fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
         let path = Path::new("../../").to_path_buf();
         let path = path.canonicalize().unwrap();
-        let env = EnvironmentFactory::new(path, false).create().unwrap();
-        Service::api_service(env, None).unwrap()
+        ForgeAPI::init(path, false)
     }
 
     /// Get model response as text
@@ -34,7 +32,14 @@ impl Fixture {
             .await
             .unwrap()
             .filter_map(|message| match message.unwrap() {
-                ChatResponse::Text(text) => Some(text),
+                AgentMessage { agent, message: ChatResponse::Text(text) } => {
+                    // TODO: don't hard code agent id here
+                    if agent.as_str() == "developer" {
+                        Some(text)
+                    } else {
+                        None
+                    }
+                }
                 _ => None,
             })
             .collect::<Vec<_>>()

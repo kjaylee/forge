@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use forge_domain::{
     ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
@@ -6,49 +8,42 @@ use forge_domain::{
 use forge_open_router::OpenRouter;
 use moka2::future::Cache;
 
-use super::Service;
+use crate::{EnvironmentService, Infrastructure};
 
-impl Service {
-    pub fn provider_service(api_key: impl ToString) -> impl ProviderService {
-        Live::new(api_key)
-    }
-}
-
-struct Live {
-    provider: Box<dyn ProviderService>,
+pub struct ForgeProviderService {
+    or: OpenRouter,
     cache: Cache<ModelId, Parameters>,
 }
 
-impl Live {
-    fn new(api_key: impl ToString) -> Self {
-        let provider = OpenRouter::builder()
-            .api_key(api_key.to_string())
+impl ForgeProviderService {
+    pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
+        let or = OpenRouter::builder()
+            .api_key(infra.environment_service().get_environment().api_key)
             .build()
             .unwrap();
-
-        Self { provider: Box::new(provider), cache: Cache::new(1024) }
+        Self { or, cache: Cache::new(1024) }
     }
 }
 
 #[async_trait::async_trait]
-impl ProviderService for Live {
+impl ProviderService for ForgeProviderService {
     async fn chat(
         &self,
         model_id: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.provider.chat(model_id, request).await
+        self.or.chat(model_id, request).await
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        self.provider.models().await
+        self.or.models().await
     }
 
     async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters> {
         Ok(self
             .cache
             .try_get_with_by_ref(model, async {
-                self.provider
+                self.or
                     .parameters(model)
                     .await
                     .with_context(|| format!("Failed to get parameters for model: {}", model))

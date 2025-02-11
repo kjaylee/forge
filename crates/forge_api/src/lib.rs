@@ -3,7 +3,7 @@ mod executor;
 mod suggestion;
 
 pub use api::*;
-use forge_domain::*;
+pub use forge_domain::*;
 use forge_stream::MpscStream;
 
 #[async_trait::async_trait]

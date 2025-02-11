@@ -1,6 +1,3 @@
-use std::path::PathBuf;
-
-use anyhow::Result;
 use serde::Serialize;
 
 #[derive(Serialize)]

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use colored::Colorize;
-use forge_domain::{Environment, Usage};
+use forge_api::{Environment, Usage};
 
 pub enum Section {
     Title(String),

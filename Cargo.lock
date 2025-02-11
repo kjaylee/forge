@@ -897,9 +897,8 @@ dependencies = [
  "crossterm 0.28.1",
  "derive_setters",
  "dirs",
- "forge_app",
+ "forge_api",
  "forge_display",
- "forge_domain",
  "forge_tracker",
  "forge_walker",
  "inquire",
@@ -920,6 +919,19 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "forge_api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "forge_app",
+ "forge_domain",
+ "forge_infra",
+ "forge_stream",
+ "forge_walker",
 ]
 
 [[package]]
@@ -1019,12 +1031,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_infra"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "dirs",
+ "dotenv",
+ "forge_app",
+ "forge_domain",
+ "tokio",
+]
+
+[[package]]
 name = "forge_inte"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "forge_app",
- "forge_domain",
+ "forge_api",
  "futures",
  "tokio",
  "tokio-stream",

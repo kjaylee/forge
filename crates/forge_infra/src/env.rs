@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 
+use forge_app::EnvironmentService;
 use forge_domain::Environment;
 
-pub struct EnvironmentFactory {
+pub struct ForgeEnvironmentService {
     cwd: PathBuf,
     unrestricted: bool,
 }
 
-impl EnvironmentFactory {
+impl ForgeEnvironmentService {
     /// Creates a new EnvironmentFactory with current working directory
     ///
     /// # Arguments
@@ -36,7 +37,7 @@ impl EnvironmentFactory {
         }
     }
 
-    pub fn create(&self) -> anyhow::Result<Environment> {
+    pub fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = self.cwd.clone();
         let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
@@ -45,7 +46,7 @@ impl EnvironmentFactory {
         let small_model_id =
             std::env::var("FORGE_SMALL_MODEL").unwrap_or("anthropic/claude-3.5-haiku".to_owned());
 
-        Ok(Environment {
+        Environment {
             os: std::env::consts::OS.to_string(),
             cwd,
             shell: Self::get_shell_path(self.unrestricted),
@@ -56,6 +57,12 @@ impl EnvironmentFactory {
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
-        })
+        }
+    }
+}
+
+impl EnvironmentService for ForgeEnvironmentService {
+    fn get_environment(&self) -> Environment {
+        self.get()
     }
 }

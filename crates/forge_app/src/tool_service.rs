@@ -1,27 +1,27 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use forge_domain::{
-    Environment, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
-};
+use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
 use tokio::time::{timeout, Duration};
 use tracing::debug;
 
-use super::Service;
+use crate::{EnvironmentService, Infrastructure};
 
 // Timeout duration for tool calls
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
-impl Service {
-    pub fn tool_service(env: &Environment) -> impl ToolService {
-        Live::from_iter(forge_tool::tools(env))
-    }
-}
-
-struct Live {
+pub struct ForgeToolService {
     tools: HashMap<ToolName, Tool>,
 }
 
-impl FromIterator<Tool> for Live {
+impl ForgeToolService {
+    pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
+        let env = infra.environment_service().get_environment();
+        ForgeToolService::from_iter(forge_tool::tools(&env))
+    }
+}
+
+impl FromIterator<Tool> for ForgeToolService {
     fn from_iter<T: IntoIterator<Item = Tool>>(iter: T) -> Self {
         let tools: HashMap<ToolName, Tool> = iter
             .into_iter()
@@ -33,7 +33,7 @@ impl FromIterator<Tool> for Live {
 }
 
 #[async_trait::async_trait]
-impl ToolService for Live {
+impl ToolService for ForgeToolService {
     async fn call(&self, call: ToolCallFull) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
@@ -155,7 +155,7 @@ mod test {
             executable: Box::new(FailureTool),
         };
 
-        Live::from_iter(vec![success_tool, failure_tool])
+        ForgeToolService::from_iter(vec![success_tool, failure_tool])
     }
 
     #[tokio::test]
@@ -224,7 +224,7 @@ mod test {
             executable: Box::new(SlowTool),
         };
 
-        let service = Live::from_iter(vec![slow_tool]);
+        let service = ForgeToolService::from_iter(vec![slow_tool]);
         let call = ToolCallFull {
             name: ToolName::new("slow_tool"),
             arguments: json!("test input"),

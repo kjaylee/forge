@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use forge_domain::Model;
+use forge_api::Model;
 
 use crate::error::{Error, Result};
 use crate::info::Info;

@@ -13,4 +13,5 @@ mod normalize;
 mod prompt;
 mod ui;
 
+pub use cli::Cli;
 pub use ui::UI;

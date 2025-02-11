@@ -1,20 +1,24 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use forge_domain::FileReadService;
+use forge_app::FileReadService;
 
-use super::Service;
+pub struct ForgeFileReadService;
 
-struct Live;
+impl Default for ForgeFileReadService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-impl Service {
-    pub fn file_read_service() -> impl FileReadService {
-        Live {}
+impl ForgeFileReadService {
+    pub fn new() -> Self {
+        Self
     }
 }
 
 #[async_trait::async_trait]
-impl FileReadService for Live {
+impl FileReadService for ForgeFileReadService {
     async fn read(&self, path: PathBuf) -> Result<String> {
         Ok(tokio::fs::read_to_string(path.clone())
             .await

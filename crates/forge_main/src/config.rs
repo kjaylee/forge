@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
-use forge_domain::Environment;
+use forge_api::Environment;
 
 use crate::info::Info;
 use crate::model::ConfigKey;

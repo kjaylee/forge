@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, Environment, ModelId, NamedTool, Prompt, SystemContext, Variables,
-    Workflow, WriteVariable,
+    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt, SystemContext,
+    Variables, Workflow, WriteVariable,
 };
 use forge_tool::tools;
 
@@ -26,6 +26,7 @@ impl ForgeWorkflow {
         let mut developer_agent = agent.clone();
 
         title_agent
+            .id(AgentId::new("title"))
             .description("Generates a title for the provided user task")
             .user_prompt(Prompt::<Variables>::new(
                 "<technical_content>{{task}}</technical_content>",
@@ -36,6 +37,7 @@ impl ForgeWorkflow {
             .tools(vec![WriteVariable::tool_name()]);
 
         developer_agent
+            .id(AgentId::new("developer"))
             .ephemeral(false)
             .description("Does all the engineering tasks provided by the user")
             .user_prompt(Prompt::<Variables>::new("<task>{{task}}</task>"))

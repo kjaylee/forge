@@ -1,5 +1,5 @@
 ---
-source: crates/forge_app/src/service/tool_service.rs
+source: crates/forge_app/src/tool_service.rs
 expression: result
 snapshot_kind: text
 ---

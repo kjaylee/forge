@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use forge_display::TitleFormat;
-use forge_domain::{Environment, Usage};
+use forge_api::{Environment, Usage};
 use tokio::fs;
 
 use crate::console::CONSOLE;
