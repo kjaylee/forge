@@ -5,7 +5,7 @@ use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 
 use crate::*;
 
@@ -18,7 +18,7 @@ pub struct AgentMessage<T> {
 
 pub struct Orchestrator<F> {
     svc: Arc<F>,
-    workflow: Arc<Mutex<Workflow>>,
+    workflow: Arc<RwLock<Workflow>>,
     system_context: SystemContext,
     sender: Option<Arc<ArcSender>>,
 }
@@ -37,7 +37,7 @@ impl<F: App> Orchestrator<F> {
     ) -> Self {
         Self {
             svc,
-            workflow: Arc::new(Mutex::new(workflow)),
+            workflow: Arc::new(RwLock::new(workflow)),
             system_context,
             sender: sender.map(Arc::new),
         }
@@ -54,7 +54,7 @@ impl<F: App> Orchestrator<F> {
     }
 
     pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
-        let guard = self.workflow.lock().await;
+        let guard = self.workflow.read().await;
         guard.state.get(id).cloned()
     }
 
@@ -168,7 +168,7 @@ impl<F: App> Orchestrator<F> {
         tool_call: &ToolCallFull,
         write: WriteVariable,
     ) -> anyhow::Result<ToolResult> {
-        let mut guard = self.workflow.lock().await;
+        let mut guard = self.workflow.write().await;
         guard.variables.set(write.name.clone(), write.value.clone());
         self.send_message(
             agent_id,
@@ -184,7 +184,7 @@ impl<F: App> Orchestrator<F> {
         tool_call: &ToolCallFull,
         read: ReadVariable,
     ) -> anyhow::Result<ToolResult> {
-        let guard = self.workflow.lock().await;
+        let guard = self.workflow.read().await;
         let output = guard.variables.get(&read.name);
         let result = match output {
             Some(value) => {
@@ -210,7 +210,7 @@ impl<F: App> Orchestrator<F> {
                 .map(Some)
         } else if let Some(agent) = self
             .workflow
-            .lock()
+            .read()
             .await
             .find_agent(&tool_call.name.clone().into())
         {
@@ -243,7 +243,7 @@ impl<F: App> Orchestrator<F> {
 
                         self.init_agent(agent_id, &input).await?;
 
-                        let guard = self.workflow.lock().await;
+                        let guard = self.workflow.read().await;
 
                         let value = guard
                             .variables
@@ -264,7 +264,7 @@ impl<F: App> Orchestrator<F> {
                         input.set(input_key, Value::from(content.clone()));
 
                         self.init_agent(agent_id, &input).await?;
-                        let guard = self.workflow.lock().await;
+                        let guard = self.workflow.read().await;
                         let value = guard
                             .variables
                             .get(output_key)
@@ -289,14 +289,14 @@ impl<F: App> Orchestrator<F> {
     }
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<()> {
-        let guard = self.workflow.lock().await;
+        let guard = self.workflow.read().await;
         let agent = guard.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
             self.init_agent_context(agent, input)?
         } else {
             self.workflow
-                .lock()
+                .read()
                 .await
                 .state
                 .get(&agent.id)
@@ -338,7 +338,7 @@ impl<F: App> Orchestrator<F> {
 
             if !agent.ephemeral {
                 self.workflow
-                    .lock()
+                    .write()
                     .await
                     .state
                     .insert(agent.id.clone(), context.clone());
@@ -351,7 +351,7 @@ impl<F: App> Orchestrator<F> {
     }
 
     pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
-        let guard = self.workflow.lock().await;
+        let guard = self.workflow.read().await;
 
         join_all(
             guard
