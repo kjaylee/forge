@@ -6,7 +6,7 @@ use forge_domain::{
 };
 use forge_tool::tools;
 
-use crate::{partial_template, role_template};
+use forge_domain::{template, role_template};
 
 #[derive(Clone)]
 pub struct ForgeWorkflow {

@@ -41,15 +41,32 @@ impl<V> Prompt<V> {
 }
 
 impl<V: Serialize> Prompt<V> {
+    /// Register all known partial templates with the Handlebars registry
+    fn register_partials(hb: &mut Handlebars) {
+        // Register all partial templates. Template names must match the file names without .mustache extension
+        const PARTIALS: &[(&str, &str)] = &[
+            ("tool-usage-examples", include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../templates/partials/tool-usage-examples.mustache"
+            ))),
+            ("agent-tools", include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../templates/partials/agent-tools.mustache"
+            ))),
+        ];
+
+        for (name, content) in PARTIALS {
+            let _ = hb.register_partial(name, content);
+        }
+    }
+
     pub fn render(&self, ctx: &V) -> crate::Result<String> {
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
         hb.register_escape_fn(|str| str.to_string());
-        
-        // Register partials
-        if let Ok(examples) = partial_template!("tool-usage-examples") {
-            hb.register_partial("tool-usage-examples", examples);
-        }
+
+        // Register all partial templates
+        Self::register_partials(&mut hb);
 
         hb.render_template(self.template.as_str(), &ctx)
             .map_err(Error::Template)

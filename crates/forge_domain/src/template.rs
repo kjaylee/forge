@@ -53,7 +53,7 @@ macro_rules! role_template {
 /// ```
 #[macro_export]
 macro_rules! partial_template {
-    ($name:expr) => {
+    ($name:expr) => {        
         template!(concat!("partials/", $name))
     };
 }
