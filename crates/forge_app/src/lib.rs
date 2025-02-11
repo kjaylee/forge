@@ -2,6 +2,7 @@ mod app;
 mod provider;
 mod tool_service;
 mod workflow;
+mod workflow_loader;
 
 pub use app::*;
 pub use workflow::*;

@@ -17,6 +17,13 @@ pub struct Workflow {
 }
 
 impl Workflow {
+    pub fn new(agents: Vec<Agent>) -> Self {
+        Self {
+            agents,
+            variables: Variables::default(),
+        }
+    }
+
     pub fn find_agent_mut(&mut self, id: &AgentId) -> Option<&mut Agent> {
         self.agents.iter_mut().find(|a| a.id == *id)
     }
