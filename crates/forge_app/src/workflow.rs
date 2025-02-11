@@ -20,15 +20,10 @@ pub struct ForgeWorkflow {
 
 impl ForgeWorkflow {
     pub fn new(env: Environment) -> Self {
-        let mut agent = AgentBuilder::default();
+        let agent = AgentBuilder::default().entry(true);
 
-        // Set default configurations
-        agent.ephemeral(true).entry(true);
-
-        let mut title_agent = agent.clone();
-        let mut developer_agent = agent.clone();
-
-        title_agent
+        let title_agent = agent
+            .clone()
             .id(AgentId::new("title"))
             .model(env.small_model_id.clone())
             .description("Generates a title for the provided user task")
@@ -38,7 +33,8 @@ impl ForgeWorkflow {
             .system_prompt(Prompt::<SystemContext>::new(TITLE_GENERATOR_TEMPLATE))
             .tools(vec![WriteVariable::tool_name()]);
 
-        developer_agent
+        let developer_agent = agent
+            .clone()
             .id(AgentId::new("developer"))
             .model(env.large_model_id.clone())
             .ephemeral(false)

@@ -55,7 +55,7 @@ impl From<ToolName> for AgentId {
 }
 
 #[derive(Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(into))]
+#[builder(setter(into), pattern = "immutable")]
 pub struct Agent {
     pub id: AgentId,
     pub model: ModelId,
