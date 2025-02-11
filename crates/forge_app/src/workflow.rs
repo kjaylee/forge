@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt, SystemContext,
-    Variables, Workflow, WriteVariable,
+    role_template, template, Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
+    SystemContext, Variables, Workflow, WriteVariable,
 };
 use forge_tool::tools;
-
-use forge_domain::{template, role_template};
 
 #[derive(Clone)]
 pub struct ForgeWorkflow {

@@ -43,16 +43,23 @@ impl<V> Prompt<V> {
 impl<V: Serialize> Prompt<V> {
     /// Register all known partial templates with the Handlebars registry
     fn register_partials(hb: &mut Handlebars) {
-        // Register all partial templates. Template names must match the file names without .mustache extension
+        // Register all partial templates. Template names must match the file names
+        // without .mustache extension
         const PARTIALS: &[(&str, &str)] = &[
-            ("tool-usage-examples", include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../templates/partials/tool-usage-examples.mustache"
-            ))),
-            ("agent-tools", include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../templates/partials/agent-tools.mustache"
-            ))),
+            (
+                "tool-usage-examples",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../templates/partials/tool-usage-examples.mustache"
+                )),
+            ),
+            (
+                "agent-tools",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../templates/partials/agent-tools.mustache"
+                )),
+            ),
         ];
 
         for (name, content) in PARTIALS {
