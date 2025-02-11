@@ -6,6 +6,8 @@ use forge_domain::{
 };
 use forge_tool::tools;
 
+use crate::{partial_template, role_template};
+
 #[derive(Clone)]
 pub struct ForgeWorkflow {
     pub title_agent: Agent,
@@ -32,8 +34,8 @@ impl ForgeWorkflow {
             .user_prompt(Prompt::<Variables>::new(
                 "<technical_content>{{task}}</technical_content>",
             ))
-            .system_prompt(Prompt::<SystemContext>::new(include_str!(
-                "prompts/title.md"
+            .system_prompt(Prompt::<SystemContext>::new(role_template!(
+                "title-generator"
             )))
             .tools(vec![WriteVariable::tool_name()]);
 
@@ -42,8 +44,8 @@ impl ForgeWorkflow {
             .ephemeral(false)
             .description("Does all the engineering tasks provided by the user")
             .user_prompt(Prompt::<Variables>::new("<task>{{task}}</task>"))
-            .system_prompt(Prompt::<SystemContext>::new(include_str!(
-                "prompts/coding/system.md"
+            .system_prompt(Prompt::<SystemContext>::new(role_template!(
+                "software-engineer"
             )))
             .tools(
                 tools(&env)

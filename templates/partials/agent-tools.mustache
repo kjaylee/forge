@@ -1,5 +1,5 @@
 {{#if (not tool_supported)}}
-
+<tool_information>
 Tool Usage Instructions:
 
 You have access to set of tools as described in the <available_tools> tag. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
@@ -19,10 +19,10 @@ Important:
 - Do NOT mix formats in the same message
 - If you need to make multiple tool calls, send them in separate messages
 
-{{> tool_use_example}}
+{{> tool_usage-examples}}
 
 Before using a tool, ensure all required parameters are available. If any required parameters are missing, do not attempt to use the tool.
 
 <available_tools>{{tool_information}}</available_tools>
-
+</tool_information>
 {{/if}}

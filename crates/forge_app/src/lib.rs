@@ -1,9 +1,11 @@
 mod app;
 mod provider;
+mod template;
 mod tool_service;
 mod workflow;
 
 pub use app::*;
+pub use template::*;
 pub use workflow::*;
 
 /// Repository for accessing system environment information

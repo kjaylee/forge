@@ -45,6 +45,11 @@ impl<V: Serialize> Prompt<V> {
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
         hb.register_escape_fn(|str| str.to_string());
+        
+        // Register partials
+        if let Ok(examples) = partial_template!("tool-usage-examples") {
+            hb.register_partial("tool-usage-examples", examples);
+        }
 
         hb.render_template(self.template.as_str(), &ctx)
             .map_err(Error::Template)
