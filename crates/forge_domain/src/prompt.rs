@@ -13,6 +13,7 @@ pub enum PromptContent {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
+    #[serde(skip_serializing_if = "Schema::is_empty")]
     pub variables: Schema<V>,
 }
 
@@ -67,7 +68,14 @@ impl<V: Serialize> Prompt<V> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schema<S> {
+    #[serde(skip)]
     _marker: std::marker::PhantomData<S>,
+}
+
+impl<S> Schema<S> {
+    pub fn is_empty(&self) -> bool {
+        true // Since we skip the only field (_marker), this is always empty
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]

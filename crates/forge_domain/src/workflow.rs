@@ -9,7 +9,9 @@ use crate::{Agent, AgentId, App, ChatResponse, Context, Orchestrator, SystemCont
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub state: HashMap<AgentId, Context>,
+    #[serde(skip_serializing_if = "Variables::is_empty")]
     pub variables: Variables,
 }
 

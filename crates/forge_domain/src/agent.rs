@@ -8,13 +8,30 @@ use crate::prompt::Prompt;
 use crate::variables::Variables;
 use crate::{Environment, ModelId, ToolDefinition, ToolName};
 
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+fn is_true(b: &bool) -> bool {
+    *b
+}
+
+fn default_entry() -> bool {
+    true
+}
+
 #[derive(Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
 pub struct SystemContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub env: Option<Environment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_information: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_supported: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_instructions: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<String>,
 }
 
@@ -49,21 +66,26 @@ pub struct Agent {
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.
     #[builder(default)]
+    #[serde(skip_serializing_if = "is_false")]
     pub ephemeral: bool,
 
     /// Tools that the agent can use
     #[builder(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<ToolName>,
 
     #[builder(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub transforms: Vec<Transform>,
 
     /// Downstream agents that this agent can handover to
     #[builder(default)]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub handovers: Vec<Downstream>,
 
     /// Represents that the agent is the entry point to the workflow
     #[builder(default = true)]
+    #[serde(default = "default_entry", skip_serializing_if = "is_true")]
     pub entry: bool,
 }
 
@@ -81,6 +103,7 @@ impl From<Agent> for ToolDefinition {
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Transform {
     /// Compresses multiple assistant messages into a single message
     Assistant {
@@ -99,11 +122,10 @@ pub enum Transform {
 
     /// Intercepts the context and performs an operation without changing the
     /// context
-    Tap { agent_id: AgentId, input: String },
+    PassThrough { agent_id: AgentId, input: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Downstream {
     pub agent: AgentId,
-    pub wait: bool,
 }

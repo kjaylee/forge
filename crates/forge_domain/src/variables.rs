@@ -11,6 +11,10 @@ use crate::{NamedTool, ToolCallFull, ToolDefinition, ToolName};
 pub struct Variables(HashMap<String, Value>);
 
 impl Variables {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn set(&mut self, key: impl Into<String>, value: impl Into<Value>) {
         self.0.insert(key.into(), value.into());
     }

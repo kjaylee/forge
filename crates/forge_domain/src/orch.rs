@@ -275,7 +275,7 @@ impl<F: App> Orchestrator<F> {
                         content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
                     }
                 }
-                Transform::Tap { agent_id, input: input_key } => {
+                Transform::PassThrough { agent_id, input: input_key } => {
                     let mut input = Variables::default();
                     input.set(input_key, context.to_text());
 
