@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, ModelId, API};
+use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, API};
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
@@ -25,8 +25,8 @@ impl Fixture {
     }
 
     /// Get model response as text
-    async fn get_model_response(&self, model: &str) -> String {
-        let request = ChatRequest::new(ModelId::new(model), self.task.clone());
+    async fn get_model_response(&self) -> String {
+        let request = ChatRequest::new(self.task.clone());
         self.api()
             .chat(request)
             .await
@@ -50,13 +50,9 @@ impl Fixture {
     }
 
     /// Test single model with retries
-    async fn test_single_model(
-        &self,
-        model: &str,
-        check_response: impl Fn(&str) -> bool,
-    ) -> Result<(), String> {
+    async fn test_single_model(&self, check_response: impl Fn(&str) -> bool) -> Result<(), String> {
         for attempt in 0..MAX_RETRIES {
-            let response = self.get_model_response(model).await;
+            let response = self.get_model_response().await;
 
             if check_response(&response) {
                 println!(

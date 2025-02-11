@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use forge_app::{EnvironmentService, FileReadService, ForgeWorkflow, Infrastructure};
 use forge_domain::{
-    AgentMessage, App, ChatRequest, ChatResponse, ConcurrentWorkflow, ProviderService,
-    SystemContext, ToolService, Workflow,
+    AgentMessage, App, ChatRequest, ChatResponse, ConcurrentWorkflow, SystemContext, ToolService,
+    Workflow,
 };
 use forge_stream::MpscStream;
 use forge_walker::Walker;
@@ -52,13 +52,7 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
         let ctx = SystemContext {
             env: Some(env),
             tool_information: Some(self.app.tool_service().usage_prompt()),
-            tool_supported: Some(
-                self.app
-                    .provider_service()
-                    .parameters(&chat_request.model.clone())
-                    .await?
-                    .tool_supported,
-            ),
+            tool_supported: Some(true),
             custom_instructions,
             files,
         };

@@ -52,13 +52,7 @@ pub struct UI<F> {
 
 impl<F: API> UI<F> {
     async fn process_message(&mut self, content: &str) -> Result<()> {
-        let model = self
-            .config
-            .primary_model()
-            .map(ModelId::new)
-            .unwrap_or(self.api.environment().large_model_id.clone());
-
-        self.chat(content.to_string(), &model).await
+        self.chat(content.to_string()).await
     }
 
     pub async fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -90,7 +84,7 @@ impl<F: API> UI<F> {
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
-            self.process_message(&prompt).await?;
+            self.chat(prompt).await?;
             return Ok(());
         }
 
@@ -139,7 +133,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Message(ref content) => {
                     self.state.current_content = Some(content.clone());
-                    if let Err(err) = self.chat(content.clone(), &model).await {
+                    if let Err(err) = self.chat(content.clone()).await {
                         CONSOLE.writeln(
                             TitleFormat::failed(format!("{:?}", err))
                                 .sub_title(self.state.usage.to_string())
@@ -215,11 +209,9 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    async fn chat(&mut self, content: String, model: &ModelId) -> Result<()> {
+    async fn chat(&mut self, content: String) -> Result<()> {
         let chat = ChatRequest {
             content: content.clone(),
-            model: model.clone(),
-            conversation_id: self.state.current_conversation_id,
             custom_instructions: self.cli.custom_instructions.clone(),
         };
         tokio::spawn({
