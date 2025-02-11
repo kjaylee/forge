@@ -6,6 +6,7 @@ mod workflow_loader;
 
 pub use app::*;
 pub use workflow::*;
+pub use workflow_loader::WorkflowLoader;
 
 /// Repository for accessing system environment information
 #[async_trait::async_trait]

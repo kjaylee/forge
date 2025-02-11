@@ -2,56 +2,93 @@ use anyhow::{Context, Result};
 use forge_domain::{
     Agent, AgentBuilder, AgentId, ModelId, Prompt, SystemContext, ToolName, Variables, Workflow,
 };
-use serde::{Deserialize, Deserializer};
+use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
-struct WorkflowConfig {
+enum Resolved {}
+
+#[derive(Debug, Deserialize)]
+enum UnResolved {}
+
+#[derive(Debug, Deserialize)]
+struct WorkflowConfig<Status = UnResolved> {
     id: String,
-    agents: Vec<AgentConfig>,
+    agents: Vec<AgentConfig<Status>>,
+}
+
+impl WorkflowConfig<UnResolved> {
+    // TODO: agents prompts might have relative path, now goal is to
+    // resolve all the internal relative paths with respect to config_path.
+    fn resolve(self, config_path: PathBuf) -> Result<WorkflowConfig<Resolved>> {
+        let config_path = config_path
+            .parent()
+            .context("Failed to get parent of config path")?
+            .to_path_buf();
+        let agents = self
+            .agents
+            .into_iter()
+            .map(|agent| agent.resolve(&config_path))
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(WorkflowConfig { id: self.id, agents })
+    }
 }
 
 #[derive(Debug, Deserialize)]
-struct AgentConfig {
+struct AgentConfig<Status> {
     id: String,
     entry: Option<bool>,
     ephemeral: Option<bool>,
     model: ModelId,
     description: String,
-    #[serde(deserialize_with = "deserialize_prompt")]
     user_prompt: String,
-    #[serde(deserialize_with = "deserialize_prompt")]
     system_prompt: String,
     max_turns: Option<u64>,
     tools: Vec<ToolName>,
+    #[serde(skip)]
+    _marker: std::marker::PhantomData<Status>,
 }
 
-fn deserialize_prompt<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::Error;
-    let s = String::deserialize(deserializer)?;
-    let path = PathBuf::from(&s);
+impl AgentConfig<UnResolved> {
+    fn resolve(mut self, base_dir: &PathBuf) -> Result<AgentConfig<Resolved>> {
+        let user_prompt_path = Path::new(&self.user_prompt);
+        let user_prompt_abs_path = base_dir.join(&self.user_prompt);
+        self.user_prompt = if user_prompt_path.exists() || user_prompt_abs_path.exists() {
+            let user_prompt_template = std::fs::read_to_string(user_prompt_abs_path)?;
+            user_prompt_template
+        } else {
+            self.user_prompt
+        };
 
-    // read it right away if it's a file path else defaults to normal text.
-    if path.exists() && path.is_file() {
-        std::fs::read_to_string(&path).map_err(|e| {
-            D::Error::custom(format!(
-                "Failed to read prompt file {}: {}",
-                path.display(),
-                e
-            ))
+        let system_prompt_path = Path::new(&self.system_prompt);
+        let system_prompt_abs_path = base_dir.join(&self.system_prompt);
+        self.system_prompt = if system_prompt_path.exists() || system_prompt_abs_path.exists() {
+            let system_prompt_template = std::fs::read_to_string(system_prompt_abs_path)?;
+            system_prompt_template
+        } else {
+            self.system_prompt
+        };
+
+        Ok(AgentConfig {
+            id: self.id,
+            entry: self.entry,
+            ephemeral: self.ephemeral,
+            model: self.model,
+            description: self.description,
+            user_prompt: self.user_prompt,
+            system_prompt: self.system_prompt,
+            max_turns: self.max_turns,
+            tools: self.tools,
+            _marker: std::marker::PhantomData::<Resolved>,
         })
-    } else {
-        Ok(s)
     }
 }
 
-impl TryFrom<AgentConfig> for Agent {
+impl TryFrom<AgentConfig<Resolved>> for Agent {
     type Error = anyhow::Error;
 
-    fn try_from(value: AgentConfig) -> Result<Self, Self::Error> {
+    fn try_from(value: AgentConfig<Resolved>) -> Result<Self, Self::Error> {
         let mut builder = AgentBuilder::default()
             .id(AgentId::new(&value.id))
             .model(value.model.clone())
@@ -79,11 +116,14 @@ pub struct WorkflowLoader;
 
 impl WorkflowLoader {
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Workflow> {
-        let content =
-            std::fs::read_to_string(path).context("Failed to read workflow configuration file")?;
+        let content = std::fs::read_to_string(&path).context(format!(
+            "Failed to read workflow configuration from path '{}'",
+            path.as_ref().display()
+        ))?;
 
-        let config: WorkflowConfig =
+        let config: WorkflowConfig<UnResolved> =
             serde_yaml::from_str(&content).context("Failed to parse workflow configuration")?;
+        let config = config.resolve(path.as_ref().to_path_buf())?;
 
         let agents = config
             .agents
