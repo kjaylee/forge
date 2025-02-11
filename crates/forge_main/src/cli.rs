@@ -41,8 +41,10 @@ pub struct Cli {
     /// Enable restricted shell mode for enhanced security.
     ///
     /// Controls the shell execution environment:
-    /// - Default (false): Uses standard shells (bash on Unix/Mac, cmd on Windows)
-    /// - Restricted (true): Uses restricted shell (rbash) with limited capabilities
+    /// - Default (false): Uses standard shells (bash on Unix/Mac, cmd on
+    ///   Windows)
+    /// - Restricted (true): Uses restricted shell (rbash) with limited
+    ///   capabilities
     ///
     /// The restricted mode provides additional security by preventing:
     /// - Changing directories
