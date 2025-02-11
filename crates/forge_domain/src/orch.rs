@@ -379,13 +379,14 @@ impl<F: App> Orchestrator<F> {
         }
     }
 
-    pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
+    pub async fn execute(&self, chat_request: ChatRequest) -> anyhow::Result<()> {
+        let input = Variables::new_pair("task", chat_request.content);
         join_all(
             self.workflow
                 .entries()
                 .await
                 .iter()
-                .map(|agent| self.init_agent(&agent.id, input)),
+                .map(|agent| self.init_agent(&agent.id, &input)),
         )
         .await
         .into_iter()

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use forge_app::{EnvironmentService, FileReadService, ForgeWorkflow, Infrastructure};
 use forge_domain::{
     AgentMessage, App, ChatRequest, ChatResponse, ProviderService, SystemContext, ToolService,
-    Variables, Workflow,
+    Workflow,
 };
 use forge_stream::MpscStream;
 use forge_walker::Walker;
@@ -30,9 +30,8 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
         // TODO: Load the workflow from a YAML/TOML file
         let workflow = ForgeWorkflow::new(env.clone());
         let workflow: Workflow = workflow.into();
-        let input = Variables::new_pair("task", chat_request.content);
         let custom_instructions = match chat_request.custom_instructions {
-            Some(path) => Some(self.app.file_read_service().read(path).await?),
+            Some(ref path) => Some(self.app.file_read_service().read(path.clone()).await?),
             None => None,
         };
 
@@ -54,7 +53,7 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
             tool_supported: Some(
                 self.app
                     .provider_service()
-                    .parameters(&chat_request.model)
+                    .parameters(&chat_request.model.clone())
                     .await?
                     .tool_supported,
             ),
@@ -62,6 +61,6 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
             files,
         };
 
-        Ok(workflow.execute(self.app.clone(), input, ctx))
+        Ok(workflow.execute(self.app.clone(), chat_request, ctx))
     }
 }

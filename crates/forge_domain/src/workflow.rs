@@ -4,7 +4,7 @@ use std::sync::Arc;
 use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, AgentId, App, ChatResponse, Context, Orchestrator, SystemContext, Variables};
+use crate::{Agent, AgentId, App, ChatRequest, ChatResponse, Context, Orchestrator, SystemContext, Variables};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Workflow {
@@ -36,7 +36,7 @@ impl Workflow {
     pub fn execute<'a, F: App + 'a>(
         &'a self,
         domain: Arc<F>,
-        input: Variables,
+        request: ChatRequest,
         ctx: SystemContext,
     ) -> MpscStream<anyhow::Result<crate::AgentMessage<ChatResponse>>> {
         let workflow = self.clone();
@@ -44,7 +44,7 @@ impl Workflow {
             let tx = Arc::new(tx);
             let orch = Orchestrator::new(domain, workflow, ctx, Some(tx.clone()));
 
-            match orch.execute(&input).await {
+            match orch.execute(request).await {
                 Ok(_) => {}
                 Err(err) => tx.send(Err(err)).await.unwrap(),
             }
