@@ -9,7 +9,7 @@ use forge_stream::MpscStream;
 
 use crate::executor::ForgeExecutorService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::{API, ExecutorService, SuggestionService};
+use crate::{ExecutorService, SuggestionService, API};
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
