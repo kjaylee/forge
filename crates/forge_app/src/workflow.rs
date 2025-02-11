@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
-    SystemContext, Variables, Workflow, WriteVariable,
+    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt, SystemContext,
+    Variables, Workflow, WriteVariable,
 };
 
-const TITLE_GENERATOR_TEMPLATE: &str = include_str!("../../../templates/roles/title-generator.mustache");
-const SOFTWARE_ENGINEER_TEMPLATE: &str = include_str!("../../../templates/roles/software-engineer.mustache");
+const TITLE_GENERATOR_TEMPLATE: &str =
+    include_str!("../../../templates/roles/title-generator.mustache");
+const SOFTWARE_ENGINEER_TEMPLATE: &str =
+    include_str!("../../../templates/roles/software-engineer.mustache");
 
 use forge_tool::tools;
 
