@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    role_template, template, Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
+    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
     SystemContext, Variables, Workflow, WriteVariable,
 };
 
