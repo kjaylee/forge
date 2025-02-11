@@ -62,8 +62,6 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
 
 pub struct TestAPI<F> {
     app: Arc<F>,
-    large_model_id: ModelId,
-    small_model_id: ModelId,
     _executor_service: ForgeExecutorService<F>,
     _suggestion_service: ForgeSuggestionService<F>,
 }
@@ -77,8 +75,6 @@ impl TestAPI<ForgeApp<TestInfra>> {
         let app = Arc::new(ForgeApp::new(infra));
         Self {
             app: app.clone(),
-            large_model_id,
-            small_model_id,
             _executor_service: ForgeExecutorService::new(app.clone()),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
         }
@@ -107,9 +103,6 @@ impl<F: App + Infrastructure> API for TestAPI<F> {
     }
 
     fn environment(&self) -> Environment {
-        let mut env = self.app.environment_service().get_environment().clone();
-        env.large_model_id = self.large_model_id.clone();
-        env.small_model_id = self.small_model_id.clone();
-        env
+        self.app.environment_service().get_environment().clone()
     }
 }
