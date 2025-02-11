@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
-    SystemContext, Variables, Workflow, WriteVariable,
+    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt, SystemContext,
+    Variables, Workflow, WriteVariable,
 };
 
 const TITLE_GENERATOR_TEMPLATE: &str =
