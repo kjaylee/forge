@@ -1,17 +1,18 @@
 use anyhow::{Context, Result};
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, ModelId, Prompt, SystemContext, ToolName, Variables, Workflow,
+    Agent, AgentBuilder, AgentId, Downstream, ModelId, Prompt, SystemContext, ToolName, Transform,
+    Variables, Workflow,
 };
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 enum Resolved {}
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 enum UnResolved {}
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct WorkflowConfig<Status = UnResolved> {
     id: String,
     agents: Vec<AgentConfig<Status>>,
@@ -38,9 +39,9 @@ impl WorkflowConfig<UnResolved> {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Deserialize)]
 struct AgentConfig<Status> {
-    id: String,
+    id: AgentId,
     entry: Option<bool>,
     ephemeral: Option<bool>,
     model: ModelId,
@@ -49,6 +50,10 @@ struct AgentConfig<Status> {
     system_prompt: String,
     max_turns: Option<u64>,
     tools: Vec<ToolName>,
+    #[serde(default)]
+    transforms: Vec<Transform>,
+    #[serde(default)]
+    handovers: Vec<Downstream>,
     #[serde(skip)]
     _marker: std::marker::PhantomData<Status>,
 }
@@ -81,6 +86,8 @@ impl AgentConfig<UnResolved> {
             system_prompt: resolve_content(&self.system_prompt, base_dir)?,
             max_turns: self.max_turns,
             tools: self.tools,
+            transforms: self.transforms,
+            handovers: self.handovers,
             _marker: std::marker::PhantomData::<Resolved>,
         })
     }
@@ -91,12 +98,14 @@ impl TryFrom<AgentConfig<Resolved>> for Agent {
 
     fn try_from(value: AgentConfig<Resolved>) -> Result<Self, Self::Error> {
         let mut builder = AgentBuilder::default()
-            .id(AgentId::new(&value.id))
+            .id(value.id)
             .model(value.model)
             .description(&value.description)
             .user_prompt(Prompt::<Variables>::new(&value.user_prompt))
             .system_prompt(Prompt::<SystemContext>::new(&value.system_prompt))
-            .tools(value.tools);
+            .tools(value.tools)
+            .transforms(value.transforms)
+            .handovers(value.handovers);
 
         if let Some(entry) = value.entry {
             builder = builder.entry(entry);
@@ -153,6 +162,7 @@ mod tests {
             .iter()
             .find(|a| a.id.as_str() == "title-generator")
             .expect("Title generator agent not found");
+        assert!(title_agent.handovers.is_empty());
 
         assert_eq!(
             title_agent.description,
@@ -166,6 +176,7 @@ mod tests {
             .find(|a| a.id.as_str() == "developer")
             .expect("Developer agent not found");
 
+        assert!(!dev_agent.handovers.is_empty());
         assert_eq!(
             dev_agent.description,
             "Does all the engineering tasks provided by the user"
