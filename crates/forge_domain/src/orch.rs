@@ -16,7 +16,7 @@ pub struct AgentMessage<T> {
 }
 
 pub struct Orchestrator<F> {
-    svc: Arc<F>,
+    app: Arc<F>,
     workflow: ConcurrentWorkflow,
     system_context: SystemContext,
     sender: Option<Arc<ArcSender>>,
@@ -34,7 +34,12 @@ impl<F: App> Orchestrator<F> {
         system_context: SystemContext,
         sender: Option<ArcSender>,
     ) -> Self {
-        Self { svc, workflow, system_context, sender: sender.map(Arc::new) }
+        Self {
+            app: svc,
+            workflow,
+            system_context,
+            sender: sender.map(Arc::new),
+        }
     }
 
     pub fn system_context(mut self, system_context: SystemContext) -> Self {
@@ -61,7 +66,7 @@ impl<F: App> Orchestrator<F> {
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
-        self.svc.tool_service().list()
+        self.app.tool_service().list()
     }
 
     fn init_tool_definitions(&self, agent: &Agent) -> Vec<ToolDefinition> {
@@ -78,19 +83,26 @@ impl<F: App> Orchestrator<F> {
             .collect::<Vec<_>>()
     }
 
-    fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
+    async fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
         let tool_defs = self.init_tool_definitions(agent);
 
         let tool_usage_prompt = tool_defs.iter().fold("".to_string(), |acc, tool| {
             format!("{}\n{}", acc, tool.usage_prompt())
         });
 
-        let system_message = agent.system_prompt.render(
-            &self
-                .system_context
-                .clone()
-                .tool_information(tool_usage_prompt),
-        )?;
+        let mut system_context = self.system_context.clone();
+
+        system_context.tool_supported = Some(
+            self.app
+                .provider_service()
+                .parameters(&agent.model)
+                .await?
+                .tool_supported,
+        );
+
+        let system_message = agent
+            .system_prompt
+            .render(&system_context.tool_information(tool_usage_prompt))?;
 
         Ok(Context::default()
             .set_first_system_message(system_message)
@@ -204,7 +216,7 @@ impl<F: App> Orchestrator<F> {
             self.init_agent(&agent.id, &input).await?;
             Ok(None)
         } else {
-            Ok(Some(self.svc.tool_service().call(tool_call.clone()).await))
+            Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
         }
     }
 
@@ -277,13 +289,12 @@ impl<F: App> Orchestrator<F> {
         let agent = self.workflow.get_agent(agent).await?;
 
         let mut context = if agent.ephemeral {
-            self.init_agent_context(&agent)?
+            self.init_agent_context(&agent).await?
         } else {
-            self.workflow
-                .context(&agent.id)
-                .await
-                .map(Ok)
-                .unwrap_or_else(|| self.init_agent_context(&agent))?
+            match self.workflow.context(&agent.id).await {
+                Some(context) => context,
+                None => self.init_agent_context(&agent).await?,
+            }
         };
 
         let content = agent.user_prompt.render(input)?;
@@ -293,7 +304,7 @@ impl<F: App> Orchestrator<F> {
             context = self.execute_transform(&agent.transforms, context).await?;
 
             let response = self
-                .svc
+                .app
                 .provider_service()
                 .chat(&agent.model, context.clone())
                 .await?;
