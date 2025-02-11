@@ -1,4 +1,4 @@
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, API};
+use forge_api::{AgentMessage, ChatRequest, ChatResponse, ModelId, TestAPI, API};
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
@@ -6,18 +6,24 @@ const MAX_RETRIES: usize = 5;
 /// Test fixture for API testing that supports parallel model validation
 struct Fixture {
     task: String,
+    large_model_id: ModelId,
+    small_model_id: ModelId,
 }
 
 impl Fixture {
     /// Create a new test fixture with the given task
-    fn new(task: impl Into<String>) -> Self {
-        Self { task: task.into() }
+    fn new(task: impl Into<String>, large_model_id: ModelId, small_model_id: ModelId) -> Self {
+        Self { task: task.into(), large_model_id, small_model_id }
     }
 
     /// Get the API service, panicking if not validated
     fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
-        ForgeAPI::init(false)
+        TestAPI::init(
+            false,
+            self.large_model_id.clone(),
+            self.small_model_id.clone(),
+        )
     }
 
     /// Get model response as text
@@ -78,6 +84,8 @@ macro_rules! generate_model_test {
         async fn test_find_cat_name() {
             let fixture = Fixture::new(
                 "There is a cat hidden in the codebase. What is its name? hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask me any questions.",
+                ModelId::new($model),
+                ModelId::new($model),
             );
 
             let result = fixture
