@@ -257,6 +257,9 @@ impl<F: API> UI<F> {
     }
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
+        if message.agent.as_str() == "title" {
+            return Ok(());
+        }
         match message.message {
             ChatResponse::Text(text) => {
                 CONSOLE.write(&text)?;

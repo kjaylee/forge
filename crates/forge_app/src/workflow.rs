@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt, SystemContext,
-    Variables, Workflow, WriteVariable,
+    role_template, template, Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
+    SystemContext, Variables, Workflow, WriteVariable,
 };
 
 const TITLE_GENERATOR_TEMPLATE: &str =
@@ -33,7 +33,6 @@ impl ForgeWorkflow {
 
         title_agent
             .id(AgentId::new("title"))
-            .entry(false)
             .description("Generates a title for the provided user task")
             .user_prompt(Prompt::<Variables>::new(
                 "<technical_content>{{task}}</technical_content>",

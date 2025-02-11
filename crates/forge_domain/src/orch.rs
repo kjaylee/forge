@@ -305,10 +305,6 @@ impl<F: App> Orchestrator<F> {
                 .unwrap_or_else(|| self.init_agent_context(agent, input))?
         };
 
-        let content = agent.user_prompt.render(input)?;
-
-        context = context.add_message(ContextMessage::user(content));
-
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
 
