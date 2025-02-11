@@ -1,6 +1,7 @@
+use std::path::PathBuf;
+
 use handlebars::Handlebars;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 use crate::Error;
 

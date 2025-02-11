@@ -4,9 +4,9 @@ use derive_setters::Setters;
 use schemars::schema_for;
 use serde::{Deserialize, Serialize};
 
+use crate::prompt::Prompt;
 use crate::variables::Variables;
 use crate::{Environment, ModelId, ToolDefinition, ToolName};
-use crate::prompt::Prompt;
 
 #[derive(Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
