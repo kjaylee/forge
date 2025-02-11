@@ -27,6 +27,7 @@ impl ForgeWorkflow {
 
         title_agent
             .id(AgentId::new("title"))
+            .entry(false)
             .description("Generates a title for the provided user task")
             .user_prompt(Prompt::<Variables>::new(
                 "<technical_content>{{task}}</technical_content>",
