@@ -38,13 +38,19 @@ pub struct Cli {
     #[arg(long, short = 's', value_parser = validate_path)]
     pub system_prompt: Option<PathBuf>,
 
-    /// Run shell in unrestricted mode.
+    /// Enable restricted shell mode for enhanced security.
     ///
-    /// By default, the shell runs in restricted mode (rbash). This flag enables
-    /// running in unrestricted mode using standard shell (sh/bash).
-    /// WARNING: Unrestricted mode grants more system access - use with caution.
-    #[arg(long, default_value_t = false, short = 'u')]
-    pub unrestricted: bool,
+    /// Controls the shell execution environment:
+    /// - Default (false): Uses standard shells (bash on Unix/Mac, cmd on Windows)
+    /// - Restricted (true): Uses restricted shell (rbash) with limited capabilities
+    ///
+    /// The restricted mode provides additional security by preventing:
+    /// - Changing directories
+    /// - Setting/modifying environment variables
+    /// - Executing commands with absolute paths
+    /// - Modifying shell options
+    #[arg(long, default_value_t = false, short = 'r')]
+    pub restricted: bool,
 }
 
 fn validate_path(path: &str) -> Result<PathBuf, String> {

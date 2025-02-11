@@ -8,10 +8,7 @@ use forge::{Cli, UI};
 async fn main() -> Result<()> {
     // Initialize and run the UI
     let cli = Cli::parse();
-    let api = Arc::new(forge_api::ForgeAPI::init(
-        std::env::current_dir()?,
-        cli.unrestricted,
-    ));
+    let api = Arc::new(forge_api::ForgeAPI::init(cli.restricted));
     let mut ui = UI::init(cli, api).await?;
     ui.run().await?;
 

@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -28,8 +27,8 @@ impl<F: App + Infrastructure> ForgeAPI<F> {
 }
 
 impl ForgeAPI<ForgeApp<ForgeInfra>> {
-    pub fn init(path: PathBuf, unrestricted: bool) -> Self {
-        let infra = Arc::new(ForgeInfra::new(path, unrestricted));
+    pub fn init(restricted: bool) -> Self {
+        let infra = Arc::new(ForgeInfra::new(restricted));
         let app = Arc::new(ForgeApp::new(infra));
         ForgeAPI::new(app)
     }

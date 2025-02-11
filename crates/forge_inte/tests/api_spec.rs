@@ -1,4 +1,3 @@
-use std::path::Path;
 
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, API};
 use tokio_stream::StreamExt;
@@ -19,9 +18,7 @@ impl Fixture {
     /// Get the API service, panicking if not validated
     fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
-        let path = Path::new("../../").to_path_buf();
-        let path = path.canonicalize().unwrap();
-        ForgeAPI::init(path, false)
+        ForgeAPI::init(false)
     }
 
     /// Get model response as text
@@ -50,7 +47,11 @@ impl Fixture {
     }
 
     /// Test single model with retries
-    async fn test_single_model(&self, check_response: impl Fn(&str) -> bool) -> Result<(), String> {
+    async fn test_single_model(
+        &self,
+        model: &str,
+        check_response: impl Fn(&str) -> bool,
+    ) -> Result<(), String> {
         for attempt in 0..MAX_RETRIES {
             let response = self.get_model_response().await;
 

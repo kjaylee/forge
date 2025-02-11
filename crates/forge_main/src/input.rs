@@ -45,12 +45,9 @@ impl UserInput for Console {
                 Ok(ReadResult::Continue) => continue,
                 Ok(ReadResult::Exit) => return Ok(Command::Exit),
                 Ok(ReadResult::Empty) => continue,
-                Ok(ReadResult::Success(text)) => match Command::parse(&text) {
-                    Ok(input) => return Ok(input),
-                    Err(e) => {
-                        CONSOLE.writeln(TitleFormat::failed(e.to_string()).format())?;
-                    }
-                },
+                Ok(ReadResult::Success(text)) => {
+                    return Ok(Command::parse(&text));
+                }
                 Err(e) => {
                     CONSOLE.writeln(TitleFormat::failed(e.to_string()).format())?;
                 }

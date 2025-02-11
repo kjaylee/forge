@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use forge_app::Infrastructure;
 
 use crate::env::ForgeEnvironmentService;
@@ -11,10 +9,10 @@ pub struct ForgeInfra {
 }
 
 impl ForgeInfra {
-    pub fn new(cwd: PathBuf, unrestricted: bool) -> Self {
+    pub fn new(restricted: bool) -> Self {
         Self {
             _file_read_service: ForgeFileReadService::new(),
-            _environment_service: ForgeEnvironmentService::new(cwd, unrestricted),
+            _environment_service: ForgeEnvironmentService::new(restricted),
         }
     }
 }
