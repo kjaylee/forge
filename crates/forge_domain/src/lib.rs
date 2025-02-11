@@ -15,7 +15,6 @@ mod orch;
 mod provider;
 mod stream_ext;
 mod summarize;
-mod template;
 mod tool;
 mod tool_call;
 mod tool_call_parser;

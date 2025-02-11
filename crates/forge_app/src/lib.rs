@@ -4,7 +4,6 @@ mod tool_service;
 mod workflow;
 
 pub use app::*;
-pub use forge_domain::template;
 pub use workflow::*;
 
 /// Repository for accessing system environment information

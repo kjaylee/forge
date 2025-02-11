@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 
 use forge_domain::{
-    role_template, template, Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
+    Agent, AgentBuilder, AgentId, Environment, ModelId, NamedTool, Prompt,
     SystemContext, Variables, Workflow, WriteVariable,
 };
+
+const TITLE_GENERATOR_TEMPLATE: &str = include_str!("../../../templates/roles/title-generator.mustache");
+const SOFTWARE_ENGINEER_TEMPLATE: &str = include_str!("../../../templates/roles/software-engineer.mustache");
+
 use forge_tool::tools;
 
 #[derive(Clone)]
@@ -32,9 +36,7 @@ impl ForgeWorkflow {
             .user_prompt(Prompt::<Variables>::new(
                 "<technical_content>{{task}}</technical_content>",
             ))
-            .system_prompt(Prompt::<SystemContext>::new(role_template!(
-                "title-generator"
-            )))
+            .system_prompt(Prompt::<SystemContext>::new(TITLE_GENERATOR_TEMPLATE))
             .tools(vec![WriteVariable::tool_name()]);
 
         developer_agent
@@ -42,9 +44,7 @@ impl ForgeWorkflow {
             .ephemeral(false)
             .description("Does all the engineering tasks provided by the user")
             .user_prompt(Prompt::<Variables>::new("<task>{{task}}</task>"))
-            .system_prompt(Prompt::<SystemContext>::new(role_template!(
-                "software-engineer"
-            )))
+            .system_prompt(Prompt::<SystemContext>::new(SOFTWARE_ENGINEER_TEMPLATE))
             .tools(
                 tools(&env)
                     .iter()
