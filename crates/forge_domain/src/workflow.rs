@@ -94,7 +94,7 @@ impl ConcurrentWorkflow {
     pub async fn complete_turn(&self, agent: &AgentId) -> crate::Result<()> {
         let mut guard = self.workflow.write().await;
         let agent = guard.get_agent_mut(agent)?;
-        let max_turns = agent.max_turns.clone();
+        let max_turns = agent.max_turns;
         if agent.state.turn_count >= max_turns {
             return Err(crate::Error::MaxTurnsReached(agent.id.clone(), max_turns));
         } else {
