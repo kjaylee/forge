@@ -18,12 +18,16 @@ struct WorkflowConfig<Status = UnResolved> {
 }
 
 impl WorkflowConfig<UnResolved> {
-    /// resolves the relative paths defined in the workflow file as per the path of config.
+    /// resolves relative paths in workflow config.
     fn resolve(self, config_path: PathBuf) -> Result<WorkflowConfig<Resolved>> {
         let config_path = config_path
             .parent()
-            .context("Failed to get parent of config path")?
+            .context(format!(
+                "Failed to get parent of config path '{}'",
+                config_path.display()
+            ))?
             .to_path_buf();
+
         let agents = self
             .agents
             .into_iter()
@@ -49,35 +53,32 @@ struct AgentConfig<Status> {
     _marker: std::marker::PhantomData<Status>,
 }
 
+/// Resolves a content string to a string by checking if it is a relative or absolute path.
+fn resolve_content(content: &str, base_dir: &Path) -> Result<String> {
+    let path = Path::new(content);
+    let abs_path = base_dir.join(content);
+    if path.exists() {
+        std::fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read content from {}", path.display()))
+    } else if abs_path.exists() {
+        std::fs::read_to_string(&abs_path)
+            .with_context(|| format!("Failed to read content from {}", abs_path.display()))
+    } else {
+        Ok(content.to_string())
+    }
+}
+
 impl AgentConfig<UnResolved> {
-    /// resolves the relative paths defined in the config file as per the path of config.
-    fn resolve(mut self, base_dir: &PathBuf) -> Result<AgentConfig<Resolved>> {
-        let user_prompt_path = Path::new(&self.user_prompt);
-        let user_prompt_abs_path = base_dir.join(&self.user_prompt);
-        self.user_prompt = if user_prompt_path.exists() || user_prompt_abs_path.exists() {
-            let user_prompt_template = std::fs::read_to_string(user_prompt_abs_path)?;
-            user_prompt_template
-        } else {
-            self.user_prompt
-        };
-
-        let system_prompt_path = Path::new(&self.system_prompt);
-        let system_prompt_abs_path = base_dir.join(&self.system_prompt);
-        self.system_prompt = if system_prompt_path.exists() || system_prompt_abs_path.exists() {
-            let system_prompt_template = std::fs::read_to_string(system_prompt_abs_path)?;
-            system_prompt_template
-        } else {
-            self.system_prompt
-        };
-
+    /// resolves relative paths in agent config.
+    fn resolve(self, base_dir: &PathBuf) -> Result<AgentConfig<Resolved>> {
         Ok(AgentConfig {
             id: self.id,
             entry: self.entry,
             ephemeral: self.ephemeral,
             model: self.model,
             description: self.description,
-            user_prompt: self.user_prompt,
-            system_prompt: self.system_prompt,
+            user_prompt: resolve_content(&self.user_prompt, base_dir)?,
+            system_prompt: resolve_content(&self.system_prompt, base_dir)?,
             max_turns: self.max_turns,
             tools: self.tools,
             _marker: std::marker::PhantomData::<Resolved>,
@@ -91,11 +92,11 @@ impl TryFrom<AgentConfig<Resolved>> for Agent {
     fn try_from(value: AgentConfig<Resolved>) -> Result<Self, Self::Error> {
         let mut builder = AgentBuilder::default()
             .id(AgentId::new(&value.id))
-            .model(value.model.clone())
+            .model(value.model)
             .description(&value.description)
             .user_prompt(Prompt::<Variables>::new(&value.user_prompt))
             .system_prompt(Prompt::<SystemContext>::new(&value.system_prompt))
-            .tools(value.tools.clone());
+            .tools(value.tools);
 
         if let Some(entry) = value.entry {
             builder = builder.entry(entry);
@@ -103,7 +104,6 @@ impl TryFrom<AgentConfig<Resolved>> for Agent {
         if let Some(ephemeral) = value.ephemeral {
             builder = builder.ephemeral(ephemeral);
         }
-
         if let Some(max_turns) = value.max_turns {
             builder = builder.max_turns(max_turns);
         }
@@ -115,13 +115,13 @@ impl TryFrom<AgentConfig<Resolved>> for Agent {
 pub struct WorkflowLoader;
 
 impl WorkflowLoader {
-
-    /// Load a workflow from a YAML file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Workflow> {
-        let content = std::fs::read_to_string(&path).context(format!(
-            "Failed to read workflow configuration from path '{}'",
-            path.as_ref().display()
-        ))?;
+        let content = std::fs::read_to_string(&path).with_context(|| {
+            format!(
+                "Failed to read workflow configuration from path '{}'",
+                path.as_ref().display()
+            )
+        })?;
 
         let config: WorkflowConfig<UnResolved> =
             serde_yaml::from_str(&content).context("Failed to parse workflow configuration")?;
@@ -130,8 +130,9 @@ impl WorkflowLoader {
         let agents = config
             .agents
             .into_iter()
-            .map(|agent_config| Agent::try_from(agent_config))
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(Agent::try_from)
+            .collect::<Result<Vec<_>>>()?;
+
         Ok(Workflow::new(agents))
     }
 }
@@ -147,7 +148,6 @@ mod tests {
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("fixtures/forge-workflow.yml");
         let workflows = WorkflowLoader::load(workflow_path).unwrap();
 
-        // Verify title generator agent
         let title_agent = workflows
             .agents
             .iter()
@@ -160,7 +160,6 @@ mod tests {
         );
         assert!(title_agent.entry);
 
-        // Verify developer agent
         let dev_agent = workflows
             .agents
             .iter()
