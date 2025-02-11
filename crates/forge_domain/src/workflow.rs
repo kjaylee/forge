@@ -4,7 +4,9 @@ use std::sync::Arc;
 use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, AgentId, App, ChatRequest, ChatResponse, Context, Orchestrator, SystemContext, Variables};
+use crate::{
+    Agent, AgentId, App, ChatRequest, ChatResponse, Context, Orchestrator, SystemContext, Variables,
+};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Workflow {
