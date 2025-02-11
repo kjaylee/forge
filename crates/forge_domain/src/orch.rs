@@ -92,13 +92,13 @@ impl<F: App> Orchestrator<F> {
 
         let mut system_context = self.system_context.clone();
 
-        system_context.tool_supported = Some(
-            self.app
-                .provider_service()
-                .parameters(&agent.model)
-                .await?
-                .tool_supported,
-        );
+        let tool_supported = self
+            .app
+            .provider_service()
+            .parameters(&agent.model)
+            .await?
+            .tool_supported;
+        system_context.tool_supported = Some(tool_supported);
 
         let system_message = agent
             .system_prompt
@@ -106,7 +106,11 @@ impl<F: App> Orchestrator<F> {
 
         Ok(Context::default()
             .set_first_system_message(system_message)
-            .extend_tools(tool_defs))
+            .extend_tools(if tool_supported {
+                tool_defs
+            } else {
+                Vec::new()
+            }))
     }
 
     async fn collect_messages(
