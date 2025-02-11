@@ -18,8 +18,7 @@ struct WorkflowConfig<Status = UnResolved> {
 }
 
 impl WorkflowConfig<UnResolved> {
-    // TODO: agents prompts might have relative path, now goal is to
-    // resolve all the internal relative paths with respect to config_path.
+    /// resolves the relative paths defined in the workflow file as per the path of config.
     fn resolve(self, config_path: PathBuf) -> Result<WorkflowConfig<Resolved>> {
         let config_path = config_path
             .parent()
@@ -51,6 +50,7 @@ struct AgentConfig<Status> {
 }
 
 impl AgentConfig<UnResolved> {
+    /// resolves the relative paths defined in the config file as per the path of config.
     fn resolve(mut self, base_dir: &PathBuf) -> Result<AgentConfig<Resolved>> {
         let user_prompt_path = Path::new(&self.user_prompt);
         let user_prompt_abs_path = base_dir.join(&self.user_prompt);
@@ -115,6 +115,8 @@ impl TryFrom<AgentConfig<Resolved>> for Agent {
 pub struct WorkflowLoader;
 
 impl WorkflowLoader {
+
+    /// Load a workflow from a YAML file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Workflow> {
         let content = std::fs::read_to_string(&path).context(format!(
             "Failed to read workflow configuration from path '{}'",
