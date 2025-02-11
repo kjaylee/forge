@@ -1,4 +1,5 @@
 mod agent;
+mod prompt;
 mod chat_request;
 mod chat_response;
 mod chat_stream_ext;
@@ -57,6 +58,7 @@ pub use tool_usage::*;
 pub use user_interaction::*;
 pub use variables::*;
 pub use workflow::*;
+pub use prompt::*;
 
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
