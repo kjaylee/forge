@@ -18,9 +18,54 @@ pub struct AgentMessage<T> {
 
 pub struct Orchestrator<F> {
     svc: Arc<F>,
-    workflow: Arc<RwLock<Workflow>>,
+    workflow: ConcurrentWorkflow,
     system_context: SystemContext,
     sender: Option<Arc<ArcSender>>,
+}
+
+struct ConcurrentWorkflow {
+    workflow: Arc<RwLock<Workflow>>,
+}
+
+impl ConcurrentWorkflow {
+    fn new(workflow: Workflow) -> Self {
+        Self { workflow: Arc::new(RwLock::new(workflow)) }
+    }
+
+    async fn context(&self, id: &AgentId) -> Option<Context> {
+        let guard = self.workflow.read().await;
+        guard.state.get(id).cloned()
+    }
+
+    async fn write_variable(&self, name: impl ToString, value: Value) {
+        let mut guard = self.workflow.write().await;
+        guard.variables.set(name.to_string(), value);
+    }
+
+    async fn read_variable(&self, name: &str) -> Option<Value> {
+        let guard = self.workflow.read().await;
+        guard.variables.get(name).cloned()
+    }
+
+    async fn find_agent(&self, id: &AgentId) -> Option<Agent> {
+        let guard = self.workflow.read().await;
+        guard.find_agent(id).cloned()
+    }
+
+    async fn get_agent(&self, agent: &AgentId) -> crate::Result<Agent> {
+        let guard = self.workflow.read().await;
+        guard.get_agent(agent).cloned()
+    }
+
+    async fn set_context(&self, agent: AgentId, context: Context) {
+        let mut guard = self.workflow.write().await;
+        guard.state.insert(agent, context);
+    }
+
+    async fn entries(&self) -> Vec<Agent> {
+        let guard = self.workflow.read().await;
+        guard.entries()
+    }
 }
 
 struct ChatCompletionResult {
@@ -37,7 +82,7 @@ impl<F: App> Orchestrator<F> {
     ) -> Self {
         Self {
             svc,
-            workflow: Arc::new(RwLock::new(workflow)),
+            workflow: ConcurrentWorkflow::new(workflow),
             system_context,
             sender: sender.map(Arc::new),
         }
@@ -51,11 +96,6 @@ impl<F: App> Orchestrator<F> {
     pub fn sender(mut self, sender: ArcSender) -> Self {
         self.sender = Some(Arc::new(sender));
         self
-    }
-
-    pub async fn agent_context(&self, id: &AgentId) -> Option<Context> {
-        let guard = self.workflow.read().await;
-        guard.state.get(id).cloned()
     }
 
     async fn send_message(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
@@ -168,11 +208,13 @@ impl<F: App> Orchestrator<F> {
         tool_call: &ToolCallFull,
         write: WriteVariable,
     ) -> anyhow::Result<ToolResult> {
-        let mut guard = self.workflow.write().await;
-        guard.variables.set(write.name.clone(), write.value.clone());
+        let value = Value::from(write.value.clone());
+        self.workflow
+            .write_variable(write.name.clone(), value.clone())
+            .await;
         self.send_message(
             agent_id,
-            ChatResponse::VariableSet { key: write.name.clone(), value: write.value.clone() },
+            ChatResponse::VariableSet { key: write.name.clone(), value },
         )
         .await?;
         Ok(ToolResult::from(tool_call.clone())
@@ -184,11 +226,10 @@ impl<F: App> Orchestrator<F> {
         tool_call: &ToolCallFull,
         read: ReadVariable,
     ) -> anyhow::Result<ToolResult> {
-        let guard = self.workflow.read().await;
-        let output = guard.variables.get(&read.name);
+        let output = self.workflow.read_variable(&read.name).await;
         let result = match output {
             Some(value) => {
-                ToolResult::from(tool_call.clone()).success(serde_json::to_string(value)?)
+                ToolResult::from(tool_call.clone()).success(serde_json::to_string(&value)?)
             }
             None => ToolResult::from(tool_call.clone())
                 .failure(format!("Variable {} not found", read.name)),
@@ -210,9 +251,8 @@ impl<F: App> Orchestrator<F> {
                 .map(Some)
         } else if let Some(agent) = self
             .workflow
-            .read()
-            .await
             .find_agent(&tool_call.name.clone().into())
+            .await
         {
             let input = Variables::from(tool_call.arguments.clone());
             self.init_agent(&agent.id, &input).await?;
@@ -243,11 +283,10 @@ impl<F: App> Orchestrator<F> {
 
                         self.init_agent(agent_id, &input).await?;
 
-                        let guard = self.workflow.read().await;
-
-                        let value = guard
-                            .variables
-                            .get(output_key)
+                        let value = self
+                            .workflow
+                            .read_variable(output_key)
+                            .await
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
                         summary.set(serde_json::to_string(&value)?);
@@ -264,13 +303,13 @@ impl<F: App> Orchestrator<F> {
                         input.set(input_key, Value::from(content.clone()));
 
                         self.init_agent(agent_id, &input).await?;
-                        let guard = self.workflow.read().await;
-                        let value = guard
-                            .variables
-                            .get(output_key)
+                        let output = self
+                            .workflow
+                            .read_variable(output_key)
+                            .await
                             .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
 
-                        let message = serde_json::to_string(&value)?;
+                        let message = serde_json::to_string(&output)?;
 
                         content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
                     }
@@ -289,20 +328,16 @@ impl<F: App> Orchestrator<F> {
     }
 
     async fn init_agent(&self, agent: &AgentId, input: &Variables) -> anyhow::Result<()> {
-        let guard = self.workflow.read().await;
-        let agent = guard.get_agent(agent)?;
+        let agent = self.workflow.get_agent(agent).await?;
 
         let mut context = if agent.ephemeral {
-            self.init_agent_context(agent, input)?
+            self.init_agent_context(&agent, input)?
         } else {
             self.workflow
-                .read()
+                .context(&agent.id)
                 .await
-                .state
-                .get(&agent.id)
-                .cloned()
                 .map(Ok)
-                .unwrap_or_else(|| self.init_agent_context(agent, input))?
+                .unwrap_or_else(|| self.init_agent_context(&agent, input))?
         };
 
         loop {
@@ -334,10 +369,8 @@ impl<F: App> Orchestrator<F> {
 
             if !agent.ephemeral {
                 self.workflow
-                    .write()
-                    .await
-                    .state
-                    .insert(agent.id.clone(), context.clone());
+                    .set_context(agent.id.clone(), context.clone())
+                    .await;
             }
 
             if tool_results.is_empty() {
@@ -347,11 +380,10 @@ impl<F: App> Orchestrator<F> {
     }
 
     pub async fn execute(&self, input: &Variables) -> anyhow::Result<()> {
-        let guard = self.workflow.read().await;
-
         join_all(
-            guard
-                .get_entries()
+            self.workflow
+                .entries()
+                .await
                 .iter()
                 .map(|agent| self.init_agent(&agent.id, input)),
         )

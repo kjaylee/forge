@@ -257,28 +257,10 @@ impl<F: API> UI<F> {
     }
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
-        if message.agent.as_str() == "title" {
-            return Ok(());
-        }
         match message.message {
             ChatResponse::Text(text) => {
-                CONSOLE.write(&text)?;
-            }
-            ChatResponse::ToolCallDetected(tool_name) => {
-                if self.cli.verbose {
-                    CONSOLE.newline()?;
-                    CONSOLE.newline()?;
-                    CONSOLE.writeln(
-                        TitleFormat::execute(tool_name.as_str())
-                            .sub_title(self.state.usage.to_string())
-                            .format(),
-                    )?;
-                    CONSOLE.newline()?;
-                }
-            }
-            ChatResponse::ToolCallArgPart(arg) => {
-                if self.cli.verbose {
-                    CONSOLE.write(format!("{}", arg.dimmed()))?;
+                if message.agent.as_str() == "developer" {
+                    CONSOLE.write(&text)?;
                 }
             }
             ChatResponse::ToolCallStart(_) => {
@@ -308,21 +290,11 @@ impl<F: API> UI<F> {
                     )?;
                 }
             }
-            ChatResponse::ConversationStarted(conversation_id) => {
-                self.state.current_conversation_id = Some(conversation_id);
-            }
-            ChatResponse::ModifyContext(_) => {}
-            ChatResponse::Complete => {}
-            ChatResponse::PartialTitle(_) => {}
-            ChatResponse::CompleteTitle(title) => {
-                self.state.current_title = Some(title);
-            }
             ChatResponse::VariableSet { key, value } => {
                 if key == "title" {
-                    self.state.current_title = Some(value);
+                    self.state.current_title = value.as_str().map(String::from);
                 }
             }
-            ChatResponse::FinishReason(_) => {}
             ChatResponse::Usage(u) => {
                 self.state.usage = u;
             }
