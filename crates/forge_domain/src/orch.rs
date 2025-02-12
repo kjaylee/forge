@@ -17,17 +17,15 @@ pub struct DispatchEvent {
     pub value: String,
 }
 
-impl From<&DispatchEvent> for UserContext {
-    fn from(value: &DispatchEvent) -> Self {
-        Self {
-            event: format!("<{}>{}</{}>", value.name, value.value, value.name),
-        }
+impl From<DispatchEvent> for UserContext {
+    fn from(event: DispatchEvent) -> Self {
+        Self { event }
     }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UserContext {
-    event: String,
+    event: DispatchEvent,
 }
 
 impl NamedTool for DispatchEvent {
@@ -58,8 +56,10 @@ impl DispatchEvent {
     }
 
     pub fn task(value: impl ToString) -> Self {
-        Self::new("task", value)
+        Self::new(Self::USER_TASK, value)
     }
+
+    pub const USER_TASK: &'static str = "user_task";
 }
 
 pub struct AgentMessage<T> {
@@ -320,7 +320,9 @@ impl<F: App> Orchestrator<F> {
             }
         };
 
-        let content = agent.user_prompt.render(&UserContext::from(event))?;
+        let content = agent
+            .user_prompt
+            .render(&UserContext::from(event.clone()))?;
         context = context.add_message(ContextMessage::user(content));
 
         loop {

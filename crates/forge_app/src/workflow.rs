@@ -17,14 +17,14 @@ pub struct ForgeWorkflow {
 
 impl ForgeWorkflow {
     pub fn new(env: Environment) -> Self {
-        let agent = AgentBuilder::default().subscribe(vec!["task".to_string()]);
+        let agent = AgentBuilder::default().subscribe(vec![DispatchEvent::USER_TASK.to_string()]);
 
         let title_agent = agent
             .clone()
             .id(AgentId::new("title"))
             .model(env.small_model_id.clone())
             .user_prompt(Prompt::new(
-                "<technical_content>{{event}}</technical_content>",
+                "<technical_content>{{event.value}}</technical_content>",
             ))
             .system_prompt(Prompt::new(TITLE_GENERATOR_TEMPLATE))
             .max_turns(1u64)
@@ -35,7 +35,7 @@ impl ForgeWorkflow {
             .id(AgentId::new("developer"))
             .model(env.large_model_id.clone())
             .ephemeral(false)
-            .user_prompt(Prompt::new("{{event}}"))
+            .user_prompt(Prompt::new("<task>{{event.value}}</task>"))
             .system_prompt(Prompt::new(SOFTWARE_ENGINEER_TEMPLATE))
             .tools(
                 tools(&env)
