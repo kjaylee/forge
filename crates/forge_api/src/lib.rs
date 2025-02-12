@@ -1,11 +1,12 @@
 mod api;
 mod executor;
 mod suggestion;
+mod test;
 
 pub use api::*;
 pub use forge_domain::*;
 use forge_stream::MpscStream;
-
+pub use test::*;
 #[async_trait::async_trait]
 pub trait ExecutorService: Send {
     async fn chat(
