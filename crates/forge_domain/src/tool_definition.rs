@@ -3,7 +3,8 @@ use std::collections::BTreeSet;
 use derive_setters::Setters;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 
