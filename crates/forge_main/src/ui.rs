@@ -96,15 +96,6 @@ impl<F: API> UI<F> {
 
                     continue;
                 }
-                Command::Reload => {
-                    CONSOLE.writeln(self.context_reset_message(&input))?;
-                    self.state = Default::default();
-                    input = match &self.cli.command {
-                        Some(path) => self.console.upload(path).await?,
-                        None => self.console.prompt(None).await?,
-                    };
-                    continue;
-                }
                 Command::Info => {
                     let info =
                         Info::from(&self.api.environment()).extend(Info::from(&self.state.usage));
