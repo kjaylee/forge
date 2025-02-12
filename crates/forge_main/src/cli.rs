@@ -32,12 +32,6 @@ pub struct Cli {
     #[arg(long, short = 'i', value_parser = validate_path)]
     pub custom_instructions: Option<PathBuf>,
 
-    /// Path to a file containing the system prompt.
-    ///
-    /// Overrides the default system prompt used to initialize the AI assistant.
-    #[arg(long, short = 's', value_parser = validate_path)]
-    pub system_prompt: Option<PathBuf>,
-
     /// Enable restricted shell mode for enhanced security.
     ///
     /// Controls the shell execution environment:
