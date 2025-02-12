@@ -222,7 +222,7 @@ impl<F: App> Orchestrator<F> {
                 .entries(event.name.as_str())
                 .await
                 .iter()
-                .map(|agent| self.init_agent(&agent.id, &event)),
+                .map(|agent| self.init_agent(&agent.id, event)),
         )
         .await
         .into_iter()

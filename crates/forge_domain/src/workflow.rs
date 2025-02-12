@@ -1,4 +1,5 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
