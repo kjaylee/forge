@@ -89,9 +89,11 @@ impl<F: API> UI<F> {
         loop {
             match input {
                 Command::New => {
+                    self.api.reset().await?;
                     CONSOLE.writeln(self.context_reset_message(&input))?;
                     self.state = Default::default();
                     input = self.console.prompt(None).await?;
+
                     continue;
                 }
                 Command::Reload => {
