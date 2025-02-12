@@ -3,9 +3,9 @@ use std::collections::BTreeSet;
 use derive_setters::Setters;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::{ExecutableTool, NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
+use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 
 ///
 /// Refer to the specification over here:
@@ -118,4 +118,11 @@ where
 
 pub trait ToolDescription {
     fn description(&self) -> String;
+}
+
+#[async_trait::async_trait]
+pub trait ExecutableTool {
+    type Input: DeserializeOwned;
+
+    async fn call(&self, input: Self::Input) -> Result<String, String>;
 }
