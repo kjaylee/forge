@@ -41,7 +41,7 @@ impl<F: Infrastructure> WorkflowLoader<F> {
     }
 
     /// given an workflow, it resolves all the internal paths specified in workflow.
-    pub async fn resolve(&self, mut workflow: Workflow, path: PathBuf) -> Result<Workflow> {
+    async fn resolve(&self, mut workflow: Workflow, path: PathBuf) -> Result<Workflow> {
         for agent in workflow.agents.iter_mut() {
             agent.system_prompt = self.resolve_prompt(&agent.system_prompt, &path).await?;
             agent.user_prompt = self.resolve_prompt(&agent.user_prompt, &path).await?;
