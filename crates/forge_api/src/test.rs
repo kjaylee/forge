@@ -34,7 +34,8 @@ impl TestAPI<ForgeApp<TestInfra>> {
         let _workflow_loader = WorkflowLoader::new(app.clone());
         let mut workflow = _workflow_loader.load(workflow).await?;
 
-        // replace the agent model with large_model_id (in tests both models are the same.)
+        // replace the agent model with large_model_id (in tests both models are the
+        // same.)
         workflow.agents.iter_mut().for_each(|agent| {
             agent.model = large_model_id.clone();
         });

@@ -1,9 +1,8 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
-use forge_app::Infrastructure;
+use forge_app::{FileReadService, Infrastructure};
 use forge_domain::Workflow;
-
-use forge_app::FileReadService;
 
 pub struct WorkflowLoader<F>(Arc<F>);
 
