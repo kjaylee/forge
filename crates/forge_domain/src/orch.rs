@@ -240,7 +240,7 @@ impl<F: App> Orchestrator<F> {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
             self.dispatch(&event).await?;
-
+            self.workflow.insert_event(event).await;
             Ok(None)
         } else {
             Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
