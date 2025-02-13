@@ -29,7 +29,7 @@ impl TestAPI<ForgeApp<TestInfra>> {
             small_model_id.clone(),
         ));
         let app = Arc::new(ForgeApp::new(infra));
-        let workflow = app.file_read_service().read(workflow).await.unwrap();
+        let workflow = app.file_read_service().read(workflow).await?;
         let workflow = toml::from_str(&workflow)?;
         Ok(Self {
             app: app.clone(),
