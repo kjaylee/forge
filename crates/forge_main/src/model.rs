@@ -86,13 +86,9 @@ impl Command {
         vec![
             "/end".to_string(),
             "/new".to_string(),
-            "/reload".to_string(),
             "/info".to_string(),
             "/exit".to_string(),
             "/models".to_string(),
-            "/config".to_string(),
-            "/config set".to_string(),
-            "/config get".to_string(),
         ]
     }
 
