@@ -932,8 +932,11 @@ dependencies = [
  "forge_infra",
  "forge_stream",
  "forge_walker",
+ "insta",
  "serde",
  "serde_json",
+ "tempfile",
+ "tokio",
  "toml",
 ]
 

@@ -14,3 +14,8 @@ forge_infra = {path = "../forge_infra"}
 toml = "0.8.20"
 serde = { version = "1.0" }
 serde_json = "1.0.133"
+
+[dev-dependencies]
+tempfile = "3.8.1"
+tokio = { version = "1.0", features = ["full"] }
+insta = "1.41.1"
