@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ModelId, TestAPI, API};
 use tokio_stream::StreamExt;
 
@@ -8,28 +10,38 @@ struct Fixture {
     task: String,
     large_model_id: ModelId,
     small_model_id: ModelId,
+    workflow: PathBuf,
 }
 
 impl Fixture {
     /// Create a new test fixture with the given task
-    fn new(task: impl Into<String>, large_model_id: ModelId, small_model_id: ModelId) -> Self {
-        Self { task: task.into(), large_model_id, small_model_id }
+    fn new(
+        task: impl Into<String>,
+        large_model_id: ModelId,
+        small_model_id: ModelId,
+        workflow: PathBuf,
+    ) -> Self {
+        Self { task: task.into(), large_model_id, small_model_id, workflow }
     }
 
     /// Get the API service, panicking if not validated
-    fn api(&self) -> impl API {
+    async fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
         TestAPI::init(
             false,
             self.large_model_id.clone(),
             self.small_model_id.clone(),
+            self.workflow.clone(),
         )
+        .await
+        .unwrap()
     }
 
     /// Get model response as text
     async fn get_model_response(&self) -> String {
         let request = ChatRequest::new(self.task.clone());
         self.api()
+            .await
             .chat(request)
             .await
             .unwrap()
@@ -86,6 +98,7 @@ macro_rules! generate_model_test {
                 "There is a cat hidden in the codebase. What is its name? hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask me any questions.",
                 ModelId::new($model),
                 ModelId::new($model),
+                PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../templates/workflows/default.toml")),
             );
 
             let result = fixture

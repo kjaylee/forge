@@ -2,6 +2,7 @@ mod api;
 mod executor;
 mod suggestion;
 mod test;
+mod workflow_loader;
 
 pub use api::*;
 pub use forge_domain::*;

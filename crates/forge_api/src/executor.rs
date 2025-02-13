@@ -3,6 +3,7 @@ use std::sync::Arc;
 use forge_app::{EnvironmentService, FileReadService, Infrastructure};
 use forge_domain::{
     AgentMessage, App, ChatRequest, ChatResponse, ConcurrentWorkflow, SystemContext, ToolService,
+    Workflow,
 };
 use forge_stream::MpscStream;
 use forge_walker::Walker;
@@ -14,10 +15,7 @@ pub struct ForgeExecutorService<F> {
     workflow: ConcurrentWorkflow,
 }
 impl<F: Infrastructure + App> ForgeExecutorService<F> {
-    pub fn new(app: Arc<F>) -> Self {
-        let workflow = include_str!("../../../templates/workflows/default.toml");
-        // TODO: drop the unwrap from here
-        let workflow = toml::from_str(workflow).unwrap();
+    pub fn new(app: Arc<F>, workflow: Workflow) -> Self {
         Self { app, workflow: ConcurrentWorkflow::new(workflow) }
     }
 }
