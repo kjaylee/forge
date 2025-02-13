@@ -932,6 +932,8 @@ dependencies = [
  "forge_infra",
  "forge_stream",
  "forge_walker",
+ "serde",
+ "serde_json",
  "toml",
 ]
 
