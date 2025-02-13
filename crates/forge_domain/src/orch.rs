@@ -311,7 +311,7 @@ impl<F: App> Orchestrator<F> {
     async fn init_agent(&self, agent: &AgentId, event: &DispatchEvent) -> anyhow::Result<()> {
         let agent = self.workflow.get_agent(agent).await?;
 
-        let mut context = if agent.ephemeral {
+        let mut context = if agent.ephemeral.unwrap_or_default() {
             self.init_agent_context(&agent).await?
         } else {
             match self.workflow.context(&agent.id).await {
@@ -352,7 +352,7 @@ impl<F: App> Orchestrator<F> {
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results.clone());
 
-            if !agent.ephemeral {
+            if !agent.ephemeral.unwrap_or_default() {
                 self.workflow
                     .set_context(&agent.id, context.clone())
                     .await?;

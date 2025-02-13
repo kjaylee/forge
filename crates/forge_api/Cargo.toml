@@ -11,3 +11,4 @@ forge_stream = { path = "../forge_stream" }
 forge_app = { path = "../forge_app" }
 forge_walker = { path = "../forge_walker" }
 forge_infra = {path = "../forge_infra"}
+toml = "0.8.20"

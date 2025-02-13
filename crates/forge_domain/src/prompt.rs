@@ -13,7 +13,7 @@ pub enum PromptContent {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
-    #[serde(skip_serializing_if = "Schema::is_empty")]
+    #[serde(flatten)]
     pub variables: Schema<V>,
 }
 

@@ -6,10 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::prompt::Prompt;
 use crate::{Context, Environment, ModelId, ToolName, UserContext};
 
-fn is_false(b: &bool) -> bool {
-    !*b
-}
-
 #[derive(Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
 pub struct SystemContext {
@@ -57,8 +53,8 @@ pub struct Agent {
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.
     #[builder(default)]
-    #[serde(skip_serializing_if = "is_false")]
-    pub ephemeral: bool,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub ephemeral: Option<bool>,
 
     /// Tools that the agent can use
     #[builder(default)]
@@ -66,7 +62,7 @@ pub struct Agent {
     pub tools: Vec<ToolName>,
 
     #[builder(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub transforms: Vec<Transform>,
 
     /// Used to specify the events the agent is interested in
