@@ -16,7 +16,6 @@ pub struct ForgeAPI<F> {
     app: Arc<F>,
     _executor_service: ForgeExecutorService<F>,
     _suggestion_service: ForgeSuggestionService<F>,
-    _workflow_loader: WorkflowLoader<F>,
 }
 
 impl<F: App + Infrastructure> ForgeAPI<F> {
@@ -25,7 +24,6 @@ impl<F: App + Infrastructure> ForgeAPI<F> {
             app: app.clone(),
             _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
-            _workflow_loader: WorkflowLoader::new(app),
         }
     }
 }
