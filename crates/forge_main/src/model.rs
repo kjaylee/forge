@@ -84,7 +84,6 @@ impl Command {
     /// - Help display
     pub fn available_commands() -> Vec<String> {
         vec![
-            "/end".to_string(),
             "/new".to_string(),
             "/info".to_string(),
             "/exit".to_string(),
