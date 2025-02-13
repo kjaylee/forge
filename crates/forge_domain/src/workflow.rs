@@ -10,7 +10,7 @@ use crate::{
     SystemContext,
 };
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
     #[serde(skip)]

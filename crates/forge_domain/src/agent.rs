@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::prompt::Prompt;
 use crate::{Context, Environment, ModelId, ToolName, UserContext};
 
-#[derive(Default, Setters, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
 pub struct SystemContext {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -40,7 +40,7 @@ impl From<ToolName> for AgentId {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Builder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 #[builder(setter(into), pattern = "immutable")]
 pub struct Agent {
     pub id: AgentId,
@@ -80,7 +80,7 @@ pub struct Agent {
     pub(crate) state: AgentState,
 }
 
-#[derive(Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AgentState {
     pub turn_count: u64,
     pub context: Option<Context>,
@@ -88,7 +88,7 @@ pub struct AgentState {
 
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Transform {
     /// Compresses multiple assistant messages into a single message

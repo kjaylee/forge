@@ -23,7 +23,7 @@ impl From<DispatchEvent> for UserContext {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UserContext {
     event: DispatchEvent,
 }

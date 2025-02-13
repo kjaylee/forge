@@ -10,7 +10,7 @@ pub enum PromptContent {
     File(PathBuf),
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Prompt<V> {
     pub template: PromptTemplate,
     #[serde(flatten)]
@@ -78,7 +78,7 @@ impl<S> Schema<S> {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(transparent)]
 pub struct PromptTemplate(String);
 
