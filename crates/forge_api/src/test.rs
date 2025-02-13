@@ -30,7 +30,13 @@ impl TestAPI<ForgeApp<TestInfra>> {
         ));
         let app = Arc::new(ForgeApp::new(infra));
         let workflow = app.file_read_service().read(workflow).await?;
-        let workflow = toml::from_str(&workflow)?;
+        let mut workflow: Workflow = toml::from_str(&workflow)?;
+
+        // replace the model with large_model_id (in tests both models are the same.)
+        workflow.agents.iter_mut().for_each(|agent| {
+            agent.model = large_model_id.clone();
+        });
+
         Ok(Self {
             app: app.clone(),
             _executor_service: ForgeExecutorService::new(app.clone(), workflow),
