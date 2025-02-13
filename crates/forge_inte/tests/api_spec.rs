@@ -98,7 +98,7 @@ macro_rules! generate_model_test {
                 "There is a cat hidden in the codebase. What is its name? hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask me any questions.",
                 ModelId::new($model),
                 ModelId::new($model),
-                PathBuf::from("templates/workflows/default.toml"),
+                PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../templates/workflows/default.toml")),
             );
 
             let result = fixture
