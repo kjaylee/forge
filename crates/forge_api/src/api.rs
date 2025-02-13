@@ -2,19 +2,21 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, FileReadService, ForgeApp, Infrastructure};
+use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_stream::MpscStream;
 
 use crate::executor::ForgeExecutorService;
 use crate::suggestion::ForgeSuggestionService;
+use crate::workflow_loader::WorkflowLoader;
 use crate::{ExecutorService, SuggestionService, API};
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
     _executor_service: ForgeExecutorService<F>,
     _suggestion_service: ForgeSuggestionService<F>,
+    _workflow_loader: WorkflowLoader<F>,
 }
 
 impl<F: App + Infrastructure> ForgeAPI<F> {
@@ -23,6 +25,7 @@ impl<F: App + Infrastructure> ForgeAPI<F> {
             app: app.clone(),
             _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
+            _workflow_loader: WorkflowLoader::new(app),
         }
     }
 }
@@ -31,8 +34,7 @@ impl ForgeAPI<ForgeApp<ForgeInfra>> {
     pub async fn init(restricted: bool, workflow: PathBuf) -> Result<Self> {
         let infra = Arc::new(ForgeInfra::new(restricted));
         let app = Arc::new(ForgeApp::new(infra));
-        let workflow = app.file_read_service().read(workflow).await?;
-        let workflow: Workflow = toml::from_str(&workflow)?;
+        let workflow = WorkflowLoader::new(app.clone()).load(workflow).await?;
         Ok(ForgeAPI::new(app, workflow))
     }
 }
