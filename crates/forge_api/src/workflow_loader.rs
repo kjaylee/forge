@@ -35,15 +35,15 @@ impl<F: Infrastructure> WorkflowLoader<F> {
             })?
             .to_path_buf();
 
-        self.resolve(workflow, workflow_dir).await
+        self.resolve(workflow_dir, workflow).await
     }
 
     /// given an workflow, it resolves all the internal paths specified in
     /// workflow.
-    async fn resolve(&self, mut workflow: Workflow, path: PathBuf) -> Result<Workflow> {
+    async fn resolve(&self, path: PathBuf, mut workflow: Workflow) -> Result<Workflow> {
         for agent in workflow.agents.iter_mut() {
-            agent.system_prompt = self.resolve_prompt(&agent.system_prompt, &path).await?;
-            agent.user_prompt = self.resolve_prompt(&agent.user_prompt, &path).await?;
+            agent.system_prompt = self.resolve_prompt(&path, &agent.system_prompt).await?;
+            agent.user_prompt = self.resolve_prompt(&path, &agent.user_prompt).await?;
         }
         Ok(workflow)
     }
@@ -51,7 +51,7 @@ impl<F: Infrastructure> WorkflowLoader<F> {
     /// if prompt is a file path, then it reads the file and returns the
     /// content. if the file path is relative, it resolves it with the given
     /// path. otherwise, it returns the prompt as it is.
-    async fn resolve_prompt<V: Clone>(&self, prompt: &Prompt<V>, path: &Path) -> Result<Prompt<V>> {
+    async fn resolve_prompt<V: Clone>(&self, path: &Path, prompt: &Prompt<V>) -> Result<Prompt<V>> {
         if let Some(file_path) = Self::is_file_path(path, prompt.template.as_str()) {
             let abs_path = if file_path.is_absolute() {
                 file_path
