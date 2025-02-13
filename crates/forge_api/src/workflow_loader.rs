@@ -7,8 +7,8 @@ use forge_domain::Workflow;
 pub struct WorkflowLoader<F>(Arc<F>);
 
 impl<F> WorkflowLoader<F> {
-    pub fn new(app: Arc<F>) -> Self {
-        Self(app)
+    pub fn new(infra: Arc<F>) -> Self {
+        Self(infra)
     }
 }
 
