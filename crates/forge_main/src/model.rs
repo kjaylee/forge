@@ -118,7 +118,7 @@ impl Command {
             "/info" => Command::Info,
             "/exit" => Command::Exit,
             "/models" => Command::Models,
-            "/load" => Command::Load(PathBuf::from(arg)),
+            "/load" if !arg.is_empty() => Command::Load(PathBuf::from(arg)),
             _ => Command::Message(trimmed.to_string()),
         }
     }
