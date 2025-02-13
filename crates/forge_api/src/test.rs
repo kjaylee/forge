@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -17,7 +18,12 @@ pub struct TestAPI<F> {
 }
 
 impl TestAPI<ForgeApp<TestInfra>> {
-    pub fn init(_restricted: bool, large_model_id: ModelId, small_model_id: ModelId) -> Self {
+    pub fn init(
+        _restricted: bool,
+        large_model_id: ModelId,
+        small_model_id: ModelId,
+        workflow: PathBuf,
+    ) -> Self {
         let infra = Arc::new(TestInfra::new(
             large_model_id.clone(),
             small_model_id.clone(),
@@ -25,7 +31,7 @@ impl TestAPI<ForgeApp<TestInfra>> {
         let app = Arc::new(ForgeApp::new(infra));
         Self {
             app: app.clone(),
-            _executor_service: ForgeExecutorService::new(app.clone()),
+            _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
         }
     }

@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -17,20 +18,20 @@ pub struct ForgeAPI<F> {
 }
 
 impl<F: App + Infrastructure> ForgeAPI<F> {
-    pub fn new(app: Arc<F>) -> Self {
+    pub fn new(app: Arc<F>, workflow: PathBuf) -> Self {
         Self {
             app: app.clone(),
-            _executor_service: ForgeExecutorService::new(app.clone()),
+            _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
         }
     }
 }
 
 impl ForgeAPI<ForgeApp<ForgeInfra>> {
-    pub fn init(restricted: bool) -> Self {
+    pub fn init(restricted: bool, workflow: PathBuf) -> Self {
         let infra = Arc::new(ForgeInfra::new(restricted));
         let app = Arc::new(ForgeApp::new(infra));
-        ForgeAPI::new(app)
+        ForgeAPI::new(app, workflow)
     }
 }
 

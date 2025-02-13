@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ModelId, TestAPI, API};
 use tokio_stream::StreamExt;
 
@@ -8,12 +10,18 @@ struct Fixture {
     task: String,
     large_model_id: ModelId,
     small_model_id: ModelId,
+    workflow: PathBuf,
 }
 
 impl Fixture {
     /// Create a new test fixture with the given task
-    fn new(task: impl Into<String>, large_model_id: ModelId, small_model_id: ModelId) -> Self {
-        Self { task: task.into(), large_model_id, small_model_id }
+    fn new(
+        task: impl Into<String>,
+        large_model_id: ModelId,
+        small_model_id: ModelId,
+        workflow: PathBuf,
+    ) -> Self {
+        Self { task: task.into(), large_model_id, small_model_id, workflow }
     }
 
     /// Get the API service, panicking if not validated
@@ -23,6 +31,7 @@ impl Fixture {
             false,
             self.large_model_id.clone(),
             self.small_model_id.clone(),
+            self.workflow.clone(),
         )
     }
 
@@ -86,6 +95,7 @@ macro_rules! generate_model_test {
                 "There is a cat hidden in the codebase. What is its name? hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask me any questions.",
                 ModelId::new($model),
                 ModelId::new($model),
+                PathBuf::from("templates/workflows/default.toml"),
             );
 
             let result = fixture

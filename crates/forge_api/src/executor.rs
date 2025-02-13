@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use forge_app::{EnvironmentService, FileReadService, Infrastructure};
 use forge_domain::{
@@ -14,10 +14,10 @@ pub struct ForgeExecutorService<F> {
     workflow: ConcurrentWorkflow,
 }
 impl<F: Infrastructure + App> ForgeExecutorService<F> {
-    pub fn new(app: Arc<F>) -> Self {
-        let workflow = include_str!("../../../templates/workflows/default.toml");
+    pub fn new(app: Arc<F>, _workflow: PathBuf) -> Self {
         // TODO: drop the unwrap from here
-        let workflow = toml::from_str(workflow).unwrap();
+        let workflow = std::fs::read_to_string(_workflow).unwrap();
+        let workflow = toml::from_str(&workflow).unwrap();
         Self { app, workflow: ConcurrentWorkflow::new(workflow) }
     }
 }

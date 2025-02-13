@@ -29,7 +29,7 @@ pub struct Cli {
     /// Path to a file containing custom instructions.
     ///
     /// These instructions modify the behavior of the AI assistant.
-    #[arg(long, short = 'i', value_parser = validate_path)]
+    #[arg(long, short = 'i', value_parser = path_parser)]
     pub custom_instructions: Option<PathBuf>,
 
     /// Enable restricted shell mode for enhanced security.
@@ -47,10 +47,21 @@ pub struct Cli {
     /// - Modifying shell options
     #[arg(long, default_value_t = false, short = 'r')]
     pub restricted: bool,
+
+    /// Path to a file containing the workflow to execute.
+    #[arg(long, short = 'w', value_parser = path_parser, default_value = "templates/workflows/default.toml")]
+    pub workflow: PathBuf,
 }
 
-fn validate_path(path: &str) -> Result<PathBuf, String> {
-    let path_buf = PathBuf::from(path);
+/// Parses a path string into a `PathBuf` and validates it. if provided path is relative then it will be resolved to the current working directory.
+fn path_parser(path: &str) -> Result<PathBuf, String> {
+    let mut path_buf = PathBuf::from(path);
+
+    // Resolve relative paths to the current working directory.
+    if path_buf.is_relative() {
+        let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+        path_buf = cwd.join(path_buf);
+    }
 
     if !path_buf.exists() {
         return Err(format!("Path does not exist: '{}'", path_buf.display()));
