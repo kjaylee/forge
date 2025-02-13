@@ -27,6 +27,11 @@ impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
         Ok(())
     }
 
+    async fn set_workflow(&self, workflow: Workflow) -> anyhow::Result<()> {
+        self.workflow.set_workflow(workflow).await?;
+        Ok(())
+    }
+
     async fn chat(
         &self,
         chat_request: ChatRequest,

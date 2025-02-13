@@ -123,6 +123,12 @@ impl ConcurrentWorkflow {
         })
     }
 
+    pub async fn set_workflow(&self, workflow: Workflow) -> crate::Result<()> {
+        let mut guard = self.workflow.write().await;
+        *guard = workflow;
+        Ok(())
+    }
+
     pub async fn reset(&self) -> crate::Result<()> {
         let mut guard = self.workflow.write().await;
         for agent in guard.agents.iter_mut() {

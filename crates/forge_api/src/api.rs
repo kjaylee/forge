@@ -16,6 +16,7 @@ pub struct ForgeAPI<F> {
     app: Arc<F>,
     _executor_service: ForgeExecutorService<F>,
     _suggestion_service: ForgeSuggestionService<F>,
+    workflow_loader: WorkflowLoader<F>,
 }
 
 impl<F: App + Infrastructure> ForgeAPI<F> {
@@ -24,6 +25,7 @@ impl<F: App + Infrastructure> ForgeAPI<F> {
             app: app.clone(),
             _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
+            workflow_loader: WorkflowLoader::new(app),
         }
     }
 }
@@ -60,6 +62,13 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
 
     async fn reset(&self) -> anyhow::Result<()> {
         self._executor_service.reset().await
+    }
+
+    async fn load_workflow(&self, path: PathBuf) -> anyhow::Result<()> {
+        self._executor_service
+            .set_workflow(self.workflow_loader.load(path).await?)
+            .await?;
+        Ok(())
     }
 
     fn environment(&self) -> Environment {

@@ -124,7 +124,33 @@ impl<F: API> UI<F> {
                     };
                     let info: Info = models.as_slice().into();
                     CONSOLE.writeln(info.to_string())?;
-
+                    input = self.console.prompt(None).await?;
+                    continue;
+                }
+                Command::Load(workflow_path) => {
+                    match self.api.load_workflow(workflow_path.clone()).await {
+                        Ok(_) => {
+                            CONSOLE.writeln(
+                                TitleFormat::success(format!(
+                                    "Workflow loaded from path: '{}'",
+                                    workflow_path.display()
+                                ))
+                                .sub_title(self.state.usage.to_string())
+                                .format(),
+                            )?;
+                        }
+                        Err(err) => {
+                            CONSOLE.writeln(
+                                TitleFormat::failed(format!(
+                                    "Failed to load workflow from path: '{}' with error: {:?}",
+                                    workflow_path.display().to_string(),
+                                    err
+                                ))
+                                .sub_title(self.state.usage.to_string())
+                                .format(),
+                            )?;
+                        }
+                    }
                     input = self.console.prompt(None).await?;
                 }
             }

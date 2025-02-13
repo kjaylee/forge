@@ -73,6 +73,8 @@ pub enum Command {
     Exit,
     /// Lists the models available for use.
     Models,
+    /// Loads the specified workflow file.
+    Load(PathBuf),
 }
 
 impl Command {
@@ -88,6 +90,7 @@ impl Command {
             "/info".to_string(),
             "/exit".to_string(),
             "/models".to_string(),
+            "/load".to_string(),
         ]
     }
 
@@ -104,12 +107,19 @@ impl Command {
     pub fn parse(input: &str) -> Self {
         let trimmed = input.trim();
 
-        match trimmed {
+        // Split the input into a command and argument
+        let (cmd, arg) = match trimmed.split_once(' ') {
+            Some((cmd, arg)) => (cmd.trim(), arg.trim()),
+            None => (trimmed, ""),
+        };
+
+        match cmd {
             "/new" => Command::New,
             "/info" => Command::Info,
             "/exit" => Command::Exit,
             "/models" => Command::Models,
-            text => Command::Message(text.to_string()),
+            "/load" => Command::Load(PathBuf::from(arg)),
+            _ => Command::Message(trimmed.to_string()),
         }
     }
 }

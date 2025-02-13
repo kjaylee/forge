@@ -16,7 +16,7 @@ pub struct TestAPI<F> {
     app: Arc<F>,
     _executor_service: ForgeExecutorService<F>,
     _suggestion_service: ForgeSuggestionService<F>,
-    _workflow_loader: WorkflowLoader<F>,
+    workflow_loader: WorkflowLoader<F>,
 }
 
 impl TestAPI<ForgeApp<TestInfra>> {
@@ -44,7 +44,7 @@ impl TestAPI<ForgeApp<TestInfra>> {
             app: app.clone(),
             _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
-            _workflow_loader,
+            workflow_loader: _workflow_loader,
         })
     }
 }
@@ -72,6 +72,13 @@ impl<F: App + Infrastructure> API for TestAPI<F> {
 
     async fn reset(&self) -> anyhow::Result<()> {
         self._executor_service.reset().await
+    }
+
+    async fn load_workflow(&self, path: PathBuf) -> anyhow::Result<()> {
+        self._executor_service
+            .set_workflow(self.workflow_loader.load(path).await?)
+            .await?;
+        Ok(())
     }
 
     fn environment(&self) -> Environment {

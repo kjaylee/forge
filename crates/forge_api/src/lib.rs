@@ -4,6 +4,8 @@ mod suggestion;
 mod test;
 mod workflow_loader;
 
+use std::path::PathBuf;
+
 pub use api::*;
 pub use forge_domain::*;
 use forge_stream::MpscStream;
@@ -14,7 +16,7 @@ pub trait ExecutorService: Send {
         &self,
         chat_request: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>>>>;
-
+    async fn set_workflow(&self, workflow: Workflow) -> anyhow::Result<()>;
     async fn reset(&self) -> anyhow::Result<()>;
 }
 
@@ -33,5 +35,7 @@ pub trait API {
         chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>>;
     fn environment(&self) -> Environment;
+
+    async fn load_workflow(&self, path: PathBuf) -> anyhow::Result<()>;
     async fn reset(&self) -> anyhow::Result<()>;
 }
