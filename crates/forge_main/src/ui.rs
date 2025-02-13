@@ -128,7 +128,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Load(workflow_path) => {
-                    match self.api.load_workflow(workflow_path.clone()).await {
+                    match self.api.set_workflow(workflow_path.clone()).await {
                         Ok(_) => {
                             CONSOLE.writeln(
                                 TitleFormat::success(format!(

@@ -74,7 +74,7 @@ impl<F: App + Infrastructure> API for TestAPI<F> {
         self._executor_service.reset().await
     }
 
-    async fn load_workflow(&self, path: PathBuf) -> anyhow::Result<()> {
+    async fn set_workflow(&self, path: PathBuf) -> anyhow::Result<()> {
         self._executor_service
             .set_workflow(self.workflow_loader.load(path).await?)
             .await?;

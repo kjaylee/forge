@@ -36,6 +36,6 @@ pub trait API {
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>>;
     fn environment(&self) -> Environment;
 
-    async fn load_workflow(&self, path: PathBuf) -> anyhow::Result<()>;
+    async fn set_workflow(&self, path: PathBuf) -> anyhow::Result<()>;
     async fn reset(&self) -> anyhow::Result<()>;
 }
