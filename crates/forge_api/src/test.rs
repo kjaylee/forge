@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
+use forge_app::{EnvironmentService, FileReadService, ForgeApp, Infrastructure};
 use forge_domain::{App, *};
 use forge_infra::TestInfra;
 use forge_stream::MpscStream;
@@ -18,22 +18,24 @@ pub struct TestAPI<F> {
 }
 
 impl TestAPI<ForgeApp<TestInfra>> {
-    pub fn init(
+    pub async fn init(
         _restricted: bool,
         large_model_id: ModelId,
         small_model_id: ModelId,
         workflow: PathBuf,
-    ) -> Self {
+    ) -> Result<Self> {
         let infra = Arc::new(TestInfra::new(
             large_model_id.clone(),
             small_model_id.clone(),
         ));
         let app = Arc::new(ForgeApp::new(infra));
-        Self {
+        let workflow = app.file_read_service().read(workflow).await.unwrap();
+        let workflow = toml::from_str(&workflow)?;
+        Ok(Self {
             app: app.clone(),
             _executor_service: ForgeExecutorService::new(app.clone(), workflow),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
-        }
+        })
     }
 }
 

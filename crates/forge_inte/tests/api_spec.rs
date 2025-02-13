@@ -25,7 +25,7 @@ impl Fixture {
     }
 
     /// Get the API service, panicking if not validated
-    fn api(&self) -> impl API {
+    async fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
         TestAPI::init(
             false,
@@ -33,12 +33,15 @@ impl Fixture {
             self.small_model_id.clone(),
             self.workflow.clone(),
         )
+        .await
+        .unwrap()
     }
 
     /// Get model response as text
     async fn get_model_response(&self) -> String {
         let request = ChatRequest::new(self.task.clone());
         self.api()
+            .await
             .chat(request)
             .await
             .unwrap()

@@ -53,7 +53,8 @@ pub struct Cli {
     pub workflow: PathBuf,
 }
 
-/// Parses a path string into a `PathBuf` and validates it. if provided path is relative then it will be resolved to the current working directory.
+/// Parses a path string into a `PathBuf` and validates it. if provided path is
+/// relative then it will be resolved to the current working directory.
 fn path_parser(path: &str) -> Result<PathBuf, String> {
     let mut path_buf = PathBuf::from(path);
 

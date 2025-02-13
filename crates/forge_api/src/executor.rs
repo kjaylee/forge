@@ -1,8 +1,9 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use forge_app::{EnvironmentService, FileReadService, Infrastructure};
 use forge_domain::{
     AgentMessage, App, ChatRequest, ChatResponse, ConcurrentWorkflow, SystemContext, ToolService,
+    Workflow,
 };
 use forge_stream::MpscStream;
 use forge_walker::Walker;
@@ -14,10 +15,7 @@ pub struct ForgeExecutorService<F> {
     workflow: ConcurrentWorkflow,
 }
 impl<F: Infrastructure + App> ForgeExecutorService<F> {
-    pub fn new(app: Arc<F>, _workflow: PathBuf) -> Self {
-        // TODO: drop the unwrap from here
-        let workflow = std::fs::read_to_string(_workflow).unwrap();
-        let workflow = toml::from_str(&workflow).unwrap();
+    pub fn new(app: Arc<F>, workflow: Workflow) -> Self {
         Self { app, workflow: ConcurrentWorkflow::new(workflow) }
     }
 }

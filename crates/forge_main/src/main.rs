@@ -8,10 +8,7 @@ use forge::{Cli, UI};
 async fn main() -> Result<()> {
     // Initialize and run the UI
     let cli = Cli::parse();
-    let api = Arc::new(forge_api::ForgeAPI::init(
-        cli.restricted,
-        cli.workflow.clone(),
-    ));
+    let api = Arc::new(forge_api::ForgeAPI::init(cli.restricted, cli.workflow.clone()).await?);
     let mut ui = UI::init(cli, api).await?;
     ui.run().await?;
 
