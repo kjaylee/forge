@@ -83,130 +83,113 @@ impl<F: Infrastructure> WorkflowLoader<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use anyhow::{Context, Result};
+    use super::WorkflowLoader;
+    use anyhow::Result;
     use forge_domain::{ModelId, Workflow};
     use forge_infra::TestInfra;
-    use tempfile::tempdir;
+    use std::{
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
+    use tempfile::TempDir;
 
-    use super::WorkflowLoader;
+    const BASE_WORKFLOW: &str = r#"
+[[agents]]
+id = "developer"
+model = "anthropic/claude-3.5-sonnet"
+tools = ["tool_forge_fs_read", "tool_forge_fs_create"]
+subscribe = ["user_task"]
+max_turns = 1024"#;
 
     struct Fixture {
-        _temp_dir: tempfile::TempDir,
+        temp_dir: TempDir,
+        workflow_path: PathBuf,
         loader: WorkflowLoader<TestInfra>,
     }
 
     impl Default for Fixture {
         fn default() -> Self {
-            let temp_dir = tempdir().unwrap();
+            let temp_dir = tempfile::tempdir().unwrap();
             let loader = WorkflowLoader::new(Arc::new(TestInfra::new(
                 ModelId::new("anthropic/claude-3.5-sonnet"),
                 ModelId::new("anthropic/claude-3.5-sonnet"),
             )));
-            Self { _temp_dir: temp_dir, loader }
+            Self {
+                temp_dir,
+                loader,
+                workflow_path: PathBuf::from("workflow.toml"),
+            }
         }
     }
 
     impl Fixture {
-        /// gives the path of the temp directory.
-        fn path(&self) -> &std::path::Path {
-            self._temp_dir.path()
+        async fn with_prompts(self, system_prompt: &str, user_prompt: &str) -> Result<Fixture> {
+            let workflow = format!(
+                "{}\n\n[agents.system_prompt]\ntemplate = \"{}\"\n\n[agents.user_prompt]\ntemplate = \"{}\"",
+                BASE_WORKFLOW, system_prompt, user_prompt
+            );
+            let workflow_path = self.temp_dir.path().join(self.workflow_path.clone());
+            tokio::fs::write(&workflow_path, workflow).await?;
+            Ok(self)
         }
 
-        /// creates an path within the temp directory.
-        async fn create_file(&self, content: &str, path: &str) -> Result<()> {
-            let file_path = self.path().join(path);
+        async fn run(&self) -> Result<Workflow> {
+            self.loader
+                .load(self.temp_dir.path().join(self.workflow_path.clone()))
+                .await
+        }
+
+        async fn create_prompt_file(&self, path: &Path, content: &str) -> Result<()> {
+            let file_path = self.temp_dir.path().join(path);
             if let Some(parent) = file_path.parent() {
-                tokio::fs::create_dir_all(parent).await.with_context(|| {
-                    format!("Failed to create directory: {:?}", parent)
-                })?;
+                tokio::fs::create_dir_all(parent).await?;
             }
-            tokio::fs::write(&file_path, content).await.with_context(|| {
-                format!("Failed to write file: {:?}", file_path)
-            })?;
+            tokio::fs::write(file_path, content).await?;
             Ok(())
         }
-
-        /// writes the workflow content to the workflow file and loads it.
-        async fn run(&self, workflow: &str) -> Result<Workflow> {
-            let workflow_path = self.path().join("workflow.toml");
-            tokio::fs::write(&workflow_path, workflow).await?;
-            self.loader.load(workflow_path).await
-        }
     }
 
     #[tokio::test]
-    async fn test_load_workflow_with_string_literals() {
-        let workflow_content = r#"
-[[agents]]
-id = "developer"
-model = "anthropic/claude-3.5-sonnet"
-tools = ["tool_forge_fs_read", "tool_forge_fs_create"]
-subscribe = ["user_task"]
-max_turns = 1024
-
-[agents.system_prompt]
-template = "You are a software developer assistant"
-
-[agents.user_prompt]
-template = "<task>{{event.value}}</task>"
-"#;
-
-        let fixture = Fixture::default();
-        let workflow = fixture.run(workflow_content).await.unwrap();
-        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow).unwrap());
+    async fn test_load_workflow_with_string_literals() -> Result<()> {
+        let workflow = Fixture::default()
+            .with_prompts(
+                "You are a software developer assistant",
+                "<task>{{event.value}}</task>",
+            )
+            .await?
+            .run()
+            .await?;
+        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_load_workflow_with_string_literal_and_path() {
-        let workflow_content = r#"
-[[agents]]
-id = "developer"
-model = "anthropic/claude-3.5-sonnet"
-tools = ["tool_forge_fs_read", "tool_forge_fs_create"]
-subscribe = ["user_task"]
-max_turns = 1024
-
-[agents.system_prompt]
-template = "./nested/system_prompt.md"
-
-[agents.user_prompt]
-template = "<task>{{event.value}}</task>"
-"#;
-
-        let system_prompt = r#"You are a software developer assistant, good at solving complex software engineering problems"#;
+    async fn test_load_workflow_with_file_prompt() -> Result<()> {
         let fixture = Fixture::default();
-
-        // creates an system prompt file
+        // create system prompt file
+        let system_prompt = "You are a software developer assistant, good at solving complex software engineering problems";
+        let system_prompt_path = Path::new("nested/system_prompt.md");
         fixture
-            .create_file(&system_prompt, "nested/system_prompt.md")
-            .await
-            .unwrap();
+            .create_prompt_file(system_prompt_path, system_prompt)
+            .await?;
 
-        let workflow = fixture.run(workflow_content).await.unwrap();
-        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow).unwrap());
+        let workflow = fixture
+            .with_prompts("nested/system_prompt.md", "<task>{{event.value}}</task>")
+            .await?
+            .run()
+            .await?;
+        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn test_load_workflow_when_template_path_not_present() {
-        let workflow_content = r#"
-[[agents]]
-id = "developer"
-model = "anthropic/claude-3.5-sonnet"
-tools = ["tool_forge_fs_read", "tool_forge_fs_create"]
-subscribe = ["user_task"]
-max_turns = 1024
-
-[agents.system_prompt]
-template = "./nested/system_prompt.md"
-
-[agents.user_prompt]
-template = "<task>{{event.value}}</task>"
-"#;
-
-        let fixture = Fixture::default();
-        let workflow = fixture.run(workflow_content).await.unwrap();
-        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow).unwrap());
+    async fn test_load_workflow_with_missing_prompt_file() -> Result<()> {
+        let workflow = Fixture::default()
+            .with_prompts("nested/system_prompt.md", "<task>{{event.value}}</task>")
+            .await?
+            .run()
+            .await?;
+        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
+        Ok(())
     }
 }
