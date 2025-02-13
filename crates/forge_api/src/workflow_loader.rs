@@ -123,17 +123,13 @@ max_turns = 1024"#;
     }
 
     impl Fixture {
-        async fn with_prompts(self, system_prompt: &str, user_prompt: &str) -> Result<Fixture> {
+        async fn run(self, system_prompt: &str, user_prompt: &str) -> Result<Workflow> {
             let workflow = format!(
                 "{}\n\n[agents.system_prompt]\ntemplate = \"{}\"\n\n[agents.user_prompt]\ntemplate = \"{}\"",
                 BASE_WORKFLOW, system_prompt, user_prompt
             );
             let workflow_path = self.temp_dir.path().join(self.workflow_path.clone());
             tokio::fs::write(&workflow_path, workflow).await?;
-            Ok(self)
-        }
-
-        async fn run(&self) -> Result<Workflow> {
             self.loader
                 .load(self.temp_dir.path().join(self.workflow_path.clone()))
                 .await
@@ -152,12 +148,10 @@ max_turns = 1024"#;
     #[tokio::test]
     async fn test_load_workflow_with_string_literals() -> Result<()> {
         let workflow = Fixture::default()
-            .with_prompts(
+            .run(
                 "You are a software developer assistant",
                 "<task>{{event.value}}</task>",
             )
-            .await?
-            .run()
             .await?;
         insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
         Ok(())
@@ -174,9 +168,7 @@ max_turns = 1024"#;
             .await?;
 
         let workflow = fixture
-            .with_prompts("nested/system_prompt.md", "<task>{{event.value}}</task>")
-            .await?
-            .run()
+            .run("nested/system_prompt.md", "<task>{{event.value}}</task>")
             .await?;
         insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
         Ok(())
@@ -185,9 +177,7 @@ max_turns = 1024"#;
     #[tokio::test]
     async fn test_load_workflow_with_missing_prompt_file() -> Result<()> {
         let workflow = Fixture::default()
-            .with_prompts("nested/system_prompt.md", "<task>{{event.value}}</task>")
-            .await?
-            .run()
+            .run("nested/system_prompt.md", "<task>{{event.value}}</task>")
             .await?;
         insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
         Ok(())
