@@ -1,9 +1,7 @@
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::Context;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use forge_app::{FileReadService, Infrastructure};
 use forge_domain::{Prompt, Workflow};
 
@@ -40,7 +38,8 @@ impl<F: Infrastructure> WorkflowLoader<F> {
         self.resolve(workflow, workflow_dir).await
     }
 
-    /// given an workflow, it resolves all the internal paths specified in workflow.
+    /// given an workflow, it resolves all the internal paths specified in
+    /// workflow.
     async fn resolve(&self, mut workflow: Workflow, path: PathBuf) -> Result<Workflow> {
         for agent in workflow.agents.iter_mut() {
             agent.system_prompt = self.resolve_prompt(&agent.system_prompt, &path).await?;
@@ -49,14 +48,10 @@ impl<F: Infrastructure> WorkflowLoader<F> {
         Ok(workflow)
     }
 
-    /// if prompt is a file path, then it reads the file and returns the content.
-    /// if the file path is relative, it resolves it with the given path.
-    /// otherwise, it returns the prompt as it is.
-    async fn resolve_prompt<V: Clone>(
-        &self,
-        prompt: &Prompt<V>,
-        path: &PathBuf,
-    ) -> Result<Prompt<V>> {
+    /// if prompt is a file path, then it reads the file and returns the
+    /// content. if the file path is relative, it resolves it with the given
+    /// path. otherwise, it returns the prompt as it is.
+    async fn resolve_prompt<V: Clone>(&self, prompt: &Prompt<V>, path: &Path) -> Result<Prompt<V>> {
         if let Some(file_path) = Self::is_file_path(path, prompt.template.as_str()) {
             let abs_path = if file_path.is_absolute() {
                 file_path
@@ -71,8 +66,8 @@ impl<F: Infrastructure> WorkflowLoader<F> {
         }
     }
 
-    /// checks if given content is valid file path by checking it's existance.    
-    fn is_file_path(workflow_dir: &PathBuf, content: &str) -> Option<PathBuf> {
+    /// checks if given content is valid file path by checking it's existance.
+    fn is_file_path(workflow_dir: &Path, content: &str) -> Option<PathBuf> {
         let path = Path::new(content);
         if path.exists() || workflow_dir.join(path).exists() {
             return Some(path.to_path_buf());
@@ -83,15 +78,15 @@ impl<F: Infrastructure> WorkflowLoader<F> {
 
 #[cfg(test)]
 mod tests {
-    use super::WorkflowLoader;
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+
     use anyhow::Result;
     use forge_domain::{ModelId, Workflow};
     use forge_infra::TestInfra;
-    use std::{
-        path::{Path, PathBuf},
-        sync::Arc,
-    };
     use tempfile::TempDir;
+
+    use super::WorkflowLoader;
 
     const BASE_WORKFLOW: &str = r#"
 [[agents]]
