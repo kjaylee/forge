@@ -27,22 +27,17 @@ impl Fixture {
     /// Get the API service, panicking if not validated
     async fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
-        TestAPI::init(
-            false,
-            self.large_model_id.clone(),
-            self.small_model_id.clone(),
-            self.workflow.clone(),
-        )
-        .await
-        .unwrap()
+        TestAPI::init(self.large_model_id.clone(), self.small_model_id.clone())
+            .await
+            .unwrap()
     }
 
     /// Get model response as text
     async fn get_model_response(&self) -> String {
-        let request = ChatRequest::new(self.task.clone());
-        self.api()
-            .await
-            .chat(request)
+        let api = self.api().await;
+        let workflow = api.load(self.workflow.clone()).await.unwrap();
+        let request = ChatRequest::new(self.task.clone(), workflow);
+        api.chat(request)
             .await
             .unwrap()
             .filter_map(|message| match message.unwrap() {

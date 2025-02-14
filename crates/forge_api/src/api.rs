@@ -8,32 +8,33 @@ use forge_infra::ForgeInfra;
 use forge_stream::MpscStream;
 
 use crate::executor::ForgeExecutorService;
+use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::workflow_loader::WorkflowLoader;
-use crate::{ExecutorService, SuggestionService, API};
+use crate::API;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
     _executor_service: ForgeExecutorService<F>,
     _suggestion_service: ForgeSuggestionService<F>,
+    _loader: ForgeLoaderService<F>,
 }
 
 impl<F: App + Infrastructure> ForgeAPI<F> {
-    pub fn new(app: Arc<F>, workflow: Workflow) -> Self {
+    pub fn new(app: Arc<F>) -> Self {
         Self {
             app: app.clone(),
-            _executor_service: ForgeExecutorService::new(app.clone(), workflow),
+            _executor_service: ForgeExecutorService::new(app.clone()),
             _suggestion_service: ForgeSuggestionService::new(app.clone()),
+            _loader: ForgeLoaderService::new(app.clone()),
         }
     }
 }
 
 impl ForgeAPI<ForgeApp<ForgeInfra>> {
-    pub async fn init(restricted: bool, workflow: PathBuf) -> Result<Self> {
+    pub async fn init(restricted: bool) -> Result<Self> {
         let infra = Arc::new(ForgeInfra::new(restricted));
         let app = Arc::new(ForgeApp::new(infra));
-        let workflow = WorkflowLoader::new(app.clone()).load(workflow).await?;
-        Ok(ForgeAPI::new(app, workflow))
+        Ok(ForgeAPI::new(app))
     }
 }
 
@@ -59,10 +60,15 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn reset(&self) -> anyhow::Result<()> {
-        self._executor_service.reset().await
+        self._executor_service.reset(None).await;
+        Ok(())
     }
 
     fn environment(&self) -> Environment {
         self.app.environment_service().get_environment().clone()
+    }
+
+    async fn load(&self, path: PathBuf) -> anyhow::Result<Workflow> {
+        self._loader.load(path).await
     }
 }

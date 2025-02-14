@@ -7,15 +7,15 @@ use forge_domain::{Prompt, Workflow};
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
-pub struct WorkflowLoader<F>(Arc<F>);
+pub struct ForgeLoaderService<F>(Arc<F>);
 
-impl<F> WorkflowLoader<F> {
+impl<F> ForgeLoaderService<F> {
     pub fn new(app: Arc<F>) -> Self {
         Self(app)
     }
 }
 
-impl<F: Infrastructure> WorkflowLoader<F> {
+impl<F: Infrastructure> ForgeLoaderService<F> {
     /// loads the workflow from the given path.
     pub async fn load(&self, workflow_path: PathBuf) -> anyhow::Result<Workflow> {
         let workflow_content = self
@@ -86,7 +86,7 @@ mod tests {
     use forge_infra::TestInfra;
     use tempfile::TempDir;
 
-    use super::WorkflowLoader;
+    use super::ForgeLoaderService;
 
     const BASE_WORKFLOW: &str = r#"
 [[agents]]
@@ -99,13 +99,13 @@ max_turns = 1024"#;
     struct Fixture {
         temp_dir: TempDir,
         workflow_path: PathBuf,
-        loader: WorkflowLoader<TestInfra>,
+        loader: ForgeLoaderService<TestInfra>,
     }
 
     impl Default for Fixture {
         fn default() -> Self {
             let temp_dir = tempfile::tempdir().unwrap();
-            let loader = WorkflowLoader::new(Arc::new(TestInfra::new(
+            let loader = ForgeLoaderService::new(Arc::new(TestInfra::new(
                 ModelId::new("anthropic/claude-3.5-sonnet"),
                 ModelId::new("anthropic/claude-3.5-sonnet"),
             )));

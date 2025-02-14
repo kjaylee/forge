@@ -8,26 +8,22 @@ use forge_domain::{
 use forge_stream::MpscStream;
 use forge_walker::Walker;
 
-use crate::ExecutorService;
-
 pub struct ForgeExecutorService<F> {
     app: Arc<F>,
     workflow: ConcurrentWorkflow,
 }
 impl<F: Infrastructure + App> ForgeExecutorService<F> {
-    pub fn new(app: Arc<F>, workflow: Workflow) -> Self {
-        Self { app, workflow: ConcurrentWorkflow::new(workflow) }
+    pub fn new(app: Arc<F>) -> Self {
+        Self { app, workflow: ConcurrentWorkflow::default() }
     }
 }
 
-#[async_trait::async_trait]
-impl<F: Infrastructure + App> ExecutorService for ForgeExecutorService<F> {
-    async fn reset(&self) -> anyhow::Result<()> {
-        self.workflow.reset().await?;
-        Ok(())
+impl<F: Infrastructure + App> ForgeExecutorService<F> {
+    pub async fn reset(&self, workflow: Option<Workflow>) {
+        self.workflow.reset(workflow).await;
     }
 
-    async fn chat(
+    pub async fn chat(
         &self,
         chat_request: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>>>> {

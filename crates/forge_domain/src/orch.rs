@@ -369,6 +369,7 @@ impl<F: App> Orchestrator<F> {
     }
 
     pub async fn execute(&self, chat_request: ChatRequest) -> anyhow::Result<()> {
+        self.workflow.reset(Some(chat_request.workflow)).await;
         let event = DispatchEvent::task(chat_request.content);
         self.dispatch(&event).await?;
         Ok(())

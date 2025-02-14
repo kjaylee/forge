@@ -10,7 +10,7 @@ use crate::{
     SystemContext,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
     #[serde(skip)]
@@ -46,7 +46,7 @@ impl Workflow {
     }
 }
 
-#[derive(Clone)]
+#[derive(Default, Clone)]
 pub struct ConcurrentWorkflow {
     workflow: Arc<RwLock<Workflow>>,
 }
@@ -112,10 +112,10 @@ impl ConcurrentWorkflow {
         ctx: SystemContext,
     ) -> MpscStream<anyhow::Result<crate::AgentMessage<ChatResponse>>> {
         let workflow = self.clone();
+
         MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
             let orch = Orchestrator::new(domain, workflow, ctx, Some(tx.clone()));
-
             match orch.execute(request).await {
                 Ok(_) => {}
                 Err(err) => tx.send(Err(err)).await.unwrap(),
@@ -123,11 +123,14 @@ impl ConcurrentWorkflow {
         })
     }
 
-    pub async fn reset(&self) -> crate::Result<()> {
+    pub async fn reset(&self, workflow: Option<Workflow>) {
         let mut guard = self.workflow.write().await;
-        for agent in guard.agents.iter_mut() {
-            agent.state = Default::default();
+        if let Some(workflow) = workflow {
+            *guard = workflow;
+        } else {
+            for agent in guard.agents.iter_mut() {
+                agent.state = Default::default();
+            }
         }
-        Ok(())
     }
 }

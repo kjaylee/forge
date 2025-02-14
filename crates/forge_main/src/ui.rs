@@ -137,7 +137,9 @@ impl<F: API> UI<F> {
         let chat = ChatRequest {
             content: content.clone(),
             custom_instructions: self.cli.custom_instructions.clone(),
+            workflow: self.api.load(self.cli.workflow.clone()).await?,
         };
+
         tokio::spawn({
             let content = content.clone();
             async move {
