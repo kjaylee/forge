@@ -82,8 +82,8 @@ mod tests {
     use std::sync::Arc;
 
     use anyhow::Result;
-    use forge_domain::{ModelId, Workflow};
-    use forge_infra::TestInfra;
+    use forge_domain::Workflow;
+    use forge_infra::ForgeInfra;
     use tempfile::TempDir;
 
     use super::ForgeLoaderService;
@@ -99,16 +99,13 @@ max_turns = 1024"#;
     struct Fixture {
         temp_dir: TempDir,
         workflow_path: PathBuf,
-        loader: ForgeLoaderService<TestInfra>,
+        loader: ForgeLoaderService<ForgeInfra>,
     }
 
     impl Default for Fixture {
         fn default() -> Self {
             let temp_dir = tempfile::tempdir().unwrap();
-            let loader = ForgeLoaderService::new(Arc::new(TestInfra::new(
-                ModelId::new("anthropic/claude-3.5-sonnet"),
-                ModelId::new("anthropic/claude-3.5-sonnet"),
-            )));
+            let loader = ForgeLoaderService::new(Arc::new(ForgeInfra::new(true)));
             Self {
                 temp_dir,
                 loader,

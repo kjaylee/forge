@@ -2,14 +2,12 @@ mod api;
 mod executor;
 mod loader;
 mod suggestion;
-mod test;
 
 use std::path::PathBuf;
 
 pub use api::*;
 pub use forge_domain::*;
 use forge_stream::MpscStream;
-pub use test::*;
 
 #[async_trait::async_trait]
 pub trait API {
