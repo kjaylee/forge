@@ -100,134 +100,156 @@ fn next_turn(context: &Context) -> Option<Range<usize>> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Display;
+
     use super::*;
 
-    // Helper function to create a test context with specified messages
-    fn create_test_context(messages: Vec<ContextMessage>) -> Context {
-        Context::default().messages(messages)
+    #[derive(Default, Debug)]
+    struct SummarizeSpec {
+        description: String,
+        input: Context,
+        output: Context,
+        summarize_text: Option<String>,
+    }
+
+    impl SummarizeSpec {
+        fn new(
+            description: &str,
+            mut input: Context,
+            summarize_text: Option<String>,
+            token_limit: usize,
+        ) -> Self {
+            let input_contxt = input.clone();
+            let mut summarizer = Summarize::new(&mut input, token_limit);
+            let mut summary = summarizer.summarize();
+            if let Some(summarize_text) = &summarize_text {
+                if let Some(summarize) = &mut summary {
+                    summarize.set(summarize_text.clone());
+                }
+            }
+            let output_context = summarizer.context.clone();
+
+            Self {
+                description: description.to_string(),
+                input: input_contxt,
+                output: output_context,
+                summarize_text,
+            }
+        }
+    }
+
+    impl Display for Context {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            for message in self.messages.iter() {
+                match message {
+                    ContextMessage::ContentMessage(content_message) => match content_message.role {
+                        Role::User => writeln!(f, "User: {}", content_message.content)?,
+                        Role::Assistant => writeln!(f, "Assistant: {}", content_message.content)?,
+                        Role::System => writeln!(f, "System: {}", content_message.content)?,
+                    },
+                    ContextMessage::ToolMessage(tool_message) => {
+                        writeln!(
+                            f,
+                            "Tool:\n name:{}\ncontent:{}",
+                            tool_message.name.as_str(),
+                            tool_message.content
+                        )?;
+                    }
+                }
+            }
+
+            Ok(())
+        }
+    }
+
+    impl Display for SummarizeSpec {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            writeln!(f, "\n[{}]", self.description)?;
+            writeln!(f, "[Before]")?;
+            writeln!(f, "{}", self.input)?;
+            writeln!(f, "[After]")?;
+            if let Some(_) = &self.summarize_text {
+                writeln!(f, "{}", self.output)?;
+            } else {
+                writeln!(f, "No changes has been made to context")?;
+            }
+            Ok(())
+        }
+    }
+
+    #[derive(Default, Debug)]
+    struct SummarizeSuit(Vec<SummarizeSpec>);
+
+    impl SummarizeSuit {
+        fn add(
+            &mut self,
+            description: &str,
+            input: Vec<ContextMessage>,
+            summarize_text: Option<String>,
+            token: usize,
+        ) {
+            self.0.push(SummarizeSpec::new(
+                description,
+                Context::default().messages(input),
+                summarize_text,
+                token,
+            ));
+        }
+    }
+
+    impl Display for SummarizeSuit {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            for spec in &self.0 {
+                writeln!(f, "{}", spec)?;
+            }
+            Ok(())
+        }
     }
 
     #[test]
-    fn test_turns_empty_context() {
-        let context = create_test_context(vec![]);
-        let turns_result = next_turn(&context);
-        assert!(turns_result.is_none());
-    }
+    fn test_combined_summarize_suite() {
+        let mut suite = SummarizeSuit::default();
 
-    #[test]
-    fn test_summarize_no_summary_needed() {
-        let mut context = create_test_context(vec![
-            ContextMessage::user("Short message".to_string()),
-            ContextMessage::assistant("Brief response".to_string(), None),
-        ]);
-        let mut summarize = Summarize::new(&mut context, 1000);
-        assert!(summarize.summarize().is_none());
-    }
+        suite.add(
+            "Shouldn't summarize when it's first user message",
+            vec![
+                ContextMessage::user("Short message".to_string()),
+                ContextMessage::assistant("Brief response".to_string(), None),
+            ],
+            None,
+            10,
+        );
 
-    #[test]
-    fn test_next_turn_when_theres_no_user_message() {
-        let context = create_test_context(vec![
-            ContextMessage::system("System message".to_string()),
-            ContextMessage::assistant("Assistant message".to_string(), None),
-            ContextMessage::assistant("Another assistant message".to_string(), None),
-            ContextMessage::assistant("Another assistant message".to_string(), None),
-        ]);
-        let turns_result = next_turn(&context);
-        assert!(turns_result.is_none());
-    }
+        suite.add(
+            "Shouldn't summarize when there's no user message",
+            vec![
+                ContextMessage::system("System message".to_string()),
+                ContextMessage::assistant("Assistant message".to_string(), None),
+                ContextMessage::assistant("Another assistant message".to_string(), None),
+            ],
+            None,
+            100,
+        );
 
-    #[test]
-    fn test_next_turn_when_user_message_is_at_last_index() {
-        let context = create_test_context(vec![
-            ContextMessage::system("System message".to_string()),
-            ContextMessage::assistant("Assistant message".to_string(), None),
-            ContextMessage::assistant("Another assistant message".to_string(), None),
-            ContextMessage::assistant("Another assistant message".to_string(), None),
-            ContextMessage::user("User message".to_string()),
-        ]);
-        let turns_result = next_turn(&context).unwrap();
-        assert_eq!(turns_result, 4..5);
-    }
+        suite.add(
+            "Summarize only first user message",
+            vec![
+                ContextMessage::system("System Prompt".to_string()),
+                ContextMessage::user("User Question".to_string()),
+                ContextMessage::assistant("Answer-1".to_string(), None),
+                ContextMessage::assistant("Answer-2".to_string(), None),
+                ContextMessage::assistant("Answer-3".to_string(), None),
+                ContextMessage::assistant("Answer-4".to_string(), None),
+                ContextMessage::user("okay, what are tools avail to you?".to_string()),
+                ContextMessage::assistant(
+                    "i have only one tool avail to me and it's `shell` tool.".to_string(),
+                    None,
+                ),
+            ],
+            Some("User asked some question, which agent answered.".to_string()),
+            15,
+        );
 
-    #[test]
-    fn test_summarize_with_summary_needed() {
-        let mut context = create_test_context(vec![
-            ContextMessage::system("I'm expert at solving problems".to_string()),
-            ContextMessage::user("can you tell me what's the time in india right now?".to_string()),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::user("okay, what are tools avail to you?".to_string()),
-            ContextMessage::assistant("i have only one tool avail to me and it's `shell` tool.".to_string(), None),
-            ContextMessage::user("can you use this tool to figure out if this project compiles or not?".to_string()),
-        ]);
-        let mut summarize = Summarize::new(&mut context, 100);
-        let mut summary = summarize.summarize().expect("Should require summarization");
-        summary.set("User is asking about the time and tools available");
-
-        assert_eq!(context.messages.len(), 5);
-        assert_eq!(context.messages, vec![
-            ContextMessage::system("I'm expert at solving problems".to_string()),
-            ContextMessage::assistant("\n<work_summary>\nUser is asking about the time and tools available\n</work_summary>".to_string(), None),
-            ContextMessage::user("okay, what are tools avail to you?".to_string()),
-            ContextMessage::assistant("i have only one tool avail to me and it's `shell` tool.".to_string(), None),
-            ContextMessage::user("can you use this tool to figure out if this project compiles or not?".to_string()),
-        ]);
-    }
-
-    #[test]
-    fn test_summarize_with_one_user_and_all_assistant() {
-        let mut context = create_test_context(vec![
-            ContextMessage::system("I'm expert at solving problems".to_string()),
-            ContextMessage::user("can you tell me what's the time in india right now?".to_string()),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-            ContextMessage::assistant("yes, i will use shell tool to get the time, please use `date` command to get the time.".to_string(), None),
-        ]);
-        let mut summarize = Summarize::new(&mut context, 100);
-        let mut summary = summarize.summarize().expect("Should require summarization");
-        summary.set("User is asking about the time and tools available");
-
-        assert_eq!(context.messages.len(), 2);
-        assert_eq!(context.messages, vec![
-            ContextMessage::system("I'm expert at solving problems".to_string()),
-            ContextMessage::assistant("\n<work_summary>\nUser is asking about the time and tools available\n</work_summary>".to_string(), None),
-        ]);
-    }
-
-    #[test]
-    fn test_single_user_message_summarize() {
-        let mut context = create_test_context(vec![
-            ContextMessage::system("I'm expert at solving problems".to_string()),
-            ContextMessage::user("can you tell me what's the time in india right now?".to_string()),
-        ]);
-
-        let mut summarize = Summarize::new(&mut context, 10);
-
-        let summary = summarize.summarize().expect("Should require summarization");
-        assert_eq!(summary.get(), "<chat_history><message role=\"User\"><content>can you tell me what's the time in india right now?</content></message></chat_history>");
-    }
-
-    #[test]
-    fn test_no_message_summarize() {
-        let mut context = create_test_context(vec![ContextMessage::system(
-            "I'm expert at solving problems".to_string(),
-        )]);
-        let mut summarize = Summarize::new(&mut context, 10);
-        assert!(summarize.summarize().is_none());
+        insta::assert_snapshot!(suite);
     }
 }
