@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-const DEFAULT_WORKFLOW: &str = "templates/workflows/default.toml";
-
 #[derive(Parser)]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 pub struct Cli {
@@ -45,8 +43,8 @@ pub struct Cli {
     pub restricted: bool,
 
     /// Path to a file containing the workflow to execute.
-    #[arg(long, short = 'w', value_parser = path_parser, default_value = DEFAULT_WORKFLOW)]
-    pub workflow: PathBuf,
+    #[arg(long, short = 'w', value_parser = path_parser)]
+    pub workflow: Option<PathBuf>,
 }
 
 /// Parses a path string into a `PathBuf` and validates it. if provided path is

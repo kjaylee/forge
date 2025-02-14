@@ -30,7 +30,7 @@ impl Fixture {
     /// Get model response as text
     async fn get_model_response(&self) -> String {
         let api = self.api().await;
-        let mut workflow = api.load(PathBuf::from(WORKFLOW_PATH)).await.unwrap();
+        let mut workflow = api.load(&PathBuf::from(WORKFLOW_PATH)).await.unwrap();
 
         // Reset the workflow model
         workflow

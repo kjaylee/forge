@@ -17,13 +17,13 @@ impl<F> ForgeLoaderService<F> {
 
 impl<F: Infrastructure> ForgeLoaderService<F> {
     /// loads the workflow from the given path.
-    pub async fn load(&self, workflow_path: PathBuf) -> anyhow::Result<Workflow> {
+    pub async fn load(&self, workflow_path: &PathBuf) -> anyhow::Result<Workflow> {
         let workflow_content = self
             .0
             .file_read_service()
             .read(workflow_path.clone())
             .await?;
-        let workflow: Workflow = toml::from_str(&workflow_content)?;
+        let workflow: Workflow = workflow_content.parse()?;
 
         let workflow_dir = workflow_path
             .parent()
@@ -123,7 +123,7 @@ max_turns = 1024"#;
             let workflow_path = self.temp_dir.path().join(self.workflow_path.clone());
             tokio::fs::write(&workflow_path, workflow).await?;
             self.loader
-                .load(self.temp_dir.path().join(self.workflow_path.clone()))
+                .load(&self.temp_dir.path().join(self.workflow_path.clone()))
                 .await
         }
 

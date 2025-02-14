@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 use std::sync::Arc;
 
 use forge_stream::MpscStream;
@@ -134,5 +134,13 @@ impl ConcurrentWorkflow {
                 agent.state = Default::default();
             }
         }
+    }
+}
+
+impl FromStr for Workflow {
+    type Err = toml::de::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        toml::de::from_str(s)
     }
 }
