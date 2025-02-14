@@ -123,7 +123,9 @@ impl ConcurrentWorkflow {
         })
     }
 
-    pub async fn reset(&self, workflow: Option<Workflow>) {
+    /// Initialize the concurrent workflow with the given workflow. If None is
+    /// provided then it's initialized to an empty workflow.
+    pub async fn init(&self, workflow: Option<Workflow>) {
         let mut guard = self.workflow.write().await;
         if let Some(workflow) = workflow {
             *guard = workflow;
