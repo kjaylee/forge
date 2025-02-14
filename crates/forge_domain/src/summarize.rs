@@ -49,6 +49,7 @@ impl<'context> Summarize<'context> {
         next_turn(self.context).and_then(|turn| {
             if turn.end >= self.context.messages.len() {
                 // if it's the on-going user message, then don't summarize it.
+                // we only summarize the completed user messages.
                 None
             } else {
                 Some(Summary { summarize: self, next_turn: turn })
