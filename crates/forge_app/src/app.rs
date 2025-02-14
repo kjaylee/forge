@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::App;
 
+use crate::knowledge::ForgeKnowledgeService;
 use crate::conversation::ForgeConversationService;
 use crate::provider::ForgeProviderService;
 use crate::tool_service::ForgeToolService;
@@ -11,6 +12,7 @@ pub struct ForgeApp<F> {
     infra: Arc<F>,
     _tool_service: ForgeToolService,
     _provider_service: ForgeProviderService,
+    _knowledge_service: ForgeKnowledgeService,
     _conversation_service: ForgeConversationService,
 }
 
@@ -20,6 +22,7 @@ impl<F: Infrastructure> ForgeApp<F> {
             infra: infra.clone(),
             _tool_service: ForgeToolService::new(infra.clone()),
             _provider_service: ForgeProviderService::new(infra.clone()),
+            _knowledge_service: ForgeKnowledgeService::new(infra.clone()),
             _conversation_service: ForgeConversationService::new(),
         }
     }
@@ -28,6 +31,7 @@ impl<F: Infrastructure> ForgeApp<F> {
 impl<F: Infrastructure> App for ForgeApp<F> {
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
+    type KnowledgeService = ForgeKnowledgeService;
     type ConversationService = ForgeConversationService;
 
     fn tool_service(&self) -> &Self::ToolService {
@@ -36,6 +40,10 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 
     fn provider_service(&self) -> &Self::ProviderService {
         &self._provider_service
+    }
+
+    fn information_service(&self) -> &Self::KnowledgeService {
+        &self._knowledge_service
     }
 
     fn conversation_service(&self) -> &Self::ConversationService {

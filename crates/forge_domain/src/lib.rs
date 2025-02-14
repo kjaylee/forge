@@ -8,7 +8,7 @@ mod dispatch_event;
 mod env;
 mod error;
 mod file;
-mod learning;
+mod knowledge;
 mod message;
 mod model;
 mod orch;
@@ -34,7 +34,7 @@ pub use dispatch_event::*;
 pub use env::*;
 pub use error::*;
 pub use file::*;
-pub use learning::*;
+pub use knowledge::*;
 pub use message::*;
 pub use model::*;
 pub use orch::*;
@@ -70,6 +70,17 @@ pub trait ToolService: Send + Sync {
 }
 
 #[async_trait::async_trait]
+pub trait KnowledgeService: Send + Sync {
+    async fn search(&self, query: Query) -> anyhow::Result<Vec<Knowledge>>;
+
+    /// Save a new learning entry or update an existing one
+    async fn store(&self, content: &str) -> anyhow::Result<()>;
+
+    /// List all learning entries
+    async fn list(&self) -> anyhow::Result<Vec<Knowledge>>;
+}
+
+#[async_trait::async_trait]
 pub trait ConversationService: Send + Sync {
     async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
     async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
@@ -92,6 +103,9 @@ pub trait App: Send + Sync + 'static {
     /// The concrete type implementing provider service capabilities
     type ProviderService: ProviderService;
 
+    /// The concrete type implementing learning repository capabilities
+    type KnowledgeService: KnowledgeService;
+
     /// The concrete type implementing conversation repository capabilities
     type ConversationService: ConversationService;
 
@@ -100,6 +114,9 @@ pub trait App: Send + Sync + 'static {
 
     /// Get a reference to the provider service instance
     fn provider_service(&self) -> &Self::ProviderService;
+
+    /// Get a reference to the learning repository instance
+    fn information_service(&self) -> &Self::KnowledgeService;
 
     fn conversation_service(&self) -> &Self::ConversationService;
 }

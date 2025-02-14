@@ -1,6 +1,6 @@
 use std::fmt;
 
-use async_trait::async_trait;
+use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -34,25 +34,18 @@ impl fmt::Display for LearningId {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Learning {
+pub struct Knowledge {
     pub id: LearningId,
     pub content: String,
-    pub context: String,
+    pub embedding: Vec<f32>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[async_trait]
-pub trait LearningRepository {
-    /// Get a learning entry by its ID
-    async fn get_learning(&self, id: LearningId) -> anyhow::Result<Option<Learning>>;
-
-    /// Save a new learning entry or update an existing one
-    async fn save_learning(&self, learning: &Learning) -> anyhow::Result<()>;
-
-    /// List all learning entries
-    async fn list_learnings(&self) -> anyhow::Result<Vec<Learning>>;
-
-    /// Get learning entries by context
-    async fn get_learnings_by_context(&self, context: &str) -> anyhow::Result<Vec<Learning>>;
+#[derive(Default, Debug, Clone, Setters)]
+#[setters(strip_option, into)]
+pub struct Query {
+    pub input: Option<String>,
+    pub limit: Option<usize>,
+    pub distance: Option<f32>,
 }

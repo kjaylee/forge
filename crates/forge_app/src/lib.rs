@@ -1,4 +1,5 @@
 mod app;
+mod knowledge;
 mod conversation;
 mod provider;
 mod tool_service;
