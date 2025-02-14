@@ -3,6 +3,12 @@ use forge_domain::Knowledge;
 
 pub struct ForgeKnowledgeRepository {}
 
+impl Default for ForgeKnowledgeRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForgeKnowledgeRepository {
     pub fn new() -> Self {
         Self {}

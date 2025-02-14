@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use forge_domain::{Knowledge, KnowledgeService, Query};
-use rust_bert::pipelines::sentence_embeddings::builder::Remote;
 use rust_bert::pipelines::sentence_embeddings::{
     SentenceEmbeddingsBuilder, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
 };
