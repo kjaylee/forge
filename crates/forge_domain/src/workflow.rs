@@ -59,7 +59,7 @@ impl ConcurrentWorkflow {
 
     pub async fn context(&self, id: &AgentId) -> Option<Context> {
         let guard = self.workflow.read().await;
-        guard.find_agent(id).and_then(|a| a.state.context.clone())
+        guard.find_agent(id).map(|a| a.state.context.clone())
     }
 
     pub async fn insert_event(&self, event: DispatchEvent) {
@@ -84,7 +84,7 @@ impl ConcurrentWorkflow {
 
     pub async fn set_context(&self, agent: &AgentId, context: Context) -> crate::Result<()> {
         let mut guard = self.workflow.write().await;
-        guard.get_agent_mut(agent)?.state.context = Some(context);
+        guard.get_agent_mut(agent)?.state.context = context;
         Ok(())
     }
 

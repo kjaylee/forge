@@ -80,7 +80,7 @@ pub struct Agent {
 #[derive(Debug, Clone, Default)]
 pub struct AgentState {
     pub turn_count: u64,
-    pub context: Option<Context>,
+    pub context: Context,
 }
 
 /// Transformations that can be applied to the agent's context before sending it
