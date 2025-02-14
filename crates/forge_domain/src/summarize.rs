@@ -30,11 +30,13 @@ impl<'context> Summarize<'context> {
         // TODO: improve the quality of summary message
         let content = format!("\n<work_summary>\n{}\n</work_summary>", content.to_string());
         let message = ContextMessage::assistant(content, None);
+        // replace the 1st ocurrence with summarized message.
+        self.context.messages[range.start] = message;
 
+        // remove all the messages between the range.
         self.context
             .messages
-            .splice(range.clone(), std::iter::empty());
-        self.context.messages.insert(range.start, message);
+            .splice(range.start + 1..range.end, std::iter::empty());
     }
 
     /// Get a replaceable item while the total token count is above the limit
