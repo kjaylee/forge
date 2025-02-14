@@ -370,7 +370,10 @@ impl<F: App> Orchestrator<F> {
 
     pub async fn execute(&self, mut chat_request: ChatRequest) -> anyhow::Result<()> {
         for agent in chat_request.workflow.agents.iter_mut() {
-            if let Some(source) = (self.workflow.agents().await).iter().find(|s| s.id == agent.id) {
+            if let Some(source) = (self.workflow.agents().await)
+                .iter()
+                .find(|s| s.id == agent.id)
+            {
                 agent.state = source.state.clone();
             }
         }
