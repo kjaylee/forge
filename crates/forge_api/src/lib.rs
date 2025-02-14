@@ -3,7 +3,7 @@ mod executor;
 mod loader;
 mod suggestion;
 
-use std::path::PathBuf;
+use std::path::Path;
 
 pub use api::*;
 pub use forge_domain::*;
@@ -35,5 +35,5 @@ pub trait API {
     async fn reset(&self) -> anyhow::Result<()>;
 
     /// Loads a workflow from a given path
-    async fn load(&self, path: &PathBuf) -> anyhow::Result<Workflow>;
+    async fn load(&self, path: &Path) -> anyhow::Result<Workflow>;
 }

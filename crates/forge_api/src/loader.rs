@@ -17,20 +17,16 @@ impl<F> ForgeLoaderService<F> {
 
 impl<F: Infrastructure> ForgeLoaderService<F> {
     /// loads the workflow from the given path.
-    pub async fn load(&self, workflow_path: &PathBuf) -> anyhow::Result<Workflow> {
-        let workflow_content = self
-            .0
-            .file_read_service()
-            .read(workflow_path.clone())
-            .await?;
+    pub async fn load(&self, path: &Path) -> anyhow::Result<Workflow> {
+        let workflow_content = self.0.file_read_service().read(path).await?;
         let workflow: Workflow = workflow_content.parse()?;
 
-        let workflow_dir = workflow_path
+        let workflow_dir = path
             .parent()
             .with_context(|| {
                 format!(
                     "Failed to get parent directory of workflow file: {:?}",
-                    workflow_path
+                    path
                 )
             })?
             .to_path_buf();
@@ -53,20 +49,20 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     /// path. otherwise, it returns the prompt as it is.
     async fn resolve_prompt<V: Clone>(&self, path: &Path, prompt: &Prompt<V>) -> Result<Prompt<V>> {
         if let Some(file_path) = Self::is_file_path(path, prompt.template.as_str()) {
-            let abs_path = if file_path.is_absolute() {
+            let path = if file_path.is_absolute() {
                 file_path
             } else {
                 path.join(file_path)
             };
             Ok(Prompt::new(
-                self.0.file_read_service().read(abs_path).await?,
+                self.0.file_read_service().read(path.as_path()).await?,
             ))
         } else {
             Ok(prompt.clone())
         }
     }
 
-    /// checks if given content is valid file path by checking it's existance.
+    /// checks if given content is valid file path by checking it's existence.
     fn is_file_path(workflow_dir: &Path, content: &str) -> Option<PathBuf> {
         let path = Path::new(content);
         if path.exists() || workflow_dir.join(path).exists() {
