@@ -21,7 +21,7 @@ subscribe = ["user_task"]
 max_turns = 1024
 ephemeral = false
 
-transforms = [{agent_id="conversation-summarizer",type= "Assistant", output= "compressed_chat", input= "context", token_limit= 1000}]
+transforms = [{agent_id="conversation-summarizer",type= "Assistant", output= "compressed_history", input= "context", token_limit= 1000}]
 
 [agents.system_prompt]
 template = "../roles/software-engineer.mustache"
