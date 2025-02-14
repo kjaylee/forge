@@ -15,8 +15,6 @@ pub struct SystemContext {
     pub tool_information: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_supported: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub custom_instructions: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<String>,
 }

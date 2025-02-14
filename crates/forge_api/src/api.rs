@@ -60,7 +60,7 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn reset(&self) -> anyhow::Result<()> {
-        self._executor_service.reset(None).await;
+        self._executor_service.reset().await;
         Ok(())
     }
 

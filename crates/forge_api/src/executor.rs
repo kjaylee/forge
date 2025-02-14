@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use forge_app::{EnvironmentService, FileReadService, Infrastructure};
+use forge_app::{EnvironmentService, Infrastructure};
 use forge_domain::{
     AgentMessage, App, ChatRequest, ChatResponse, ConcurrentWorkflow, SystemContext, ToolService,
-    Workflow,
 };
 use forge_stream::MpscStream;
 use forge_walker::Walker;
@@ -19,8 +18,8 @@ impl<F: Infrastructure + App> ForgeExecutorService<F> {
 }
 
 impl<F: Infrastructure + App> ForgeExecutorService<F> {
-    pub async fn reset(&self, workflow: Option<Workflow>) {
-        self.workflow.reset(workflow).await;
+    pub async fn reset(&self) {
+        self.workflow.reset(None).await;
     }
 
     pub async fn chat(
@@ -28,11 +27,6 @@ impl<F: Infrastructure + App> ForgeExecutorService<F> {
         chat_request: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>>>> {
         let env = self.app.environment_service().get_environment();
-        let custom_instructions = match chat_request.custom_instructions {
-            Some(ref path) => Some(self.app.file_read_service().read(path.clone()).await?),
-            None => None,
-        };
-
         let mut files = Walker::max_all()
             .max_depth(2)
             .cwd(env.cwd.clone())
@@ -49,7 +43,6 @@ impl<F: Infrastructure + App> ForgeExecutorService<F> {
             env: Some(env),
             tool_information: Some(self.app.tool_service().usage_prompt()),
             tool_supported: Some(true),
-            custom_instructions,
             files,
         };
 

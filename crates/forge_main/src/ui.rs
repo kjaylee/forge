@@ -136,7 +136,6 @@ impl<F: API> UI<F> {
     async fn chat(&mut self, content: String) -> Result<()> {
         let chat = ChatRequest {
             content: content.clone(),
-            custom_instructions: self.cli.custom_instructions.clone(),
             workflow: self.api.load(self.cli.workflow.clone()).await?,
         };
 

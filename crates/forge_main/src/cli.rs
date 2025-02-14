@@ -28,12 +28,6 @@ pub struct Cli {
     #[arg(long, default_value_t = false)]
     pub verbose: bool,
 
-    /// Path to a file containing custom instructions.
-    ///
-    /// These instructions modify the behavior of the AI assistant.
-    #[arg(long, short = 'i', value_parser = path_parser)]
-    pub custom_instructions: Option<PathBuf>,
-
     /// Enable restricted shell mode for enhanced security.
     ///
     /// Controls the shell execution environment:
