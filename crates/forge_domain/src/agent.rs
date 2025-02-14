@@ -1,4 +1,3 @@
-use derive_builder::Builder;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
@@ -38,43 +37,43 @@ impl From<ToolName> for AgentId {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(into), pattern = "immutable")]
+fn is_true(value: &bool) -> bool {
+    *value
+}
+
+fn truth() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub id: AgentId,
     pub model: ModelId,
-    #[builder(default)]
     pub description: Option<String>,
     pub system_prompt: Prompt<SystemContext>,
     pub user_prompt: Prompt<UserContext>,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
-    /// the program.
-    #[builder(default)]
-    #[serde(skip_serializing_if = "Option::is_none", default)]
-    pub ephemeral: Option<bool>,
+    /// the program.    
+    #[serde(skip_serializing_if = "is_true", default = "truth")]
+    pub ephemeral: bool,
 
-    /// Tools that the agent can use
-    #[builder(default)]
+    /// Tools that the agent can use    
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<ToolName>,
 
-    #[builder(default)]
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub transforms: Vec<Transform>,
 
-    /// Used to specify the events the agent is interested in
-    #[builder(default)]
+    /// Used to specify the events the agent is interested in    
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub subscribe: Vec<String>,
 
-    /// Maximum number of turns the agent can take
-    #[builder(default = "1024")]
+    /// Maximum number of turns the agent can take    
     pub max_turns: u64,
 
     /// Internal state of the agent
     #[serde(skip)]
-    #[builder(default)]
     pub(crate) state: AgentState,
 }
 
