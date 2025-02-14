@@ -240,7 +240,7 @@ impl<F: App> Orchestrator<F> {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
             self.dispatch(&event).await?;
-
+            self.workflow.insert_event(event).await;
             Ok(None)
         } else {
             Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
@@ -270,9 +270,10 @@ impl<F: App> Orchestrator<F> {
                             .workflow
                             .get_event(output_key)
                             .await
-                            .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
+                            .ok_or(Error::UndefinedVariable(output_key.to_string()))?
+                            .value;
 
-                        summary.set(serde_json::to_string(&value)?);
+                        summary.set(value);
                     }
                 }
                 Transform::User { agent_id, output: output_key } => {
