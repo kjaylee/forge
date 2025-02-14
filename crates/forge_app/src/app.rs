@@ -12,7 +12,7 @@ pub struct ForgeApp<F> {
     infra: Arc<F>,
     _tool_service: ForgeToolService,
     _provider_service: ForgeProviderService,
-    _knowledge_service: ForgeKnowledgeService,
+    _knowledge_service: ForgeKnowledgeService<F>,
     _conversation_service: ForgeConversationService,
 }
 
@@ -31,7 +31,7 @@ impl<F: Infrastructure> ForgeApp<F> {
 impl<F: Infrastructure> App for ForgeApp<F> {
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
-    type KnowledgeService = ForgeKnowledgeService;
+    type KnowledgeService = ForgeKnowledgeService<F>;
     type ConversationService = ForgeConversationService;
 
     fn tool_service(&self) -> &Self::ToolService {
@@ -54,6 +54,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type EnvironmentService = F::EnvironmentService;
     type FileReadService = F::FileReadService;
+    type KnowledgeRepository = F::KnowledgeRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
@@ -61,5 +62,9 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
 
     fn file_read_service(&self) -> &Self::FileReadService {
         self.infra.file_read_service()
+    }
+
+    fn knowledge_repo(&self) -> &Self::KnowledgeRepository {
+        self.infra.knowledge_repo()
     }
 }

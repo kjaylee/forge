@@ -34,6 +34,7 @@ dirs = "6.0.0"
 schemars = "0.8.21"
 anyhow = "1.0.75"
 futures = "0.3.31"
+rust-bert = "0.23.0"
 
 [dev-dependencies]
 insta = "1.41.1"

@@ -7,6 +7,7 @@ mod tool_service;
 use std::path::Path;
 
 pub use app::*;
+use forge_domain::Knowledge;
 
 /// Repository for accessing system environment information
 #[async_trait::async_trait]
@@ -29,10 +30,19 @@ pub trait FileReadService: Send + Sync {
     async fn read(&self, path: &Path) -> anyhow::Result<String>;
 }
 
+#[async_trait::async_trait]
+pub trait KnowledgeRepository: Send + Sync {
+    async fn insert(&self, content: &str, embedding: &[f32]) -> anyhow::Result<()>;
+    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge>>;
+    async fn list(&self) -> anyhow::Result<Vec<Knowledge>>;
+}
+
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
+    type KnowledgeRepository: KnowledgeRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
+    fn knowledge_repo(&self) -> &Self::KnowledgeRepository;
 }
