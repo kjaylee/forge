@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use derive_setters::Setters;
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::SqliteConnection;
 use forge_domain::Environment;
 use tokio::sync::Mutex;
@@ -9,6 +9,7 @@ use tokio_retry::strategy::ExponentialBackoff;
 use tokio_retry::Retry;
 
 type SQLConnection = Pool<ConnectionManager<SqliteConnection>>;
+type SQLConnectionPooled = PooledConnection<ConnectionManager<SqliteConnection>>;
 
 #[derive(Debug, Setters)]
 pub struct ForgeConnection {
@@ -16,7 +17,6 @@ pub struct ForgeConnection {
     env: Environment,
     #[setters(skip)]
     conn: Mutex<Option<SQLConnection>>,
-    busy_timeout: Duration,
     max_connections: u32,
     connection_timeout: Duration,
     attempts: usize,
@@ -27,19 +27,20 @@ impl ForgeConnection {
         Self {
             env,
             conn: Mutex::new(None),
-            busy_timeout: Duration::from_secs(30),
             max_connections: 5,
             connection_timeout: Duration::from_secs(30),
             attempts: 10,
         }
     }
 
-    pub async fn init(&self) -> anyhow::Result<SQLConnection> {
+    pub async fn init(&self) -> anyhow::Result<SQLConnectionPooled> {
         let retry_strategy = ExponentialBackoff::from_millis(100)
             .factor(2)
             .take(self.attempts);
 
-        Retry::spawn(retry_strategy, || self.init_once()).await
+        Ok(Retry::spawn(retry_strategy, || self.init_once())
+            .await?
+            .get()?)
     }
 
     async fn init_once(&self) -> anyhow::Result<SQLConnection> {

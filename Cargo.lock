@@ -1225,14 +1225,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "derive_setters",
  "diesel",
  "dirs 6.0.0",
  "dotenv",
  "forge_app",
  "forge_domain",
+ "serde_json",
  "tokio",
  "tokio-retry",
+ "uuid",
 ]
 
 [[package]]

@@ -8,7 +8,7 @@ use crate::knowledge::ForgeKnowledgeRepository;
 pub struct ForgeInfra {
     _file_read_service: ForgeFileReadService,
     _environment_service: ForgeEnvironmentService,
-    _knowledge_repo: ForgeKnowledgeRepository,
+    _information_repo: ForgeKnowledgeRepository,
 }
 
 impl ForgeInfra {
@@ -20,7 +20,7 @@ impl ForgeInfra {
         Self {
             _file_read_service: ForgeFileReadService::new(),
             _environment_service,
-            _knowledge_repo: ForgeKnowledgeRepository::new(conn),
+            _information_repo: ForgeKnowledgeRepository::new(conn),
         }
     }
 }
@@ -28,7 +28,7 @@ impl ForgeInfra {
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
-    type KnowledgeRepository = ForgeKnowledgeRepository;
+    type InformationRepository = ForgeKnowledgeRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self._environment_service
@@ -38,7 +38,7 @@ impl Infrastructure for ForgeInfra {
         &self._file_read_service
     }
 
-    fn knowledge_repo(&self) -> &Self::KnowledgeRepository {
-        &self._knowledge_repo
+    fn information_repo(&self) -> &Self::InformationRepository {
+        &self._information_repo
     }
 }
