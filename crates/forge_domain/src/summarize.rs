@@ -46,7 +46,7 @@ impl<'context> Summarize<'context> {
         }
 
         // get the next range that can be summarized.
-        next_turn(&self.context).and_then(|turn| {
+        next_turn(self.context).and_then(|turn| {
             if turn.end >= self.context.messages.len() {
                 // if it's the on-going user message, then don't summarize it.
                 None
@@ -168,7 +168,7 @@ mod tests {
             writeln!(f, "[Before]")?;
             writeln!(f, "{}", self.input)?;
             writeln!(f, "[After]")?;
-            if let Some(_) = &self.summarize_text {
+            if self.summarize_text.is_some() {
                 writeln!(f, "{}", self.output)?;
             } else {
                 writeln!(f, "No changes has been made to context")?;
