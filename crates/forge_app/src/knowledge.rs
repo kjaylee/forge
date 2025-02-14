@@ -5,7 +5,7 @@ use rust_bert::pipelines::sentence_embeddings::{
     SentenceEmbeddingsBuilder, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
 };
 
-use crate::{Infrastructure, KnowledgeRepository};
+use crate::{Infrastructure, InformationRepository};
 
 pub struct ForgeKnowledgeService<F> {
     infra: Arc<F>,
@@ -31,18 +31,18 @@ impl<F> ForgeKnowledgeService<F> {
 impl<F: Infrastructure> KnowledgeService for ForgeKnowledgeService<F> {
     async fn search(&self, query: Query) -> anyhow::Result<Vec<Knowledge>> {
         let embedding = self.encode(&query.input)?;
-        self.infra.knowledge_repo().search(embedding).await
+        self.infra.information_repo().search(embedding).await
     }
 
     async fn store(&self, content: &str) -> anyhow::Result<()> {
         let embedding = self.encode(content)?;
         self.infra
-            .knowledge_repo()
+            .information_repo()
             .insert(content, &embedding)
             .await
     }
 
     async fn list(&self) -> anyhow::Result<Vec<Knowledge>> {
-        self.infra.knowledge_repo().list().await
+        self.infra.information_repo().list().await
     }
 }

@@ -31,7 +31,7 @@ pub trait FileReadService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait KnowledgeRepository: Send + Sync {
+pub trait InformationRepository: Send + Sync {
     async fn insert(&self, content: &str, embedding: &[f32]) -> anyhow::Result<()>;
     async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge>>;
     async fn list(&self) -> anyhow::Result<Vec<Knowledge>>;
@@ -40,9 +40,9 @@ pub trait KnowledgeRepository: Send + Sync {
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
-    type KnowledgeRepository: KnowledgeRepository;
+    type InformationRepository: InformationRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
-    fn knowledge_repo(&self) -> &Self::KnowledgeRepository;
+    fn information_repo(&self) -> &Self::InformationRepository;
 }

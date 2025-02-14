@@ -54,7 +54,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type EnvironmentService = F::EnvironmentService;
     type FileReadService = F::FileReadService;
-    type KnowledgeRepository = F::KnowledgeRepository;
+    type InformationRepository = F::InformationRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
@@ -64,7 +64,7 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
         self.infra.file_read_service()
     }
 
-    fn knowledge_repo(&self) -> &Self::KnowledgeRepository {
-        self.infra.knowledge_repo()
+    fn information_repo(&self) -> &Self::InformationRepository {
+        self.infra.information_repo()
     }
 }
