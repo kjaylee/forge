@@ -2,6 +2,7 @@ mod approve;
 mod ask;
 mod fetch;
 mod fs;
+mod knowledge;
 mod outline;
 mod patch;
 mod select;
