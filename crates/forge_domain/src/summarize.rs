@@ -110,31 +110,25 @@ mod tests {
         description: String,
         input: Context,
         output: Context,
-        summarize_text: Option<String>,
     }
 
     impl SummarizeSpec {
-        fn new(
-            description: &str,
-            mut input: Context,
-            summarize_text: Option<String>,
-            token_limit: usize,
-        ) -> Self {
-            let input_contxt = input.clone();
-            let mut summarizer = Summarize::new(&mut input, token_limit);
+        fn summarize(input: &mut Context, token_limit: usize, summary_text: &str) -> Context {
+            let mut summarizer = Summarize::new(input, token_limit);
             let mut summary = summarizer.summarize();
-            if let Some(summarize_text) = &summarize_text {
-                if let Some(summarize) = &mut summary {
-                    summarize.set(summarize_text.clone());
-                }
+            if let Some(summarize) = &mut summary {
+                summarize.set(summary_text.to_string());
             }
-            let output_context = summarizer.context.clone();
+            summarizer.context.clone()
+        }
 
+        fn new(description: &str, mut input: Context, summary: &str, token_limit: usize) -> Self {
+            let input_contxt = input.clone();
+            let output_context = Self::summarize(&mut input, token_limit, summary);
             Self {
                 description: description.to_string(),
                 input: input_contxt,
                 output: output_context,
-                summarize_text,
             }
         }
     }
@@ -169,7 +163,7 @@ mod tests {
             writeln!(f, "[Before]")?;
             writeln!(f, "{}", self.input)?;
             writeln!(f, "[After]")?;
-            if self.summarize_text.is_some() {
+            if self.input != self.output {
                 writeln!(f, "{}", self.output)?;
             } else {
                 writeln!(f, "No changes has been made to context")?;
@@ -186,13 +180,13 @@ mod tests {
             &mut self,
             description: &str,
             input: Vec<ContextMessage>,
-            summarize_text: Option<String>,
+            summary: &str,
             token: usize,
         ) {
             self.0.push(SummarizeSpec::new(
                 description,
                 Context::default().messages(input),
-                summarize_text,
+                summary,
                 token,
             ));
         }
@@ -217,7 +211,7 @@ mod tests {
                 ContextMessage::user("Short message".to_string()),
                 ContextMessage::assistant("Brief response".to_string(), None),
             ],
-            None,
+            "Summary of the user message",
             10,
         );
 
@@ -228,7 +222,7 @@ mod tests {
                 ContextMessage::assistant("Assistant message".to_string(), None),
                 ContextMessage::assistant("Another assistant message".to_string(), None),
             ],
-            None,
+            "Summary of the user message",
             100,
         );
 
@@ -247,8 +241,27 @@ mod tests {
                     None,
                 ),
             ],
-            Some("User asked some question, which agent answered.".to_string()),
+            "User asked some question, which agent answered.",
             15,
+        );
+
+        suite.add(
+            "Should not summarize when context token count is less then specified",
+            vec![
+                ContextMessage::system("System Prompt".to_string()),
+                ContextMessage::user("User Question".to_string()),
+                ContextMessage::assistant("Answer-1".to_string(), None),
+                ContextMessage::assistant("Answer-2".to_string(), None),
+                ContextMessage::assistant("Answer-3".to_string(), None),
+                ContextMessage::assistant("Answer-4".to_string(), None),
+                ContextMessage::user("okay, what are tools avail to you?".to_string()),
+                ContextMessage::assistant(
+                    "i have only one tool avail to me and it's `shell` tool.".to_string(),
+                    None,
+                ),
+            ],
+            "User asked some question, which agent answered.",
+            1000,
         );
 
         insta::assert_snapshot!(suite);
