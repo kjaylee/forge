@@ -27,7 +27,7 @@ impl<F: App> ExecutableTool for RecallKnowledge<F> {
         let learnings = self
             .app
             .information_service()
-            .search(Query::default().input(input.query))
+            .search(Query::new(input.query))
             .await
             .map_err(|e| e.to_string())?;
 
