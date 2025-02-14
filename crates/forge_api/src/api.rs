@@ -31,10 +31,10 @@ impl<F: App + Infrastructure> ForgeAPI<F> {
 }
 
 impl ForgeAPI<ForgeApp<ForgeInfra>> {
-    pub async fn init(restricted: bool) -> Result<Self> {
+    pub fn init(restricted: bool) -> Self {
         let infra = Arc::new(ForgeInfra::new(restricted));
         let app = Arc::new(ForgeApp::new(infra));
-        Ok(ForgeAPI::new(app))
+        ForgeAPI::new(app)
     }
 }
 

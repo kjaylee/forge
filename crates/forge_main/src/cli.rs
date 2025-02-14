@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -43,35 +42,6 @@ pub struct Cli {
     pub restricted: bool,
 
     /// Path to a file containing the workflow to execute.
-    #[arg(long, short = 'w', value_parser = path_parser)]
+    #[arg(long, short = 'w')]
     pub workflow: Option<PathBuf>,
-}
-
-/// Parses a path string into a `PathBuf` and validates it. if provided path is
-/// relative then it will be resolved to the current working directory.
-fn path_parser(path: &str) -> Result<PathBuf, String> {
-    let mut path_buf = PathBuf::from(path);
-
-    // Resolve relative paths to the current working directory.
-    if path_buf.is_relative() {
-        let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
-        path_buf = cwd.join(path_buf);
-    }
-
-    if !path_buf.exists() {
-        return Err(format!("Path does not exist: '{}'", path_buf.display()));
-    }
-
-    if !path_buf.is_file() {
-        return Err(format!("Path is not a file: '{}'", path_buf.display()));
-    }
-
-    if fs::metadata(&path_buf).is_err() {
-        return Err(format!(
-            "Unable to read file from path '{}'",
-            path_buf.display()
-        ));
-    }
-
-    Ok(path_buf)
 }

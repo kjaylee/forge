@@ -22,14 +22,14 @@ impl Fixture {
     }
 
     /// Get the API service, panicking if not validated
-    async fn api(&self) -> impl API {
+    fn api(&self) -> impl API {
         // NOTE: In tests the CWD is not the project root
-        ForgeAPI::init(true).await.unwrap()
+        ForgeAPI::init(true)
     }
 
     /// Get model response as text
     async fn get_model_response(&self) -> String {
-        let api = self.api().await;
+        let api = self.api();
         let mut workflow = api.load(&PathBuf::from(WORKFLOW_PATH)).await.unwrap();
 
         // Reset the workflow model

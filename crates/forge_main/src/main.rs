@@ -9,7 +9,7 @@ use forge_api::ForgeAPI;
 async fn main() -> Result<()> {
     // Initialize and run the UI
     let cli = Cli::parse();
-    let api = Arc::new(ForgeAPI::init(cli.restricted).await?);
+    let api = Arc::new(ForgeAPI::init(cli.restricted));
     let mut ui = UI::init(cli, api).await?;
     ui.run().await?;
 
