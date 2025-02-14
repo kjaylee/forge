@@ -134,7 +134,9 @@ impl ConcurrentWorkflow {
     pub async fn init(&self, mut workflow: Option<Workflow>) {
         if let Some(ref mut workflow) = workflow {
             for agent in self.agents().await {
-                workflow.find_agent_mut(&agent.id).map(|a| a.state = agent.state);
+                workflow
+                    .find_agent_mut(&agent.id)
+                    .map(|a| a.state = agent.state);
             }
         }
         let mut guard = self.workflow.write().await;
