@@ -368,7 +368,13 @@ impl<F: App> Orchestrator<F> {
         Ok(())
     }
 
-    pub async fn execute(&self, chat_request: ChatRequest) -> anyhow::Result<()> {
+    pub async fn execute(&self, mut chat_request: ChatRequest) -> anyhow::Result<()> {
+        for agent in chat_request.workflow.agents.iter_mut() {
+            if let Some(source) = (self.workflow.agents().await).iter().find(|s| s.id == agent.id) {
+                agent.state = source.state.clone();
+            }
+        }
+
         self.workflow.init(Some(chat_request.workflow)).await;
         let event = DispatchEvent::task(chat_request.content);
         self.dispatch(&event).await?;

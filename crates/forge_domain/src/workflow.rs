@@ -93,6 +93,11 @@ impl ConcurrentWorkflow {
         guard.entries(event_name)
     }
 
+    pub async fn agents(&self) -> Vec<Agent> {
+        let guard = self.workflow.read().await;
+        guard.agents.clone()
+    }
+
     pub async fn complete_turn(&self, agent: &AgentId) -> crate::Result<()> {
         let mut guard = self.workflow.write().await;
         let agent = guard.get_agent_mut(agent)?;
