@@ -36,4 +36,7 @@ pub trait API {
 
     /// Loads a workflow from a given path
     async fn load(&self, path: &Path) -> anyhow::Result<Workflow>;
+
+    /// Returns a list of knowledge entries
+    async fn information(&self) -> anyhow::Result<Vec<Knowledge>>;
 }
