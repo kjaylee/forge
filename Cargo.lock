@@ -1225,11 +1225,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "derive_setters",
+ "diesel",
  "dirs 6.0.0",
  "dotenv",
  "forge_app",
  "forge_domain",
  "tokio",
+ "tokio-retry",
 ]
 
 [[package]]

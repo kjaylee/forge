@@ -30,7 +30,7 @@ impl ForgeEnvironmentService {
         }
     }
 
-    pub fn get(&self) -> Environment {
+    fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
         let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");

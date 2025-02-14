@@ -11,3 +11,6 @@ dotenv = "0.15.0"
 forge_domain = { path = "../forge_domain" }
 forge_app = { path = "../forge_app" }
 tokio = "1.43.0"
+diesel = "2.2.7"
+tokio-retry = "0.3.0"
+derive_setters = "0.1.6"

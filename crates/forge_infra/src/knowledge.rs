@@ -1,17 +1,15 @@
 use forge_app::KnowledgeRepository;
 use forge_domain::Knowledge;
 
-pub struct ForgeKnowledgeRepository {}
+use crate::conn::ForgeConnection;
 
-impl Default for ForgeKnowledgeRepository {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct ForgeKnowledgeRepository {
+    conn: ForgeConnection,
 }
 
 impl ForgeKnowledgeRepository {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(conn: ForgeConnection) -> Self {
+        Self { conn }
     }
 }
 
