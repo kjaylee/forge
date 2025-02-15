@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{
-    AgentId, Context, Conversation, ConversationId, ConversationService, Workflow,
-};
+use forge_domain::{AgentId, Context, Conversation, ConversationId, ConversationService, Workflow};
 use tokio::sync::Mutex;
 
 pub struct ForgeConversationService {
@@ -36,7 +34,9 @@ impl ConversationService for ForgeConversationService {
     }
 
     async fn complete_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()> {
-        if let Some(c) = self.workflows.lock().await.get_mut(id) { c.state.entry(agent.clone()).or_default().turn_count += 1; }
+        if let Some(c) = self.workflows.lock().await.get_mut(id) {
+            c.state.entry(agent.clone()).or_default().turn_count += 1;
+        }
         Ok(())
     }
     async fn set_context(
@@ -45,7 +45,9 @@ impl ConversationService for ForgeConversationService {
         agent: &AgentId,
         context: Context,
     ) -> anyhow::Result<()> {
-        if let Some(c) = self.workflows.lock().await.get_mut(id) { c.state.entry(agent.clone()).or_default().context = Some(context); }
+        if let Some(c) = self.workflows.lock().await.get_mut(id) {
+            c.state.entry(agent.clone()).or_default().context = Some(context);
+        }
         Ok(())
     }
 }

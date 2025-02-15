@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{
-    AgentId, Context, Conversation, ConversationId, ConversationService, Workflow,
-};
+use forge_domain::{AgentId, Context, Conversation, ConversationId, ConversationService, Workflow};
 use tokio::sync::Mutex;
 
 pub struct InMemoryWorkflowRepository {
