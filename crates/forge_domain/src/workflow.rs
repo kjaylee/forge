@@ -129,8 +129,24 @@ impl ConcurrentWorkflow {
         })
     }
 
-    /// Initialize the concurrent workflow with the given workflow. If None is
-    /// provided then it's initialized to an empty workflow.
+    // Initializes the concurrent workflow with a provided workflow.
+    // If a workflow is given, it fully replaces the current state.
+    // If None is provided, the state of each agent is reset to its default.
+    pub async fn init_default_state(&self, workflow: Option<Workflow>) {
+        let mut guard = self.workflow.write().await;
+        if let Some(workflow) = workflow {
+            *guard = workflow;
+        } else {
+            for agent in guard.agents.iter_mut() {
+                agent.state = Default::default();
+            }
+        }
+    }
+
+    // Initializes the concurrent workflow while preserving the existing agents'
+    // state. If a workflow is provided, any agent in the current workflow that
+    // exists in the provided workflow will have its state preserved. Otherwise,
+    // if None is provided, the state of each agent is reset to its default.
     pub async fn init(&self, workflow: Option<Workflow>) {
         let mut guard = self.workflow.write().await;
         if let Some(mut workflow) = workflow {
@@ -180,6 +196,25 @@ mod tests {
         }
     }
 
+    fn workflow() -> Workflow {
+        Workflow {
+            agents: vec![Agent {
+                id: AgentId::new("test_agent"),
+                state: AgentState { turn_count: 0, context: None },
+                model: ModelId::new("test_model"),
+                description: None,
+                system_prompt: Prompt::new("test_system_prompt"),
+                user_prompt: Prompt::new("test_user_prompt"),
+                ephemeral: false,
+                tools: Default::default(),
+                transforms: Default::default(),
+                subscribe: Default::default(),
+                max_turns: 5,
+            }],
+            ..Default::default()
+        }
+    }
+
     #[tokio::test]
     async fn init_with_existing_workflow_preserves_agent_state() {
         let cwf = ConcurrentWorkflow::new(workflow_with(2, Some(Context::default())));
@@ -198,6 +233,22 @@ mod tests {
     async fn init_with_none_resets_agent_states() {
         let cwf = ConcurrentWorkflow::new(workflow_with(3, None));
         cwf.init(None).await;
+        assert_eq!(
+            cwf.find_agent(&AgentId::new("test_agent"))
+                .await
+                .unwrap()
+                .state
+                .turn_count,
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn init_default_state_with_existing_workflow_preserves_agent_state() {
+        let workflow = workflow();
+        let cwf = ConcurrentWorkflow::new(workflow_with(5, Some(Context::default())));
+        cwf.init_default_state(Some(workflow)).await;
+
         assert_eq!(
             cwf.find_agent(&AgentId::new("test_agent"))
                 .await
