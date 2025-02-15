@@ -6,24 +6,24 @@ use forge_domain::{
 };
 use tokio::sync::Mutex;
 
-pub struct InMemoryWorkflowRepository {
+pub struct ForgeConversationService {
     workflows: Arc<Mutex<HashMap<ConversationId, Conversation>>>,
 }
 
-impl Default for InMemoryWorkflowRepository {
+impl Default for ForgeConversationService {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl InMemoryWorkflowRepository {
+impl ForgeConversationService {
     pub fn new() -> Self {
         Self { workflows: Arc::new(Mutex::new(HashMap::new())) }
     }
 }
 
 #[async_trait::async_trait]
-impl ConversationService for InMemoryWorkflowRepository {
+impl ConversationService for ForgeConversationService {
     async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>> {
         Ok(self.workflows.lock().await.get(id).cloned())
     }
@@ -36,9 +36,7 @@ impl ConversationService for InMemoryWorkflowRepository {
     }
 
     async fn complete_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()> {
-        if let Some(c) = self.workflows.lock().await.get_mut(id) {
-            c.state.entry(agent.clone()).or_default().turn_count += 1;
-        }
+        if let Some(c) = self.workflows.lock().await.get_mut(id) { c.state.entry(agent.clone()).or_default().turn_count += 1; }
         Ok(())
     }
     async fn set_context(
@@ -47,9 +45,7 @@ impl ConversationService for InMemoryWorkflowRepository {
         agent: &AgentId,
         context: Context,
     ) -> anyhow::Result<()> {
-        if let Some(c) = self.workflows.lock().await.get_mut(id) {
-            c.state.entry(agent.clone()).or_default().context = Some(context);
-        }
+        if let Some(c) = self.workflows.lock().await.get_mut(id) { c.state.entry(agent.clone()).or_default().context = Some(context); }
         Ok(())
     }
 }

@@ -70,7 +70,7 @@ pub trait ToolService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait ConversationRepository: Send + Sync {
+pub trait ConversationService: Send + Sync {
     async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
     async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
     async fn complete_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()>;
@@ -93,7 +93,7 @@ pub trait App: Send + Sync + 'static {
     type ProviderService: ProviderService;
 
     /// The concrete type implementing conversation repository capabilities
-    type ConversationRepository: ConversationRepository;
+    type ConversationService: ConversationService;
 
     /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
@@ -101,5 +101,5 @@ pub trait App: Send + Sync + 'static {
     /// Get a reference to the provider service instance
     fn provider_service(&self) -> &Self::ProviderService;
 
-    fn conversation_repository(&self) -> &Self::ConversationRepository;
+    fn conversation_service(&self) -> &Self::ConversationService;
 }

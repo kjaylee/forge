@@ -23,7 +23,6 @@ impl ForgeInfra {
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
-    type ConversationRepository = InMemoryWorkflowRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self._environment_service
@@ -31,9 +30,5 @@ impl Infrastructure for ForgeInfra {
 
     fn file_read_service(&self) -> &Self::FileReadService {
         &self._file_read_service
-    }
-
-    fn conversation_repository(&self) -> &Self::ConversationRepository {
-        &self._workflow_repository
     }
 }

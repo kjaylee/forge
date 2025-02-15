@@ -166,7 +166,7 @@ impl<A: App> Orchestrator<A> {
     async fn dispatch(&self, event: &DispatchEvent) -> anyhow::Result<()> {
         join_all(
             self.app
-                .conversation_repository()
+                .conversation_service()
                 .get(&self.chat_request.conversation_id)
                 .await?
                 .ok_or(Error::ConversationNotFound(
@@ -266,7 +266,7 @@ impl<A: App> Orchestrator<A> {
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
         Ok(self
             .app
-            .conversation_repository()
+            .conversation_service()
             .get(&self.chat_request.conversation_id)
             .await?
             .ok_or(Error::ConversationNotFound(
@@ -276,14 +276,14 @@ impl<A: App> Orchestrator<A> {
 
     async fn complete_turn(&self, agent: &AgentId) -> anyhow::Result<()> {
         self.app
-            .conversation_repository()
+            .conversation_service()
             .complete_turn(&self.chat_request.conversation_id, agent)
             .await
     }
 
     async fn set_context(&self, agent: &AgentId, context: Context) -> anyhow::Result<()> {
         self.app
-            .conversation_repository()
+            .conversation_service()
             .set_context(&self.chat_request.conversation_id, agent, context)
             .await
     }

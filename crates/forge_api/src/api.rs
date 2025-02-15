@@ -60,9 +60,7 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
-        Infrastructure::conversation_repository(self.app.as_ref())
-            .create(workflow)
-            .await
+        self.app.conversation_service().create(workflow).await
     }
 
     fn environment(&self) -> Environment {
