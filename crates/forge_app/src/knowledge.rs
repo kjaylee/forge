@@ -5,7 +5,7 @@ use rust_bert::pipelines::sentence_embeddings::{
     SentenceEmbeddingsBuilder, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
 };
 
-use crate::{Infrastructure, InformationRepository};
+use crate::{InformationRepository, Infrastructure};
 
 pub struct ForgeKnowledgeService<F> {
     infra: Arc<F>,

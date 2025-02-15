@@ -1,8 +1,9 @@
-use crate::conn::ForgeConnection;
 use chrono::{DateTime, NaiveDateTime};
 use diesel::prelude::*;
 use forge_app::InformationRepository;
 use forge_domain::{self as domain};
+
+use crate::conn::ForgeConnection;
 
 pub struct ForgeKnowledgeRepository {
     conn: ForgeConnection,
