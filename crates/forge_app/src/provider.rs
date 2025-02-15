@@ -6,6 +6,7 @@ use forge_domain::{
     ResultStream,
 };
 use forge_open_router::OpenRouter;
+use futures::TryStreamExt;
 use moka2::future::Cache;
 
 use crate::{EnvironmentService, Infrastructure};
@@ -32,7 +33,14 @@ impl ProviderService for ForgeProviderService {
         model_id: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.or.chat(model_id, request).await
+        let stream = self
+            .or
+            .chat(model_id, request)
+            .await
+            .map_err(|e| anyhow::anyhow!("OpenRouter chat error: {}", e))
+            .map(|stream| stream.map_err(|e| anyhow::anyhow!("OpenRouter stream error: {}", e)));
+
+        Ok(Box::pin(stream?))
     }
 
     async fn models(&self) -> Result<Vec<Model>> {

@@ -1,12 +1,12 @@
-use anyhow::{Context as _, Result};
+use anyhow::Context as _;
 use derive_setters::Setters;
 use forge_domain::{
-    self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters,
-    ProviderService, ResultStream,
+    self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ResultStream,
 };
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
+use tokio_retry::strategy::ExponentialBackoff;
 use tokio_stream::StreamExt;
 
 use super::model::{ListModelResponse, OpenRouterModel};
@@ -14,6 +14,7 @@ use super::parameters::ParameterResponse;
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use super::transformers::{pipeline, Transformer};
+use crate::Error;
 
 #[derive(Debug, Default, Clone, Setters)]
 #[setters(into, strip_option)]
@@ -49,10 +50,10 @@ impl OpenRouter {
         OpenRouterBuilder::default()
     }
 
-    fn url(&self, path: &str) -> anyhow::Result<Url> {
+    fn url(&self, path: &str) -> crate::Result<Url> {
         // Validate the path doesn't contain certain patterns
         if path.contains("://") || path.contains("..") {
-            anyhow::bail!("Invalid path: Contains forbidden patterns");
+            return Err(Error::InvalidURLPath(path.to_string()));
         }
 
         // Remove leading slash to avoid double slashes
@@ -60,7 +61,7 @@ impl OpenRouter {
 
         self.base_url
             .join(path)
-            .with_context(|| format!("Failed to append {} to base URL: {}", path, self.base_url))
+            .map_err(|e| Error::InvalidURL(e, self.base_url.clone(), path.to_string()))
     }
 
     fn headers(&self) -> HeaderMap {
@@ -75,27 +76,55 @@ impl OpenRouter {
         headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
     }
-}
 
-#[async_trait::async_trait]
-impl ProviderService for OpenRouter {
-    async fn chat(
+    pub async fn chat(
         &self,
         model_id: &ModelId,
         request: ChatContext,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
+    ) -> ResultStream<ChatCompletionMessage, crate::Error> {
         let mut request = OpenRouterRequest::from(request)
             .model(model_id.clone())
             .stream(true);
 
         request = pipeline().transform(request);
 
+        let retry_strategy = ExponentialBackoff::from_millis(300)
+            .max_delay(std::time::Duration::from_secs(10))
+            .take(3);
+
+        tokio_retry::Retry::spawn(retry_strategy.clone(), || async {
+            let mut stream = self.event_stream(request.clone()).await?;
+            while let Some(message) = stream.next().await {
+                if let Err(e) = message {
+                    if matches!(e, Error::Upstream(_))
+                        || matches!(
+                            e,
+                            Error::EventSourceStreamError(
+                                reqwest_eventsource::Error::InvalidStatusCode(_, _)
+                            )
+                        )
+                    {
+                        tracing::debug!("Retrying due to error: {:?}", e);
+                        return Err(e);
+                    }
+                }
+            }
+            Ok(stream)
+        })
+        .await
+    }
+
+    async fn event_stream(
+        &self,
+        request: OpenRouterRequest,
+    ) -> ResultStream<ChatCompletionMessage, crate::Error> {
         let es = self
             .client
             .post(self.url("chat/completions")?)
             .headers(self.headers())
             .json(&request)
-            .eventsource()?;
+            .eventsource()
+            .map_err(Error::UncloneableRequestError)?;
 
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -108,10 +137,9 @@ impl ProviderService for OpenRouter {
                         }
                         Event::Message(event) => Some(
                             serde_json::from_str::<OpenRouterResponse>(&event.data)
-                                .with_context(|| "Failed to parse OpenRouter response")
+                                .map_err(Error::OpenRouterResponseParseError)
                                 .and_then(|message| {
                                     ChatCompletionMessage::try_from(message.clone())
-                                        .with_context(|| "Failed to create completion message")
                                 }),
                         ),
                     },
@@ -120,32 +148,32 @@ impl ProviderService for OpenRouter {
                         response
                             .json::<OpenRouterResponse>()
                             .await
-                            .with_context(|| "Failed to parse OpenRouter response")
-                            .and_then(|message| {
-                                ChatCompletionMessage::try_from(message.clone())
-                                    .with_context(|| "Failed to create completion message")
+                            .map_err(|e| {
+                                Error::EventSourceStreamError(
+                                    reqwest_eventsource::Error::Transport(e),
+                                )
                             })
-                            .with_context(|| "Failed with invalid status code"),
+                            .and_then(|message| ChatCompletionMessage::try_from(message.clone())),
                     ),
                     Err(reqwest_eventsource::Error::InvalidContentType(_, response)) => Some(
                         response
                             .json::<OpenRouterResponse>()
                             .await
-                            .with_context(|| "Failed to parse OpenRouter response")
-                            .and_then(|message| {
-                                ChatCompletionMessage::try_from(message.clone())
-                                    .with_context(|| "Failed to create completion message")
+                            .map_err(|e| {
+                                Error::EventSourceStreamError(
+                                    reqwest_eventsource::Error::Transport(e),
+                                )
                             })
-                            .with_context(|| "Failed with invalid content type"),
+                            .and_then(|message| ChatCompletionMessage::try_from(message.clone())),
                     ),
-                    Err(err) => Some(Err(err.into())),
+                    Err(err) => Some(Err(Error::EventSourceStreamError(err))),
                 }
             });
 
         Ok(Box::pin(stream.filter_map(|x| x)))
     }
 
-    async fn models(&self) -> Result<Vec<Model>> {
+    pub async fn models(&self) -> anyhow::Result<Vec<Model>> {
         let text = self
             .client
             .get(self.url("models")?)
@@ -166,7 +194,7 @@ impl ProviderService for OpenRouter {
             .collect::<Vec<Model>>())
     }
 
-    async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
+    pub async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters> {
         // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
         let path = format!("parameters/{}", model.as_str());
 
@@ -213,6 +241,7 @@ mod tests {
     use reqwest::Url;
 
     use super::*;
+    use crate::Result;
 
     fn create_test_client() -> OpenRouter {
         OpenRouter {
@@ -280,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    fn test_error_deserialization() -> Result<()> {
+    fn test_error_deserialization() -> anyhow::Result<()> {
         let content = serde_json::to_string(&serde_json::json!({
           "error": {
             "message": "This endpoint's maximum context length is 16384 tokens",

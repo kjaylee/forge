@@ -145,7 +145,8 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                                             .ok_or(Error::ToolCallMissingName)?,
                                         arguments: serde_json::from_str(
                                             &tool_call.function.arguments,
-                                        )?,
+                                        )
+                                        .map_err(Error::ToolCallParseError)?,
                                     });
                                 }
                             }
