@@ -1,8 +1,8 @@
 use forge_app::Infrastructure;
 
+use crate::conversation::ForgeWorkflowRepository;
 use crate::env::ForgeEnvironmentService;
 use crate::file_read::ForgeFileReadService;
-use crate::workflows::ForgeWorkflowRepository;
 
 pub struct ForgeInfra {
     _file_read_service: ForgeFileReadService,
@@ -23,7 +23,7 @@ impl ForgeInfra {
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
-    type WorkflowRepository = ForgeWorkflowRepository;
+    type ConversationRepository = ForgeWorkflowRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self._environment_service
@@ -33,7 +33,7 @@ impl Infrastructure for ForgeInfra {
         &self._file_read_service
     }
 
-    fn workflow_repository(&self) -> &Self::WorkflowRepository {
+    fn conversation_repository(&self) -> &Self::ConversationRepository {
         &self._workflow_repository
     }
 }
