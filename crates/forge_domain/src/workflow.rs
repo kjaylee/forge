@@ -131,16 +131,14 @@ impl ConcurrentWorkflow {
 
     /// Initialize the concurrent workflow with the given workflow. If None is
     /// provided then it's initialized to an empty workflow.
-    pub async fn init(&self, mut workflow: Option<Workflow>) {
-        if let Some(ref mut workflow) = workflow {
-            for agent in self.agents().await {
+    pub async fn init(&self, workflow: Option<Workflow>) {
+        let mut guard = self.workflow.write().await;
+        if let Some(mut workflow) = workflow {
+            for agent in guard.agents.iter() {
                 if let Some(a) = workflow.find_agent_mut(&agent.id) {
-                    a.state = agent.state;
+                    a.state = agent.state.clone();
                 }
             }
-        }
-        let mut guard = self.workflow.write().await;
-        if let Some(workflow) = workflow {
             *guard = workflow;
         } else {
             for agent in guard.agents.iter_mut() {
