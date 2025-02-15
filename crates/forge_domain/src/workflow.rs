@@ -24,20 +24,20 @@ pub struct WorkflowId(Uuid);
 pub struct WorkflowState;
 
 impl Workflow {
-    pub fn find_agent_mut(&mut self, id: &AgentId) -> Option<&mut Agent> {
+    fn find_agent_mut(&mut self, id: &AgentId) -> Option<&mut Agent> {
         self.agents.iter_mut().find(|a| a.id == *id)
     }
 
-    pub fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
+    fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
         self.agents.iter().find(|a| a.id == *id)
     }
 
-    pub fn get_agent_mut(&mut self, id: &AgentId) -> crate::Result<&mut Agent> {
+    fn get_agent_mut(&mut self, id: &AgentId) -> crate::Result<&mut Agent> {
         self.find_agent_mut(id)
             .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
     }
 
-    pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
+    fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
         self.find_agent(id)
             .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
     }
