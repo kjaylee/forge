@@ -70,11 +70,16 @@ pub trait ToolService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait WorkflowRepository: Send + Sync {
-    async fn get(&self, id: &WorkflowId) -> anyhow::Result<Option<Workflow>>;
-    async fn set(&self, workflow: Workflow) -> anyhow::Result<WorkflowId>;
-    async fn get_state(&self, id: &WorkflowId) -> anyhow::Result<WorkflowState>;
-    async fn set_state(&self, id: &WorkflowId, state: WorkflowState) -> anyhow::Result<()>;
+pub trait ConversationRepository: Send + Sync {
+    async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
+    async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
+    async fn complete_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()>;
+    async fn set_context(
+        &self,
+        id: &ConversationId,
+        agent: &AgentId,
+        context: Context,
+    ) -> anyhow::Result<()>;
 }
 
 /// Core app trait providing access to services and repositories.
@@ -87,8 +92,8 @@ pub trait App: Send + Sync + 'static {
     /// The concrete type implementing provider service capabilities
     type ProviderService: ProviderService;
 
-    /// The concrete type implementing workflow repository capabilities
-    type WorkflowRepository: WorkflowRepository;
+    /// The concrete type implementing conversation repository capabilities
+    type ConversationRepository: ConversationRepository;
 
     /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
@@ -96,5 +101,5 @@ pub trait App: Send + Sync + 'static {
     /// Get a reference to the provider service instance
     fn provider_service(&self) -> &Self::ProviderService;
 
-    fn workflow_repository(&self) -> &Self::WorkflowRepository;
+    fn conversation_repository(&self) -> &Self::ConversationRepository;
 }

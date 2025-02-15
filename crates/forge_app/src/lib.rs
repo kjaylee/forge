@@ -5,7 +5,7 @@ mod tool_service;
 use std::path::Path;
 
 pub use app::*;
-use forge_domain::WorkflowRepository;
+use forge_domain::ConversationRepository;
 
 /// Repository for accessing system environment information
 #[async_trait::async_trait]
@@ -31,9 +31,9 @@ pub trait FileReadService: Send + Sync {
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
-    type WorkflowRepository: WorkflowRepository;
+    type ConversationRepository: ConversationRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
-    fn workflow_repository(&self) -> &Self::WorkflowRepository;
+    fn conversation_repository(&self) -> &Self::ConversationRepository;
 }

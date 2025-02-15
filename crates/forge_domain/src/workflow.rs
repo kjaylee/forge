@@ -5,7 +5,6 @@ use std::sync::Arc;
 use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use crate::{
     Agent, AgentId, App, ChatRequest, ChatResponse, Context, DispatchEvent, Orchestrator,
@@ -18,10 +17,6 @@ pub struct Workflow {
     #[serde(skip)]
     pub events: HashMap<String, DispatchEvent>,
 }
-
-pub struct WorkflowId(Uuid);
-
-pub struct WorkflowState;
 
 impl Workflow {
     fn find_agent_mut(&mut self, id: &AgentId) -> Option<&mut Agent> {
@@ -37,7 +32,7 @@ impl Workflow {
             .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
     }
 
-    fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
+    pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
         self.find_agent(id)
             .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
     }
@@ -49,6 +44,10 @@ impl Workflow {
             .filter(|a| a.subscribe.contains(&event_name.to_string()))
             .cloned()
             .collect::<Vec<_>>()
+    }
+
+    pub fn context(&self, id: &AgentId) -> Option<Context> {
+        self.find_agent(id).and_then(|a| a.state.context.clone())
     }
 }
 
@@ -122,12 +121,10 @@ impl ConcurrentWorkflow {
         request: ChatRequest,
         ctx: SystemContext,
     ) -> MpscStream<anyhow::Result<crate::AgentMessage<ChatResponse>>> {
-        let workflow = self.clone();
-
         MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
-            let orch = Orchestrator::new(domain, workflow, ctx, Some(tx.clone()));
-            match orch.execute(request).await {
+            let orch = Orchestrator::new(domain, request, ctx, Some(tx.clone()));
+            match orch.execute().await {
                 Ok(_) => {}
                 Err(err) => tx.send(Err(err)).await.unwrap(),
             }

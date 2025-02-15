@@ -16,9 +16,9 @@ pub struct AgentMessage<T> {
 
 pub struct Orchestrator<App> {
     app: Arc<App>,
-    workflow: ConcurrentWorkflow,
     system_context: SystemContext,
     sender: Option<Arc<ArcSender>>,
+    chat_request: ChatRequest,
 }
 
 struct ChatCompletionResult {
@@ -29,15 +29,15 @@ struct ChatCompletionResult {
 impl<A: App> Orchestrator<A> {
     pub fn new(
         svc: Arc<A>,
-        workflow: ConcurrentWorkflow,
+        chat_request: ChatRequest,
         system_context: SystemContext,
         sender: Option<ArcSender>,
     ) -> Self {
         Self {
             app: svc,
-            workflow,
             system_context,
             sender: sender.map(Arc::new),
+            chat_request,
         }
     }
 
@@ -165,9 +165,15 @@ impl<A: App> Orchestrator<A> {
 
     async fn dispatch(&self, event: &DispatchEvent) -> anyhow::Result<()> {
         join_all(
-            self.workflow
+            self.app
+                .conversation_repository()
+                .get(&self.chat_request.conversation_id)
+                .await?
+                .ok_or(Error::ConversationNotFound(
+                    self.chat_request.conversation_id,
+                ))?
+                .workflow
                 .entries(event.name.as_str())
-                .await
                 .iter()
                 .map(|agent| self.init_agent(&agent.id, event)),
         )
@@ -213,11 +219,7 @@ impl<A: App> Orchestrator<A> {
                         let input = DispatchEvent::new(input_key, summary.get());
                         self.init_agent(agent_id, &input).await?;
 
-                        let value = self
-                            .workflow
-                            .get_event(output_key)
-                            .await
-                            .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
+                        let value = self.get_event(output_key).await?;
 
                         summary.set(serde_json::to_string(&value)?);
                     }
@@ -232,11 +234,7 @@ impl<A: App> Orchestrator<A> {
                         let task = DispatchEvent::task(content.clone());
                         self.init_agent(agent_id, &task).await?;
 
-                        let output = self
-                            .workflow
-                            .get_event(output_key)
-                            .await
-                            .ok_or(Error::UndefinedVariable(output_key.to_string()))?;
+                        let output = self.get_event(output_key).await?;
 
                         let message = serde_json::to_string(&output)?;
 
@@ -255,15 +253,52 @@ impl<A: App> Orchestrator<A> {
         Ok(context)
     }
 
+    async fn get_event(&self, name: &str) -> anyhow::Result<DispatchEvent> {
+        Ok(self
+            .get_workflow()
+            .await?
+            .events
+            .get(name)
+            .ok_or(Error::UndefinedVariable(name.to_string()))?
+            .clone())
+    }
+
+    async fn get_workflow(&self) -> anyhow::Result<Workflow> {
+        Ok(self
+            .app
+            .conversation_repository()
+            .get(&self.chat_request.conversation_id)
+            .await?
+            .ok_or(Error::ConversationNotFound(
+                self.chat_request.conversation_id,
+            ))?
+            .workflow)
+    }
+
+    async fn complete_turn(&self, agent: &AgentId) -> anyhow::Result<()> {
+        self.app
+            .conversation_repository()
+            .complete_turn(&self.chat_request.conversation_id, agent)
+            .await
+    }
+
+    async fn set_context(&self, agent: &AgentId, context: Context) -> anyhow::Result<()> {
+        self.app
+            .conversation_repository()
+            .set_context(&self.chat_request.conversation_id, agent, context)
+            .await
+    }
+
     async fn init_agent(&self, agent: &AgentId, event: &DispatchEvent) -> anyhow::Result<()> {
-        let agent = self.workflow.get_agent(agent).await?;
+        let workflow = self.get_workflow().await?;
+        let agent = workflow.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
-            self.init_agent_context(&agent).await?
+            self.init_agent_context(agent).await?
         } else {
-            match self.workflow.context(&agent.id).await {
+            match workflow.context(&agent.id) {
                 Some(context) => context,
-                None => self.init_agent_context(&agent).await?,
+                None => self.init_agent_context(agent).await?,
             }
         };
 
@@ -300,9 +335,7 @@ impl<A: App> Orchestrator<A> {
                 .add_tool_results(tool_results.clone());
 
             if !agent.ephemeral {
-                self.workflow
-                    .set_context(&agent.id, context.clone())
-                    .await?;
+                self.set_context(&agent.id, context.clone()).await?;
             }
 
             if tool_results.is_empty() {
@@ -310,14 +343,13 @@ impl<A: App> Orchestrator<A> {
             }
         }
 
-        self.workflow.complete_turn(&agent.id).await?;
+        self.complete_turn(&agent.id).await?;
 
         Ok(())
     }
 
-    pub async fn execute(&self, chat_request: ChatRequest) -> anyhow::Result<()> {
-        self.workflow.init(Some(chat_request.workflow)).await;
-        let event = DispatchEvent::task(chat_request.content);
+    pub async fn execute(&self) -> anyhow::Result<()> {
+        let event = DispatchEvent::task(self.chat_request.content.clone());
         self.dispatch(&event).await?;
         Ok(())
     }
