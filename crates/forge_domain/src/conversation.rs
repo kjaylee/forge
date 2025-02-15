@@ -1,12 +1,14 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Error, Workflow};
+use crate::{Agent, AgentId, Context, Error, Workflow};
 
-#[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct ConversationId(Uuid);
 
@@ -26,10 +28,47 @@ impl ConversationId {
     }
 }
 
-#[derive(Debug, Setters, Serialize, Deserialize)]
+#[derive(Debug, Setters, Serialize, Deserialize, Clone)]
 pub struct Conversation {
     pub id: ConversationId,
     pub workflow: Workflow,
     pub archived: bool,
     pub title: Option<String>,
+    pub state: HashMap<AgentId, AgentState>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AgentState {
+    pub turn_count: u64,
+    pub context: Option<Context>,
+}
+
+impl Conversation {
+    pub fn new(id: ConversationId, workflow: Workflow) -> Self {
+        Self {
+            id,
+            workflow,
+            archived: false,
+            title: None,
+            state: Default::default(),
+        }
+    }
+
+    pub fn turn_count(&self, id: &AgentId) -> Option<u64> {
+        self.state.get(id).map(|s| s.turn_count)
+    }
+
+    pub fn entries(&self, event_name: &str) -> Vec<Agent> {
+        self.workflow
+            .agents
+            .iter()
+            .filter(|a| self.turn_count(&a.id).unwrap_or(0) < a.max_turns)
+            .filter(|a| a.subscribe.contains(&event_name.to_string()))
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+
+    pub fn context(&self, id: &AgentId) -> Option<&Context> {
+        self.state.get(id).and_then(|s| s.context.as_ref())
+    }
 }

@@ -142,10 +142,10 @@ impl<F: API> UI<F> {
 
     async fn chat(&mut self, content: String) -> Result<()> {
         let conversation_id = match self.state.conversation_id {
-            Some(id) => id,
+            Some(ref id) => id.clone(),
             None => {
                 let conversation_id = self.api.init(self.init_workflow().await?).await?;
-                self.state.conversation_id = Some(conversation_id);
+                self.state.conversation_id = Some(conversation_id.clone());
 
                 conversation_id
             }

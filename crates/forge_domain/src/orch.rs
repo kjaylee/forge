@@ -170,9 +170,8 @@ impl<A: App> Orchestrator<A> {
                 .get(&self.chat_request.conversation_id)
                 .await?
                 .ok_or(Error::ConversationNotFound(
-                    self.chat_request.conversation_id,
+                    self.chat_request.conversation_id.clone(),
                 ))?
-                .workflow
                 .entries(event.name.as_str())
                 .iter()
                 .map(|agent| self.init_agent(&agent.id, event)),
@@ -255,24 +254,24 @@ impl<A: App> Orchestrator<A> {
 
     async fn get_event(&self, name: &str) -> anyhow::Result<DispatchEvent> {
         Ok(self
-            .get_workflow()
+            .get_conversation()
             .await?
+            .workflow
             .events
             .get(name)
             .ok_or(Error::UndefinedVariable(name.to_string()))?
             .clone())
     }
 
-    async fn get_workflow(&self) -> anyhow::Result<Workflow> {
+    async fn get_conversation(&self) -> anyhow::Result<Conversation> {
         Ok(self
             .app
             .conversation_repository()
             .get(&self.chat_request.conversation_id)
             .await?
             .ok_or(Error::ConversationNotFound(
-                self.chat_request.conversation_id,
-            ))?
-            .workflow)
+                self.chat_request.conversation_id.clone(),
+            ))?)
     }
 
     async fn complete_turn(&self, agent: &AgentId) -> anyhow::Result<()> {
@@ -290,14 +289,14 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn init_agent(&self, agent: &AgentId, event: &DispatchEvent) -> anyhow::Result<()> {
-        let workflow = self.get_workflow().await?;
-        let agent = workflow.get_agent(agent)?;
+        let conversation = self.get_conversation().await?;
+        let agent = conversation.workflow.get_agent(agent)?;
 
         let mut context = if agent.ephemeral {
             self.init_agent_context(agent).await?
         } else {
-            match workflow.context(&agent.id) {
-                Some(context) => context,
+            match conversation.context(&agent.id) {
+                Some(context) => context.clone(),
                 None => self.init_agent_context(agent).await?,
             }
         };
