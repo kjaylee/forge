@@ -2,10 +2,12 @@ use forge_app::Infrastructure;
 
 use crate::env::ForgeEnvironmentService;
 use crate::file_read::ForgeFileReadService;
+use crate::workflows::ForgeWorkflowRepository;
 
 pub struct ForgeInfra {
     _file_read_service: ForgeFileReadService,
     _environment_service: ForgeEnvironmentService,
+    _workflow_repository: ForgeWorkflowRepository,
 }
 
 impl ForgeInfra {
@@ -13,6 +15,7 @@ impl ForgeInfra {
         Self {
             _file_read_service: ForgeFileReadService::new(),
             _environment_service: ForgeEnvironmentService::new(restricted),
+            _workflow_repository: ForgeWorkflowRepository::new(),
         }
     }
 }
@@ -20,6 +23,7 @@ impl ForgeInfra {
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
+    type WorkflowRepository = ForgeWorkflowRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self._environment_service
@@ -27,5 +31,9 @@ impl Infrastructure for ForgeInfra {
 
     fn file_read_service(&self) -> &Self::FileReadService {
         &self._file_read_service
+    }
+
+    fn workflow_repository(&self) -> &Self::WorkflowRepository {
+        &self._workflow_repository
     }
 }

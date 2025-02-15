@@ -25,6 +25,7 @@ impl<F: Infrastructure> ForgeApp<F> {
 impl<F: Infrastructure> App for ForgeApp<F> {
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
+    type WorkflowRepository = F::WorkflowRepository;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self._tool_service
@@ -33,11 +34,15 @@ impl<F: Infrastructure> App for ForgeApp<F> {
     fn provider_service(&self) -> &Self::ProviderService {
         &self._provider_service
     }
+
+    fn workflow_repository(&self) -> &Self::WorkflowRepository {
+        self.infra.workflow_repository()
+    }
 }
 
 impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type EnvironmentService = F::EnvironmentService;
-
+    type WorkflowRepository = F::WorkflowRepository;
     type FileReadService = F::FileReadService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
@@ -46,5 +51,9 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
 
     fn file_read_service(&self) -> &Self::FileReadService {
         self.infra.file_read_service()
+    }
+
+    fn workflow_repository(&self) -> &Self::WorkflowRepository {
+        self.infra.workflow_repository()
     }
 }

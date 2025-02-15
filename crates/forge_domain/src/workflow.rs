@@ -5,6 +5,7 @@ use std::sync::Arc;
 use forge_stream::MpscStream;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 use crate::{
     Agent, AgentId, App, ChatRequest, ChatResponse, Context, DispatchEvent, Orchestrator,
@@ -17,6 +18,10 @@ pub struct Workflow {
     #[serde(skip)]
     pub events: HashMap<String, DispatchEvent>,
 }
+
+pub struct WorkflowId(Uuid);
+
+pub struct WorkflowState;
 
 impl Workflow {
     pub fn find_agent_mut(&mut self, id: &AgentId) -> Option<&mut Agent> {
