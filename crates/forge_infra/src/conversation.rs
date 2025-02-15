@@ -1,31 +1,43 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use forge_domain::{
     AgentId, Context, Conversation, ConversationId, ConversationRepository, Workflow,
 };
+use tokio::sync::Mutex;
 
-pub struct ForgeWorkflowRepository {}
+pub struct InMemoryWorkflowRepository {
+    workflows: Arc<Mutex<HashMap<ConversationId, Conversation>>>,
+}
 
-impl Default for ForgeWorkflowRepository {
+impl Default for InMemoryWorkflowRepository {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ForgeWorkflowRepository {
+impl InMemoryWorkflowRepository {
     pub fn new() -> Self {
-        Self {}
+        Self { workflows: Arc::new(Mutex::new(HashMap::new())) }
     }
 }
 
 #[async_trait::async_trait]
-impl ConversationRepository for ForgeWorkflowRepository {
+impl ConversationRepository for InMemoryWorkflowRepository {
     async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>> {
-        todo!()
+        Ok(self.workflows.lock().await.get(id).cloned())
     }
+
     async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
-        todo!()
+        let id = ConversationId::generate();
+        let conversation = Conversation::new(id.clone(), workflow);
+        self.workflows.lock().await.insert(id.clone(), conversation);
+        Ok(id)
     }
+
     async fn complete_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()> {
-        todo!()
+        if let Some(c) = self.workflows.lock().await.get_mut(id) { c.state.entry(agent.clone()).or_default().turn_count += 1; }
+        Ok(())
     }
     async fn set_context(
         &self,
@@ -33,6 +45,7 @@ impl ConversationRepository for ForgeWorkflowRepository {
         agent: &AgentId,
         context: Context,
     ) -> anyhow::Result<()> {
-        todo!()
+        if let Some(c) = self.workflows.lock().await.get_mut(id) { c.state.entry(agent.clone()).or_default().context = Some(context); }
+        Ok(())
     }
 }
