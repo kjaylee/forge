@@ -18,10 +18,6 @@ impl<F: Infrastructure + App> ForgeExecutorService<F> {
 }
 
 impl<F: Infrastructure + App> ForgeExecutorService<F> {
-    pub async fn reset(&self) {
-        self.workflow.init(None).await;
-    }
-
     pub async fn chat(
         &self,
         chat_request: ChatRequest,

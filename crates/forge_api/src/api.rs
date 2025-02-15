@@ -59,9 +59,10 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         Ok(self._executor_service.chat(chat).await?)
     }
 
-    async fn reset(&self) -> anyhow::Result<()> {
-        self._executor_service.reset().await;
-        Ok(())
+    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
+        Infrastructure::conversation_repository(self.app.as_ref())
+            .create(workflow)
+            .await
     }
 
     fn environment(&self) -> Environment {
