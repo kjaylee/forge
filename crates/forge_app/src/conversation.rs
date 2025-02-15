@@ -33,7 +33,7 @@ impl ConversationService for ForgeConversationService {
         Ok(id)
     }
 
-    async fn complete_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()> {
+    async fn inc_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()> {
         if let Some(c) = self.workflows.lock().await.get_mut(id) {
             c.state.entry(agent.clone()).or_default().turn_count += 1;
         }

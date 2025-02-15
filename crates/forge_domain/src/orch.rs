@@ -277,7 +277,7 @@ impl<A: App> Orchestrator<A> {
     async fn complete_turn(&self, agent: &AgentId) -> anyhow::Result<()> {
         self.app
             .conversation_service()
-            .complete_turn(&self.chat_request.conversation_id, agent)
+            .inc_turn(&self.chat_request.conversation_id, agent)
             .await
     }
 
