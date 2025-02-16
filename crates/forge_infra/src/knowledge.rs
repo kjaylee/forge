@@ -1,14 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_app::{Information, InformationId, InformationRepository};
-use forge_domain::{self as domain, Environment};
-use qdrant_client::{
-    qdrant::{
-        CreateCollectionBuilder, Distance, PointStruct, UpsertPointsBuilder, VectorParamsBuilder,
-    },
-    Payload, Qdrant,
-};
+use forge_app::InformationRepository;
+use forge_domain::{self as domain, Environment, Knowledge, KnowledgeId};
+use qdrant_client::qdrant::{CreateCollectionBuilder, Distance, VectorParamsBuilder};
+use qdrant_client::{Payload, Qdrant};
 use serde_json::Value;
 use tokio::sync::Mutex;
 
@@ -61,36 +57,20 @@ fn to_payload(json: Value) -> Payload {
 }
 
 #[async_trait::async_trait]
-impl InformationRepository for ForgeKnowledgeRepository {
-    async fn upsert(&self, info: Vec<Information>) -> anyhow::Result<()> {
-        let points = info
-            .into_iter()
-            .map(|info| {
-                PointStruct::new(
-                    info.id.into_uuid().to_string(),
-                    info.embedding,
-                    to_payload(info.value),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        self.client()
-            .await?
-            .upsert_points(UpsertPointsBuilder::new(self.collection.clone(), points))
-            .await?;
-
-        Ok(())
-    }
-
-    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<domain::Knowledge>> {
+impl InformationRepository<Value> for ForgeKnowledgeRepository {
+    async fn upsert(&self, info: Vec<Knowledge<Value>>) -> anyhow::Result<()> {
         todo!()
     }
 
-    async fn list(&self) -> anyhow::Result<Vec<domain::Knowledge>> {
+    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<domain::Knowledge<Value>>> {
         todo!()
     }
 
-    async fn drop(&self, ids: Vec<InformationId>) -> anyhow::Result<()> {
+    async fn list(&self) -> anyhow::Result<Vec<domain::Knowledge<Value>>> {
+        todo!()
+    }
+
+    async fn drop(&self, ids: Vec<KnowledgeId>) -> anyhow::Result<()> {
         todo!()
     }
 }

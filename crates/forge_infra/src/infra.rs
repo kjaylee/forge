@@ -35,7 +35,7 @@ impl Infrastructure for ForgeInfra {
         &self._file_read_service
     }
 
-    fn information_repo(&self) -> &Self::InformationRepository {
+    fn textual_knowledge_repo(&self) -> &Self::InformationRepository {
         &self._information_repo
     }
 }

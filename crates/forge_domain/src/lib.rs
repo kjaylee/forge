@@ -97,26 +97,11 @@ pub trait ConversationService: Send + Sync {
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
 pub trait App: Send + Sync + 'static {
-    /// The concrete type implementing tool service capabilities
     type ToolService: ToolService;
-
-    /// The concrete type implementing provider service capabilities
     type ProviderService: ProviderService;
-
-    /// The concrete type implementing learning repository capabilities
-    type TextualKnowledgeService: KnowledgeService<String>;
-
-    /// The concrete type implementing conversation repository capabilities
     type ConversationService: ConversationService;
 
-    /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
-
-    /// Get a reference to the provider service instance
     fn provider_service(&self) -> &Self::ProviderService;
-
-    /// Get a reference to the learning repository instance
-    fn textual_knowledge_service(&self) -> &Self::TextualKnowledgeService;
-
     fn conversation_service(&self) -> &Self::ConversationService;
 }
