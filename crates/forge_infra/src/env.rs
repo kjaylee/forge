@@ -33,17 +33,20 @@ impl ForgeEnvironmentService {
     fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
+        let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set in env");
 
         Environment {
             os: std::env::consts::OS.to_string(),
             cwd,
             shell: self.get_shell_path(),
-            api_key,
+            open_router_key: api_key,
             base_path: dirs::config_dir()
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
+            qdrant_key: std::env::var("QDRANT_KEY").expect("QDRANT_KEY must be set in env"),
+            qdrant_cluster: std::env::var("QDRANT_CLUSTER")
+                .expect("QDRANT_CLUSTER must be set in env"),
         }
     }
 }

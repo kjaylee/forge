@@ -17,7 +17,11 @@ pub struct Environment {
     /// The shell being used.
     pub shell: String,
     /// The Forge API key.
-    pub api_key: String,
+    pub open_router_key: String,
+    /// The Qdrant API Key
+    pub qdrant_key: String,
+    /// The Qdrant Cluster
+    pub qdrant_cluster: String,
     /// The base path relative to which everything else stored.
     pub base_path: PathBuf,
 }

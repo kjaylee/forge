@@ -56,8 +56,10 @@ mod tests {
             } else {
                 "/bin/sh".to_string()
             },
-            api_key: String::new(),
+            open_router_key: String::new(),
             base_path: PathBuf::new(),
+            qdrant_key: String::new(),
+            qdrant_cluster: String::new(),
         }
     }
 

@@ -1,4 +1,4 @@
-use forge_app::Infrastructure;
+use forge_app::{EnvironmentService, Infrastructure};
 
 use crate::env::ForgeEnvironmentService;
 use crate::file_read::ForgeFileReadService;
@@ -13,11 +13,11 @@ pub struct ForgeInfra {
 impl ForgeInfra {
     pub fn new(restricted: bool) -> Self {
         let _environment_service = ForgeEnvironmentService::new(restricted);
-
+        let env = _environment_service.get_environment();
         Self {
             _file_read_service: ForgeFileReadService::new(),
             _environment_service,
-            _information_repo: ForgeKnowledgeRepository::new(),
+            _information_repo: ForgeKnowledgeRepository::new(env, "shell_collection", 1024),
         }
     }
 }
