@@ -323,14 +323,18 @@ impl<A: App> Orchestrator<A> {
                     .provider_service()
                     .chat(&agent.model, context.clone())
                     .await?;
-                let result  = self.collect_messages(&agent.id, response).await;
+                let result = self.collect_messages(&agent.id, response).await;
                 match result {
                     Ok(result) => Ok(result),
                     Err(e) => {
-                        tracing::error!("Error in chat completion: {:?} for AgentId: {}", e, agent.id);
+                        tracing::error!(
+                            "Error in chat completion: {:?} for AgentId: {}",
+                            e,
+                            agent.id
+                        );
                         Err(e)
                     }
-                }          
+                }
             })
             .await?;
             let ChatCompletionResult { tool_calls, content } = result;
