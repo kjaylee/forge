@@ -6,7 +6,6 @@ use forge_domain::{
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
-use tokio_retry::strategy::ExponentialBackoff;
 use tokio_stream::StreamExt;
 
 use super::model::{ListModelResponse, OpenRouterModel};
@@ -88,36 +87,6 @@ impl OpenRouter {
 
         request = pipeline().transform(request);
 
-        let retry_strategy = ExponentialBackoff::from_millis(300)
-            .max_delay(std::time::Duration::from_secs(10))
-            .take(3);
-
-        tokio_retry::Retry::spawn(retry_strategy.clone(), || async {
-            let mut stream = self.event_stream(request.clone()).await?;
-            while let Some(message) = stream.next().await {
-                if let Err(e) = message {
-                    if matches!(e, Error::Upstream(_))
-                        || matches!(
-                            e,
-                            Error::EventSourceStreamError(
-                                reqwest_eventsource::Error::InvalidStatusCode(_, _)
-                            )
-                        )
-                    {
-                        tracing::debug!("Retrying due to error: {:?}", e);
-                        return Err(e);
-                    }
-                }
-            }
-            Ok(stream)
-        })
-        .await
-    }
-
-    async fn event_stream(
-        &self,
-        request: OpenRouterRequest,
-    ) -> ResultStream<ChatCompletionMessage, crate::Error> {
         let es = self
             .client
             .post(self.url("chat/completions")?)

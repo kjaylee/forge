@@ -37,8 +37,8 @@ impl ProviderService for ForgeProviderService {
             .or
             .chat(model_id, request)
             .await
-            .map_err(|e| anyhow::anyhow!("OpenRouter chat error: {}", e))
-            .map(|stream| stream.map_err(|e| anyhow::anyhow!("OpenRouter stream error: {}", e)));
+            .map_err(|e| anyhow::anyhow!(e))
+            .map(|stream| stream.map_err(|e| anyhow::anyhow!(e)));
 
         Ok(Box::pin(stream?))
     }
