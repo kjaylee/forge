@@ -17,7 +17,7 @@ pub struct ForgeToolService {
 impl ForgeToolService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
         let env = infra.environment_service().get_environment();
-        ForgeToolService::from_iter(forge_tool::tools(&env))
+        ForgeToolService::from_iter(crate::tools::tools(&env))
     }
 }
 

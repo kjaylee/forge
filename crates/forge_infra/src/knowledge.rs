@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use anyhow::Context;
-use forge_app::InformationRepository;
-use forge_domain::{self as domain, Environment, Knowledge, KnowledgeId};
+use anyhow::{anyhow, Context};
+use forge_app::KnowledgeRepository;
+use forge_domain::{self as domain, Environment, Knowledge, KnowledgeId, Query};
 use qdrant_client::qdrant::{CreateCollectionBuilder, Distance, VectorParamsBuilder};
 use qdrant_client::{Payload, Qdrant};
 use serde_json::Value;
@@ -31,10 +31,21 @@ impl ForgeKnowledgeRepository {
             Ok(client.clone())
         } else {
             let client = Arc::new(
-                Qdrant::from_url(self.env.qdrant_cluster.as_str())
-                    .api_key(self.env.qdrant_key.as_str())
-                    .build()
-                    .with_context(|| "Failed to connect to knowledge service")?,
+                Qdrant::from_url(
+                    self.env
+                        .qdrant_cluster
+                        .as_ref()
+                        .ok_or(anyhow!("Qdrant Cluster is not set"))?,
+                )
+                .api_key(
+                    self.env
+                        .qdrant_key
+                        .as_ref()
+                        .ok_or(anyhow!("Qdrant Key is not set"))?
+                        .as_str(),
+                )
+                .build()
+                .with_context(|| "Failed to connect to knowledge service")?,
             );
 
             client
@@ -57,12 +68,12 @@ fn to_payload(json: Value) -> Payload {
 }
 
 #[async_trait::async_trait]
-impl InformationRepository<Value> for ForgeKnowledgeRepository {
-    async fn upsert(&self, info: Vec<Knowledge<Value>>) -> anyhow::Result<()> {
+impl KnowledgeRepository<Value> for ForgeKnowledgeRepository {
+    async fn store(&self, info: Vec<Knowledge<Value>>) -> anyhow::Result<()> {
         todo!()
     }
 
-    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<domain::Knowledge<Value>>> {
+    async fn search(&self, query: Query) -> anyhow::Result<Vec<domain::Knowledge<Value>>> {
         todo!()
     }
 

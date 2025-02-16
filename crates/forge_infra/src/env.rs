@@ -44,9 +44,9 @@ impl ForgeEnvironmentService {
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
-            qdrant_key: std::env::var("QDRANT_KEY").expect("QDRANT_KEY must be set in env"),
-            qdrant_cluster: std::env::var("QDRANT_CLUSTER")
-                .expect("QDRANT_CLUSTER must be set in env"),
+
+            qdrant_key: std::env::var("QDRANT_KEY").ok(),
+            qdrant_cluster: std::env::var("QDRANT_CLUSTER").ok(),
         }
     }
 }

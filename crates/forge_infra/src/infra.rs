@@ -25,7 +25,7 @@ impl ForgeInfra {
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
-    type InformationRepository = ForgeKnowledgeRepository;
+    type KnowledgeRepository = ForgeKnowledgeRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self._environment_service
@@ -35,7 +35,7 @@ impl Infrastructure for ForgeInfra {
         &self._file_read_service
     }
 
-    fn textual_knowledge_repo(&self) -> &Self::InformationRepository {
+    fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
         &self._information_repo
     }
 }
