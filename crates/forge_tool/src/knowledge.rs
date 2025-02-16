@@ -56,13 +56,13 @@ impl<F: App> ToolDescription for StoreKnowledge<F> {
 }
 
 #[derive(serde::Deserialize)]
-pub struct SetKnowledgeInput {
+pub struct StoreKnowledgeInput {
     pub content: String,
 }
 
 #[async_trait::async_trait]
 impl<F: App> ExecutableTool for StoreKnowledge<F> {
-    type Input = SetKnowledgeInput;
+    type Input = StoreKnowledgeInput;
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         self.app
