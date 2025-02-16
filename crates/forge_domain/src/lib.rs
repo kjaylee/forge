@@ -70,17 +70,6 @@ pub trait ToolService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait KnowledgeService<Value>: Send + Sync {
-    async fn search(&self, query: Query) -> anyhow::Result<Vec<Knowledge<Value>>>;
-
-    /// Save a new learning entry or update an existing one
-    async fn store(&self, content: Vec<Value>) -> anyhow::Result<()>;
-
-    /// List all learning entries
-    async fn list(&self) -> anyhow::Result<Vec<Knowledge<Value>>>;
-}
-
-#[async_trait::async_trait]
 pub trait ConversationService: Send + Sync {
     async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
     async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;

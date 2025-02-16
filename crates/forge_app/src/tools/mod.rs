@@ -1,5 +1,6 @@
 mod fetch;
 mod fs;
+#[allow(unused)]
 mod knowledge;
 mod patch;
 mod shell;
