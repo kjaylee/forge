@@ -306,10 +306,14 @@ impl<A: App> Orchestrator<A> {
             .user_prompt
             .render(&UserContext::from(event.clone()))?;
         context = context.add_message(ContextMessage::user(content));
-        let retry_stategy = tokio_retry::strategy::ExponentialBackoff::from_millis(100)
-            .max_delay(std::time::Duration::from_secs(10))
-            .map(tokio_retry::strategy::jitter)
-            .take(5);
+        let workflow = self.get_conversation().await?.workflow;
+        let retry_stategy = {
+            let config = workflow.retry_config.unwrap_or_default();
+
+            tokio_retry::strategy::ExponentialBackoff::from_millis(config.initial_delay_millis)
+                .max_delay(std::time::Duration::from_secs(config.max_delay_secs))
+                .take(config.max_retries as usize)
+        };
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
 
@@ -319,7 +323,14 @@ impl<A: App> Orchestrator<A> {
                     .provider_service()
                     .chat(&agent.model, context.clone())
                     .await?;
-                self.collect_messages(&agent.id, response).await
+                let result  = self.collect_messages(&agent.id, response).await;
+                match result {
+                    Ok(result) => Ok(result),
+                    Err(e) => {
+                        tracing::error!("Error in chat completion: {:?} for AgentId: {}", e, agent.id);
+                        Err(e)
+                    }
+                }          
             })
             .await?;
             let ChatCompletionResult { tool_calls, content } = result;

@@ -1,3 +1,8 @@
+[retry_config]
+initial_delay_millis = 100
+max_delay_secs = 10
+max_retries = 5
+
 [[agents]]
 id = "title"
 model = "anthropic/claude-3.5-haiku"

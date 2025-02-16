@@ -10,6 +10,24 @@ pub struct Workflow {
     pub agents: Vec<Agent>,
     #[serde(skip)]
     pub events: HashMap<String, DispatchEvent>,
+    pub retry_config: Option<RetryConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetryConfig {
+    pub initial_delay_millis: u64,
+    pub max_delay_secs: u64,
+    pub max_retries: u64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            initial_delay_millis: 100,
+            max_delay_secs: 10,
+            max_retries: 10,
+        }
+    }
 }
 
 impl Workflow {

@@ -1025,6 +1025,7 @@ dependencies = [
  "tokio-retry",
  "tokio-stream",
  "toml",
+ "tracing",
  "url",
  "uuid",
 ]

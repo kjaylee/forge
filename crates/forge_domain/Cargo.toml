@@ -34,6 +34,7 @@ url = "2.5.4"
 async-recursion = "1.1.1"
 forge_stream = { path = "../forge_stream" }
 toml = "0.8.20"
+tracing = "0.1.41"
 
 [dev-dependencies]
 insta = { version = "1.34.0", features = ["json"] }
