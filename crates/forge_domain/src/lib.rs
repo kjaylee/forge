@@ -75,7 +75,7 @@ pub trait KnowledgeService: Send + Sync {
     async fn search(&self, query: Query) -> anyhow::Result<Vec<Knowledge<Self::Value>>>;
 
     /// Save a new learning entry or update an existing one
-    async fn store(&self, content: Self::Value) -> anyhow::Result<()>;
+    async fn store(&self, content: Vec<Self::Value>) -> anyhow::Result<()>;
 
     /// List all learning entries
     async fn list(&self) -> anyhow::Result<Vec<Knowledge<Self::Value>>>;
@@ -105,7 +105,7 @@ pub trait App: Send + Sync + 'static {
     type ProviderService: ProviderService;
 
     /// The concrete type implementing learning repository capabilities
-    type KnowledgeService: KnowledgeService;
+    type TextualKnowledgeService: KnowledgeService;
 
     /// The concrete type implementing conversation repository capabilities
     type ConversationService: ConversationService;
@@ -117,7 +117,7 @@ pub trait App: Send + Sync + 'static {
     fn provider_service(&self) -> &Self::ProviderService;
 
     /// Get a reference to the learning repository instance
-    fn information_service(&self) -> &Self::KnowledgeService;
+    fn information_service(&self) -> &Self::TextualKnowledgeService;
 
     fn conversation_service(&self) -> &Self::ConversationService;
 }

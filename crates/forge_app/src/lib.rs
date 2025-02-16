@@ -7,7 +7,7 @@ mod tool_service;
 use std::path::Path;
 
 pub use app::*;
-use forge_domain::Knowledge;
+use forge_domain::{Knowledge, KnowledgeId};
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -32,28 +32,13 @@ pub trait FileReadService: Send + Sync {
     async fn read(&self, path: &Path) -> anyhow::Result<String>;
 }
 
-pub struct InformationId(Uuid);
-impl InformationId {
-    pub fn generate() -> Self {
-        InformationId(Uuid::new_v4())
-    }
-
-    pub fn into_uuid(self) -> Uuid {
-        self.0
-    }
-}
-pub struct Information {
-    pub id: InformationId,
-    pub embedding: Vec<f32>,
-    pub value: Value,
-}
-
 #[async_trait::async_trait]
 pub trait InformationRepository: Send + Sync {
-    async fn upsert(&self, information: Vec<Information>) -> anyhow::Result<()>;
-    async fn drop(&self, ids: Vec<InformationId>) -> anyhow::Result<()>;
-    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge>>;
-    async fn list(&self) -> anyhow::Result<Vec<Knowledge>>;
+    type Value;
+    async fn upsert(&self, information: Vec<Knowledge<Self::Value>>) -> anyhow::Result<()>;
+    async fn drop(&self, ids: Vec<KnowledgeId>) -> anyhow::Result<()>;
+    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge<Self::Value>>>;
+    async fn list(&self) -> anyhow::Result<Vec<Knowledge<Self::Value>>>;
 }
 
 pub trait Infrastructure: Send + Sync + 'static {
@@ -63,5 +48,5 @@ pub trait Infrastructure: Send + Sync + 'static {
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
-    fn information_repo(&self) -> &Self::InformationRepository;
+    fn textual_knowledge_repo(&self) -> &Self::InformationRepository;
 }

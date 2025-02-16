@@ -3,7 +3,7 @@ use std::sync::Arc;
 use forge_domain::App;
 
 use crate::conversation::ForgeConversationService;
-use crate::knowledge::ForgeKnowledgeService;
+use crate::knowledge::TextualKnowledgeService;
 use crate::provider::ForgeProviderService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
@@ -12,7 +12,7 @@ pub struct ForgeApp<F> {
     infra: Arc<F>,
     _tool_service: ForgeToolService,
     _provider_service: ForgeProviderService,
-    _knowledge_service: ForgeKnowledgeService<F>,
+    _textual_knowledge_service: TextualKnowledgeService<F>,
     _conversation_service: ForgeConversationService,
 }
 
@@ -22,7 +22,7 @@ impl<F: Infrastructure> ForgeApp<F> {
             infra: infra.clone(),
             _tool_service: ForgeToolService::new(infra.clone()),
             _provider_service: ForgeProviderService::new(infra.clone()),
-            _knowledge_service: ForgeKnowledgeService::new(infra.clone()),
+            _textual_knowledge_service: TextualKnowledgeService::new(infra.clone()),
             _conversation_service: ForgeConversationService::new(),
         }
     }
@@ -31,7 +31,7 @@ impl<F: Infrastructure> ForgeApp<F> {
 impl<F: Infrastructure> App for ForgeApp<F> {
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
-    type KnowledgeService = ForgeKnowledgeService<F>;
+    type TextualKnowledgeService = TextualKnowledgeService<F>;
     type ConversationService = ForgeConversationService;
 
     fn tool_service(&self) -> &Self::ToolService {
@@ -42,8 +42,8 @@ impl<F: Infrastructure> App for ForgeApp<F> {
         &self._provider_service
     }
 
-    fn information_service(&self) -> &Self::KnowledgeService {
-        &self._knowledge_service
+    fn information_service(&self) -> &Self::TextualKnowledgeService {
+        &self._textual_knowledge_service
     }
 
     fn conversation_service(&self) -> &Self::ConversationService {
@@ -64,7 +64,7 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
         self.infra.file_read_service()
     }
 
-    fn information_repo(&self) -> &Self::InformationRepository {
-        self.infra.information_repo()
+    fn textual_knowledge_repo(&self) -> &Self::InformationRepository {
+        self.infra.textual_knowledge_repo()
     }
 }

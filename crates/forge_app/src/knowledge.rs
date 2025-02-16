@@ -6,12 +6,12 @@ use rust_bert::pipelines::sentence_embeddings::{
 };
 use serde_json::Value;
 
-use crate::{Information, InformationId, InformationRepository, Infrastructure};
+use crate::{InformationRepository, Infrastructure, KnowledgeId};
 
-pub struct ForgeKnowledgeService<F> {
+pub struct TextualKnowledgeService<F> {
     infra: Arc<F>,
 }
-impl<F> ForgeKnowledgeService<F> {
+impl<F> TextualKnowledgeService<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self { infra }
     }
@@ -29,26 +29,29 @@ impl<F> ForgeKnowledgeService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> KnowledgeService for ForgeKnowledgeService<F> {
-    async fn search(&self, query: Query) -> anyhow::Result<Vec<Knowledge>> {
+impl<F: Infrastructure> KnowledgeService for TextualKnowledgeService<F> {
+    type Value = String;
+
+    async fn search(&self, query: Query) -> anyhow::Result<Vec<Self::Value>> {
         let embedding = self.encode(&query.input)?;
-        self.infra.information_repo().search(embedding).await
+        self.infra.textual_knowledge_repo().search(embedding).await
     }
 
-    async fn store(&self, content: &str) -> anyhow::Result<()> {
-        let embedding = self.encode(content)?;
-        let info = Information {
-            id: InformationId::generate(),
-            embedding,
-            value: Value::from(content),
-        };
+    async fn store(&self, content: Vec<Self::Value>) -> anyhow::Result<()> {
+        let knows = content
+            .into_iter()
+            .map(|content| {
+                let embedding = self.encode(content.as_str())?;
+                let info = Knowledge::new(content, embedding);
+            })
+            .collect::<Vec<_>>();
 
-        self.infra.information_repo().upsert(vec![info]).await?;
+        self.infra.textual_knowledge_repo().upsert(knows).await?;
 
         Ok(())
     }
 
-    async fn list(&self) -> anyhow::Result<Vec<Knowledge>> {
-        self.infra.information_repo().list().await
+    async fn list(&self) -> anyhow::Result<Vec<Knowledge<Self::Value>>> {
+        self.infra.textual_knowledge_repo().list().await
     }
 }
