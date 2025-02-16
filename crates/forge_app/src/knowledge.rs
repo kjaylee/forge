@@ -4,8 +4,9 @@ use forge_domain::{Knowledge, KnowledgeService, Query};
 use rust_bert::pipelines::sentence_embeddings::{
     SentenceEmbeddingsBuilder, SentenceEmbeddingsModel, SentenceEmbeddingsModelType,
 };
+use serde_json::Value;
 
-use crate::{InformationRepository, Infrastructure};
+use crate::{Information, InformationId, InformationRepository, Infrastructure};
 
 pub struct ForgeKnowledgeService<F> {
     infra: Arc<F>,
@@ -36,10 +37,15 @@ impl<F: Infrastructure> KnowledgeService for ForgeKnowledgeService<F> {
 
     async fn store(&self, content: &str) -> anyhow::Result<()> {
         let embedding = self.encode(content)?;
-        self.infra
-            .information_repo()
-            .insert(content, &embedding)
-            .await
+        let info = Information {
+            id: InformationId::generate(),
+            embedding,
+            value: Value::from(content),
+        };
+
+        self.infra.information_repo().upsert(vec![info]).await?;
+
+        Ok(())
     }
 
     async fn list(&self) -> anyhow::Result<Vec<Knowledge>> {

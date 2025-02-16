@@ -8,6 +8,8 @@ use std::path::Path;
 
 pub use app::*;
 use forge_domain::Knowledge;
+use serde_json::Value;
+use uuid::Uuid;
 
 /// Repository for accessing system environment information
 #[async_trait::async_trait]
@@ -30,9 +32,26 @@ pub trait FileReadService: Send + Sync {
     async fn read(&self, path: &Path) -> anyhow::Result<String>;
 }
 
+pub struct InformationId(Uuid);
+impl InformationId {
+    pub fn generate() -> Self {
+        InformationId(Uuid::new_v4())
+    }
+
+    pub fn into_uuid(self) -> Uuid {
+        self.0
+    }
+}
+pub struct Information {
+    pub id: InformationId,
+    pub embedding: Vec<f32>,
+    pub value: Value,
+}
+
 #[async_trait::async_trait]
 pub trait InformationRepository: Send + Sync {
-    async fn insert(&self, content: &str, embedding: &[f32]) -> anyhow::Result<()>;
+    async fn upsert(&self, information: Vec<Information>) -> anyhow::Result<()>;
+    async fn drop(&self, ids: Vec<InformationId>) -> anyhow::Result<()>;
     async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge>>;
     async fn list(&self) -> anyhow::Result<Vec<Knowledge>>;
 }
