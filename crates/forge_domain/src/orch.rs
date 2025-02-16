@@ -4,6 +4,7 @@ use std::sync::Arc;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use tokio_retry::Retry;
 
 use crate::*;
 
@@ -21,6 +22,7 @@ pub struct Orchestrator<App> {
     chat_request: ChatRequest,
 }
 
+#[derive(Debug)]
 struct ChatCompletionResult {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
@@ -119,7 +121,6 @@ impl<A: App> Orchestrator<A> {
             + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
-
         while let Some(message) = response.next().await {
             let message = message?;
             messages.push(message.clone());
@@ -305,17 +306,23 @@ impl<A: App> Orchestrator<A> {
             .user_prompt
             .render(&UserContext::from(event.clone()))?;
         context = context.add_message(ContextMessage::user(content));
-
+        let retry_stategy = tokio_retry::strategy::ExponentialBackoff::from_millis(100)
+            .max_delay(std::time::Duration::from_secs(10))
+            .map(tokio_retry::strategy::jitter)
+            .take(5);
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
 
-            let response = self
-                .app
-                .provider_service()
-                .chat(&agent.model, context.clone())
-                .await?;
-            let ChatCompletionResult { tool_calls, content } =
-                self.collect_messages(&agent.id, response).await?;
+            let result = Retry::spawn(retry_stategy.clone(), || async {
+                let response = self
+                    .app
+                    .provider_service()
+                    .chat(&agent.model, context.clone())
+                    .await?;
+                self.collect_messages(&agent.id, response).await
+            })
+            .await?;
+            let ChatCompletionResult { tool_calls, content } = result;
 
             let mut tool_results = Vec::new();
 
