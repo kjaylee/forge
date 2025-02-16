@@ -141,13 +141,12 @@ impl NamedTool for Think {
 #[async_trait::async_trait]
 impl ExecutableTool for Think {
     type Input = ThoughtInput;
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let mut thinker = self.clone();
         let thought_number = input.thought_number;
         let thought_result = thinker
             .process_thought(input)
-            .with_context(|| format!("Failed to process thought #{}", thought_number))
-            .map_err(|e| e.to_string())?;
-        serde_json::to_string(&thought_result).map_err(|e| e.to_string())
+            .with_context(|| format!("Failed to process thought #{}", thought_number))?;
+        Ok(serde_json::to_string(&thought_result)?)
     }
 }

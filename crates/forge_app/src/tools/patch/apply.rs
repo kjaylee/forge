@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use anyhow::bail;
 use dissimilar::Chunk;
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
@@ -143,21 +144,20 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 impl ExecutableTool for ApplyPatch {
     type Input = ApplyPatchInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
         if !path.exists() {
-            return Err(Error::FileNotFound(path.to_path_buf()).to_string());
+            bail!(Error::FileNotFound(path.to_path_buf()));
         }
 
-        let blocks = parse::parse_blocks(&input.diff).map_err(|e| e.to_string())?;
+        let blocks = parse::parse_blocks(&input.diff)?;
 
         // Read the content of the file before applying the patch
         let old_content = fs::read_to_string(&input.path)
             .await
-            .map_err(Error::FileOperation)
-            .map_err(|e| e.to_string())?;
+            .map_err(Error::FileOperation)?;
 
         let result = async {
             let modified = apply_patches(old_content.clone(), blocks).await?;
@@ -182,16 +182,14 @@ impl ExecutableTool for ApplyPatch {
                     modified.trim_end()
                 )
             };
-            Ok(output)
+            anyhow::Ok(output)
         }
-        .await
-        .map_err(|e: Error| e.to_string())?;
+         .await?;
 
         // record the content of the file after applying the patch
         let new_content = fs::read_to_string(path)
             .await
-            .map_err(Error::FileOperation)
-            .map_err(|e| e.to_string())?;
+            .map_err(Error::FileOperation)?;
         // Generate diff between old and new content
         let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
@@ -240,7 +238,7 @@ mod test {
             })
             .await;
 
-        assert!(result.unwrap_err().contains("File not found"));
+        assert!(result.unwrap_err().to_string().contains("File not found"));
     }
 
     #[tokio::test]
@@ -541,6 +539,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

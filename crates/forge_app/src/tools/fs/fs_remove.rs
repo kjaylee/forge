@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use anyhow::Context;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -29,24 +30,24 @@ impl NamedTool for FSRemove {
 impl ExecutableTool for FSRemove {
     type Input = FSRemoveInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
         // Check if the file exists
         if !path.exists() {
-            return Err(format!("File not found: {}", input.path));
+            return Err(anyhow::anyhow!("File not found: {}", input.path));
         }
 
         // Check if it's a file
         if !path.is_file() {
-            return Err(format!("Path is not a file: {}", input.path));
+            return Err(anyhow::anyhow!("Path is not a file: {}", input.path));
         }
 
         // Remove the file
         tokio::fs::remove_file(&input.path)
             .await
-            .map_err(|e| format!("Failed to remove file {}: {}", input.path, e))?;
+            .with_context(|| format!("Failed to remove file {}", input.path))?;
 
         Ok(format!("Successfully removed file: {}", input.path))
     }
@@ -90,7 +91,7 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("File not found"));
+        assert!(result.unwrap_err().to_string().contains("File not found"));
     }
 
     #[tokio::test]
@@ -108,7 +109,10 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path is not a file"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path is not a file"));
         assert!(dir_path.exists());
     }
 
@@ -120,6 +124,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

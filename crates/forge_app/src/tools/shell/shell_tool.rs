@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::bail;
 use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -23,7 +23,7 @@ pub struct ShellInput {
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
 /// empty.
-fn format_output(output: Output) -> Result<String, String> {
+fn format_output(output: Output) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
 
     if !output.stdout.trim().is_empty() {
@@ -50,7 +50,7 @@ fn format_output(output: Output) -> Result<String, String> {
     if output.success {
         Ok(result)
     } else {
-        Err(result)
+        Err(anyhow::anyhow!(result))
     }
 }
 
@@ -81,10 +81,10 @@ impl NamedTool for Shell {
 impl ExecutableTool for Shell {
     type Input = ShellInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
-            return Err("Command string is empty or contains only whitespace".to_string());
+            bail!("Command string is empty or contains only whitespace".to_string());
         }
 
         let parameter = if cfg!(target_os = "windows") {
@@ -116,13 +116,7 @@ impl ExecutableTool for Shell {
         // Kill the command when the handler is dropped
         command.kill_on_drop(true);
 
-        format_output(
-            CommandExecutor::new(command)
-                .colored()
-                .execute()
-                .await
-                .map_err(|e| e.to_string())?,
-        )
+        format_output(CommandExecutor::new(command).colored().execute().await?)
     }
 }
 
@@ -253,7 +247,7 @@ mod tests {
         // Check if any of the platform-specific patterns match
         let matches_pattern = COMMAND_NOT_FOUND_PATTERNS
             .iter()
-            .any(|&pattern| err.contains(pattern));
+            .any(|&pattern| err.to_string().contains(pattern));
 
         assert!(
             matches_pattern,
@@ -270,7 +264,7 @@ mod tests {
             .await;
         assert!(result.is_err());
         assert_eq!(
-            result.unwrap_err(),
+            result.unwrap_err().to_string(),
             "Command string is empty or contains only whitespace"
         );
     }

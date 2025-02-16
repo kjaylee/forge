@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use anyhow::Context;
 use forge_display::{GrepFormat, Kind, TitleFormat};
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -53,17 +54,18 @@ impl NamedTool for FSSearch {
 impl ExecutableTool for FSSearch {
     type Input = FSSearchInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
         if !dir.exists() {
-            return Err(format!("Directory '{}' does not exist", input.path));
+            return Err(anyhow::anyhow!("Directory '{}' does not exist", input.path));
         }
 
         // Create regex pattern - case-insensitive by default
         let pattern = format!("(?i){}", input.regex);
-        let regex = Regex::new(&pattern).map_err(|e| format!("Invalid regex pattern: {}", e))?;
+        let regex = Regex::new(&pattern)
+            .with_context(|| format!("Invalid regex pattern: {}", input.regex))?;
 
         // TODO: Current implementation is extremely slow and inefficient.
         // It should ideally be taking in a stream of files and processing them
@@ -73,7 +75,7 @@ impl ExecutableTool for FSSearch {
         let files = walker
             .get()
             .await
-            .map_err(|e| format!("Failed to walk directory '{}': {}", dir.display(), e))?;
+            .with_context(|| format!("Failed to walk directory '{}'", dir.display()))?;
 
         let mut matches = Vec::new();
         let mut seen_paths = HashSet::new();
@@ -88,12 +90,11 @@ impl ExecutableTool for FSSearch {
 
             // Apply file pattern filter if provided
             if let Some(ref pattern) = input.file_pattern {
-                let glob = glob::Pattern::new(pattern).map_err(|e| {
+                let glob = glob::Pattern::new(pattern).with_context(|| {
                     format!(
-                        "Invalid glob pattern '{}' for file '{}': {}",
+                        "Invalid glob pattern '{}' for file '{}'",
                         pattern,
                         full_path.display(),
-                        e
                     )
                 })?;
                 if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
@@ -324,7 +325,10 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid regex pattern"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid regex pattern"));
     }
 
     #[tokio::test]
@@ -339,6 +343,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

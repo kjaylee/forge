@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use anyhow::Context;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -32,13 +33,13 @@ impl NamedTool for FSRead {
 impl ExecutableTool for FSRead {
     type Input = FSReadInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
         tokio::fs::read_to_string(path)
             .await
-            .map_err(|e| format!("Failed to read file content from {}: {}", input.path, e))
+            .with_context(|| format!("Failed to read file content from {}", input.path))
     }
 }
 
@@ -108,6 +109,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

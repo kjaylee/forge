@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use forge_display::TitleFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription};
 use forge_tool_macros::ToolDescription;
@@ -153,13 +153,11 @@ impl Fetch {
 impl ExecutableTool for Fetch {
     type Input = FetchInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
-        let url = Url::parse(&input.url).map_err(|e| format!("Failed to parse URL: {}", e))?;
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        let url = Url::parse(&input.url)
+            .with_context(|| format!("Failed to parse URL: {}", input.url))?;
 
-        let (content, prefix) = self
-            .fetch_url(&url, input.raw.unwrap_or(false))
-            .await
-            .map_err(|e| e.to_string())?;
+        let (content, prefix) = self.fetch_url(&url, input.raw.unwrap_or(false)).await?;
 
         let original_length = content.len();
         let start_index = input.start_index.unwrap_or(0);
@@ -303,7 +301,7 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
-            err.contains("robots.txt"),
+            err.to_string().contains("robots.txt"),
             "Expected error containing 'robots.txt', got: {}",
             err
         );
@@ -367,8 +365,9 @@ mod tests {
         };
 
         let result = rt.block_on(fetch.call(input));
+
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("parse"));
+        assert!(result.unwrap_err().to_string().contains("parse"));
     }
 
     #[tokio::test]
@@ -393,6 +392,6 @@ mod tests {
 
         let result = fetch.call(input).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("404"));
+        assert!(result.unwrap_err().to_string().contains("404"));
     }
 }

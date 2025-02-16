@@ -39,12 +39,12 @@ impl NamedTool for FSList {
 impl ExecutableTool for FSList {
     type Input = FSListInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
         if !dir.exists() {
-            return Err(format!("Directory '{}' does not exist", input.path));
+            return Err(anyhow::anyhow!("Directory '{}' does not exist", input.path));
         }
 
         let mut paths = Vec::new();
@@ -58,8 +58,7 @@ impl ExecutableTool for FSList {
         let mut files = walker
             .get()
             .await
-            .with_context(|| format!("Failed to read directory contents from '{}'", input.path))
-            .map_err(|e| e.to_string())?;
+            .with_context(|| format!("Failed to read directory contents from '{}'", input.path))?;
 
         // Sort the files for consistent snapshots
         if self.sorted {
@@ -229,6 +228,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

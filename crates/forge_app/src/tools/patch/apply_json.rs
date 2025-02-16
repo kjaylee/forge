@@ -216,13 +216,11 @@ async fn process_file_modifications(
 impl ExecutableTool for ApplyPatchJson {
     type Input = ApplyPatchJsonInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        process_file_modifications(path, input.replacements)
-            .await
-            .map_err(|e| e.to_string())
+        Ok(process_file_modifications(path, input.replacements).await?)
     }
 }
 

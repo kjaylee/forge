@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use anyhow::Context;
 use forge_display::DiffFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
@@ -36,7 +37,7 @@ impl NamedTool for FSWrite {
 impl ExecutableTool for FSWrite {
     type Input = FSWriteInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -48,24 +49,20 @@ impl ExecutableTool for FSWrite {
         if let Some(parent) = Path::new(&input.path).parent() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| format!("Failed to create directories: {}", e))?;
+                .with_context(|| format!("Failed to create directories: {}", input.path))?;
         }
 
         // record the file content before they're modified
         let old_content = if path.is_file() {
             // if file already exists, we should be able to read it.
-            tokio::fs::read_to_string(path)
-                .await
-                .map_err(|e| e.to_string())?
+            tokio::fs::read_to_string(path).await?
         } else {
             // if file doesn't exist, we should record it as an empty string.
             "".to_string()
         };
 
         // Write file only after validation passes and directories are created
-        tokio::fs::write(&input.path, &input.content)
-            .await
-            .map_err(|e| e.to_string())?;
+        tokio::fs::write(&input.path, &input.content).await?;
 
         let mut result = format!(
             "Successfully wrote {} bytes to {}",
@@ -78,9 +75,7 @@ impl ExecutableTool for FSWrite {
         }
 
         // record the file content after they're modified
-        let new_content = tokio::fs::read_to_string(path)
-            .await
-            .map_err(|e| e.to_string())?;
+        let new_content = tokio::fs::read_to_string(path).await?;
         let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
         println!("{}", diff);
 
@@ -267,6 +262,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

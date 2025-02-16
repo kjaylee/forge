@@ -1,5 +1,6 @@
 use forge_app::{EnvironmentService, Infrastructure};
 
+use crate::embedding::ForgeEmbeddingService;
 use crate::env::ForgeEnvironmentService;
 use crate::file_read::ForgeFileReadService;
 use crate::knowledge::ForgeKnowledgeRepository;
@@ -8,6 +9,7 @@ pub struct ForgeInfra {
     _file_read_service: ForgeFileReadService,
     _environment_service: ForgeEnvironmentService,
     _information_repo: ForgeKnowledgeRepository,
+    _embedding_service: ForgeEmbeddingService,
 }
 
 impl ForgeInfra {
@@ -18,6 +20,7 @@ impl ForgeInfra {
             _file_read_service: ForgeFileReadService::new(),
             _environment_service,
             _information_repo: ForgeKnowledgeRepository::new(env, "shell_collection", 1024),
+            _embedding_service: ForgeEmbeddingService::new(),
         }
     }
 }
@@ -26,6 +29,7 @@ impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
     type KnowledgeRepository = ForgeKnowledgeRepository;
+    type EmbeddingService = ForgeEmbeddingService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self._environment_service
@@ -37,5 +41,9 @@ impl Infrastructure for ForgeInfra {
 
     fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
         &self._information_repo
+    }
+
+    fn embedding_service(&self) -> &Self::EmbeddingService {
+        &self._embedding_service
     }
 }

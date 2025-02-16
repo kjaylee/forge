@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Knowledge, NamedTool, Query, ToolDescription, ToolName};
 use schemars::JsonSchema;
+use serde_json::Value;
 
-use crate::Infrastructure;
+use crate::{EmbeddingService, Infrastructure, KnowledgeRepository};
 
 pub struct RecallKnowledge<F> {
     infra: Arc<F>,
@@ -30,8 +31,18 @@ pub struct GetKnowledgeInput {
 impl<F: Infrastructure> ExecutableTool for RecallKnowledge<F> {
     type Input = GetKnowledgeInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
-        todo!()
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        let out = self
+            .infra
+            .textual_knowledge_repo()
+            .search(Query::new(input.query))
+            .await?
+            .into_iter()
+            .map(|k| serde_json::to_string(&k.content))
+            .collect::<Result<Vec<_>, _>>()?
+            .join("\n");
+
+        Ok(out)
     }
 }
 
@@ -66,8 +77,15 @@ pub struct StoreKnowledgeInput {
 impl<F: Infrastructure> ExecutableTool for StoreKnowledge<F> {
     type Input = StoreKnowledgeInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
-        todo!()
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        let embedding = self.infra.embedding_service().embed(&input.content).await?;
+        let knowledge = Knowledge::new(Value::from(input.content), embedding);
+        self.infra
+            .textual_knowledge_repo()
+            .store(vec![knowledge])
+            .await?;
+
+        Ok("Updated knowledge successfully".to_string())
     }
 }
 

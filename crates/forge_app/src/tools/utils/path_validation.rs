@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use anyhow::bail;
+
 /// Ensures that the given path is absolute
 ///
 /// # Arguments
@@ -8,9 +10,9 @@ use std::path::Path;
 /// # Returns
 /// * `Ok(())` if the path is absolute
 /// * `Err(String)` with an error message if the path is relative
-pub fn assert_absolute_path(path: &Path) -> Result<(), String> {
+pub fn assert_absolute_path(path: &Path) -> anyhow::Result<()> {
     if !path.is_absolute() {
-        Err("Path must be absolute. Please provide an absolute path starting with '/' (Unix) or 'C:\\' (Windows)".to_string())
+        bail!("Path must be absolute. Please provide an absolute path starting with '/' (Unix) or 'C:\\' (Windows)".to_string())
     } else {
         Ok(())
     }

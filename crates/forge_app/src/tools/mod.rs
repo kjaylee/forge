@@ -1,6 +1,5 @@
 mod fetch;
 mod fs;
-#[allow(unused)]
 mod knowledge;
 mod patch;
 mod shell;
@@ -23,7 +22,6 @@ use crate::{EnvironmentService, Infrastructure};
 pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
     let env = infra.environment_service().get_environment();
     vec![
-        // Approve.into(),
         FSRead.into(),
         FSWrite.into(),
         FSRemove.into(),
@@ -49,7 +47,7 @@ mod tests {
     use serde_json::Value;
 
     use super::*;
-    use crate::{FileReadService, KnowledgeRepository};
+    use crate::{EmbeddingService, FileReadService, KnowledgeRepository};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -74,6 +72,14 @@ mod tests {
     struct Stub {
         env: Environment,
     }
+
+    #[async_trait::async_trait]
+    impl EmbeddingService for Stub {
+        async fn embed(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
+            unimplemented!()
+        }
+    }
+
     #[async_trait::async_trait]
     impl EnvironmentService for Stub {
         fn get_environment(&self) -> Environment {
@@ -109,6 +115,7 @@ mod tests {
         type EnvironmentService = Stub;
         type FileReadService = Stub;
         type KnowledgeRepository = Stub;
+        type EmbeddingService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -119,6 +126,10 @@ mod tests {
         }
 
         fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
+            self
+        }
+
+        fn embedding_service(&self) -> &Self::EmbeddingService {
             self
         }
     }

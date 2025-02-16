@@ -32,14 +32,13 @@ impl NamedTool for FSFileInfo {
 impl ExecutableTool for FSFileInfo {
     type Input = FSFileInfoInput;
 
-    async fn call(&self, input: Self::Input) -> Result<String, String> {
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
         let meta = tokio::fs::metadata(&input.path)
             .await
-            .with_context(|| format!("Failed to get metadata for '{}'", input.path))
-            .map_err(|e| e.to_string())?;
+            .with_context(|| format!("Failed to get metadata for '{}'", input.path))?;
         Ok(format!("{:?}", meta))
     }
 }
@@ -106,6 +105,9 @@ mod test {
             .await;
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Path must be absolute"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Path must be absolute"));
     }
 }

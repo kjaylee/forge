@@ -39,12 +39,19 @@ pub trait KnowledgeRepository<T>: Send + Sync {
     async fn list(&self) -> anyhow::Result<Vec<Knowledge<T>>>;
 }
 
+#[async_trait::async_trait]
+pub trait EmbeddingService: Send + Sync {
+    async fn embed(&self, text: &str) -> anyhow::Result<Vec<f32>>;
+}
+
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
     type KnowledgeRepository: KnowledgeRepository<Value>;
+    type EmbeddingService: EmbeddingService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
     fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository;
+    fn embedding_service(&self) -> &Self::EmbeddingService;
 }
