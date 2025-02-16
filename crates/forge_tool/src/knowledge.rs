@@ -26,7 +26,7 @@ impl<F: App> ExecutableTool for RecallKnowledge<F> {
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         let learnings = self
             .app
-            .information_service()
+            .textual_knowledge_service()
             .search(Query::new(input.query))
             .await
             .map_err(|e| e.to_string())?;
@@ -66,8 +66,8 @@ impl<F: App> ExecutableTool for StoreKnowledge<F> {
 
     async fn call(&self, input: Self::Input) -> Result<String, String> {
         self.app
-            .information_service()
-            .store(&input.content)
+            .textual_knowledge_service()
+            .store(vec![input.content.to_string()])
             .await
             .map_err(|e| e.to_string())?;
 

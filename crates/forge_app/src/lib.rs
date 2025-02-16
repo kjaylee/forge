@@ -9,7 +9,6 @@ use std::path::Path;
 pub use app::*;
 use forge_domain::{Knowledge, KnowledgeId};
 use serde_json::Value;
-use uuid::Uuid;
 
 /// Repository for accessing system environment information
 #[async_trait::async_trait]
@@ -33,18 +32,17 @@ pub trait FileReadService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait InformationRepository: Send + Sync {
-    type Value;
-    async fn upsert(&self, information: Vec<Knowledge<Self::Value>>) -> anyhow::Result<()>;
+pub trait InformationRepository<T>: Send + Sync {
+    async fn upsert(&self, information: Vec<Knowledge<T>>) -> anyhow::Result<()>;
     async fn drop(&self, ids: Vec<KnowledgeId>) -> anyhow::Result<()>;
-    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge<Self::Value>>>;
-    async fn list(&self) -> anyhow::Result<Vec<Knowledge<Self::Value>>>;
+    async fn search(&self, embedding: Vec<f32>) -> anyhow::Result<Vec<Knowledge<T>>>;
+    async fn list(&self) -> anyhow::Result<Vec<Knowledge<T>>>;
 }
 
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
-    type InformationRepository: InformationRepository;
+    type InformationRepository: InformationRepository<Value>;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;

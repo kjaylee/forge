@@ -37,6 +37,19 @@ impl<C> Knowledge<C> {
             updated_at: now,
         }
     }
+
+    pub fn try_map<D, E>(
+        self,
+        f: impl FnOnce(C) -> std::result::Result<D, E>,
+    ) -> std::result::Result<Knowledge<D>, E> {
+        Ok(Knowledge {
+            content: f(self.content)?,
+            id: self.id,
+            embedding: self.embedding,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Setters)]

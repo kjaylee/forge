@@ -42,7 +42,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
         &self._provider_service
     }
 
-    fn information_service(&self) -> &Self::TextualKnowledgeService {
+    fn textual_knowledge_service(&self) -> &Self::TextualKnowledgeService {
         &self._textual_knowledge_service
     }
 

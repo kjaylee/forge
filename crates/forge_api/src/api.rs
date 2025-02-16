@@ -70,8 +70,4 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     async fn load(&self, path: &Path) -> anyhow::Result<Workflow> {
         self._loader.load(path).await
     }
-
-    async fn information(&self) -> anyhow::Result<Vec<Knowledge>> {
-        self.app.information_service().list().await
-    }
 }

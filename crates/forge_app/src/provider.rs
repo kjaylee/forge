@@ -18,7 +18,12 @@ pub struct ForgeProviderService {
 impl ForgeProviderService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
         let or = OpenRouter::builder()
-            .api_key(infra.environment_service().get_environment().open_router_key)
+            .api_key(
+                infra
+                    .environment_service()
+                    .get_environment()
+                    .open_router_key,
+            )
             .build()
             .unwrap();
         Self { or, cache: Cache::new(1024) }

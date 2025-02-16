@@ -6,7 +6,7 @@ use rust_bert::pipelines::sentence_embeddings::{
 };
 use serde_json::Value;
 
-use crate::{InformationRepository, Infrastructure, KnowledgeId};
+use crate::{InformationRepository, Infrastructure};
 
 pub struct TextualKnowledgeService<F> {
     infra: Arc<F>,
@@ -29,29 +29,41 @@ impl<F> TextualKnowledgeService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> KnowledgeService for TextualKnowledgeService<F> {
-    type Value = String;
-
-    async fn search(&self, query: Query) -> anyhow::Result<Vec<Self::Value>> {
+impl<F: Infrastructure> KnowledgeService<String> for TextualKnowledgeService<F> {
+    async fn search(&self, query: Query) -> anyhow::Result<Vec<Knowledge<String>>> {
         let embedding = self.encode(&query.input)?;
-        self.infra.textual_knowledge_repo().search(embedding).await
+        let results = self
+            .infra
+            .textual_knowledge_repo()
+            .search(embedding)
+            .await?;
+        Ok(results
+            .into_iter()
+            .map(|k| Ok(k.try_map(|v| serde_json::to_string(&v))?))
+            .collect::<anyhow::Result<Vec<_>>>()?)
     }
 
-    async fn store(&self, content: Vec<Self::Value>) -> anyhow::Result<()> {
+    async fn store(&self, content: Vec<String>) -> anyhow::Result<()> {
         let knows = content
             .into_iter()
             .map(|content| {
                 let embedding = self.encode(content.as_str())?;
-                let info = Knowledge::new(content, embedding);
+                Ok(Knowledge::new(Value::from(content), embedding))
             })
-            .collect::<Vec<_>>();
+            .collect::<anyhow::Result<Vec<_>>>()?;
 
         self.infra.textual_knowledge_repo().upsert(knows).await?;
 
         Ok(())
     }
 
-    async fn list(&self) -> anyhow::Result<Vec<Knowledge<Self::Value>>> {
-        self.infra.textual_knowledge_repo().list().await
+    async fn list(&self) -> anyhow::Result<Vec<Knowledge<String>>> {
+        self.infra
+            .textual_knowledge_repo()
+            .list()
+            .await?
+            .into_iter()
+            .map(|k| Ok(k.try_map(|v| serde_json::to_string(&v))?))
+            .collect::<anyhow::Result<Vec<_>>>()
     }
 }
