@@ -153,12 +153,7 @@ impl<F: API> UI<F> {
 
         let chat = ChatRequest { content: content.clone(), conversation_id };
 
-        tokio::spawn({
-            let content = content.clone();
-            async move {
-                let _ = TRACKER.dispatch(EventKind::Prompt(content)).await;
-            }
-        });
+        tokio::spawn(TRACKER.dispatch(EventKind::Prompt(content)));
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
