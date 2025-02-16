@@ -39,6 +39,7 @@ pub use message::*;
 pub use model::*;
 pub use orch::*;
 pub use prompt::*;
+use serde::Serialize;
 pub use summarize::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -82,6 +83,15 @@ pub trait ConversationService: Send + Sync {
     ) -> anyhow::Result<()>;
 }
 
+#[async_trait::async_trait]
+pub trait PromptService: Send + Sync {
+    async fn render<T: Serialize + Send + Sync>(
+        &self,
+        prompt: &Prompt<T>,
+        value: &T,
+    ) -> anyhow::Result<String>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -89,8 +99,10 @@ pub trait App: Send + Sync + 'static {
     type ToolService: ToolService;
     type ProviderService: ProviderService;
     type ConversationService: ConversationService;
+    type PromptService: PromptService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
+    fn prompt_service(&self) -> &Self::PromptService;
 }

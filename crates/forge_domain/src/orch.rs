@@ -99,9 +99,14 @@ impl<A: App> Orchestrator<A> {
             .tool_supported;
         system_context.tool_supported = Some(tool_supported);
 
-        let system_message = agent
-            .system_prompt
-            .render(&system_context.tool_information(tool_usage_prompt))?;
+        let system_message = self
+            .app
+            .prompt_service()
+            .render(
+                &agent.system_prompt,
+                &system_context.tool_information(tool_usage_prompt),
+            )
+            .await?;
 
         Ok(Context::default()
             .set_first_system_message(system_message)
@@ -301,9 +306,12 @@ impl<A: App> Orchestrator<A> {
             }
         };
 
-        let content = agent
-            .user_prompt
-            .render(&UserContext::from(event.clone()))?;
+        let content = self
+            .app
+            .prompt_service()
+            .render(&agent.user_prompt, &UserContext::from(event.clone()))
+            .await?;
+
         context = context.add_message(ContextMessage::user(content));
 
         loop {
