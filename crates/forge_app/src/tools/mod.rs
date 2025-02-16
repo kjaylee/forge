@@ -13,6 +13,7 @@ use std::sync::Arc;
 use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
+use knowledge::{RecallKnowledge, StoreKnowledge};
 use patch::*;
 use shell::Shell;
 use think::Think;
@@ -35,6 +36,8 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
         Shell::new(env.clone()).into(),
         Think::default().into(),
         Fetch::default().into(),
+        RecallKnowledge::new(infra.clone()).into(),
+        StoreKnowledge::new(infra.clone()).into(),
     ]
 }
 

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use schemars::JsonSchema;
 
 use crate::Infrastructure;
 
@@ -14,7 +15,13 @@ impl<F> ToolDescription for RecallKnowledge<F> {
     }
 }
 
-#[derive(serde::Deserialize)]
+impl<F> RecallKnowledge<F> {
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { infra }
+    }
+}
+
+#[derive(serde::Deserialize, JsonSchema)]
 pub struct GetKnowledgeInput {
     pub query: String,
 }
@@ -38,13 +45,19 @@ pub struct StoreKnowledge<F> {
     infra: Arc<F>,
 }
 
+impl<F> StoreKnowledge<F> {
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { infra }
+    }
+}
+
 impl<F> ToolDescription for StoreKnowledge<F> {
     fn description(&self) -> String {
         "Set knowledge to the app".to_string()
     }
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, JsonSchema)]
 pub struct StoreKnowledgeInput {
     pub content: String,
 }
