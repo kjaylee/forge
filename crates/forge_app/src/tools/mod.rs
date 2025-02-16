@@ -8,14 +8,19 @@ mod syn;
 mod think;
 mod utils;
 
+use std::sync::Arc;
+
 use fetch::Fetch;
-use forge_domain::{Environment, Tool};
+use forge_domain::Tool;
 use fs::*;
 use patch::*;
 use shell::Shell;
 use think::Think;
 
-pub fn tools(env: &Environment) -> Vec<Tool> {
+use crate::{EnvironmentService, Infrastructure};
+
+pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
+    let env = infra.environment_service().get_environment();
     vec![
         // Approve.into(),
         FSRead.into(),
@@ -27,8 +32,6 @@ pub fn tools(env: &Environment) -> Vec<Tool> {
         // TODO: once ApplyPatchJson is stable we can delete ApplyPatch
         ApplyPatch.into(),
         // ApplyPatchJson.into(),
-        // Outline.into(),
-        // SelectTool.into(),
         Shell::new(env.clone()).into(),
         Think::default().into(),
         Fetch::default().into(),
@@ -37,25 +40,83 @@ pub fn tools(env: &Environment) -> Vec<Tool> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
+
+    use forge_domain::{Environment, Knowledge, KnowledgeId, Query};
+    use serde_json::Value;
 
     use super::*;
+    use crate::{FileReadService, KnowledgeRepository};
 
     /// Create a default test environment
-    fn test_env() -> Environment {
-        Environment {
-            os: std::env::consts::OS.to_string(),
-            cwd: std::env::current_dir().unwrap_or_default(),
-            home: Some("/".into()),
-            shell: if cfg!(windows) {
-                "cmd.exe".to_string()
-            } else {
-                "/bin/sh".to_string()
+    fn stub() -> Stub {
+        Stub {
+            env: Environment {
+                os: std::env::consts::OS.to_string(),
+                cwd: std::env::current_dir().unwrap_or_default(),
+                home: Some("/".into()),
+                shell: if cfg!(windows) {
+                    "cmd.exe".to_string()
+                } else {
+                    "/bin/sh".to_string()
+                },
+                open_router_key: String::new(),
+                base_path: PathBuf::new(),
+                qdrant_key: None,
+                qdrant_cluster: None,
             },
-            open_router_key: String::new(),
-            base_path: PathBuf::new(),
-            qdrant_key: None,
-            qdrant_cluster: None,
+        }
+    }
+
+    struct Stub {
+        env: Environment,
+    }
+    #[async_trait::async_trait]
+    impl EnvironmentService for Stub {
+        fn get_environment(&self) -> Environment {
+            self.env.clone()
+        }
+    }
+    #[async_trait::async_trait]
+    impl FileReadService for Stub {
+        async fn read(&self, _path: &Path) -> anyhow::Result<String> {
+            unimplemented!()
+        }
+    }
+    #[async_trait::async_trait]
+    impl KnowledgeRepository<Value> for Stub {
+        async fn store(&self, _information: Vec<Knowledge<Value>>) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+
+        async fn drop(&self, _ids: Vec<KnowledgeId>) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+
+        async fn search(&self, _query: Query) -> anyhow::Result<Vec<Knowledge<Value>>> {
+            unimplemented!()
+        }
+
+        async fn list(&self) -> anyhow::Result<Vec<Knowledge<Value>>> {
+            unimplemented!()
+        }
+    }
+    #[async_trait::async_trait]
+    impl Infrastructure for Stub {
+        type EnvironmentService = Stub;
+        type FileReadService = Stub;
+        type KnowledgeRepository = Stub;
+
+        fn environment_service(&self) -> &Self::EnvironmentService {
+            self
+        }
+
+        fn file_read_service(&self) -> &Self::FileReadService {
+            self
+        }
+
+        fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
+            self
         }
     }
 
@@ -66,8 +127,8 @@ mod tests {
         println!("\nTool description lengths:");
 
         let mut any_exceeded = false;
-        let env = test_env();
-        for tool in tools(&env) {
+        let stub = Arc::new(stub());
+        for tool in tools(stub) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",
