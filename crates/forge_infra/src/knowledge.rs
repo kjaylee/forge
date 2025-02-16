@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
 use forge_app::KnowledgeRepository;
-use forge_domain::{self as domain, Environment, Knowledge, KnowledgeId, Query};
+use forge_domain::{Environment, Knowledge, Query};
 use qdrant_client::qdrant::{
-    CreateCollectionBuilder, Distance, PointStruct, ScoredPoint, SearchPointsBuilder,
-    UpsertPointsBuilder, VectorParamsBuilder,
+    CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder, UpsertPointsBuilder,
+    VectorParamsBuilder,
 };
 use qdrant_client::{Payload, Qdrant};
 use serde_json::Value;
@@ -90,8 +90,12 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
         Ok(())
     }
 
-    async fn search(&self, embedding: Vec<f32>, limit: u64) -> anyhow::Result<Vec<Value>> {
-        let points = SearchPointsBuilder::new(self.collection.clone(), embedding, limit);
+    async fn search(&self, query: Query) -> anyhow::Result<Vec<Value>> {
+        let points = SearchPointsBuilder::new(
+            self.collection.clone(),
+            query.embedding,
+            query.limit.unwrap_or(10),
+        );
         let results = self
             .client()
             .await?

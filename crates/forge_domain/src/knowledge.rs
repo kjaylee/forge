@@ -55,13 +55,13 @@ impl<C> Knowledge<C> {
 #[derive(Debug, Clone, Setters)]
 #[setters(strip_option, into)]
 pub struct Query {
-    pub input: String,
-    pub limit: Option<usize>,
+    pub embedding: Vec<f32>,
+    pub limit: Option<u64>,
     pub distance: Option<f32>,
 }
 
 impl Query {
-    pub fn new(input: String) -> Self {
-        Self { input, limit: None, distance: None }
+    pub fn new(embedding: Vec<f32>) -> Self {
+        Self { embedding, limit: None, distance: None }
     }
 }

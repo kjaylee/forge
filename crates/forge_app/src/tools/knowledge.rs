@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, Knowledge, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Knowledge, NamedTool, Query, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde_json::Value;
 
@@ -36,7 +36,7 @@ impl<F: Infrastructure> ExecutableTool for RecallKnowledge<F> {
         let out = self
             .infra
             .textual_knowledge_repo()
-            .search(embedding, 5)
+            .search(Query::new(embedding))
             .await?
             .into_iter()
             .map(|k| serde_json::to_string(&k))

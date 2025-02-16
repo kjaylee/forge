@@ -43,7 +43,7 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use forge_domain::{Environment, Knowledge};
+    use forge_domain::{Environment, Knowledge, Query};
     use serde_json::Value;
 
     use super::*;
@@ -98,7 +98,7 @@ mod tests {
             unimplemented!()
         }
 
-        async fn search(&self, _embedding: Vec<f32>, _limit: u64) -> anyhow::Result<Vec<Value>> {
+        async fn search(&self, _query: Query) -> anyhow::Result<Vec<Value>> {
             unimplemented!()
         }
     }
