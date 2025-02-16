@@ -43,7 +43,7 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use forge_domain::{Environment, Knowledge, KnowledgeId, Query};
+    use forge_domain::{Environment, Knowledge};
     use serde_json::Value;
 
     use super::*;
@@ -98,18 +98,11 @@ mod tests {
             unimplemented!()
         }
 
-        async fn drop(&self, _ids: Vec<KnowledgeId>) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-
-        async fn search(&self, _query: Query) -> anyhow::Result<Vec<Knowledge<Value>>> {
-            unimplemented!()
-        }
-
-        async fn list(&self) -> anyhow::Result<Vec<Knowledge<Value>>> {
+        async fn search(&self, _embedding: Vec<f32>, _limit: u64) -> anyhow::Result<Vec<Value>> {
             unimplemented!()
         }
     }
+
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;

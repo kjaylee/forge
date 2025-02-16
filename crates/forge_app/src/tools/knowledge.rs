@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, Knowledge, NamedTool, Query, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Knowledge, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde_json::Value;
 
@@ -32,13 +32,14 @@ impl<F: Infrastructure> ExecutableTool for RecallKnowledge<F> {
     type Input = GetKnowledgeInput;
 
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        let embedding = self.infra.embedding_service().embed(&input.query).await?;
         let out = self
             .infra
             .textual_knowledge_repo()
-            .search(Query::new(input.query))
+            .search(embedding, 5)
             .await?
             .into_iter()
-            .map(|k| serde_json::to_string(&k.content))
+            .map(|k| serde_json::to_string(&k))
             .collect::<Result<Vec<_>, _>>()?
             .join("\n");
 
