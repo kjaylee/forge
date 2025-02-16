@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use forge_domain::App;
 
-use crate::knowledge::ForgeKnowledgeService;
 use crate::conversation::ForgeConversationService;
+use crate::knowledge::ForgeKnowledgeService;
 use crate::provider::ForgeProviderService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
