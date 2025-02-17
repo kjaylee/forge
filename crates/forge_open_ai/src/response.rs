@@ -72,7 +72,6 @@ impl From<CreateChatCompletionStreamResponse> for Lift<ChatCompletionMessage> {
 
             completion_message
         } else {
-            // TODO: raise empty content error
             ChatCompletionMessage::assistant(Content::part("".to_string()))
         }
         .lift()
