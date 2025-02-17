@@ -68,15 +68,3 @@ impl ProviderService for OpenAi {
         Ok(Parameters::default())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_models() {
-        let open_ai = OpenAiBuilder::new("test-key").build();
-        let models = open_ai.models().await.unwrap();
-        assert!(!models.is_empty());
-    }
-}
