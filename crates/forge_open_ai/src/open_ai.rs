@@ -64,7 +64,8 @@ impl ProviderService for OpenAi {
     }
 
     async fn parameters(&self, _model: &ModelId) -> anyhow::Result<Parameters> {
-        // note: Open-ai: doesn't provide capability to access parameters of model via api.
+        // note: Open-ai: doesn't provide capability to access parameters of model via
+        // api.
         Ok(Parameters::default())
     }
 }
