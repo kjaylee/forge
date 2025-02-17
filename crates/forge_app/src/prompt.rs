@@ -24,8 +24,7 @@ impl ForgePromptService {
         hb.register_escape_fn(|str| str.to_string());
 
         // Register all partial templates
-        hb.register_embed_templates_with_extension::<Templates>(".mustache")
-            .unwrap();
+        hb.register_embed_templates::<Templates>().unwrap();
 
         Self { hb }
     }

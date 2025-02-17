@@ -6,7 +6,7 @@ subscribe = ["user_task"]
 max_turns = 1
 
 [agents.system_prompt]
-template = "{{> title-generator }}"
+template = "{{> title-generator.mustache }}"
 
 [agents.user_prompt]
 template = "<technical_content>{{event.value}}</technical_content>"
@@ -26,6 +26,6 @@ subscribe = ["user_task"]
 max_turns = 1024
 ephemeral = false
 [agents.system_prompt]
-template = "{{> software-engineer }}"
+template = "{{> software-engineer.mustache }}"
 [agents.user_prompt]
 template = "<task>{{event.value}}</task>"
