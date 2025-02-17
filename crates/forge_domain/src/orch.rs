@@ -196,8 +196,9 @@ impl<A: App> Orchestrator<A> {
         if let Some(event) = DispatchEvent::parse(tool_call) {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
+            self.get_conversation().await?.workflow.events.insert(event.name.clone(), event.clone());
             self.dispatch(&event).await?;
-
+            
             Ok(None)
         } else {
             Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
