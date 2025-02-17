@@ -42,6 +42,7 @@ impl From<forge_domain::Context> for Request {
                 None
             }
         });
+        let tool_choice = request.tool_choice.map(ToolChoice::from);
 
         // anthropic has only 2 roles. i.e user and assistant. so we need to filter out system messages.
         request.messages = request
@@ -64,6 +65,7 @@ impl From<forge_domain::Context> for Request {
                 .map(ToolDefinition::from)
                 .collect::<Vec<_>>(),
             system,
+            tool_choice,
             ..Default::default()
         }
     }
@@ -224,6 +226,32 @@ pub enum ToolChoice {
         #[serde(skip_serializing_if = "Option::is_none")]
         disable_parallel_tool_use: Option<bool>,
     },
+}
+
+impl From<forge_domain::ToolChoice> for ToolChoice {
+    fn from(value: forge_domain::ToolChoice) -> Self {
+        match value {
+            forge_domain::ToolChoice::Auto => ToolChoice::Auto {
+                r#type: ToolChoiceAuto::Auto,
+                disable_parallel_tool_use: None,
+            },
+            forge_domain::ToolChoice::Call(tool_name) => ToolChoice::Tool {
+                name: tool_name.into_string(),
+                r#type: ToolChoiceTool::Tool,
+                disable_parallel_tool_use: None,
+            },
+            forge_domain::ToolChoice::Required => {
+                // since we don't have this type, we use auto type to let the llm decide.
+                ToolChoice::Auto {
+                    r#type: ToolChoiceAuto::Auto,
+                    disable_parallel_tool_use: None,
+                }
+            }
+            forge_domain::ToolChoice::None => {
+                ToolChoice::Any { r#type: ToolChoiceAny::Any, disable_parallel_tool_use: None }
+            }
+        }
+    }
 }
 
 #[derive(Serialize)]
