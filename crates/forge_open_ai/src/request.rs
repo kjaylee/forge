@@ -20,8 +20,7 @@ impl From<Context> for Lift<CreateChatCompletionRequest> {
                 .map(|tool| Lift::from(tool).take())
                 .collect(),
         );
-
-        todo!()
+        request.lift()
     }
 }
 
