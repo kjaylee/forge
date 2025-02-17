@@ -6,7 +6,7 @@ use tokio_stream::StreamExt;
 const MAX_RETRIES: usize = 5;
 const WORKFLOW_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../templates/workflows/default.toml"
+    "/../../workflows.toml"
 );
 
 /// Test fixture for API testing that supports parallel model validation

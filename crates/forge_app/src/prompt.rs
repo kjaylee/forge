@@ -4,8 +4,8 @@ use rust_embed::Embed;
 use serde::Serialize;
 
 #[derive(Embed)]
-#[folder = "../../templates/partials/"]
-struct Partials;
+#[folder = "../../templates/"]
+struct Templates;
 
 pub struct ForgePromptService {
     hb: Handlebars<'static>,
@@ -24,7 +24,7 @@ impl ForgePromptService {
         hb.register_escape_fn(|str| str.to_string());
 
         // Register all partial templates
-        hb.register_embed_templates_with_extension::<Partials>(".mustache")
+        hb.register_embed_templates_with_extension::<Templates>(".mustache")
             .unwrap();
 
         Self { hb }

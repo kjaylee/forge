@@ -136,7 +136,7 @@ impl<F: API> UI<F> {
     async fn init_workflow(&self) -> anyhow::Result<Workflow> {
         match self.cli.workflow {
             Some(ref path) => self.api.load(path).await,
-            None => Ok(include_str!("../../../templates/workflows/default.toml").parse()?),
+            None => Ok(include_str!("../../../workflows.toml").parse()?),
         }
     }
 
