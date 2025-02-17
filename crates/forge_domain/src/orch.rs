@@ -189,7 +189,7 @@ impl<A: App> Orchestrator<A> {
         tool_call: &ToolCallFull,
     ) -> anyhow::Result<Option<ToolResult>> {
         if let Some(event) = DispatchEvent::parse(tool_call) {
-            // TODO: save the event in the workflow.
+            self.insert_event(event.clone()).await?;
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
             self.dispatch(&event).await?;
@@ -261,6 +261,14 @@ impl<A: App> Orchestrator<A> {
             .get(name)
             .ok_or(Error::UndefinedVariable(name.to_string()))?
             .clone())
+    }
+
+    async fn insert_event(&self, event: DispatchEvent) -> anyhow::Result<()> {
+        Ok(self
+            .app
+            .conversation_service()
+            .insert_event(&self.chat_request.conversation_id, event)
+            .await?)
     }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
