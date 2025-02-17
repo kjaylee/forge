@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-/// A simple wrapper to lift a value into a newtype so that it's easier to convert between types.
+/// A simple wrapper to lift a value into a newtype so that it's easier to
+/// convert between types.
 pub struct Lift<A>(A);
 
 impl<A> Lift<A> {
