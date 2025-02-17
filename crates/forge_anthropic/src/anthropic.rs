@@ -3,12 +3,11 @@ use derive_setters::Setters;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
 };
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    Client, Url,
-};
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{Client, Url};
 
-use crate::{request::Request, response::ListModelResponse};
+use crate::request::Request;
+use crate::response::ListModelResponse;
 
 #[derive(Debug, Default, Clone, Setters)]
 pub struct AnthropicBuilder {
@@ -62,7 +61,7 @@ impl Anthropic {
 
         // note: anthropic api requires the api key to be sent in `x-api-key` header.
         if let Some(ref api_key) = self.api_key {
-            headers.insert("x-api-key", HeaderValue::from_str(&api_key).unwrap());
+            headers.insert("x-api-key", HeaderValue::from_str(api_key).unwrap());
         }
 
         // note: `anthropic-version` header is required by the API.

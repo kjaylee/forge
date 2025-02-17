@@ -42,18 +42,15 @@ impl From<forge_domain::Context> for Request {
                 None
             }
         });
-        // anthropic has only 2 roles. i.e user and assistant. so we need to filter out system messages.
-        request.messages = request
-            .messages
-            .into_iter()
-            .filter(|message| {
+        // anthropic has only 2 roles. i.e user and assistant. so we need to filter out
+        // system messages.
+        request.messages.retain(|message| {
                 if let ContextMessage::ContentMessage(chat_message) = message {
                     chat_message.role != forge_domain::Role::System
                 } else {
                     true
                 }
-            })
-            .collect();
+            });
 
         Self {
             messages: request.messages.iter().map(Message::from).collect(),
