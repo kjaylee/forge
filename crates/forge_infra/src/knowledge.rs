@@ -3,10 +3,7 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use forge_app::KnowledgeRepository;
 use forge_domain::{Environment, Knowledge, Query};
-use qdrant_client::qdrant::{
-    CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder, UpsertPointsBuilder,
-    VectorParamsBuilder,
-};
+use qdrant_client::qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder};
 use qdrant_client::{Payload, Qdrant};
 use serde_json::Value;
 use tokio::sync::Mutex;
@@ -15,16 +12,14 @@ pub struct QdrantKnowledgeRepository {
     env: Environment,
     client: Arc<Mutex<Option<Arc<Qdrant>>>>,
     collection: String,
-    size: u64,
 }
 
 impl QdrantKnowledgeRepository {
-    pub fn new(env: Environment, collection: impl ToString, size: u64) -> Self {
+    pub fn new(env: Environment, collection: impl ToString) -> Self {
         Self {
             env,
             client: Default::default(),
             collection: collection.to_string(),
-            size,
         }
     }
 
@@ -51,14 +46,6 @@ impl QdrantKnowledgeRepository {
                 .with_context(|| "Failed to connect to knowledge service")?,
             );
 
-            client
-                .create_collection(
-                    CreateCollectionBuilder::new(self.collection.clone())
-                        .vectors_config(VectorParamsBuilder::new(self.size, Distance::Cosine)),
-                )
-                .await
-                .with_context(|| format!("Failed to create collection: {}", self.collection))?;
-
             *guard = Some(client.clone());
 
             Ok(client)
@@ -74,11 +61,10 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
             .map(|info| {
                 let id = info.id.into_uuid().to_string();
                 let vectors = info.embedding;
-                let payload: Payload = serde_json::from_value(info.content)?;
-                Ok(PointStruct::new(id, vectors, payload))
+                let payload: anyhow::Result<Payload> = Ok(serde_json::from_value(info.content)?);
+                Ok(PointStruct::new(id, vectors, payload?))
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
-
         self.client()
             .await?
             .upsert_points(UpsertPointsBuilder::new(self.collection.clone(), points))
@@ -95,7 +81,8 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
             self.collection.clone(),
             query.embedding,
             query.limit.unwrap_or(10),
-        );
+        )
+        .with_payload(true);
         let results = self
             .client()
             .await?
