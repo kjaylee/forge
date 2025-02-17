@@ -79,6 +79,7 @@ impl ProviderService for Anthropic {
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let request = Request::from(context).model(id.to_string()).stream(true);
+        // TODO: depending on model, we've to set the max_tokens for request.
 
         todo!()
     }
