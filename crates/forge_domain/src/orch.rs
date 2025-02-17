@@ -264,8 +264,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn insert_event(&self, event: DispatchEvent) -> anyhow::Result<()> {
-        self
-            .app
+        self.app
             .conversation_service()
             .insert_event(&self.chat_request.conversation_id, event)
             .await
