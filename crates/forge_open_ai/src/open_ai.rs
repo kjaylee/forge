@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use anyhow::Context as _;
 use async_openai::config::OpenAIConfig;
 use async_openai::Client;
 use forge_domain::{
@@ -41,10 +40,9 @@ impl ProviderService for OpenAi {
         let response = self.client.chat().create_stream(request).await?;
 
         let stream = response
-            .map(move |chunk_result| {
-                chunk_result
-                    .map(|chunk| Lift::from(chunk).take())
-                    .context("Failed to process chat completion chunk")
+            .map(move |chunk_result| match chunk_result {
+                Ok(chunk) => Ok(Lift::from(chunk).take()),
+                Err(err) => Err(err.into()),
             })
             .boxed();
 
