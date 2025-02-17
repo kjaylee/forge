@@ -1,10 +1,10 @@
 mod agent;
 mod chat_request;
 mod chat_response;
-mod chat_stream_ext;
 mod config;
 mod context;
 mod conversation;
+mod dispatch_event;
 mod env;
 mod error;
 mod file;
@@ -13,7 +13,6 @@ mod message;
 mod model;
 mod orch;
 mod prompt;
-mod stream_ext;
 mod summarize;
 mod tool;
 mod tool_call;
@@ -23,16 +22,15 @@ mod tool_definition;
 mod tool_name;
 mod tool_result;
 mod tool_usage;
-mod user_interaction;
 mod workflow;
 
 pub use agent::*;
 pub use chat_request::*;
 pub use chat_response::*;
-pub use chat_stream_ext::*;
 pub use config::*;
 pub use context::*;
 pub use conversation::*;
+pub use dispatch_event::*;
 pub use env::*;
 pub use error::*;
 pub use file::*;
@@ -41,7 +39,6 @@ pub use message::*;
 pub use model::*;
 pub use orch::*;
 pub use prompt::*;
-pub use stream_ext::*;
 pub use summarize::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -51,7 +48,6 @@ pub use tool_definition::*;
 pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
-pub use user_interaction::*;
 pub use workflow::*;
 
 #[async_trait::async_trait]
@@ -73,6 +69,19 @@ pub trait ToolService: Send + Sync {
     fn usage_prompt(&self) -> String;
 }
 
+#[async_trait::async_trait]
+pub trait ConversationService: Send + Sync {
+    async fn get(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
+    async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
+    async fn inc_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()>;
+    async fn set_context(
+        &self,
+        id: &ConversationId,
+        agent: &AgentId,
+        context: Context,
+    ) -> anyhow::Result<()>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -83,9 +92,14 @@ pub trait App: Send + Sync + 'static {
     /// The concrete type implementing provider service capabilities
     type ProviderService: ProviderService;
 
+    /// The concrete type implementing conversation repository capabilities
+    type ConversationService: ConversationService;
+
     /// Get a reference to the tool service instance
     fn tool_service(&self) -> &Self::ToolService;
 
     /// Get a reference to the provider service instance
     fn provider_service(&self) -> &Self::ProviderService;
+
+    fn conversation_service(&self) -> &Self::ConversationService;
 }
