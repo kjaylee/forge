@@ -93,7 +93,6 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
                 Ok(PointStruct::new(id, vectors, payload?))
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
-        // dbg!("storage",&points.len());
         self.client()
             .await?
             .upsert_points(UpsertPointsBuilder::new(self.collection.clone(), points))

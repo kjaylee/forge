@@ -236,10 +236,7 @@ impl<A: App> Orchestrator<A> {
                     })) = context.messages.last_mut()
                     {
                         let task = DispatchEvent::task(content.clone());
-                        let result = self.init_agent(agent_id, &task).await;
-                        dbg!(&result);
-                        dbg!(&task);
-                        dbg!(&output_key);
+                        self.init_agent(agent_id, &task).await?;
                         let output = self.get_event(output_key).await?;
 
                         let message = &output.value;
@@ -326,7 +323,6 @@ impl<A: App> Orchestrator<A> {
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
-            dbg!(&agent.id, &context.messages[1..]);
             let response = self
                 .app
                 .provider_service()
