@@ -42,8 +42,6 @@ impl From<forge_domain::Context> for Request {
                 None
             }
         });
-        let tool_choice = request.tool_choice.map(ToolChoice::from);
-
         // anthropic has only 2 roles. i.e user and assistant. so we need to filter out system messages.
         request.messages = request
             .messages
@@ -57,7 +55,7 @@ impl From<forge_domain::Context> for Request {
             })
             .collect();
 
-        Request {
+        Self {
             messages: request.messages.iter().map(Message::from).collect(),
             tools: request
                 .tools
@@ -65,7 +63,7 @@ impl From<forge_domain::Context> for Request {
                 .map(ToolDefinition::from)
                 .collect::<Vec<_>>(),
             system,
-            tool_choice,
+            tool_choice: request.tool_choice.map(ToolChoice::from),
             ..Default::default()
         }
     }
