@@ -225,9 +225,9 @@ impl<A: App> Orchestrator<A> {
                         let input = DispatchEvent::new(input_key, summary.get());
                         self.init_agent(agent_id, &input).await?;
 
-                        let value = self.get_event(output_key).await?;
-
-                        summary.set(serde_json::to_string(&value)?);
+                        if let Some(value) = self.get_event(output_key).await? {
+                            summary.set(serde_json::to_string(&value)?);
+                        }
                     }
                 }
                 Transform::User { agent_id, output: output_key } => {
@@ -239,10 +239,11 @@ impl<A: App> Orchestrator<A> {
                     {
                         let task = DispatchEvent::task(content.clone());
                         self.init_agent(agent_id, &task).await?;
-                        let output = self.get_event(output_key).await?;
-
-                        let message = &output.value;
-                        content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
+                        if let Some(output) = self.get_event(output_key).await? {
+                            let message = &output.value;
+                            content
+                                .push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
+                        }
                         debug!("User transform: {content}");
                     }
                 }
@@ -258,14 +259,8 @@ impl<A: App> Orchestrator<A> {
         Ok(context)
     }
 
-    async fn get_event(&self, name: &str) -> anyhow::Result<DispatchEvent> {
-        Ok(self
-            .get_conversation()
-            .await?
-            .events
-            .get(name)
-            .ok_or(Error::UndefinedVariable(name.to_string()))?
-            .clone())
+    async fn get_event(&self, name: &str) -> anyhow::Result<Option<DispatchEvent>> {
+        Ok(self.get_conversation().await?.events.get(name).cloned())
     }
 
     async fn insert_event(&self, event: DispatchEvent) -> anyhow::Result<()> {
