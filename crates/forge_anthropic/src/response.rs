@@ -28,7 +28,6 @@ impl From<Model> for forge_domain::Model {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::ListModelResponse;
@@ -48,7 +47,7 @@ mod tests {
                     "id": "claude-3-5-haiku-20241022",
                     "display_name": "Claude 3.5 Haiku",
                     "created_at": "2024-10-22T00:00:00Z"
-                },
+                }
             ],
             "has_more": false,
             "first_id": "claude-3-5-sonnet-20241022",
@@ -56,5 +55,6 @@ mod tests {
         }"#;
         let response = serde_json::from_str::<ListModelResponse>(input);
         assert!(response.is_ok());
+        assert!(response.unwrap().data.len() == 2);
     }
 }
