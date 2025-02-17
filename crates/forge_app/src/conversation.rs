@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{AgentId, Context, Conversation, ConversationId, ConversationService, DispatchEvent, Workflow};
+use forge_domain::{
+    AgentId, Context, Conversation, ConversationId, ConversationService, DispatchEvent, Workflow,
+};
 use tokio::sync::Mutex;
 
 pub struct ForgeConversationService {
@@ -56,7 +58,6 @@ impl ConversationService for ForgeConversationService {
         guard
             .get_mut(id)
             .ok_or_else(|| anyhow::anyhow!("Conversation not found"))?
-            .workflow
             .events
             .insert(event.name.clone(), event);
         Ok(())

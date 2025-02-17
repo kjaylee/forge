@@ -169,6 +169,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn dispatch(&self, event: &DispatchEvent) -> anyhow::Result<()> {
+        self.insert_event(event.clone()).await?;
         join_all(
             self.app
                 .conversation_service()
@@ -196,7 +197,7 @@ impl<A: App> Orchestrator<A> {
         if let Some(event) = DispatchEvent::parse(tool_call) {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
-            self.insert_event(event.clone()).await?;
+
             self.dispatch(&event).await?;
             Ok(None)
         } else {
@@ -259,7 +260,6 @@ impl<A: App> Orchestrator<A> {
         Ok(self
             .get_conversation()
             .await?
-            .workflow
             .events
             .get(name)
             .ok_or(Error::UndefinedVariable(name.to_string()))?
@@ -272,7 +272,6 @@ impl<A: App> Orchestrator<A> {
             .conversation_service()
             .insert_event(&self.chat_request.conversation_id, event)
             .await?)
-           
     }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {

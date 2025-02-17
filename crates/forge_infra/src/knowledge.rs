@@ -3,29 +3,23 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use forge_app::KnowledgeRepository;
 use forge_domain::{Environment, Knowledge, Query};
-use qdrant_client::qdrant::{
-    CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder, UpsertPointsBuilder,
-    VectorParamsBuilder,
-};
-use qdrant_client::{Payload, Qdrant, QdrantError};
+use qdrant_client::qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder};
+use qdrant_client::{Payload, Qdrant};
 use serde_json::Value;
 use tokio::sync::Mutex;
-use tonic::Code;
 
 pub struct QdrantKnowledgeRepository {
     env: Environment,
     client: Arc<Mutex<Option<Arc<Qdrant>>>>,
     collection: String,
-    size: u64,
 }
 
 impl QdrantKnowledgeRepository {
-    pub fn new(env: Environment, collection: impl ToString, size: u64) -> Self {
+    pub fn new(env: Environment, collection: impl ToString) -> Self {
         Self {
             env,
             client: Default::default(),
             collection: collection.to_string(),
-            size,
         }
     }
 
@@ -51,28 +45,6 @@ impl QdrantKnowledgeRepository {
                 .build()
                 .with_context(|| "Failed to connect to knowledge service")?,
             );
-
-            // Attempt to create collection directly - handle "already exists" case
-            match client
-                .create_collection(
-                    CreateCollectionBuilder::new(self.collection.clone())
-                        .vectors_config(VectorParamsBuilder::new(self.size, Distance::Cosine)),
-                )
-                .await
-            {
-                Ok(_) => (),
-                Err(e) => {
-                    match e {
-                        QdrantError::ResponseError { status }
-                            if status.code() == Code::AlreadyExists =>{}
-                        _ => {
-                            return Err(e).with_context(|| {
-                                format!("Failed to create collection: {}", self.collection)
-                            });
-                        }
-                    }
-                }
-            }
 
             *guard = Some(client.clone());
 
@@ -109,7 +81,8 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
             self.collection.clone(),
             query.embedding,
             query.limit.unwrap_or(10),
-        ).with_payload(true); 
+        )
+        .with_payload(true);
         let results = self
             .client()
             .await?

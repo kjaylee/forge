@@ -1,15 +1,12 @@
-use std::collections::HashMap;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, AgentId, DispatchEvent};
+use crate::{Agent, AgentId};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
-    #[serde(skip)]
-    pub events: HashMap<String, DispatchEvent>,
 }
 
 impl Workflow {

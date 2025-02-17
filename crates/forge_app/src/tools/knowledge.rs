@@ -80,12 +80,7 @@ impl<F: Infrastructure> ExecutableTool for StoreKnowledge<F> {
 
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let embedding = self.infra.embedding_service().embed(&input.content).await?;
-        let knowledge = Knowledge::new(
-            json!({
-                "content": input.content,
-            }),
-            embedding,
-        );
+        let knowledge = Knowledge::new(json!({"content": input.content}), embedding);
         self.infra
             .textual_knowledge_repo()
             .store(vec![knowledge])
