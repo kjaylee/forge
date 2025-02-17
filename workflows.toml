@@ -25,6 +25,9 @@ tools = [
 subscribe = ["user_task"]
 max_turns = 1024
 ephemeral = false
+transforms = [
+  { type = "User", agent_id = "knowledge_recall", output = "learnings" }
+]
 [agents.system_prompt]
 template = "{{> software-engineer.mustache }}"
 [agents.user_prompt]
@@ -40,3 +43,14 @@ subscribe = ["user_task"]
 template = "{{> knowledge-storage.mustache }}"
 [agents.user_prompt]
 template = "<feedback>{{event.value}}</feedback>"
+
+[[agents]]
+id = "knowledge_recall"
+model = "anthropic/claude-3.5-sonnet"
+tools = ["forge_tool_knowledge_get", "forge_tool_event_dispatch"]
+subscribe = []
+
+[agents.system_prompt]
+template = "{{> knowledge-recall.mustache }}"
+[agents.user_prompt]
+template = "{{event.value}}"

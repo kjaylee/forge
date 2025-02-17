@@ -110,7 +110,7 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
             self.collection.clone(),
             query.embedding,
             query.limit.unwrap_or(10),
-        );
+        ).with_payload(true); 
         let results = self
             .client()
             .await?

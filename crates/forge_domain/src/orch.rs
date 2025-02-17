@@ -237,7 +237,8 @@ impl<A: App> Orchestrator<A> {
                     {
                         let task = DispatchEvent::task(content.clone());
                         self.init_agent(agent_id, &task).await?;
-
+                        dbg!(&task);
+                        dbg!(&output_key);
                         let output = self.get_event(output_key).await?;
 
                         let message = serde_json::to_string(&output)?;
@@ -316,7 +317,7 @@ impl<A: App> Orchestrator<A> {
 
         loop {
             context = self.execute_transform(&agent.transforms, context).await?;
-
+            dbg!(&agent.id, &context.messages[1..]);
             let response = self
                 .app
                 .provider_service()
