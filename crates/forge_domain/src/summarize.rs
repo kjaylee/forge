@@ -208,7 +208,7 @@ mod tests {
         let mut suite = SummarizeSuit::default();
 
         suite.add(
-            "Shouldn't summarize when it's first user message",
+            "Shouldn't summarize when user message isn't completed.",
             vec![
                 ContextMessage::user("Short message".to_string()),
                 ContextMessage::assistant("Brief response".to_string(), None),
@@ -229,7 +229,7 @@ mod tests {
         );
 
         suite.add(
-            "Summarize only first user message",
+            "Summarize the completed user message",
             vec![
                 ContextMessage::system("System Prompt".to_string()),
                 ContextMessage::user("User Question".to_string()),

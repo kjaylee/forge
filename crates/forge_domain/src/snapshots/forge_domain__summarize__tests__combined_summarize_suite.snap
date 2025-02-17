@@ -2,7 +2,7 @@
 source: crates/forge_domain/src/summarize.rs
 expression: suite
 ---
-[Shouldn't summarize when it's first user message]
+[Shouldn't summarize when user message isn't completed.]
 [Before]
 User: Short message
 Assistant: Brief response
@@ -21,7 +21,7 @@ Assistant: Another assistant message
 No changes has been made to context
 
 
-[Summarize only first user message]
+[Summarize the completed user message]
 [Before]
 System: System Prompt
 User: User Question
