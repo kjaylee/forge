@@ -65,7 +65,7 @@ impl ToolService for ForgeToolService {
 
         let result = match output {
             Ok(output) => ToolResult::from(call).success(output),
-            Err(output) => ToolResult::from(call).failure(output.to_string()),
+            Err(output) => ToolResult::from(call).failure(format!("{:?}", output)),
         };
 
         debug!("{:?}", result);

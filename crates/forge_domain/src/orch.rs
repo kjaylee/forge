@@ -4,6 +4,7 @@ use std::sync::Arc;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use tracing::debug;
 
 use crate::*;
 
@@ -242,6 +243,7 @@ impl<A: App> Orchestrator<A> {
 
                         let message = &output.value;
                         content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
+                        debug!("User transform: {content}");
                     }
                 }
                 Transform::PassThrough { agent_id, input: input_key } => {
