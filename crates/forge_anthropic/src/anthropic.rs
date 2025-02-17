@@ -15,6 +15,7 @@ use crate::response::ListModelResponse;
 pub struct AnthropicBuilder {
     api_key: Option<String>,
     base_url: Option<String>,
+    anthropic_version: Option<String>,
 }
 
 impl AnthropicBuilder {
@@ -27,8 +28,10 @@ impl AnthropicBuilder {
 
         let base_url = Url::parse(base_url)
             .with_context(|| format!("Failed to parse base URL: {}", base_url))?;
-
-        Ok(Anthropic { client, base_url, api_key: self.api_key })
+        let anthropic_version = self
+            .anthropic_version
+            .unwrap_or_else(|| "2023-06-01".to_string());
+        Ok(Anthropic { client, base_url, api_key: self.api_key, anthropic_version })
     }
 }
 
@@ -37,6 +40,7 @@ pub struct Anthropic {
     client: Client,
     api_key: Option<String>,
     base_url: Url,
+    anthropic_version: String,
 }
 
 impl Anthropic {
@@ -67,7 +71,10 @@ impl Anthropic {
         }
 
         // note: `anthropic-version` header is required by the API.
-        headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
+        headers.insert(
+            "anthropic-version",
+            HeaderValue::from_str(&self.anthropic_version).unwrap(),
+        );
         headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
     }
@@ -99,14 +106,12 @@ impl ProviderService for Anthropic {
                             None
                         }
                         Event::Message(_event) => Some(
-                            todo!(), /* serde_json::from_str::<OpenRouterResponse>(&event.data)
-                                      *     .with_context(|| "Failed to parse OpenRouter
-                                      * response")
-                                      *     .and_then(|message| {
-                                      *         ChatCompletionMessage::try_from(message.clone())
-                                      *             .with_context(|| "Failed to create
-                                      * completion message")
-                                      *     }), */
+                            todo!(), // serde_json::from_str::<OpenRouterResponse>(&event.data)
+                                     //     .with_context(|| "Failed to parse OpenRouter response")
+                                     //     .and_then(|message| {
+                                     //         ChatCompletionMessage::try_from(message.clone())
+                                     //             .with_context(|| "Failed to create completion message")
+                                     //     }),
                         ),
                     },
                     Err(reqwest_eventsource::Error::StreamEnded) => None,
