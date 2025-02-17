@@ -7,9 +7,10 @@ use qdrant_client::qdrant::{
     CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder, UpsertPointsBuilder,
     VectorParamsBuilder,
 };
-use qdrant_client::{Payload, Qdrant};
+use qdrant_client::{Payload, Qdrant, QdrantError};
 use serde_json::Value;
 use tokio::sync::Mutex;
+use tonic::Code;
 
 pub struct QdrantKnowledgeRepository {
     env: Environment,
@@ -51,13 +52,27 @@ impl QdrantKnowledgeRepository {
                 .with_context(|| "Failed to connect to knowledge service")?,
             );
 
-            client
+            // Attempt to create collection directly - handle "already exists" case
+            match client
                 .create_collection(
                     CreateCollectionBuilder::new(self.collection.clone())
                         .vectors_config(VectorParamsBuilder::new(self.size, Distance::Cosine)),
                 )
                 .await
-                .with_context(|| format!("Failed to create collection: {}", self.collection))?;
+            {
+                Ok(_) => (),
+                Err(e) => {
+                    match e {
+                        QdrantError::ResponseError { status }
+                            if status.code() == Code::AlreadyExists =>{}
+                        _ => {
+                            return Err(e).with_context(|| {
+                                format!("Failed to create collection: {}", self.collection)
+                            });
+                        }
+                    }
+                }
+            }
 
             *guard = Some(client.clone());
 
@@ -74,11 +89,11 @@ impl KnowledgeRepository<Value> for QdrantKnowledgeRepository {
             .map(|info| {
                 let id = info.id.into_uuid().to_string();
                 let vectors = info.embedding;
-                let payload: Payload = serde_json::from_value(info.content)?;
-                Ok(PointStruct::new(id, vectors, payload))
+                let payload: anyhow::Result<Payload> = Ok(serde_json::from_value(info.content)?);
+                Ok(PointStruct::new(id, vectors, payload?))
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
-
+        // dbg!("storage",&points.len());
         self.client()
             .await?
             .upsert_points(UpsertPointsBuilder::new(self.collection.clone(), points))

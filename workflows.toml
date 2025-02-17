@@ -29,3 +29,14 @@ ephemeral = false
 template = "{{> software-engineer.mustache }}"
 [agents.user_prompt]
 template = "<task>{{event.value}}</task>"
+
+[[agents]]
+id = "knowledge_store"
+model = "anthropic/claude-3.5-sonnet"
+tools = ["forge_tool_knowledge_set"]
+subscribe = ["user_task"]
+
+[agents.system_prompt]
+template = "{{> knowledge-storage.mustache }}"
+[agents.user_prompt]
+template = "<feedback>{{event.value}}</feedback>"

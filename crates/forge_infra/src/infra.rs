@@ -19,7 +19,7 @@ impl ForgeInfra {
         Self {
             _file_read_service: ForgeFileReadService::new(),
             _environment_service,
-            _information_repo: QdrantKnowledgeRepository::new(env, "shell_collection", 1024),
+            _information_repo: QdrantKnowledgeRepository::new(env, "shell_collection", 384),
             _embedding_service: ForgeEmbeddingService::new(),
         }
     }
