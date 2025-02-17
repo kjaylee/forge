@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use anyhow::Context as _;
 use async_openai::config::OpenAIConfig;
 use async_openai::Client;
