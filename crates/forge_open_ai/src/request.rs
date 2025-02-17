@@ -8,19 +8,20 @@ use crate::lift::{Lift, LiftUp};
 
 impl From<Context> for Lift<CreateChatCompletionRequest> {
     fn from(context: Context) -> Self {
-        let mut request = CreateChatCompletionRequest::default();
-        request.tool_choice = context
-            .tool_choice
-            .map(|tool_choice| Lift::from(tool_choice).take());
-
-        request.tools = Some(
-            context
-                .tools
-                .into_iter()
-                .map(|tool| Lift::from(tool).take())
-                .collect(),
-        );
-        request.lift()
+        CreateChatCompletionRequest {
+            tool_choice: context
+                .tool_choice
+                .map(|tool_choice| Lift::from(tool_choice).take()),
+            tools: Some(
+                context
+                    .tools
+                    .into_iter()
+                    .map(|tool| Lift::from(tool).take())
+                    .collect(),
+            ),
+            ..Default::default()
+        }
+        .lift()
     }
 }
 
