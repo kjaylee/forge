@@ -106,12 +106,14 @@ impl ProviderService for Anthropic {
                             None
                         }
                         Event::Message(_event) => Some(
-                            todo!(), // serde_json::from_str::<OpenRouterResponse>(&event.data)
-                                     //     .with_context(|| "Failed to parse OpenRouter response")
-                                     //     .and_then(|message| {
-                                     //         ChatCompletionMessage::try_from(message.clone())
-                                     //             .with_context(|| "Failed to create completion message")
-                                     //     }),
+                            todo!(), /* serde_json::from_str::<OpenRouterResponse>(&event.data)
+                                      *     .with_context(|| "Failed to parse OpenRouter
+                                      * response")
+                                      *     .and_then(|message| {
+                                      *         ChatCompletionMessage::try_from(message.clone())
+                                      *             .with_context(|| "Failed to create
+                                      * completion message")
+                                      *     }), */
                         ),
                     },
                     Err(reqwest_eventsource::Error::StreamEnded) => None,
