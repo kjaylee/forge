@@ -3,10 +3,8 @@ use derive_setters::Setters;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
 };
-use reqwest::{
-    header::{HeaderMap, HeaderValue},
-    Client, Url,
-};
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
 
@@ -101,13 +99,14 @@ impl ProviderService for Anthropic {
                             None
                         }
                         Event::Message(_event) => Some(
-                            todo!()
-                            // serde_json::from_str::<OpenRouterResponse>(&event.data)
-                            //     .with_context(|| "Failed to parse OpenRouter response")
-                            //     .and_then(|message| {
-                            //         ChatCompletionMessage::try_from(message.clone())
-                            //             .with_context(|| "Failed to create completion message")
-                            //     }),
+                            todo!(), /* serde_json::from_str::<OpenRouterResponse>(&event.data)
+                                      *     .with_context(|| "Failed to parse OpenRouter
+                                      * response")
+                                      *     .and_then(|message| {
+                                      *         ChatCompletionMessage::try_from(message.clone())
+                                      *             .with_context(|| "Failed to create
+                                      * completion message")
+                                      *     }), */
                         ),
                     },
                     Err(reqwest_eventsource::Error::StreamEnded) => None,

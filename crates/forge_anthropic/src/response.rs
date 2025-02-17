@@ -37,7 +37,7 @@ pub struct Response {
     stop_reason: Option<StopReason>,
     stop_sequence: Option<String>,
     r#type: ResponseType,
-    usage: Usage
+    usage: Usage,
 }
 
 #[derive(Deserialize)]
@@ -51,7 +51,7 @@ struct Usage {
 #[derive(Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum ResponseType {
-    Message
+    Message,
 }
 
 #[derive(Deserialize)]
@@ -80,21 +80,20 @@ enum Content {
         input: serde_json::Value,
         name: String,
         r#type: ToolUseContentType,
-    }
+    },
 }
 
 #[derive(Deserialize)]
 enum TextContentType {
     #[serde(rename = "text")]
-    Text
+    Text,
 }
 
 #[derive(Deserialize)]
 enum ToolUseContentType {
     #[serde(rename = "tool_use")]
-    ToolUse
+    ToolUse,
 }
-
 
 #[cfg(test)]
 mod tests {
