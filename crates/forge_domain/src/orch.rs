@@ -196,9 +196,8 @@ impl<A: App> Orchestrator<A> {
         if let Some(event) = DispatchEvent::parse(tool_call) {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
-            self.get_conversation().await?.workflow.events.insert(event.name.clone(), event.clone());
+            self.insert_event(event.clone()).await?;
             self.dispatch(&event).await?;
-            
             Ok(None)
         } else {
             Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
@@ -237,13 +236,13 @@ impl<A: App> Orchestrator<A> {
                     })) = context.messages.last_mut()
                     {
                         let task = DispatchEvent::task(content.clone());
-                        self.init_agent(agent_id, &task).await?;
+                        let result = self.init_agent(agent_id, &task).await;
+                        dbg!(&result);
                         dbg!(&task);
                         dbg!(&output_key);
                         let output = self.get_event(output_key).await?;
 
-                        let message = serde_json::to_string(&output)?;
-
+                        let message = &output.value;
                         content.push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
                     }
                 }
@@ -268,6 +267,15 @@ impl<A: App> Orchestrator<A> {
             .get(name)
             .ok_or(Error::UndefinedVariable(name.to_string()))?
             .clone())
+    }
+
+    async fn insert_event(&self, event: DispatchEvent) -> anyhow::Result<()> {
+        Ok(self
+            .app
+            .conversation_service()
+            .insert_event(&self.chat_request.conversation_id, event)
+            .await?)
+           
     }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {

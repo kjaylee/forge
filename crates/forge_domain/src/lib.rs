@@ -81,6 +81,7 @@ pub trait ConversationService: Send + Sync {
         agent: &AgentId,
         context: Context,
     ) -> anyhow::Result<()>;
+    async fn insert_event(&self,conversation_id: &ConversationId, event: DispatchEvent) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
