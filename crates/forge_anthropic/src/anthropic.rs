@@ -177,7 +177,8 @@ mod tests {
         Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolResult,
     };
 
-    use crate::{anthropic::Anthropic, request::Request};
+    use crate::anthropic::Anthropic;
+    use crate::request::Request;
 
     #[tokio::test]
     async fn test_url_for_models() {
