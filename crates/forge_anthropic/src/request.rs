@@ -234,15 +234,12 @@ impl From<forge_domain::ToolChoice> for ToolChoice {
                 disable_parallel_tool_use: None,
             },
             forge_domain::ToolChoice::Required => {
-                // since we don't have this type, we use auto type to let the llm decide.
-                ToolChoice::Auto {
-                    r#type: ToolChoiceAuto::Auto,
-                    disable_parallel_tool_use: None,
-                }
-            }
-            forge_domain::ToolChoice::None => {
                 ToolChoice::Any { r#type: ToolChoiceAny::Any, disable_parallel_tool_use: None }
             }
+            forge_domain::ToolChoice::None => ToolChoice::Auto {
+                r#type: ToolChoiceAuto::Auto,
+                disable_parallel_tool_use: None,
+            },
         }
     }
 }
