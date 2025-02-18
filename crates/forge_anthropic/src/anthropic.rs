@@ -173,7 +173,11 @@ impl ProviderService for Anthropic {
 
 #[cfg(test)]
 mod tests {
-    use crate::anthropic::Anthropic;
+    use forge_domain::{
+        Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolResult,
+    };
+
+    use crate::{anthropic::Anthropic, request::Request};
 
     #[tokio::test]
     async fn test_url_for_models() {
@@ -182,5 +186,34 @@ mod tests {
             anthropic.url("/models").unwrap().as_str(),
             "https://api.anthropic.com/v1/models"
         );
+    }
+
+    #[tokio::test]
+    async fn test_request_conversion() {
+        let context = Context::default()
+            .add_message(ContextMessage::system(
+                "You're expert at math, so you should resolve all user queries.",
+            ))
+            .add_message(ContextMessage::user("what's 2 + 2 ?"))
+            .add_message(ContextMessage::assistant(
+                "here is the system call.",
+                Some(vec![ToolCallFull {
+                    name: ToolName::new("math"),
+                    call_id: Some(ToolCallId::new("math-1")),
+                    arguments: serde_json::json!({"expression": "2 + 2"}),
+                }]),
+            ))
+            .add_tool_results(vec![ToolResult {
+                name: ToolName::new("math"),
+                call_id: Some(ToolCallId::new("math-1")),
+                content: serde_json::json!({"result": 4}).to_string(),
+                is_error: false,
+            }])
+            .tool_choice(ToolChoice::Call(ToolName::new("math")));
+        let request = Request::from(context)
+            .model("sonnet-3.5".to_string())
+            .stream(true)
+            .max_tokens(4000u64);
+        insta::assert_snapshot!(serde_json::to_string_pretty(&request).unwrap());
     }
 }

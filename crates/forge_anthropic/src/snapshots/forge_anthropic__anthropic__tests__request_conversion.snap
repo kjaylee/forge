@@ -1,0 +1,53 @@
+---
+source: crates/forge_anthropic/src/anthropic.rs
+expression: "serde_json::to_string_pretty(&request).unwrap()"
+---
+{
+  "max_tokens": 4000,
+  "messages": [
+    {
+      "content": [
+        {
+          "text": "what's 2 + 2 ?",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    },
+    {
+      "content": [
+        {
+          "text": "here is the system call.",
+          "type": "text"
+        },
+        {
+          "id": "math-1",
+          "input": {
+            "expression": "2 + 2"
+          },
+          "name": "math",
+          "type": "tool_use"
+        }
+      ],
+      "role": "assistant"
+    },
+    {
+      "content": [
+        {
+          "tool_use_id": "math-1",
+          "type": "tool_result",
+          "content": "{\"result\":4}",
+          "is_error": false
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "model": "sonnet-3.5",
+  "stream": true,
+  "system": "You're expert at math, so you should resolve all user queries.",
+  "tool_choice": {
+    "name": "math",
+    "type": "tool"
+  }
+}
