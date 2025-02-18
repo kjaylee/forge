@@ -82,14 +82,12 @@ impl From<&ContextMessage> for Message {
     fn from(value: &ContextMessage) -> Self {
         match &value {
             ContextMessage::ContentMessage(chat_message) => {
-                let mut contents = vec![];
-                contents.push(Content::String(chat_message.content.clone()));
+                let mut content = vec![];
+                content.push(Content::String(chat_message.content.clone()));
                 // TODO: what if the chat_message has tool_calls???
                 match chat_message.role {
-                    forge_domain::Role::User => Message { role: Role::User, content: contents },
-                    forge_domain::Role::Assistant => {
-                        Message { role: Role::Assistant, content: contents }
-                    }
+                    forge_domain::Role::User => Message { role: Role::User, content },
+                    forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
                     forge_domain::Role::System => {
                         // note: system role messages are already filtered out.
                         // so this state is unreachable.
