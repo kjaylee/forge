@@ -42,21 +42,19 @@ impl From<ContextMessage> for Lift<ChatCompletionRequestMessage> {
         match value {
             ContextMessage::ContentMessage(chat_message) => match chat_message.role {
                 forge_domain::Role::Assistant => {
-                    ChatCompletionRequestMessage::Assistant(ChatCompletionRequestAssistantMessage {
+                    let message = ChatCompletionRequestAssistantMessage {
                         content: Some(ChatCompletionRequestAssistantMessageContent::Text(
                             chat_message.content,
                         )),
-                        refusal: None,
-                        name: None,
-                        audio: None,
                         tool_calls: chat_message.tool_calls.map(|tool_calls| {
                             tool_calls
                                 .into_iter()
                                 .map(|tc| Lift::from(tc).take())
                                 .collect::<Vec<_>>()
                         }),
-                        function_call: None,
-                    })
+                        ..Default::default()
+                    };
+                    ChatCompletionRequestMessage::Assistant(message)
                 }
                 forge_domain::Role::User => {
                     ChatCompletionRequestMessage::User(ChatCompletionRequestUserMessage {

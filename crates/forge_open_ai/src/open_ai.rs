@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use async_openai::config::OpenAIConfig;
 use async_openai::Client;
-use derive_setters::Setters;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
 };
@@ -9,8 +8,7 @@ use futures_util::StreamExt;
 
 use crate::lift::Lift;
 
-#[derive(Default, Setters)]
-#[setters(into, strip_option)]
+#[derive(Default)]
 pub struct OpenAiBuilder {
     api_key: Option<String>,
 }
