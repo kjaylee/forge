@@ -83,7 +83,16 @@ impl From<&ContextMessage> for Message {
         match &value {
             ContextMessage::ContentMessage(chat_message) => {
                 let mut content = vec![];
-                content.push(Content::String(chat_message.content.clone()));
+                content.push(Content::Object(Object::Text {
+                    text: chat_message.content.clone(),
+                    r#type: ObjectType::Text,
+                    cache_control: None,
+                }));
+                if let Some(tool_calls) = &chat_message.tool_calls {
+                    for tool_call in tool_calls {
+                        content.push(Content::Object(tool_call.try_into().unwrap()));
+                    }
+                }
                 // TODO: what if the chat_message has tool_calls???
                 match chat_message.role {
                     forge_domain::Role::User => Message { role: Role::User, content },
@@ -147,6 +156,24 @@ enum Object {
     },
 }
 
+impl TryFrom<&forge_domain::ToolCallFull> for Object {
+    type Error = anyhow::Error;
+    fn try_from(value: &forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
+        let call_id = value
+            .call_id
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("`call_id` is required for tool_call"))?;
+
+        Ok(Object::ToolUse {
+            id: call_id.as_str().to_string(),
+            input: serde_json::to_value(value.arguments.clone()).unwrap(),
+            name: value.name.as_str().to_string(),
+            r#type: ToolUseType::ToolUse,
+            cache_control: None,
+        })
+    }
+}
+
 impl TryFrom<&forge_domain::ToolResult> for Object {
     type Error = anyhow::Error;
     fn try_from(value: &forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
@@ -166,27 +193,23 @@ impl TryFrom<&forge_domain::ToolResult> for Object {
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]
-#[serde(untagged)]
 pub enum ObjectType {
     Text,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]
-#[serde(untagged)]
 pub enum CacheControl {
     Ephemeral,
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
 pub enum ToolUseType {
     #[serde(rename = "tool_use")]
     ToolUse,
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
 pub enum ToolResultType {
     #[serde(rename = "tool_result")]
     ToolResult,
@@ -245,21 +268,18 @@ impl From<forge_domain::ToolChoice> for ToolChoice {
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]
-#[serde(untagged)]
 pub enum ToolChoiceAuto {
     Auto,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]
-#[serde(untagged)]
 pub enum ToolChoiceAny {
     Any,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]
-#[serde(untagged)]
 pub enum ToolChoiceTool {
     Tool,
 }
@@ -289,7 +309,6 @@ impl From<forge_domain::ToolDefinition> for ToolDefinition {
 
 #[derive(Serialize)]
 #[serde(rename_all = "lowercase")]
-#[serde(untagged)]
 pub enum ToolDefinitionType {
     Custom,
 }
