@@ -193,7 +193,6 @@ pub enum ToolResultType {
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {
     User,
