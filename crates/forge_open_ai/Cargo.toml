@@ -11,3 +11,8 @@ forge_domain = { path = "../forge_domain" }
 anyhow = "1.0.75"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+derive_setters = "0.1.6"
+
+
+[dev-dependencies]
+tokio = "*"

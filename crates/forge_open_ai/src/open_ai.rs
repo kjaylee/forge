@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use async_openai::config::OpenAIConfig;
 use async_openai::Client;
+use derive_setters::Setters;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
 };
@@ -8,22 +9,29 @@ use futures_util::StreamExt;
 
 use crate::lift::Lift;
 
+#[derive(Default, Setters)]
+#[setters(into, strip_option)]
 pub struct OpenAiBuilder {
-    api_key: String,
+    api_key: Option<String>,
 }
 
 impl OpenAiBuilder {
-    pub fn new<S: Into<String>>(api_key: S) -> OpenAiBuilder {
-        OpenAiBuilder { api_key: api_key.into() }
-    }
-    fn build(self) -> OpenAi {
-        let config = OpenAIConfig::new().with_api_key(self.api_key);
+    pub fn build(self) -> OpenAi {
+        let api_key = self.api_key.expect("api_key is required");
+        let config = OpenAIConfig::new()
+            .with_api_key(api_key);
         OpenAi { client: Client::with_config(config) }
     }
 }
 
 pub struct OpenAi {
     client: Client<OpenAIConfig>,
+}
+
+impl OpenAi {
+    pub fn builder() -> OpenAiBuilder {
+        OpenAiBuilder::default()
+    }
 }
 
 #[async_trait::async_trait]
