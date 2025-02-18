@@ -12,6 +12,7 @@ use crate::request::Request;
 use crate::response::ListModelResponse;
 
 #[derive(Debug, Default, Clone, Setters)]
+#[setters(into, strip_option)]
 pub struct AnthropicBuilder {
     api_key: Option<String>,
     base_url: Option<String>,
@@ -24,13 +25,14 @@ impl AnthropicBuilder {
         let base_url = self
             .base_url
             .as_deref()
-            .unwrap_or("https://api.anthropic.com/v1");
+            .unwrap_or("https://api.anthropic.com/v1/");
 
         let base_url = Url::parse(base_url)
             .with_context(|| format!("Failed to parse base URL: {}", base_url))?;
         let anthropic_version = self
             .anthropic_version
             .unwrap_or_else(|| "2023-06-01".to_string());
+
         Ok(Anthropic { client, base_url, api_key: self.api_key, anthropic_version })
     }
 }
@@ -87,8 +89,12 @@ impl ProviderService for Anthropic {
         id: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let request = Request::from(context).model(id.to_string()).stream(true);
         // TODO: depending on model, we've to set the max_tokens for request.
+        let request = Request::from(context)
+            .model(id.to_string())
+            .stream(true)
+            .max_tokens(4000u64);
+
         let es = self
             .client
             .post(self.url("/messages")?)
@@ -162,5 +168,19 @@ impl ProviderService for Anthropic {
     async fn parameters(&self, _model: &ModelId) -> anyhow::Result<Parameters> {
         // note: didn't find any api docs for this endpoint.
         Ok(Parameters::default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::anthropic::Anthropic;
+
+    #[tokio::test]
+    async fn test_url_for_models() {
+        let anthropic = Anthropic::builder().api_key("sk-some-key").build().unwrap();
+        assert_eq!(
+            anthropic.url("/models").unwrap().as_str(),
+            "https://api.anthropic.com/v1/models"
+        );
     }
 }
