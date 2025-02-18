@@ -23,9 +23,8 @@ impl From<async_openai::types::FinishReason> for Lift<FinishReason> {
         match reason {
             async_openai::types::FinishReason::ContentFilter => FinishReason::ContentFilter,
             async_openai::types::FinishReason::Length => FinishReason::Length,
-            async_openai::types::FinishReason::FunctionCall => FinishReason::ToolCalls,
             async_openai::types::FinishReason::Stop => FinishReason::Stop,
-            async_openai::types::FinishReason::ToolCalls => FinishReason::ToolCalls,
+            async_openai::types::FinishReason::ToolCalls | async_openai::types::FinishReason::FunctionCall => FinishReason::ToolCalls,
         }
         .lift()
     }
