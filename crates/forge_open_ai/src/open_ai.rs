@@ -18,8 +18,7 @@ pub struct OpenAiBuilder {
 impl OpenAiBuilder {
     pub fn build(self) -> OpenAi {
         let api_key = self.api_key.expect("api_key is required");
-        let config = OpenAIConfig::new()
-            .with_api_key(api_key);
+        let config = OpenAIConfig::new().with_api_key(api_key);
         OpenAi { client: Client::with_config(config) }
     }
 }

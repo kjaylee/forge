@@ -1108,10 +1108,12 @@ dependencies = [
  "anyhow",
  "async-openai",
  "async-trait",
+ "derive_setters",
  "forge_domain",
  "futures-util",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
