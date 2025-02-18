@@ -96,7 +96,7 @@ impl From<&ContextMessage> for Message {
                 }
             }
             ContextMessage::ToolMessage(tool_result) => Message {
-                role: Role::Assistant, // TODO: verify the role type once for toolcall.
+                role: Role::User,
                 // TODO: drop unwrap
                 content: vec![Content::Object(tool_result.try_into().unwrap())],
             },
