@@ -32,15 +32,18 @@ impl AnthropicBuilder {
         let anthropic_version = self
             .anthropic_version
             .unwrap_or_else(|| "2023-06-01".to_string());
+        let api_key = self
+            .api_key
+            .ok_or_else(|| anyhow::anyhow!("API key is required"))?;
 
-        Ok(Anthropic { client, base_url, api_key: self.api_key, anthropic_version })
+        Ok(Anthropic { client, base_url, api_key, anthropic_version })
     }
 }
 
 #[derive(Clone)]
 pub struct Anthropic {
     client: Client,
-    api_key: Option<String>,
+    api_key: String,
     base_url: Url,
     anthropic_version: String,
 }
@@ -68,9 +71,10 @@ impl Anthropic {
         let mut headers = HeaderMap::new();
 
         // note: anthropic api requires the api key to be sent in `x-api-key` header.
-        if let Some(ref api_key) = self.api_key {
-            headers.insert("x-api-key", HeaderValue::from_str(api_key).unwrap());
-        }
+        headers.insert(
+            "x-api-key",
+            HeaderValue::from_str(self.api_key.as_str()).unwrap(),
+        );
 
         // note: `anthropic-version` header is required by the API.
         headers.insert(
