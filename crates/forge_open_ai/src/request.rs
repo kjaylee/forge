@@ -75,7 +75,8 @@ impl From<ContextMessage> for Lift<ChatCompletionRequestMessage> {
                 }
             },
             ContextMessage::ToolMessage(tool_result) => {
-                // TODO: for tool result, it's expected to have call_id, so we've to make call_id required.
+                // TODO: for tool result, it's expected to have call_id, so we've to make
+                // call_id required.
                 let call_id = tool_result.call_id.as_ref().unwrap();
                 ChatCompletionRequestMessage::Tool(ChatCompletionRequestToolMessage {
                     tool_call_id: call_id.as_str().to_string(),
