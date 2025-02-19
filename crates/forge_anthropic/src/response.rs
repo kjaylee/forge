@@ -148,7 +148,7 @@ impl TryFrom<EventData> for ChatCompletionMessage {
         match value {
             EventData::KnownEvent(event) => ChatCompletionMessage::try_from(event),
             EventData::Unknown(_) => {
-                // ignore any unknown events
+                // Ignore any unknown events
                 Ok(ChatCompletionMessage::assistant(Content::part("")))
             }
         }
@@ -184,7 +184,7 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
                 ChatCompletionMessage::assistant(Content::part(text))
             }
             ContentBlock::ToolUse { id, name, input } => {
-                // note: we've to check if the input is empty or null. else we end up adding
+                // note: We've to check if the input is empty or null. else we end up adding
                 // empty object `{}` as prefix to tool args.
                 let is_empty =
                     input.is_null() || input.as_object().is_some_and(|map| map.is_empty());

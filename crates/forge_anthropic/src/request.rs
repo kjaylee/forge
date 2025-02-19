@@ -113,7 +113,7 @@ impl TryFrom<ContextMessage> for Message {
                     forge_domain::Role::System => {
                         // note: anthropic doesn't support system role messages and they're already
                         // filtered out. so this state is unreachable.
-                        unreachable!("found `system` role message in context for anthropic")
+                        return Err(anyhow::anyhow!("system role messages are not supported in the context for anthropic provider".to_string()));
                     }
                 }
             }
