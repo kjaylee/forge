@@ -9,8 +9,7 @@ use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
 
 use crate::request::Request;
-use crate::response::ListModelResponse;
-use crate::stream_response::EventData;
+use crate::response::{EventData, ListModelResponse};
 
 #[derive(Debug, Default, Clone, Setters)]
 #[setters(into, strip_option)]
