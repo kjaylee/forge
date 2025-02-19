@@ -166,7 +166,7 @@ impl ProviderService for OpenRouter {
             .collect::<Vec<Model>>())
     }
 
-    // TODO: provider may not support this API, so we need to handle this depedning on the provider.
+    // TODO: provider may not support this API, so we need to handle this depending on the provider.
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
         let path = format!("parameters/{}", model.as_str());
