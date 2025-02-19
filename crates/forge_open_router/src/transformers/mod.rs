@@ -1,8 +1,10 @@
 mod drop_tool_call;
+mod open_ai;
 mod set_cache;
 mod tool_choice;
 
 use drop_tool_call::DropToolCalls;
+use open_ai::OpenAiTransformer;
 use set_cache::SetCache;
 use tool_choice::SetToolChoice;
 
@@ -30,12 +32,12 @@ pub trait Transformer {
 
     fn when_name(
         self,
-        models: impl Fn(&str) -> bool,
+        model: impl Fn(&str) -> bool,
     ) -> When<Self, impl Fn(&OpenRouterRequest) -> bool>
     where
         Self: Sized,
     {
-        self.when(move |r| r.model.as_ref().is_some_and(|m| models(m.as_str())))
+        self.when(move |r| r.model.as_ref().is_some_and(|m| model(m.as_str())))
     }
 }
 
@@ -76,4 +78,8 @@ pub fn pipeline() -> impl Transformer {
                 .iter()
                 .all(|p| !name.contains(p))
         }))
+        .combine(
+            // TODO: need better check to know if the underlying provider is open-ai.
+            OpenAiTransformer.when_name(|model_name| model_name.to_lowercase().starts_with("gpt")),
+        )
 }
