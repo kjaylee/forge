@@ -196,6 +196,7 @@ mod tests {
     struct Fixture;
 
     impl Fixture {
+        // check if the SSE event is compatible with the OpenRouterResponse
         fn test_response_compatibility(event: &str) -> bool {
             let open_router_response = serde_json::from_str::<OpenRouterResponse>(event)
                 .with_context(|| "Failed to parse OpenRouter response")
