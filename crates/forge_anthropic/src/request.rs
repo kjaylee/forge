@@ -186,6 +186,7 @@ impl TryFrom<forge_domain::ToolResult> for Content {
 
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum CacheControl {
     Ephemeral,
 }
