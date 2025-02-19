@@ -5,10 +5,10 @@ use std::{
     str::FromStr,
 };
 
-use forge_domain::{ChatCompletionMessage, Content};
+use forge_domain::{ChatCompletionMessage, Content, ToolCallId, ToolCallPart, ToolName};
 use serde::{Deserialize, Serialize};
 
-use crate::request::Role;
+use super::request::Role;
 
 #[derive(Deserialize, PartialEq, Clone, Debug)]
 pub struct Response {
@@ -190,20 +190,51 @@ impl TryFrom<EventData> for ChatCompletionMessage {
     type Error = anyhow::Error;
     fn try_from(value: EventData) -> Result<Self, Self::Error> {
         let result = match value {
-            EventData::ContentBlockDelta { delta, .. } => match delta {
-                ContentBlock::TextDelta { text } => {
-                    ChatCompletionMessage::assistant(Content::part(text))
-                }
-                _ => unimplemented!(),
-            },
-            EventData::MessageDelta { delta, usage: _usage } => {
-                ChatCompletionMessage::assistant(Content::part("".to_string()))
-                    .finish_reason(delta.stop_reason)
+            EventData::ContentBlockStart { content_block, .. }
+            | EventData::ContentBlockDelta { delta: content_block, .. } => {
+                ChatCompletionMessage::try_from(content_block)?
             }
-            _ => ChatCompletionMessage::assistant(Content::part("".to_string())),
+            EventData::MessageDelta { delta, usage: _usage } => {
+                ChatCompletionMessage::assistant(Content::part("")).finish_reason(delta.stop_reason)
+            }
+            EventData::MessageStart { message: _message } => {
+                ChatCompletionMessage::assistant(Content::part(""))
+            }
+            EventData::Error { error } => {
+                return Err(anyhow::anyhow!("Anthropic API error: {}", error));
+            }
+            _ => ChatCompletionMessage::assistant(Content::part("")),
         };
 
         Ok(result)
+    }
+}
+
+impl TryFrom<ContentBlock> for ChatCompletionMessage {
+    type Error = anyhow::Error;
+    fn try_from(value: ContentBlock) -> Result<Self, Self::Error> {
+        match value {
+            ContentBlock::Image { source: _source } => todo!("Image not supported"),
+            ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
+                Ok(ChatCompletionMessage::assistant(Content::part(text)))
+            }
+            ContentBlock::ToolUse { id, name, input } => Ok(ChatCompletionMessage::assistant(
+                Content::part(""),
+            )
+            .add_tool_call(ToolCallPart {
+                call_id: Some(ToolCallId::new(id)),
+                name: Some(ToolName::new(name)),
+                arguments_part: serde_json::to_string(&input)?,
+            })),
+            ContentBlock::InputJsonDelta { partial_json } => {
+                Ok(
+                    ChatCompletionMessage::assistant(Content::part("")).add_tool_call(
+                        ToolCallPart { call_id: None, name: None, arguments_part: partial_json },
+                    ),
+                )
+            }
+            _ => Ok(ChatCompletionMessage::assistant(Content::part(""))),
+        }
     }
 }
 
