@@ -96,14 +96,10 @@ impl TryFrom<ContextMessage> for Message {
                         .unwrap_or_default()
                         + 1,
                 );
-                content.push(Content::Object(Object::Text {
-                    text: chat_message.content,
-                    r#type: ObjectType::Text,
-                    cache_control: None,
-                }));
+                content.push(Content::Text { text: chat_message.content, cache_control: None });
                 if let Some(tool_calls) = &chat_message.tool_calls {
                     for tool_call in tool_calls {
-                        content.push(Content::Object(tool_call.try_into()?));
+                        content.push(tool_call.try_into()?);
                     }
                 }
                 match chat_message.role {
@@ -119,26 +115,19 @@ impl TryFrom<ContextMessage> for Message {
             ContextMessage::ToolMessage(tool_result) => Message {
                 role: Role::User,
                 // TODO: drop unwrap
-                content: vec![Content::Object(tool_result.try_into()?)],
+                content: vec![tool_result.try_into()?],
             },
         })
     }
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
+#[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 enum Content {
-    String(String),
-    Object(Object),
-}
-
-#[derive(Serialize)]
-#[serde(untagged)]
-enum Object {
     Text {
         text: String,
         // only `text` type avail.
-        r#type: ObjectType,
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
@@ -149,13 +138,11 @@ enum Object {
         id: String,
         input: serde_json::Value,
         name: String,
-        r#type: ToolUseType,
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
     ToolResult {
         tool_use_id: String,
-        r#type: ToolResultType,
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -168,7 +155,7 @@ enum Object {
     },
 }
 
-impl TryFrom<&forge_domain::ToolCallFull> for Object {
+impl TryFrom<&forge_domain::ToolCallFull> for Content {
     type Error = anyhow::Error;
     fn try_from(value: &forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
         let call_id = value
@@ -176,26 +163,24 @@ impl TryFrom<&forge_domain::ToolCallFull> for Object {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("`call_id` is required for tool_call"))?;
 
-        Ok(Object::ToolUse {
+        Ok(Content::ToolUse {
             id: call_id.as_str().to_string(),
             input: serde_json::to_value(value.arguments.clone()).unwrap(),
             name: value.name.as_str().to_string(),
-            r#type: ToolUseType::ToolUse,
             cache_control: None,
         })
     }
 }
 
-impl TryFrom<forge_domain::ToolResult> for Object {
+impl TryFrom<forge_domain::ToolResult> for Content {
     type Error = anyhow::Error;
     fn try_from(value: forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
         let call_id = value
             .call_id
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("`call_id` is required for tool_result"))?;
-        Ok(Object::ToolResult {
+        Ok(Content::ToolResult {
             tool_use_id: call_id.as_str().to_string(),
-            r#type: ToolResultType::ToolResult,
             cache_control: None,
             content: Some(value.content),
             is_error: Some(value.is_error),
@@ -205,26 +190,8 @@ impl TryFrom<forge_domain::ToolResult> for Object {
 
 #[derive(Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ObjectType {
-    Text,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
 pub enum CacheControl {
     Ephemeral,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolUseType {
-    ToolUse,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolResultType {
-    ToolResult,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
@@ -235,21 +202,18 @@ pub enum Role {
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
+#[serde(tag = "type")]
 pub enum ToolChoice {
     Auto {
-        r#type: ToolChoiceAuto,
         #[serde(skip_serializing_if = "Option::is_none")]
         disable_parallel_tool_use: Option<bool>,
     },
     Any {
-        r#type: ToolChoiceAny,
         #[serde(skip_serializing_if = "Option::is_none")]
         disable_parallel_tool_use: Option<bool>,
     },
     Tool {
         name: String,
-        r#type: ToolChoiceTool,
         #[serde(skip_serializing_if = "Option::is_none")]
         disable_parallel_tool_use: Option<bool>,
     },
@@ -258,42 +222,17 @@ pub enum ToolChoice {
 impl From<forge_domain::ToolChoice> for ToolChoice {
     fn from(value: forge_domain::ToolChoice) -> Self {
         match value {
-            forge_domain::ToolChoice::Auto => ToolChoice::Auto {
-                r#type: ToolChoiceAuto::Auto,
-                disable_parallel_tool_use: None,
-            },
+            forge_domain::ToolChoice::Auto => ToolChoice::Auto { disable_parallel_tool_use: None },
             forge_domain::ToolChoice::Call(tool_name) => ToolChoice::Tool {
                 name: tool_name.into_string(),
-                r#type: ToolChoiceTool::Tool,
                 disable_parallel_tool_use: None,
             },
             forge_domain::ToolChoice::Required => {
-                ToolChoice::Any { r#type: ToolChoiceAny::Any, disable_parallel_tool_use: None }
+                ToolChoice::Any { disable_parallel_tool_use: None }
             }
-            forge_domain::ToolChoice::None => ToolChoice::Auto {
-                r#type: ToolChoiceAuto::Auto,
-                disable_parallel_tool_use: None,
-            },
+            forge_domain::ToolChoice::None => ToolChoice::Auto { disable_parallel_tool_use: None },
         }
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolChoiceAuto {
-    Auto,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolChoiceAny {
-    Any,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolChoiceTool {
-    Tool,
 }
 
 #[derive(Serialize)]

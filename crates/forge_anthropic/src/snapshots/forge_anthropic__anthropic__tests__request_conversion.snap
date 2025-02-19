@@ -8,8 +8,8 @@ expression: "serde_json::to_string_pretty(&request).unwrap()"
     {
       "content": [
         {
-          "text": "what's 2 + 2 ?",
-          "type": "text"
+          "type": "text",
+          "text": "what's 2 + 2 ?"
         }
       ],
       "role": "user"
@@ -17,16 +17,16 @@ expression: "serde_json::to_string_pretty(&request).unwrap()"
     {
       "content": [
         {
-          "text": "here is the system call.",
-          "type": "text"
+          "type": "text",
+          "text": "here is the system call."
         },
         {
+          "type": "tool_use",
           "id": "math-1",
           "input": {
             "expression": "2 + 2"
           },
-          "name": "math",
-          "type": "tool_use"
+          "name": "math"
         }
       ],
       "role": "assistant"
@@ -34,8 +34,8 @@ expression: "serde_json::to_string_pretty(&request).unwrap()"
     {
       "content": [
         {
-          "tool_use_id": "math-1",
           "type": "tool_result",
+          "tool_use_id": "math-1",
           "content": "{\"result\":4}",
           "is_error": false
         }
@@ -47,7 +47,7 @@ expression: "serde_json::to_string_pretty(&request).unwrap()"
   "stream": true,
   "system": "You're expert at math, so you should resolve all user queries.",
   "tool_choice": {
-    "name": "math",
-    "type": "tool"
+    "type": "Tool",
+    "name": "math"
   }
 }
