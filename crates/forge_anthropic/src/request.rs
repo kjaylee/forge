@@ -51,6 +51,7 @@ impl TryFrom<forge_domain::Context> for Request {
                 .messages
                 .into_iter()
                 .filter(|message| {
+                    // note: anthropic does not support system messages in message field.
                     if let ContextMessage::ContentMessage(chat_message) = message {
                         chat_message.role != forge_domain::Role::System
                     } else {
@@ -96,7 +97,9 @@ impl TryFrom<ContextMessage> for Message {
                         .unwrap_or_default()
                         + 1,
                 );
-                content.push(Content::Text { text: chat_message.content, cache_control: None });
+                if !chat_message.content.is_empty() {
+                    content.push(Content::Text { text: chat_message.content, cache_control: None });
+                }
                 if let Some(tool_calls) = &chat_message.tool_calls {
                     for tool_call in tool_calls {
                         content.push(tool_call.try_into()?);
@@ -196,6 +199,7 @@ pub enum Role {
 
 #[derive(Serialize)]
 #[serde(tag = "type")]
+#[serde(rename_all = "snake_case")]
 pub enum ToolChoice {
     Auto {
         #[serde(skip_serializing_if = "Option::is_none")]
