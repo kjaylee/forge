@@ -97,10 +97,12 @@ impl TryFrom<ContextMessage> for Message {
                         .unwrap_or_default()
                         + 1,
                 );
+
                 if !chat_message.content.is_empty() {
+                    // note: anthropic does not allow empty text content.
                     content.push(Content::Text { text: chat_message.content, cache_control: None });
                 }
-                if let Some(tool_calls) = &chat_message.tool_calls {
+                if let Some(tool_calls) = chat_message.tool_calls {
                     for tool_call in tool_calls {
                         content.push(tool_call.try_into()?);
                     }
@@ -109,17 +111,15 @@ impl TryFrom<ContextMessage> for Message {
                     forge_domain::Role::User => Message { role: Role::User, content },
                     forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
                     forge_domain::Role::System => {
-                        // note: system role messages are already filtered out.
+                        // note: anthropic doesn't support system role messages and they're already filtered out.
                         // so this state is unreachable.
-                        unreachable!()
+                        unreachable!("found `system` role message in context for anthropic")
                     }
                 }
             }
-            ContextMessage::ToolMessage(tool_result) => Message {
-                role: Role::User,
-                // TODO: drop unwrap
-                content: vec![tool_result.try_into()?],
-            },
+            ContextMessage::ToolMessage(tool_result) => {
+                Message { role: Role::User, content: vec![tool_result.try_into()?] }
+            }
         })
     }
 }
@@ -135,7 +135,7 @@ enum Content {
     },
     ToolUse {
         id: String,
-        input: serde_json::Value,
+        input: Option<serde_json::Value>,
         name: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
@@ -143,17 +143,17 @@ enum Content {
     ToolResult {
         tool_use_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
-        cache_control: Option<CacheControl>,
-        #[serde(skip_serializing_if = "Option::is_none")]
         content: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControl>,
     },
 }
 
-impl TryFrom<&forge_domain::ToolCallFull> for Content {
+impl TryFrom<forge_domain::ToolCallFull> for Content {
     type Error = anyhow::Error;
-    fn try_from(value: &forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
         let call_id = value
             .call_id
             .as_ref()
@@ -161,7 +161,7 @@ impl TryFrom<&forge_domain::ToolCallFull> for Content {
 
         Ok(Content::ToolUse {
             id: call_id.as_str().to_string(),
-            input: serde_json::to_value(value.arguments.clone()).unwrap(),
+            input: serde_json::to_value(value.arguments).ok(),
             name: value.name.as_str().to_string(),
             cache_control: None,
         })
@@ -216,6 +216,7 @@ pub enum ToolChoice {
     },
 }
 
+// to understand the mappings refer: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
 impl From<forge_domain::ToolChoice> for ToolChoice {
     fn from(value: forge_domain::ToolChoice) -> Self {
         match value {
