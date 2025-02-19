@@ -1,9 +1,7 @@
 #![allow(dead_code)]
-use std::{
-    convert::Infallible,
-    fmt::{self, Display, Formatter},
-    str::FromStr,
-};
+use std::convert::Infallible;
+use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
 
 use forge_domain::{ChatCompletionMessage, Content, ToolCallId, ToolCallPart, ToolName};
 use serde::{Deserialize, Serialize};
@@ -219,9 +217,10 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
                 Ok(ChatCompletionMessage::assistant(Content::part(text)))
             }
             ContentBlock::ToolUse { id, name, input } => {
-                // note: we've to check if the input is empty or null. else we end up adding empty object `{}` as prefix to tool args.
+                // note: we've to check if the input is empty or null. else we end up adding
+                // empty object `{}` as prefix to tool args.
                 let is_empty =
-                    input.is_null() || input.as_object().map_or(false, |map| map.is_empty());
+                    input.is_null() || input.as_object().is_some_and(|map| map.is_empty());
                 Ok(
                     ChatCompletionMessage::assistant(Content::part("")).add_tool_call(
                         ToolCallPart {
