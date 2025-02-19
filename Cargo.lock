@@ -921,22 +921,15 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "derive_more 1.0.0",
  "derive_setters",
  "forge_domain",
  "insta",
- "moka2",
- "pretty_assertions",
  "reqwest 0.12.12",
  "reqwest-eventsource",
  "serde",
  "serde_json",
- "strum 0.26.3",
- "strum_macros",
- "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
- "tracing",
 ]
 
 [[package]]
@@ -971,7 +964,6 @@ dependencies = [
  "diesel_migrations",
  "dirs",
  "dotenv",
- "forge_anthropic",
  "forge_domain",
  "forge_open_router",
  "forge_stream",

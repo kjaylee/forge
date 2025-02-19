@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use forge_anthropic::Anthropic;
 use forge_domain::{
     ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
     ResultStream,
@@ -12,13 +11,13 @@ use moka2::future::Cache;
 use crate::{EnvironmentService, Infrastructure};
 
 pub struct ForgeProviderService {
-    or: Anthropic,
+    or: OpenRouter,
     cache: Cache<ModelId, Parameters>,
 }
 
 impl ForgeProviderService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
-        let or = Anthropic::builder()
+        let or = OpenRouter::builder()
             .api_key(infra.environment_service().get_environment().api_key)
             .build()
             .unwrap();
