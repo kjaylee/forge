@@ -1,7 +1,7 @@
-use forge_domain::ModelId;
-use forge_domain::{ChatCompletionMessage, Content, ToolCallId, ToolCallPart, ToolName};
-use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
+
+use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCallPart, ToolName};
+use serde::Deserialize;
 
 use super::request::Role;
 
@@ -217,9 +217,8 @@ mod tests {
 
     #[test]
     fn test_unknow_event() {
-        let event = 
-        r#"{"type": "random_error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#;
-        let event_data = serde_json::from_str::<EventData>(&event).unwrap();
+        let event = r#"{"type": "random_error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#;
+        let event_data = serde_json::from_str::<EventData>(event).unwrap();
         assert!(matches!(event_data, EventData::Unknown(_)));
     }
 
