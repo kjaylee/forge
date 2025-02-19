@@ -31,8 +31,8 @@ pub struct Request {
 impl TryFrom<forge_domain::Context> for Request {
     type Error = anyhow::Error;
     fn try_from(request: forge_domain::Context) -> std::result::Result<Self, Self::Error> {
-        // note: anthropic only supports 1 system message in context, so from the context
-        // we pick the first system message available.
+        // note: anthropic only supports 1 system message in context, so from the
+        // context we pick the first system message available.
         // ref: https://docs.anthropic.com/en/api/messages#body-system
         let system = request.messages.iter().find_map(|message| {
             if let ContextMessage::ContentMessage(chat_message) = message {
