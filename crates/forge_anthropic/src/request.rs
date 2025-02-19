@@ -31,7 +31,7 @@ pub struct Request {
 impl TryFrom<forge_domain::Context> for Request {
     type Error = anyhow::Error;
     fn try_from(request: forge_domain::Context) -> std::result::Result<Self, Self::Error> {
-        // note: anthropic only supports 1 system message in context, so from the
+        // note: Anthropic only supports 1 system message in context, so from the
         // context we pick the first system message available.
         // ref: https://docs.anthropic.com/en/api/messages#body-system
         let system = request.messages.iter().find_map(|message| {
@@ -51,7 +51,7 @@ impl TryFrom<forge_domain::Context> for Request {
                 .messages
                 .into_iter()
                 .filter(|message| {
-                    // note: anthropic does not support system messages in message field.
+                    // note: Anthropic does not support system messages in message field.
                     if let ContextMessage::ContentMessage(chat_message) = message {
                         chat_message.role != forge_domain::Role::System
                     } else {
@@ -99,7 +99,7 @@ impl TryFrom<ContextMessage> for Message {
                 );
 
                 if !chat_message.content.is_empty() {
-                    // note: anthropic does not allow empty text content.
+                    // note: Anthropic does not allow empty text content.
                     content.push(Content::Text { text: chat_message.content, cache_control: None });
                 }
                 if let Some(tool_calls) = chat_message.tool_calls {
@@ -111,7 +111,7 @@ impl TryFrom<ContextMessage> for Message {
                     forge_domain::Role::User => Message { role: Role::User, content },
                     forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
                     forge_domain::Role::System => {
-                        // note: anthropic doesn't support system role messages and they're already
+                        // note: Anthropic doesn't support system role messages and they're already
                         // filtered out. so this state is unreachable.
                         return Err(anyhow::anyhow!("system role messages are not supported in the context for anthropic provider".to_string()));
                     }
@@ -215,7 +215,7 @@ pub enum ToolChoice {
     },
 }
 
-// to understand the mappings refer: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
+// To understand the mappings refer: https://docs.anthropic.com/en/docs/build-with-claude/tool-use#controlling-claudes-output
 impl From<forge_domain::ToolChoice> for ToolChoice {
     fn from(value: forge_domain::ToolChoice) -> Self {
         match value {
