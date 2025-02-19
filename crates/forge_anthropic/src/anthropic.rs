@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use anyhow::Context as _;
 use derive_setters::Setters;
 use forge_domain::{
@@ -97,14 +95,6 @@ impl ProviderService for Anthropic {
             .model(id.to_string())
             .stream(true)
             .max_tokens(4000u64);
-
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .append(true)
-            .open("request.md")?;
-        file.write_all(serde_json::to_string_pretty(&request)?.as_bytes())?;
-        file.write_all(b"\n\n\n")?;
 
         let es = self
             .client

@@ -218,14 +218,24 @@ impl TryFrom<ContentBlock> for ChatCompletionMessage {
             ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
                 Ok(ChatCompletionMessage::assistant(Content::part(text)))
             }
-            ContentBlock::ToolUse { id, name, input } => Ok(ChatCompletionMessage::assistant(
-                Content::part(""),
-            )
-            .add_tool_call(ToolCallPart {
-                call_id: Some(ToolCallId::new(id)),
-                name: Some(ToolName::new(name)),
-                arguments_part: serde_json::to_string(&input)?,
-            })),
+            ContentBlock::ToolUse { id, name, input } => {
+                // note: we've to check if the input is empty or null. else we end up adding empty object `{}` as prefix to tool args.
+                let is_empty =
+                    input.is_null() || input.as_object().map_or(false, |map| map.is_empty());
+                Ok(
+                    ChatCompletionMessage::assistant(Content::part("")).add_tool_call(
+                        ToolCallPart {
+                            call_id: Some(ToolCallId::new(id)),
+                            name: Some(ToolName::new(name)),
+                            arguments_part: if is_empty {
+                                "".to_string()
+                            } else {
+                                serde_json::to_string(&input)?
+                            },
+                        },
+                    ),
+                )
+            }
             ContentBlock::InputJsonDelta { partial_json } => {
                 Ok(
                     ChatCompletionMessage::assistant(Content::part("")).add_tool_call(
