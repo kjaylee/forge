@@ -89,7 +89,7 @@ impl ProviderService for Anthropic {
         id: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        // TODO: depending on model, we've to set the max_tokens for request.
+        // TODO: depending on model, we've to set the max_tokens for request. for now, we're setting it to 4000.
         let request = Request::try_from(context)?
             .model(id.to_string())
             .stream(true)
@@ -142,7 +142,7 @@ impl ProviderService for Anthropic {
         Ok(response.data.into_iter().map(Into::into).collect())
     }
     async fn parameters(&self, _model: &ModelId) -> anyhow::Result<Parameters> {
-        // note: anthropic provider doesn't have this API.
+        // TODO: anthropic provider doesn't have this API, so for now allowing tool calls for all models.
         Ok(Parameters { tool_supported: true })
     }
 }

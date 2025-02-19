@@ -47,7 +47,7 @@ expression: "serde_json::to_string_pretty(&request).unwrap()"
   "stream": true,
   "system": "You're expert at math, so you should resolve all user queries.",
   "tool_choice": {
-    "type": "Tool",
+    "type": "tool",
     "name": "math"
   }
 }
