@@ -971,6 +971,7 @@ dependencies = [
  "diesel_migrations",
  "dirs",
  "dotenv",
+ "forge_anthropic",
  "forge_domain",
  "forge_open_router",
  "forge_stream",

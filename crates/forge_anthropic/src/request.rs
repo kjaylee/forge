@@ -1,6 +1,6 @@
 use derive_setters::Setters;
 use forge_domain::ContextMessage;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Default, Setters)]
 #[setters(into, strip_option)]
@@ -192,31 +192,31 @@ impl TryFrom<&forge_domain::ToolResult> for Object {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum ObjectType {
     Text,
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum CacheControl {
     Ephemeral,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ToolUseType {
-    #[serde(rename = "tool_use")]
     ToolUse,
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ToolResultType {
-    #[serde(rename = "tool_result")]
     ToolResult,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum Role {
     User,
     Assistant,
@@ -267,19 +267,19 @@ impl From<forge_domain::ToolChoice> for ToolChoice {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum ToolChoiceAuto {
     Auto,
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum ToolChoiceAny {
     Any,
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum ToolChoiceTool {
     Tool,
 }
@@ -292,7 +292,6 @@ pub struct ToolDefinition {
     #[serde(skip_serializing_if = "Option::is_none")]
     cache_control: Option<CacheControl>,
     input_schema: serde_json::Value,
-    r#type: ToolDefinitionType,
 }
 
 impl From<forge_domain::ToolDefinition> for ToolDefinition {
@@ -302,13 +301,6 @@ impl From<forge_domain::ToolDefinition> for ToolDefinition {
             description: Some(value.description),
             cache_control: None,
             input_schema: serde_json::to_value(value.input_schema).unwrap(),
-            r#type: ToolDefinitionType::Custom,
         }
     }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ToolDefinitionType {
-    Custom,
 }

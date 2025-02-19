@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use anyhow::Context as _;
 use derive_setters::Setters;
 use forge_domain::{
@@ -10,6 +12,7 @@ use tokio_stream::StreamExt;
 
 use crate::request::Request;
 use crate::response::ListModelResponse;
+use crate::stream_response::EventData;
 
 #[derive(Debug, Default, Clone, Setters)]
 #[setters(into, strip_option)]
@@ -95,6 +98,14 @@ impl ProviderService for Anthropic {
             .stream(true)
             .max_tokens(4000u64);
 
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .append(true)
+            .open("request.md")?;
+        file.write_all(serde_json::to_string_pretty(&request)?.as_bytes())?;
+        file.write_all(b"\n\n\n")?;
+
         let es = self
             .client
             .post(self.url("/messages")?)
@@ -112,39 +123,15 @@ impl ProviderService for Anthropic {
                             None
                         }
                         Event::Message(_event) => Some(
-                            todo!(), /* serde_json::from_str::<OpenRouterResponse>(&event.data)
-                                      *     .with_context(|| "Failed to parse OpenRouter
-                                      * response")
-                                      *     .and_then(|message| {
-                                      *         ChatCompletionMessage::try_from(message.clone())
-                                      *             .with_context(|| "Failed to create
-                                      * completion message")
-                                      *     }), */
+                            serde_json::from_str::<EventData>(&_event.data)
+                                .with_context(|| "Failed to parse Anthronic event")
+                                .and_then(|event| {
+                                    ChatCompletionMessage::try_from(event)
+                                        .with_context(|| "Failed to create completion message")
+                                }),
                         ),
                     },
                     Err(reqwest_eventsource::Error::StreamEnded) => None,
-                    // Err(reqwest_eventsource::Error::InvalidStatusCode(_, response)) => Some(
-                    //     response
-                    //         .json::<OpenRouterResponse>()
-                    //         .await
-                    //         .with_context(|| "Failed to parse OpenRouter response")
-                    //         .and_then(|message| {
-                    //             ChatCompletionMessage::try_from(message.clone())
-                    //                 .with_context(|| "Failed to create completion message")
-                    //         })
-                    //         .with_context(|| "Failed with invalid status code"),
-                    // ),
-                    // Err(reqwest_eventsource::Error::InvalidContentType(_, response)) => Some(
-                    //     response
-                    //         .json::<OpenRouterResponse>()
-                    //         .await
-                    //         .with_context(|| "Failed to parse OpenRouter response")
-                    //         .and_then(|message| {
-                    //             ChatCompletionMessage::try_from(message.clone())
-                    //                 .with_context(|| "Failed to create completion message")
-                    //         })
-                    //         .with_context(|| "Failed with invalid content type"),
-                    // ),
                     Err(err) => Some(Err(err.into())),
                 }
             });
@@ -167,7 +154,7 @@ impl ProviderService for Anthropic {
     }
     async fn parameters(&self, _model: &ModelId) -> anyhow::Result<Parameters> {
         // note: didn't find any api docs for this endpoint.
-        Ok(Parameters::default())
+        Ok(Parameters { tool_supported: true })
     }
 }
 
