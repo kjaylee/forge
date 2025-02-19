@@ -127,12 +127,8 @@ impl TryFrom<ContextMessage> for Message {
 enum Content {
     Text {
         text: String,
-        // only `text` type avail.
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
-    },
-    Image {
-        // add support for image type later.
     },
     ToolUse {
         id: String,
@@ -149,9 +145,6 @@ enum Content {
         content: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
-    },
-    Document {
-        // TODO: add support for doc type.
     },
 }
 
