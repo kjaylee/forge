@@ -1,10 +1,9 @@
 use forge_domain::ModelId;
 use forge_domain::{ChatCompletionMessage, Content, ToolCallId, ToolCallPart, ToolName};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fmt::{self, Display, Formatter};
 
 use super::request::Role;
-
 
 #[derive(Deserialize)]
 pub struct ListModelResponse {
@@ -60,9 +59,7 @@ impl From<StopReason> for forge_domain::FinishReason {
         match value {
             StopReason::EndTurn => forge_domain::FinishReason::Stop,
             StopReason::MaxTokens => forge_domain::FinishReason::Length,
-            StopReason::StopSequence => {
-                todo!("not sure about this")
-            }
+            StopReason::StopSequence => forge_domain::FinishReason::Stop,
             StopReason::ToolUse => forge_domain::FinishReason::ToolCalls,
         }
     }
@@ -134,13 +131,6 @@ pub enum ContentBlock {
     InputJsonDelta {
         partial_json: String,
     },
-}
-
-#[derive(Debug, Deserialize, Clone, PartialEq, Serialize)]
-#[serde(tag = "type")]
-pub enum ImageSource {
-    #[serde(rename = "base64")]
-    Base64 { media_type: String, data: String },
 }
 
 impl TryFrom<EventData> for ChatCompletionMessage {
