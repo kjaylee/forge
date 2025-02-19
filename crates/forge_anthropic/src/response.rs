@@ -67,7 +67,7 @@ impl From<StopReason> for forge_domain::FinishReason {
 
 #[derive(Deserialize, PartialEq, Clone, Debug)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum EventData {
+pub enum Event {
     Error {
         error: ErrorData,
     },
@@ -91,6 +91,15 @@ pub enum EventData {
         usage: Usage,
     },
     MessageStop,
+}
+
+#[derive(Deserialize, PartialEq, Clone, Debug)]
+#[serde(untagged)]
+pub enum EventData {
+    KnownEvent(Event),
+    // To handle any unknown events:
+    // ref: https://docs.anthropic.com/en/api/messages-streaming#other-events
+    Unknown(serde_json::Value),
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
@@ -136,15 +145,28 @@ pub enum ContentBlock {
 impl TryFrom<EventData> for ChatCompletionMessage {
     type Error = anyhow::Error;
     fn try_from(value: EventData) -> Result<Self, Self::Error> {
+        match value {
+            EventData::KnownEvent(event) => ChatCompletionMessage::try_from(event),
+            EventData::Unknown(_) => {
+                // ignore any unknown events
+                Ok(ChatCompletionMessage::assistant(Content::part("")))
+            }
+        }
+    }
+}
+
+impl TryFrom<Event> for ChatCompletionMessage {
+    type Error = anyhow::Error;
+    fn try_from(value: Event) -> Result<Self, Self::Error> {
         let result = match value {
-            EventData::ContentBlockStart { content_block, .. }
-            | EventData::ContentBlockDelta { delta: content_block, .. } => {
+            Event::ContentBlockStart { content_block, .. }
+            | Event::ContentBlockDelta { delta: content_block, .. } => {
                 ChatCompletionMessage::try_from(content_block)?
             }
-            EventData::MessageDelta { delta, .. } => {
+            Event::MessageDelta { delta, .. } => {
                 ChatCompletionMessage::assistant(Content::part("")).finish_reason(delta.stop_reason)
             }
-            EventData::Error { error } => {
+            Event::Error { error } => {
                 return Err(anyhow::anyhow!("Anthropic API error: {}", error));
             }
             _ => ChatCompletionMessage::assistant(Content::part("")),
@@ -194,19 +216,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn serde() {
+    fn test_unknow_event() {
+        let event = 
+        r#"{"type": "random_error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#;
+        let event_data = serde_json::from_str::<EventData>(&event).unwrap();
+        assert!(matches!(event_data, EventData::Unknown(_)));
+    }
+
+    #[test]
+    fn test_event_deser() {
         let tests = vec![
             (
                 "error",
                 r#"{"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#,
-                EventData::Error {
+                Event::Error {
                     error: ErrorData::OverloadedError { message: "Overloaded".to_string() },
                 },
             ),
             (
                 "message_start",
                 r#"{"type":"message_start","message":{"id":"msg_019LBLYFJ7fG3fuAqzuRQbyi","type":"message","role":"assistant","content":[],"model":"claude-3-opus-20240229","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":1}}}"#,
-                EventData::MessageStart {
+                Event::MessageStart {
                     message: MessageStart {
                         id: "msg_019LBLYFJ7fG3fuAqzuRQbyi".to_string(),
                         r#type: "message".to_string(),
@@ -222,16 +252,16 @@ mod tests {
             (
                 "content_block_start",
                 r#"{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}"#,
-                EventData::ContentBlockStart {
+                Event::ContentBlockStart {
                     index: 0,
                     content_block: ContentBlock::Text { text: "".to_string() },
                 },
             ),
-            ("ping", r#"{"type": "ping"}"#, EventData::Ping),
+            ("ping", r#"{"type": "ping"}"#, Event::Ping),
             (
                 "content_block_delta",
                 r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}"#,
-                EventData::ContentBlockDelta {
+                Event::ContentBlockDelta {
                     index: 0,
                     delta: ContentBlock::TextDelta { text: "Hello".to_string() },
                 },
@@ -239,7 +269,7 @@ mod tests {
             (
                 "content_block_delta",
                 r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"!"}}"#,
-                EventData::ContentBlockDelta {
+                Event::ContentBlockDelta {
                     index: 0,
                     delta: ContentBlock::TextDelta { text: "!".to_string() },
                 },
@@ -247,12 +277,12 @@ mod tests {
             (
                 "content_block_stop",
                 r#"{"type":"content_block_stop","index":0}"#,
-                EventData::ContentBlockStop { index: 0 },
+                Event::ContentBlockStop { index: 0 },
             ),
             (
                 "message_delta",
                 r#"{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":12}}"#,
-                EventData::MessageDelta {
+                Event::MessageDelta {
                     delta: MessageDelta { stop_reason: StopReason::EndTurn, stop_sequence: None },
                     usage: Usage { input_tokens: None, output_tokens: Some(12) },
                 },
@@ -260,11 +290,11 @@ mod tests {
             (
                 "message_stop",
                 r#"{"type":"message_stop"}"#,
-                EventData::MessageStop,
+                Event::MessageStop,
             ),
         ];
         for (name, input, event_data) in tests {
-            let got: EventData = serde_json::from_str(input).unwrap();
+            let got: Event = serde_json::from_str(input).unwrap();
             assert_eq!(got, event_data, "test failed for event data: {}", name);
         }
     }
