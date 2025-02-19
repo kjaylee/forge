@@ -111,8 +111,8 @@ impl TryFrom<ContextMessage> for Message {
                     forge_domain::Role::User => Message { role: Role::User, content },
                     forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
                     forge_domain::Role::System => {
-                        // note: anthropic doesn't support system role messages and they're already filtered out.
-                        // so this state is unreachable.
+                        // note: anthropic doesn't support system role messages and they're already
+                        // filtered out. so this state is unreachable.
                         unreachable!("found `system` role message in context for anthropic")
                     }
                 }
