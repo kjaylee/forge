@@ -24,7 +24,7 @@ pub enum Provider {
 impl Provider {
     fn parse(base_url: &str) -> Result<Self> {
         match base_url {
-            "https://openai.com/api/v1/" => Ok(Self::OpenAI(Url::parse(base_url)?)),
+            "https://api.openai.com/v1/" => Ok(Self::OpenAI(Url::parse(base_url)?)),
             "https://openrouter.ai/api/v1/" => Ok(Self::OpenRouter(Url::parse(base_url)?)),
             _ => Err(anyhow::anyhow!("Provider not supported yet!")),
         }
