@@ -12,6 +12,10 @@ impl Transformer for OpenAiTransformer {
         request.prompt = None;
         request.models = None;
         request.route = None;
+        request.top_k = None;
+        request.repetition_penalty = None;
+        request.min_p = None;
+        request.top_a = None;
 
         let tools_present =
             request
