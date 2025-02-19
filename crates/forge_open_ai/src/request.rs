@@ -49,7 +49,8 @@ impl From<ContextMessage> for Lift<ChatCompletionRequestMessage> {
                         tool_calls: chat_message.tool_calls.map(|tool_calls| {
                             tool_calls
                                 .into_iter()
-                                .map(|tc| Lift::from(tc).take())
+                                .filter_map(|tc| Lift::try_from(tc).ok())
+                                .map(|tc| tc.take())
                                 .collect::<Vec<_>>()
                         }),
                         ..Default::default()
@@ -74,6 +75,7 @@ impl From<ContextMessage> for Lift<ChatCompletionRequestMessage> {
                 }
             },
             ContextMessage::ToolMessage(tool_result) => {
+                // TODO: for tool result, it's expected to have call_id, so we've to make call_id required.
                 let call_id = tool_result.call_id.as_ref().unwrap();
                 ChatCompletionRequestMessage::Tool(ChatCompletionRequestToolMessage {
                     tool_call_id: call_id.as_str().to_string(),
@@ -85,18 +87,20 @@ impl From<ContextMessage> for Lift<ChatCompletionRequestMessage> {
     }
 }
 
-impl From<ToolCallFull> for Lift<ChatCompletionMessageToolCall> {
-    fn from(value: ToolCallFull) -> Self {
+impl TryFrom<ToolCallFull> for Lift<ChatCompletionMessageToolCall> {
+    type Error = anyhow::Error;
+    fn try_from(value: ToolCallFull) -> std::result::Result<Self, Self::Error> {
+        // TODO: drop this unwrap.
         let id = value.call_id.as_ref().unwrap();
-        ChatCompletionMessageToolCall {
+        Ok(ChatCompletionMessageToolCall {
             id: id.as_str().to_string(),
             r#type: ChatCompletionToolType::Function,
             function: FunctionCall {
                 name: value.name.into_string(),
-                arguments: serde_json::to_string(&value.arguments).unwrap(),
+                arguments: serde_json::to_string(&value.arguments)?,
             },
         }
-        .lift()
+        .lift())
     }
 }
 
