@@ -192,7 +192,8 @@ impl ProviderService for OpenRouter {
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         match self.provider {
             Provider::OpenAI(_) => {
-                // TODO: open-ai provider doesn't support parameters endpoint, so we return true for now.
+                // TODO: open-ai provider doesn't support parameters endpoint, so we return true
+                // for now.
                 return Ok(Parameters { tool_supported: true });
             }
             Provider::OpenRouter(_) => {
