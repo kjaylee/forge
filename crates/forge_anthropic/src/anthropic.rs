@@ -78,7 +78,6 @@ impl Anthropic {
             "anthropic-version",
             HeaderValue::from_str(&self.anthropic_version).unwrap(),
         );
-        headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
     }
 }
