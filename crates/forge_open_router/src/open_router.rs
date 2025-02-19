@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_provider_parser() {
-        let open_ai_provider = Provider::parse("https://openai.com/api/v1/");
+        let open_ai_provider = Provider::parse("https://api.openai.com/v1/");
         assert!(open_ai_provider.is_ok());
         assert!(matches!(open_ai_provider.unwrap(), Provider::OpenAI(_)));
 
