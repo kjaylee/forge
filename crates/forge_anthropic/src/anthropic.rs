@@ -90,7 +90,7 @@ impl ProviderService for Anthropic {
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         // TODO: depending on model, we've to set the max_tokens for request.
-        let request = Request::from(context)
+        let request = Request::try_from(context)?
             .model(id.to_string())
             .stream(true)
             .max_tokens(4000u64);
@@ -142,7 +142,7 @@ impl ProviderService for Anthropic {
         Ok(response.data.into_iter().map(Into::into).collect())
     }
     async fn parameters(&self, _model: &ModelId) -> anyhow::Result<Parameters> {
-        // note: didn't find any api docs for this endpoint.
+        // note: anthropic provider doesn't have this API.
         Ok(Parameters { tool_supported: true })
     }
 }
@@ -187,7 +187,8 @@ mod tests {
                 is_error: false,
             }])
             .tool_choice(ToolChoice::Call(ToolName::new("math")));
-        let request = Request::from(context)
+        let request = Request::try_from(context)
+            .unwrap()
             .model("sonnet-3.5".to_string())
             .stream(true)
             .max_tokens(4000u64);

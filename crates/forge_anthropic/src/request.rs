@@ -28,9 +28,12 @@ pub struct Request {
     top_p: Option<f32>,
 }
 
-impl From<forge_domain::Context> for Request {
-    fn from(mut request: forge_domain::Context) -> Self {
-        // only 1st system message is supported.
+impl TryFrom<forge_domain::Context> for Request {
+    type Error = anyhow::Error;
+    fn try_from(request: forge_domain::Context) -> std::result::Result<Self, Self::Error> {
+        // note: anthropic only supports 1 system message in context, so from the context
+        // we pick the first system message available.
+        // ref: https://docs.anthropic.com/en/api/messages#body-system
         let system = request.messages.iter().find_map(|message| {
             if let ContextMessage::ContentMessage(chat_message) = message {
                 if chat_message.role == forge_domain::Role::System {
@@ -42,27 +45,29 @@ impl From<forge_domain::Context> for Request {
                 None
             }
         });
-        // anthropic has only 2 roles. i.e user and assistant. so we need to filter out
-        // system messages.
-        request.messages.retain(|message| {
-            if let ContextMessage::ContentMessage(chat_message) = message {
-                chat_message.role != forge_domain::Role::System
-            } else {
-                true
-            }
-        });
 
-        Self {
-            messages: request.messages.iter().map(Message::from).collect(),
+        Ok(Self {
+            messages: request
+                .messages
+                .into_iter()
+                .filter(|message| {
+                    if let ContextMessage::ContentMessage(chat_message) = message {
+                        chat_message.role != forge_domain::Role::System
+                    } else {
+                        true
+                    }
+                })
+                .map(Message::try_from)
+                .collect::<std::result::Result<Vec<_>, _>>()?,
             tools: request
                 .tools
                 .into_iter()
-                .map(ToolDefinition::from)
-                .collect::<Vec<_>>(),
+                .map(ToolDefinition::try_from)
+                .collect::<std::result::Result<Vec<_>, _>>()?,
             system,
             tool_choice: request.tool_choice.map(ToolChoice::from),
             ..Default::default()
-        }
+        })
     }
 }
 
@@ -78,22 +83,29 @@ pub struct Message {
     role: Role,
 }
 
-impl From<&ContextMessage> for Message {
-    fn from(value: &ContextMessage) -> Self {
-        match &value {
+impl TryFrom<ContextMessage> for Message {
+    type Error = anyhow::Error;
+    fn try_from(value: ContextMessage) -> std::result::Result<Self, Self::Error> {
+        Ok(match value {
             ContextMessage::ContentMessage(chat_message) => {
-                let mut content = vec![];
+                let mut content = Vec::with_capacity(
+                    chat_message
+                        .tool_calls
+                        .as_ref()
+                        .map(|tc| tc.len())
+                        .unwrap_or_default()
+                        + 1,
+                );
                 content.push(Content::Object(Object::Text {
-                    text: chat_message.content.clone(),
+                    text: chat_message.content,
                     r#type: ObjectType::Text,
                     cache_control: None,
                 }));
                 if let Some(tool_calls) = &chat_message.tool_calls {
                     for tool_call in tool_calls {
-                        content.push(Content::Object(tool_call.try_into().unwrap()));
+                        content.push(Content::Object(tool_call.try_into()?));
                     }
                 }
-                // TODO: what if the chat_message has tool_calls???
                 match chat_message.role {
                     forge_domain::Role::User => Message { role: Role::User, content },
                     forge_domain::Role::Assistant => Message { role: Role::Assistant, content },
@@ -107,9 +119,9 @@ impl From<&ContextMessage> for Message {
             ContextMessage::ToolMessage(tool_result) => Message {
                 role: Role::User,
                 // TODO: drop unwrap
-                content: vec![Content::Object(tool_result.try_into().unwrap())],
+                content: vec![Content::Object(tool_result.try_into()?)],
             },
-        }
+        })
     }
 }
 
@@ -174,9 +186,9 @@ impl TryFrom<&forge_domain::ToolCallFull> for Object {
     }
 }
 
-impl TryFrom<&forge_domain::ToolResult> for Object {
+impl TryFrom<forge_domain::ToolResult> for Object {
     type Error = anyhow::Error;
-    fn try_from(value: &forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
         let call_id = value
             .call_id
             .as_ref()
@@ -185,7 +197,7 @@ impl TryFrom<&forge_domain::ToolResult> for Object {
             tool_use_id: call_id.as_str().to_string(),
             r#type: ToolResultType::ToolResult,
             cache_control: None,
-            content: Some(value.content.clone()),
+            content: Some(value.content),
             is_error: Some(value.is_error),
         })
     }
@@ -294,13 +306,14 @@ pub struct ToolDefinition {
     input_schema: serde_json::Value,
 }
 
-impl From<forge_domain::ToolDefinition> for ToolDefinition {
-    fn from(value: forge_domain::ToolDefinition) -> Self {
-        ToolDefinition {
+impl TryFrom<forge_domain::ToolDefinition> for ToolDefinition {
+    type Error = anyhow::Error;
+    fn try_from(value: forge_domain::ToolDefinition) -> std::result::Result<Self, Self::Error> {
+        Ok(ToolDefinition {
             name: value.name.into_string(),
             description: Some(value.description),
             cache_control: None,
-            input_schema: serde_json::to_value(value.input_schema).unwrap(),
-        }
+            input_schema: serde_json::to_value(value.input_schema)?,
+        })
     }
 }
