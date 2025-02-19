@@ -125,8 +125,7 @@ impl TryFrom<ContextMessage> for Message {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", tag = "type")]
 enum Content {
     Text {
         text: String,
@@ -199,8 +198,7 @@ pub enum Role {
 }
 
 #[derive(Serialize)]
-#[serde(tag = "type")]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum ToolChoice {
     Auto {
         #[serde(skip_serializing_if = "Option::is_none")]
