@@ -15,6 +15,28 @@ use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use super::transformers::{pipeline, Transformer};
 
+#[derive(Clone)]
+pub enum Provider {
+    OpenAI(Url),
+    OpenRouter(Url),
+}
+
+impl Provider {
+    fn parse(base_url: &str) -> Result<Self> {
+        match base_url {
+            "https://openai.com/api/v1/" => Ok(Self::OpenAI(Url::parse(base_url)?)),
+            "https://openrouter.ai/api/v1/" => Ok(Self::OpenRouter(Url::parse(base_url)?)),
+            _ => Err(anyhow::anyhow!("Provider not supported yet!")),
+        }
+    }
+
+    fn base_url(&self) -> &Url {
+        match self {
+            Self::OpenAI(url) | Self::OpenRouter(url) => url,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, Setters)]
 #[setters(into, strip_option)]
 pub struct OpenRouterBuilder {
@@ -29,11 +51,8 @@ impl OpenRouterBuilder {
             .base_url
             .as_deref()
             .unwrap_or("https://openrouter.ai/api/v1/");
-
-        let base_url = Url::parse(base_url)
-            .with_context(|| format!("Failed to parse base URL: {}", base_url))?;
-
-        Ok(OpenRouter { client, base_url, api_key: self.api_key })
+        let provider = Provider::parse(base_url)?;
+        Ok(OpenRouter { client, api_key: self.api_key, provider })
     }
 }
 
@@ -41,7 +60,7 @@ impl OpenRouterBuilder {
 pub struct OpenRouter {
     client: Client,
     api_key: Option<String>,
-    base_url: Url,
+    provider: Provider,
 }
 
 impl OpenRouter {
@@ -58,9 +77,13 @@ impl OpenRouter {
         // Remove leading slash to avoid double slashes
         let path = path.trim_start_matches('/');
 
-        self.base_url
-            .join(path)
-            .with_context(|| format!("Failed to append {} to base URL: {}", path, self.base_url))
+        self.provider.base_url().join(path).with_context(|| {
+            format!(
+                "Failed to append {} to base URL: {}",
+                path,
+                self.provider.base_url()
+            )
+        })
     }
 
     fn headers(&self) -> HeaderMap {
@@ -88,7 +111,7 @@ impl ProviderService for OpenRouter {
             .model(model_id.clone())
             .stream(true);
 
-        request = pipeline().transform(request);
+        request = pipeline(&self.provider).transform(request);
 
         let es = self
             .client
@@ -166,35 +189,41 @@ impl ProviderService for OpenRouter {
             .collect::<Vec<Model>>())
     }
 
-    // TODO: provider may not support this API, so we need to handle this depending
-    // on the provider.
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
-        // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
-        let path = format!("parameters/{}", model.as_str());
+        match self.provider {
+            Provider::OpenAI(_) => {
+                // TODO: open-ai provider doesn't support parameters endpoint, so we return true for now.
+                return Ok(Parameters { tool_supported: true });
+            }
+            Provider::OpenRouter(_) => {
+                // // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
+                let path = format!("parameters/{}", model.as_str());
 
-        let url = self.url(&path)?;
+                let url = self.url(&path)?;
 
-        let text = self
-            .client
-            .get(url)
-            .headers(self.headers())
-            .send()
-            .await?
-            .error_for_status()?
-            .text()
-            .await?;
+                let text = self
+                    .client
+                    .get(url)
+                    .headers(self.headers())
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .text()
+                    .await?;
 
-        let response: ParameterResponse = serde_json::from_str(&text)
-            .with_context(|| "Failed to parse parameter response".to_string())?;
+                let response: ParameterResponse = serde_json::from_str(&text)
+                    .with_context(|| "Failed to parse parameter response".to_string())?;
 
-        Ok(Parameters {
-            tool_supported: response
-                .data
-                .supported_parameters
-                .iter()
-                .flat_map(|parameter| parameter.iter())
-                .any(|parameter| parameter == "tools"),
-        })
+                Ok(Parameters {
+                    tool_supported: response
+                        .data
+                        .supported_parameters
+                        .iter()
+                        .flat_map(|parameter| parameter.iter())
+                        .any(|parameter| parameter == "tools"),
+                })
+            }
+        }
     }
 }
 
@@ -220,7 +249,7 @@ mod tests {
         OpenRouter {
             client: Client::new(),
             api_key: None,
-            base_url: Url::parse("https://openrouter.ai/api/v1/").unwrap(),
+            provider: Provider::OpenRouter(Url::parse("https://openrouter.ai/api/v1/").unwrap()),
         }
     }
 
@@ -296,5 +325,22 @@ mod tests {
 
         assert!(message.is_err());
         Ok(())
+    }
+
+    #[test]
+    fn test_provider_parser() {
+        let open_ai_provider = Provider::parse("https://openai.com/api/v1/");
+        assert!(open_ai_provider.is_ok());
+        assert!(matches!(open_ai_provider.unwrap(), Provider::OpenAI(_)));
+
+        let open_router_provider = Provider::parse("https://openrouter.ai/api/v1/");
+        assert!(open_router_provider.is_ok());
+        assert!(matches!(
+            open_router_provider.unwrap(),
+            Provider::OpenRouter(_)
+        ));
+
+        let groq_provider = Provider::parse("https://groq.com/api/v1/");
+        assert!(groq_provider.is_err());
     }
 }

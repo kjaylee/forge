@@ -8,6 +8,7 @@ use open_ai::OpenAiTransformer;
 use set_cache::SetCache;
 use tool_choice::SetToolChoice;
 
+use crate::open_router::Provider;
 use crate::request::OpenRouterRequest;
 use crate::tool_choice::ToolChoice;
 
@@ -69,7 +70,7 @@ impl<A: Transformer, B: Transformer> Transformer for Combine<A, B> {
     }
 }
 
-pub fn pipeline() -> impl Transformer {
+pub fn pipeline(provider: &Provider) -> impl Transformer + use<'_> {
     Identity
         .combine(DropToolCalls.when_name(|name| name.contains("mistral")))
         .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("gemini")))
@@ -78,8 +79,5 @@ pub fn pipeline() -> impl Transformer {
                 .iter()
                 .all(|p| !name.contains(p))
         }))
-        .combine(
-            // TODO: need better check to know if the underlying provider is open-ai.
-            OpenAiTransformer.when_name(|model_name| model_name.to_lowercase().starts_with("gpt")),
-        )
+        .combine(OpenAiTransformer.when(move |_| matches!(provider, Provider::OpenAI(_))))
 }
