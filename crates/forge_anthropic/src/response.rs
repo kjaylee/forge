@@ -292,9 +292,9 @@ mod tests {
                 Event::MessageStop,
             ),
         ];
-        for (name, input, event_data) in tests {
-            let got: Event = serde_json::from_str(input).unwrap();
-            assert_eq!(got, event_data, "test failed for event data: {}", name);
+        for (name, input, expected) in tests {
+            let actual: Event = serde_json::from_str(input).unwrap();
+            assert_eq!(actual, expected, "test failed for event data: {}", name);
         }
     }
 
