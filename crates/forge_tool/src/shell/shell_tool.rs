@@ -146,7 +146,7 @@ mod tests {
             } else {
                 "/bin/sh".to_string()
             },
-            provider: Provider::OpenRouter("test-key".to_string()),
+            provider: Provider::OpenRouter("test-key".into()),
             base_path: PathBuf::new(),
         }
     }

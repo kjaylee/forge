@@ -2,12 +2,33 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderKey(String);
+
+impl From<&str> for ProviderKey {
+    fn from(key: &str) -> Self {
+        Self(key.into())
+    }
+}
+
+impl From<String> for ProviderKey {
+    fn from(key: String) -> Self {
+        Self(key)
+    }
+}
+
+impl Into<String> for ProviderKey {
+    fn into(self) -> String {
+        self.0
+    }
+}
+
 /// Providers that can be used.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Provider {
-    OpenRouter(String),
-    OpenAI(String),
-    Anthropic(String),
+    OpenRouter(ProviderKey),
+    OpenAI(ProviderKey),
+    Anthropic(ProviderKey),
 }
 
 impl Provider {
@@ -17,9 +38,9 @@ impl Provider {
         let open_ai_key = std::env::var("OPEN_AI_KEY");
         let anthropic_key = std::env::var("ANTHROPIC_KEY");
         match (open_router_key, open_ai_key, anthropic_key) {
-            (Ok(key), _, _) => Some(Self::OpenRouter(key)),
-            (_, Ok(key), _) => Some(Self::OpenAI(key)),
-            (_, _, Ok(key)) => Some(Self::Anthropic(key)),
+            (Ok(key), _, _) => Some(Self::OpenRouter(key.into())),
+            (_, Ok(key), _) => Some(Self::OpenAI(key.into())),
+            (_, _, Ok(key)) => Some(Self::Anthropic(key.into())),
             _ => None,
         }
     }
