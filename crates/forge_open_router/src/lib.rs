@@ -1,10 +1,10 @@
 mod anthropic;
 mod open_router;
 
-pub use anthropic::Anthropic;
+use anthropic::Anthropic;
 use derive_setters::Setters;
 use forge_domain::{Provider, ProviderService};
-pub use open_router::OpenRouter;
+use open_router::OpenRouter;
 
 #[derive(Debug, Clone, Setters, Default)]
 #[setters(strip_option)]
