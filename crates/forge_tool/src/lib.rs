@@ -42,8 +42,6 @@ pub fn tools(env: &Environment) -> Vec<Tool> {
 mod tests {
     use std::path::PathBuf;
 
-    use forge_domain::Provider;
-
     use super::*;
 
     /// Create a default test environment
@@ -57,7 +55,8 @@ mod tests {
             } else {
                 "/bin/sh".to_string()
             },
-            provider: Provider::OpenRouter("test-key".into()),
+            api_key: String::default(),
+            provider_url: String::default(),
             base_path: PathBuf::new(),
         }
     }

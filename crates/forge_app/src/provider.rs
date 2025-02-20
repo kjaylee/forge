@@ -5,7 +5,7 @@ use forge_domain::{
     ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
     ResultStream,
 };
-use forge_open_router::ProviderFactory;
+use forge_open_router::ProviderBuilder;
 use moka2::future::Cache;
 
 use crate::{EnvironmentService, Infrastructure};
@@ -18,7 +18,12 @@ pub struct ForgeProviderService {
 impl ForgeProviderService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
         let env = infra.environment_service().get_environment();
-        let or = ProviderFactory::get(env.provider).unwrap();
+        let or = ProviderBuilder::from_url(env.provider_url)
+            .with_key(env.api_key)
+            .build()
+            .expect("Failed to build provider")
+            .into();
+
         Self { or, cache: Cache::new(1024) }
     }
 }

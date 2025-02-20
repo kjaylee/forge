@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use forge_app::EnvironmentService;
-use forge_domain::{Environment, Provider};
+use forge_domain::Environment;
 
 pub struct ForgeEnvironmentService {
     restricted: bool,
@@ -33,7 +33,8 @@ impl ForgeEnvironmentService {
     pub fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        let provider = Provider::detect().expect("No provider key set");
+        let api_key = std::env::var("FORGE_API_KEY").expect("No API key set");
+        let provider_url = std::env::var("FORGE_PROVIDER_URL").expect("No provider URL set");
 
         Environment {
             os: std::env::consts::OS.to_string(),
@@ -43,7 +44,8 @@ impl ForgeEnvironmentService {
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
-            provider,
+            api_key,
+            provider_url,
         }
     }
 }

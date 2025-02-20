@@ -5,27 +5,47 @@ use anthropic::Anthropic;
 use forge_domain::{Provider, ProviderService};
 use open_router::{OpenRouter, Provider as OpenRouterProvider};
 
-/// Creates an appropriate provider service based on the provider type.
-pub struct ProviderFactory;
+#[derive(Debug)]
+pub struct ProviderBuilder {
+    url: String,
+    api_key: Option<String>,
+}
 
-impl ProviderFactory {
-    pub fn get(provider: Provider) -> Result<Box<dyn ProviderService>, anyhow::Error> {
-        match provider {
-            Provider::OpenRouter(api_key) => Ok(Box::new(
+impl ProviderBuilder {
+    pub fn from_url<S: Into<String>>(url: S) -> Self {
+        Self { url: url.into(), api_key: None }
+    }
+
+    pub fn with_key<S: Into<String>>(mut self, key: S) -> Self {
+        self.api_key = Some(key.into());
+        self
+    }
+
+    pub fn build(self) -> Result<Box<dyn ProviderService>, anyhow::Error> {
+        let provider =
+            Provider::detect(&self.url).ok_or_else(|| anyhow::anyhow!("Unknown provider"))?;
+        let api_key = self
+            .api_key
+            .ok_or_else(|| anyhow::anyhow!("API key is required"))?;
+        Ok(match provider {
+            Provider::OpenRouter => Box::new(
                 OpenRouter::builder()
                     .provider(OpenRouterProvider::OpenRouter)
                     .api_key(api_key)
                     .build()?,
-            )),
-            Provider::OpenAI(api_key) => Ok(Box::new(
+            ),
+            Provider::OpenAI => Box::new(
                 OpenRouter::builder()
                     .provider(OpenRouterProvider::OpenAI)
                     .api_key(api_key)
                     .build()?,
-            )),
-            Provider::Anthropic(api_key) => {
-                Ok(Box::new(Anthropic::builder().api_key(api_key).build()?))
-            }
-        }
+            ),
+            Provider::Anthropic => Box::new(
+                Anthropic::builder()
+                    .api_key(api_key)
+                    .base_url(self.url)
+                    .build()?,
+            ),
+        })
     }
 }
