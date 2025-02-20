@@ -34,6 +34,6 @@ pub trait API {
     /// Creates a new conversation with the given workflow
     async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
 
-    /// Loads a workflow from a given path
-    async fn load(&self, path: &Path) -> anyhow::Result<Workflow>;
+    /// Loads a workflow from a given path, or from default locations if None
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
 }

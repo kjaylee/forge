@@ -4,6 +4,9 @@ use std::sync::Arc;
 use forge_app::{FileReadService, Infrastructure};
 use forge_domain::Workflow;
 
+// Default forge.toml content embedded in the binary
+const DEFAULT_FORGE_TOML: &str = include_str!("../../../forge.toml");
+
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
 pub struct ForgeLoaderService<F>(Arc<F>);
@@ -16,10 +19,22 @@ impl<F> ForgeLoaderService<F> {
 
 impl<F: Infrastructure> ForgeLoaderService<F> {
     /// loads the workflow from the given path.
-    pub async fn load(&self, path: &Path) -> anyhow::Result<Workflow> {
-        let workflow_content = self.0.file_read_service().read(path).await?;
-        let workflow: Workflow = workflow_content.parse()?;
-
+    /// Loads the workflow from the given path if provided, otherwise tries to read from current
+    /// directory's forge.toml, and falls back to embedded default if neither exists.
+    pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        let content = match path {
+            Some(p) => self.0.file_read_service().read(p).await?,
+            None => {
+                let current_dir_config = Path::new("forge.toml");
+                if current_dir_config.exists() {
+                    self.0.file_read_service().read(current_dir_config).await?
+                } else {
+                    DEFAULT_FORGE_TOML.to_string()
+                }
+            }
+        };
+        
+        let workflow: Workflow = content.parse()?;
         Ok(workflow)
     }
 }
@@ -57,7 +72,7 @@ max_turns = 1024"#;
             Self {
                 temp_dir,
                 loader,
-                workflow_path: PathBuf::from("workflow.toml"),
+                workflow_path: PathBuf::from("forge.toml"),
             }
         }
     }
@@ -71,7 +86,7 @@ max_turns = 1024"#;
             let workflow_path = self.temp_dir.path().join(self.workflow_path.clone());
             tokio::fs::write(&workflow_path, workflow).await?;
             self.loader
-                .load(&self.temp_dir.path().join(self.workflow_path.clone()))
+                .load(Some(&self.temp_dir.path().join(self.workflow_path.clone())))
                 .await
         }
     }
@@ -85,6 +100,35 @@ max_turns = 1024"#;
             )
             .await?;
         insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_load_workflow_from_default() -> Result<()> {
+        let loader = ForgeLoaderService::new(Arc::new(ForgeInfra::new(true)));
+        let workflow = loader.load(None).await?;
+        // Verify that the default workflow contains expected content
+        assert!(serde_json::to_string(&workflow)?.contains("developer"));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_load_workflow_from_current_dir() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        std::env::set_current_dir(&temp_dir)?;
+        
+        // Create a forge.toml in the current directory
+        let workflow_content = format!(
+            "{}\n\n[agents.system_prompt]\ntemplate = \"test\"\n\n[agents.user_prompt]\ntemplate = \"test\"",
+            BASE_WORKFLOW
+        );
+        tokio::fs::write("forge.toml", workflow_content).await?;
+        
+        let loader = ForgeLoaderService::new(Arc::new(ForgeInfra::new(true)));
+        let workflow = loader.load(None).await?;
+        
+        // Verify the workflow was loaded from the current directory
+        assert!(serde_json::to_string(&workflow)?.contains("test"));
         Ok(())
     }
 }

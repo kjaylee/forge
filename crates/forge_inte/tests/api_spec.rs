@@ -4,7 +4,7 @@ use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, ModelId, API}
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
-const WORKFLOW_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../workflows.toml");
+const WORKFLOW_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../forge.toml");
 
 /// Test fixture for API testing that supports parallel model validation
 struct Fixture {
@@ -27,7 +27,7 @@ impl Fixture {
     /// Get model response as text
     async fn get_model_response(&self) -> String {
         let api = self.api();
-        let mut workflow = api.load(&PathBuf::from(WORKFLOW_PATH)).await.unwrap();
+        let mut workflow = api.load(Some(&PathBuf::from(WORKFLOW_PATH))).await.unwrap();
         let conversation_id = api.init(workflow.clone()).await.unwrap();
 
         // Reset the workflow model

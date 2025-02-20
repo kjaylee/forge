@@ -132,10 +132,7 @@ impl<F: API> UI<F> {
     }
 
     async fn init_workflow(&self) -> anyhow::Result<Workflow> {
-        match self.cli.workflow {
-            Some(ref path) => self.api.load(path).await,
-            None => Ok(include_str!("../../../workflows.toml").parse()?),
-        }
+        self.api.load(self.cli.workflow.as_ref().map(|p| p.as_path())).await
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {
