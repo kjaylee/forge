@@ -9,3 +9,4 @@ mod transformers;
 
 mod open_router;
 pub use open_router::OpenRouter;
+pub use provider::Provider;

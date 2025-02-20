@@ -4,7 +4,7 @@ mod open_router;
 use anthropic::Anthropic;
 use derive_setters::Setters;
 use forge_domain::{Provider, ProviderService};
-use open_router::OpenRouter;
+use open_router::{OpenRouter, Provider as OpenRouterProvider};
 
 #[derive(Debug, Clone, Setters, Default)]
 #[setters(strip_option)]
@@ -18,12 +18,15 @@ impl ProviderBuilder {
             .provider
             .ok_or(anyhow::anyhow!("provider is required."))?;
         match provider {
-            Provider::OpenRouter(api_key) => {
-                Ok(Box::new(OpenRouter::builder().api_key(api_key).build()?))
-            }
+            Provider::OpenRouter(api_key) => Ok(Box::new(
+                OpenRouter::builder()
+                    .provider(OpenRouterProvider::OpenRouter)
+                    .api_key(api_key)
+                    .build()?,
+            )),
             Provider::OpenAI(api_key) => Ok(Box::new(
                 OpenRouter::builder()
-                    .base_url("https://api.openai.com/v1/")
+                    .provider(OpenRouterProvider::OpenAI)
                     .api_key(api_key)
                     .build()?,
             )),
