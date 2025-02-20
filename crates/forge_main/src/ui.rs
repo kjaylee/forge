@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, ConversationId, Model, Usage, Workflow, API,
+    AgentMessage, ChatRequest, ChatResponse, ConversationId, Model, Usage, API,
 };
 use forge_display::TitleFormat;
 use forge_tracker::EventKind;
@@ -131,15 +131,14 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    async fn init_workflow(&self) -> anyhow::Result<Workflow> {
-        self.api.load(self.cli.workflow.as_deref()).await
-    }
-
     async fn chat(&mut self, content: String) -> Result<()> {
         let conversation_id = match self.state.conversation_id {
             Some(ref id) => id.clone(),
             None => {
-                let conversation_id = self.api.init(self.init_workflow().await?).await?;
+                let conversation_id = self
+                    .api
+                    .init(self.api.load(self.cli.workflow.as_deref()).await?)
+                    .await?;
                 self.state.conversation_id = Some(conversation_id.clone());
 
                 conversation_id
