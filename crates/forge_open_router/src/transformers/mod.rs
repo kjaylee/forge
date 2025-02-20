@@ -83,11 +83,9 @@ impl Transformer for ProviderPipeline<'_> {
         let or_transformers = Identity
             .combine(DropToolCalls.when_name(|name| name.contains("mistral")))
             .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("gemini")))
-            .combine(SetCache.when_name(|name| {
-                ["mistral", "gemini"]
-                    .iter()
-                    .all(|p| !name.contains(p))
-            }))
+            .combine(
+                SetCache.when_name(|name| ["mistral", "gemini"].iter().all(|p| !name.contains(p))),
+            )
             .when(move |_| self.0.is_open_router());
 
         let openai_transformers = OpenAITransformer.when(move |_| self.0.is_openai());
