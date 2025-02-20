@@ -1,11 +1,5 @@
-mod error;
-mod model;
-mod parameters;
-mod provider;
-mod request;
-mod response;
-mod tool_choice;
-mod transformers;
-
+mod anthropic;
 mod open_router;
+
+pub use anthropic::Anthropic;
 pub use open_router::OpenRouter;
