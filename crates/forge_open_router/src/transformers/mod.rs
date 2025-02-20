@@ -8,7 +8,7 @@ use open_ai::OpenAITransformer;
 use set_cache::SetCache;
 use tool_choice::SetToolChoice;
 
-use crate::open_router::Provider;
+use crate::provider::Provider;
 use crate::request::OpenRouterRequest;
 use crate::tool_choice::ToolChoice;
 
