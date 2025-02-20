@@ -64,6 +64,7 @@ impl Conversation {
         self.workflow
             .agents
             .iter()
+            .filter(|a| a.enable)
             .filter(|a| self.turn_count(&a.id).unwrap_or(0) < a.max_turns)
             .filter(|a| a.subscribe.contains(&event_name.to_string()))
             .cloned()

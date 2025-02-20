@@ -1,9 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
 use forge_app::{FileReadService, Infrastructure};
-use forge_domain::{Prompt, Workflow};
+use forge_domain::Workflow;
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
@@ -21,54 +20,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         let workflow_content = self.0.file_read_service().read(path).await?;
         let workflow: Workflow = workflow_content.parse()?;
 
-        let workflow_dir = path
-            .parent()
-            .with_context(|| {
-                format!(
-                    "Failed to get parent directory of workflow file: {:?}",
-                    path
-                )
-            })?
-            .to_path_buf();
-
-        self.resolve(workflow_dir, workflow).await
-    }
-
-    /// given an workflow, it resolves all the internal paths specified in
-    /// workflow.
-    async fn resolve(&self, path: PathBuf, mut workflow: Workflow) -> Result<Workflow> {
-        for agent in workflow.agents.iter_mut() {
-            agent.system_prompt = self.resolve_prompt(&path, &agent.system_prompt).await?;
-            agent.user_prompt = self.resolve_prompt(&path, &agent.user_prompt).await?;
-        }
         Ok(workflow)
-    }
-
-    /// if prompt is a file path, then it reads the file and returns the
-    /// content. if the file path is relative, it resolves it with the given
-    /// path. otherwise, it returns the prompt as it is.
-    async fn resolve_prompt<V: Clone>(&self, path: &Path, prompt: &Prompt<V>) -> Result<Prompt<V>> {
-        if let Some(file_path) = Self::is_file_path(path, prompt.template.as_str()) {
-            let path = if file_path.is_absolute() {
-                file_path
-            } else {
-                path.join(file_path)
-            };
-            Ok(Prompt::new(
-                self.0.file_read_service().read(path.as_path()).await?,
-            ))
-        } else {
-            Ok(prompt.clone())
-        }
-    }
-
-    /// checks if given content is valid file path by checking it's existence.
-    fn is_file_path(workflow_dir: &Path, content: &str) -> Option<PathBuf> {
-        let path = Path::new(content);
-        if path.exists() || workflow_dir.join(path).exists() {
-            return Some(path.to_path_buf());
-        }
-        None
     }
 }
 

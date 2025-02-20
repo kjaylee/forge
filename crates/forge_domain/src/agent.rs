@@ -62,6 +62,11 @@ pub struct Agent {
     #[serde(skip_serializing_if = "is_true", default = "truth")]
     pub ephemeral: bool,
 
+    /// Flag to enable/disable the agent. When disabled (false), the agent will
+    /// be completely ignored during orchestration execution.
+    #[serde(default = "truth")]
+    pub enable: bool,
+
     /// Tools that the agent can use    
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<ToolName>,

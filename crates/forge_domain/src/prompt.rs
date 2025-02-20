@@ -1,11 +1,4 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Serialize};
-
-pub enum PromptContent {
-    Text(String),
-    File(PathBuf),
-}
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Prompt<V> {
