@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
 use tokio::time::{timeout, Duration};
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::Infrastructure;
 
@@ -64,11 +64,15 @@ impl ToolService for ForgeToolService {
         };
 
         let result = match output {
-            Ok(output) => ToolResult::from(call).success(output),
-            Err(output) => ToolResult::from(call).failure(format!("{:?}", output)),
+            Ok(output) => {
+                debug!("{:?}", output);
+                ToolResult::from(call).success(output)
+            }
+            Err(output) => {
+                error!("{:?}", output);
+                ToolResult::from(call).failure(format!("{:?}", output))
+            }
         };
-
-        debug!("{:?}", result);
 
         result
     }
