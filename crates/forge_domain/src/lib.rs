@@ -1,7 +1,6 @@
 mod agent;
 mod chat_request;
 mod chat_response;
-mod config;
 mod context;
 mod conversation;
 mod dispatch_event;
@@ -27,7 +26,6 @@ mod workflow;
 pub use agent::*;
 pub use chat_request::*;
 pub use chat_response::*;
-pub use config::*;
 pub use context::*;
 pub use conversation::*;
 pub use dispatch_event::*;
