@@ -130,10 +130,10 @@ impl ExecutableTool for Shell {
 mod tests {
     use std::{env, fs};
 
+    use forge_domain::Provider;
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use forge_domain::Provider;
 
     /// Create a default test environment
     fn test_env() -> Environment {

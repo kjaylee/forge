@@ -42,8 +42,9 @@ pub fn tools(env: &Environment) -> Vec<Tool> {
 mod tests {
     use std::path::PathBuf;
 
-    use super::*;
     use forge_domain::Provider;
+
+    use super::*;
 
     /// Create a default test environment
     fn test_env() -> Environment {

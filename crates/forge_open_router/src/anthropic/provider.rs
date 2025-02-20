@@ -154,10 +154,11 @@ impl ProviderService for Anthropic {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use forge_domain::{
         Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolResult,
     };
+
+    use super::*;
 
     #[tokio::test]
     async fn test_url_for_models() {

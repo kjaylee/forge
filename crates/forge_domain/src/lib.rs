@@ -13,6 +13,7 @@ mod message;
 mod model;
 mod orch;
 mod prompt;
+mod provider;
 mod summarize;
 mod tool;
 mod tool_call;
@@ -23,7 +24,6 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
-mod provider;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -40,6 +40,7 @@ pub use message::*;
 pub use model::*;
 pub use orch::*;
 pub use prompt::*;
+pub use provider::*;
 pub use summarize::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -50,7 +51,6 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
 pub use workflow::*;
-pub use provider::*;
 
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {

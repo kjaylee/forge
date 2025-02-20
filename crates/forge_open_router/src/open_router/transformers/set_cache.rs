@@ -26,9 +26,8 @@ impl Transformer for SetCache {
 mod tests {
     use forge_domain::{ContentMessage, Context, ContextMessage, ModelId, Role};
 
-    use crate::open_router::request::MessageContent;
-
     use super::*;
+    use crate::open_router::request::MessageContent;
 
     #[test]
     fn test_sonnet_transformer_caching() {

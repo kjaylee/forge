@@ -11,11 +11,10 @@ use tokio_stream::StreamExt;
 
 use super::model::{ListModelResponse, OpenRouterModel};
 use super::parameters::ParameterResponse;
+use super::provider::Provider;
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
-use super::transformers::Transformer;
-use super::provider::Provider;
-use super::transformers::ProviderPipeline;
+use super::transformers::{ProviderPipeline, Transformer};
 
 #[derive(Debug, Default, Clone, Setters)]
 #[setters(into, strip_option)]
