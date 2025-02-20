@@ -17,9 +17,9 @@ impl From<String> for ProviderKey {
     }
 }
 
-impl Into<String> for ProviderKey {
-    fn into(self) -> String {
-        self.0
+impl From<ProviderKey> for String {
+    fn from(val: ProviderKey) -> Self {
+        val.0
     }
 }
 
