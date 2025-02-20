@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 /// Providers that can be used.
@@ -6,6 +8,16 @@ pub enum Provider {
     OpenRouter,
     OpenAI,
     Anthropic,
+}
+
+impl Display for Provider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Provider::OpenRouter => write!(f, "OpenRouter"),
+            Provider::OpenAI => write!(f, "OpenAI"),
+            Provider::Anthropic => write!(f, "Anthropic"),
+        }
+    }
 }
 
 impl Provider {
