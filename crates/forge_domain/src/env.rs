@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
+use crate::Provider;
+
 #[derive(Debug, Setters, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[setters(strip_option)]
@@ -16,10 +18,10 @@ pub struct Environment {
     pub home: Option<PathBuf>,
     /// The shell being used.
     pub shell: String,
-    /// The Forge API key.
-    pub api_key: String,
     /// The base path relative to which everything else stored.
     pub base_path: PathBuf,
+    /// The Provider for LLM.
+    pub provider: Provider,
 }
 
 impl Environment {

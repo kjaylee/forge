@@ -43,6 +43,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
+    use forge_domain::Provider;
 
     /// Create a default test environment
     fn test_env() -> Environment {
@@ -55,7 +56,7 @@ mod tests {
             } else {
                 "/bin/sh".to_string()
             },
-            api_key: String::new(),
+            provider: Provider::OpenRouter("test-key".to_string()),
             base_path: PathBuf::new(),
         }
     }

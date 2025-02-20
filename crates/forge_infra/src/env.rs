@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use forge_app::EnvironmentService;
-use forge_domain::Environment;
+use forge_domain::{Environment, Provider};
 
 pub struct ForgeEnvironmentService {
     restricted: bool,
@@ -33,20 +33,17 @@ impl ForgeEnvironmentService {
     pub fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        // TODO: we need atleast one key to be set
-        let open_router_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
-        let _open_ai_key = std::env::var("OPEN_AI_KEY").expect("OPEN_AI_KEY must be set");
-        let _anthropic_key = std::env::var("ANTHROPIC_KEY").expect("ANTHROPIC_KEY must be set");
+        let provider = Provider::detect().expect("No provider key set");
 
         Environment {
             os: std::env::consts::OS.to_string(),
             cwd,
             shell: self.get_shell_path(),
-            api_key: open_router_key,
             base_path: dirs::config_dir()
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
+            provider,
         }
     }
 }
