@@ -63,7 +63,7 @@ impl ToolService for ForgeToolService {
             )),
         };
 
-        let result = match output {
+        match output {
             Ok(output) => {
                 debug!("{:?}", output);
                 ToolResult::from(call).success(output)
@@ -72,9 +72,7 @@ impl ToolService for ForgeToolService {
                 error!("{:?}", output);
                 ToolResult::from(call).failure(format!("{:?}", output))
             }
-        };
-
-        result
+        }
     }
 
     fn list(&self) -> Vec<ToolDefinition> {

@@ -37,6 +37,7 @@ impl ForgeEnvironmentService {
 
         Environment {
             os: std::env::consts::OS.to_string(),
+            pid: std::process::id(),
             cwd,
             shell: self.get_shell_path(),
             open_router_key: api_key,

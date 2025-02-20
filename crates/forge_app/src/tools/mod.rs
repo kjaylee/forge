@@ -65,6 +65,7 @@ mod tests {
                 base_path: PathBuf::new(),
                 qdrant_key: None,
                 qdrant_cluster: None,
+                pid: std::process::id(),
             },
         }
     }

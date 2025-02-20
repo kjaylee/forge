@@ -52,15 +52,13 @@ impl<F: API> UI<F> {
         // Parse CLI arguments first to get flags
 
         let env = api.environment();
-        let guard = log::init_tracing(env.clone())?;
-
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console::new(env),
+            console: Console::new(env.clone()),
             cli,
             models: None,
-            _guard: guard,
+            _guard: log::init_tracing(env.clone())?,
         })
     }
 
