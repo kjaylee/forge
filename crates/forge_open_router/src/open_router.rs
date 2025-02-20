@@ -13,12 +13,23 @@ use super::model::{ListModelResponse, OpenRouterModel};
 use super::parameters::ParameterResponse;
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
-use super::transformers::{pipeline, Transformer};
+use super::transformers::Transformer;
+use crate::transformers::ProviderPipeline;
 
 #[derive(Clone)]
 pub enum Provider {
     OpenAI(Url),
     OpenRouter(Url),
+}
+
+impl Provider {
+    pub fn is_openai(&self) -> bool {
+        matches!(self, Self::OpenAI(_))
+    }
+
+    pub fn is_open_router(&self) -> bool {
+        matches!(self, Self::OpenRouter(_))
+    }
 }
 
 impl Provider {
@@ -111,7 +122,7 @@ impl ProviderService for OpenRouter {
             .model(model_id.clone())
             .stream(true);
 
-        request = pipeline(&self.provider).transform(request);
+        request = ProviderPipeline::new(&self.provider).transform(request);
 
         let es = self
             .client

@@ -4,7 +4,7 @@ mod set_cache;
 mod tool_choice;
 
 use drop_tool_call::DropToolCalls;
-use open_ai::OpenAiTransformer;
+use open_ai::OpenAITransformer;
 use set_cache::SetCache;
 use tool_choice::SetToolChoice;
 
@@ -70,14 +70,30 @@ impl<A: Transformer, B: Transformer> Transformer for Combine<A, B> {
     }
 }
 
-pub fn pipeline(provider: &Provider) -> impl Transformer + use<'_> {
-    Identity
-        .combine(DropToolCalls.when_name(|name| name.contains("mistral")))
-        .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("gemini")))
-        .combine(SetCache.when_name(|name| {
-            ["mistral", "gemini", "gpt"]
-                .iter()
-                .all(|p| !name.contains(p))
-        }))
-        .combine(OpenAiTransformer.when(move |_| matches!(provider, Provider::OpenAI(_))))
+pub struct ProviderPipeline<'a>(&'a Provider);
+
+impl<'a> ProviderPipeline<'a> {
+    pub fn new(provider: &'a Provider) -> Self {
+        Self(provider)
+    }
+}
+
+impl Transformer for ProviderPipeline<'_> {
+    fn transform(&self, request: OpenRouterRequest) -> OpenRouterRequest {
+        let or_transformers = Identity
+            .combine(DropToolCalls.when_name(|name| name.contains("mistral")))
+            .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("gemini")))
+            .combine(SetCache.when_name(|name| {
+                ["mistral", "gemini"]
+                    .iter()
+                    .all(|p| !name.contains(p))
+            }))
+            .when(move |_| self.0.is_open_router());
+
+        let openai_transformers = OpenAITransformer.when(move |_| self.0.is_openai());
+
+        or_transformers
+            .combine(openai_transformers)
+            .transform(request)
+    }
 }
