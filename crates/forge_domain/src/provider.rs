@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde::{Deserialize, Serialize};
 
 /// Providers that can be used.
@@ -19,6 +21,16 @@ impl Provider {
             (_, Ok(key), _) => Some(Self::OpenAI(key)),
             (_, _, Ok(key)) => Some(Self::Anthropic(key)),
             _ => None,
+        }
+    }
+}
+
+impl Display for Provider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::OpenRouter(_) => write!(f, "OpenRouter"),
+            Self::OpenAI(_) => write!(f, "OpenAI"),
+            Self::Anthropic(_) => write!(f, "Anthropic"),
         }
     }
 }

@@ -56,6 +56,7 @@ impl From<&Environment> for Info {
             .add_item("Logs", env.log_path().display())
             .add_item("Database", env.db_path().display())
             .add_item("History", env.history_path().display())
+            .add_item("Provider", env.provider.to_string())
     }
 }
 
