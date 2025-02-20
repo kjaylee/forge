@@ -916,23 +916,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "forge_anthropic"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "derive_setters",
- "forge_domain",
- "insta",
- "reqwest 0.12.12",
- "reqwest-eventsource",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
-]
-
-[[package]]
 name = "forge_api"
 version = "0.1.0"
 dependencies = [
