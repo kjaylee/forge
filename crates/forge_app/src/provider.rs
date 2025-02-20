@@ -21,10 +21,6 @@ impl ForgeProviderService {
             .api_key(infra.environment_service().get_environment().api_key)
             .build()
             .unwrap();
-        let _or = OpenRouter::builder()
-            .api_key(infra.environment_service().get_environment().api_key)
-            .build()
-            .unwrap();
         Self { or, cache: Cache::new(1024) }
     }
 }
