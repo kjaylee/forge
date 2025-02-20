@@ -7,6 +7,6 @@ mod response;
 mod tool_choice;
 mod transformers;
 
-mod open_router;
-pub use open_router::OpenRouter;
+mod api;
+pub use api::OpenRouter;
 pub use provider::Provider;
