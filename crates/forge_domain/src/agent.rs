@@ -64,7 +64,7 @@ pub struct Agent {
 
     /// Flag to enable/disable the agent. When disabled (false), the agent will
     /// be completely ignored during orchestration execution.
-    #[serde(default = "truth")]
+    #[serde(skip_serializing_if = "is_true", default = "truth")]
     pub enable: bool,
 
     /// Tools that the agent can use    

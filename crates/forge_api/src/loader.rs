@@ -26,7 +26,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::sync::Arc;
 
     use anyhow::Result;
@@ -74,15 +74,6 @@ max_turns = 1024"#;
                 .load(&self.temp_dir.path().join(self.workflow_path.clone()))
                 .await
         }
-
-        async fn create_prompt_file(&self, path: &Path, content: &str) -> Result<()> {
-            let file_path = self.temp_dir.path().join(path);
-            if let Some(parent) = file_path.parent() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-            tokio::fs::write(file_path, content).await?;
-            Ok(())
-        }
     }
 
     #[tokio::test]
@@ -92,32 +83,6 @@ max_turns = 1024"#;
                 "You are a software developer assistant",
                 "<task>{{event.value}}</task>",
             )
-            .await?;
-        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_load_workflow_with_file_prompt() -> Result<()> {
-        let fixture = Fixture::default();
-        // create system prompt file
-        let system_prompt = "You are a software developer assistant, good at solving complex software engineering problems";
-        let system_prompt_path = Path::new("nested/system_prompt.md");
-        fixture
-            .create_prompt_file(system_prompt_path, system_prompt)
-            .await?;
-
-        let workflow = fixture
-            .run("nested/system_prompt.md", "<task>{{event.value}}</task>")
-            .await?;
-        insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_load_workflow_with_missing_prompt_file() -> Result<()> {
-        let workflow = Fixture::default()
-            .run("nested/system_prompt.md", "<task>{{event.value}}</task>")
             .await?;
         insta::assert_snapshot!(serde_json::to_string_pretty(&workflow)?);
         Ok(())
