@@ -9,7 +9,7 @@ pub enum Provider {
 }
 
 impl Provider {
-    /// detects the active provider from the environment variables.
+    /// detects the active provider from base URL
     pub fn detect(url: &str) -> Option<Self> {
         match url {
             "https://api.openai.com/v1/" => Some(Self::OpenAI),
