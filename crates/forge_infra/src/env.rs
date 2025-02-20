@@ -33,13 +33,16 @@ impl ForgeEnvironmentService {
     pub fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        let api_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
+        // TODO: we need atleast one key to be set
+        let open_router_key = std::env::var("OPEN_ROUTER_KEY").expect("OPEN_ROUTER_KEY must be set");
+        let _open_ai_key = std::env::var("OPEN_AI_KEY").expect("OPEN_AI_KEY must be set");
+        let _anthropic_key = std::env::var("ANTHROPIC_KEY").expect("ANTHROPIC_KEY must be set");
 
         Environment {
             os: std::env::consts::OS.to_string(),
             cwd,
             shell: self.get_shell_path(),
-            api_key,
+            api_key: open_router_key,
             base_path: dirs::config_dir()
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
