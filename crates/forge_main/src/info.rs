@@ -51,12 +51,12 @@ impl From<&Environment> for Info {
             .add_item("OS", &env.os)
             .add_item("Working Directory", env.cwd.display())
             .add_item("Shell", &env.shell)
+            .add_item("Provider", env.provider.to_string())
             .add_title("Paths")
             .add_item("Config", env.base_path.display())
             .add_item("Logs", env.log_path().display())
             .add_item("Database", env.db_path().display())
             .add_item("History", env.history_path().display())
-            .add_item("Provider", env.provider.to_string())
     }
 }
 
