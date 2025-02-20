@@ -21,8 +21,7 @@ impl ForgeProviderService {
         let or = ProviderBuilder::from_url(env.provider_url)
             .with_key(env.api_key)
             .build()
-            .expect("Failed to build provider")
-            .into();
+            .expect("Failed to build provider");
 
         Self { or, cache: Cache::new(1024) }
     }
