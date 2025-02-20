@@ -19,8 +19,9 @@ impl<F> ForgeLoaderService<F> {
 
 impl<F: Infrastructure> ForgeLoaderService<F> {
     /// loads the workflow from the given path.
-    /// Loads the workflow from the given path if provided, otherwise tries to read from current
-    /// directory's forge.toml, and falls back to embedded default if neither exists.
+    /// Loads the workflow from the given path if provided, otherwise tries to
+    /// read from current directory's forge.toml, and falls back to embedded
+    /// default if neither exists.
     pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         let content = match path {
             Some(p) => self.0.file_read_service().read(p).await?,
@@ -33,7 +34,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
                 }
             }
         };
-        
+
         let workflow: Workflow = content.parse()?;
         Ok(workflow)
     }
@@ -69,11 +70,7 @@ max_turns = 1024"#;
         fn default() -> Self {
             let temp_dir = tempfile::tempdir().unwrap();
             let loader = ForgeLoaderService::new(Arc::new(ForgeInfra::new(true)));
-            Self {
-                temp_dir,
-                loader,
-                workflow_path: PathBuf::from("forge.toml"),
-            }
+            Self { temp_dir, loader, workflow_path: PathBuf::from("forge.toml") }
         }
     }
 
@@ -116,17 +113,17 @@ max_turns = 1024"#;
     async fn test_load_workflow_from_current_dir() -> Result<()> {
         let temp_dir = tempfile::tempdir()?;
         std::env::set_current_dir(&temp_dir)?;
-        
+
         // Create a forge.toml in the current directory
         let workflow_content = format!(
             "{}\n\n[agents.system_prompt]\ntemplate = \"test\"\n\n[agents.user_prompt]\ntemplate = \"test\"",
             BASE_WORKFLOW
         );
         tokio::fs::write("forge.toml", workflow_content).await?;
-        
+
         let loader = ForgeLoaderService::new(Arc::new(ForgeInfra::new(true)));
         let workflow = loader.load(None).await?;
-        
+
         // Verify the workflow was loaded from the current directory
         assert!(serde_json::to_string(&workflow)?.contains("test"));
         Ok(())

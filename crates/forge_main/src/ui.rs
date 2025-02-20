@@ -132,7 +132,9 @@ impl<F: API> UI<F> {
     }
 
     async fn init_workflow(&self) -> anyhow::Result<Workflow> {
-        self.api.load(self.cli.workflow.as_ref().map(|p| p.as_path())).await
+        self.api
+            .load(self.cli.workflow.as_deref())
+            .await
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {
