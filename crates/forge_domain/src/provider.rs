@@ -160,7 +160,6 @@ mod tests {
             },
         ));
 
-        // test: test_provider_from_env_with_forge_key
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_forge_key",
             vec![
@@ -177,7 +176,6 @@ mod tests {
             },
         ));
 
-        // test: test_provider_from_env_with_open_router_key
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_open_router_key",
             vec![(OPEN_ROUTER, "some_open_router_key")],
@@ -191,7 +189,6 @@ mod tests {
             },
         ));
 
-        // test: test_provider_from_env_with_openai_key
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_openai_key",
             vec![(OPEN_AI, "some_openai_key")],
@@ -205,7 +202,6 @@ mod tests {
             },
         ));
 
-        // test: test_provider_from_env_with_anthropic_key
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_anthropic_key",
             vec![(ANTHROPIC, "some_anthropic_key")],
@@ -219,7 +215,6 @@ mod tests {
             },
         ));
 
-        // test: test_provider_from_env_with_no_keys
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_no_keys",
             vec![("test", "test")],
