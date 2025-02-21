@@ -16,7 +16,7 @@ impl ForeignTypeImpl<Provider> {
             "OPEN_AI_KEY" => Ok(Provider::OpenAI),
             "ANTHROPIC_KEY" => Ok(Provider::Anthropic),
             "FORGE_KEY" => {
-                let provider_url = std::env::var("FORGE_PROVIDER_URL").ok()?;
+                let provider_url = std::env::var("FORGE_PROVIDER_URL").map_err(|_| anyhow::anyhow!("FORGE_PROVIDER_URL must be set for FORGE_KEY"))?;
                 Provider::from_url(&provider_url)
             }
             _ => Err(anyhow::anyhow!("No provider key found, please set one of: FORGE_KEY, OPEN_ROUTER_KEY, OPEN_AI_KEY or ANTHROPIC_KEY")),
