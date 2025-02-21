@@ -139,7 +139,8 @@ mod tests {
             } else {
                 "/bin/sh".to_string()
             },
-            open_router_key: String::new(),
+            provider_key: String::default(),
+            provider_url: Default::default(),
             base_path: PathBuf::new(),
             qdrant_key: None,
             qdrant_cluster: None,

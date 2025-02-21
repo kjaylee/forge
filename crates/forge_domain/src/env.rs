@@ -18,14 +18,16 @@ pub struct Environment {
     pub home: Option<PathBuf>,
     /// The shell being used.
     pub shell: String,
-    /// The Forge API key.
-    pub open_router_key: String,
     /// The Qdrant API Key
     pub qdrant_key: Option<String>,
     /// The Qdrant Cluster
     pub qdrant_cluster: Option<String>,
     /// The base path relative to which everything else stored.
     pub base_path: PathBuf,
+    /// The Forge API key.
+    pub provider_key: String,
+    /// The base url for provider
+    pub provider_url: String,
 }
 
 impl Environment {

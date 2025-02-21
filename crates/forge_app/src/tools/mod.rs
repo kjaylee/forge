@@ -61,11 +61,12 @@ mod tests {
                 } else {
                     "/bin/sh".to_string()
                 },
-                open_router_key: String::new(),
                 base_path: PathBuf::new(),
-                qdrant_key: None,
-                qdrant_cluster: None,
+                qdrant_key: Default::default(),
+                qdrant_cluster: Default::default(),
                 pid: std::process::id(),
+                provider_url: Default::default(),
+                provider_key: Default::default(),
             },
         }
     }
