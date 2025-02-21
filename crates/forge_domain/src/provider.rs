@@ -86,73 +86,150 @@ impl Provider {
 
 #[cfg(test)]
 mod tests {
+    use core::panic;
     use std::env;
 
     use super::*;
 
-    // To avoid flakyness with parallel runnings tests, use this helper function to
-    // set/remove env variables.
-    fn with_env(env_var: &str, value: &str, fnn: fn()) {
-        env::set_var(env_var, value);
-        fnn();
-        env::remove_var(env_var);
+    struct EnvTest {
+        title: String,
+        env_var: Vec<(String, String)>, // key:value
+        test: fn(),                     // test to execute under the given env
+    }
+
+    impl EnvTest {
+        pub fn new(title: &str, env_var: Vec<(&str, &str)>, test: fn()) -> Self {
+            Self {
+                title: title.to_string(),
+                env_var: env_var
+                    .iter()
+                    .map(|(key, value)| (key.to_string(), value.to_string()))
+                    .collect(),
+                test,
+            }
+        }
+
+        pub fn set_env(&self) {
+            for (key, value) in &self.env_var {
+                env::set_var(key, value);
+            }
+        }
+
+        pub fn remove_env(&self) {
+            for (key, _) in &self.env_var {
+                env::remove_var(key);
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct EnvTester(Vec<EnvTest>);
+
+    impl EnvTester {
+        pub fn add(&mut self, test: EnvTest) {
+            self.0.push(test);
+        }
+
+        pub fn run(self) {
+            let mut failed_tests = vec![];
+            for test in self.0 {
+                test.set_env();
+                let result = std::panic::catch_unwind(|| (test.test)());
+                if let Err(_) = result {
+                    failed_tests.push(format!("Test failed: {}", test.title));
+                }
+                test.remove_env();
+            }
+
+            if !failed_tests.is_empty() {
+                panic!("\n{}", failed_tests.join("\n"));
+            }
+        }
     }
 
     #[test]
     fn test_from_env() {
-        // test: test_provider_from_env_with_forge_key_and_without_provider_url
-        with_env(FORGE, "", || {
-            let provider = Provider::from_env();
-            assert_eq!(provider, None);
-        });
+        let mut env_tester = EnvTester::default();
+
+        env_tester.add(EnvTest::new(
+            "test_provider_from_env_with_forge_key_and_without_provider_url",
+            vec![(FORGE, "")],
+            || {
+                let provider = Provider::from_env();
+                assert_eq!(provider, None);
+            },
+        ));
 
         // test: test_provider_from_env_with_forge_key
-        with_env(FORGE, "some_forge_key", || {
-            with_env(FORGE_PROVIDER_URL, "https://api.openai.com/v1/", || {
+        env_tester.add(EnvTest::new(
+            "test_provider_from_env_with_forge_key",
+            vec![
+                (FORGE, "some_forge_key"),
+                (FORGE_PROVIDER_URL, "https://api.openai.com/v1/"),
+            ],
+            || {
                 let provider = Provider::from_env();
                 assert_eq!(provider, Some(Provider::OpenAI));
                 assert_eq!(
                     provider.unwrap().to_key(),
                     Some("some_forge_key".to_string())
                 );
-            });
-        });
+            },
+        ));
 
         // test: test_provider_from_env_with_open_router_key
-        with_env(OPEN_ROUTER, "some_open_router_key", || {
-            let provider = Provider::from_env();
-            assert_eq!(provider, Some(Provider::OpenRouter));
-            assert_eq!(
-                provider.unwrap().to_key(),
-                Some("some_open_router_key".to_string())
-            );
-        });
+        env_tester.add(EnvTest::new(
+            "test_provider_from_env_with_open_router_key",
+            vec![(OPEN_ROUTER, "some_open_router_key")],
+            || {
+                let provider = Provider::from_env();
+                assert_eq!(provider, Some(Provider::OpenRouter));
+                assert_eq!(
+                    provider.unwrap().to_key(),
+                    Some("some_open_router_key".to_string())
+                );
+            },
+        ));
 
         // test: test_provider_from_env_with_openai_key
-        with_env(OPEN_AI, "some_openai_key", || {
-            let provider = Provider::from_env();
-            assert_eq!(provider, Some(Provider::OpenAI));
-            assert_eq!(
-                provider.unwrap().to_key(),
-                Some("some_openai_key".to_string())
-            );
-        });
+        env_tester.add(EnvTest::new(
+            "test_provider_from_env_with_openai_key",
+            vec![(OPEN_AI, "some_openai_key")],
+            || {
+                let provider = Provider::from_env();
+                assert_eq!(provider, Some(Provider::OpenAI));
+                assert_eq!(
+                    provider.unwrap().to_key(),
+                    Some("some_openai_key".to_string())
+                );
+            },
+        ));
 
         // test: test_provider_from_env_with_anthropic_key
-        with_env(ANTHROPIC, "some_anthropic_key", || {
-            let provider = Provider::from_env();
-            assert_eq!(provider, Some(Provider::Anthropic));
-            assert_eq!(
-                provider.unwrap().to_key(),
-                Some("some_anthropic_key".to_string())
-            );
-        });
+        env_tester.add(EnvTest::new(
+            "test_provider_from_env_with_anthropic_key",
+            vec![(ANTHROPIC, "some_anthropic_key")],
+            || {
+                let provider = Provider::from_env();
+                assert_eq!(provider, Some(Provider::Anthropic));
+                assert_eq!(
+                    provider.unwrap().to_key(),
+                    Some("some_anthropic_key".to_string())
+                );
+            },
+        ));
 
         // test: test_provider_from_env_with_no_keys
-        with_env("test", "test", || {
-            let provider = Provider::from_env();
-            assert_eq!(provider, None);
-        });
+        env_tester.add(EnvTest::new(
+            "test_provider_from_env_with_no_keys",
+            vec![("test", "test")],
+            || {
+                let provider = Provider::from_env();
+                assert_eq!(provider, None);
+            },
+        ));
+
+        env_tester.run(); // Run all tests
     }
 
     #[test]
