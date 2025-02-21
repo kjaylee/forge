@@ -11,7 +11,6 @@ derive_more = { version = "1.0.0", features = ["from", "display"] }
 derive_setters = "0.1.6"
 futures = "0.3.31"
 nom = "8.0.0"
-quick-xml = { version = "0.37.2", features = ["serialize"] }
 schemars = "0.8.21"
 serde = "1.0.217"
 serde_json = "1.0.134"

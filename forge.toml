@@ -23,6 +23,7 @@ tools = [
 subscribe = ["user_task"]
 max_turns = 1024
 ephemeral = false
+# TODO: Enable once qdrant starts to work
 # transforms = [
 #   { type = "User", agent_id = "knowledge_recall", output = "learnings" },
 # ]
@@ -35,6 +36,7 @@ template = "<task>{{event.value}}</task>"
 id = "knowledge_store"
 model = "anthropic/claude-3.5-sonnet"
 tools = ["forge_tool_knowledge_set"]
+# TODO: Enable once qdrant starts to work
 # subscribe = ["user_task"]
 [agents.system_prompt]
 template = "{{> knowledge-storage.mustache }}"
