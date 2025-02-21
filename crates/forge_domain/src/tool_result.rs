@@ -30,8 +30,15 @@ impl ToolResult {
         self
     }
 
-    pub fn failure(mut self, content: impl Into<String>) -> Self {
-        self.content = content.into();
+    pub fn failure(mut self, err: anyhow::Error) -> Self {
+        let mut output = String::new();
+        output.push_str("\nERROR:\n");
+
+        for cause in err.chain() {
+            output.push_str(&format!("Caused by: {}\n", cause));
+        }
+
+        self.content = output;
         self.is_error = true;
         self
     }
@@ -80,7 +87,9 @@ mod tests {
     fn test_snapshot_full() {
         let result = ToolResult::new(ToolName::new("complex_tool"))
             .call_id(ToolCallId::new("123"))
-            .failure(json!({"key": "value", "number": 42}).to_string());
+            .failure(anyhow::anyhow!(
+                json!({"key": "value", "number": 42}).to_string()
+            ));
         assert_snapshot!(result);
     }
 
@@ -139,8 +148,9 @@ mod tests {
         assert!(!success.is_error);
         assert_eq!(success.content, "success message");
 
-        let failure = ToolResult::new(ToolName::new("test_tool")).failure("error message");
+        let failure =
+            ToolResult::new(ToolName::new("test_tool")).failure(anyhow::anyhow!("error message"));
         assert!(failure.is_error);
-        assert_eq!(failure.content, "error message");
+        assert_eq!(failure.content, "\nERROR:\nCaused by: error message\n");
     }
 }

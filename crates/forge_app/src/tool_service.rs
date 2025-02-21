@@ -70,7 +70,7 @@ impl ToolService for ForgeToolService {
             }
             Err(output) => {
                 error!(error = ?output, "Tool call failed");
-                ToolResult::from(call).failure(format!("{:?}", output))
+                ToolResult::from(call).failure(output)
             }
         }
     }
