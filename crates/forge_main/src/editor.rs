@@ -1,10 +1,10 @@
 use forge_api::Environment;
-use tracing::debug;
 use nu_ansi_term::{Color, Style};
 use reedline::{
     default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory,
     KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
+use tracing::debug;
 
 use super::completer::InputCompleter;
 

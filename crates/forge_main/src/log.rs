@@ -1,7 +1,8 @@
 use forge_api::Environment;
 use tracing::debug;
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{self, fmt::format::FmtSpan};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{self};
 
 #[tracing::instrument(name = "init_logging", skip(env))]
 pub fn init_tracing(env: Environment) -> anyhow::Result<WorkerGuard> {
