@@ -50,7 +50,7 @@ impl ForgeEnvironmentService {
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
             provider_key,
-            provider_url: provider.to_url().to_string(),
+            provider_url: provider.to_base_url().to_string(),
         }
     }
 }

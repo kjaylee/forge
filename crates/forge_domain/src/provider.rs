@@ -46,7 +46,7 @@ impl Provider {
     }
 
     /// converts the provider to it's base URL
-    pub fn to_url(&self) -> &str {
+    pub fn to_base_url(&self) -> &str {
         match self {
             Provider::OpenRouter => OPEN_ROUTER_URL,
             Provider::OpenAI => OPENAI_URL,
@@ -151,13 +151,13 @@ mod tests {
 
     #[test]
     fn test_to_url() {
-        assert_eq!(Provider::OpenAI.to_url(), "https://api.openai.com/v1/");
+        assert_eq!(Provider::OpenAI.to_base_url(), "https://api.openai.com/v1/");
         assert_eq!(
-            Provider::OpenRouter.to_url(),
+            Provider::OpenRouter.to_base_url(),
             "https://api.openrouter.io/v1/"
         );
         assert_eq!(
-            Provider::Anthropic.to_url(),
+            Provider::Anthropic.to_base_url(),
             "https://api.anthropic.com/v1/"
         );
     }
