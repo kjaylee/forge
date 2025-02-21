@@ -137,11 +137,11 @@ mod tests {
             for (idx, test) in self.0.into_iter().enumerate() {
                 test.set_env();
                 let result = std::panic::catch_unwind(|| (test.test)());
-                if let Err(_) = result {
+                if result.is_err() {
                     if let Some(ref title) = test.title {
                         failed_tests.push(format!("Test failed: {}", title));
                     } else {
-                        failed_tests.push(format!("Test failed: {}", format!("Test No: {}", idx)));
+                        failed_tests.push(format!("Test failed: Test No: {}", idx));
                     }
                 }
                 test.remove_env();
