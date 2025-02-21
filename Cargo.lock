@@ -1219,7 +1219,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "dirs",
+ "dirs 6.0.0",
  "dotenv",
  "forge_api",
  "forge_app",
