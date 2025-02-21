@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
@@ -14,17 +12,6 @@ pub struct ToolResult {
     pub content: String,
     #[setters(skip)]
     pub is_error: bool,
-}
-
-#[derive(Default, Serialize, Setters)]
-#[serde(rename_all = "snake_case", rename = "tool_result")]
-#[setters(strip_option)]
-struct ToolResultXML {
-    tool_name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    success: Option<String>,
 }
 
 impl ToolResult {
@@ -61,23 +48,18 @@ impl From<ToolCallFull> for ToolResult {
     }
 }
 
-impl Display for ToolResult {
+impl std::fmt::Display for ToolResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let xml = {
-            let xml = ToolResultXML::default().tool_name(self.name.as_str().to_owned());
-            if self.is_error {
-                xml.error(self.content.clone())
-            } else {
-                xml.success(self.content.clone())
-            }
-        };
+        write!(f, "<tool_result>")?;
+        write!(f, "<tool_name>{}</tool_name>", self.name.as_str())?;
+        let content = format!("<![CDATA[{}]]>", self.content);
+        if self.is_error {
+            write!(f, "<error>{}</error>", content)?;
+        } else {
+            write!(f, "<success>{}</success>", content)?;
+        }
 
-        // First serialize to string
-        let mut out = String::new();
-        let ser = quick_xml::se::Serializer::new(&mut out);
-        xml.serialize(ser).unwrap();
-
-        write!(f, "{}", out)
+        write!(f, "</tool_result>")
     }
 }
 
