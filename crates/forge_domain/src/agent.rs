@@ -75,7 +75,7 @@ pub struct Agent {
     pub transforms: Vec<Transform>,
 
     /// Used to specify the events the agent is interested in    
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub subscribe: Vec<String>,
 
     /// Maximum number of turns the agent can take    

@@ -1,4 +1,5 @@
 use forge_api::Environment;
+use tracing::debug;
 use nu_ansi_term::{Color, Style};
 use reedline::{
     default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory,
@@ -93,6 +94,7 @@ impl ForgeEditor {
 
     pub fn prompt(&mut self, prompt: &dyn Prompt) -> anyhow::Result<ReadResult> {
         let signal = self.editor.read_line(prompt);
+        debug!(signal = ?signal, "Processing prompt signal");
         signal.map(Into::into).map_err(|e| anyhow::anyhow!(e))
     }
 }

@@ -244,7 +244,7 @@ impl<A: App> Orchestrator<A> {
                             content
                                 .push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
                         }
-                        debug!("User transform: {content}");
+                        debug!(content = %content, "Transforming user input");
                     }
                 }
                 Transform::PassThrough { agent_id, input: input_key } => {

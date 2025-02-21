@@ -36,7 +36,7 @@ impl ToolService for ForgeToolService {
     async fn call(&self, call: ToolCallFull) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
-        debug!("{:?}", call);
+        debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
         let mut available_tools = self
             .tools
             .keys()
@@ -65,11 +65,11 @@ impl ToolService for ForgeToolService {
 
         match output {
             Ok(output) => {
-                debug!("{:?}", output);
+                debug!(result = ?output, "Tool call completed successfully");
                 ToolResult::from(call).success(output)
             }
             Err(output) => {
-                error!("{:?}", output);
+                error!(error = ?output, "Tool call failed");
                 ToolResult::from(call).failure(format!("{:?}", output))
             }
         }
