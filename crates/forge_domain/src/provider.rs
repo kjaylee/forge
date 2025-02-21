@@ -123,9 +123,9 @@ mod tests {
     }
 
     #[derive(Default)]
-    struct EnvTester(Vec<EnvTest>);
+    struct EnvTesterExecutor(Vec<EnvTest>);
 
-    impl EnvTester {
+    impl EnvTesterExecutor {
         pub fn add(&mut self, test: EnvTest) {
             self.0.push(test);
         }
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_from_env() {
-        let mut env_tester = EnvTester::default();
+        let mut env_tester = EnvTesterExecutor::default();
 
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_forge_key_and_without_provider_url",
