@@ -100,7 +100,6 @@ macro_rules! generate_model_test {
     ($model:expr,$provider_env_name:expr) => {
         #[tokio::test]
         async fn test_find_cat_name() {
-            dotenv::dotenv().ok();
             let fixture = Fixture::new(
                 "There is a cat hidden in the codebase. What is its name? hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask follow up questions.",
                 ModelId::new($model),
