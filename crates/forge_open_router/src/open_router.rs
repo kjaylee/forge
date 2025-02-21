@@ -83,7 +83,6 @@ impl OpenRouter {
 
 #[async_trait::async_trait]
 impl ProviderService for OpenRouter {
-    #[tracing::instrument(name = "openrouter_chat", skip(self, request), fields(model = %model_id))]
     async fn chat(
         &self,
         model_id: &ModelId,
@@ -96,7 +95,7 @@ impl ProviderService for OpenRouter {
         request = ProviderPipeline::new(&self.provider).transform(request);
 
         let url = self.url("chat/completions")?;
-        debug!(url = %url, "Connecting to OpenRouter API");
+        debug!(url = %url, model = %model_id, "Connecting to OpenRouter API");
         let es = self
             .client
             .post(url)

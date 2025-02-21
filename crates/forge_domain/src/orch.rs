@@ -296,6 +296,12 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn init_agent(&self, agent: &AgentId, event: &DispatchEvent) -> anyhow::Result<()> {
+        debug!(
+            conversation_id = %self.chat_request.conversation_id,
+            agent = %agent,
+            event = ?event,
+            "Initializing agent"
+        );
         let conversation = self.get_conversation().await?;
         let agent = conversation.workflow.get_agent(agent)?;
 
