@@ -17,9 +17,9 @@ use patch::*;
 use shell::Shell;
 use think::Think;
 
-use crate::{EnvironmentService, Infrastructure};
+use crate::{EmbeddingService, EnvironmentService, Infrastructure};
 
-pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
+pub fn tools<F: Infrastructure, R: EmbeddingService>(infra: Arc<F>, embed: Arc<R>) -> Vec<Tool> {
     let env = infra.environment_service().get_environment();
     vec![
         FSRead.into(),
@@ -34,8 +34,8 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
         Shell::new(env.clone()).into(),
         Think::default().into(),
         Fetch::default().into(),
-        RecallKnowledge::new(infra.clone()).into(),
-        StoreKnowledge::new(infra.clone()).into(),
+        RecallKnowledge::new(infra.clone(), embed.clone()).into(),
+        StoreKnowledge::new(infra.clone(), embed.clone()).into(),
     ]
 }
 
@@ -71,13 +71,14 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
     struct Stub {
         env: Environment,
     }
 
     #[async_trait::async_trait]
     impl EmbeddingService for Stub {
-        async fn embed(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
+        async fn encode(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
             unimplemented!()
         }
     }
@@ -110,7 +111,6 @@ mod tests {
         type EnvironmentService = Stub;
         type FileReadService = Stub;
         type KnowledgeRepository = Stub;
-        type EmbeddingService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -123,10 +123,6 @@ mod tests {
         fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
             self
         }
-
-        fn embedding_service(&self) -> &Self::EmbeddingService {
-            self
-        }
     }
 
     #[test]
@@ -137,7 +133,7 @@ mod tests {
 
         let mut any_exceeded = false;
         let stub = Arc::new(stub());
-        for tool in tools(stub) {
+        for tool in tools(stub.clone(), stub.clone()) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",

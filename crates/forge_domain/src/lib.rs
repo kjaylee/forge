@@ -96,7 +96,6 @@ pub trait PromptService: Send + Sync {
         value: &T,
     ) -> anyhow::Result<String>;
 }
-
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.

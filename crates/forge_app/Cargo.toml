@@ -43,6 +43,7 @@ tree-sitter-go = "0.23"
 tree-sitter-cpp = "0.23"
 tree-sitter-ruby = "0.23"
 rust-embed = "8.5.0"
+rust-bert = "0.23.0"
 
 [dev-dependencies]
 insta = "1.41.1"

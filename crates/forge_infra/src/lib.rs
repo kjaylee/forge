@@ -1,4 +1,3 @@
-mod embedding;
 mod env;
 mod fs;
 mod infra;
