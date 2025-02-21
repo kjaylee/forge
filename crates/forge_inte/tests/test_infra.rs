@@ -63,10 +63,11 @@ impl TestEnvironmentService {
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
 
         // get provider url from environment variable
-        let provider =
-            ForeignTypeImpl::<Provider>::from_env_var(self.provider_env_name.as_str()).unwrap_or_else(|| panic!("provider doesn't exist for {}", self.provider_env_name));
-        let provider_key = provider.to_key().unwrap_or_else(|| panic!("Failed to get provider key for {}",
-            self.provider_env_name));
+        let provider = ForeignTypeImpl::<Provider>::from_env_var(self.provider_env_name.as_str())
+            .unwrap_or_else(|| panic!("provider doesn't exist for {}", self.provider_env_name));
+        let provider_key = provider
+            .to_key()
+            .unwrap_or_else(|| panic!("Failed to get provider key for {}", self.provider_env_name));
         let provider_url = provider.to_base_url().to_string();
 
         Environment {
