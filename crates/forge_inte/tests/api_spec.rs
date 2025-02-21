@@ -8,10 +8,7 @@ use test_infra::TestInfra;
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
-const WORKFLOW_PATH: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../templates/workflows/default.toml"
-);
+const WORKFLOW_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../forge.toml");
 
 /// Test fixture for API testing that supports parallel model validation
 struct Fixture {
@@ -38,7 +35,7 @@ impl Fixture {
     async fn get_model_response(&self) -> String {
         let api = self.api();
         // load the workflow from path
-        let mut workflow = api.load(&PathBuf::from(WORKFLOW_PATH)).await.unwrap();
+        let mut workflow = api.load(Some(&PathBuf::from(WORKFLOW_PATH))).await.unwrap();
 
         // in workflow, replace all models with the model we want to test.
         workflow.agents.iter_mut().for_each(|agent| {
