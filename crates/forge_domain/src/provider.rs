@@ -90,8 +90,8 @@ mod tests {
 
     use super::*;
 
-
-    // To avoid flakyness with parallel runnings tests, use this helper function to set/remove env variables.
+    // To avoid flakyness with parallel runnings tests, use this helper function to
+    // set/remove env variables.
     fn with_env(env_var: &str, value: &str, fnn: fn()) {
         env::set_var(env_var, value);
         fnn();
