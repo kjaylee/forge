@@ -2,11 +2,11 @@ use forge_app::{EnvironmentService, Infrastructure};
 
 use crate::embedding::ForgeEmbeddingService;
 use crate::env::ForgeEnvironmentService;
-use crate::file_read::ForgeFileReadService;
+use crate::fs::ForgeFileService;
 use crate::knowledge::QdrantKnowledgeRepository;
 
 pub struct ForgeInfra {
-    _file_read_service: ForgeFileReadService,
+    _file_read_service: ForgeFileService,
     _environment_service: ForgeEnvironmentService,
     _information_repo: QdrantKnowledgeRepository,
     _embedding_service: ForgeEmbeddingService,
@@ -17,7 +17,7 @@ impl ForgeInfra {
         let _environment_service = ForgeEnvironmentService::new(restricted);
         let env = _environment_service.get_environment();
         Self {
-            _file_read_service: ForgeFileReadService::new(),
+            _file_read_service: ForgeFileService::new(),
             _environment_service,
             _information_repo: QdrantKnowledgeRepository::new(env, "user_feedback"),
             _embedding_service: ForgeEmbeddingService::new(),
@@ -27,7 +27,7 @@ impl ForgeInfra {
 
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
-    type FileReadService = ForgeFileReadService;
+    type FileReadService = ForgeFileService;
     type KnowledgeRepository = QdrantKnowledgeRepository;
     type EmbeddingService = ForgeEmbeddingService;
 

@@ -3,22 +3,23 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use forge_app::FileReadService;
 
-pub struct ForgeFileReadService;
+pub struct ForgeFileService;
 
-impl Default for ForgeFileReadService {
+impl Default for ForgeFileService {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ForgeFileReadService {
+impl ForgeFileService {
     pub fn new() -> Self {
         Self
     }
 }
 
 #[async_trait::async_trait]
-impl FileReadService for ForgeFileReadService {
+impl FileReadService for ForgeFileService {
+    // TODO: add support for file-write operations
     async fn read(&self, path: &Path) -> Result<String> {
         Ok(tokio::fs::read_to_string(path)
             .await
