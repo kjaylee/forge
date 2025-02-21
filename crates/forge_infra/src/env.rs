@@ -33,7 +33,7 @@ impl ForgeEnvironmentService {
     pub fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        let api_key = std::env::var("FORGE_KEY")
+        let provider_key = std::env::var("FORGE_KEY")
             .or_else(|_| std::env::var("OPEN_ROUTER_KEY"))
             .or_else(|_| std::env::var("OPENAI_API_KEY"))
             .or_else(|_| std::env::var("ANTHROPIC_API_KEY"))
@@ -49,7 +49,7 @@ impl ForgeEnvironmentService {
                 .map(|a| a.join("forge"))
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
-            api_key,
+            provider_key,
             provider_url,
         }
     }

@@ -19,7 +19,7 @@ impl ForgeProviderService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
         let env = infra.environment_service().get_environment();
         let or = ProviderBuilder::from_url(env.provider_url)
-            .with_key(env.api_key)
+            .with_key(env.provider_key)
             .build()
             .expect("Failed to build provider");
 
