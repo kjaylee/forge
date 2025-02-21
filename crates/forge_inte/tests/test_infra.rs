@@ -1,8 +1,9 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{Context, Result};
 use forge_api::Provider;
 use forge_app::{EnvironmentService, FileReadService, Infrastructure};
 use forge_domain::Environment;
-use std::path::{Path, PathBuf};
 
 // data structure for implementing methods for foreign types.
 struct ForeignTypeImpl<T>(T);
@@ -63,9 +64,7 @@ impl TestEnvironmentService {
 
         // get provider url from environment variable
         let provider =
-            ForeignTypeImpl::<Provider>::from_env_var(self.provider_env_name.as_str()).expect(
-                &format!("provider doesn't exist for {}", self.provider_env_name),
-            );
+            ForeignTypeImpl::<Provider>::from_env_var(self.provider_env_name.as_str()).unwrap_or_else(|| panic!("provider doesn't exist for {}", self.provider_env_name));
         let provider_key = provider.to_key().expect("Failed to get provider key");
         let provider_url = provider.to_base_url().to_string();
 

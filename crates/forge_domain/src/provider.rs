@@ -64,7 +64,8 @@ impl Provider {
 
     /// reads the key for provider from env.
     pub fn to_key(&self) -> Option<String> {
-        // note: if we've build the provider then it's key could be present in it's own env variable or in forge env variable.
+        // note: if we've build the provider then it's key could be present in it's own
+        // env variable or in forge env variable.
         match self {
             Provider::OpenRouter => std::env::var(OPEN_ROUTER).or(std::env::var(FORGE)),
             Provider::OpenAI => std::env::var(OPEN_AI).or(std::env::var(FORGE)),

@@ -1,6 +1,7 @@
 mod test_infra;
 
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, ModelId, API};
 use test_infra::TestInfra;
