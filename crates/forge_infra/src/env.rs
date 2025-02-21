@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use forge_app::EnvironmentService;
-use forge_domain::Environment;
+use forge_domain::{Environment, Provider};
 
 pub struct ForgeEnvironmentService {
     restricted: bool,
@@ -33,14 +33,14 @@ impl ForgeEnvironmentService {
     pub fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
+
         let provider_key = std::env::var("FORGE_KEY")
             .or_else(|_| std::env::var("OPEN_ROUTER_KEY"))
             .or_else(|_| std::env::var("OPENAI_API_KEY"))
             .or_else(|_| std::env::var("ANTHROPIC_API_KEY"))
-            .expect("No API key found. Please set one of: FORGE_KEY, OPEN_ROUTER_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY");
-        let provider_url =
-            std::env::var("FORGE_PROVIDER_URL").expect("FORGE_PROVIDER_URL must be set");
-
+            .expect("No API key found. Please set one of: FORGE_KEY, OPEN_ROUTER_KEY, OPENAI_API_KEY or ANTHROPIC_API_KEY");
+        // note: since we know the key is set, we can unwrap here.
+        let provider = Provider::from_env().unwrap();
         Environment {
             os: std::env::consts::OS.to_string(),
             cwd,
@@ -50,7 +50,7 @@ impl ForgeEnvironmentService {
                 .unwrap_or(PathBuf::from(".").join(".forge")),
             home: dirs::home_dir(),
             provider_key,
-            provider_url,
+            provider_url: provider.to_url().to_string(),
         }
     }
 }

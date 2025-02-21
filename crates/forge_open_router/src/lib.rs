@@ -22,7 +22,7 @@ impl ProviderBuilder {
     }
 
     pub fn build(self) -> Result<Box<dyn ProviderService>, anyhow::Error> {
-        let provider = Provider::detect(&self.url)
+        let provider = Provider::from_url(&self.url)
             .ok_or_else(|| anyhow::anyhow!("Failed to detect provider from URL: {}", self.url))?;
         let api_key = self
             .api_key

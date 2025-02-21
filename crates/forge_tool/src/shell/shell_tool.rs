@@ -146,7 +146,7 @@ mod tests {
                 "/bin/sh".to_string()
             },
             provider_key: String::default(),
-            provider_url: String::default(),
+            provider_url: Default::default(),
             base_path: PathBuf::new(),
         }
     }
