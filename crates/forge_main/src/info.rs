@@ -46,19 +46,15 @@ impl From<&Usage> for Info {
 
 impl From<&Environment> for Info {
     fn from(env: &Environment) -> Self {
-        let info = Info::new()
+        let provider = Provider::from_url(env.provider_url.as_str())
+            .map_or("Unknown".to_string(), |p| format!("{}", p));
+        Info::new()
             .add_title("Environment")
             .add_item("OS", &env.os)
             .add_item("Working Directory", env.cwd.display())
-            .add_item("Shell", &env.shell);
-
-        let info = if let Ok(provider) = Provider::from_url(env.provider_url.as_str()) {
-            info.add_item("Provider", provider)
-        } else {
-            info
-        };
-
-        info.add_title("Paths")
+            .add_item("Shell", &env.shell)
+            .add_item("Provider", provider)
+            .add_title("Paths")
             .add_item("Config", env.base_path.display())
             .add_item("Logs", env.log_path().display())
             .add_item("Database", env.db_path().display())
