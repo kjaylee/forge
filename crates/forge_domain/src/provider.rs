@@ -2,9 +2,9 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-const OPEN_ROUTER_URL: &'static str = "https://api.openrouter.io/v1/";
-const OPENAI_URL: &'static str = "https://api.openai.com/v1/";
-const ANTHROPIC_URL: &'static str = "https://api.anthropic.com/v1/";
+const OPEN_ROUTER_URL: &str = "https://api.openrouter.io/v1/";
+const OPENAI_URL: &str = "https://api.openai.com/v1/";
+const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/";
 
 /// Providers that can be used.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -67,8 +67,9 @@ impl Provider {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::env;
+
+    use super::*;
 
     // reset the env variables for reliable tests
     fn reset_env() {
