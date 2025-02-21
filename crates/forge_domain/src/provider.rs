@@ -33,7 +33,7 @@ impl Display for Provider {
 }
 
 impl Provider {
-    /// maps environment variables to provider
+    /// Maps environment variables to provider
     pub fn from_env() -> Option<Self> {
         match (
             std::env::var(FORGE),
@@ -53,7 +53,7 @@ impl Provider {
         }
     }
 
-    /// maps provider to it's base URL
+    /// Maps provider to it's base URL
     pub fn to_base_url(&self) -> &str {
         match self {
             Provider::OpenRouter => OPEN_ROUTER_URL,
@@ -62,10 +62,9 @@ impl Provider {
         }
     }
 
-    /// reads the key for provider from env.
+    /// Reads the key for provider from env.
     pub fn to_key(&self) -> Option<String> {
-        // note: if we've build the provider then it's key could be present in it's own
-        // env variable or in forge env variable.
+        // note: `forge` env can hold the key for all providers.
         match self {
             Provider::OpenRouter => std::env::var(OPEN_ROUTER).or(std::env::var(FORGE)),
             Provider::OpenAI => std::env::var(OPEN_AI).or(std::env::var(FORGE)),
@@ -74,7 +73,7 @@ impl Provider {
         .ok()
     }
 
-    /// converts url to provider
+    /// Converts url to provider
     pub fn from_url(url: &str) -> Option<Self> {
         match url {
             OPENAI_URL => Some(Self::OpenAI),
@@ -117,6 +116,10 @@ mod tests {
 
         let provider = Provider::from_env();
         assert_eq!(provider, Some(Provider::OpenAI));
+        assert_eq!(
+            provider.unwrap().to_key(),
+            Some("some_forge_key".to_string())
+        );
     }
 
     #[test]
@@ -126,6 +129,10 @@ mod tests {
 
         let provider = Provider::from_env();
         assert_eq!(provider, Some(Provider::OpenRouter));
+        assert_eq!(
+            provider.unwrap().to_key(),
+            Some("some_open_router_key".to_string())
+        );
     }
 
     #[test]
@@ -135,6 +142,10 @@ mod tests {
 
         let provider = Provider::from_env();
         assert_eq!(provider, Some(Provider::OpenAI));
+        assert_eq!(
+            provider.unwrap().to_key(),
+            Some("some_openai_key".to_string())
+        )
     }
 
     #[test]
@@ -143,6 +154,10 @@ mod tests {
         env::set_var(ANTHROPIC, "some_anthropic_key");
         let provider = Provider::from_env();
         assert_eq!(provider, Some(Provider::Anthropic));
+        assert_eq!(
+            provider.unwrap().to_key(),
+            Some("some_anthropic_key".to_string())
+        )
     }
 
     #[test]
