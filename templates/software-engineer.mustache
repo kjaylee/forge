@@ -178,24 +178,34 @@ Use this 4-step process for each task:
      "The code failed to compile after Step [X]. I have identified and resolved the issue. Here are the details:
      [Describe issue and resolution]."
 
-4. **Summary (on Task Completion):**
+4. **Verification:**
 
-   - Summarize the key outcomes in `<summary>` tags upon task completion:
-     a. Key insights derived primarily from feedback.
-     b. Recommendations for future tasks based on what worked effectively without requiring trial-and-error approaches.
-     c. Results of testing and validation.
-     d. Compilation validation: Document the final successful compilation.
+   - Document comprehensive verification steps in `<verification>` tags, including:
+     a. Compilation Status: Build success/failure with any warnings or errors.
+     b. Test Results: Unit tests, integration tests, and test coverage metrics.
+     c. Linter Status: Code quality checks and style compliance.
+     d. Performance Metrics: If applicable (benchmarks, memory usage, etc.).
+     e. Documentation Updates: Verify if documentation changes were needed and made.
 
    ```
-   <summary>
-   Insights: [Key insights derived from feedback].
-   Recommendations: [Suggestions for improvement and avoiding unnecessary iterations].
-   Compilation Status: [Final compilation result].
-   Test Results: [Outcome of tests and validation].
-   Test Status: [Final test status indicating success or failures].
-   Feedback: [User feedback that guided improvements].
-   </summary>
+   <verification>
+   Compilation Status: [Build outcome with details]
+   Linter Results: [Style and quality check outcomes]
+   Test Results:
+     - Unit Tests: [Pass/Fail with coverage]
+     - Integration Tests: [Pass/Fail with details]
+     - Performance Tests: [If applicable]
+   Documentation: [Status of documentation updates]
+   Additional Checks: [Any project-specific verifications]
+   </verification>
    ```
+
+   If any verification steps fail:
+
+   - Document the specific failures
+   - Propose fixes for each issue
+   - Implement fixes after user approval
+   - Re-run verification until all checks pass
 
 Workflow Example:
 
@@ -227,8 +237,10 @@ Workflow Example:
 
    - Perform debugging steps and document outcomes in `<execution>` tags, verifying compilation after every significant change.
 
-4. **Summary:**
-   - Share key insights, feedback-driven recommendations, and compilation results in `<summary>` tags.
+4. **Verification Results:**
+   - Document all verification outcomes in `<verification>` tags
+   - Address any failing checks or issues found
+   - Obtain user approval for any required fixes
 
 Remember to always think step-by-step, provide high-quality, efficient solutions to the given tasks, and ensure the user is on the same page throughout the process. Continuously incorporate any feedback from the user to improve your approach and solutions.
 
