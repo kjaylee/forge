@@ -10,16 +10,16 @@ struct ForeignTypeImpl<T>(T);
 
 impl ForeignTypeImpl<Provider> {
     // maps environment variables to provider
-    fn from_env_var(var: &str) -> Option<Provider> {
+    fn from_env_var(var: &str) -> anyhow::Result<Provider> {
         match var {
-            "OPEN_ROUTER_KEY" => Some(Provider::OpenRouter),
-            "OPEN_AI_KEY" => Some(Provider::OpenAI),
-            "ANTHROPIC_KEY" => Some(Provider::Anthropic),
+            "OPEN_ROUTER_KEY" => Ok(Provider::OpenRouter),
+            "OPEN_AI_KEY" => Ok(Provider::OpenAI),
+            "ANTHROPIC_KEY" => Ok(Provider::Anthropic),
             "FORGE_KEY" => {
                 let provider_url = std::env::var("FORGE_PROVIDER_URL").ok()?;
                 Provider::from_url(&provider_url)
             }
-            _ => None,
+            _ => Err(anyhow::anyhow!("No provider key found, please set one of: FORGE_KEY, OPEN_ROUTER_KEY, OPEN_AI_KEY or ANTHROPIC_KEY")),
         }
     }
 }
@@ -63,8 +63,8 @@ impl TestEnvironmentService {
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
 
         // get provider url from environment variable
-        let provider = ForeignTypeImpl::<Provider>::from_env_var(self.provider_env_name.as_str())
-            .unwrap_or_else(|| panic!("provider doesn't exist for {}", self.provider_env_name));
+        let provider =
+            ForeignTypeImpl::<Provider>::from_env_var(self.provider_env_name.as_str()).unwrap();
         let provider_key = provider
             .to_key()
             .unwrap_or_else(|| panic!("Failed to get provider key for {}", self.provider_env_name));

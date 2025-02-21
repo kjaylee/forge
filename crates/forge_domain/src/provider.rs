@@ -34,7 +34,7 @@ impl Display for Provider {
 
 impl Provider {
     /// Maps environment variables to provider
-    pub fn from_env() -> Option<Self> {
+    pub fn from_env() -> anyhow::Result<Self> {
         match (
             std::env::var(FORGE),
             std::env::var(OPEN_ROUTER),
@@ -43,13 +43,13 @@ impl Provider {
         ) {
             (Ok(_), _, _, _) => {
                 // note: if we're using FORGE_KEY, we need FORGE_PROVIDER_URL to be set.
-                let provider_url = std::env::var(FORGE_PROVIDER_URL).ok()?;
+                let provider_url = std::env::var(FORGE_PROVIDER_URL).map_err(|_| anyhow::anyhow!("FORGE_PROVIDER_URL must be set for FORGE_KEY"))?;
                 Self::from_url(&provider_url)
             }
-            (_, Ok(_), _, _) => Some(Self::OpenRouter),
-            (_, _, Ok(_), _) => Some(Self::OpenAI),
-            (_, _, _, Ok(_)) => Some(Self::Anthropic),
-            (Err(_), Err(_), Err(_), Err(_)) => None,
+            (_, Ok(_), _, _) => Ok(Self::OpenRouter),
+            (_, _, Ok(_), _) => Ok(Self::OpenAI),
+            (_, _, _, Ok(_)) => Ok(Self::Anthropic),
+            (Err(_), Err(_), Err(_), Err(_)) => Err(anyhow::anyhow!("No provider key found, please set one of: FORGE_KEY, OPEN_ROUTER_KEY, OPEN_AI_KEY or ANTHROPIC_KEY")),
         }
     }
 
@@ -74,12 +74,12 @@ impl Provider {
     }
 
     /// Converts url to provider
-    pub fn from_url(url: &str) -> Option<Self> {
+    pub fn from_url(url: &str) -> anyhow::Result<Self> {
         match url {
-            OPENAI_URL => Some(Self::OpenAI),
-            OPEN_ROUTER_URL => Some(Self::OpenRouter),
-            ANTHROPIC_URL => Some(Self::Anthropic),
-            _ => None,
+            OPENAI_URL => Ok(Self::OpenAI),
+            OPEN_ROUTER_URL => Ok(Self::OpenRouter),
+            ANTHROPIC_URL => Ok(Self::Anthropic),
+            _ => Err(anyhow::anyhow!("Provider for '{}' not found", url)),
         }
     }
 }
@@ -160,7 +160,7 @@ mod tests {
         test_executor.add(
             EnvTest::new(|| {
                 let provider = Provider::from_env();
-                assert_eq!(provider, None);
+                assert!(provider.is_err());
             })
             .add_env_var(FORGE, "")
             .title("test_provider_from_env_with_empty_forge_key"),
@@ -169,7 +169,7 @@ mod tests {
         test_executor.add(
             EnvTest::new(|| {
                 let provider = Provider::from_env();
-                assert_eq!(provider, Some(Provider::OpenAI));
+                assert_eq!(*provider.as_ref().unwrap(), Provider::OpenAI);
                 assert_eq!(
                     provider.unwrap().to_key(),
                     Some("some_forge_key".to_string())
@@ -183,7 +183,7 @@ mod tests {
         test_executor.add(
             EnvTest::new(|| {
                 let provider = Provider::from_env();
-                assert_eq!(provider, Some(Provider::OpenRouter));
+                assert_eq!(*provider.as_ref().unwrap(), Provider::OpenRouter);
                 assert_eq!(
                     provider.unwrap().to_key(),
                     Some("some_open_router_key".to_string())
@@ -196,7 +196,7 @@ mod tests {
         test_executor.add(
             EnvTest::new(|| {
                 let provider = Provider::from_env();
-                assert_eq!(provider, Some(Provider::OpenAI));
+                assert_eq!(*provider.as_ref().unwrap(), Provider::OpenAI);
                 assert_eq!(
                     provider.unwrap().to_key(),
                     Some("some_openai_key".to_string())
@@ -209,7 +209,7 @@ mod tests {
         test_executor.add(
             EnvTest::new(|| {
                 let provider = Provider::from_env();
-                assert_eq!(provider, Some(Provider::Anthropic));
+                assert_eq!(*provider.as_ref().unwrap(), Provider::Anthropic);
                 assert_eq!(
                     provider.unwrap().to_key(),
                     Some("some_anthropic_key".to_string())
@@ -222,7 +222,7 @@ mod tests {
         test_executor.add(
             EnvTest::new(|| {
                 let provider = Provider::from_env();
-                assert_eq!(provider, None);
+                assert!(provider.is_err());
             })
             .title("test_provider_from_env_with_no_keys"),
         );
@@ -233,18 +233,18 @@ mod tests {
     #[test]
     fn test_from_url() {
         assert_eq!(
-            Provider::from_url("https://api.openai.com/v1/"),
-            Some(Provider::OpenAI)
+            Provider::from_url("https://api.openai.com/v1/").unwrap(),
+            Provider::OpenAI
         );
         assert_eq!(
-            Provider::from_url("https://openrouter.ai/api/v1/"),
-            Some(Provider::OpenRouter)
+            Provider::from_url("https://openrouter.ai/api/v1/").unwrap(),
+            Provider::OpenRouter
         );
         assert_eq!(
-            Provider::from_url("https://api.anthropic.com/v1/"),
-            Some(Provider::Anthropic)
+            Provider::from_url("https://api.anthropic.com/v1/").unwrap(),
+            Provider::Anthropic
         );
-        assert_eq!(Provider::from_url("https://unknown.url/"), None);
+        assert!(Provider::from_url("https://unknown.url/").is_err());
     }
 
     #[test]

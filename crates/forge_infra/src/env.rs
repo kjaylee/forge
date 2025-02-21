@@ -34,7 +34,7 @@ impl ForgeEnvironmentService {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
 
-        let provider = Provider::from_env().expect("No API key found. Please set one of: FORGE_KEY, OPEN_ROUTER_KEY, OPENAI_API_KEY or ANTHROPIC_API_KEY");
+        let provider = Provider::from_env().unwrap();
         let provider_key = provider.to_key().expect("Failed to get provider key");
         let provider_url = provider.to_base_url().to_string();
 
