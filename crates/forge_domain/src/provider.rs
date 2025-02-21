@@ -217,7 +217,7 @@ mod tests {
 
         env_tester.add(EnvTest::new(
             "test_provider_from_env_with_no_keys",
-            vec![("test", "test")],
+            vec![],
             || {
                 let provider = Provider::from_env();
                 assert_eq!(provider, None);
