@@ -193,10 +193,10 @@ impl<F: API> UI<F> {
                         format!("{timestamp}-{title}")
                     });
 
-                let yaml_path = format!("{path}.yaml");
+                let path = format!("{path}.yaml");
 
-                let yaml_content = serde_yaml::to_string(&conversation)?;
-                tokio::fs::write(yaml_path.as_str(), yaml_content).await?;
+                let content = serde_json::to_string(&conversation)?;
+                tokio::fs::write(path.as_str(), content).await?;
 
                 CONSOLE.writeln(
                     TitleFormat::success("dump")

@@ -1052,7 +1052,6 @@ dependencies = [
  "reedline",
  "regex",
  "serde_json",
- "serde_yaml",
  "strum 0.27.0",
  "tempfile",
  "thiserror 2.0.11",
