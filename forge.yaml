@@ -6,7 +6,7 @@ agents:
     subscribe:
       - user_task
     max_turns: 1
-    system_prompt: "{{> title-generator.mustache }}"
+    system_prompt: "{{> title-generator.hbs }}"
     user_prompt: <technical_content>{{event.value}}</technical_content>
   - id: developer
     model: anthropic/claude-3.5-sonnet
@@ -26,7 +26,7 @@ agents:
       - type: User
         agent_id: knowledge_recall
         output: learnings
-    system_prompt: "{{> software-engineer.mustache }}"
+    system_prompt: "{{> software-engineer.hbs }}"
     user_prompt: <task>{{event.value}}</task>
   - id: knowledge_store
     model: anthropic/claude-3.5-sonnet
@@ -34,7 +34,7 @@ agents:
       - forge_tool_knowledge_set
     subscribe:
       - user_task
-    system_prompt: "{{> knowledge-storage.mustache }}"
+    system_prompt: "{{> knowledge-storage.hbs }}"
     user_prompt: <feedback>{{event.value}}</feedback>
   - id: knowledge_recall
     model: anthropic/claude-3.5-sonnet
@@ -42,5 +42,5 @@ agents:
       - forge_tool_knowledge_get
       - forge_tool_event_dispatch
     subscribe: []
-    system_prompt: "{{> knowledge-recall.mustache }}"
+    system_prompt: "{{> knowledge-recall.hbs }}"
     user_prompt: "{{event.value}}"
