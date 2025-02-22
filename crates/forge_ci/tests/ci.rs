@@ -166,21 +166,10 @@ fn generate() {
             )
             .add_step(
                 Step::run(r#" 
-                # Download libtorch for macOS (correct URL without "cpu")
-          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/macos/libtorch-macos-2.0.1.zip"
-          
-          # Create a directory to extract libtorch
-          mkdir -p $HOME/libtorch
-          
-          # Extract the downloaded zip file quietly
-          unzip -q libtorch.zip -d $HOME/libtorch
-          
-          # The extracted archive typically contains a folder named "libtorch".
-          # Set the LIBTORCH environment variable to point to this directory.
-          echo "LIBTORCH=$HOME/libtorch/libtorch" >> $GITHUB_ENV
-          
-          # Clean up the zip file
-          rm libtorch.zip
+          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/macos/libtorch-macos-2.0.1.zip"\
+            &&          mkdir -p $HOME/libtorch\
+            &&          unzip -q libtorch.zip -d $HOME/libtorch\
+            &&          echo "LIBTORCH=$HOME/libtorch/libtorch" >> $GITHUB_ENV
                 "#)
             )
             // Build release binary
