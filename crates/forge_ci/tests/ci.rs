@@ -166,11 +166,13 @@ fn generate() {
             )
             .add_step(
                 Step::run(r#" 
-          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/macos/libtorch-macos-2.0.1.zip"\
+          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/macos/libtorch-macos-2.4.0.zip"\
             &&          mkdir -p $HOME/libtorch\
             &&          unzip -q libtorch.zip -d $HOME/libtorch\
             &&          echo "LIBTORCH=$HOME/libtorch/libtorch" >> $GITHUB_ENV
-                "#)
+                "#).if_condition(Expression::new(
+                    "contains(matrix.target, 'apple-darwin')",
+                )),
             )
             // Build release binary
             .add_step(
