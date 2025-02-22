@@ -1,4 +1,4 @@
-use super::Transformer;
+use super::transformer::Transformer;
 use crate::open_router::request::OpenRouterRequest;
 
 /// A transformer that combines two transformers, applying them in sequence.

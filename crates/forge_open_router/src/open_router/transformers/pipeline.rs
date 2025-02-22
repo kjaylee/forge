@@ -21,13 +21,9 @@ impl<'a> ProviderPipeline<'a> {
 impl Transformer for ProviderPipeline<'_> {
     fn transform(&self, request: OpenRouterRequest) -> OpenRouterRequest {
         let or_transformers = Identity
-            .combine(DropToolCalls.when_name(|name| name.contains("mistral")))
-            .combine(SetToolChoice::new(ToolChoice::Auto).when_name(|name| name.contains("gemini")))
-            .combine(SetCache.when_name(|name| {
-                ["mistral", "gemini", "openai"]
-                    .iter()
-                    .all(|p| !name.contains(p))
-            }))
+            .combine(DropToolCalls.when_model("mistral"))
+            .combine(SetToolChoice::new(ToolChoice::Auto).when_model("gemini"))
+            .combine(SetCache.except_when_model("mistral|gemini|openai"))
             .when(move |_| self.0.is_open_router());
 
         let openai_transformers = OpenAITransformer.when(move |_| self.0.is_openai());
