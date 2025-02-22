@@ -45,10 +45,6 @@ fn truth() -> bool {
     true
 }
 
-fn u64_max() -> u64 {
-    u64::MAX
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
     pub id: AgentId,
@@ -79,8 +75,8 @@ pub struct Agent {
     pub subscribe: Vec<String>,
 
     /// Maximum number of turns the agent can take    
-    #[serde(default = "u64_max")]
-    pub max_turns: u64,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub max_turns: Option<u64>,
 }
 
 /// Transformations that can be applied to the agent's context before sending it
