@@ -166,7 +166,7 @@ fn generate() {
             )
             .add_step(
                 Step::run(r#" 
-          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/macos/libtorch-macos-2.1.0.zip"\
+          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.1.0.zip"
             &&          mkdir -p $HOME/libtorch\
             &&          unzip -q libtorch.zip -d $HOME/libtorch\
             &&          echo "LIBTORCH=$HOME/libtorch/libtorch" >> $GITHUB_ENV
