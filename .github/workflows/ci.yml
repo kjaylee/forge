@@ -155,7 +155,7 @@ jobs:
           pkg-config \
           libssl-dev
     - if: contains(matrix.target, 'apple-darwin')
-      run: " \n          curl -L -o libtorch.zip \"https://download.pytorch.org/libtorch/macos/libtorch-macos-2.4.0.zip\"\\\n            &&          mkdir -p $HOME/libtorch\\\n            &&          unzip -q libtorch.zip -d $HOME/libtorch\\\n            &&          echo \"LIBTORCH=$HOME/libtorch/libtorch\" >> $GITHUB_ENV\n                "
+      run: " \n          curl -L -o libtorch.zip \"https://download.pytorch.org/libtorch/macos/libtorch-macos-2.1.0.zip\"\\\n            &&          mkdir -p $HOME/libtorch\\\n            &&          unzip -q libtorch.zip -d $HOME/libtorch\\\n            &&          echo \"LIBTORCH=$HOME/libtorch/libtorch\" >> $GITHUB_ENV\n                "
     - uses: ClementTsang/cargo-action@v0.0.6
       with:
         command: build --release
