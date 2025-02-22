@@ -69,7 +69,7 @@ fn generate() {
                 "target": "x86_64-apple-darwin",
                 "binary_name": "forge-x86_64-apple-darwin",
                 "binary_path": "target/x86_64-apple-darwin/release/forge",
-                "cross": "false"
+                "cross": "true"
             },
             {
                 "os": "macos-latest",
