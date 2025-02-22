@@ -170,8 +170,11 @@ fn generate() {
                 Step::run(
                     r#"#!/bin/bash
                     set -e
-                    export LIBTORCH_USE_PYTORCH=1
-                    echo "LIBTORCH_USE_PYTORCH=1" >> $GITHUB_ENV
+                    # Force C++11 ABI and disable Python detection
+                    export LIBTORCH_CXX11_ABI=1
+                    export LIBTORCH_USE_PYTORCH=0
+                    echo "LIBTORCH_CXX11_ABI=1" >> $GITHUB_ENV
+                    echo "LIBTORCH_USE_PYTORCH=0" >> $GITHUB_ENV
                     
                     # Download and extract libtorch
                     TORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.1.0.zip"
@@ -196,6 +199,8 @@ fn generate() {
                     .add_with(("cross-version", "0.2.4"))
                     .add_env(("RUSTFLAGS", "${{ env.RUSTFLAGS }}"))
                     .add_env(("LIBTORCH", "${{ env.LIBTORCH }}"))
+                    .add_env(("LIBTORCH_CXX11_ABI", "${{ env.LIBTORCH_CXX11_ABI }}"))
+                    .add_env(("LIBTORCH_USE_PYTORCH", "${{ env.LIBTORCH_USE_PYTORCH }}"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                     .add_env((
                         "APP_VERSION",
