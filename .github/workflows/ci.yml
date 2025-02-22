@@ -90,10 +90,6 @@ jobs:
       create_release_name: ${{ steps.set_output.outputs.create_release_name }}
       create_release_id: ${{ steps.set_output.outputs.create_release_id }}
   build-release:
-    needs:
-    - build
-    - draft_release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     name: build-release
     runs-on: ${{ matrix.os }}
     permissions:
@@ -158,6 +154,7 @@ jobs:
           musl-dev \
           pkg-config \
           libssl-dev
+    - run: " \n                # Download libtorch for macOS (correct URL without \"cpu\")\n          curl -L -o libtorch.zip \"https://download.pytorch.org/libtorch/macos/libtorch-macos-2.0.1.zip\"\n          \n          # Create a directory to extract libtorch\n          mkdir -p $HOME/libtorch\n          \n          # Extract the downloaded zip file quietly\n          unzip -q libtorch.zip -d $HOME/libtorch\n          \n          # The extracted archive typically contains a folder named \"libtorch\".\n          # Set the LIBTORCH environment variable to point to this directory.\n          echo \"LIBTORCH=$HOME/libtorch/libtorch\" >> $GITHUB_ENV\n          \n          # Clean up the zip file\n          rm libtorch.zip\n                "
     - uses: ClementTsang/cargo-action@v0.0.6
       with:
         command: build --release
@@ -166,6 +163,7 @@ jobs:
         cross-version: 0.2.4
       env:
         RUSTFLAGS: ${{ env.RUSTFLAGS }}
+        LIBTORCH: ${{ env.LIBTORCH }}
         POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
         APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
     - run: cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}

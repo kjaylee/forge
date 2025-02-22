@@ -129,9 +129,9 @@ fn generate() {
     workflow = workflow.add_job(
         "build-release",
         Job::new("build-release")
-            .add_needs(build_job.clone())
-            .add_needs(draft_release_job.clone())
-            .cond(main_cond.clone())
+            // .add_needs(build_job.clone())
+            // .add_needs(draft_release_job.clone())
+            // .cond(main_cond.clone())
             .strategy(Strategy { fail_fast: None, max_parallel: None, matrix: Some(matrix) })
             .runs_on("${{ matrix.os }}")
             .permissions(
@@ -164,6 +164,25 @@ fn generate() {
                     "contains(matrix.target, '-unknown-linux-musl')",
                 )),
             )
+            .add_step(
+                Step::run(r#" 
+                # Download libtorch for macOS (correct URL without "cpu")
+          curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/macos/libtorch-macos-2.0.1.zip"
+          
+          # Create a directory to extract libtorch
+          mkdir -p $HOME/libtorch
+          
+          # Extract the downloaded zip file quietly
+          unzip -q libtorch.zip -d $HOME/libtorch
+          
+          # The extracted archive typically contains a folder named "libtorch".
+          # Set the LIBTORCH environment variable to point to this directory.
+          echo "LIBTORCH=$HOME/libtorch/libtorch" >> $GITHUB_ENV
+          
+          # Clean up the zip file
+          rm libtorch.zip
+                "#)
+            )
             // Build release binary
             .add_step(
                 Step::uses("ClementTsang", "cargo-action", "v0.0.6")
@@ -172,6 +191,7 @@ fn generate() {
                     .add_with(("use-cross", "${{ matrix.cross }}"))
                     .add_with(("cross-version", "0.2.4"))
                     .add_env(("RUSTFLAGS", "${{ env.RUSTFLAGS }}"))
+                    .add_env(("LIBTORCH", "${{ env.LIBTORCH }}"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                     .add_env((
                         "APP_VERSION",
