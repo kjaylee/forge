@@ -170,23 +170,29 @@ fn generate() {
                 Step::run(
                     r#"#!/bin/bash
                     set -e
-                    # Force C++11 ABI and disable Python detection
-                    export LIBTORCH_CXX11_ABI=1
-                    export LIBTORCH_USE_PYTORCH=0
-                    echo "LIBTORCH_CXX11_ABI=1" >> $GITHUB_ENV
-                    echo "LIBTORCH_USE_PYTORCH=0" >> $GITHUB_ENV
                     
-                    # Download and extract libtorch
-                    TORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.1.0.zip"
+                    # Install Python and PyTorch
+                    brew install python@3.11
+                    python3.11 -m pip install --user torch
                     
-                    curl -L -o libtorch.zip $TORCH_URL
-                    unzip libtorch.zip
+                    # Get PyTorch installation path and CXX11 ABI setting
+                    PYTORCH_PATH=$(python3.11 -c "import torch; print(torch.__path__[0])")
+                    echo "Found PyTorch at: $PYTORCH_PATH"
                     
                     # Set environment variables
-                    echo "LIBTORCH=$PWD/libtorch" >> $GITHUB_ENV
-                    echo "LIBTORCH_INCLUDE=$PWD/libtorch/include" >> $GITHUB_ENV
-                    echo "LIBTORCH_LIB=$PWD/libtorch/lib" >> $GITHUB_ENV
-                    echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,$PWD/libtorch/lib" >> $GITHUB_ENV
+                    echo "LIBTORCH_USE_PYTORCH=1" >> $GITHUB_ENV
+                    echo "LIBTORCH=$PYTORCH_PATH" >> $GITHUB_ENV
+                    echo "LIBTORCH_INCLUDE=$PYTORCH_PATH/include" >> $GITHUB_ENV
+                    echo "LIBTORCH_LIB=$PYTORCH_PATH/lib" >> $GITHUB_ENV
+                    
+                    # Debug output
+                    echo "Python version:"
+                    python3.11 --version
+                    echo "PyTorch version:"
+                    python3.11 -c "import torch; print(torch.__version__)"
+                    
+                    # Set RUSTFLAGS after we have the proper path
+                    echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,$PYTORCH_PATH/lib" >> $GITHUB_ENV
                 "#,
                 )
                 .if_condition(Expression::new("contains(matrix.target, '-apple-darwin')")),
@@ -199,8 +205,10 @@ fn generate() {
                     .add_with(("cross-version", "0.2.4"))
                     .add_env(("RUSTFLAGS", "${{ env.RUSTFLAGS }}"))
                     .add_env(("LIBTORCH", "${{ env.LIBTORCH }}"))
-                    .add_env(("LIBTORCH_CXX11_ABI", "${{ env.LIBTORCH_CXX11_ABI }}"))
                     .add_env(("LIBTORCH_USE_PYTORCH", "${{ env.LIBTORCH_USE_PYTORCH }}"))
+                    .add_env(("LIBTORCH_INCLUDE", "${{ env.LIBTORCH_INCLUDE }}"))
+                    .add_env(("LIBTORCH_LIB", "${{ env.LIBTORCH_LIB }}"))
+                    .add_env(("PYTHON_SYS_EXECUTABLE", "python3.11"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                     .add_env((
                         "APP_VERSION",
