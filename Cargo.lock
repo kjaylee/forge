@@ -1204,6 +1204,7 @@ dependencies = [
  "anyhow",
  "forge_api",
  "futures",
+ "serde_yaml",
  "tokio",
  "tokio-stream",
 ]

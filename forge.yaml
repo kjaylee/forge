@@ -20,10 +20,9 @@ agents:
       - tool_forge_fs_search
     subscribe:
       - user_task
-    max_turns: 1024
     ephemeral: false
     transforms:
-      - type: User
+      - type: user
         agent_id: knowledge_recall
         output: learnings
     system_prompt: "{{> software-engineer.hbs }}"

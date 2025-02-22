@@ -82,7 +82,7 @@ pub struct Agent {
 /// Transformations that can be applied to the agent's context before sending it
 /// upstream to the provider.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Transform {
     /// Compresses multiple assistant messages into a single message
     Assistant {
