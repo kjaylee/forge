@@ -164,11 +164,6 @@ fn generate() {
                     "contains(matrix.target, '-unknown-linux-musl')",
                 )),
             )
-            .add_step(
-                Step::run(r#" curl -L -o libtorch.zip "https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.1.0.zip" && mkdir -p $HOME/libtorch && unzip -q libtorch.zip -d $HOME/libtorch && echo "LIBTORCH=$HOME/libtorch/libtorch" >> $GITHUB_ENV"#).if_condition(Expression::new(
-                    "contains(matrix.target, 'apple-darwin')",
-                )),
-            )
             // Build release binary
             .add_step(
                 Step::uses("ClementTsang", "cargo-action", "v0.0.6")
