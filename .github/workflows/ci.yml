@@ -154,8 +154,12 @@ jobs:
           musl-dev \
           pkg-config \
           libssl-dev
-    - if: contains(matrix.target, '-apple-darwin')
-      run: "#!/bin/bash\n                    set -e\n                    \n                    # Install conda\n                    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh\n                    bash miniconda.sh -b -p $HOME/miniconda\n                    source $HOME/miniconda/bin/activate\n                    \n                    # Create and activate conda environment\n                    conda create -n torchenv python=3.11 -y\n                    conda activate torchenv\n                    \n                    # Install PyTorch\n                    conda install pytorch cpuonly -c pytorch -y\n                    \n                    # Set environment variables\n                    CONDA_PREFIX=$HOME/miniconda/envs/torchenv\n                    echo \"LIBTORCH=$CONDA_PREFIX/lib/python3.11/site-packages/torch\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_INCLUDE=$CONDA_PREFIX/lib/python3.11/site-packages/torch/include\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_LIB=$CONDA_PREFIX/lib/python3.11/site-packages/torch/lib\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_USE_PYTORCH=1\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_CXX11_ABI=1\" >> $GITHUB_ENV\n                    \n                    # Add conda python to path\n                    echo \"$CONDA_PREFIX/bin\" >> $GITHUB_PATH\n                    \n                    # Debug output\n                    python --version\n                    which python\n                    python -c \"import torch; print('PyTorch version:', torch.__version__)\"\n                    \n                    # Set RUSTFLAGS after we have the proper path\n                    echo \"RUSTFLAGS=-C link-arg=-Wl,-rpath,$PYTORCH_PATH/lib\" >> $GITHUB_ENV\n                "
+    - if: runner.os == 'Windows'
+      run: "\n                    TORCH_URL=\"https://download.pytorch.org/libtorch/cpu/libtorch-win-shared-with-deps-2.1.0%2Bcpu.zip\"\n                    curl -L -o libtorch.zip $TORCH_URL\n                    Expand-Archive -Path libtorch.zip -DestinationPath .\n                    echo \"LIBTORCH_USE_PYTORCH=0\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_CXX11_ABI=1\" >> $GITHUB_ENV\n                    echo \"LIBTORCH=$PWD/libtorch\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_INCLUDE=$PWD/libtorch/include\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_LIB=$PWD/libtorch/lib\" >> $GITHUB_ENV\n                    dir libtorch\n                    dir libtorch\\lib\n                    dir libtorch\\include\n                "
+    - if: runner.os == 'macOS'
+      run: "\n                    TORCH_URL=\"https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.1.0.zip\"\n                    curl -L -o libtorch.zip $TORCH_URL\n                    unzip libtorch.zip\n                    echo \"LIBTORCH_USE_PYTORCH=0\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_CXX11_ABI=1\" >> $GITHUB_ENV\n                    echo \"LIBTORCH=$PWD/libtorch\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_INCLUDE=$PWD/libtorch/include\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_LIB=$PWD/libtorch/lib\" >> $GITHUB_ENV\n                    ls -la libtorch\n                    ls -la libtorch/lib\n                    ls -la libtorch/include\n                "
+    - if: runner.os == 'Linux'
+      run: "\n                    TORCH_URL=\"https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip\"\n                    curl -L -o libtorch.zip $TORCH_URL\n                    unzip libtorch.zip\n                    echo \"LIBTORCH_USE_PYTORCH=0\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_CXX11_ABI=1\" >> $GITHUB_ENV\n                    echo \"LIBTORCH=$PWD/libtorch\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_INCLUDE=$PWD/libtorch/include\" >> $GITHUB_ENV\n                    echo \"LIBTORCH_LIB=$PWD/libtorch/lib\" >> $GITHUB_ENV\n                    ls -la libtorch\n                    ls -la libtorch/lib\n                    ls -la libtorch/include\n                "
     - uses: ClementTsang/cargo-action@v0.0.6
       with:
         command: build --release
@@ -168,8 +172,7 @@ jobs:
         LIBTORCH_USE_PYTORCH: ${{ env.LIBTORCH_USE_PYTORCH }}
         LIBTORCH_INCLUDE: ${{ env.LIBTORCH_INCLUDE }}
         LIBTORCH_LIB: ${{ env.LIBTORCH_LIB }}
-        PYTHON_EXECUTABLE: ${{ env.CONDA_PREFIX }}/bin/python
-        PYTHON_SYS_EXECUTABLE: ${{ env.CONDA_PREFIX }}/bin/python
+        LIBTORCH_CXX11_ABI: '1'
         POSTHOG_API_SECRET: ${{secrets.POSTHOG_API_SECRET}}
         APP_VERSION: ${{ needs.draft_release.outputs.create_release_name }}
     - run: cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}

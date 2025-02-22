@@ -167,43 +167,47 @@ fn generate() {
             // Build release binary
             // Add macOS specific setup for both x86_64 and ARM64
             .add_step(
-                Step::run(
-                    r#"#!/bin/bash
-                    set -e
-                    
-                    # Install conda
-                    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh
-                    bash miniconda.sh -b -p $HOME/miniconda
-                    source $HOME/miniconda/bin/activate
-                    
-                    # Create and activate conda environment
-                    conda create -n torchenv python=3.11 -y
-                    conda activate torchenv
-                    
-                    # Install PyTorch
-                    conda install pytorch cpuonly -c pytorch -y
-                    
-                    # Set environment variables
-                    CONDA_PREFIX=$HOME/miniconda/envs/torchenv
-                    echo "LIBTORCH=$CONDA_PREFIX/lib/python3.11/site-packages/torch" >> $GITHUB_ENV
-                    echo "LIBTORCH_INCLUDE=$CONDA_PREFIX/lib/python3.11/site-packages/torch/include" >> $GITHUB_ENV
-                    echo "LIBTORCH_LIB=$CONDA_PREFIX/lib/python3.11/site-packages/torch/lib" >> $GITHUB_ENV
-                    echo "LIBTORCH_USE_PYTORCH=1" >> $GITHUB_ENV
+                Step::run(r#"
+                    TORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-win-shared-with-deps-2.1.0%2Bcpu.zip"
+                    curl -L -o libtorch.zip $TORCH_URL
+                    Expand-Archive -Path libtorch.zip -DestinationPath .
+                    echo "LIBTORCH_USE_PYTORCH=0" >> $GITHUB_ENV
                     echo "LIBTORCH_CXX11_ABI=1" >> $GITHUB_ENV
-                    
-                    # Add conda python to path
-                    echo "$CONDA_PREFIX/bin" >> $GITHUB_PATH
-                    
-                    # Debug output
-                    python --version
-                    which python
-                    python -c "import torch; print('PyTorch version:', torch.__version__)"
-                    
-                    # Set RUSTFLAGS after we have the proper path
-                    echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,$PYTORCH_PATH/lib" >> $GITHUB_ENV
-                "#,
-                )
-                .if_condition(Expression::new("contains(matrix.target, '-apple-darwin')")),
+                    echo "LIBTORCH=$PWD/libtorch" >> $GITHUB_ENV
+                    echo "LIBTORCH_INCLUDE=$PWD/libtorch/include" >> $GITHUB_ENV
+                    echo "LIBTORCH_LIB=$PWD/libtorch/lib" >> $GITHUB_ENV
+                    dir libtorch
+                    dir libtorch\lib
+                    dir libtorch\include
+                "#).if_condition(Expression::new("runner.os == 'Windows'")),
+            ).add_step(
+                Step::run(r#"
+                    TORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-macos-2.1.0.zip"
+                    curl -L -o libtorch.zip $TORCH_URL
+                    unzip libtorch.zip
+                    echo "LIBTORCH_USE_PYTORCH=0" >> $GITHUB_ENV
+                    echo "LIBTORCH_CXX11_ABI=1" >> $GITHUB_ENV
+                    echo "LIBTORCH=$PWD/libtorch" >> $GITHUB_ENV
+                    echo "LIBTORCH_INCLUDE=$PWD/libtorch/include" >> $GITHUB_ENV
+                    echo "LIBTORCH_LIB=$PWD/libtorch/lib" >> $GITHUB_ENV
+                    ls -la libtorch
+                    ls -la libtorch/lib
+                    ls -la libtorch/include
+                "#).if_condition(Expression::new("runner.os == 'macOS'")),
+            ).add_step(
+                Step::run(r#"
+                    TORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip"
+                    curl -L -o libtorch.zip $TORCH_URL
+                    unzip libtorch.zip
+                    echo "LIBTORCH_USE_PYTORCH=0" >> $GITHUB_ENV
+                    echo "LIBTORCH_CXX11_ABI=1" >> $GITHUB_ENV
+                    echo "LIBTORCH=$PWD/libtorch" >> $GITHUB_ENV
+                    echo "LIBTORCH_INCLUDE=$PWD/libtorch/include" >> $GITHUB_ENV
+                    echo "LIBTORCH_LIB=$PWD/libtorch/lib" >> $GITHUB_ENV
+                    ls -la libtorch
+                    ls -la libtorch/lib
+                    ls -la libtorch/include
+                "#).if_condition(Expression::new("runner.os == 'Linux'")),
             )
             .add_step(
                 Step::uses("ClementTsang", "cargo-action", "v0.0.6")
@@ -216,8 +220,7 @@ fn generate() {
                     .add_env(("LIBTORCH_USE_PYTORCH", "${{ env.LIBTORCH_USE_PYTORCH }}"))
                     .add_env(("LIBTORCH_INCLUDE", "${{ env.LIBTORCH_INCLUDE }}"))
                     .add_env(("LIBTORCH_LIB", "${{ env.LIBTORCH_LIB }}"))
-                    .add_env(("PYTHON_EXECUTABLE", "${{ env.CONDA_PREFIX }}/bin/python"))
-                    .add_env(("PYTHON_SYS_EXECUTABLE", "${{ env.CONDA_PREFIX }}/bin/python"))
+                    .add_env(("LIBTORCH_CXX11_ABI", "1"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                     .add_env((
                         "APP_VERSION",
