@@ -6,11 +6,9 @@ use nu_ansi_term::{Color, Style};
 use reedline::{Prompt, PromptHistorySearchStatus};
 
 // Constants
-pub const MAX_LEN: usize = 30;
 const AI_INDICATOR: &str = "⚡";
 const MULTILINE_INDICATOR: &str = "::: ";
 const RIGHT_CHEVRON: &str = "❯";
-const TRUNCATION_INDICATOR: &str = "…";
 
 /// Very Specialized Prompt for the Agent Chat
 #[derive(Clone, Default, Setters)]
@@ -23,15 +21,6 @@ pub struct ForgePrompt {
 impl Prompt for ForgePrompt {
     fn render_prompt_left(&self) -> Cow<str> {
         if let Some(title) = self.title.as_ref() {
-            let title = if title.len() > MAX_LEN {
-                format!(
-                    "{}{}",
-                    &title[..MAX_LEN - TRUNCATION_INDICATOR.len()],
-                    TRUNCATION_INDICATOR
-                )
-            } else {
-                title.clone()
-            };
             Cow::Owned(format!(
                 "{AI_INDICATOR} {} {} ",
                 Style::new().fg(Color::Cyan).paint(title),
