@@ -171,51 +171,33 @@ fn generate() {
                     r#"#!/bin/bash
                     set -e
                     
-                    # Install Python and PyTorch
-                    brew install python@3.11
+                    # Install conda
+                    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh
+                    bash miniconda.sh -b -p $HOME/miniconda
+                    source $HOME/miniconda/bin/activate
                     
-                    # Update pip and install PyTorch
-                    python3.11 -m pip install --upgrade pip
-                    python3.11 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+                    # Create and activate conda environment
+                    conda create -n torchenv python=3.11 -y
+                    conda activate torchenv
                     
-                    # Verify torch is installed and print path
-                    python3.11 -c "import torch; print('PyTorch version:', torch.__version__); print('PyTorch path:', torch.__file__)"
+                    # Install PyTorch
+                    conda install pytorch cpuonly -c pytorch -y
                     
-                    # Get Python site packages directory
-                    SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])")
-                    echo "Site packages directory: $SITE_PACKAGES"
-                    
-                    # Set environment variables using torch's location in site-packages
+                    # Set environment variables
+                    CONDA_PREFIX=$HOME/miniconda/envs/torchenv
+                    echo "LIBTORCH=$CONDA_PREFIX/lib/python3.11/site-packages/torch" >> $GITHUB_ENV
+                    echo "LIBTORCH_INCLUDE=$CONDA_PREFIX/lib/python3.11/site-packages/torch/include" >> $GITHUB_ENV
+                    echo "LIBTORCH_LIB=$CONDA_PREFIX/lib/python3.11/site-packages/torch/lib" >> $GITHUB_ENV
                     echo "LIBTORCH_USE_PYTORCH=1" >> $GITHUB_ENV
-                    echo "LIBTORCH=$SITE_PACKAGES/torch" >> $GITHUB_ENV
-                    echo "LIBTORCH_INCLUDE=$SITE_PACKAGES/torch/include" >> $GITHUB_ENV
-                    echo "LIBTORCH_LIB=$SITE_PACKAGES/torch/lib" >> $GITHUB_ENV
-                    
-                    # Print debug information
-                    echo "LIBTORCH=$SITE_PACKAGES/torch"
-                    echo "LIBTORCH_INCLUDE=$SITE_PACKAGES/torch/include"
-                    echo "LIBTORCH_LIB=$SITE_PACKAGES/torch/lib"
-                    
-                    # Verify the directories exist
-                    ls -la $SITE_PACKAGES/torch || echo "Torch directory not found"
-                    ls -la $SITE_PACKAGES/torch/include || echo "Include directory not found"
-                    ls -la $SITE_PACKAGES/torch/lib || echo "Lib directory not found"
-                    
-                    # Check CXX11 ABI setting
-                    python3.11 -c "import torch; print('CXX11_ABI:', torch.compiled_with_cxx11_abi())" || echo "Could not determine CXX11 ABI"
-                    
-                    # Set CXX11 ABI explicitly if we can't detect it
                     echo "LIBTORCH_CXX11_ABI=1" >> $GITHUB_ENV
                     
+                    # Add conda python to path
+                    echo "$CONDA_PREFIX/bin" >> $GITHUB_PATH
+                    
                     # Debug output
-                    echo "Python version:"
-                    python3.11 --version
-                    echo "PyTorch version:"
-                    python3.11 -c "import torch; print(torch.__version__)"
-                    echo "Python path:"
-                    which python3.11
-                    echo "Pip path:"
-                    which pip3.11
+                    python --version
+                    which python
+                    python -c "import torch; print('PyTorch version:', torch.__version__)"
                     
                     # Set RUSTFLAGS after we have the proper path
                     echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,$PYTORCH_PATH/lib" >> $GITHUB_ENV
@@ -234,8 +216,8 @@ fn generate() {
                     .add_env(("LIBTORCH_USE_PYTORCH", "${{ env.LIBTORCH_USE_PYTORCH }}"))
                     .add_env(("LIBTORCH_INCLUDE", "${{ env.LIBTORCH_INCLUDE }}"))
                     .add_env(("LIBTORCH_LIB", "${{ env.LIBTORCH_LIB }}"))
-                    .add_env(("PYTHON_EXECUTABLE", "$(which python3.11)"))
-                    .add_env(("PYTHON_SYS_EXECUTABLE", "$(which python3.11)"))
+                    .add_env(("PYTHON_EXECUTABLE", "${{ env.CONDA_PREFIX }}/bin/python"))
+                    .add_env(("PYTHON_SYS_EXECUTABLE", "${{ env.CONDA_PREFIX }}/bin/python"))
                     .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                     .add_env((
                         "APP_VERSION",
