@@ -79,6 +79,34 @@ impl<F: API> UI<F> {
 
         loop {
             match input {
+                Command::Dump => {
+                    let conversation_id = self.state.conversation_id.clone();
+                    if let Some(conversation_id) = conversation_id {
+                        let conversation = self.api.conversation(&conversation_id).await?;
+                        if let Some(conversation) = conversation {
+                            let contents = serde_json::to_string_pretty(&conversation)?;
+                            let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
+                            let path = format!("{conversation_id}-{timestamp}.json");
+                            tokio::fs::write(path.as_str(), contents).await?;
+                            CONSOLE.writeln(
+                                TitleFormat::success("dump")
+                                    .sub_title(format!("path: {path}"))
+                                    .format(),
+                            )?;
+                        } else {
+                            CONSOLE.writeln(
+                                TitleFormat::failed("dump")
+                                    .error("conversation not found")
+                                    .sub_title(format!("conversation_id: {conversation_id}"))
+                                    .format(),
+                            )?;
+                        }
+                    }
+
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
                 Command::New => {
                     banner::display()?;
                     self.state = Default::default();
