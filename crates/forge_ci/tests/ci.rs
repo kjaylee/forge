@@ -167,7 +167,8 @@ fn generate() {
             // Build release binary
             // Add macOS specific setup for both x86_64 and ARM64
             .add_step(
-                Step::run(r#"#!/bin/bash
+                Step::run(
+                    r#"#!/bin/bash
                     set -e
                     export LIBTORCH_USE_PYTORCH=1
                     echo "LIBTORCH_USE_PYTORCH=1" >> $GITHUB_ENV
@@ -183,9 +184,9 @@ fn generate() {
                     echo "LIBTORCH_INCLUDE=$PWD/libtorch/include" >> $GITHUB_ENV
                     echo "LIBTORCH_LIB=$PWD/libtorch/lib" >> $GITHUB_ENV
                     echo "RUSTFLAGS=-C link-arg=-Wl,-rpath,$PWD/libtorch/lib" >> $GITHUB_ENV
-                "#).if_condition(Expression::new(
-                    "contains(matrix.target, '-apple-darwin')",
-                )),
+                "#,
+                )
+                .if_condition(Expression::new("contains(matrix.target, '-apple-darwin')")),
             )
             .add_step(
                 Step::uses("ClementTsang", "cargo-action", "v0.0.6")
