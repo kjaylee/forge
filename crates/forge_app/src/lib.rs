@@ -1,6 +1,6 @@
 mod app;
 mod conversation;
-mod prompt;
+mod template;
 mod provider;
 mod tool_service;
 mod tools;

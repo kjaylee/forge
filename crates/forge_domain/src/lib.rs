@@ -11,7 +11,7 @@ mod knowledge;
 mod message;
 mod model;
 mod orch;
-mod prompt;
+mod template;
 mod provider;
 mod summarize;
 mod tool;
@@ -37,7 +37,7 @@ pub use knowledge::*;
 pub use message::*;
 pub use model::*;
 pub use orch::*;
-pub use prompt::*;
+pub use template::*;
 pub use provider::*;
 use serde::Serialize;
 pub use summarize::*;
@@ -89,10 +89,10 @@ pub trait ConversationService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait PromptService: Send + Sync {
+pub trait TemplateService: Send + Sync {
     async fn render<T: Serialize + Send + Sync>(
         &self,
-        prompt: &Prompt<T>,
+        prompt: &Template<T>,
         value: &T,
     ) -> anyhow::Result<String>;
 }
@@ -104,7 +104,7 @@ pub trait App: Send + Sync + 'static {
     type ToolService: ToolService;
     type ProviderService: ProviderService;
     type ConversationService: ConversationService;
-    type PromptService: PromptService;
+    type PromptService: TemplateService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;

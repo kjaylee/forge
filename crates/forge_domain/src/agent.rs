@@ -2,7 +2,7 @@ use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use crate::prompt::Prompt;
+use crate::template::Template;
 use crate::{Environment, ModelId, ToolName, UserContext};
 
 #[derive(Debug, Default, Setters, Clone, Serialize, Deserialize)]
@@ -50,8 +50,8 @@ pub struct Agent {
     pub id: AgentId,
     pub model: ModelId,
     pub description: Option<String>,
-    pub system_prompt: Prompt<SystemContext>,
-    pub user_prompt: Prompt<UserContext>,
+    pub system_prompt: Template<SystemContext>,
+    pub user_prompt: Template<UserContext>,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.    
