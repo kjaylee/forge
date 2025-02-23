@@ -1194,6 +1194,7 @@ dependencies = [
  "qdrant-client",
  "rust-bert",
  "serde_json",
+ "tch",
  "tokio",
 ]
 
