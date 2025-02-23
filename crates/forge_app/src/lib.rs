@@ -1,7 +1,7 @@
 mod app;
 mod conversation;
-mod template;
 mod provider;
+mod template;
 mod tool_service;
 mod tools;
 

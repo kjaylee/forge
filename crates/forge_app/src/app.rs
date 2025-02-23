@@ -3,8 +3,8 @@ use std::sync::Arc;
 use forge_domain::App;
 
 use crate::conversation::ForgeConversationService;
-use crate::template::ForgeTemplateService;
 use crate::provider::ForgeProviderService;
+use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
 
