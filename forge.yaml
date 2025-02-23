@@ -19,18 +19,15 @@ agents:
       - tool_forge_process_shell
       - tool_forge_net_fetch
       - tool_forge_fs_search
-      - tool_forge_knowledge_get
     subscribe:
       - user_task
     ephemeral: false
-    transforms:
-      - type: user
-        agent_id: memory_recall
-        output: learnings
     system_prompt: "{{> software-engineer.hbs }}"
     user_prompt: <task>{{event.value}}</task>
 
-  - id: memory_store_worker
+  # Worker
+  # The work asynchronously listening to events and performing tasks
+  - id: user_feedback_worker
     model: anthropic/claude-3.5-sonnet
     tools:
       - tool_forge_knowledge_set
@@ -39,11 +36,11 @@ agents:
     system_prompt: "{{> knowledge-storage.hbs }}"
     user_prompt: <feedback>{{event.value}}</feedback>
 
-  - id: memory_recall
+  - id: shell_usage_worker
     model: anthropic/claude-3.5-sonnet
     tools:
-      - tool_forge_knowledge_get
-      - forge_tool_event_dispatch
-    subscribe: []
-    system_prompt: "{{> knowledge-recall.hbs }}"
-    user_prompt: "{{event.value}}"
+      - tool_forge_knowledge_set
+    subscribe:
+      - tool_forge_process_shell
+    system_prompt: "{{> knowledge-storage.hbs }}"
+    user_prompt: <shell_command>{{event.value.command}}</shell_command>
