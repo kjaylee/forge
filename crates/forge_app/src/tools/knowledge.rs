@@ -49,7 +49,7 @@ impl<F: Infrastructure> ExecutableTool for RecallKnowledge<F> {
 
 impl<F> NamedTool for RecallKnowledge<F> {
     fn tool_name() -> ToolName {
-        ToolName::new("forge_tool_knowledge_get".to_string())
+        ToolName::new("tool_forge_knowledge_get".to_string())
     }
 }
 
@@ -92,6 +92,6 @@ impl<F: Infrastructure> ExecutableTool for StoreKnowledge<F> {
 
 impl<F> NamedTool for StoreKnowledge<F> {
     fn tool_name() -> ToolName {
-        ToolName::new("forge_tool_knowledge_set".to_string())
+        ToolName::new("tool_forge_knowledge_set".to_string())
     }
 }

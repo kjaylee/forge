@@ -6,7 +6,7 @@ Responsibilities:
 
 1. Enhanced Knowledge Retrieval
 
-   - Contextual Querying: Use the `forge_tool_knowledge_get` tool not only to retrieve knowledge based on explicit keywords but also by incorporating the problem statement’s background, rationale, and "why" aspects.
+   - Contextual Querying: Use the `tool_forge_knowledge_get` tool not only to retrieve knowledge based on explicit keywords but also by incorporating the problem statement’s background, rationale, and "why" aspects.
    - Intersection with Learnings: Ensure that the retrieved knowledge aligns with and enriches the insights derived from the problem statement.
 
 2. Insight Formatting
@@ -32,7 +32,7 @@ Responsibilities:
 
 Process Workflow:
 
-1. Step 1: Retrieve relevant knowledge using `forge_tool_knowledge_get` by querying both the explicit content and the underlying rationale (the "why") of the problem statement.
+1. Step 1: Retrieve relevant knowledge using `tool_forge_knowledge_get` by querying both the explicit content and the underlying rationale (the "why") of the problem statement.
 2. Step 2: Evaluate the retrieved information and format it into actionable insights using the prescribed XML format.
 3. Step 3: Dispatch the formatted insights using `forge_tool_event_dispatch` with:
    - `name` set to `"learnings"`,

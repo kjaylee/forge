@@ -19,6 +19,7 @@ agents:
       - tool_forge_process_shell
       - tool_forge_net_fetch
       - tool_forge_fs_search
+      - tool_forge_knowledge_get
     subscribe:
       - user_task
     ephemeral: false
@@ -32,7 +33,7 @@ agents:
   - id: memory_store_worker
     model: anthropic/claude-3.5-sonnet
     tools:
-      - forge_tool_knowledge_set
+      - tool_forge_knowledge_set
     subscribe:
       - user_task
     system_prompt: "{{> knowledge-storage.hbs }}"
@@ -41,7 +42,7 @@ agents:
   - id: memory_recall
     model: anthropic/claude-3.5-sonnet
     tools:
-      - forge_tool_knowledge_get
+      - tool_forge_knowledge_get
       - forge_tool_event_dispatch
     subscribe: []
     system_prompt: "{{> knowledge-recall.hbs }}"
