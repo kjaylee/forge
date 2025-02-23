@@ -24,12 +24,12 @@ agents:
     ephemeral: false
     transforms:
       - type: user
-        agent_id: knowledge_recall
+        agent_id: memory_recall
         output: learnings
     system_prompt: "{{> software-engineer.hbs }}"
     user_prompt: <task>{{event.value}}</task>
 
-  - id: knowledge_store
+  - id: memory_store_worker
     model: anthropic/claude-3.5-sonnet
     tools:
       - forge_tool_knowledge_set
@@ -38,7 +38,7 @@ agents:
     system_prompt: "{{> knowledge-storage.hbs }}"
     user_prompt: <feedback>{{event.value}}</feedback>
 
-  - id: knowledge_recall
+  - id: memory_recall
     model: anthropic/claude-3.5-sonnet
     tools:
       - forge_tool_knowledge_get
