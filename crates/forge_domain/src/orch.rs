@@ -42,16 +42,6 @@ impl<A: App> Orchestrator<A> {
         }
     }
 
-    pub fn system_context(mut self, system_context: SystemContext) -> Self {
-        self.system_context = system_context;
-        self
-    }
-
-    pub fn sender(mut self, sender: ArcSender) -> Self {
-        self.sender = Some(Arc::new(sender));
-        self
-    }
-
     async fn send_message(&self, agent_id: &AgentId, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             sender

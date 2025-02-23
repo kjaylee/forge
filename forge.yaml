@@ -1,5 +1,5 @@
 agents:
-  - id: title
+  - id: title_generation_worker
     model: anthropic/claude-3.5-haiku
     tools:
       - forge_tool_event_dispatch
@@ -8,6 +8,7 @@ agents:
     max_turns: 1
     system_prompt: "{{> title-generator.hbs }}"
     user_prompt: <technical_content>{{event.value}}</technical_content>
+
   - id: developer
     model: anthropic/claude-3.5-sonnet
     tools:
@@ -27,6 +28,7 @@ agents:
         output: learnings
     system_prompt: "{{> software-engineer.hbs }}"
     user_prompt: <task>{{event.value}}</task>
+
   - id: knowledge_store
     model: anthropic/claude-3.5-sonnet
     tools:
@@ -35,6 +37,7 @@ agents:
       - user_task
     system_prompt: "{{> knowledge-storage.hbs }}"
     user_prompt: <feedback>{{event.value}}</feedback>
+
   - id: knowledge_recall
     model: anthropic/claude-3.5-sonnet
     tools:
