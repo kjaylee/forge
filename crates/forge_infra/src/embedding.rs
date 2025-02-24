@@ -1,7 +1,11 @@
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use async_openai::config::OpenAIConfig;
+use async_openai::types::{CreateEmbeddingRequestArgs, EmbeddingInput};
+use async_openai::Client;
 use forge_app::EmbeddingService;
 
-pub struct ForgeEmbeddingService {}
+pub struct ForgeEmbeddingService {
+    client: Client<OpenAIConfig>,
+}
 
 impl Default for ForgeEmbeddingService {
     fn default() -> Self {
@@ -11,17 +15,29 @@ impl Default for ForgeEmbeddingService {
 
 impl ForgeEmbeddingService {
     pub fn new() -> Self {
-        Self {}
+        Self { client: Client::with_config(OpenAIConfig::default()) }
     }
 }
 
 #[async_trait::async_trait]
 impl EmbeddingService for ForgeEmbeddingService {
     async fn embed(&self, sentence: &str) -> anyhow::Result<Vec<f32>> {
-        let model = TextEmbedding::try_new(
-            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
-        )?;
+        let request = CreateEmbeddingRequestArgs::default()
+            .model("text-embedding-ada-002")
+            .input(EmbeddingInput::String(sentence.to_string()))
+            .build()?;
 
-        Ok(model.embed(vec![sentence], None)?.concat())
+        let response = self.client.embeddings().create(request).await?;
+
+        // OpenAI returns a vector of embeddings, we take the first one
+        // since we only sent one input
+        let embedding = response
+            .data
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No embedding returned"))?
+            .embedding
+            .clone();
+
+        Ok(embedding)
     }
 }
