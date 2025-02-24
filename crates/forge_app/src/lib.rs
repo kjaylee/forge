@@ -8,7 +8,7 @@ mod tools;
 use std::path::Path;
 
 pub use app::*;
-use forge_domain::{Knowledge, Query};
+use forge_domain::{Point, Query};
 use serde_json::Value;
 
 /// Repository for accessing system environment information
@@ -34,7 +34,7 @@ pub trait FileReadService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait VectorIndex<T>: Send + Sync {
-    async fn store(&self, information: Knowledge<T>) -> anyhow::Result<()>;
+    async fn store(&self, information: Point<T>) -> anyhow::Result<()>;
     async fn search(&self, query: Query) -> anyhow::Result<Vec<Value>>;
 }
 

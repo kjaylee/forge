@@ -43,7 +43,7 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use forge_domain::{Environment, Knowledge, Query};
+    use forge_domain::{Environment, Point, Query};
     use serde_json::Value;
 
     use super::*;
@@ -96,7 +96,7 @@ mod tests {
     }
     #[async_trait::async_trait]
     impl VectorIndex<Value> for Stub {
-        async fn store(&self, _information: Knowledge<Value>) -> anyhow::Result<()> {
+        async fn store(&self, _information: Point<Value>) -> anyhow::Result<()> {
             unimplemented!()
         }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, Knowledge, NamedTool, Query, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, Point, NamedTool, Query, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde_json::json;
 
@@ -80,7 +80,7 @@ impl<F: Infrastructure> ExecutableTool for StoreKnowledge<F> {
 
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let embedding = self.infra.embedding_service().embed(&input.content).await?;
-        let knowledge = Knowledge::new(json!({"content": input.content}), embedding);
+        let knowledge = Point::new(json!({"content": input.content}), embedding);
         self.infra.vector_index().store(knowledge).await?;
 
         Ok("Updated knowledge successfully".to_string())
