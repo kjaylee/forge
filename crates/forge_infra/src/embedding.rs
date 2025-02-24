@@ -1,7 +1,6 @@
-use std::env;
-
 use anyhow::Context;
 use forge_app::EmbeddingService;
+use forge_domain::Environment;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 
@@ -23,20 +22,13 @@ struct EmbeddingData {
 
 pub struct ForgeEmbeddingService {
     client: reqwest::Client,
-    api_key: String,
-}
-
-impl Default for ForgeEmbeddingService {
-    fn default() -> Self {
-        Self::new()
-    }
+    env: Environment,
 }
 
 impl ForgeEmbeddingService {
-    pub fn new() -> Self {
-        let api_key = env::var("OPENAI_API_KEY").unwrap_or_default();
+    pub fn new(env: Environment) -> Self {
         let client = reqwest::Client::new();
-        Self { client, api_key }
+        Self { client, env }
     }
 }
 
@@ -44,9 +36,14 @@ impl ForgeEmbeddingService {
 impl EmbeddingService for ForgeEmbeddingService {
     async fn embed(&self, sentence: &str) -> anyhow::Result<Vec<f32>> {
         let mut headers = HeaderMap::new();
+        let api_key = self
+            .env
+            .openai_key
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("OpenAI API key is not set"))?;
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", self.api_key))
+            HeaderValue::from_str(&format!("Bearer {}", api_key))
                 .context("Failed to create auth header")?,
         );
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
