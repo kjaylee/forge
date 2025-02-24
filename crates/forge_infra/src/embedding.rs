@@ -1,9 +1,5 @@
-use anyhow::Context;
 use forge_app::EmbeddingService;
-use rust_bert::pipelines::sentence_embeddings::{
-    SentenceEmbeddingsBuilder, SentenceEmbeddingsModelType,
-};
-use tokio::task;
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 
 pub struct ForgeEmbeddingService {}
 
@@ -22,12 +18,10 @@ impl ForgeEmbeddingService {
 #[async_trait::async_trait]
 impl EmbeddingService for ForgeEmbeddingService {
     async fn embed(&self, sentence: &str) -> anyhow::Result<Vec<f32>> {
-        let model = task::spawn_blocking(|| {
-            SentenceEmbeddingsBuilder::remote(SentenceEmbeddingsModelType::AllMiniLmL12V2)
-                .create_model()
-                .context("Failed to initialize embedding model")
-        })
-        .await??;
-        Ok(model.encode(&[sentence])?.concat())
+        let model = TextEmbedding::try_new(
+            InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
+        )?;
+        
+        Ok(model.embed(vec![sentence], None)?.concat())
     }
 }
