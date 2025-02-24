@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use forge_domain::{Point, Query, Suggestion, SuggestionService};
-use tracing::instrument;
 
 use crate::{EmbeddingService, Infrastructure, VectorIndex};
 
@@ -19,7 +18,6 @@ impl<F: Infrastructure> ForgeSuggestionService<F> {
 
 #[async_trait]
 impl<F: Infrastructure> SuggestionService for ForgeSuggestionService<F> {
-    #[instrument(skip(self))]
     async fn search(&self, query: &str) -> Result<Vec<Suggestion>> {
         let embeddings = self.infra.embedding_service().embed(query).await?;
         let suggestions = self

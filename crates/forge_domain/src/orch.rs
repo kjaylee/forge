@@ -215,7 +215,7 @@ impl<A: App> Orchestrator<A> {
                         let input = DispatchEvent::new(input_key, summary.get());
                         self.init_agent(agent_id, &input).await?;
 
-                        if let Some(value) = self.get_event(output_key).await? {
+                        if let Some(value) = self.get_last_event(output_key).await? {
                             summary.set(serde_json::to_string(&value)?);
                         }
                     }
@@ -227,9 +227,9 @@ impl<A: App> Orchestrator<A> {
                         ..
                     })) = context.messages.last_mut()
                     {
-                        let task = DispatchEvent::task(content.clone());
+                        let task = DispatchEvent::task_init(content.clone());
                         self.init_agent(agent_id, &task).await?;
-                        if let Some(output) = self.get_event(output_key).await? {
+                        if let Some(output) = self.get_last_event(output_key).await? {
                             let message = &output.value;
                             content
                                 .push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
@@ -249,7 +249,7 @@ impl<A: App> Orchestrator<A> {
         Ok(context)
     }
 
-    async fn get_event(&self, name: &str) -> anyhow::Result<Option<DispatchEvent>> {
+    async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<DispatchEvent>> {
         Ok(self.get_conversation().await?.events.get(name).cloned())
     }
 
@@ -308,6 +308,7 @@ impl<A: App> Orchestrator<A> {
 
         if agent.suggestions {
             let suggestions = self.init_suggestions().await?;
+            debug!(suggestions = ?suggestions, "Suggestions received");
             user_context = user_context.suggestions(suggestions);
         }
 
@@ -370,9 +371,22 @@ impl<A: App> Orchestrator<A> {
             .collect())
     }
 
+    /// Initializes the appropriate dispatch event based on whether this is the first message in the workflow
+    async fn init_dispatch_event(&self) -> anyhow::Result<DispatchEvent> {
+        let has_task = self
+            .get_last_event(DispatchEvent::USER_TASK_INIT)
+            .await?
+            .is_some();
+
+        Ok(if has_task {
+            DispatchEvent::task_update(self.chat_request.content.clone())
+        } else {
+            DispatchEvent::task_init(self.chat_request.content.clone())
+        })
+    }
+
     pub async fn execute(&self) -> anyhow::Result<()> {
-        let event = DispatchEvent::task(self.chat_request.content.clone());
-        self.dispatch(&event).await?;
-        Ok(())
+        let event = self.init_dispatch_event().await?;
+        self.dispatch(&event).await
     }
 }

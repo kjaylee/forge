@@ -61,6 +61,7 @@ impl EmbeddingService for OpenAIEmbeddingService {
             .send()
             .await
             .context("Failed to send request to OpenAI")?
+            .error_for_status()?
             .json()
             .await
             .context("Failed to parse OpenAI response")?;

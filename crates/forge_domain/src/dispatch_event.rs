@@ -49,9 +49,14 @@ impl DispatchEvent {
         Self { name: name.to_string(), value: value.to_string() }
     }
 
-    pub fn task(value: impl ToString) -> Self {
-        Self::new(Self::USER_TASK, value)
+    pub fn task_init(value: impl ToString) -> Self {
+        Self::new(Self::USER_TASK_INIT, value)
     }
 
-    pub const USER_TASK: &'static str = "user_task";
+    pub fn task_update(value: impl ToString) -> Self {
+        Self::new(Self::USER_TASK_UPDATE, value)
+    }
+
+    pub const USER_TASK_INIT: &'static str = "user_task_init";
+    pub const USER_TASK_UPDATE: &'static str = "user_task_update";
 }
