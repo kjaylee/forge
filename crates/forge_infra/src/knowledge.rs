@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
-use rustls::crypto::aws_lc_rs::default_provider;
 use forge_app::KnowledgeRepository;
 use forge_domain::{Environment, Knowledge, Query};
 use qdrant_client::qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder};
 use qdrant_client::{Payload, Qdrant};
+use rustls::crypto::aws_lc_rs::default_provider;
 use serde_json::Value;
 use tokio::sync::Mutex;
 
@@ -31,8 +31,10 @@ impl QdrantKnowledgeRepository {
         } else {
             // Initialize the CryptoProvider before creating the client
             let provider = default_provider();
-            provider.install_default().map_err(|_| anyhow!("Failed to install default provider"))?;
-            
+            provider
+                .install_default()
+                .map_err(|_| anyhow!("Failed to install default provider"))?;
+
             let client = Arc::new(
                 Qdrant::from_url(
                     self.env
