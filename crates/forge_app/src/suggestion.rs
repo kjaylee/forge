@@ -21,7 +21,7 @@ impl<F: Infrastructure> ForgeSuggestionService<F> {
 impl<F: Infrastructure> SuggestionService for ForgeSuggestionService<F> {
     #[instrument(skip(self))]
     async fn search(&self, query: &str) -> Result<Vec<Suggestion>> {
-        let embeddings = self.infra.embedding_service().embed(&query).await?;
+        let embeddings = self.infra.embedding_service().embed(query).await?;
         let suggestions = self
             .infra
             .vector_index()
