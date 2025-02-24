@@ -2,7 +2,7 @@ agents:
   - id: title_generation_worker
     model: anthropic/claude-3.5-haiku
     tools:
-      - forge_tool_event_dispatch
+      - tool_forge_event_dispatch
     subscribe:
       - user_task_init
     system_prompt: "{{> title-generator.hbs }}"
