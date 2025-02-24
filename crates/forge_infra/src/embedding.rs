@@ -1,5 +1,5 @@
-use forge_app::EmbeddingService;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use forge_app::EmbeddingService;
 
 pub struct ForgeEmbeddingService {}
 
@@ -21,7 +21,7 @@ impl EmbeddingService for ForgeEmbeddingService {
         let model = TextEmbedding::try_new(
             InitOptions::new(EmbeddingModel::AllMiniLML6V2).with_show_download_progress(true),
         )?;
-        
+
         Ok(model.embed(vec![sentence], None)?.concat())
     }
 }
