@@ -98,9 +98,8 @@ impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> VectorIndex<T> for
             .result
             .into_iter()
             .map(|point| {
-                Ok(serde_json::from_value(
-                    point.payload.get("content").unwrap().clone().into_json(),
-                )?)
+                let content = point.payload.get("content").unwrap().clone();
+                Ok(serde_json::from_str(&content.as_str().unwrap())?)
             })
             .collect::<anyhow::Result<Vec<_>>>()
     }
