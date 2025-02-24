@@ -9,15 +9,16 @@ pub struct DispatchEvent {
     pub value: String,
 }
 
-impl From<DispatchEvent> for UserContext {
-    fn from(event: DispatchEvent) -> Self {
-        Self { event }
-    }
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct UserContext {
     event: DispatchEvent,
+    suggestions: Vec<String>,
+}
+
+impl UserContext {
+    pub fn new(event: DispatchEvent, suggestions: Vec<String>) -> Self {
+        Self { event, suggestions }
+    }
 }
 
 impl NamedTool for DispatchEvent {

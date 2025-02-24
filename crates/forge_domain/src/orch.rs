@@ -304,10 +304,15 @@ impl<A: App> Orchestrator<A> {
             }
         };
 
+        let suggestions = self.init_suggestions().await?;
+
         let content = self
             .app
             .prompt_service()
-            .render(&agent.user_prompt, &UserContext::from(event.clone()))
+            .render(
+                &agent.user_prompt,
+                &UserContext::new(event.clone(), suggestions),
+            )
             .await?;
 
         context = context.add_message(ContextMessage::user(content));
@@ -350,6 +355,17 @@ impl<A: App> Orchestrator<A> {
         self.complete_turn(&agent.id).await?;
 
         Ok(())
+    }
+
+    async fn init_suggestions(&self) -> anyhow::Result<Vec<String>> {
+        Ok(self
+            .app
+            .suggestion_service()
+            .search(self.chat_request.clone())
+            .await?
+            .into_iter()
+            .map(|suggestion| suggestion.suggestion)
+            .collect())
     }
 
     pub async fn execute(&self) -> anyhow::Result<()> {
