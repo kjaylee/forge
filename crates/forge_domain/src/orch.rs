@@ -371,7 +371,8 @@ impl<A: App> Orchestrator<A> {
             .collect())
     }
 
-    /// Initializes the appropriate dispatch event based on whether this is the first message in the workflow
+    /// Initializes the appropriate dispatch event based on whether this is the
+    /// first message in the workflow
     async fn init_dispatch_event(&self) -> anyhow::Result<DispatchEvent> {
         let has_task = self
             .get_last_event(DispatchEvent::USER_TASK_INIT)
