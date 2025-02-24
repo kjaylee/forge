@@ -3,12 +3,12 @@ use forge_app::{EnvironmentService, Infrastructure};
 use crate::embedding::ForgeEmbeddingService;
 use crate::env::ForgeEnvironmentService;
 use crate::file_read::ForgeFileReadService;
-use crate::knowledge::QdrantKnowledgeRepository;
+use crate::qdrant::QdrantVectorIndex;
 
 pub struct ForgeInfra {
     _file_read_service: ForgeFileReadService,
     _environment_service: ForgeEnvironmentService,
-    _information_repo: QdrantKnowledgeRepository,
+    _information_repo: QdrantVectorIndex,
     _embedding_service: ForgeEmbeddingService,
 }
 
@@ -19,7 +19,7 @@ impl ForgeInfra {
         Self {
             _file_read_service: ForgeFileReadService::new(),
             _environment_service,
-            _information_repo: QdrantKnowledgeRepository::new(env, "user_feedback"),
+            _information_repo: QdrantVectorIndex::new(env, "user_feedback"),
             _embedding_service: ForgeEmbeddingService::new(),
         }
     }
@@ -28,7 +28,7 @@ impl ForgeInfra {
 impl Infrastructure for ForgeInfra {
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
-    type KnowledgeRepository = QdrantKnowledgeRepository;
+    type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = ForgeEmbeddingService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
@@ -39,7 +39,7 @@ impl Infrastructure for ForgeInfra {
         &self._file_read_service
     }
 
-    fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
+    fn vector_index(&self) -> &Self::VectorIndex {
         &self._information_repo
     }
 

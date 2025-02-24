@@ -33,8 +33,8 @@ pub trait FileReadService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait KnowledgeRepository<T>: Send + Sync {
-    async fn store(&self, information: Vec<Knowledge<T>>) -> anyhow::Result<()>;
+pub trait VectorIndex<T>: Send + Sync {
+    async fn store(&self, information: Knowledge<T>) -> anyhow::Result<()>;
     async fn search(&self, query: Query) -> anyhow::Result<Vec<Value>>;
 }
 
@@ -46,11 +46,11 @@ pub trait EmbeddingService: Send + Sync {
 pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
-    type KnowledgeRepository: KnowledgeRepository<Value>;
+    type VectorIndex: VectorIndex<Value>;
     type EmbeddingService: EmbeddingService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
-    fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository;
+    fn vector_index(&self) -> &Self::VectorIndex;
     fn embedding_service(&self) -> &Self::EmbeddingService;
 }

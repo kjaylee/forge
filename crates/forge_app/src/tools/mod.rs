@@ -47,7 +47,7 @@ mod tests {
     use serde_json::Value;
 
     use super::*;
-    use crate::{EmbeddingService, FileReadService, KnowledgeRepository};
+    use crate::{EmbeddingService, FileReadService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -95,8 +95,8 @@ mod tests {
         }
     }
     #[async_trait::async_trait]
-    impl KnowledgeRepository<Value> for Stub {
-        async fn store(&self, _information: Vec<Knowledge<Value>>) -> anyhow::Result<()> {
+    impl VectorIndex<Value> for Stub {
+        async fn store(&self, _information: Knowledge<Value>) -> anyhow::Result<()> {
             unimplemented!()
         }
 
@@ -109,7 +109,7 @@ mod tests {
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FileReadService = Stub;
-        type KnowledgeRepository = Stub;
+        type VectorIndex = Stub;
         type EmbeddingService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
@@ -120,7 +120,7 @@ mod tests {
             self
         }
 
-        fn textual_knowledge_repo(&self) -> &Self::KnowledgeRepository {
+        fn vector_index(&self) -> &Self::VectorIndex {
             self
         }
 

@@ -4,7 +4,7 @@ use forge_domain::{ExecutableTool, Knowledge, NamedTool, Query, ToolDescription,
 use schemars::JsonSchema;
 use serde_json::json;
 
-use crate::{EmbeddingService, Infrastructure, KnowledgeRepository};
+use crate::{EmbeddingService, Infrastructure, VectorIndex};
 
 pub struct RecallKnowledge<F> {
     infra: Arc<F>,
@@ -35,7 +35,7 @@ impl<F: Infrastructure> ExecutableTool for RecallKnowledge<F> {
         let embedding = self.infra.embedding_service().embed(&input.query).await?;
         let out = self
             .infra
-            .textual_knowledge_repo()
+            .vector_index()
             .search(Query::new(embedding))
             .await?
             .into_iter()
@@ -81,10 +81,7 @@ impl<F: Infrastructure> ExecutableTool for StoreKnowledge<F> {
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let embedding = self.infra.embedding_service().embed(&input.content).await?;
         let knowledge = Knowledge::new(json!({"content": input.content}), embedding);
-        self.infra
-            .textual_knowledge_repo()
-            .store(vec![knowledge])
-            .await?;
+        self.infra.vector_index().store(knowledge).await?;
 
         Ok("Updated knowledge successfully".to_string())
     }
