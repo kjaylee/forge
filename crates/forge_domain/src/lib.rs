@@ -12,6 +12,7 @@ mod model;
 mod orch;
 mod point;
 mod provider;
+mod suggestion;
 mod summarize;
 mod template;
 mod tool;
@@ -38,7 +39,8 @@ pub use model::*;
 pub use orch::*;
 pub use point::*;
 pub use provider::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
+pub use suggestion::*;
 pub use summarize::*;
 pub use template::*;
 pub use tool::*;
@@ -95,13 +97,6 @@ pub trait TemplateService: Send + Sync {
         prompt: &Template<T>,
         value: &T,
     ) -> anyhow::Result<String>;
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Suggestion {
-    pub actual_user_message: String,
-    pub enriched_user_message: String,
-    pub suggestion: String,
 }
 
 #[async_trait::async_trait]
