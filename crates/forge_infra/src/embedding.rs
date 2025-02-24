@@ -20,12 +20,12 @@ struct EmbeddingData {
     embedding: Vec<f32>,
 }
 
-pub struct ForgeEmbeddingService {
+pub struct OpenAIEmbeddingService {
     client: reqwest::Client,
     env: Environment,
 }
 
-impl ForgeEmbeddingService {
+impl OpenAIEmbeddingService {
     pub fn new(env: Environment) -> Self {
         let client = reqwest::Client::new();
         Self { client, env }
@@ -33,7 +33,7 @@ impl ForgeEmbeddingService {
 }
 
 #[async_trait::async_trait]
-impl EmbeddingService for ForgeEmbeddingService {
+impl EmbeddingService for OpenAIEmbeddingService {
     async fn embed(&self, sentence: &str) -> anyhow::Result<Vec<f32>> {
         let mut headers = HeaderMap::new();
         let api_key = self
