@@ -62,7 +62,10 @@ impl VectorIndex<Value> for QdrantVectorIndex {
         let point = PointStruct::new(id, vectors, payload?);
         self.client()
             .await?
-            .upsert_points(UpsertPointsBuilder::new(self.collection.clone(), vec![point]))
+            .upsert_points(UpsertPointsBuilder::new(
+                self.collection.clone(),
+                vec![point],
+            ))
             .await
             .with_context(|| {
                 format!("Failed to upsert points to collection: {}", self.collection)
