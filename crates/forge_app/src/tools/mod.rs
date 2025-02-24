@@ -12,7 +12,7 @@ use std::sync::Arc;
 use fetch::Fetch;
 use forge_domain::Tool;
 use fs::*;
-use knowledge::{RecallKnowledge, StoreKnowledge};
+use knowledge::RecallKnowledge;
 use patch::*;
 use shell::Shell;
 use think::Think;
@@ -35,7 +35,6 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
         Think::default().into(),
         Fetch::default().into(),
         RecallKnowledge::new(infra.clone()).into(),
-        StoreKnowledge::new(infra.clone()).into(),
     ]
 }
 
@@ -43,8 +42,7 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use forge_domain::{Environment, Point, Query};
-    use serde_json::Value;
+    use forge_domain::{Environment, Point, Query, Suggestion};
 
     use super::*;
     use crate::{EmbeddingService, FileReadService, VectorIndex};
@@ -95,12 +93,12 @@ mod tests {
         }
     }
     #[async_trait::async_trait]
-    impl VectorIndex<Value> for Stub {
-        async fn store(&self, _information: Point<Value>) -> anyhow::Result<()> {
+    impl VectorIndex<Suggestion> for Stub {
+        async fn store(&self, _information: Point<Suggestion>) -> anyhow::Result<()> {
             unimplemented!()
         }
 
-        async fn search(&self, _query: Query) -> anyhow::Result<Vec<Value>> {
+        async fn search(&self, _query: Query) -> anyhow::Result<Vec<Point<Suggestion>>> {
             unimplemented!()
         }
     }

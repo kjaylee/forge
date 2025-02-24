@@ -5,7 +5,8 @@ use forge_app::VectorIndex;
 use forge_domain::{Environment, Point, Query};
 use qdrant_client::qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder};
 use qdrant_client::{Payload, Qdrant};
-use serde_json::Value;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use tokio::sync::Mutex;
 
 pub struct QdrantVectorIndex {
@@ -54,12 +55,15 @@ impl QdrantVectorIndex {
 }
 
 #[async_trait::async_trait]
-impl VectorIndex<Value> for QdrantVectorIndex {
-    async fn store(&self, info: Point<Value>) -> anyhow::Result<()> {
+impl<T: Serialize + DeserializeOwned + Send + Sync + 'static> VectorIndex<T> for QdrantVectorIndex {
+    async fn store(&self, info: Point<T>) -> anyhow::Result<()> {
         let id = info.id.into_uuid().to_string();
         let vectors = info.embedding;
-        let payload: anyhow::Result<Payload> = Ok(serde_json::from_value(info.content)?);
-        let point = PointStruct::new(id, vectors, payload?);
+
+        let mut payload = Payload::new();
+        payload.insert("content", serde_json::to_string(&info.content)?);
+
+        let point = PointStruct::new(id, vectors, payload);
         self.client()
             .await?
             .upsert_points(UpsertPointsBuilder::new(
@@ -74,7 +78,7 @@ impl VectorIndex<Value> for QdrantVectorIndex {
         Ok(())
     }
 
-    async fn search(&self, query: Query) -> anyhow::Result<Vec<Value>> {
+    async fn search(&self, query: Query) -> anyhow::Result<Vec<Point<T>>> {
         let points = SearchPointsBuilder::new(
             self.collection.clone(),
             query.embedding,
@@ -93,7 +97,11 @@ impl VectorIndex<Value> for QdrantVectorIndex {
         results
             .result
             .into_iter()
-            .map(|point| Ok(serde_json::to_value(point.payload)?))
+            .map(|point| {
+                Ok(serde_json::from_value(
+                    point.payload.get("content").unwrap().clone().into_json(),
+                )?)
+            })
             .collect::<anyhow::Result<Vec<_>>>()
     }
 }

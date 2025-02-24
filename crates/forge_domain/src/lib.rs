@@ -38,7 +38,7 @@ pub use model::*;
 pub use orch::*;
 pub use point::*;
 pub use provider::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 pub use summarize::*;
 pub use template::*;
 pub use tool::*;
@@ -97,12 +97,17 @@ pub trait TemplateService: Send + Sync {
     ) -> anyhow::Result<String>;
 }
 
-pub struct Suggestion;
+#[derive(Serialize, Deserialize)]
+pub struct Suggestion {
+    pub actual_user_message: String,
+    pub enriched_user_message: String,
+    pub suggestion: String,
+}
 
 #[async_trait::async_trait]
 pub trait SuggestionService {
     async fn search(&self, request: ChatRequest) -> anyhow::Result<Vec<Suggestion>>;
-    async fn insert(&self, request: ChatRequest, suggestion: Suggestion) -> anyhow::Result<()>;
+    async fn insert(&self, suggestion: Suggestion) -> anyhow::Result<()>;
 }
 
 /// Core app trait providing access to services and repositories.

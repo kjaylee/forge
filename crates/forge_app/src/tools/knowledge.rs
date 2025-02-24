@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, NamedTool, Point, Query, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, Query, ToolDescription, ToolName};
 use schemars::JsonSchema;
-use serde_json::json;
 
 use crate::{EmbeddingService, Infrastructure, VectorIndex};
 
@@ -50,45 +49,5 @@ impl<F: Infrastructure> ExecutableTool for RecallKnowledge<F> {
 impl<F> NamedTool for RecallKnowledge<F> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_knowledge_get".to_string())
-    }
-}
-
-pub struct StoreKnowledge<F> {
-    infra: Arc<F>,
-}
-
-impl<F> StoreKnowledge<F> {
-    pub fn new(infra: Arc<F>) -> Self {
-        Self { infra }
-    }
-}
-
-impl<F> ToolDescription for StoreKnowledge<F> {
-    fn description(&self) -> String {
-        "Set knowledge to the app".to_string()
-    }
-}
-
-#[derive(serde::Deserialize, JsonSchema)]
-pub struct StoreKnowledgeInput {
-    pub content: String,
-}
-
-#[async_trait::async_trait]
-impl<F: Infrastructure> ExecutableTool for StoreKnowledge<F> {
-    type Input = StoreKnowledgeInput;
-
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
-        let embedding = self.infra.embedding_service().embed(&input.content).await?;
-        let knowledge = Point::new(json!({"content": input.content}), embedding);
-        self.infra.vector_index().store(knowledge).await?;
-
-        Ok("Updated knowledge successfully".to_string())
-    }
-}
-
-impl<F> NamedTool for StoreKnowledge<F> {
-    fn tool_name() -> ToolName {
-        ToolName::new("tool_forge_knowledge_set".to_string())
     }
 }
