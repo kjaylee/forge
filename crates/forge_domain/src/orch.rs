@@ -304,15 +304,17 @@ impl<A: App> Orchestrator<A> {
             }
         };
 
-        let suggestions = self.init_suggestions().await?;
+        let mut user_context = UserContext::new(event.clone());
+
+        if agent.suggestions {
+            let suggestions = self.init_suggestions().await?;
+            user_context = user_context.suggestions(suggestions);
+        }
 
         let content = self
             .app
             .prompt_service()
-            .render(
-                &agent.user_prompt,
-                &UserContext::new(event.clone(), suggestions),
-            )
+            .render(&agent.user_prompt, &user_context)
             .await?;
 
         context = context.add_message(ContextMessage::user(content));

@@ -53,6 +53,11 @@ pub struct Agent {
     pub system_prompt: Template<SystemContext>,
     pub user_prompt: Template<UserContext>,
 
+    /// When set to true all user events will also contain a suggestions field
+    /// that is prefilled with the matching information from vector store.
+    #[serde(skip_serializing_if = "is_true", default)]
+    pub suggestions: bool,
+
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.    
     #[serde(skip_serializing_if = "is_true", default = "truth")]

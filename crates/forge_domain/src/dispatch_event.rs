@@ -1,3 +1,4 @@
+use derive_setters::Setters;
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
 
@@ -9,15 +10,15 @@ pub struct DispatchEvent {
     pub value: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Setters)]
 pub struct UserContext {
     event: DispatchEvent,
     suggestions: Vec<String>,
 }
 
 impl UserContext {
-    pub fn new(event: DispatchEvent, suggestions: Vec<String>) -> Self {
-        Self { event, suggestions }
+    pub fn new(event: DispatchEvent) -> Self {
+        Self { event, suggestions: Default::default() }
     }
 }
 
