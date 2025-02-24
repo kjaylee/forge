@@ -100,8 +100,8 @@ pub trait TemplateService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait SuggestionService {
-    async fn search(&self, request: ChatRequest) -> anyhow::Result<Vec<Suggestion>>;
+pub trait SuggestionService: Send + Sync + 'static {
+    async fn search(&self, request: &str) -> anyhow::Result<Vec<Suggestion>>;
     async fn insert(&self, suggestion: Suggestion) -> anyhow::Result<()>;
 }
 

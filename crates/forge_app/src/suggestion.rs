@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use forge_domain::{ChatRequest, Point, Query, Suggestion, SuggestionService};
+use forge_domain::{Point, Query, Suggestion, SuggestionService};
 use tracing::instrument;
 
 use crate::{EmbeddingService, Infrastructure, VectorIndex};
@@ -20,12 +20,8 @@ impl<F: Infrastructure> ForgeSuggestionService<F> {
 #[async_trait]
 impl<F: Infrastructure> SuggestionService for ForgeSuggestionService<F> {
     #[instrument(skip(self))]
-    async fn search(&self, request: ChatRequest) -> Result<Vec<Suggestion>> {
-        let embeddings = self
-            .infra
-            .embedding_service()
-            .embed(&request.content)
-            .await?;
+    async fn search(&self, query: &str) -> Result<Vec<Suggestion>> {
+        let embeddings = self.infra.embedding_service().embed(&query).await?;
         let suggestions = self
             .infra
             .vector_index()
@@ -38,7 +34,7 @@ impl<F: Infrastructure> SuggestionService for ForgeSuggestionService<F> {
         let embeddings = self
             .infra
             .embedding_service()
-            .embed(&suggestion.enriched_user_message)
+            .embed(&suggestion.use_case)
             .await?;
 
         let point = Point::new(suggestion, embeddings);

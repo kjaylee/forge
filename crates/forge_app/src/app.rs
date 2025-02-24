@@ -21,18 +21,19 @@ pub struct ForgeApp<F> {
     provider_service: ForgeProviderService,
     conversation_service: ForgeConversationService,
     prompt_service: ForgeTemplateService,
-    suggestion_service: ForgeSuggestionService<F>,
+    suggestion_service: Arc<ForgeSuggestionService<F>>,
 }
 
 impl<F: Infrastructure> ForgeApp<F> {
     pub fn new(infra: Arc<F>) -> Self {
+        let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
         Self {
             infra: infra.clone(),
-            tool_service: ForgeToolService::new(infra.clone()),
+            tool_service: ForgeToolService::new(infra.clone(), suggestion_service.clone()),
             provider_service: ForgeProviderService::new(infra.clone()),
             conversation_service: ForgeConversationService::new(),
             prompt_service: ForgeTemplateService::new(),
-            suggestion_service: ForgeSuggestionService::new(infra.clone()),
+            suggestion_service,
         }
     }
 }

@@ -10,16 +10,16 @@ mod utils;
 use std::sync::Arc;
 
 use fetch::Fetch;
-use forge_domain::Tool;
+use forge_domain::{SuggestionService, Tool};
 use fs::*;
-use knowledge::RecallKnowledge;
+use knowledge::{RecallSuggestions, StoreSuggestion};
 use patch::*;
 use shell::Shell;
 use think::Think;
 
 use crate::{EnvironmentService, Infrastructure};
 
-pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
+pub fn tools<F: Infrastructure, S: SuggestionService>(infra: Arc<F>, suggest: Arc<S>) -> Vec<Tool> {
     let env = infra.environment_service().get_environment();
     vec![
         FSRead.into(),
@@ -34,7 +34,8 @@ pub fn tools<F: Infrastructure>(infra: Arc<F>) -> Vec<Tool> {
         Shell::new(env.clone()).into(),
         Think::default().into(),
         Fetch::default().into(),
-        RecallKnowledge::new(infra.clone()).into(),
+        RecallSuggestions::new(suggest.clone()).into(),
+        StoreSuggestion::new(suggest.clone()).into(),
     ]
 }
 
@@ -127,6 +128,16 @@ mod tests {
         }
     }
 
+    #[async_trait::async_trait]
+    impl SuggestionService for Stub {
+        async fn search(&self, _request: &str) -> anyhow::Result<Vec<Suggestion>> {
+            unimplemented!()
+        }
+        async fn insert(&self, _suggestion: Suggestion) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+    }
+
     #[test]
     fn test_tool_description_length() {
         const MAX_DESCRIPTION_LENGTH: usize = 1024;
@@ -135,7 +146,7 @@ mod tests {
 
         let mut any_exceeded = false;
         let stub = Arc::new(stub());
-        for tool in tools(stub) {
+        for tool in tools(stub.clone(), stub.clone()) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",

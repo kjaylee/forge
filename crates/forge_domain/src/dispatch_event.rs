@@ -23,7 +23,7 @@ impl UserContext {
 
 impl NamedTool for DispatchEvent {
     fn tool_name() -> ToolName {
-        ToolName::new("forge_tool_event_dispatch")
+        ToolName::new("tool_forge_event_dispatch")
     }
 }
 

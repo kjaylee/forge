@@ -361,7 +361,7 @@ impl<A: App> Orchestrator<A> {
         Ok(self
             .app
             .suggestion_service()
-            .search(self.chat_request.clone())
+            .search(&self.chat_request.content)
             .await?
             .into_iter()
             .map(|suggestion| suggestion.suggestion)
