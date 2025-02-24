@@ -28,16 +28,11 @@ impl EmbeddingService for ForgeEmbeddingService {
             .build()?;
 
         let response = self.client.embeddings().create(request).await?;
-
-        // OpenAI returns a vector of embeddings, we take the first one
-        // since we only sent one input
-        let embedding = response
+        let out = response
             .data
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("No embedding returned"))?
-            .embedding
-            .clone();
-
-        Ok(embedding)
+            .iter()
+            .map(|embedding| embedding.embedding.clone())
+            .collect::<Vec<_>>();
+        Ok(out.concat())
     }
 }
