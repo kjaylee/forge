@@ -34,7 +34,7 @@ impl Default for ForgeEmbeddingService {
 
 impl ForgeEmbeddingService {
     pub fn new() -> Self {
-        let api_key = env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY must be set");
+        let api_key = env::var("OPENAI_API_KEY").unwrap_or_default();
         let client = reqwest::Client::new();
         Self { client, api_key }
     }
