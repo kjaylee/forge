@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, Point, NamedTool, Query, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, Point, Query, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde_json::json;
 

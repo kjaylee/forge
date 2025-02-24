@@ -4,26 +4,35 @@ use forge_domain::App;
 
 use crate::conversation::ForgeConversationService;
 use crate::provider::ForgeProviderService;
+use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
 
+/// ForgeApp is the main application container that implements the App trait.
+/// It provides access to all core services required by the application.
+///
+/// Type Parameters:
+/// - F: The infrastructure implementation that provides core services like
+///   environment, file reading, vector indexing, and embedding.
 pub struct ForgeApp<F> {
     infra: Arc<F>,
-    _tool_service: ForgeToolService,
-    _provider_service: ForgeProviderService,
-    _conversation_service: ForgeConversationService,
-    _prompt_service: ForgeTemplateService,
+    tool_service: ForgeToolService,
+    provider_service: ForgeProviderService,
+    conversation_service: ForgeConversationService,
+    prompt_service: ForgeTemplateService,
+    suggestion_service: ForgeSuggestionService<F>,
 }
 
 impl<F: Infrastructure> ForgeApp<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self {
             infra: infra.clone(),
-            _tool_service: ForgeToolService::new(infra.clone()),
-            _provider_service: ForgeProviderService::new(infra.clone()),
-            _conversation_service: ForgeConversationService::new(),
-            _prompt_service: ForgeTemplateService::new(),
+            tool_service: ForgeToolService::new(infra.clone()),
+            provider_service: ForgeProviderService::new(infra.clone()),
+            conversation_service: ForgeConversationService::new(),
+            prompt_service: ForgeTemplateService::new(),
+            suggestion_service: ForgeSuggestionService::new(infra.clone()),
         }
     }
 }
@@ -33,21 +42,26 @@ impl<F: Infrastructure> App for ForgeApp<F> {
     type ProviderService = ForgeProviderService;
     type ConversationService = ForgeConversationService;
     type PromptService = ForgeTemplateService;
+    type SuggestionService = ForgeSuggestionService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
-        &self._tool_service
+        &self.tool_service
+    }
+
+    fn suggestion_service(&self) -> &Self::SuggestionService {
+        &self.suggestion_service
     }
 
     fn provider_service(&self) -> &Self::ProviderService {
-        &self._provider_service
+        &self.provider_service
     }
 
     fn conversation_service(&self) -> &Self::ConversationService {
-        &self._conversation_service
+        &self.conversation_service
     }
 
     fn prompt_service(&self) -> &Self::PromptService {
-        &self._prompt_service
+        &self.prompt_service
     }
 }
 

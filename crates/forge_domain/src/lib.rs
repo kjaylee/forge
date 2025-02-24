@@ -97,6 +97,14 @@ pub trait TemplateService: Send + Sync {
     ) -> anyhow::Result<String>;
 }
 
+pub struct Suggestion;
+
+#[async_trait::async_trait]
+pub trait SuggestionService {
+    async fn search(&self, request: ChatRequest) -> anyhow::Result<Vec<Suggestion>>;
+    async fn insert(&self, request: ChatRequest, suggestion: Suggestion) -> anyhow::Result<()>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -105,9 +113,11 @@ pub trait App: Send + Sync + 'static {
     type ProviderService: ProviderService;
     type ConversationService: ConversationService;
     type PromptService: TemplateService;
+    type SuggestionService: SuggestionService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
     fn prompt_service(&self) -> &Self::PromptService;
+    fn suggestion_service(&self) -> &Self::SuggestionService;
 }
