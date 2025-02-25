@@ -1,8 +1,6 @@
 use axum::http::HeaderMap;
-use clerk_rs::validators::{
-    authorizer::{ClerkAuthorizer, ClerkError, ClerkJwt},
-    axum::AxumClerkRequest,
-};
+use clerk_rs::validators::authorizer::{ClerkAuthorizer, ClerkError, ClerkJwt};
+use clerk_rs::validators::axum::AxumClerkRequest;
 
 use crate::{AuthUser, Error, Result};
 

@@ -1,4 +1,5 @@
-use forge_gateway::{config::Config, ForgeGateway};
+use forge_gateway::config::Config;
+use forge_gateway::ForgeGateway;
 use shuttle_runtime::SecretStore;
 
 #[shuttle_runtime::main]

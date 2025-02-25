@@ -1,18 +1,17 @@
 use std::sync::Arc;
 
-use crate::service::authorization::AuthorizeService;
 use axum::routing::{delete, get, post};
 use axum::{middleware, Router};
 
+use super::AuthUser;
 use crate::presentation::handlers::{
     chat_completion, create_api_key, delete_api_key, get_by_key_id, get_model_parameters,
     list_api_keys, list_models,
 };
-use crate::presentation::middleware::auth::{jwt_auth, api_key_auth};
+use crate::presentation::middleware::auth::{api_key_auth, jwt_auth};
 use crate::service::api_keys::ApiKeyService;
+use crate::service::authorization::AuthorizeService;
 use crate::service::proxy::ProxyService;
-
-use super::AuthUser;
 
 pub fn api_key_routes<T, Out>(service: Arc<ApiKeyService>, auth_service: Arc<T>) -> Router
 where

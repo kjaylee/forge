@@ -1,10 +1,9 @@
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::{automock, predicate::*};
 use postgrest::{Builder, Postgrest};
 use tracing::{debug, error, info};
 use uuid::Uuid;
-
-#[cfg(test)]
-use mockall::{automock, predicate::*};
 
 use crate::data::models::ApiKey;
 use crate::error::{Error, Result};

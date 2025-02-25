@@ -7,7 +7,9 @@ pub mod service;
 use std::sync::Arc;
 
 use axum::Router;
-use clerk_rs::{clerk::Clerk, validators::authorizer::ClerkAuthorizer, ClerkConfiguration};
+use clerk_rs::clerk::Clerk;
+use clerk_rs::validators::authorizer::ClerkAuthorizer;
+use clerk_rs::ClerkConfiguration;
 use config::Config;
 pub use data::*;
 pub use error::{Error, Result};
@@ -54,8 +56,6 @@ impl ForgeGateway {
             .allow_methods(Any)
             .allow_headers(Any)
             .allow_origin(Any);
-
-        
 
         app(api_key_service, proxy_service, auth_service).layer(cors)
     }

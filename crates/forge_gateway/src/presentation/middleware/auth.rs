@@ -87,16 +87,15 @@ mod tests {
 
     #[cfg(test)]
     mod api_key_auth_tests {
-        use crate::{ApiKey, KeyGeneratorServiceImpl, MockApiKeyRepository};
-
-        use super::*;
-        use axum::http::StatusCode;
-        use axum::middleware;
+        use axum::http::{HeaderMap, StatusCode};
         use axum::routing::get;
-        use axum::{http::HeaderMap, Router};
+        use axum::{middleware, Router};
         use http_body_util::BodyExt;
         use tower::ServiceExt;
         use uuid::Uuid;
+
+        use super::*;
+        use crate::{ApiKey, KeyGeneratorServiceImpl, MockApiKeyRepository};
 
         #[tokio::test]
         async fn test_when_x_api_key_header_missing() {
@@ -218,14 +217,14 @@ mod tests {
 
     #[cfg(test)]
     mod jwt_auth_tests {
-        use super::*;
-        use axum::http::StatusCode;
-        use axum::middleware;
+        use axum::http::{HeaderMap, StatusCode};
         use axum::routing::get;
-        use axum::{http::HeaderMap, Router};
+        use axum::{middleware, Router};
         use http_body_util::BodyExt;
         use tower::ServiceExt;
         use uuid::Uuid;
+
+        use super::*;
 
         // Mock authorization service for testing
         struct MockAuthService;
@@ -238,9 +237,7 @@ mod tests {
                 if let Some(auth_header) = headers.get("Authorization") {
                     if let Ok(auth_str) = auth_header.to_str() {
                         if auth_str == "Bearer valid_token" {
-                            return Ok(AuthUser {
-                                id: Uuid::new_v4().to_string(),
-                            });
+                            return Ok(AuthUser { id: Uuid::new_v4().to_string() });
                         }
                     }
                 }
@@ -296,7 +293,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!(res.status(), StatusCode::OK);
-            
+
             let body = res.collect().await.unwrap().to_bytes();
             let body_str = String::from_utf8(body.to_vec()).unwrap();
             assert!(body_str.starts_with("User ID:"));
@@ -326,7 +323,7 @@ mod tests {
                 .unwrap();
 
             assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
-            
+
             let body = res.collect().await.unwrap().to_bytes();
             let body = serde_json::from_slice::<Response>(&body).unwrap();
             assert_eq!(body.error.message, "Invalid authorization token");
