@@ -3,7 +3,6 @@ agents:
     model: anthropic/claude-3.5-sonnet
     tools:
       - tool_forge_fs_read
-      - tool_forge_process_shell
       - tool_forge_fs_search
     subscribe:
       - user_task_init
