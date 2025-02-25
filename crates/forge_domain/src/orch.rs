@@ -354,9 +354,7 @@ impl<A: App> Orchestrator<A> {
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results.clone());
 
-            if !agent.ephemeral {
-                self.set_context(&agent.id, context.clone()).await?;
-            }
+            self.set_context(&agent.id, context.clone()).await?;
 
             if tool_results.is_empty() {
                 break;
