@@ -1,5 +1,6 @@
-use crate::error::Result;
 use rand::{thread_rng, Rng};
+
+use crate::error::Result;
 
 const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=";
 

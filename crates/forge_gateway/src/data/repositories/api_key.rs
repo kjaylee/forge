@@ -3,10 +3,8 @@ use postgrest::Postgrest;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
-use crate::{
-    data::models::ApiKey,
-    error::{Error, Result},
-};
+use crate::data::models::ApiKey;
+use crate::error::{Error, Result};
 
 // Table name for the API keys.
 const API_KEYS_TABLE: &str = "api_keys_table";
@@ -81,7 +79,7 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
             Error::Database(e.to_string())
         })?;
 
-        info!(found = api_keys.len() > 0, "API key lookup complete");
+        info!(found = !api_keys.is_empty(), "API key lookup complete");
         Ok(api_keys.into_iter().next())
     }
 
@@ -166,7 +164,7 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
             Error::Database(e.to_string())
         })?;
 
-        info!(found = api_keys.len() > 0, "API key lookup complete");
+        info!(found = !api_keys.is_empty(), "API key lookup complete");
         Ok(api_keys.into_iter().next())
     }
 }

@@ -1,16 +1,15 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::{Path, State},
-    response::IntoResponse,
-    Json,
-};
-
+use axum::extract::{Path, State};
+use axum::response::IntoResponse;
+use axum::Json;
 use forge_domain::{Model, Parameters};
 use validator::Validate;
 
-use crate::{error::Result, service::proxy::ProxyService};
-use crate::{presentation::dto::ChatCompletionRequest, Error};
+use crate::error::Result;
+use crate::presentation::dto::ChatCompletionRequest;
+use crate::service::proxy::ProxyService;
+use crate::Error;
 
 #[axum::debug_handler]
 pub async fn chat_completion(

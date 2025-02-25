@@ -1,7 +1,5 @@
-use axum::response::{
-    sse::{Event, KeepAlive, Sse},
-    IntoResponse,
-};
+use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::IntoResponse;
 use forge_domain::{Model, ModelId, Parameters, ProviderService};
 use futures::TryStreamExt;
 use futures_util::StreamExt;

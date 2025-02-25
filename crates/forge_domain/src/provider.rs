@@ -54,7 +54,8 @@ impl Provider {
         }
     }
 
-    /// converts the provider to it's key by reading appropriate environment variable
+    /// converts the provider to it's key by reading appropriate environment
+    /// variable
     pub fn get_key(&self) -> String {
         match self {
             Provider::OpenRouter => std::env::var("OPEN_ROUTER_KEY")

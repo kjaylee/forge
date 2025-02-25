@@ -1,18 +1,17 @@
-use axum::{
-    body::Body,
-    extract::{FromRequestParts, State},
-    http::{request::Parts, Request},
-    middleware::Next,
-    response::Response,
-};
-use clerk_rs::validators::{
-    authorizer::{ClerkAuthorizer, ClerkError},
-    axum::AxumClerkRequest,
-};
-use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{error::Error, service::api_keys::ApiKeyService};
+use axum::body::Body;
+use axum::extract::{FromRequestParts, State};
+use axum::http::request::Parts;
+use axum::http::Request;
+use axum::middleware::Next;
+use axum::response::Response;
+use clerk_rs::validators::authorizer::{ClerkAuthorizer, ClerkError};
+use clerk_rs::validators::axum::AxumClerkRequest;
+use serde::Deserialize;
+
+use crate::error::Error;
+use crate::service::api_keys::ApiKeyService;
 
 const X_API_KEY_HEADER: &str = "x-api-key";
 

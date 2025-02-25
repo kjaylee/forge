@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
-use axum::{
-    extract::{Path, State},
-    Json,
-};
+use axum::extract::{Path, State};
+use axum::Json;
 use uuid::Uuid;
 use validator::Validate;
 
+use crate::error::{Error, Result};
 use crate::presentation::dto::{ApiKeyResponse, CreateApiKeyRequest};
-use crate::{
-    error::{Error, Result}, presentation::middleware::auth::AuthUser, service::api_keys::ApiKeyService,
-};
+use crate::presentation::middleware::auth::AuthUser;
+use crate::service::api_keys::ApiKeyService;
 
 #[axum::debug_handler]
 pub async fn create_api_key(

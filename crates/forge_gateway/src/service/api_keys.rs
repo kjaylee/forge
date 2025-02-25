@@ -1,12 +1,11 @@
 use std::sync::Arc;
+
 use uuid::Uuid;
 
-use crate::{
-    data::{models::ApiKey, repositories::ApiKeyRepository},
-    error::{Error, Result},
-};
-
 use super::key_gen::KeyGeneratorService;
+use crate::data::models::ApiKey;
+use crate::data::repositories::ApiKeyRepository;
+use crate::error::{Error, Result};
 
 /// Service for managing API keys
 pub struct ApiKeyService {
