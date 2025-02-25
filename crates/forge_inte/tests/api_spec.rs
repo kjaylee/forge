@@ -36,7 +36,10 @@ impl Fixture {
 
         // initialize the conversation by storing the workflow.
         let conversation_id = api.init(workflow).await.unwrap();
-        let request = ChatRequest::new("There is a cat hidden in the codebase. What is its name?", conversation_id);
+        let request = ChatRequest::new(
+            "There is a cat hidden in the codebase. What is its name?",
+            conversation_id,
+        );
         api.chat(request)
             .await
             .unwrap()
@@ -88,9 +91,7 @@ macro_rules! generate_model_test {
     ($model:expr) => {
         #[tokio::test]
         async fn test_find_cat_name() {
-            let fixture = Fixture::new(
-                ModelId::new($model),
-            );
+            let fixture = Fixture::new(ModelId::new($model));
 
             let result = fixture
                 .test_single_model(|response| response.to_lowercase().contains("juniper"))
