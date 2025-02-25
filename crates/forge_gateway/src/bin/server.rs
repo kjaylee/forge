@@ -6,7 +6,7 @@ use clerk_rs::ClerkConfiguration;
 use forge_gateway::config::Config;
 use forge_gateway::presentation::routes::app;
 use forge_gateway::service::{ApiKeyService, ProxyService};
-use forge_gateway::{ApiKeyRepositoryImpl, KeyGeneratorServiceImpl};
+use forge_gateway::{ApiKeyRepositoryImpl, ClerkAuthorizeService, KeyGeneratorServiceImpl};
 use forge_open_router::ProviderBuilder;
 use postgrest::Postgrest;
 use shuttle_runtime::SecretStore;
@@ -43,7 +43,10 @@ async fn axum(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> shuttle_
     // Initialize Clerk auth
     let clerk_config =
         ClerkConfiguration::new(None, None, Some(config.clerk_secret_key.clone()), None);
-    let clerk = Arc::new(ClerkAuthorizer::new(Clerk::new(clerk_config), true));
+    let auth_service = Arc::new(ClerkAuthorizeService::new(ClerkAuthorizer::new(
+        Clerk::new(clerk_config),
+        true,
+    )));
 
     // Create CORS layer
     let cors = CorsLayer::new()
@@ -52,7 +55,7 @@ async fn axum(#[shuttle_runtime::Secrets] secret_store: SecretStore) -> shuttle_
         .allow_origin(Any);
 
     // Build router
-    let app = app(api_key_service, proxy_service, clerk).layer(cors);
+    let app = app(api_key_service, proxy_service, auth_service).layer(cors);
 
     Ok(app.into())
 }

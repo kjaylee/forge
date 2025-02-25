@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use crate::service::authorization::AuthorizeService;
 use axum::routing::{delete, get, post};
 use axum::{middleware, Router};
-use clerk_rs::validators::authorizer::ClerkAuthorizer;
 
 use crate::presentation::handlers::{
     chat_completion, create_api_key, delete_api_key, get_by_key_id, get_model_parameters,
@@ -12,13 +12,19 @@ use crate::presentation::middleware::auth::{clerk_auth, validate_api_key};
 use crate::service::api_keys::ApiKeyService;
 use crate::service::proxy::ProxyService;
 
-pub fn api_key_routes(service: Arc<ApiKeyService>, clerk: Arc<ClerkAuthorizer>) -> Router {
+use super::AuthUser;
+
+pub fn api_key_routes<T, Out>(service: Arc<ApiKeyService>, auth_service: Arc<T>) -> Router
+where
+    T: AuthorizeService<Output = Out> + 'static,
+    Out: Into<AuthUser> + 'static,
+{
     Router::new()
         .route("/api/v1/user/keys", post(create_api_key))
         .route("/api/v1/user/keys", get(list_api_keys))
         .route("/api/v1/user/keys/{id}", get(get_by_key_id))
         .route("/api/v1/user/keys/{id}", delete(delete_api_key))
-        .layer(middleware::from_fn_with_state(clerk, clerk_auth))
+        .layer(middleware::from_fn_with_state(auth_service, clerk_auth))
         .with_state(service)
 }
 
@@ -38,12 +44,16 @@ pub fn proxy_routes(
         .with_state(proxy_service)
 }
 
-pub fn app(
+pub fn app<T, Out>(
     api_key_service: Arc<ApiKeyService>,
     proxy_service: Arc<ProxyService>,
-    clerk: Arc<ClerkAuthorizer>,
-) -> Router {
+    auth_service: Arc<T>,
+) -> Router
+where
+    T: AuthorizeService<Output = Out> + 'static,
+    Out: Into<AuthUser> + 'static,
+{
     Router::new()
-        .merge(api_key_routes(api_key_service.clone(), clerk))
+        .merge(api_key_routes(api_key_service.clone(), auth_service))
         .merge(proxy_routes(proxy_service, api_key_service))
 }

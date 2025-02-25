@@ -6,12 +6,11 @@ use axum::http::request::Parts;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::Response;
-use clerk_rs::validators::authorizer::{ClerkAuthorizer, ClerkError};
-use clerk_rs::validators::axum::AxumClerkRequest;
 use serde::Deserialize;
 
 use crate::error::Error;
 use crate::service::api_keys::ApiKeyService;
+use crate::service::authorization::AuthorizeService;
 
 const X_API_KEY_HEADER: &str = "x-api-key";
 
@@ -35,23 +34,17 @@ where
     }
 }
 
-pub async fn clerk_auth(
-    State(authorizer): State<Arc<ClerkAuthorizer>>,
+pub async fn clerk_auth<T, Out>(
+    State(auth_service): State<Arc<T>>,
     mut request: Request<Body>,
     next: Next,
-) -> Result<Response, Error> {
-    let session = authorizer
-        .as_ref()
-        .authorize(&AxumClerkRequest { headers: request.headers().clone() })
-        .await
-        .map_err(|e| match e {
-            ClerkError::Unauthorized(msg) => Error::Auth(msg),
-            ClerkError::InternalServerError(msg) => Error::Service(msg),
-        })?;
-
-    request
-        .extensions_mut()
-        .insert(AuthUser { id: session.sub });
+) -> Result<Response, Error>
+where
+    T: AuthorizeService<Output = Out> + 'static,
+    Out: Into<AuthUser>,
+{
+    let jwt = auth_service.authorize(request.headers()).await?;
+    request.extensions_mut().insert(jwt.into());
 
     Ok(next.run(request).await)
 }
