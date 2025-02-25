@@ -127,28 +127,23 @@ impl ClerkAuthClient {
             println!("Please open the URL manually in your browser.");
         }
 
-        // 3. Create and start the callback server
+        // 3. Start the callback server and wait for the response
         println!("Waiting for authentication response...");
-        // 4. Wait for the callback
         let callback_result = CallbackServer::default()
             .wait_for_callback(120)
             .await
-            .map_err(|e| AuthError::from(e))?;
+            .map_err(AuthError::from)?;
 
-        let received_state = callback_result.state;
-        let code = callback_result.code;
-
-        // Verify the state to prevent CSRF attacks
-        if received_state != *csrf_token.secret() {
+        // 4. Verify the state to prevent CSRF attacks
+        if callback_result.state != *csrf_token.secret() {
             return Err(AuthError::StateMismatch.into());
         }
 
-        // Exchange the code for a token
-        let token_response = self.exchange_code_for_token(code, pkce_verifier).await?;
+        // 5. Exchange the code for a token
+        let token_response = self.exchange_code_for_token(callback_result.code, pkce_verifier).await?;
 
-        // Get user information
-        let access_token = token_response.access_token().clone();
-        let user_info = self.user_info_client.get_user_info(&access_token).await?;
+        // 6. Get user information
+        let user_info = self.user_info_client.get_user_info(token_response.access_token()).await?;
 
         Ok((token_response, user_info))
     }
@@ -161,17 +156,17 @@ impl ClerkAuthClient {
     ) -> Result<openidconnect::core::CoreTokenResponse> {
         println!("Exchanging code for token...");
 
+        // Clone the client before moving it into the spawn_blocking task
         let client = self.client.clone();
-        let token_response = tokio::task::spawn_blocking(move || {
+        
+        // Use a blocking task since the openidconnect library uses blocking requests
+        tokio::task::spawn_blocking(move || {
             client
                 .exchange_code(openidconnect::AuthorizationCode::new(code))
                 .set_pkce_verifier(pkce_verifier)
                 .request(openidconnect::reqwest::http_client)
-                .map_err(|e| AuthError::TokenExchangeError(e.to_string()))
+                .map_err(|e| AuthError::TokenExchangeError(e.to_string()).into())
         })
-        .await
-        .unwrap()?;
-
-        Ok(token_response)
+        .await?
     }
 }
