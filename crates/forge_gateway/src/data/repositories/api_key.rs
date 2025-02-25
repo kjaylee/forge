@@ -30,7 +30,7 @@ impl ApiKeyRepositoryImpl {
     }
 }
 
-/// Query builder for the API key repository
+/// Query builder Dedicated for the API key repository
 struct ApiKeyQueryBuilder<'a> {
     _client: &'a Postgrest,
     query: Builder,
@@ -88,8 +88,8 @@ impl<'a> ApiKeyQueryBuilder<'a> {
         T: serde::de::DeserializeOwned,
     {
         let response = self.query.execute().await.map_err(|e| {
-            error!("Database error: {}", e);
-            Error::Database(e.to_string())
+            error!("Database Request failed: {}", e);
+            Error::Internal(e.to_string())
         })?;
 
         if !response.status().is_success() {
@@ -99,7 +99,7 @@ impl<'a> ApiKeyQueryBuilder<'a> {
 
         response.json::<T>().await.map_err(|e| {
             error!("Failed to deserialize response: {}", e);
-            Error::Database(e.to_string())
+            Error::Internal(e.to_string())
         })
     }
 }
