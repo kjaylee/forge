@@ -29,7 +29,7 @@ pub fn proxy_routes(
     Router::new()
         .route("/api/v1/chat/completions", post(chat_completion))
         .route("/api/v1/models", get(list_models))
-        .route("/api/v1/models/{id}", get(get_model_parameters))
+        .route("/api/v1/parameters/{id}", get(get_model_parameters))
         .layer(middleware::from_fn_with_state(
             api_key_service.clone(),
             validate_api_key,
