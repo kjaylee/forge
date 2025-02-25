@@ -109,6 +109,11 @@ mod anthropic_claude_3_5_sonnet {
     generate_model_test!("anthropic/claude-3.5-sonnet");
 }
 
+mod anthropic_claude_3_7_sonnet {
+    use super::*;
+    generate_model_test!("anthropic/claude-3.7-sonnet");
+}
+
 mod openai_gpt_4o {
     use super::*;
     generate_model_test!("openai/gpt-4o");

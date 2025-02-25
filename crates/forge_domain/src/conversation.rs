@@ -31,10 +31,10 @@ impl ConversationId {
 #[derive(Debug, Setters, Serialize, Deserialize, Clone)]
 pub struct Conversation {
     pub id: ConversationId,
-    pub workflow: Workflow,
     pub archived: bool,
     pub state: HashMap<AgentId, AgentState>,
     pub events: Vec<DispatchEvent>,
+    pub workflow: Workflow,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
