@@ -55,8 +55,8 @@ impl ForgeGateway {
             .allow_headers(Any)
             .allow_origin(Any);
 
-        let app = app(api_key_service, proxy_service, auth_service).layer(cors);
+        
 
-        app
+        app(api_key_service, proxy_service, auth_service).layer(cors)
     }
 }

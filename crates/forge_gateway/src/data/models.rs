@@ -51,9 +51,9 @@ pub struct NewApiKey {
     pub key: String,
 }
 
-impl Into<String> for NewApiKey {
-    fn into(self) -> String {
-        serde_json::to_string(&self).unwrap()
+impl From<NewApiKey> for String {
+    fn from(val: NewApiKey) -> Self {
+        serde_json::to_string(&val).unwrap()
     }
 }
 
