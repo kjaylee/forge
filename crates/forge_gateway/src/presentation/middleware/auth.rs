@@ -34,7 +34,7 @@ where
     }
 }
 
-pub async fn clerk_auth<T, Out>(
+pub async fn auth<T, Out>(
     State(auth_service): State<Arc<T>>,
     mut request: Request<Body>,
     next: Next,
