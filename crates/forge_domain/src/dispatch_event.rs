@@ -4,10 +4,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{NamedTool, ToolCallFull, ToolDefinition, ToolName};
 
+// We'll use simple strings for JSON schema compatibility
 #[derive(Debug, JsonSchema, Deserialize, Serialize, Clone)]
 pub struct DispatchEvent {
+    pub id: String,
     pub name: String,
     pub value: String,
+    pub timestamp: String,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Setters)]
@@ -46,7 +49,15 @@ impl DispatchEvent {
     }
 
     pub fn new(name: impl ToString, value: impl ToString) -> Self {
-        Self { name: name.to_string(), value: value.to_string() }
+        let id = uuid::Uuid::new_v4().to_string();
+        let timestamp = chrono::Utc::now().to_rfc3339();
+
+        Self {
+            id,
+            name: name.to_string(),
+            value: value.to_string(),
+            timestamp,
+        }
     }
 
     pub fn task_init(value: impl ToString) -> Self {

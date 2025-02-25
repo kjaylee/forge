@@ -166,7 +166,7 @@ impl<A: App> Orchestrator<A> {
             event_value = %event.value,
             "Dispatching event"
         );
-        
+
         self.insert_event(event.clone()).await?;
         join_all(
             self.app
@@ -257,7 +257,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<DispatchEvent>> {
-        Ok(self.get_conversation().await?.events.get(name).cloned())
+        Ok(self.get_conversation().await?.rfind_event(name).cloned())
     }
 
     async fn insert_event(&self, event: DispatchEvent) -> anyhow::Result<()> {
