@@ -3,9 +3,14 @@ agents:
     model: anthropic/claude-3.5-sonnet
     tools:
       - tool_forge_fs_read
+      - tool_forge_process_shell
+      - tool_forge_fs_search
     subscribe:
       - user_task
     ephemeral: false
     system_prompt: |
-      You are supposed to read files and solve the puzzle given by the user.
-    user_prompt: <task>{{event.value}}</task>
+      Find the easter egg. Use all tools available at your disposal. Do not give up until the the puzzle is solved.
+    user_prompt: |
+     <task>{{event.value}}</task>
+     
+     Hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask me any questions.

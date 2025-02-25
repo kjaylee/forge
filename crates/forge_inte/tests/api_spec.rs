@@ -8,14 +8,13 @@ const WORKFLOW_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/test_wor
 
 /// Test fixture for API testing that supports parallel model validation
 struct Fixture {
-    task: String,
     model: ModelId,
 }
 
 impl Fixture {
     /// Create a new test fixture with the given task
-    fn new(task: impl Into<String>, model: ModelId) -> Self {
-        Self { task: task.into(), model }
+    fn new(model: ModelId) -> Self {
+        Self { model }
     }
 
     /// Get the API service, panicking if not validated
@@ -37,8 +36,7 @@ impl Fixture {
 
         // initialize the conversation by storing the workflow.
         let conversation_id = api.init(workflow).await.unwrap();
-
-        let request = ChatRequest::new(self.task.clone(), conversation_id);
+        let request = ChatRequest::new("There is a cat hidden in the codebase. What is its name?", conversation_id);
         api.chat(request)
             .await
             .unwrap()
@@ -91,7 +89,6 @@ macro_rules! generate_model_test {
         #[tokio::test]
         async fn test_find_cat_name() {
             let fixture = Fixture::new(
-                "There is a cat hidden in the codebase. What is its name? hint: it's present in juniper.md file. You can use any tool at your disposal to find it. Do not ask me any questions.",
                 ModelId::new($model),
             );
 
