@@ -23,10 +23,6 @@ impl ApiKeyId {
     pub fn new() -> Self {
         Self(Uuid::new_v4())
     }
-
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
