@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use postgrest::Postgrest;
+use postgrest::{Builder, Postgrest};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -30,30 +30,88 @@ impl ApiKeyRepositoryImpl {
     }
 }
 
+/// Query builder for the API key repository
+struct ApiKeyQueryBuilder<'a> {
+    _client: &'a Postgrest,
+    query: Builder,
+}
+
+impl<'a> ApiKeyQueryBuilder<'a> {
+    fn new(_client: &'a Postgrest) -> Self {
+        let query = _client.from(API_KEYS_TABLE);
+        Self { _client, query }
+    }
+
+    /// ensure only active keys are returned
+    fn with_active_only(mut self) -> Self {
+        self.query = self.query.eq("is_deleted", "false");
+        self
+    }
+
+    /// filter by user_id
+    fn with_user_id(mut self, user_id: &str) -> Self {
+        self.query = self.query.eq("user_id", user_id);
+        self
+    }
+
+    /// filter by key_id
+    fn with_key_id(mut self, key_id: Uuid) -> Self {
+        self.query = self.query.eq("id", key_id.to_string());
+        self
+    }
+
+    /// filter by key
+    fn with_key(mut self, key: &str) -> Self {
+        self.query = self.query.eq("key", key);
+        self
+    }
+
+    /// limit the number of results
+    fn limit(mut self, limit: usize) -> Self {
+        self.query = self.query.limit(limit);
+        self
+    }
+
+    fn delete(mut self) -> Self {
+        self.query = self.query.delete();
+        self
+    }
+
+    fn insert<V: Into<String>>(mut self, value: V) -> Self {
+        self.query = self.query.insert(value);
+        self
+    }
+
+    /// executes the query
+    async fn execute<T>(self) -> Result<T>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let response = self.query.execute().await.map_err(|e| {
+            error!("Database error: {}", e);
+            Error::Database(e.to_string())
+        })?;
+
+        if !response.status().is_success() {
+            error!("Failed operation, status: {}", response.status());
+            return Err(Error::Database("Failed database operation".to_string()));
+        }
+
+        response.json::<T>().await.map_err(|e| {
+            error!("Failed to deserialize response: {}", e);
+            Error::Database(e.to_string())
+        })
+    }
+}
+
 #[async_trait]
 impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn save(&self, api_key: NewApiKey) -> Result<ApiKey> {
         debug!("Creating API key in database");
-        let response = self
-            .client
-            .from(API_KEYS_TABLE)
+        let created_key = ApiKeyQueryBuilder::new(&self.client)
             .insert(api_key)
-            .execute()
-            .await
-            .map_err(|e| {
-                error!("Database error while creating API key: {}", e);
-                Error::Database(e.to_string())
-            })?;
-
-        if !response.status().is_success() {
-            error!("Failed to create API key, status: {}", response.status());
-            return Err(Error::Database("Failed to create API key".to_string()));
-        }
-
-        let created_key = response
-            .json()
-            .await
-            .map_err(|e| Error::Database(e.to_string()))?;
+            .execute::<ApiKey>()
+            .await?;
 
         info!("API key created successfully");
         Ok(created_key)
@@ -61,29 +119,12 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
 
     async fn find_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<Option<ApiKey>> {
         debug!("Fetching API key from database");
-        let response = self
-            .client
-            .from(API_KEYS_TABLE)
-            .select("*")
-            .eq("id", key_id.to_string())
-            .eq("user_id", user_id)
-            .eq("is_deleted", "false")
+        let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
+            .with_active_only()
+            .with_user_id(user_id)
+            .with_key_id(key_id)
             .execute()
-            .await
-            .map_err(|e| {
-                error!("Database error while fetching API key: {}", e);
-                Error::Database(e.to_string())
-            })?;
-
-        if !response.status().is_success() {
-            error!("Failed to fetch API key, status: {}", response.status());
-            return Err(Error::Database("Failed to get API key".to_string()));
-        }
-
-        let api_keys: Vec<ApiKey> = response.json().await.map_err(|e| {
-            error!("Failed to deserialize API key: {}", e);
-            Error::Database(e.to_string())
-        })?;
+            .await?;
 
         info!(found = !api_keys.is_empty(), "API key lookup complete");
         Ok(api_keys.into_iter().next())
@@ -91,54 +132,25 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
 
     async fn list_by_user_id(&self, user_id: &str) -> Result<Vec<ApiKey>> {
         debug!("Listing API keys from database");
-        let response = self
-            .client
-            .from(API_KEYS_TABLE)
-            .select("*")
-            .eq("is_deleted", "false")
-            .eq("user_id", user_id)
+        let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
+            .with_active_only()
+            .with_user_id(user_id)
             .execute()
-            .await
-            .map_err(|e| {
-                error!("Database error while listing API keys: {}", e);
-                Error::Database(e.to_string())
-            })?;
-
-        if !response.status().is_success() {
-            error!("Failed to list API keys, status: {}", response.status());
-            return Err(Error::Database("Failed to list API keys".to_string()));
-        }
-
-        let api_keys: Vec<ApiKey> = response.json().await.map_err(|e| {
-            error!("Failed to deserialize API keys: {}", e);
-            Error::Database(e.to_string())
-        })?;
+            .await?;
 
         info!(count = api_keys.len(), "Successfully retrieved API keys");
         Ok(api_keys)
     }
 
     async fn delete_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<()> {
-        // TODO: use soft delete to delete the key.
         debug!("Deleting API key from database");
-        let response = self
-            .client
-            .from(API_KEYS_TABLE)
+        let _ = ApiKeyQueryBuilder::new(&self.client)
+            .with_active_only()
+            .with_user_id(user_id)
+            .with_key_id(key_id)
             .delete()
-            .eq("id", key_id.to_string())
-            .eq("user_id", user_id)
-            .eq("is_deleted", "false")
-            .execute()
-            .await
-            .map_err(|e| {
-                error!("Database error while deleting API key: {}", e);
-                Error::Database(e.to_string())
-            })?;
-
-        if !response.status().is_success() {
-            error!("Failed to delete API key, status: {}", response.status());
-            return Err(Error::Database("Failed to delete API key".to_string()));
-        }
+            .execute::<()>()
+            .await?;
 
         info!("API key deleted successfully");
         Ok(())
@@ -146,29 +158,12 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
 
     async fn find_by_key(&self, key: &str) -> Result<Option<ApiKey>> {
         debug!("Finding API key from database");
-        let response = self
-            .client
-            .from(API_KEYS_TABLE)
-            .select("*")
-            .eq("key", key)
-            .eq("is_deleted", "false")
+        let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
+            .with_active_only()
+            .with_key(key)
             .limit(1)
             .execute()
-            .await
-            .map_err(|e| {
-                error!("Database error while finding API key: {}", e);
-                Error::Database(e.to_string())
-            })?;
-
-        if !response.status().is_success() {
-            error!("Failed to find API key, status: {}", response.status());
-            return Err(Error::Database("Failed to find API key".to_string()));
-        }
-
-        let api_keys: Vec<ApiKey> = response.json().await.map_err(|e| {
-            error!("Failed to deserialize API key: {}", e);
-            Error::Database(e.to_string())
-        })?;
+            .await?;
 
         info!(found = !api_keys.is_empty(), "API key lookup complete");
         Ok(api_keys.into_iter().next())
