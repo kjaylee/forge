@@ -160,6 +160,13 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn dispatch(&self, event: &DispatchEvent) -> anyhow::Result<()> {
+        debug!(
+            conversation_id = %self.chat_request.conversation_id,
+            event_name = %event.name,
+            event_value = %event.value,
+            "Dispatching event"
+        );
+        
         self.insert_event(event.clone()).await?;
         join_all(
             self.app
