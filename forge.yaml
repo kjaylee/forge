@@ -27,21 +27,6 @@ agents:
       - user_task_init
       - user_task_update
     ephemeral: false
-    suggestions: true
     system_prompt: "{{> software-engineer.hbs }}"
     user_prompt: |
       <task>{{event.value}}</task>
-      <suggestions>
-      {{#each suggestions}}
-      <item>{{this}}</item>
-      {{/each}}
-      </suggestions>
-
-  - id: user_feedback_worker
-    model: *efficiency_model
-    tools:
-      - tool_forge_knowledge_set
-    subscribe:
-      - tool_forge_process_shell
-    system_prompt: "{{> knowledge-storage.hbs }}"
-    user_prompt: <shell_command>{{event.value.command}}</shell_command>
