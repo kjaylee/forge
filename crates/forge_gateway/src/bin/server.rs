@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use clerk_rs::{clerk::Clerk, validators::authorizer::ClerkAuthorizer, ClerkConfiguration};
-use forge_gateway::{
-    config::Config,
-    presentation::routes::app,
-    service::{ApiKeyService, ProxyService},
-    ApiKeyRepositoryImpl, KeyGeneratorServiceImpl,
-};
+use clerk_rs::clerk::Clerk;
+use clerk_rs::validators::authorizer::ClerkAuthorizer;
+use clerk_rs::ClerkConfiguration;
+use forge_gateway::config::Config;
+use forge_gateway::presentation::routes::app;
+use forge_gateway::service::{ApiKeyService, ProxyService};
+use forge_gateway::{ApiKeyRepositoryImpl, KeyGeneratorServiceImpl};
 use forge_open_router::ProviderBuilder;
 use postgrest::Postgrest;
 use shuttle_runtime::SecretStore;
