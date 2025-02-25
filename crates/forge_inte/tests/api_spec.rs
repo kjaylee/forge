@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Context;
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ForgeAPI, ModelId, API};
 use tokio_stream::StreamExt;
 
@@ -9,12 +10,17 @@ const WORKFLOW_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/test_wor
 /// Test fixture for API testing that supports parallel model validation
 struct Fixture {
     model: ModelId,
+    #[allow(dead_code)] // The guard is kept alive by being held in the struct
+    _guard: forge_tracker::Guard,
 }
 
 impl Fixture {
     /// Create a new test fixture with the given task
     fn new(model: ModelId) -> Self {
-        Self { model }
+        Self {
+            model,
+            _guard: forge_tracker::init_tracing(PathBuf::from(".")).unwrap(),
+        }
     }
 
     /// Get the API service, panicking if not validated
@@ -40,18 +46,13 @@ impl Fixture {
             "There is a cat hidden in the codebase. What is its name?",
             conversation_id,
         );
+
         api.chat(request)
             .await
+            .with_context(|| "Failed to initialize chat")
             .unwrap()
             .filter_map(|message| match message.unwrap() {
-                AgentMessage { agent, message: ChatResponse::Text(text) } => {
-                    // TODO: don't hard code agent id here
-                    if agent.as_str() == "developer" {
-                        Some(text)
-                    } else {
-                        None
-                    }
-                }
+                AgentMessage { message: ChatResponse::Text(text), .. } => Some(text),
                 _ => None,
             })
             .collect::<Vec<_>>()
