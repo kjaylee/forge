@@ -13,30 +13,18 @@ use postgrest::Postgrest;
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     dotenv::dotenv().ok();
 
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "forge_gateway_v3=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer().with_target(true))
-        .init();
-
     info!("Starting Forge Gateway V3");
-
     // Load configuration
     let config = Config::from_env();
 
     // setup provider
-    let provider = forge_domain::Provider::from_env().expect("Failed to load provider");
-    let provider = ProviderBuilder::from_url(provider.to_base_url())
+    let provider = ProviderBuilder::from_url(config.provider_url.clone())
         .with_key(config.provider_key.clone())
         .build()
         .expect("Failed to build provider");
