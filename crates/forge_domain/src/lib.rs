@@ -112,12 +112,12 @@ pub trait App: Send + Sync + 'static {
     type ToolService: ToolService;
     type ProviderService: ProviderService;
     type ConversationService: ConversationService;
-    type PromptService: TemplateService;
+    type TemplateService: TemplateService;
     type SuggestionService: SuggestionService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
-    fn prompt_service(&self) -> &Self::PromptService;
+    fn template_service(&self) -> &Self::TemplateService;
     fn suggestion_service(&self) -> &Self::SuggestionService;
 }

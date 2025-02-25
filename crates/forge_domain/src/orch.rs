@@ -93,7 +93,7 @@ impl<A: App> Orchestrator<A> {
 
         let system_message = self
             .app
-            .prompt_service()
+            .template_service()
             .render(
                 &agent.system_prompt,
                 &system_context.tool_information(tool_usage_prompt),
@@ -322,7 +322,7 @@ impl<A: App> Orchestrator<A> {
 
         let content = self
             .app
-            .prompt_service()
+            .template_service()
             .render(&agent.user_prompt, &user_context)
             .await?;
 

@@ -5,7 +5,7 @@ use forge_domain::App;
 use crate::conversation::ForgeConversationService;
 use crate::provider::ForgeProviderService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::template::ForgeTemplateService;
+use crate::template::HandlebarTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
 
@@ -20,7 +20,7 @@ pub struct ForgeApp<F> {
     tool_service: ForgeToolService,
     provider_service: ForgeProviderService,
     conversation_service: ForgeConversationService,
-    prompt_service: ForgeTemplateService,
+    prompt_service: HandlebarTemplateService,
     suggestion_service: Arc<ForgeSuggestionService<F>>,
 }
 
@@ -32,7 +32,7 @@ impl<F: Infrastructure> ForgeApp<F> {
             tool_service: ForgeToolService::new(infra.clone(), suggestion_service.clone()),
             provider_service: ForgeProviderService::new(infra.clone()),
             conversation_service: ForgeConversationService::new(),
-            prompt_service: ForgeTemplateService::new(),
+            prompt_service: HandlebarTemplateService::new(),
             suggestion_service,
         }
     }
@@ -42,7 +42,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
     type ConversationService = ForgeConversationService;
-    type PromptService = ForgeTemplateService;
+    type TemplateService = HandlebarTemplateService;
     type SuggestionService = ForgeSuggestionService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
@@ -61,7 +61,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
         &self.conversation_service
     }
 
-    fn prompt_service(&self) -> &Self::PromptService {
+    fn template_service(&self) -> &Self::TemplateService {
         &self.prompt_service
     }
 }

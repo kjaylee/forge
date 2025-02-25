@@ -19,7 +19,6 @@ impl<F> ForgeLoaderService<F> {
 }
 
 impl<F: Infrastructure> ForgeLoaderService<F> {
-    /// loads the workflow from the given path.
     /// Loads the workflow from the given path if provided, otherwise tries to
     /// read from current directory's forge.yaml, and falls back to embedded
     /// default if neither exists.
@@ -38,6 +37,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
 
         let workflow: Workflow =
             serde_yaml::from_str(&content).with_context(|| "Failed to parse workflow")?;
+
         Ok(workflow)
     }
 }

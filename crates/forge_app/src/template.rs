@@ -7,17 +7,17 @@ use serde::Serialize;
 #[folder = "../../templates/"]
 struct Templates;
 
-pub struct ForgeTemplateService {
+pub struct HandlebarTemplateService {
     hb: Handlebars<'static>,
 }
 
-impl Default for ForgeTemplateService {
+impl Default for HandlebarTemplateService {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ForgeTemplateService {
+impl HandlebarTemplateService {
     pub fn new() -> Self {
         let mut hb = Handlebars::new();
         hb.set_strict_mode(true);
@@ -31,7 +31,7 @@ impl ForgeTemplateService {
 }
 
 #[async_trait::async_trait]
-impl TemplateService for ForgeTemplateService {
+impl TemplateService for HandlebarTemplateService {
     async fn render<T: Serialize + Send + Sync>(
         &self,
         prompt: &Template<T>,
