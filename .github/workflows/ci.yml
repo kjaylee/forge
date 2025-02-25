@@ -89,9 +89,9 @@ jobs:
     outputs:
       create_release_name: ${{ steps.set_output.outputs.create_release_name }}
       create_release_id: ${{ steps.set_output.outputs.create_release_id }}
-  build-release_pr:
+  build-release-pr:
     if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')
-    name: build-release-pr
+    name: build-release
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
