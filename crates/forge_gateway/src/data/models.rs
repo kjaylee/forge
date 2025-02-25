@@ -27,7 +27,6 @@ impl ApiKeyId {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ApiKey {
-    #[serde(skip_serializing)]
     pub id: ApiKeyId,
     pub user_id: String,
     pub key_name: String,
@@ -39,18 +38,21 @@ pub struct ApiKey {
     pub is_deleted: bool,
 }
 
-impl ApiKey {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NewApiKey {
+    pub user_id: String,
+    pub key_name: String,
+    pub key: String,
+}
+
+impl Into<String> for NewApiKey {
+    fn into(self) -> String {
+        serde_json::to_string(&self).unwrap()
+    }
+}
+
+impl NewApiKey {
     pub fn new(user_id: String, key_name: String, key: String) -> Self {
-        Self {
-            id: ApiKeyId::new(),
-            user_id,
-            key_name,
-            key,
-            created_at: Utc::now(),
-            updated_at: None,
-            last_used_at: None,
-            expires_at: None,
-            is_deleted: false,
-        }
+        Self { user_id, key_name, key }
     }
 }

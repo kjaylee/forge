@@ -46,6 +46,6 @@ pub async fn get_by_key_id(
     auth_user: AuthUser,
     Path(key_id): Path<Uuid>,
 ) -> Result<Json<ApiKeyResponse>> {
-    let api_key = service.get_by_key_id(&auth_user.id, key_id).await?;
+    let api_key = service.find_by_key_id(&auth_user.id, key_id).await?;
     Ok(Json(api_key.into()))
 }
