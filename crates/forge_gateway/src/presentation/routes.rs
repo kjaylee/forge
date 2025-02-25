@@ -8,7 +8,7 @@ use crate::presentation::handlers::{
     chat_completion, create_api_key, delete_api_key, get_by_key_id, get_model_parameters,
     list_api_keys, list_models,
 };
-use crate::presentation::middleware::auth::{auth, validate_api_key};
+use crate::presentation::middleware::auth::{jwt_auth, api_key_auth};
 use crate::service::api_keys::ApiKeyService;
 use crate::service::proxy::ProxyService;
 
@@ -24,7 +24,7 @@ where
         .route("/api/v1/user/keys", get(list_api_keys))
         .route("/api/v1/user/keys/{id}", get(get_by_key_id))
         .route("/api/v1/user/keys/{id}", delete(delete_api_key))
-        .layer(middleware::from_fn_with_state(auth_service, auth))
+        .layer(middleware::from_fn_with_state(auth_service, jwt_auth))
         .with_state(service)
 }
 
@@ -39,7 +39,7 @@ pub fn proxy_routes(
         .without_v07_checks()
         .layer(middleware::from_fn_with_state(
             api_key_service.clone(),
-            validate_api_key,
+            api_key_auth,
         ))
         .with_state(proxy_service)
 }

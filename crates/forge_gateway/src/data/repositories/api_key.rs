@@ -3,6 +3,9 @@ use postgrest::{Builder, Postgrest};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+
 use crate::data::models::ApiKey;
 use crate::error::{Error, Result};
 use crate::NewApiKey;
@@ -11,6 +14,7 @@ use crate::NewApiKey;
 const API_KEYS_TABLE: &str = "api_keys_table";
 
 #[async_trait]
+#[cfg_attr(test, automock)]
 pub trait ApiKeyRepository: Send + Sync {
     async fn save(&self, api_key: NewApiKey) -> Result<ApiKey>;
     async fn find_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<Option<ApiKey>>;

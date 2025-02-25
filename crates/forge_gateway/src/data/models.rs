@@ -13,6 +13,12 @@ impl Display for ApiKeyId {
     }
 }
 
+impl From<Uuid> for ApiKeyId {
+    fn from(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
 impl Default for ApiKeyId {
     fn default() -> Self {
         Self::new()

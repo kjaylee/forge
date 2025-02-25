@@ -20,7 +20,7 @@ futures-util = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tower-http = { version = "0.5", features = ["cors", "trace", "timeout", "validate-request"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"]}
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror = "1.0"
@@ -38,3 +38,7 @@ rand = "0.8"
 validator = { version = "0.16", features = ["derive"] }
 shuttle-runtime = "0.52.0"
 shuttle-axum = "0.52.0"
+
+[dev-dependencies]
+mockall = "0.13.1"
+http-body-util= "*"
