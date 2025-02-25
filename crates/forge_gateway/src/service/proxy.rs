@@ -12,8 +12,8 @@ pub struct ProxyService {
 }
 
 impl ProxyService {
-    pub fn new(provider: Box<dyn ProviderService>) -> Result<Self> {
-        Ok(Self { provider })
+    pub fn new(provider: Box<dyn ProviderService>) -> Self {
+        Self { provider }
     }
 
     pub async fn chat_completion(&self, req: ChatCompletionRequest) -> Result<impl IntoResponse> {
