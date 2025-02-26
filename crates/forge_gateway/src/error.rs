@@ -15,10 +15,6 @@ pub enum Error {
     #[error("Database error: {0}")]
     Database(String),
 
-    /// External service error (e.g., OpenRouter)
-    #[error("External service error: {0}")]
-    External(String),
-
     /// Service error
     #[error("Service error: {0}")]
     Service(String),
@@ -46,7 +42,6 @@ impl IntoResponse for Error {
         let (status, message) = match self {
             Error::Auth(msg) => (StatusCode::UNAUTHORIZED, msg),
             Error::Database(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
-            Error::External(msg) => (StatusCode::BAD_GATEWAY, msg),
             Error::Service(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             Error::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.to_string()),
             Error::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
