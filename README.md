@@ -1,17 +1,17 @@
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
 
-**Imagine having a brilliant AI coding partner right in your terminal** — one that doesn't just respond to commands but actively helps you solve complex development problems, write code, debug issues, and automate repetitive tasks.
+**A powerful AI-driven coding assistant integrated directly into your terminal** — designed to enhance your development workflow through intelligent assistance with coding tasks, debugging, and automation.
 
-Code Forge is a complete coding agent that transforms how developers work. It combines the power of state-of-the-art AI with deep integration into your development environment.
+Forge is a comprehensive coding agent that integrates AI capabilities with your development environment, offering sophisticated assistance while maintaining the efficiency of your existing workflow.
 
-- **Full-Fledged Coding Agent** — Not just a shell: a partner that can understand, plan, and execute complex coding tasks
-- **Blazing Fast** — Starts in under 50ms, so you never lose your flow
-- **Works With Your Tools** — Seamlessly integrates with your favorite Unix tools and existing workflows
-- **Understands Your Codebase** — Analyzes context across files, project structure, and dependencies to offer intelligent solutions
-- **Natural Language Coding** — Turn plain English descriptions into working code, tests, and documentation
-- **Enhanced Security** — Optional restricted shell mode for sensitive environments
-- **Powered by Claude 3.7 Sonnet** — Leverages one of the most capable AI models for programming tasks
+- **Advanced Coding Agent** — An intelligent assistant capable of understanding, planning, and executing complex coding tasks
+- **Performance Optimized** — Sub-50ms startup time ensures seamless integration into your workflow
+- **Toolchain Integration** — Works with standard Unix tools and adapts to existing development environments
+- **Contextual Awareness** — Analyzes project structure, files, and dependencies to provide relevant solutions
+- **Natural Language Interface** — Convert specifications into functional code, tests, and documentation
+- **Security-Focused** — Optional restricted shell mode for environments with elevated security requirements
+- **Powered by Claude 3.7 Sonnet** — Leverages cutting-edge AI for advanced programming assistance
 
 **Table of Contents**
 
@@ -20,7 +20,7 @@ Code Forge is a complete coding agent that transforms how developers work. It co
   - [Linux](#linux)
 - [Get Started in 30 Seconds](#get-started-in-30-seconds)
 - [See It In Action](#see-it-in-action)
-- [Powerful Features](#powerful-features)
+- [Features](#features)
   - [Complete Coding Agent](#complete-coding-agent)
   - [Interactive AI Shell](#interactive-ai-shell)
   - [Enhanced Security](#enhanced-security)
@@ -55,7 +55,7 @@ curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bas
    echo "OPEN_ROUTER_KEY=<your-key-here>" > ~/.env
    ```
 
-   _Need a key? Get one at [Open Router](https://openrouter.ai/)_
+   _You can get a Key at [Open Router](https://openrouter.ai/)_
 
 2. Launch Code Forge:
    ```bash
@@ -85,17 +85,17 @@ Instead of manually coding tedious tasks, let Code Forge handle them:
 
 <!-- <Video here> -->
 
-## Powerful Features
+## Features
 
 ### Complete Coding Agent
 
-Much more than a shell - Code Forge understands your entire development environment and can:
+Code Forge functions as a comprehensive development assistant with capabilities to:
 
-- Write, refactor, and optimize code based on your requirements
-- Debug complex issues by analyzing error patterns
-- Generate tests for your codebase
-- Document code and create technical specifications
-- Propose architecture improvements
+- Write, refactor, and optimize code based on specifications
+- Debug complex issues through systematic error analysis
+- Generate test suites for existing codebases
+- Document code and generate technical specifications
+- Propose architectural improvements and optimizations
 
 ### Interactive AI Shell
 
@@ -148,7 +148,7 @@ Stay in control of your shell environment with intuitive command handling:
 
 There's a reason why the shell stood the test of time for all dev tools and still remains a cornerstone of development environments across the globe: it's fast, versatile, and seamlessly integrated with the system. The shell is where we navigate code, run tests, manage processes, and orchestrate our development environments, providing an unmatched level of control and productivity.
 
-**Why a shell-based AI assistant like Code-Forge makes sense:**
+**The advantages of a shell-based AI assistant:**
 
 Code Forge combines the power of AI with the command line to create a development experience that's greater than the sum of its parts:
 
