@@ -26,9 +26,9 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         let content = match path {
             Some(path) => self.0.file_read_service().read(path).await?,
             None => {
-                let current_dir_config = Path::new("forge.yaml");
-                if current_dir_config.exists() {
-                    self.0.file_read_service().read(current_dir_config).await?
+                let path = Path::new("forge.yaml");
+                if path.exists() {
+                    self.0.file_read_service().read(path).await?
                 } else {
                     DEFAULT_FORGE_WORKFLOW.to_string()
                 }
