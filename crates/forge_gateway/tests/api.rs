@@ -197,8 +197,7 @@ mod delete_api_key_tests {
             .body(Body::empty())
             .unwrap();
         let response = Server::init().send_request(request).await.unwrap();
-        // TODO: should be 204 NO_CONTENT
-        assert_eq!(response.status(), 200);
+        assert_eq!(response.status(), 204);
     }
 
     #[tokio::test]
