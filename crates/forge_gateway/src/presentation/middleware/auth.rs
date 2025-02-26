@@ -142,7 +142,6 @@ mod tests {
                             updated_at: None,
                             last_used_at: None,
                             expires_at: None,
-                            is_deleted: false,
                         }))
                     })
                 });

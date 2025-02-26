@@ -45,12 +45,6 @@ impl<'a> ApiKeyQueryBuilder<'a> {
         Self { _client, query }
     }
 
-    /// ensure only active keys are returned
-    fn with_active_only(mut self) -> Self {
-        self.query = self.query.eq("is_deleted", "false");
-        self
-    }
-
     /// filter by user_id
     fn with_user_id(mut self, user_id: &str) -> Self {
         self.query = self.query.eq("user_id", user_id);
@@ -123,7 +117,6 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn find_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<Option<ApiKey>> {
         debug!("Fetching API key from database");
         let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
-            .with_active_only()
             .with_user_id(user_id)
             .with_key_id(key_id)
             .execute()
@@ -136,7 +129,6 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn list_by_user_id(&self, user_id: &str) -> Result<Vec<ApiKey>> {
         debug!("Listing API keys from database");
         let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
-            .with_active_only()
             .with_user_id(user_id)
             .execute()
             .await?;
@@ -148,7 +140,6 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn delete_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<()> {
         debug!("Deleting API key from database");
         let _ = ApiKeyQueryBuilder::new(&self.client)
-            .with_active_only()
             .with_user_id(user_id)
             .with_key_id(key_id)
             .delete()
@@ -162,7 +153,6 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn find_by_key(&self, key: &str) -> Result<Option<ApiKey>> {
         debug!("Finding API key from database");
         let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
-            .with_active_only()
             .with_key(key)
             .limit(1)
             .execute()

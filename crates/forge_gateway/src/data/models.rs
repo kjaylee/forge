@@ -19,18 +19,6 @@ impl From<Uuid> for ApiKeyId {
     }
 }
 
-impl Default for ApiKeyId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl ApiKeyId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ApiKey {
     pub id: ApiKeyId,
@@ -41,7 +29,6 @@ pub struct ApiKey {
     pub updated_at: Option<DateTime<Utc>>,
     pub last_used_at: Option<DateTime<Utc>>,
     pub expires_at: Option<DateTime<Utc>>,
-    pub is_deleted: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
