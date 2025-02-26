@@ -1,10 +1,3 @@
-<!--
-Tone: Maintain a professional and informative tone throughout. Ensure that explanations are clear and technical terms are used appropriately to engage a technical audience.
-Best Practices:
-- Use consistent terminology and formatting for commands and examples.
-- Clearly highlight unique aspects of 'forge' to distinguish it from other tools.
--->
-
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
 
@@ -14,7 +7,8 @@ Forge is an **AI-powered** interactive shell that stands out through:
 - Seamless integration with existing Unix tools and workflows
 - Context-aware assistance that understands your development environment and workflows
 - Natural language interface to powerful system operations
-- Enhanced security features with optional restricted shell mode
+- Enhanced security features with optional restricted shell mode.
+- Code Forge leverages the state-of-the-art Claude Sonnet 3.7 AI model, which has been proven to excel in handling programming tasks.
 
 **Table of Contents**
 
@@ -23,13 +17,10 @@ Forge is an **AI-powered** interactive shell that stands out through:
   - [Linux](#linux)
 - [Get Started](#get-started)
 - [Environment Configuration](#environment-configuration)
-  - [API Keys](#api-keys)
 - [Features](#features)
   - [1. Interactive Shell](#1-interactive-shell)
   - [2. Enhanced Security](#2-enhanced-security)
-  - [3. Model Flexibility](#3-model-flexibility)
   - [4. Autocomplete](#4-autocomplete)
-  - [5. Custom Instructions](#5-custom-instructions)
   - [6. WYSIWYG Shell Integration](#6-wysiwyg-shell-integration)
   - [7. Command Interruption](#7-command-interruption)
 - [Why Shell?](#why-shell)
@@ -68,6 +59,7 @@ wget -qO- https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | b
 # Your API key for accessing AI models (see Environment Configuration section)
 OPEN_ROUTER_KEY=<Enter your Open Router Key>
 ```
+To create an API key, visit [Open Router](https://openrouter.ai/)
 
 2. Start an interactive shell by typing `forge`:
 
@@ -81,26 +73,6 @@ For additional configuration options and features, use `forge --help`.
 ## Environment Configuration
 
 Code-Forge can be configured through environment variables. You can set these in your shell profile (e.g., `.bashrc`, `.zshrc`) or by creating a `.env` file in your home directory.
-
-### API Keys
-
-Code-Forge will look for API keys in the following order of precedence:
-
-```bash
-# Primary Forge API key (highest precedence)
-FORGE_KEY=<your-forge-api-key>
-
-# OpenRouter API key (used if FORGE_KEY is not set)
-OPEN_ROUTER_KEY=<your-openrouter-api-key>
-
-# OpenAI API key (used if FORGE_KEY and OPEN_ROUTER_KEY are not set)
-OPENAI_API_KEY=<your-openai-api-key>
-
-# Anthropic API key (used if none of the above are set)
-ANTHROPIC_API_KEY=<your-anthropic-api-key>
-```
-
-At least one of these API keys must be set for Code-Forge to function properly.
 
 ## Features
 
@@ -138,20 +110,6 @@ forge
 forge -r
 ```
 
-### 3. Model Flexibility
-
-Optimize your workflow by choosing the right AI model for each task:
-
-- **Quick Tasks**: Use lightweight models for rapid responses
-- **Complex Operations**: Leverage more powerful models for in-depth analysis
-
-**Configuration**:
-
-```bash
-export FORGE_LARGE_MODEL=anthropic/claude-3.5-sonnet
-export FORGE_SMALL_MODEL=anthropic/claude-3.5-haiku
-```
-
 ### 4. Autocomplete
 
 Boost your productivity with intelligent command completion:
@@ -160,14 +118,6 @@ Boost your productivity with intelligent command completion:
 - Use Right Arrow to complete previously executed commands
 - Access command history with Up Arrow
 - Quick history search with Ctrl+R
-
-### 5. Custom Instructions
-
-Tailor Code-Forge to your specific needs with custom instruction sets:
-
-```bash
-forge --custom-instructions path/to/instructions.yml
-```
 
 ### 6. WYSIWYG Shell Integration
 
