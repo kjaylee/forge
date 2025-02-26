@@ -1,15 +1,9 @@
-# Code Forge ⚡
-
-### Your AI-Powered Command Line Assistant
-
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
 
 **Imagine having a brilliant AI coding partner right in your terminal** — one that doesn't just respond to commands but actively helps you solve complex development problems, write code, debug issues, and automate repetitive tasks.
 
 Code Forge is a complete coding agent that transforms how developers work. It combines the power of state-of-the-art AI with deep integration into your development environment.
-
-## ✨ What Makes Code Forge Special
 
 - **Full-Fledged Coding Agent** — Not just a shell: a partner that can understand, plan, and execute complex coding tasks
 - **Blazing Fast** — Starts in under 50ms, so you never lose your flow
@@ -19,7 +13,24 @@ Code Forge is a complete coding agent that transforms how developers work. It co
 - **Enhanced Security** — Optional restricted shell mode for sensitive environments
 - **Powered by Claude 3.7 Sonnet** — Leverages one of the most capable AI models for programming tasks
 
-## 🚀 Quick Install
+**Table of Contents**
+
+- [Quick Install](#quick-install)
+  - [Mac](#mac)
+  - [Linux](#linux)
+- [Get Started in 30 Seconds](#get-started-in-30-seconds)
+- [See It In Action](#see-it-in-action)
+- [Powerful Features](#powerful-features)
+  - [Complete Coding Agent](#complete-coding-agent)
+  - [Interactive AI Shell](#interactive-ai-shell)
+  - [Enhanced Security](#enhanced-security)
+  - [Autocomplete](#autocomplete)
+  - [WYSIWYG Shell Experience](#wysiwyg-shell-experience)
+  - [Seamless Control](#seamless-control)
+- [Why Shell?](#why-shell)
+- [❤️ Support Code Forge](#️-support-code-forge)
+
+## Quick Install
 
 ### Mac
 
@@ -35,7 +46,7 @@ brew tap antinomyhq/code-forge && brew install code-forge
 curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
 ```
 
-## 🏁 Get Started in 30 Seconds
+## Get Started in 30 Seconds
 
 1. Set up your API key (one-time step):
 
@@ -52,29 +63,29 @@ curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bas
    ⚡ # Now just describe what you want to build or solve!
    ```
 
-## 💡 See It In Action
+## See It In Action
 
 Instead of manually coding tedious tasks, let Code Forge handle them:
 
 ```bash
-⚡ Task 1
+⚡ forge Task 1
 ```
 
 <!-- <Video here> -->
 
 ```bash
-⚡ Task 2
+⚡ forge Task 2
 ```
 
 <!-- <Video here> -->
 
 ```bash
-⚡ Task 3
+⚡ forge Task 3
 ```
 
 <!-- <Video here> -->
 
-## 🛠️ Powerful Features
+## Powerful Features
 
 ### Complete Coding Agent
 
