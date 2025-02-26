@@ -46,19 +46,19 @@ impl<'a> ApiKeyQueryBuilder<'a> {
     }
 
     /// filter by user_id
-    fn with_user_id(mut self, user_id: &str) -> Self {
+    fn filter_by_user_id(mut self, user_id: &str) -> Self {
         self.query = self.query.eq("user_id", user_id);
         self
     }
 
     /// filter by key_id
-    fn with_key_id(mut self, key_id: Uuid) -> Self {
+    fn filter_by_key_id(mut self, key_id: Uuid) -> Self {
         self.query = self.query.eq("id", key_id.to_string());
         self
     }
 
     /// filter by key
-    fn with_key(mut self, key: &str) -> Self {
+    fn filter_by_key(mut self, key: &str) -> Self {
         self.query = self.query.eq("key", key);
         self
     }
@@ -117,8 +117,8 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn find_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<Option<ApiKey>> {
         debug!("Fetching API key from database");
         let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
-            .with_user_id(user_id)
-            .with_key_id(key_id)
+            .filter_by_user_id(user_id)
+            .filter_by_key_id(key_id)
             .execute()
             .await?;
 
@@ -129,7 +129,7 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn list_by_user_id(&self, user_id: &str) -> Result<Vec<ApiKey>> {
         debug!("Listing API keys from database");
         let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
-            .with_user_id(user_id)
+            .filter_by_user_id(user_id)
             .execute()
             .await?;
 
@@ -140,8 +140,8 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn delete_by_key_id(&self, user_id: &str, key_id: Uuid) -> Result<()> {
         debug!("Deleting API key from database");
         let _ = ApiKeyQueryBuilder::new(&self.client)
-            .with_user_id(user_id)
-            .with_key_id(key_id)
+            .filter_by_user_id(user_id)
+            .filter_by_key_id(key_id)
             .delete()
             .execute::<()>()
             .await?;
@@ -153,7 +153,7 @@ impl ApiKeyRepository for ApiKeyRepositoryImpl {
     async fn find_by_key(&self, key: &str) -> Result<Option<ApiKey>> {
         debug!("Finding API key from database");
         let api_keys: Vec<ApiKey> = ApiKeyQueryBuilder::new(&self.client)
-            .with_key(key)
+            .filter_by_key(key)
             .limit(1)
             .execute()
             .await?;
