@@ -1,93 +1,96 @@
+# Code Forge ⚡
+
+### Your AI-Powered Command Line Assistant
+
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
 
-Forge is an **AI-powered** interactive shell that stands out through:
+**Imagine having a brilliant AI coding partner right in your terminal** — one that doesn't just respond to commands but actively helps you solve complex development problems, write code, debug issues, and automate repetitive tasks.
 
-- Lightning-fast performance with sub-50ms startup times
-- Seamless integration with existing Unix tools and workflows
-- Context-aware assistance that understands your development environment and workflows
-- Natural language interface to powerful system operations
-- Enhanced security features with optional restricted shell mode.
-- Code Forge leverages the state-of-the-art Claude Sonnet 3.7 AI model, which has been proven to excel in handling programming tasks.
+Code Forge is a complete coding agent that transforms how developers work. It combines the power of state-of-the-art AI with deep integration into your development environment.
 
-**Table of Contents**
+## ✨ What Makes Code Forge Special
 
-- [Installation](#installation)
-  - [Mac](#mac)
-  - [Linux](#linux)
-- [Get Started](#get-started)
-- [Environment Configuration](#environment-configuration)
-- [Features](#features)
-  - [1. Interactive Shell](#1-interactive-shell)
-  - [2. Enhanced Security](#2-enhanced-security)
-  - [4. Autocomplete](#4-autocomplete)
-  - [6. WYSIWYG Shell Integration](#6-wysiwyg-shell-integration)
-  - [7. Command Interruption](#7-command-interruption)
-- [Why Shell?](#why-shell)
-- [Support Us](#support-us)
+- **Full-Fledged Coding Agent** — Not just a shell: a partner that can understand, plan, and execute complex coding tasks
+- **Blazing Fast** — Starts in under 50ms, so you never lose your flow
+- **Works With Your Tools** — Seamlessly integrates with your favorite Unix tools and existing workflows
+- **Understands Your Codebase** — Analyzes context across files, project structure, and dependencies to offer intelligent solutions
+- **Natural Language Coding** — Turn plain English descriptions into working code, tests, and documentation
+- **Enhanced Security** — Optional restricted shell mode for sensitive environments
+- **Powered by Claude 3.7 Sonnet** — Leverages one of the most capable AI models for programming tasks
 
-## Installation
+## 🚀 Quick Install
 
 ### Mac
 
-Using Homebrew (macOS package manager):
-
 ```bash
-# Add Code-Forge's package repository to Homebrew
-brew tap antinomyhq/code-forge
-# Install Code-Forge
-brew install code-forge
+# One command to get started
+brew tap antinomyhq/code-forge && brew install code-forge
 ```
 
 ### Linux
 
-Choose either method to install:
-
 ```bash
-# Using curl (common download tool)
+# Quick install with curl
 curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
-
-# Or using wget (alternative download tool)
-wget -qO- https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
 ```
 
-## Get Started
+## 🏁 Get Started in 30 Seconds
 
-1. Create a `.env` file in your home directory with your API credentials:
+1. Set up your API key (one-time step):
+
+   ```bash
+   # Create a .env file in your home directory
+   echo "OPEN_ROUTER_KEY=<your-key-here>" > ~/.env
+   ```
+
+   _Need a key? Get one at [Open Router](https://openrouter.ai/)_
+
+2. Launch Code Forge:
+   ```bash
+   forge
+   ⚡ # Now just describe what you want to build or solve!
+   ```
+
+## 💡 See It In Action
+
+Instead of manually coding tedious tasks, let Code Forge handle them:
 
 ```bash
-# Your API key for accessing AI models (see Environment Configuration section)
-OPEN_ROUTER_KEY=<Enter your Open Router Key>
+⚡ Task 1
 ```
-To create an API key, visit [Open Router](https://openrouter.ai/)
 
-2. Start an interactive shell by typing `forge`:
+<!-- <Video here> -->
 
 ```bash
-forge
-⚡ # Write your task here and press enter or type
+⚡ Task 2
 ```
 
-For additional configuration options and features, use `forge --help`.
+<!-- <Video here> -->
 
-## Environment Configuration
+```bash
+⚡ Task 3
+```
 
-Code-Forge can be configured through environment variables. You can set these in your shell profile (e.g., `.bashrc`, `.zshrc`) or by creating a `.env` file in your home directory.
+<!-- <Video here> -->
 
-## Features
+## 🛠️ Powerful Features
 
-### 1. Interactive Shell
+### Complete Coding Agent
+
+Much more than a shell - Code Forge understands your entire development environment and can:
+
+- Write, refactor, and optimize code based on your requirements
+- Debug complex issues by analyzing error patterns
+- Generate tests for your codebase
+- Document code and create technical specifications
+- Propose architecture improvements
+
+### Interactive AI Shell
 
 Transform your command-line experience with natural language interaction while maintaining the power and flexibility of traditional shell commands.
 
-**Example**:
-Start the interactive shell with:
-
-```bash
-forge
-```
-
-### 2. Enhanced Security
+### Enhanced Security
 
 Code-Forge prioritizes security by providing a restricted shell mode (rbash) that limits potentially dangerous operations:
 
@@ -110,7 +113,7 @@ forge
 forge -r
 ```
 
-### 4. Autocomplete
+### Autocomplete
 
 Boost your productivity with intelligent command completion:
 
@@ -119,11 +122,11 @@ Boost your productivity with intelligent command completion:
 - Access command history with Up Arrow
 - Quick history search with Ctrl+R
 
-### 6. WYSIWYG Shell Integration
+### WYSIWYG Shell Experience
 
 Enhance your interactive shell experience with WYSIWYG (What You See Is What You Get) integration. 'forge' now visualizes each command executed, complete with colorful formatting, allowing you to see command outputs just as if you were typing them directly into your terminal. This feature ensures clarity and enhances interaction, making every command visible in rich detail.
 
-### 7. Command Interruption
+### Seamless Control
 
 Stay in control of your shell environment with intuitive command handling:
 
@@ -136,6 +139,8 @@ There's a reason why the shell stood the test of time for all dev tools and stil
 
 **Why a shell-based AI assistant like Code-Forge makes sense:**
 
+Code Forge combines the power of AI with the command line to create a development experience that's greater than the sum of its parts:
+
 - **Rich Tool Ecosystem**: The shell gives you immediate access to powerful Unix tools (grep, awk, sed, find) that LLMs already understand deeply. This means the AI can leverage `ripgrep` for code search, `jq` for JSON processing, `git` for version control, and hundreds of other battle-tested tools without reinventing them.
 
 - **Context is Everything**: Your shell session already has your complete development context - current directory, project structure, environment variables, installed tools, and system state. This rich context makes the AI interactions more accurate and relevant.
@@ -144,7 +149,7 @@ There's a reason why the shell stood the test of time for all dev tools and stil
 
 - **Tool Composition**: Unix philosophy teaches us to make tools that compose well. The AI can pipe commands together, combining tools like `find | xargs forge -p | grep "foo"` in ways that solve complex problems elegantly.
 
-## Support Us
+## ❤️ Support Code Forge
 
 Your support drives Code-Forge's continued evolution! By starring our GitHub repository, you:
 
