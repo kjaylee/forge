@@ -24,7 +24,7 @@ pub enum Error {
     BadRequest(#[from] validator::ValidationErrors),
 
     #[error("Serde error: {0}")]
-    SerdeError(#[from] serde_json::Error),
+    Serde(#[from] serde_json::Error),
 
     /// Not found error
     #[error("Not found: {0}")]
@@ -45,7 +45,7 @@ impl IntoResponse for Error {
             Error::Service(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             Error::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.to_string()),
             Error::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            Error::SerdeError(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
+            Error::Serde(err) => (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()),
             Error::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
         };
 
