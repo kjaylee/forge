@@ -14,16 +14,14 @@ Best Practices:
 
 Forge is a comprehensive coding agent that integrates AI capabilities with your development environment, offering sophisticated assistance while maintaining the efficiency of your existing workflow.
 
-**Key Capabilities**
-
-- **Advanced Coding Agent** — An intelligent assistant capable of understanding, planning, and executing complex coding tasks
-- **Performance Optimized** — Sub-50ms startup time ensures seamless integration into your workflow
-- **Toolchain Integration** — Works with standard Unix tools and adapts to existing development environments
-- **Contextual Awareness** — Analyzes project structure, files, and dependencies to provide relevant solutions
-- **Natural Language Interface** — Convert specifications into functional code, tests, and documentation
-- **Security-Focused** — Optional restricted shell mode for environments with elevated security requirements
-- **Multi-Agent Workflow Capabilities** — Coordinate multiple specialized agents to tackle complex tasks collaboratively
-- **Powered by Claude 3.7 Sonnet** — Leverages cutting-edge AI for advanced programming assistance
+- Advanced AI coding assistant with comprehensive understanding, planning, and execution of complex development tasks
+- Lightning-fast performance with sub-50ms startup times
+- Seamless integration with existing Unix tools and workflows
+- Context-aware assistance that understands your development environment and workflows
+- Natural language interface to powerful system operations
+- Enhanced security features with optional restricted shell mode
+- Multi-agent architecture that orchestrates specialized AI agents to solve complex problems collaboratively
+- Powered by Claude 3.7 Sonnet for state-of-the-art AI capabilities
 
 **Table of Contents**
 
