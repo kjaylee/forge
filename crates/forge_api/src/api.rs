@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -76,5 +76,32 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>> {
         self.app.conversation_service().get(conversation_id).await
+    }
+    
+    async fn retry(
+        &self,
+        conversation_id: &ConversationId,
+    ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
+        // Get the conversation
+        let conversation = self
+            .app
+            .conversation_service()
+            .get(conversation_id)
+            .await?
+            .context(format!("Conversation with ID {} not found", conversation_id))?;
+        
+        // Find the last user message event
+        let last_user_event = conversation
+            .events
+            .iter()
+            .rev()
+            .find(|event| event.name == DispatchEvent::USER_TASK_UPDATE)
+            .context("No previous user message found in this conversation")?;
+        
+        // Create a new ChatRequest with the last user message
+        let chat = ChatRequest::new(last_user_event.value.clone(), conversation_id.clone());
+        
+        // Use the chat method to retry the request
+        self.chat(chat).await
     }
 }

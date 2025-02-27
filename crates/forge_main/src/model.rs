@@ -75,6 +75,9 @@ pub enum Command {
     Models,
     /// Dumps the current conversation into a json file
     Dump,
+    /// Retries the last user message in the conversation
+    /// This can be triggered with the '/retry' command.
+    Retry,
 }
 
 impl Command {
@@ -91,6 +94,7 @@ impl Command {
             "/exit".to_string(),
             "/models".to_string(),
             "/dump".to_string(),
+            "/retry".to_string(),
         ]
     }
 
@@ -113,6 +117,7 @@ impl Command {
             "/exit" => Command::Exit,
             "/models" => Command::Models,
             "/dump" => Command::Dump,
+            "/retry" => Command::Retry,
             text => Command::Message(text.to_string()),
         }
     }

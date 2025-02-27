@@ -102,6 +102,34 @@ impl<F: API> UI<F> {
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
+                Command::Retry => {
+                    if let Some(conversation_id) = self.state.conversation_id.clone() {
+                        // Display retrying message
+                        CONSOLE.writeln(
+                            TitleFormat::execute("retry")
+                                .sub_title("Retrying the last message...")
+                                .format(),
+                        )?;
+                        
+                        if let Err(err) = self.handle_retry(&conversation_id).await {
+                            CONSOLE.writeln(
+                                TitleFormat::failed(format!("{:?}", err))
+                                    .sub_title(self.state.usage.to_string())
+                                    .format(),
+                            )?;
+                        }
+                    } else {
+                        CONSOLE.writeln(
+                            TitleFormat::failed("retry")
+                                .error("No active conversation")
+                                .format(),
+                        )?;
+                    }
+                    
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
                 Command::Message(ref content) => {
                     if let Err(err) = self.chat(content.clone()).await {
                         CONSOLE.writeln(
@@ -133,6 +161,13 @@ impl<F: API> UI<F> {
         }
 
         Ok(())
+    }
+    
+    async fn handle_retry(&mut self, conversation_id: &ConversationId) -> Result<()> {
+        match self.api.retry(conversation_id).await {
+            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
+            Err(err) => Err(err),
+        }
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {
