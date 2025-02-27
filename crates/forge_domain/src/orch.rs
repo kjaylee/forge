@@ -380,10 +380,7 @@ impl<A: App> Orchestrator<A> {
     /// Initializes the appropriate dispatch event based on whether this is the
     /// first message in the workflow
     async fn init_dispatch_event(&self) -> anyhow::Result<Event> {
-        let has_task = self
-            .get_last_event(Event::USER_TASK_INIT)
-            .await?
-            .is_some();
+        let has_task = self.get_last_event(Event::USER_TASK_INIT).await?.is_some();
 
         Ok(if has_task {
             Event::task_update(self.chat_request.content.clone())

@@ -6,7 +6,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Event, Error, Workflow};
+use crate::{Agent, AgentId, Context, Error, Event, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
