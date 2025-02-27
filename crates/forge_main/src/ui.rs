@@ -90,10 +90,14 @@ impl<F: API> UI<F> {
                         CONSOLE.writeln(TitleFormat::retrying().format())?;
                         match self.api.retry(conversation_id.clone()).await {
                             Ok(mut stream) => self.handle_chat_stream(&mut stream).await?,
-                            Err(err) => CONSOLE.writeln(TitleFormat::failed(err.to_string()).format())?,
+                            Err(err) => {
+                                CONSOLE.writeln(TitleFormat::failed(err.to_string()).format())?
+                            }
                         }
                     } else {
-                        CONSOLE.writeln(TitleFormat::failed("No active conversation to retry").format())?;
+                        CONSOLE.writeln(
+                            TitleFormat::failed("No active conversation to retry").format(),
+                        )?;
                     }
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;

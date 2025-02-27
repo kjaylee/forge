@@ -83,24 +83,31 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         conversation_id: ConversationId,
     ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
         // Get the conversation
-        let conversation = self.app.conversation_service().get(&conversation_id).await?
+        let conversation = self
+            .app
+            .conversation_service()
+            .get(&conversation_id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Conversation not found"))?;
-        
+
         // Find the last user task event
-        let last_task = conversation.events.iter()
+        let last_task = conversation
+            .events
+            .iter()
             .rev()
             .find(|event| event.name == "user_task_init" || event.name == "user_task_update")
-            .or_else(|| conversation.events.iter()
-                .rev()
-                .find(|event| event.name == "prompt"))
+            .or_else(|| {
+                conversation
+                    .events
+                    .iter()
+                    .rev()
+                    .find(|event| event.name == "prompt")
+            })
             .ok_or_else(|| anyhow::anyhow!("No task found in conversation"))?;
-        
+
         // Create a new chat request with the last task content
-        let chat = ChatRequest {
-            content: last_task.value.clone(),
-            conversation_id,
-        };
-        
+        let chat = ChatRequest { content: last_task.value.clone(), conversation_id };
+
         // Call the chat method with the request
         Ok(self.executor_service.chat(chat).await?)
     }
