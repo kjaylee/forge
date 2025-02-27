@@ -7,7 +7,7 @@ Best Practices:
 
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
-[![Discord](https://img.shields.io/discord/1270375695324061756?style=for-the-badge&logo=discord&logoColor=white&label=Discord&color=5865F2)](https://discord.gg/uyRVFnwMZf)
+[![Discord](https://img.shields.io/discord/1044859667798568962?style=for-the-badge&cacheSeconds=120&logo=discord)](https://discord.gg/kRZBPpkgwq)
 
 **Forge: AI-Enhanced Terminal Development Environment**
 
@@ -286,7 +286,7 @@ There's a reason why the shell has stood the test of time for development tools 
 
 Join our vibrant Discord community to connect with other Code-Forge users and contributors, get help with your projects, share ideas, and provide feedback!
 
-[![Join our Discord server](https://img.shields.io/discord/1270375695324061756?style=for-the-badge&logo=discord&logoColor=white&label=Join%20Discord&color=5865F2)](https://discord.gg/uyRVFnwMZf)
+[![Discord](https://img.shields.io/discord/1044859667798568962?style=for-the-badge&cacheSeconds=120&logo=discord)](https://discord.gg/kRZBPpkgwq)
 
 ## Support Us
 
