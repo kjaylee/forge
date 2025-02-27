@@ -1,9 +1,20 @@
+<!--
+Tone: Maintain a professional and informative tone throughout. Ensure that explanations are clear and technical terms are used appropriately to engage a technical audience.
+Best Practices:
+- Use consistent terminology and formatting for commands and examples.
+- Clearly highlight unique aspects of 'forge' to distinguish it from other tools.
+-->
+
 [![CI Status](https://img.shields.io/github/actions/workflow/status/antinomyhq/forge/ci.yml?style=for-the-badge)](https://github.com/antinomyhq/forge/actions)
 [![GitHub Release](https://img.shields.io/github/v/release/antinomyhq/forge?style=for-the-badge)](https://github.com/antinomyhq/forge/releases)
+
+**Forge: AI-Enhanced Terminal Development Environment**
 
 **A powerful AI-driven coding assistant integrated directly into your terminal** — designed to enhance your development workflow through intelligent assistance with coding tasks, debugging, and automation.
 
 Forge is a comprehensive coding agent that integrates AI capabilities with your development environment, offering sophisticated assistance while maintaining the efficiency of your existing workflow.
+
+**Key Capabilities**
 
 - **Advanced Coding Agent** — An intelligent assistant capable of understanding, planning, and executing complex coding tasks
 - **Performance Optimized** — Sub-50ms startup time ensures seamless integration into your workflow
@@ -11,57 +22,81 @@ Forge is a comprehensive coding agent that integrates AI capabilities with your 
 - **Contextual Awareness** — Analyzes project structure, files, and dependencies to provide relevant solutions
 - **Natural Language Interface** — Convert specifications into functional code, tests, and documentation
 - **Security-Focused** — Optional restricted shell mode for environments with elevated security requirements
+- **Multi-Agent Workflow Capabilities** — Coordinate multiple specialized agents to tackle complex tasks collaboratively
 - **Powered by Claude 3.7 Sonnet** — Leverages cutting-edge AI for advanced programming assistance
 
 **Table of Contents**
 
-- [Quick Install](#quick-install)
+- [Installation](#installation)
   - [Mac](#mac)
   - [Linux](#linux)
-- [Get Started in 30 Seconds](#get-started-in-30-seconds)
+- [Get Started](#get-started)
+- [Environment Configuration](#environment-configuration)
 - [See It In Action](#see-it-in-action)
 - [Features](#features)
   - [Complete Coding Agent](#complete-coding-agent)
   - [Interactive AI Shell](#interactive-ai-shell)
   - [Enhanced Security](#enhanced-security)
+  - [Built-in Commands](#built-in-commands)
   - [Autocomplete](#autocomplete)
   - [WYSIWYG Shell Experience](#wysiwyg-shell-experience)
-  - [Seamless Control](#seamless-control)
+  - [Command Interruption](#command-interruption)
+- [Custom Workflows and Multi-Agent Systems](#custom-workflows-and-multi-agent-systems)
+  - [Creating Custom Workflows](#creating-custom-workflows)
+  - [Workflow Configuration](#workflow-configuration)
+    - [Event System](#event-system)
+    - [Agent Tools](#agent-tools)
+    - [Agent Configuration Options](#agent-configuration-options)
+    - [Built-in Templates](#built-in-templates)
+    - [Example Workflow Configuration](#example-workflow-configuration)
 - [Why Shell?](#why-shell)
-- [❤️ Support Code Forge](#️-support-code-forge)
+- [Support Us](#support-us)
 
-## Quick Install
+## Installation
 
 ### Mac
 
+Using Homebrew (macOS package manager):
+
 ```bash
-# One command to get started
-brew tap antinomyhq/code-forge && brew install code-forge
+# Add Code-Forge's package repository to Homebrew
+brew tap antinomyhq/code-forge
+# Install Code-Forge
+brew install code-forge
 ```
 
 ### Linux
 
+Choose either method to install:
+
 ```bash
-# Quick install with curl
+# Using curl (common download tool)
 curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
+
+# Or using wget (alternative download tool)
+wget -qO- https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
 ```
 
-## Get Started in 30 Seconds
+## Get Started
 
-1. Set up your API key (one-time step):
+1. Create a `.env` file in your home directory with your API credentials:
 
-   ```bash
-   # Create a .env file in your home directory
-   echo "OPEN_ROUTER_KEY=<your-key-here>" > ~/.env
-   ```
+```bash
+# Your API key for accessing AI models (see Environment Configuration section)
+OPEN_ROUTER_KEY=<Enter your Open Router Key>
+```
 
-   _You can get a Key at [Open Router](https://openrouter.ai/)_
+_You can get a Key at [Open Router](https://openrouter.ai/)_
 
 2. Launch Code Forge:
    ```bash
    forge
    ⚡ # Now just describe what you want to build or solve!
    ```
+
+## Environment Configuration
+
+Code-Forge can be configured through environment variables. You can set these in your shell profile (e.g., `.bashrc`, `.zshrc`) or by creating a `.env` file in your home directory.
 
 ## See It In Action
 
@@ -124,6 +159,20 @@ forge
 forge -r
 ```
 
+Additional security features include:
+
+- Direct API connection to Open Router without intermediate servers
+- Local terminal operation for maximum control and data privacy
+
+### Built-in Commands
+
+Forge offers several built-in commands to enhance your interaction:
+
+- `\new` - Start a new task when you've completed your current one
+- `\info` - View environment summary, logs folder location, and command history
+- `\models` - List all available AI models with capabilities and context limits
+- `\dump` - Save the current conversation in JSON format to a file for reference
+
 ### Autocomplete
 
 Boost your productivity with intelligent command completion:
@@ -137,30 +186,135 @@ Boost your productivity with intelligent command completion:
 
 Enhance your interactive shell experience with WYSIWYG (What You See Is What You Get) integration. 'forge' now visualizes each command executed, complete with colorful formatting, allowing you to see command outputs just as if you were typing them directly into your terminal. This feature ensures clarity and enhances interaction, making every command visible in rich detail.
 
-### Seamless Control
+### Command Interruption
 
 Stay in control of your shell environment with intuitive command handling:
 
 - **Cancel with `CTRL+C`:** Gracefully interrupt ongoing operations, providing the flexibility to halt processes that no longer need execution.
 - **Exit with `CTRL+D`:** Easily exit the shell session without hassle, ensuring you can quickly terminate your operations when needed.
 
+## Custom Workflows and Multi-Agent Systems
+
+For complex tasks, a single agent may not be sufficient. Forge allows you to create custom workflows with multiple specialized agents working together to accomplish sophisticated tasks.
+
+### Creating Custom Workflows
+
+You can configure your own workflows by creating a YAML file and pointing to it with the `-w` flag:
+
+```bash
+forge -w /path/to/your/workflow.yaml
+```
+
+### Workflow Configuration
+
+A workflow consists of agents connected via events. Each agent has specific capabilities and can perform designated tasks.
+
+#### Event System
+
+Agents communicate through events which they can publish and subscribe to:
+
+**Built-in Events**
+
+- `user_task_init` - Published when a new task is initiated
+- `user_task_update` - Published when follow-up instructions are provided by the user
+
+#### Agent Tools
+
+Each agent needs tools to perform tasks, configured in the `tools` field:
+
+**Built-in Tools**
+
+- `tool_forge_fs_read` - Read from the filesystem
+- `tool_forge_fs_create` - Create or overwrite files
+- `tool_forge_fs_remove` - Remove files
+- `tool_forge_fs_search` - Search for patterns in files
+- `tool_forge_fs_list` - List files in a directory
+- `tool_forge_fs_info` - Get file metadata
+- `tool_forge_process_shell` - Execute shell commands
+- `tool_forge_process_think` - Perform internal reasoning
+- `tool_forge_net_fetch` - Fetch data from the internet
+- `tool_forge_event_dispatch` - Dispatch events to other agents
+- `tool_forge_fs_patch` - Patch existing files
+
+#### Agent Configuration Options
+
+- `id` - Unique identifier for the agent
+- `model` - AI model to use (from the `\models` list)
+- `tools` - List of tools the agent can use
+- `subscribe` - Events the agent listens to
+- `ephemeral` - If true, agent is destroyed after task completion
+- `system_prompt` - Instructions for how the agent should behave
+- `user_prompt` - Format for user inputs
+
+#### Built-in Templates
+
+Forge provides templates to simplify system prompt creation:
+
+- `system-prompt-engineer.hbs` - Template for engineering tasks
+- `system-prompt-title-generator.hbs` - Template for generating descriptive titles
+- `system-prompt-advocate.hbs` - Template for user advocacy and explanation
+- `partial-tool-information.hbs` - Tool documentation for agents
+- `partial-tool-examples.hbs` - Usage examples for tools
+
+Use these templates with the syntax: `{{> name-of-the-template.hbs }}`
+
+#### Example Workflow Configuration
+
+```yaml
+variables:
+  models:
+    advanced_model: &advanced_model anthropic/claude-3.7-sonnet
+    efficiency_model: &efficiency_model anthropic/claude-3.5-haiku
+
+agents:
+  - id: title_generation_worker
+    model: *efficiency_model
+    tools:
+      - tool_forge_event_dispatch
+    subscribe:
+      - user_task_init
+    system_prompt: "{{> system-prompt-title-generator.hbs }}"
+    user_prompt: <technical_content>{{event.value}}</technical_content>
+
+  - id: developer
+    model: *advanced_model
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_net_fetch
+      - tool_forge_fs_search
+    subscribe:
+      - user_task_init
+      - user_task_update
+    ephemeral: false
+    system_prompt: "{{> system-prompt-engineer.hbs }}"
+    user_prompt: |
+      <task>{{event.value}}</task>
+```
+
+This example workflow creates two agents:
+
+1. A title generation worker that creates meaningful titles for user conversations
+2. A developer agent that can perform comprehensive file and system operations
+
 ## Why Shell?
 
-There's a reason why the shell stood the test of time for all dev tools and still remains a cornerstone of development environments across the globe: it's fast, versatile, and seamlessly integrated with the system. The shell is where we navigate code, run tests, manage processes, and orchestrate our development environments, providing an unmatched level of control and productivity.
+There's a reason why the shell has stood the test of time for development tools and remains a cornerstone of development environments across the globe: it's fast, versatile, and seamlessly integrated with the system. The shell is where developers navigate code, run tests, manage processes, and orchestrate development environments, providing an unmatched level of control and productivity.
 
-**The advantages of a shell-based AI assistant:**
-
-Code Forge combines the power of AI with the command line to create a development experience that's greater than the sum of its parts:
+**Why a shell-based AI assistant like Code-Forge makes sense:**
 
 - **Rich Tool Ecosystem**: The shell gives you immediate access to powerful Unix tools (grep, awk, sed, find) that LLMs already understand deeply. This means the AI can leverage `ripgrep` for code search, `jq` for JSON processing, `git` for version control, and hundreds of other battle-tested tools without reinventing them.
 
 - **Context is Everything**: Your shell session already has your complete development context - current directory, project structure, environment variables, installed tools, and system state. This rich context makes the AI interactions more accurate and relevant.
 
-- **Speed Matters**: Unlike IDEs and Web UI, Code Forge's shell is extremely light weight. This exceptional speed unlocks powerful capabilities that directly enhance your productivity: seamlessly get in and out of workflows, managing multiple feature developments in parallel, effortlessly coordinate across git worktrees, and instantly access AI assistance in any directory.
+- **Speed Matters**: Unlike IDEs and Web UIs, Code Forge's shell is extremely lightweight. This exceptional speed unlocks powerful capabilities that directly enhance your productivity: seamlessly get in and out of workflows, manage multiple feature developments in parallel, effortlessly coordinate across git worktrees, and instantly access AI assistance in any directory.
 
 - **Tool Composition**: Unix philosophy teaches us to make tools that compose well. The AI can pipe commands together, combining tools like `find | xargs forge -p | grep "foo"` in ways that solve complex problems elegantly.
 
-## ❤️ Support Code Forge
+## Support Us
 
 Your support drives Code-Forge's continued evolution! By starring our GitHub repository, you:
 
