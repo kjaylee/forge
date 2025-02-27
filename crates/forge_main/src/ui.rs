@@ -110,7 +110,7 @@ impl<F: API> UI<F> {
                                 .sub_title("Retrying the last message...")
                                 .format(),
                         )?;
-                        
+
                         if let Err(err) = self.handle_retry(&conversation_id).await {
                             CONSOLE.writeln(
                                 TitleFormat::failed(format!("{:?}", err))
@@ -125,7 +125,7 @@ impl<F: API> UI<F> {
                                 .format(),
                         )?;
                     }
-                    
+
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
@@ -162,7 +162,7 @@ impl<F: API> UI<F> {
 
         Ok(())
     }
-    
+
     async fn handle_retry(&mut self, conversation_id: &ConversationId) -> Result<()> {
         match self.api.retry(conversation_id).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,

@@ -77,7 +77,7 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     ) -> anyhow::Result<Option<Conversation>> {
         self.app.conversation_service().get(conversation_id).await
     }
-    
+
     async fn retry(
         &self,
         conversation_id: &ConversationId,
@@ -88,8 +88,11 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
             .conversation_service()
             .get(conversation_id)
             .await?
-            .context(format!("Conversation with ID {} not found", conversation_id))?;
-        
+            .context(format!(
+                "Conversation with ID {} not found",
+                conversation_id
+            ))?;
+
         // Find the last user message event
         let last_user_event = conversation
             .events
@@ -97,10 +100,10 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
             .rev()
             .find(|event| event.name == DispatchEvent::USER_TASK_UPDATE)
             .context("No previous user message found in this conversation")?;
-        
+
         // Create a new ChatRequest with the last user message
         let chat = ChatRequest::new(last_user_event.value.clone(), conversation_id.clone());
-        
+
         // Use the chat method to retry the request
         self.chat(chat).await
     }

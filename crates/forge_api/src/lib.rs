@@ -44,7 +44,7 @@ pub trait API {
         &self,
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>>;
-    
+
     /// Retries the last user message in a conversation
     async fn retry(
         &self,
