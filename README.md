@@ -10,7 +10,6 @@ Best Practices:
 
 **Forge: AI-Enhanced Terminal Development Environment**
 
-**A powerful AI-driven coding assistant integrated directly into your terminal** — designed to enhance your development workflow through intelligent assistance with coding tasks, debugging, and automation.
 
 Forge is a comprehensive coding agent that integrates AI capabilities with your development environment, offering sophisticated assistance while maintaining the efficiency of your existing workflow.
 
