@@ -69,8 +69,9 @@ impl EnvironmentService for ForgeEnvironmentService {
 #[cfg(test)]
 mod tests {
     use std::env;
-    use serial_test::serial;
+
     use forge_domain::Provider;
+    use serial_test::serial;
 
     // reset the env variables for reliable tests
     fn reset_env() {
