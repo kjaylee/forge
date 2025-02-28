@@ -1,7 +1,8 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_display::DiffFormat;
+use forge_display::{DiffFormat, VsCodeDiffConfig};
+use forge_display::vscode_diff::create_streaming_diff_viewer;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -20,16 +21,26 @@ pub struct FSWriteInput {
     pub content: String,
 }
 
-/// Use it to create a new file at a specified path with the provided content.
-/// Always provide absolute paths for file locations. The tool
-/// automatically handles the creation of any missing intermediary directories
-/// in the specified path.
-/// IMPORTANT: DO NOT attempt to use this tool to move or rename files, use the
-/// shell tool instead.
+/// File System Write Tool
+///
+/// Creates a new file at the specified path with the provided content.
+/// 
+/// # Description
+/// 
+/// This tool allows creating or overwriting files at absolute paths. It:
+/// - Requires absolute paths for file locations
+/// - Creates any missing intermediary directories automatically
+/// - Validates syntax for supported file types
+/// - Shows diff between old and new content in terminal and VS Code
+/// 
+/// # Important
+/// 
+/// DO NOT attempt to use this tool to move or rename files, use the shell tool instead.
 #[derive(ToolDescription)]
 pub struct FSWrite;
 
 impl NamedTool for FSWrite {
+    /// Returns the name of the tool as a ToolName
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_create")
     }
@@ -39,6 +50,26 @@ impl NamedTool for FSWrite {
 impl ExecutableTool for FSWrite {
     type Input = FSWriteInput;
 
+    /// Creates a file at the specified path with the provided content.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `input` - Contains the path and content for the file to be created
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(String)` - Success message with bytes written and path
+    /// * `Err(anyhow::Error)` - If file creation fails for any reason
+    /// 
+    /// # Notes
+    /// 
+    /// This implementation:
+    /// - Creates parent directories automatically if they don't exist
+    /// - Validates syntax for supported languages (Rust, JavaScript, TypeScript, etc.)
+    /// - Shows both terminal and VS Code diff visualization of changes
+    /// - Supports animated diffs for better change visualization
+    /// - Displays appropriate warnings for syntax issues
+    /// - Requires absolute paths for security and clarity
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
@@ -76,10 +107,48 @@ impl ExecutableTool for FSWrite {
             result.push_str(&warning.to_string());
         }
 
-        // record the file content after they're modified
+        // Initialize VS Code diff viewer for streaming updates with animation
+        let vscode_config = VsCodeDiffConfig {
+            animated_diff: true,          // Enable animated diff
+            animation_delay_ms: 80,       // Slightly faster animation for better user experience
+            update_frequency_ms: 50,      // More responsive updates
+            min_change_percent: 0.1,      // More sensitive to changes
+            ..VsCodeDiffConfig::default()
+        };
+        let mut vs_diff_viewer = match create_streaming_diff_viewer(path, &old_content, vscode_config).await {
+            Ok(viewer) => Some(viewer),
+            Err(e) => {
+                eprintln!("Warning: Failed to create streaming VS Code diff viewer: {}", e);
+                None
+            }
+        };
+        
+        // Read the modified file content
         let new_content = tokio::fs::read_to_string(path).await?;
-        let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
-        println!("{}", diff);
+        
+        // Stream diff line by line to the terminal
+        DiffFormat::stream(path.to_path_buf(), &old_content, &new_content, |line| {
+            // Update VS Code diff viewer for each line of terminal output
+            if let Some(viewer) = &mut vs_diff_viewer {
+                if let Err(e) = tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        viewer.update(&new_content).await
+                    })
+                }) {
+                    eprintln!("Warning: Failed to update VS Code diff: {}", e);
+                }
+            }
+            
+            // Print the line to terminal
+            println!("{}", line);
+        });
+        
+        // Finalize the VS Code diff view
+        if let Some(mut viewer) = vs_diff_viewer {
+            if let Err(e) = viewer.finalize(&new_content).await {
+                eprintln!("Warning: Failed to finalize VS Code diff: {}", e);
+            }
+        }
 
         Ok(result)
     }
@@ -95,6 +164,15 @@ mod test {
     use super::*;
     use crate::tools::utils::TempDir;
 
+    /// Asserts that a path exists in the filesystem.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `path` - The path to check for existence
+    /// 
+    /// # Panics
+    /// 
+    /// If the path does not exist
     async fn assert_path_exists(path: impl AsRef<Path>) {
         assert!(fs::metadata(path).await.is_ok(), "Path should exist");
     }

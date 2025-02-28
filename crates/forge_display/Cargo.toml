@@ -1,7 +1,15 @@
+# Forge Display Crate
+#
+# This crate provides display formatting, terminal output styling, 
+# and visualization utilities for the Code Forge application.
+# It handles diff formatting, grep output styling, title displays,
+# and VS Code integration for visualization.
+
 [package]
 name = "forge_display"
 version = "0.1.0"
 edition = "2021"
+description = "Display formatting and visualization utilities for the Code Forge application"
 
 [dependencies]
 derive_setters = "0.1.6"
@@ -10,6 +18,9 @@ chrono = { version = "0.4", features = ["serde"] }
 similar = { version = "2.4", features = ["inline"]}
 console = "0.15.7"
 regex = "1.10.2"
+anyhow = "1.0"
+tempfile = "3.8"
+tokio = { version = "1.32", features = ["fs"] }
 
 [dev-dependencies]
 insta = { version = "1.42.0" }

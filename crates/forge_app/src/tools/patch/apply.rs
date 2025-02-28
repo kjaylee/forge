@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::bail;
 use dissimilar::Chunk;
-use forge_display::DiffFormat;
+use forge_display::{DiffFormat, VsCodeDiffConfig};
+use forge_display::vscode_diff::create_streaming_diff_viewer;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -32,9 +33,22 @@ pub struct ApplyPatchInput {
     pub diff: String,
 }
 
+/// File Patch Tool
+///
+/// Replaces sections in a file using multiple SEARCH/REPLACE blocks.
+/// 
+/// # Description
+/// 
+/// This tool allows precise modifications to existing files by:
+/// - Finding specific text blocks using exact matching
+/// - Replacing them with new content
+/// - Supporting multiple replacement blocks in a single operation
+/// - Validating syntax for supported file types
+/// - Showing diff between old and new content in terminal and VS Code
 pub struct ApplyPatch;
 
 impl NamedTool for ApplyPatch {
+    /// Returns the name of the tool as a ToolName
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_patch")
     }
@@ -81,6 +95,15 @@ def new_function(x, y=0):
 
 /// Apply changes to file content based on search/replace blocks.
 /// Changes are only written to disk if all replacements are successful.
+/// 
+/// # Parameters
+/// 
+/// * `content` - The original content of the file to be modified
+/// * `blocks` - Vector of PatchBlock instances containing search/replace pairs
+/// 
+/// # Returns
+/// 
+/// * `Result<String, Error>` - The modified content or an error
 async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<String, Error> {
     let mut result = content;
 
@@ -144,6 +167,28 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 impl ExecutableTool for ApplyPatch {
     type Input = ApplyPatchInput;
 
+    /// Applies search and replace patches to a file.
+    /// 
+    /// # Parameters
+    /// 
+    /// * `input` - Contains the file path and diff content with search/replace blocks
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(String)` - XML-formatted content of the modified file
+    /// * `Err(anyhow::Error)` - If file operations fail or the file doesn't exist
+    /// 
+    /// # Notes
+    /// 
+    /// This implementation:
+    /// - Processes changes using exact search/replace blocks with multiple update stages
+    /// - Validates syntax for supported file types (Rust, JavaScript, TypeScript, etc.)
+    /// - Provides both terminal and VS Code visualization of changes
+    /// - Uses streaming updates with animated visualization for better clarity
+    /// - Applies fuzzy matching when exact matches fail (with configurable thresholds)
+    /// - Supports empty blocks for deletions
+    /// - Preserves whitespace, indentation, and newline patterns
+    /// - Requires absolute paths for security and clarity
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -186,13 +231,52 @@ impl ExecutableTool for ApplyPatch {
         }
          .await?;
 
-        // record the content of the file after applying the patch
+
+         // Initialize VS Code diff viewer for streaming updates with animation
+        let vscode_config = VsCodeDiffConfig {
+            animated_diff: true,          // Enable animated diff
+            animation_delay_ms: 80,       // Slightly faster animation for better user experience
+            update_frequency_ms: 50,      // More responsive updates
+            min_change_percent: 0.1,      // More sensitive to changes
+            ..VsCodeDiffConfig::default()
+        };
+        let mut vs_diff_viewer = match create_streaming_diff_viewer(path, &old_content, vscode_config).await {
+            Ok(viewer) => Some(viewer),
+            Err(e) => {
+                eprintln!("Warning: Failed to create streaming VS Code diff viewer: {}", e);
+                None
+            }
+        };
+        
+        // Read the modified file content after applying patches
         let new_content = fs::read_to_string(path)
             .await
             .map_err(Error::FileOperation)?;
-        // Generate diff between old and new content
-        let diff = DiffFormat::format(path.to_path_buf(), &old_content, &new_content);
-        println!("{}", diff);
+        
+        // Generate diff between old and new content for terminal display, streaming line by line
+        // and updating VS Code diff viewer in real time
+        DiffFormat::stream(path.to_path_buf(), &old_content, &new_content, |line| {
+            // Update VS Code diff viewer for each line of terminal output
+            if let Some(viewer) = &mut vs_diff_viewer {
+                if let Err(e) = tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        viewer.update(&new_content).await
+                    })
+                }) {
+                    eprintln!("Warning: Failed to update VS Code diff: {}", e);
+                }
+            }
+            
+            // Print the line to terminal
+            println!("{}", line);
+        });
+        
+        // Finalize the VS Code diff view with the final content
+        if let Some(mut viewer) = vs_diff_viewer {
+            if let Err(e) = viewer.finalize(&new_content).await {
+                eprintln!("Warning: Failed to finalize VS Code diff: {}", e);
+            }
+        }
 
         Ok(result)
     }
