@@ -19,7 +19,7 @@ use think::Think;
 
 use crate::{EnvironmentService, Infrastructure};
 
-pub fn tools<F: Infrastructure, S: SuggestionService>(infra: Arc<F>, suggest: Arc<S>) -> Vec<Tool> {
+pub fn tool_collection<F: Infrastructure, S: SuggestionService>(infra: Arc<F>, suggest: Arc<S>) -> Vec<Tool> {
     let env = infra.environment_service().get_environment();
     vec![
         FSRead.into(),
@@ -147,7 +147,7 @@ mod tests {
 
         let mut any_exceeded = false;
         let stub = Arc::new(stub());
-        for tool in tools(stub.clone(), stub.clone()) {
+        for tool in tool_collection(stub.clone(), stub.clone()) {
             let desc_len = tool.definition.description.len();
             println!(
                 "{:?}: {} chars {}",

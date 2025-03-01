@@ -18,7 +18,7 @@ pub struct ForgeToolService {
 
 impl ForgeToolService {
     pub fn new<F: Infrastructure, S: SuggestionService>(infra: Arc<F>, suggest: Arc<S>) -> Self {
-        ForgeToolService::from_iter(crate::tools::tools(infra.clone(), suggest.clone()))
+        ForgeToolService::from_iter(crate::tools::tool_collection(infra.clone(), suggest.clone()))
     }
 }
 
