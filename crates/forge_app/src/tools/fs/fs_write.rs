@@ -18,8 +18,9 @@ pub struct FSWriteInput {
     /// content of the file, without any truncation or omissions. You MUST
     /// include ALL parts of the file, even if they haven't been modified.
     pub content: String,
-    /// If set to true, existing files will be overwritten. If not set and the file exists, 
-    /// an error will be returned with the content of the existing file.
+    /// If set to true, existing files will be overwritten. If not set and the
+    /// file exists, an error will be returned with the content of the
+    /// existing file.
     #[serde(default)]
     pub overwrite: bool,
 }
@@ -60,8 +61,9 @@ impl ExecutableTool for FSWrite {
 
         // Check if the file exists
         let file_exists = path.is_file();
-        
-        // If file exists and overwrite flag is not set, return an error with the existing content
+
+        // If file exists and overwrite flag is not set, return an error with the
+        // existing content
         if file_exists && !input.overwrite {
             let existing_content = tokio::fs::read_to_string(path).await?;
             return Err(anyhow::anyhow!(
@@ -256,8 +258,8 @@ mod test {
 
         let fs_write = FSWrite;
         let result = fs_write
-            .call(FSWriteInput { 
-                path: path_str, 
+            .call(FSWriteInput {
+                path: path_str,
                 content: content.to_string(),
                 overwrite: false,
             })
@@ -302,10 +304,10 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test_overwrite.txt");
         let original_content = "Original content";
-        
+
         // First, create the file
         fs::write(&file_path, original_content).await.unwrap();
-        
+
         // Now attempt to write without overwrite flag
         let fs_write = FSWrite;
         let result = fs_write
@@ -315,17 +317,17 @@ mod test {
                 overwrite: false,
             })
             .await;
-        
+
         // Should result in an error
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
-        
+
         // Error should mention overwrite flag
         assert!(error_msg.contains("set overwrite to true"));
-        
+
         // Error should contain the original file content
         assert!(error_msg.contains(original_content));
-        
+
         // Make sure the file wasn't changed
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, original_content);
@@ -337,10 +339,10 @@ mod test {
         let file_path = temp_dir.path().join("test_overwrite.txt");
         let original_content = "Original content";
         let new_content = "New content";
-        
+
         // First, create the file
         fs::write(&file_path, original_content).await.unwrap();
-        
+
         // Now attempt to write with overwrite flag
         let fs_write = FSWrite;
         let result = fs_write
@@ -350,14 +352,14 @@ mod test {
                 overwrite: true,
             })
             .await;
-        
+
         // Should be successful
         assert!(result.is_ok());
         let success_msg = result.unwrap();
-        
+
         // Success message should contain expected text
         assert!(success_msg.contains("Successfully wrote"));
-        
+
         // Verify file was actually overwritten
         let content = fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, new_content);
