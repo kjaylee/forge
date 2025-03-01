@@ -162,9 +162,8 @@ async fn test_retry_functionality() {
     // Send the initial chat request
     let mut initial_stream = api.chat(request).await.unwrap();
 
-    // Wait for at least one response or timeout after 30 seconds (increased from 5)
+    // Wait for at least one response or timeout after 30 seconds
     let mut initial_responses = Vec::new();
-    let start_time = std::time::Instant::now();
     let timeout = std::time::Duration::from_secs(30);
 
     // Collect responses with a more robust approach
@@ -216,10 +215,8 @@ async fn test_retry_functionality() {
 
     // Wait for at least one response or timeout after 30 seconds
     let mut retry_responses = Vec::new();
-    let start_time = std::time::Instant::now();
 
-    // Similar approach for retry responses
-    let mut received_retry_response = false;
+    // Collect retry responses
     while let Some(result) = tokio::select! {
         message = retry_stream.next() => message,
         _ = tokio::time::sleep(timeout) => None,
@@ -227,15 +224,11 @@ async fn test_retry_functionality() {
         match result {
             Ok(AgentMessage { message: ChatResponse::Text(text), .. }) => {
                 retry_responses.push(text);
-                received_retry_response = true;
-                // Once we've received at least one response, we can proceed
-                if received_retry_response {
-                    break;
-                }
+                break;
             }
             Ok(_) => {
                 // Handle other types of responses
-                received_retry_response = true;
+                break;
             }
             Err(e) => {
                 // Log error but don't fail the test
