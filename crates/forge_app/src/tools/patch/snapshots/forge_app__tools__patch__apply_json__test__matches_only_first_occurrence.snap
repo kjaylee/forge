@@ -2,8 +2,8 @@
 source: crates/forge_app/src/tools/patch/apply_json.rs
 expression: actual
 ---
-<!-- INITIAL -->foo
+<!-- INITIAL -->foo foox foo
 <!-- REPLACEMENTS -->
-<!-- SEARCH -->
-<!-- REPLACE --> bar
-<!-- FINAL --> bar
+<!-- SEARCH -->foo
+<!-- REPLACE -->bar
+<!-- FINAL -->bar foox foo

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use dissimilar::Chunk;
+// No longer using dissimilar for fuzzy matching
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -11,10 +11,7 @@ use tokio::fs;
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
 
-/// Threshold for fuzzy matching. A score above this value is considered a
-/// match. The score is calculated as the ratio of matching characters to total
-/// characters.
-const MATCH_THRESHOLD: f64 = 0.7;
+// Removed fuzzy matching threshold as we only use exact matching now
 
 /// A match found in the source text. Represents a range in the source text that
 /// can be used for extraction or replacement operations. Stores the position
@@ -45,16 +42,7 @@ impl Range {
             .map(|start| Self::new(start, search.len()))
     }
 
-    /// Try to find a fuzzy match in the source text
-    fn find_fuzzy(source: &str, search: &str) -> Option<Self> {
-        let matches = MatchSequence::new((source, search));
-
-        if matches.similarity(search.chars().count()) >= MATCH_THRESHOLD {
-            matches.to_range()
-        } else {
-            None
-        }
-    }
+    // Fuzzy matching removed - we only use exact matching
 }
 
 impl From<Range> for std::ops::Range<usize> {
@@ -63,66 +51,7 @@ impl From<Range> for std::ops::Range<usize> {
     }
 }
 
-/// A collection of matching chunks found between source and search text.
-/// This type handles analyzing sequences of matches to determine if they
-/// form a good enough match for patching.
-///
-/// The analysis includes:
-/// * Computing total matching characters
-/// * Computing similarity scores
-/// * Finding matching ranges
-#[derive(Debug)]
-struct MatchSequence {
-    /// All matching chunks found
-    chunks: Vec<Range>,
-}
-
-impl MatchSequence {
-    fn new((source, search): (&str, &str)) -> Self {
-        let mut chunks = Vec::new();
-        let mut start = 0;
-
-        // Walk through text and track position of matching chunks
-        let diff = dissimilar::diff(source, search);
-        for chunk in diff {
-            match chunk {
-                // Text is equal in both source and search
-                Chunk::Equal(s) => {
-                    chunks.push(Range { start, length: s.chars().count() });
-                    start += s.chars().count();
-                }
-
-                // Text is in source but not in search
-                Chunk::Delete(s) => start += s.chars().count(),
-
-                // Text is in search but not in source
-                Chunk::Insert(_) => (), // Inserts don't affect source position
-            }
-        }
-
-        MatchSequence { chunks }
-    }
-
-    /// Get first match in sequence, if any exists. Returns a match spanning
-    /// from the start of the first chunk to the end of the last chunk.
-    fn to_range(&self) -> Option<Range> {
-        if self.chunks.is_empty() {
-            None
-        } else {
-            let first = &self.chunks[0];
-            let last = self.chunks.last().unwrap();
-            Some(Range::new(first.start, last.end() - first.start))
-        }
-    }
-
-    /// Calculate similarity score based on total matching characters vs search
-    /// length. Returns a value between 0.0 and 1.0, where 1.0 means perfect
-    /// match.
-    fn similarity(&self, search_len: usize) -> f64 {
-        let total_matching: usize = self.chunks.iter().map(|chunk| chunk.length).sum();
-        total_matching as f64 / search_len as f64
-    }
-}
+// MatchSequence struct and implementation removed - we only use exact matching
 
 #[derive(Debug, Error)]
 enum Error {
@@ -130,46 +59,140 @@ enum Error {
     FileOperation(#[from] std::io::Error),
     #[error("Could not find match for search text: {0}")]
     NoMatch(String),
+    #[error("Could not find swap target text: {0}")]
+    NoSwapTarget(String),
 }
 
-fn apply_replacements(source: String, replacements: Vec<Replacement>) -> Result<String, Error> {
-    // Iterate over all replacements and apply them one by one
-    replacements.iter().try_fold(source, |source, replacement| {
-        let search = replacement.search.as_str();
-        if replacement.search.is_empty() {
-            // Append mode - add content at the end
-            Ok(format!("{}{}", source, replacement.content))
-        } else {
-            let patch = Range::find_exact(&source, search)
-                .or_else(|| Range::find_fuzzy(&source, search))
-                .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
+fn apply_replacement(source: String, replacement: &Replacement) -> Result<String, Error> {
+    let search = replacement.search.as_str();
 
-            Ok(if replacement.content.is_empty() {
-                // Delete mode - remove the matched content
-                source[..patch.start].to_string() + &source[patch.end()..]
+    // Handle empty search string - only certain operations make sense here
+    if replacement.search.is_empty() {
+        return match &replacement.operation {
+            // Append to the end of the file
+            Operation::Append(content) => Ok(format!("{}{}", source, content)),
+            // Prepend to the beginning of the file
+            Operation::Prepend(content) => Ok(format!("{}{}", content, source)),
+            // Replace is equivalent to completely replacing the file
+            Operation::Replace(content) => Ok(content.clone()),
+            // Swap doesn't make sense with empty search - keep source unchanged
+            Operation::Swap(_) => Ok(source),
+        };
+    }
+
+    // Find the exact match to operate on
+    let patch = Range::find_exact(&source, search)
+        .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
+
+    // Apply the operation based on its type
+    match &replacement.operation {
+        // Prepend content before the matched text
+        Operation::Prepend(content) => Ok(format!(
+            "{}{}{}",
+            &source[..patch.start],
+            content,
+            &source[patch.start..]
+        )),
+
+        // Append content after the matched text
+        Operation::Append(content) => Ok(format!(
+            "{}{}{}",
+            &source[..patch.end()],
+            content,
+            &source[patch.end()..]
+        )),
+
+        // Replace matched text with new content
+        Operation::Replace(content) => Ok(format!(
+            "{}{}{}",
+            &source[..patch.start],
+            content,
+            &source[patch.end()..]
+        )),
+
+        // Swap with another text in the source
+        Operation::Swap(target) => {
+            // Find the target text to swap with
+            let target_patch = Range::find_exact(&source, target)
+                .ok_or_else(|| Error::NoSwapTarget(target.clone()))?;
+
+            // Handle the case where patches overlap
+            if (patch.start <= target_patch.start && patch.end() > target_patch.start)
+                || (target_patch.start <= patch.start && target_patch.end() > patch.start)
+            {
+                // For overlapping ranges, we just do an ordinary replacement
+                return Ok(format!(
+                    "{}{}{}",
+                    &source[..patch.start],
+                    target,
+                    &source[patch.end()..]
+                ));
+            }
+
+            // We need to handle different ordering of patches
+            if patch.start < target_patch.start {
+                // Original text comes first
+                Ok(format!(
+                    "{}{}{}{}{}",
+                    &source[..patch.start],
+                    target,
+                    &source[patch.end()..target_patch.start],
+                    &source[patch.start..patch.end()],
+                    &source[target_patch.end()..]
+                ))
             } else {
-                // Replace mode - substitute matched content with new content
-                source[..patch.start].to_string() + &replacement.content + &source[patch.end()..]
-            })
+                // Target text comes first
+                Ok(format!(
+                    "{}{}{}{}{}",
+                    &source[..target_patch.start],
+                    &source[patch.start..patch.end()],
+                    &source[target_patch.end()..patch.start],
+                    target,
+                    &source[patch.end()..]
+                ))
+            }
         }
-    })
+    }
 }
 
-/// A single search and replace operation
+/// Operation types that can be performed on matched text
+#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, PartialEq)]
+#[serde(tag = "type", content = "content")]
+pub enum Operation {
+    /// Prepend content before the matched text
+    Prepend(String),
+
+    /// Append content after the matched text
+    Append(String),
+
+    /// Replace the matched text with new content
+    Replace(String),
+
+    /// Swap the matched text with another text (search for the second text and
+    /// swap them)
+    Swap(String),
+}
+
+/// A single search and operation pair
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone)]
 pub struct Replacement {
+    /// The text to search for in the source. If empty, operation applies to the
+    /// end of the file.
     pub search: String,
-    pub content: String,
+
+    /// The operation to perform on the matched text
+    pub operation: Operation,
 }
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ApplyPatchJsonInput {
     pub path: String,
-    pub replacements: Vec<Replacement>,
+    pub replacement: Replacement,
 }
 
-/// Finds and replaces all occurrences of the search text with the replacement
-/// text in the file at the given path.
+/// Performs a single text operation (prepend, append, replace, swap, delete) on
+/// matched text in a file. The operation is applied to the first match found in
+/// the text.
 #[derive(ToolDescription)]
 pub struct ApplyPatchJson;
 
@@ -195,13 +218,13 @@ fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
     }
 }
 
-/// Process the file modifications and return the formatted output
+/// Process the file modification and return the formatted output
 async fn process_file_modifications(
     path: &Path,
-    replacements: Vec<Replacement>,
+    replacement: &Replacement,
 ) -> Result<String, Error> {
     let content = fs::read_to_string(path).await?;
-    let content = apply_replacements(content, replacements)?;
+    let content = apply_replacement(content, replacement)?;
     fs::write(path, &content).await?;
 
     let warning = syn::validate(path, &content).map(|e| e.to_string());
@@ -220,7 +243,7 @@ impl ExecutableTool for ApplyPatchJson {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        Ok(process_file_modifications(path, input.replacements).await?)
+        Ok(process_file_modifications(path, &input.replacement).await?)
     }
 }
 
@@ -234,22 +257,22 @@ mod test {
     #[derive(Debug)]
     struct PatchTest {
         initial: String,
-        replacements: Vec<Replacement>,
+        replacement: Option<Replacement>,
         result: Option<String>,
     }
 
     impl fmt::Display for PatchTest {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let replacements = self
-                .replacements
-                .iter()
-                .map(|a| a.to_string())
-                .fold("".to_string(), |a, b| format!("{a}{b}"));
+            let replacement = match &self.replacement {
+                Some(r) => r.to_string(),
+                None => String::new(),
+            };
+            // Use the original tag "REPLACEMENTS" for backward compatibility
             write!(
                 f,
                 "\n<!-- INITIAL -->{}\n<!-- REPLACEMENTS -->{}\n<!-- FINAL -->{}",
                 self.initial,
-                replacements,
+                replacement,
                 self.result
                     .as_ref()
                     .expect("Test must be executed before display")
@@ -261,40 +284,88 @@ mod test {
         fn new(initial: impl ToString) -> Self {
             PatchTest {
                 initial: initial.to_string(),
-                replacements: Default::default(),
+                replacement: None,
                 result: Default::default(),
             }
         }
 
-        fn replace(mut self, search: impl ToString, replace: impl ToString) -> Self {
-            self.replacements.push(Replacement::new(search, replace));
+        /// Replace matched text with new content
+        fn replace(mut self, search: impl ToString, content: impl ToString) -> Self {
+            self.replacement = Some(Replacement {
+                search: search.to_string(),
+                operation: Operation::Replace(content.to_string()),
+            });
+            self
+        }
+
+        /// Prepend content before matched text
+        fn prepend(mut self, search: impl ToString, content: impl ToString) -> Self {
+            self.replacement = Some(Replacement {
+                search: search.to_string(),
+                operation: Operation::Prepend(content.to_string()),
+            });
+            self
+        }
+
+        /// Append content after matched text
+        fn append(mut self, search: impl ToString, content: impl ToString) -> Self {
+            self.replacement = Some(Replacement {
+                search: search.to_string(),
+                operation: Operation::Append(content.to_string()),
+            });
+            self
+        }
+
+        /// Swap matched text with target text
+        fn swap(mut self, search: impl ToString, target: impl ToString) -> Self {
+            self.replacement = Some(Replacement {
+                search: search.to_string(),
+                operation: Operation::Swap(target.to_string()),
+            });
             self
         }
 
         // TODO: tests don't need to write files to disk
         fn execute(mut self) -> Result<Self, Error> {
-            self.result = Some(apply_replacements(
-                self.initial.clone(),
-                self.replacements.clone(),
-            )?);
-
-            Ok(self)
+            if let Some(replacement) = &self.replacement {
+                self.result = Some(apply_replacement(self.initial.clone(), replacement)?);
+                Ok(self)
+            } else {
+                // No replacement specified - return original content
+                self.result = Some(self.initial.clone());
+                Ok(self)
+            }
         }
     }
 
+    // For backward compatibility with existing snapshots, format all operations
+    // using the original SEARCH/REPLACE format where possible
     impl Display for Replacement {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(
-                f,
-                "\n<!-- SEARCH -->{}\n<!-- REPLACE -->{}",
-                self.search, self.content
-            )
-        }
-    }
-
-    impl Replacement {
-        fn new(search: impl ToString, replace: impl ToString) -> Self {
-            Replacement { search: search.to_string(), content: replace.to_string() }
+            match &self.operation {
+                // For backward compatibility with tests, use REPLACE instead of specialized tags
+                Operation::Prepend(content) => write!(
+                    f,
+                    "\n<!-- SEARCH -->{}\n<!-- PREPEND -->{}",
+                    self.search, content
+                ),
+                Operation::Append(content) => write!(
+                    f,
+                    "\n<!-- SEARCH -->{}\n<!-- APPEND -->{}",
+                    self.search, content
+                ),
+                Operation::Replace(content) => write!(
+                    f,
+                    "\n<!-- SEARCH -->{}\n<!-- REPLACE -->{}",
+                    self.search, content
+                ),
+                // For new operations that don't have existing snapshots, use new tags
+                Operation::Swap(target) => write!(
+                    f,
+                    "\n<!-- SEARCH -->{}\n<!-- SWAP -->{}",
+                    self.search, target
+                ),
+            }
         }
     }
 
@@ -307,15 +378,6 @@ mod test {
     fn exact_match_single_word() {
         let actual = PatchTest::new("Hello World")
             .replace("World", "Forge")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn fuzzy_match_with_extra_characters() {
-        let actual = PatchTest::new("fooo bar")
-            .replace("foo", "baz") // Should match despite extra 'o'
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
@@ -337,19 +399,9 @@ mod test {
     }
 
     /*
-     * Multiple Replacements
-     * Tests behavior when multiple replacements are performed
+     * Single Replacement Behavior
+     * Tests behavior when single replacements are performed
      */
-    #[test]
-    fn different_replacements_in_sequence() {
-        let actual = PatchTest::new("foo bar")
-            .replace("foo", "baz")
-            .replace("bar", "qux")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
     #[test]
     fn replaces_only_first_match() {
         let actual = PatchTest::new("foo bar foo")
@@ -359,53 +411,15 @@ mod test {
         insta::assert_snapshot!(actual);
     }
 
-    #[test]
-    fn sequential_replacements_on_identical_text() {
-        let actual = PatchTest::new("same same same")
-            .replace("same", "different") // First occurrence
-            .replace("same", "changed") // Second occurrence
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn sequential_non_overlapping_replacements() {
-        let actual = PatchTest::new("abcdef")
-            .replace("abc", "123")
-            .replace("def", "456")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
     /*
-     * Fuzzy Matching Behavior
-     * Tests the fuzzy matching algorithm and similarity thresholds
+     * Exact Matching Behavior
+     * Tests the exact matching behavior
      */
 
     #[test]
-    fn fuzzy_match_hyphenated_pattern() {
-        let actual = PatchTest::new("abc foobar pqr")
-            .replace("foo-bar", "replaced") // Should match "foobar" despite the hyphen
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn exact_threshold_match() {
-        let actual = PatchTest::new("foox") // 3/4 = 0.75, just above MATCH_THRESHOLD
-            .replace("foo", "bar")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn just_below_threshold() {
-        let result = PatchTest::new("fox") // 2/3 ≈ 0.67, just below MATCH_THRESHOLD
-            .replace("foo", "bar")
+    fn no_match_with_hyphenated_pattern() {
+        let result = PatchTest::new("abc foobar pqr")
+            .replace("foo-bar", "replaced") // Should NOT match "foobar" with hyphen
             .execute();
         assert!(result.is_err());
         assert!(result
@@ -415,19 +429,21 @@ mod test {
     }
 
     #[test]
-    fn fuzzy_match_with_prefix() {
-        let actual = PatchTest::new("foox baz foo")
-            .replace("afoo", "bar") // Should match "foox" despite "a" prefix
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
+    fn no_match_with_prefix() {
+        let result = PatchTest::new("foox baz foo")
+            .replace("afoo", "bar") // Should NOT match "foox" or "foo" with "a" prefix
+            .execute();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find match"));
     }
 
     #[test]
-    fn prefers_exact_matches_over_fuzzy() {
+    fn matches_only_first_occurrence() {
         let actual = PatchTest::new("foo foox foo")
-            .replace("foo", "bar") // Should replace exact "foo" first
-            .replace("foo", "baz") // Should replace second exact "foo"
+            .replace("foo", "bar") // Should replace first exact "foo" only
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
@@ -500,20 +516,9 @@ mod test {
      * Tests error handling and edge cases
      */
     #[test]
-    fn nested_replacements() {
+    fn single_replacement_only() {
         let actual = PatchTest::new("outer inner outer")
             .replace("outer inner outer", "modified inner")
-            .replace("inner", "content")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn overlapping_matches() {
-        let actual = PatchTest::new("abcabcabc")
-            .replace("abca", "1234")
-            .replace("cabc", "5678")
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
@@ -525,6 +530,95 @@ mod test {
      */
 
     /*
+     * Operation Type Tests
+     * Tests for each specific operation type
+     */
+
+    #[test]
+    fn prepend_operation() {
+        let actual = PatchTest::new("Hello World!")
+            .prepend("Hello", "Greetings, ")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn append_operation() {
+        let actual = PatchTest::new("Hello World")
+            .append("World", "!")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn replace_operation() {
+        let actual = PatchTest::new("Hello World")
+            .replace("World", "Universe")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn swap_operation() {
+        let actual = PatchTest::new("Hello World")
+            .swap("Hello", "World")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn swap_with_overlap() {
+        let actual = PatchTest::new("Hello World")
+            .swap("Hello W", "orld")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn swap_target_not_found() {
+        let result = PatchTest::new("Hello World")
+            .swap("Hello", "Universe")
+            .execute();
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Could not find swap target"));
+    }
+
+    #[test]
+    fn empty_search_prepend() {
+        let actual = PatchTest::new("Hello World")
+            .prepend("", "Start: ")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn empty_search_append() {
+        let actual = PatchTest::new("Hello World")
+            .append("", " End")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    #[test]
+    fn empty_search_replace() {
+        let actual = PatchTest::new("Hello World")
+            .replace("", "Completely New Content")
+            .execute()
+            .unwrap();
+        insta::assert_snapshot!(actual);
+    }
+
+    /*
      * Error Cases
      * Tests error handling and validation
      */
@@ -532,7 +626,7 @@ mod test {
     #[test]
     fn delete_single_line_only() {
         let actual = PatchTest::new("line1\nline2\nline1\nline3")
-            .replace("line1\n", "") // Delete first occurrence of line1 and its newline
+            .replace("line1\n", "") // Using replace with empty string instead of delete for compatibility
             .execute()
             .unwrap();
         insta::assert_snapshot!(actual);
@@ -540,7 +634,7 @@ mod test {
 
     #[test]
     fn empty_search_text() {
-        let actual = PatchTest::new("").replace("", "foo").execute().unwrap();
+        let actual = PatchTest::new("").replace("", "foo").execute().unwrap(); // Using replace instead of append for compatibility
         insta::assert_snapshot!(actual);
     }
 
@@ -555,7 +649,7 @@ mod test {
     }
 
     #[test]
-    fn fuzzy_match_below_threshold() {
+    fn non_matching_pattern() {
         let result = PatchTest::new("fo").replace("foo", "bar").execute();
         assert!(result.is_err());
         assert!(result
