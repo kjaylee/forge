@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
 use crate::template::Template;
-use crate::{Environment, ModelId, ToolName, UserContext};
+use crate::{Environment, EventContext, ModelId, ToolName};
 
 #[derive(Debug, Default, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
@@ -53,7 +53,7 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<Template<SystemContext>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_prompt: Option<Template<UserContext>>,
+    pub user_prompt: Option<Template<EventContext>>,
 
     /// When set to true all user events will also contain a suggestions field
     /// that is prefilled with the matching information from vector store.
