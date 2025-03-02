@@ -265,8 +265,14 @@ mod test {
     #[derive(Debug)]
     struct PatchTest {
         initial: String,
-        operations: Vec<PatchOperation>,
-        results: Vec<Result<String, String>>, // Store success or error messages
+        patches: Vec<Patch>,
+    }
+
+    // Single operation with its result
+    #[derive(Debug)]
+    struct Patch {
+        operation: PatchOperation,
+        result: Result<String, String>,
     }
 
     // Represents a single patch operation
@@ -281,65 +287,61 @@ mod test {
 
     impl PatchTest {
         fn new(initial: impl ToString) -> Self {
-            PatchTest {
-                initial: initial.to_string(),
-                operations: Vec::new(),
-                results: Vec::new(),
-            }
+            PatchTest { initial: initial.to_string(), patches: Vec::new() }
         }
 
         /// Replace matched text with new content
-        fn replace(
-            mut self,
-            search: impl ToString,
-            content: impl ToString,
-        ) -> Self {
-            self.operations.push(PatchOperation {
+        fn replace(mut self, search: impl ToString, content: impl ToString) -> Self {
+            let operation = PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Replace,
                 content: content.to_string(),
+            };
+            self.patches.push(Patch {
+                operation,
+                result: Err("Not executed yet".to_string()), // Placeholder
             });
             self
         }
 
         /// Prepend content before matched text
-        fn prepend(
-            mut self,
-            search: impl ToString,
-            content: impl ToString,
-        ) -> Self {
-            self.operations.push(PatchOperation {
+        fn prepend(mut self, search: impl ToString, content: impl ToString) -> Self {
+            let operation = PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Prepend,
                 content: content.to_string(),
+            };
+            self.patches.push(Patch {
+                operation,
+                result: Err("Not executed yet".to_string()), // Placeholder
             });
             self
         }
 
         /// Append content after matched text
-        fn append(
-            mut self,
-            search: impl ToString,
-            content: impl ToString,
-        ) -> Self {
-            self.operations.push(PatchOperation {
+        fn append(mut self, search: impl ToString, content: impl ToString) -> Self {
+            let operation = PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Append,
                 content: content.to_string(),
+            };
+            self.patches.push(Patch {
+                operation,
+                result: Err("Not executed yet".to_string()), // Placeholder
             });
             self
         }
 
         /// Swap matched text with target text
-        fn swap(
-            mut self,
-            search: impl ToString,
-            target: impl ToString,
-        ) -> Self {
-            self.operations.push(PatchOperation {
+        fn swap(mut self, search: impl ToString, target: impl ToString) -> Self {
+            let operation = PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Swap,
                 content: target.to_string(),
+            };
+            self.patches.push(Patch {
+                operation,
+                result: Err("Not executed yet".to_string()), // Placeholder
             });
             self
         }
@@ -348,13 +350,13 @@ mod test {
         fn execute_all(mut self) -> Self {
             let mut current_content = self.initial.clone();
 
-            for op in &self.operations {
+            for op_result in &mut self.patches {
                 // Apply the operation
                 let result = match apply_replacement(
                     current_content.clone(),
-                    &op.search,
-                    &op.operation,
-                    &op.content,
+                    &op_result.operation.search,
+                    &op_result.operation.operation,
+                    &op_result.operation.content,
                 ) {
                     Ok(content) => {
                         // Update the current content for the next operation
@@ -364,8 +366,8 @@ mod test {
                     Err(err) => Err(err.to_string()),
                 };
 
-                // Record the result
-                self.results.push(result);
+                // Update the result
+                op_result.result = result;
             }
 
             self

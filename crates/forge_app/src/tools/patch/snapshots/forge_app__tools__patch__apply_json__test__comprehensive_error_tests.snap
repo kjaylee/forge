@@ -5,40 +5,46 @@ snapshot_kind: text
 ---
 PatchTest {
     initial: "foo bar baz",
-    operations: [
-        PatchOperation {
-            search: "nonexistent",
-            operation: Replace,
-            content: "replaced",
+    patches: [
+        Patch {
+            operation: PatchOperation {
+                search: "nonexistent",
+                operation: Replace,
+                content: "replaced",
+            },
+            result: Err(
+                "Could not find match for search text: nonexistent",
+            ),
         },
-        PatchOperation {
-            search: "foo-bar",
-            operation: Replace,
-            content: "replaced",
+        Patch {
+            operation: PatchOperation {
+                search: "foo-bar",
+                operation: Replace,
+                content: "replaced",
+            },
+            result: Err(
+                "Could not find match for search text: foo-bar",
+            ),
         },
-        PatchOperation {
-            search: "afoo",
-            operation: Replace,
-            content: "replaced",
+        Patch {
+            operation: PatchOperation {
+                search: "afoo",
+                operation: Replace,
+                content: "replaced",
+            },
+            result: Err(
+                "Could not find match for search text: afoo",
+            ),
         },
-        PatchOperation {
-            search: "foo",
-            operation: Swap,
-            content: "nonexistent",
+        Patch {
+            operation: PatchOperation {
+                search: "foo",
+                operation: Swap,
+                content: "nonexistent",
+            },
+            result: Err(
+                "Could not find swap target text: nonexistent",
+            ),
         },
-    ],
-    results: [
-        Err(
-            "Could not find match for search text: nonexistent",
-        ),
-        Err(
-            "Could not find match for search text: foo-bar",
-        ),
-        Err(
-            "Could not find match for search text: afoo",
-        ),
-        Err(
-            "Could not find swap target text: nonexistent",
-        ),
     ],
 }
