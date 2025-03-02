@@ -189,8 +189,8 @@ pub struct ApplyPatchJsonInput {
     /// The operation to perform on the matched text
     pub operation: Operation,
 
-    /// The content to use for the operation (replacement text, text to prepend/append,
-    /// or target text for swap operations)
+    /// The content to use for the operation (replacement text, text to
+    /// prepend/append, or target text for swap operations)
     pub content: String,
 }
 
@@ -275,7 +275,6 @@ mod test {
         search: String,
         operation: Operation,
         content: String,
-        description: String,
     }
 
     // fmt::Display implementation removed in favor of using assert_debug_snapshot!
@@ -294,13 +293,11 @@ mod test {
             mut self,
             search: impl ToString,
             content: impl ToString,
-            description: impl ToString,
         ) -> Self {
             self.operations.push(PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Replace,
                 content: content.to_string(),
-                description: description.to_string(),
             });
             self
         }
@@ -310,13 +307,11 @@ mod test {
             mut self,
             search: impl ToString,
             content: impl ToString,
-            description: impl ToString,
         ) -> Self {
             self.operations.push(PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Prepend,
                 content: content.to_string(),
-                description: description.to_string(),
             });
             self
         }
@@ -326,13 +321,11 @@ mod test {
             mut self,
             search: impl ToString,
             content: impl ToString,
-            description: impl ToString,
         ) -> Self {
             self.operations.push(PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Append,
                 content: content.to_string(),
-                description: description.to_string(),
             });
             self
         }
@@ -342,13 +335,11 @@ mod test {
             mut self,
             search: impl ToString,
             target: impl ToString,
-            description: impl ToString,
         ) -> Self {
             self.operations.push(PatchOperation {
                 search: search.to_string(),
                 operation: Operation::Swap,
                 content: target.to_string(),
-                description: description.to_string(),
             });
             self
         }
@@ -386,26 +377,26 @@ mod test {
         // Create a comprehensive test that includes all the test cases
         let test = PatchTest::new("Hello World")
             // Basic Operations
-            .replace("World", "Forge", "Exact match single word")
-            .replace("", " bar", "Append with empty search")
+            .replace("World", "Forge")
+            .replace("", " bar")
             // Single Replacement Behavior
-            .replace("foo", "baz", "Replaces only first match (with no match)")
+            .replace("foo", "baz")
             // Exact Matching Behavior
-            .replace("Hello", "Hi", "Simple exact matching")
+            .replace("Hello", "Hi")
             // Unicode and Special Characters
-            .replace("Hello", "你好", "Replace with unicode")
-            .replace("World", "🌍", "Replace with emoji")
+            .replace("Hello", "你好")
+            .replace("World", "🌍")
             // Whitespace Handling
-            .prepend("Hello", "    ", "Prepend with whitespace")
-            .append("World", "\n  New line", "Append with newline")
+            .prepend("Hello", "    ")
+            .append("World", "\n  New line")
             // Test different operation types
-            .prepend("Hello", "Greetings, ", "Prepend operation")
-            .append("World", "!", "Append operation")
-            .swap("Hello", "World", "Swap operation")
+            .prepend("Hello", "Greetings, ")
+            .append("World", "!")
+            .swap("Hello", "World")
             // Empty search operations
-            .prepend("", "Start: ", "Empty search prepend")
-            .append("", " End", "Empty search append")
-            .replace("", "Completely New Content", "Empty search replace")
+            .prepend("", "Start: ")
+            .append("", " End")
+            .replace("", "Completely New Content")
             // Execute all operations and collect results
             .execute_all();
 
@@ -417,10 +408,10 @@ mod test {
     fn comprehensive_error_tests() {
         // Create a test specifically for error cases
         let test = PatchTest::new("foo bar baz")
-            .replace("nonexistent", "replaced", "No match found")
-            .replace("foo-bar", "replaced", "No match with hyphenated pattern")
-            .replace("afoo", "replaced", "No match with prefix")
-            .swap("foo", "nonexistent", "Swap target not found")
+            .replace("nonexistent", "replaced")
+            .replace("foo-bar", "replaced")
+            .replace("afoo", "replaced")
+            .swap("foo", "nonexistent")
             .execute_all();
 
         // Snapshot the error test results using Debug representation
