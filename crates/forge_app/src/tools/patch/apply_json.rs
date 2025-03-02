@@ -63,18 +63,18 @@ enum Error {
     NoSwapTarget(String),
 }
 
-fn apply_replacement(source: String, search: &str, operation: &Operation) -> Result<String, Error> {
+fn apply_replacement(source: String, search: &str, operation: &Operation, content: &str) -> Result<String, Error> {
     // Handle empty search string - only certain operations make sense here
     if search.is_empty() {
         return match operation {
             // Append to the end of the file
-            Operation::Append(content) => Ok(format!("{}{}", source, content)),
+            Operation::Append => Ok(format!("{}{}", source, content)),
             // Prepend to the beginning of the file
-            Operation::Prepend(content) => Ok(format!("{}{}", content, source)),
+            Operation::Prepend => Ok(format!("{}{}", content, source)),
             // Replace is equivalent to completely replacing the file
-            Operation::Replace(content) => Ok(content.clone()),
+            Operation::Replace => Ok(content.to_string()),
             // Swap doesn't make sense with empty search - keep source unchanged
-            Operation::Swap(_) => Ok(source),
+            Operation::Swap => Ok(source),
         };
     }
 
@@ -85,7 +85,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
     // Apply the operation based on its type
     match operation {
         // Prepend content before the matched text
-        Operation::Prepend(content) => Ok(format!(
+        Operation::Prepend => Ok(format!(
             "{}{}{}",
             &source[..patch.start],
             content,
@@ -93,7 +93,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
         )),
 
         // Append content after the matched text
-        Operation::Append(content) => Ok(format!(
+        Operation::Append => Ok(format!(
             "{}{}{}",
             &source[..patch.end()],
             content,
@@ -101,7 +101,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
         )),
 
         // Replace matched text with new content
-        Operation::Replace(content) => Ok(format!(
+        Operation::Replace => Ok(format!(
             "{}{}{}",
             &source[..patch.start],
             content,
@@ -109,10 +109,10 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
         )),
 
         // Swap with another text in the source
-        Operation::Swap(target) => {
+        Operation::Swap => {
             // Find the target text to swap with
-            let target_patch = Range::find_exact(&source, target)
-                .ok_or_else(|| Error::NoSwapTarget(target.clone()))?;
+            let target_patch = Range::find_exact(&source, content)
+                .ok_or_else(|| Error::NoSwapTarget(content.to_string()))?;
 
             // Handle the case where patches overlap
             if (patch.start <= target_patch.start && patch.end() > target_patch.start)
@@ -122,7 +122,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
                 return Ok(format!(
                     "{}{}{}",
                     &source[..patch.start],
-                    target,
+                    content,
                     &source[patch.end()..]
                 ));
             }
@@ -133,7 +133,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
                 Ok(format!(
                     "{}{}{}{}{}",
                     &source[..patch.start],
-                    target,
+                    content,
                     &source[patch.end()..target_patch.start],
                     &source[patch.start..patch.end()],
                     &source[target_patch.end()..]
@@ -145,7 +145,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
                     &source[..target_patch.start],
                     &source[patch.start..patch.end()],
                     &source[target_patch.end()..patch.start],
-                    target,
+                    content,
                     &source[patch.end()..]
                 ))
             }
@@ -155,20 +155,19 @@ fn apply_replacement(source: String, search: &str, operation: &Operation) -> Res
 
 /// Operation types that can be performed on matched text
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, PartialEq)]
-#[serde(tag = "type", content = "content")]
 pub enum Operation {
     /// Prepend content before the matched text
-    Prepend(String),
+    Prepend,
 
     /// Append content after the matched text
-    Append(String),
+    Append,
 
     /// Replace the matched text with new content
-    Replace(String),
+    Replace,
 
     /// Swap the matched text with another text (search for the second text and
     /// swap them)
-    Swap(String),
+    Swap,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -182,6 +181,10 @@ pub struct ApplyPatchJsonInput {
 
     /// The operation to perform on the matched text
     pub operation: Operation,
+
+    /// The content to use for the operation (replacement text, text to prepend/append,
+    /// or target text for swap operations)
+    pub content: String,
 }
 
 /// Performs a single text operation (prepend, append, replace, swap, delete) on
@@ -217,15 +220,16 @@ async fn process_file_modifications(
     path: &Path,
     search: &str,
     operation: &Operation,
+    content: &str,
 ) -> Result<String, Error> {
-    let content = fs::read_to_string(path).await?;
-    let content = apply_replacement(content, search, operation)?;
-    fs::write(path, &content).await?;
+    let file_content = fs::read_to_string(path).await?;
+    let file_content = apply_replacement(file_content, search, operation, content)?;
+    fs::write(path, &file_content).await?;
 
-    let warning = syn::validate(path, &content).map(|e| e.to_string());
+    let warning = syn::validate(path, &file_content).map(|e| e.to_string());
     Ok(format_output(
         path.to_string_lossy().as_ref(),
-        &content,
+        &file_content,
         warning.as_deref(),
     ))
 }
@@ -238,7 +242,7 @@ impl ExecutableTool for ApplyPatchJson {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        Ok(process_file_modifications(path, &input.search, &input.operation).await?)
+        Ok(process_file_modifications(path, &input.search, &input.operation, &input.content).await?)
     }
 }
 
@@ -248,34 +252,35 @@ mod test {
 
     use super::*;
 
-    // Test helpers
+    // Test helper
     #[derive(Debug)]
     struct PatchTest {
         initial: String,
         search: Option<String>,
         operation: Option<Operation>,
+        content: Option<String>,
         result: Option<String>,
     }
 
     impl fmt::Display for PatchTest {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let display = match (&self.search, &self.operation) {
-                (Some(search), Some(operation)) => match operation {
-                    Operation::Prepend(content) => format!(
+            let display = match (&self.search, &self.operation, &self.content) {
+                (Some(search), Some(operation), Some(content)) => match operation {
+                    Operation::Prepend => format!(
                         "\n<!-- SEARCH -->{}\n<!-- PREPEND -->{}",
                         search, content
                     ),
-                    Operation::Append(content) => format!(
+                    Operation::Append => format!(
                         "\n<!-- SEARCH -->{}\n<!-- APPEND -->{}",
                         search, content
                     ),
-                    Operation::Replace(content) => format!(
+                    Operation::Replace => format!(
                         "\n<!-- SEARCH -->{}\n<!-- REPLACE -->{}",
                         search, content
                     ),
-                    Operation::Swap(target) => format!(
+                    Operation::Swap => format!(
                         "\n<!-- SEARCH -->{}\n<!-- SWAP -->{}",
-                        search, target
+                        search, content
                     ),
                 },
                 _ => String::new(),
@@ -299,6 +304,7 @@ mod test {
                 initial: initial.to_string(),
                 search: None,
                 operation: None,
+                content: None,
                 result: Default::default(),
             }
         }
@@ -306,39 +312,44 @@ mod test {
         /// Replace matched text with new content
         fn replace(mut self, search: impl ToString, content: impl ToString) -> Self {
             self.search = Some(search.to_string());
-            self.operation = Some(Operation::Replace(content.to_string()));
+            self.operation = Some(Operation::Replace);
+            self.content = Some(content.to_string());
             self
         }
 
         /// Prepend content before matched text
         fn prepend(mut self, search: impl ToString, content: impl ToString) -> Self {
             self.search = Some(search.to_string());
-            self.operation = Some(Operation::Prepend(content.to_string()));
+            self.operation = Some(Operation::Prepend);
+            self.content = Some(content.to_string());
             self
         }
 
         /// Append content after matched text
         fn append(mut self, search: impl ToString, content: impl ToString) -> Self {
             self.search = Some(search.to_string());
-            self.operation = Some(Operation::Append(content.to_string()));
+            self.operation = Some(Operation::Append);
+            self.content = Some(content.to_string());
             self
         }
 
         /// Swap matched text with target text
         fn swap(mut self, search: impl ToString, target: impl ToString) -> Self {
             self.search = Some(search.to_string());
-            self.operation = Some(Operation::Swap(target.to_string()));
+            self.operation = Some(Operation::Swap);
+            self.content = Some(target.to_string());
             self
         }
 
         // TODO: tests don't need to write files to disk
         fn execute(mut self) -> Result<Self, Error> {
-            match (&self.search, &self.operation) {
-                (Some(search), Some(operation)) => {
+            match (&self.search, &self.operation, &self.content) {
+                (Some(search), Some(operation), Some(content)) => {
                     self.result = Some(apply_replacement(
                         self.initial.clone(),
                         search,
                         operation,
+                        content,
                     )?);
                     Ok(self)
                 }
