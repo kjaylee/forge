@@ -93,12 +93,13 @@ pub trait ConversationService: Send + Sync {
 pub trait TemplateService: Send + Sync {
     async fn render_system(
         &self,
+        agent: &Agent,
         prompt: &Template<SystemContext>,
-        walker_depth: usize,
     ) -> anyhow::Result<String>;
 
     async fn render_event(
         &self,
+        agent: &Agent,
         prompt: &Template<EventContext>,
         event: &Event,
     ) -> anyhow::Result<String>;

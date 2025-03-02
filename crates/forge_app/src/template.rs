@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_domain::{
-    Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
+    Agent, Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
 };
 use forge_walker::Walker;
 use handlebars::Handlebars;
@@ -37,10 +37,12 @@ impl<F, T> ForgeTemplateService<F, T> {
 impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService<F, T> {
     async fn render_system(
         &self,
+        agent: &Agent,
         prompt: &Template<SystemContext>,
-        walker_depth: usize,
     ) -> anyhow::Result<String> {
         let env = self.infra.environment_service().get_environment();
+
+        let walker_depth = agent.walker_depth;
 
         let mut files = Walker::max_all()
             .max_depth(walker_depth)
@@ -66,31 +68,35 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
     async fn render_event(
         &self,
+        agent: &Agent,
         prompt: &Template<EventContext>,
         event: &Event,
     ) -> anyhow::Result<String> {
         // Create an EventContext with the provided event
         let mut event_context = EventContext::new(event.clone());
 
-        // Query the vector index directly for suggestions
-        let query = &event.value;
-        let embeddings = self.infra.embedding_service().embed(query).await?;
-        let suggestions = self
-            .infra
-            .vector_index()
-            .search(Query::new(embeddings).limit(5u64))
-            .await?;
+        // Only add suggestions if the agent has suggestions enabled
+        if agent.suggestions {
+            // Query the vector index directly for suggestions
+            let query = &event.value;
+            let embeddings = self.infra.embedding_service().embed(query).await?;
+            let suggestions = self
+                .infra
+                .vector_index()
+                .search(Query::new(embeddings).limit(5u64))
+                .await?;
 
-        // Extract just the suggestion strings
-        let suggestion_strings = suggestions
-            .into_iter()
-            .map(|p| p.content.suggestion.clone())
-            .collect::<Vec<String>>();
+            // Extract just the suggestion strings
+            let suggestion_strings = suggestions
+                .into_iter()
+                .map(|p| p.content.suggestion.clone())
+                .collect::<Vec<String>>();
 
-        debug!(suggestions = ?suggestion_strings, "Found suggestions for template rendering");
+            debug!(suggestions = ?suggestion_strings, "Found suggestions for template rendering");
 
-        // Add suggestions to the event context
-        event_context = event_context.suggestions(suggestion_strings);
+            // Add suggestions to the event context
+            event_context = event_context.suggestions(suggestion_strings);
+        }
 
         // Render the template with the event context
         Ok(self

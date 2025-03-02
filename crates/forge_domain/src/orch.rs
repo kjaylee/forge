@@ -93,10 +93,7 @@ impl<A: App> Orchestrator<A> {
             let system_message = self
                 .app
                 .template_service()
-                .render_system(
-                    system_prompt,
-                    5, // Default walker depth
-                )
+                .render_system(agent, system_prompt)
                 .await?;
 
             context = context.set_first_system_message(system_message);
@@ -316,7 +313,7 @@ impl<A: App> Orchestrator<A> {
             // Use the consolidated render_event method which handles suggestions internally
             self.app
                 .template_service()
-                .render_event(user_prompt, event)
+                .render_event(agent, user_prompt, event)
                 .await?
         } else {
             // Use the raw event value as content if no user_prompt is provided
