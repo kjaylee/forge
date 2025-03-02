@@ -63,12 +63,10 @@ enum Error {
     NoSwapTarget(String),
 }
 
-fn apply_replacement(source: String, replacement: &Replacement) -> Result<String, Error> {
-    let search = replacement.search.as_str();
-
+fn apply_replacement(source: String, search: &str, operation: &Operation) -> Result<String, Error> {
     // Handle empty search string - only certain operations make sense here
-    if replacement.search.is_empty() {
-        return match &replacement.operation {
+    if search.is_empty() {
+        return match operation {
             // Append to the end of the file
             Operation::Append(content) => Ok(format!("{}{}", source, content)),
             // Prepend to the beginning of the file
@@ -82,10 +80,10 @@ fn apply_replacement(source: String, replacement: &Replacement) -> Result<String
 
     // Find the exact match to operate on
     let patch = Range::find_exact(&source, search)
-        .ok_or_else(|| Error::NoMatch(replacement.search.clone()))?;
+        .ok_or_else(|| Error::NoMatch(search.to_string()))?;
 
     // Apply the operation based on its type
-    match &replacement.operation {
+    match operation {
         // Prepend content before the matched text
         Operation::Prepend(content) => Ok(format!(
             "{}{}{}",
@@ -173,21 +171,17 @@ pub enum Operation {
     Swap(String),
 }
 
-/// A single search and operation pair
-#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone)]
-pub struct Replacement {
+#[derive(Deserialize, JsonSchema)]
+pub struct ApplyPatchJsonInput {
+    /// The path to the file to modify
+    pub path: String,
+    
     /// The text to search for in the source. If empty, operation applies to the
     /// end of the file.
     pub search: String,
 
     /// The operation to perform on the matched text
     pub operation: Operation,
-}
-
-#[derive(Deserialize, JsonSchema)]
-pub struct ApplyPatchJsonInput {
-    pub path: String,
-    pub replacement: Replacement,
 }
 
 /// Performs a single text operation (prepend, append, replace, swap, delete) on
@@ -198,7 +192,7 @@ pub struct ApplyPatchJson;
 
 impl NamedTool for ApplyPatchJson {
     fn tool_name() -> ToolName {
-        ToolName::new("tool_forge_patch_v2")
+        ToolName::new("tool_forge_fs_patch")
     }
 }
 
@@ -221,10 +215,11 @@ fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
 /// Process the file modification and return the formatted output
 async fn process_file_modifications(
     path: &Path,
-    replacement: &Replacement,
+    search: &str,
+    operation: &Operation,
 ) -> Result<String, Error> {
     let content = fs::read_to_string(path).await?;
-    let content = apply_replacement(content, replacement)?;
+    let content = apply_replacement(content, search, operation)?;
     fs::write(path, &content).await?;
 
     let warning = syn::validate(path, &content).map(|e| e.to_string());
@@ -243,7 +238,7 @@ impl ExecutableTool for ApplyPatchJson {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        Ok(process_file_modifications(path, &input.replacement).await?)
+        Ok(process_file_modifications(path, &input.search, &input.operation).await?)
     }
 }
 
@@ -257,22 +252,40 @@ mod test {
     #[derive(Debug)]
     struct PatchTest {
         initial: String,
-        replacement: Option<Replacement>,
+        search: Option<String>,
+        operation: Option<Operation>,
         result: Option<String>,
     }
 
     impl fmt::Display for PatchTest {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let replacement = match &self.replacement {
-                Some(r) => r.to_string(),
-                None => String::new(),
+            let display = match (&self.search, &self.operation) {
+                (Some(search), Some(operation)) => match operation {
+                    Operation::Prepend(content) => format!(
+                        "\n<!-- SEARCH -->{}\n<!-- PREPEND -->{}",
+                        search, content
+                    ),
+                    Operation::Append(content) => format!(
+                        "\n<!-- SEARCH -->{}\n<!-- APPEND -->{}",
+                        search, content
+                    ),
+                    Operation::Replace(content) => format!(
+                        "\n<!-- SEARCH -->{}\n<!-- REPLACE -->{}",
+                        search, content
+                    ),
+                    Operation::Swap(target) => format!(
+                        "\n<!-- SEARCH -->{}\n<!-- SWAP -->{}",
+                        search, target
+                    ),
+                },
+                _ => String::new(),
             };
-            // Use the original tag "REPLACEMENTS" for backward compatibility
+
             write!(
                 f,
                 "\n<!-- INITIAL -->{}\n<!-- REPLACEMENTS -->{}\n<!-- FINAL -->{}",
                 self.initial,
-                replacement,
+                display,
                 self.result
                     .as_ref()
                     .expect("Test must be executed before display")
@@ -284,87 +297,56 @@ mod test {
         fn new(initial: impl ToString) -> Self {
             PatchTest {
                 initial: initial.to_string(),
-                replacement: None,
+                search: None,
+                operation: None,
                 result: Default::default(),
             }
         }
 
         /// Replace matched text with new content
         fn replace(mut self, search: impl ToString, content: impl ToString) -> Self {
-            self.replacement = Some(Replacement {
-                search: search.to_string(),
-                operation: Operation::Replace(content.to_string()),
-            });
+            self.search = Some(search.to_string());
+            self.operation = Some(Operation::Replace(content.to_string()));
             self
         }
 
         /// Prepend content before matched text
         fn prepend(mut self, search: impl ToString, content: impl ToString) -> Self {
-            self.replacement = Some(Replacement {
-                search: search.to_string(),
-                operation: Operation::Prepend(content.to_string()),
-            });
+            self.search = Some(search.to_string());
+            self.operation = Some(Operation::Prepend(content.to_string()));
             self
         }
 
         /// Append content after matched text
         fn append(mut self, search: impl ToString, content: impl ToString) -> Self {
-            self.replacement = Some(Replacement {
-                search: search.to_string(),
-                operation: Operation::Append(content.to_string()),
-            });
+            self.search = Some(search.to_string());
+            self.operation = Some(Operation::Append(content.to_string()));
             self
         }
 
         /// Swap matched text with target text
         fn swap(mut self, search: impl ToString, target: impl ToString) -> Self {
-            self.replacement = Some(Replacement {
-                search: search.to_string(),
-                operation: Operation::Swap(target.to_string()),
-            });
+            self.search = Some(search.to_string());
+            self.operation = Some(Operation::Swap(target.to_string()));
             self
         }
 
         // TODO: tests don't need to write files to disk
         fn execute(mut self) -> Result<Self, Error> {
-            if let Some(replacement) = &self.replacement {
-                self.result = Some(apply_replacement(self.initial.clone(), replacement)?);
-                Ok(self)
-            } else {
-                // No replacement specified - return original content
-                self.result = Some(self.initial.clone());
-                Ok(self)
-            }
-        }
-    }
-
-    // For backward compatibility with existing snapshots, format all operations
-    // using the original SEARCH/REPLACE format where possible
-    impl Display for Replacement {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match &self.operation {
-                // For backward compatibility with tests, use REPLACE instead of specialized tags
-                Operation::Prepend(content) => write!(
-                    f,
-                    "\n<!-- SEARCH -->{}\n<!-- PREPEND -->{}",
-                    self.search, content
-                ),
-                Operation::Append(content) => write!(
-                    f,
-                    "\n<!-- SEARCH -->{}\n<!-- APPEND -->{}",
-                    self.search, content
-                ),
-                Operation::Replace(content) => write!(
-                    f,
-                    "\n<!-- SEARCH -->{}\n<!-- REPLACE -->{}",
-                    self.search, content
-                ),
-                // For new operations that don't have existing snapshots, use new tags
-                Operation::Swap(target) => write!(
-                    f,
-                    "\n<!-- SEARCH -->{}\n<!-- SWAP -->{}",
-                    self.search, target
-                ),
+            match (&self.search, &self.operation) {
+                (Some(search), Some(operation)) => {
+                    self.result = Some(apply_replacement(
+                        self.initial.clone(),
+                        search,
+                        operation,
+                    )?);
+                    Ok(self)
+                }
+                _ => {
+                    // No operation specified - return original content
+                    self.result = Some(self.initial.clone());
+                    Ok(self)
+                }
             }
         }
     }
