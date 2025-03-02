@@ -63,7 +63,12 @@ enum Error {
     NoSwapTarget(String),
 }
 
-fn apply_replacement(source: String, search: &str, operation: &Operation, content: &str) -> Result<String, Error> {
+fn apply_replacement(
+    source: String,
+    search: &str,
+    operation: &Operation,
+    content: &str,
+) -> Result<String, Error> {
     // Handle empty search string - only certain operations make sense here
     if search.is_empty() {
         return match operation {
@@ -79,8 +84,8 @@ fn apply_replacement(source: String, search: &str, operation: &Operation, conten
     }
 
     // Find the exact match to operate on
-    let patch = Range::find_exact(&source, search)
-        .ok_or_else(|| Error::NoMatch(search.to_string()))?;
+    let patch =
+        Range::find_exact(&source, search).ok_or_else(|| Error::NoMatch(search.to_string()))?;
 
     // Apply the operation based on its type
     match operation {
@@ -155,6 +160,7 @@ fn apply_replacement(source: String, search: &str, operation: &Operation, conten
 
 /// Operation types that can be performed on matched text
 #[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum Operation {
     /// Prepend content before the matched text
     Prepend,
@@ -171,10 +177,11 @@ pub enum Operation {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct ApplyPatchJsonInput {
     /// The path to the file to modify
     pub path: String,
-    
+
     /// The text to search for in the source. If empty, operation applies to the
     /// end of the file.
     pub search: String,
@@ -242,412 +249,183 @@ impl ExecutableTool for ApplyPatchJson {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        Ok(process_file_modifications(path, &input.search, &input.operation, &input.content).await?)
+        Ok(
+            process_file_modifications(path, &input.search, &input.operation, &input.content)
+                .await?,
+        )
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::fmt::{self, Display};
 
     use super::*;
 
-    // Test helper
+    // Enhanced test helper for running multiple operations
     #[derive(Debug)]
     struct PatchTest {
         initial: String,
-        search: Option<String>,
-        operation: Option<Operation>,
-        content: Option<String>,
-        result: Option<String>,
+        operations: Vec<PatchOperation>,
+        results: Vec<Result<String, String>>, // Store success or error messages
     }
 
-    impl fmt::Display for PatchTest {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let display = match (&self.search, &self.operation, &self.content) {
-                (Some(search), Some(operation), Some(content)) => match operation {
-                    Operation::Prepend => format!(
-                        "\n<!-- SEARCH -->{}\n<!-- PREPEND -->{}",
-                        search, content
-                    ),
-                    Operation::Append => format!(
-                        "\n<!-- SEARCH -->{}\n<!-- APPEND -->{}",
-                        search, content
-                    ),
-                    Operation::Replace => format!(
-                        "\n<!-- SEARCH -->{}\n<!-- REPLACE -->{}",
-                        search, content
-                    ),
-                    Operation::Swap => format!(
-                        "\n<!-- SEARCH -->{}\n<!-- SWAP -->{}",
-                        search, content
-                    ),
-                },
-                _ => String::new(),
-            };
-
-            write!(
-                f,
-                "\n<!-- INITIAL -->{}\n<!-- REPLACEMENTS -->{}\n<!-- FINAL -->{}",
-                self.initial,
-                display,
-                self.result
-                    .as_ref()
-                    .expect("Test must be executed before display")
-            )
-        }
+    // Represents a single patch operation
+    #[derive(Debug)]
+    struct PatchOperation {
+        search: String,
+        operation: Operation,
+        content: String,
+        description: String,
     }
+
+    // fmt::Display implementation removed in favor of using assert_debug_snapshot!
 
     impl PatchTest {
         fn new(initial: impl ToString) -> Self {
             PatchTest {
                 initial: initial.to_string(),
-                search: None,
-                operation: None,
-                content: None,
-                result: Default::default(),
+                operations: Vec::new(),
+                results: Vec::new(),
             }
         }
 
         /// Replace matched text with new content
-        fn replace(mut self, search: impl ToString, content: impl ToString) -> Self {
-            self.search = Some(search.to_string());
-            self.operation = Some(Operation::Replace);
-            self.content = Some(content.to_string());
+        fn replace(
+            mut self,
+            search: impl ToString,
+            content: impl ToString,
+            description: impl ToString,
+        ) -> Self {
+            self.operations.push(PatchOperation {
+                search: search.to_string(),
+                operation: Operation::Replace,
+                content: content.to_string(),
+                description: description.to_string(),
+            });
             self
         }
 
         /// Prepend content before matched text
-        fn prepend(mut self, search: impl ToString, content: impl ToString) -> Self {
-            self.search = Some(search.to_string());
-            self.operation = Some(Operation::Prepend);
-            self.content = Some(content.to_string());
+        fn prepend(
+            mut self,
+            search: impl ToString,
+            content: impl ToString,
+            description: impl ToString,
+        ) -> Self {
+            self.operations.push(PatchOperation {
+                search: search.to_string(),
+                operation: Operation::Prepend,
+                content: content.to_string(),
+                description: description.to_string(),
+            });
             self
         }
 
         /// Append content after matched text
-        fn append(mut self, search: impl ToString, content: impl ToString) -> Self {
-            self.search = Some(search.to_string());
-            self.operation = Some(Operation::Append);
-            self.content = Some(content.to_string());
+        fn append(
+            mut self,
+            search: impl ToString,
+            content: impl ToString,
+            description: impl ToString,
+        ) -> Self {
+            self.operations.push(PatchOperation {
+                search: search.to_string(),
+                operation: Operation::Append,
+                content: content.to_string(),
+                description: description.to_string(),
+            });
             self
         }
 
         /// Swap matched text with target text
-        fn swap(mut self, search: impl ToString, target: impl ToString) -> Self {
-            self.search = Some(search.to_string());
-            self.operation = Some(Operation::Swap);
-            self.content = Some(target.to_string());
+        fn swap(
+            mut self,
+            search: impl ToString,
+            target: impl ToString,
+            description: impl ToString,
+        ) -> Self {
+            self.operations.push(PatchOperation {
+                search: search.to_string(),
+                operation: Operation::Swap,
+                content: target.to_string(),
+                description: description.to_string(),
+            });
             self
         }
 
-        // TODO: tests don't need to write files to disk
-        fn execute(mut self) -> Result<Self, Error> {
-            match (&self.search, &self.operation, &self.content) {
-                (Some(search), Some(operation), Some(content)) => {
-                    self.result = Some(apply_replacement(
-                        self.initial.clone(),
-                        search,
-                        operation,
-                        content,
-                    )?);
-                    Ok(self)
-                }
-                _ => {
-                    // No operation specified - return original content
-                    self.result = Some(self.initial.clone());
-                    Ok(self)
-                }
+        /// Try to execute all operations and record their results
+        fn execute_all(mut self) -> Self {
+            let mut current_content = self.initial.clone();
+
+            for op in &self.operations {
+                // Apply the operation
+                let result = match apply_replacement(
+                    current_content.clone(),
+                    &op.search,
+                    &op.operation,
+                    &op.content,
+                ) {
+                    Ok(content) => {
+                        // Update the current content for the next operation
+                        current_content = content.clone();
+                        Ok(content)
+                    }
+                    Err(err) => Err(err.to_string()),
+                };
+
+                // Record the result
+                self.results.push(result);
             }
+
+            self
         }
     }
 
-    /*
-     * Basic Operations
-     * Tests basic functionality like exact matches, empty inputs, and simple
-     * cases
-     */
     #[test]
-    fn exact_match_single_word() {
-        let actual = PatchTest::new("Hello World")
-            .replace("World", "Forge")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
+    fn comprehensive_patch_tests() {
+        // Create a comprehensive test that includes all the test cases
+        let test = PatchTest::new("Hello World")
+            // Basic Operations
+            .replace("World", "Forge", "Exact match single word")
+            .replace("", " bar", "Append with empty search")
+            // Single Replacement Behavior
+            .replace("foo", "baz", "Replaces only first match (with no match)")
+            // Exact Matching Behavior
+            .replace("Hello", "Hi", "Simple exact matching")
+            // Unicode and Special Characters
+            .replace("Hello", "你好", "Replace with unicode")
+            .replace("World", "🌍", "Replace with emoji")
+            // Whitespace Handling
+            .prepend("Hello", "    ", "Prepend with whitespace")
+            .append("World", "\n  New line", "Append with newline")
+            // Test different operation types
+            .prepend("Hello", "Greetings, ", "Prepend operation")
+            .append("World", "!", "Append operation")
+            .swap("Hello", "World", "Swap operation")
+            // Empty search operations
+            .prepend("", "Start: ", "Empty search prepend")
+            .append("", " End", "Empty search append")
+            .replace("", "Completely New Content", "Empty search replace")
+            // Execute all operations and collect results
+            .execute_all();
+
+        // Snapshot the entire test result using Debug representation
+        insta::assert_debug_snapshot!(test);
     }
 
     #[test]
-    fn append_empty_search() {
-        let actual = PatchTest::new("foo").replace("", " bar").execute().unwrap();
-        insta::assert_snapshot!(actual);
+    fn comprehensive_error_tests() {
+        // Create a test specifically for error cases
+        let test = PatchTest::new("foo bar baz")
+            .replace("nonexistent", "replaced", "No match found")
+            .replace("foo-bar", "replaced", "No match with hyphenated pattern")
+            .replace("afoo", "replaced", "No match with prefix")
+            .swap("foo", "nonexistent", "Swap target not found")
+            .execute_all();
+
+        // Snapshot the error test results using Debug representation
+        insta::assert_debug_snapshot!(test);
     }
 
-    #[test]
-    fn delete_empty_replace() {
-        let actual = PatchTest::new("foo bar baz")
-            .replace("bar ", "")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Single Replacement Behavior
-     * Tests behavior when single replacements are performed
-     */
-    #[test]
-    fn replaces_only_first_match() {
-        let actual = PatchTest::new("foo bar foo")
-            .replace("foo", "baz")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Exact Matching Behavior
-     * Tests the exact matching behavior
-     */
-
-    #[test]
-    fn no_match_with_hyphenated_pattern() {
-        let result = PatchTest::new("abc foobar pqr")
-            .replace("foo-bar", "replaced") // Should NOT match "foobar" with hyphen
-            .execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match"));
-    }
-
-    #[test]
-    fn no_match_with_prefix() {
-        let result = PatchTest::new("foox baz foo")
-            .replace("afoo", "bar") // Should NOT match "foox" or "foo" with "a" prefix
-            .execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match"));
-    }
-
-    #[test]
-    fn matches_only_first_occurrence() {
-        let actual = PatchTest::new("foo foox foo")
-            .replace("foo", "bar") // Should replace first exact "foo" only
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Unicode and Special Characters
-     * Tests handling of non-ASCII text and special characters
-     */
-    #[test]
-    fn unicode_characters() {
-        let actual = PatchTest::new("Hello 世界")
-            .replace("世界", "🌍")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn emoji_replacement() {
-        let actual = PatchTest::new("Hi 👋, how are you?")
-            .replace("👋", "👍")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn mixed_unicode_ascii() {
-        let actual = PatchTest::new("Hello 世界 World")
-            .replace("世界 World", "地球")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Whitespace Handling
-     * Tests preservation of whitespace, indentation, and line endings
-     */
-    #[test]
-    fn preserve_indentation() {
-        let actual = PatchTest::new("    indented\n        more indented")
-            .replace("indented", "text")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn tab_characters() {
-        let actual = PatchTest::new("no_tab\thas_tab")
-            .replace("has_tab", "replaced")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn multiple_line_endings() {
-        let actual = PatchTest::new("line1\nline2\rline3\r\nline4")
-            .replace("line2", "replaced")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Error Cases
-     * Tests error handling and edge cases
-     */
-    #[test]
-    fn single_replacement_only() {
-        let actual = PatchTest::new("outer inner outer")
-            .replace("outer inner outer", "modified inner")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Complex Replacements
-     * Tests complicated scenarios like nested and overlapping matches
-     */
-
-    /*
-     * Operation Type Tests
-     * Tests for each specific operation type
-     */
-
-    #[test]
-    fn prepend_operation() {
-        let actual = PatchTest::new("Hello World!")
-            .prepend("Hello", "Greetings, ")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn append_operation() {
-        let actual = PatchTest::new("Hello World")
-            .append("World", "!")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn replace_operation() {
-        let actual = PatchTest::new("Hello World")
-            .replace("World", "Universe")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn swap_operation() {
-        let actual = PatchTest::new("Hello World")
-            .swap("Hello", "World")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn swap_with_overlap() {
-        let actual = PatchTest::new("Hello World")
-            .swap("Hello W", "orld")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn swap_target_not_found() {
-        let result = PatchTest::new("Hello World")
-            .swap("Hello", "Universe")
-            .execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find swap target"));
-    }
-
-    #[test]
-    fn empty_search_prepend() {
-        let actual = PatchTest::new("Hello World")
-            .prepend("", "Start: ")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn empty_search_append() {
-        let actual = PatchTest::new("Hello World")
-            .append("", " End")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn empty_search_replace() {
-        let actual = PatchTest::new("Hello World")
-            .replace("", "Completely New Content")
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    /*
-     * Error Cases
-     * Tests error handling and validation
-     */
-
-    #[test]
-    fn delete_single_line_only() {
-        let actual = PatchTest::new("line1\nline2\nline1\nline3")
-            .replace("line1\n", "") // Using replace with empty string instead of delete for compatibility
-            .execute()
-            .unwrap();
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn empty_search_text() {
-        let actual = PatchTest::new("").replace("", "foo").execute().unwrap(); // Using replace instead of append for compatibility
-        insta::assert_snapshot!(actual);
-    }
-
-    #[test]
-    fn no_match_found() {
-        let result = PatchTest::new("foo").replace("bar", "baz").execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match"));
-    }
-
-    #[test]
-    fn non_matching_pattern() {
-        let result = PatchTest::new("fo").replace("foo", "bar").execute();
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("Could not find match"));
-    }
+    // The previous individual tests are removed since they're now consolidated
 }

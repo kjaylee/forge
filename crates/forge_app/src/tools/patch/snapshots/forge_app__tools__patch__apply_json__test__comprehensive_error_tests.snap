@@ -1,0 +1,48 @@
+---
+source: crates/forge_app/src/tools/patch/apply_json.rs
+expression: test
+snapshot_kind: text
+---
+PatchTest {
+    initial: "foo bar baz",
+    operations: [
+        PatchOperation {
+            search: "nonexistent",
+            operation: Replace,
+            content: "replaced",
+            description: "No match found",
+        },
+        PatchOperation {
+            search: "foo-bar",
+            operation: Replace,
+            content: "replaced",
+            description: "No match with hyphenated pattern",
+        },
+        PatchOperation {
+            search: "afoo",
+            operation: Replace,
+            content: "replaced",
+            description: "No match with prefix",
+        },
+        PatchOperation {
+            search: "foo",
+            operation: Swap,
+            content: "nonexistent",
+            description: "Swap target not found",
+        },
+    ],
+    results: [
+        Err(
+            "Could not find match for search text: nonexistent",
+        ),
+        Err(
+            "Could not find match for search text: foo-bar",
+        ),
+        Err(
+            "Could not find match for search text: afoo",
+        ),
+        Err(
+            "Could not find swap target text: nonexistent",
+        ),
+    ],
+}
