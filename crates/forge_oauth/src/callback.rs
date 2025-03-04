@@ -22,7 +22,8 @@ pub struct CallbackResult {
     pub code: String,
 }
 
-/// A server handle structure that allows us to explicitly shut down the server from outside
+/// A server handle structure that allows us to explicitly shut down the server
+/// from outside
 pub struct ServerHandle {
     server_task: tokio::task::JoinHandle<()>,
     shutdown_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -32,11 +33,12 @@ impl ServerHandle {
     /// Explicitly shut down the server
     pub async fn shutdown(&self) {
         // Signal the server to shut down
-        self.shutdown_flag.store(true, std::sync::atomic::Ordering::Relaxed);
-        
+        self.shutdown_flag
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
         // Give it a short time to exit cleanly
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         // If it's still running, abort it
         self.server_task.abort();
     }
@@ -330,82 +332,91 @@ fn not_found_html() -> String {
 }
 
 impl CallbackServer {
-    /// Create a new callback server
-    pub fn new(port: u16) -> Self {
-        Self { port }
-    }
-
     /// Start the callback server and return a handle to it
-    pub async fn start_server(&self) -> Result<(ServerHandle, tokio::sync::oneshot::Receiver<CallbackResult>), CallbackError> {
+    pub async fn start_server(
+        &self,
+    ) -> Result<(ServerHandle, tokio::sync::oneshot::Receiver<CallbackResult>), CallbackError> {
         // Create a channel to send the callback result
         let (tx, rx) = tokio::sync::oneshot::channel();
-        
+
         // Create a tiny_http server with retries for port binding
         let server_result = Server::http(format!("127.0.0.1:{}", self.port));
-        
-        // If we couldn't bind to the port, it might be because a previous server is still shutting down
+
+        // If we couldn't bind to the port, it might be because a previous server is
+        // still shutting down
         let server = match server_result {
             Ok(server) => server,
             Err(e) => {
-                // Wait a short time and try again - this helps in the login-logout-login scenario
-                eprintln!("Failed to start server: {}. Retrying after a short delay...", e);
+                // Wait a short time and try again - this helps in the login-logout-login
+                // scenario
+                eprintln!(
+                    "Failed to start server: {}. Retrying after a short delay...",
+                    e
+                );
                 tokio::time::sleep(Duration::from_millis(500)).await;
-                
+
                 // Try again
-                Server::http(format!("127.0.0.1:{}", self.port))
-                    .map_err(|e| CallbackError::ServerError(format!("Failed to start server after retry: {}", e)))?
+                Server::http(format!("127.0.0.1:{}", self.port)).map_err(|e| {
+                    CallbackError::ServerError(format!("Failed to start server after retry: {}", e))
+                })?
             }
         };
-            
+
         // Clone the sender to move into the closure
         let tx = std::sync::Arc::new(std::sync::Mutex::new(Some(tx)));
-        
+
         // Create a flag to signal server shutdown
         let shutdown_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let shutdown_flag_clone = shutdown_flag.clone();
-        
+
         // Spawn a task to handle incoming requests
         let server_task = tokio::task::spawn_blocking(move || {
             // Process requests with a timeout to make it effectively non-blocking
             let timeout = Duration::from_millis(100);
-            
+
             loop {
                 // Check if we should shut down
                 if shutdown_flag.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
-                
+
                 // Try to receive a request with a timeout
                 match server.recv_timeout(timeout) {
                     Ok(Some(request)) => {
                         // Only handle GET requests to /callback
-                        if request.method() == &Method::Get && request.url().starts_with("/callback") {
+                        if request.method() == &Method::Get
+                            && request.url().starts_with("/callback")
+                        {
                             // Parse the query parameters
                             let query = request.url().split('?').nth(1).unwrap_or("");
-                            let params: HashMap<String, String> = form_urlencoded::parse(query.as_bytes())
-                                .into_owned()
-                                .collect();
+                            let params: HashMap<String, String> =
+                                form_urlencoded::parse(query.as_bytes())
+                                    .into_owned()
+                                    .collect();
 
-                            let content_type = Header::from_bytes("Content-Type", "text/html; charset=utf-8")
-                                .expect("Valid header");
+                            let content_type =
+                                Header::from_bytes("Content-Type", "text/html; charset=utf-8")
+                                    .expect("Valid header");
 
                             let response = if let Some(err) = params.get("error") {
                                 // Handle error case
                                 Response::from_string(error_html(err))
                                     .with_header(content_type)
                                     .with_status_code(StatusCode(400))
-                            } else if let (Some(state), Some(code)) = (params.get("state"), params.get("code")) {
+                            } else if let (Some(state), Some(code)) =
+                                (params.get("state"), params.get("code"))
+                            {
                                 // Handle successful case
                                 let result = CallbackResult {
                                     state: state.to_string(),
                                     code: code.to_string(),
                                 };
-                                
+
                                 // Send the result through the channel
                                 if let Some(tx) = tx.lock().unwrap().take() {
                                     let _ = tx.send(result);
                                 }
-                                
+
                                 Response::from_string(success_html())
                                     .with_header(content_type)
                                     .with_status_code(StatusCode(200))
@@ -415,28 +426,29 @@ impl CallbackServer {
                                     .with_header(content_type)
                                     .with_status_code(StatusCode(400))
                             };
-                            
+
                             // Send the response
                             if let Err(e) = request.respond(response) {
                                 eprintln!("Failed to send response: {}", e);
                             }
                         } else {
                             // For any other request, return a not found response
-                            let content_type = Header::from_bytes("Content-Type", "text/html; charset=utf-8")
-                                .expect("Valid header");
-                                
+                            let content_type =
+                                Header::from_bytes("Content-Type", "text/html; charset=utf-8")
+                                    .expect("Valid header");
+
                             let response = Response::from_string(not_found_html())
                                 .with_header(content_type)
                                 .with_status_code(StatusCode(404));
-                            
+
                             if let Err(e) = request.respond(response) {
                                 eprintln!("Failed to send response: {}", e);
                             }
                         }
-                    },
+                    }
                     Ok(None) => {
                         // No request received, continue waiting
-                    },
+                    }
                     Err(e) => {
                         eprintln!("Error receiving request: {}", e);
                     }
@@ -445,12 +457,9 @@ impl CallbackServer {
             // Explicitly drop the server to close the socket
             drop(server);
         });
-        
-        let server_handle = ServerHandle {
-            server_task,
-            shutdown_flag: shutdown_flag_clone,
-        };
-        
+
+        let server_handle = ServerHandle { server_task, shutdown_flag: shutdown_flag_clone };
+
         Ok((server_handle, rx))
     }
 
@@ -461,16 +470,16 @@ impl CallbackServer {
     ) -> Result<(CallbackResult, ServerHandle), CallbackError> {
         // Start the server
         let (server_handle, rx) = self.start_server().await?;
-        
+
         // Wait for the callback with timeout
         match tokio::time::timeout(Duration::from_secs(timeout_secs), rx).await {
-            Ok(Ok(result)) => {
-                Ok((result, server_handle))
-            }
+            Ok(Ok(result)) => Ok((result, server_handle)),
             Ok(Err(_)) => {
                 // Channel error (shouldn't happen)
                 server_handle.shutdown().await;
-                Err(CallbackError::ServerError("Failed to receive callback".to_string()))
+                Err(CallbackError::ServerError(
+                    "Failed to receive callback".to_string(),
+                ))
             }
             Err(_) => {
                 // Timeout
@@ -478,18 +487,5 @@ impl CallbackServer {
                 Err(CallbackError::Timeout(timeout_secs))
             }
         }
-    }
-
-    /// Start the server and wait for a callback - keeps backward compatibility
-    pub async fn wait_for_callback(
-        &self,
-        timeout_secs: u64,
-    ) -> Result<CallbackResult, CallbackError> {
-        let (result, server_handle) = self.wait_for_callback_with_handle(timeout_secs).await?;
-        
-        // Immediately shutdown the server
-        server_handle.shutdown().await;
-        
-        Ok(result)
     }
 }

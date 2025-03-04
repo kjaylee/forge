@@ -32,7 +32,7 @@ pub enum AuthError {
     #[error("Timeout")]
     Timeout,
     #[error("Invalid ID token")]
-    InvalidIDToken
+    InvalidIDToken,
 }
 
 impl From<CallbackError> for AuthError {

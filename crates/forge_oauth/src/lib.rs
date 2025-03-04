@@ -20,7 +20,7 @@ mod tests {
 
         // Start OAuth flow - this will open your browser
         let result = client.complete_auth_flow().await;
-        
+
         if let Err(e) = result {
             println!("Error during authentication: {}", e);
             panic!("Authentication failed");

@@ -8,7 +8,8 @@
 use anyhow::{Context as _, Result};
 use openidconnect::core::{CoreClient, CoreResponseType};
 use openidconnect::{
-    AuthUrl, AuthenticationFlow, ClientId, CsrfToken, IssuerUrl, Nonce, OAuth2TokenResponse, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl
+    AuthUrl, AuthenticationFlow, ClientId, CsrfToken, IssuerUrl, Nonce, OAuth2TokenResponse,
+    PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use serde_json::json;
 
@@ -31,7 +32,7 @@ pub struct ClerkConfig {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Key {
-    key: String
+    key: String,
 }
 
 impl Default for ClerkConfig {
@@ -120,11 +121,9 @@ impl ClerkAuthClient {
     }
 
     /// Complete the OAuth2 flow and return the token and user info
-    pub async fn complete_auth_flow(
-        &self,
-    ) -> Result<()> {
+    pub async fn complete_auth_flow(&self) -> Result<()> {
         // Check if token already exists in keychain
-        if let Some(_) = self.get_key_from_keychain() {
+        if self.get_key_from_keychain().is_some() {
             return Ok(());
         }
 
@@ -172,7 +171,10 @@ impl ClerkAuthClient {
             .get_user_info(token_response.access_token())
             .await?;
 
-        let token = token_response.id_token().ok_or_else(|| AuthError::InvalidIDToken)?.to_string();
+        let token = token_response
+            .id_token()
+            .ok_or(AuthError::InvalidIDToken)?
+            .to_string();
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             reqwest::header::AUTHORIZATION,
@@ -187,14 +189,17 @@ impl ClerkAuthClient {
         });
         // 7. create a new key
         let client = reqwest::Client::new();
-        let key: Key = client.put("https://antinomy.ai/api/v1/key")
+        let key: Key = client
+            .put("https://antinomy.ai/api/v1/key")
             .headers(headers)
             .json(&body)
             .send()
             .await
             .context("Failed to send request to antinomy")?
-            .error_for_status()?.json()
-            .await.context("Failed to parse antinomy response")?;
+            .error_for_status()?
+            .json()
+            .await
+            .context("Failed to parse antinomy response")?;
 
         // 8. save the key to the keychain
         self.save_key_to_keychain(&key.key)?;
@@ -223,19 +228,19 @@ impl ClerkAuthClient {
         })
         .await?
     }
-    
+
     fn save_key_to_keychain(&self, key: &str) -> anyhow::Result<()> {
         // Create a keyring entry for the forge API token
         let keyring = keyring::Entry::new("code-forge", "forge_user")?;
-        
+
         // Set the password (API token)
-        keyring.set_password(key)
+        keyring
+            .set_password(key)
             .map_err(|e| anyhow::anyhow!("Failed to store token in secure storage: {}", e))?;
-    
+
         Ok(())
     }
-    
-    
+
     /// Get the key from secure storage if it exists
     pub fn get_key_from_keychain(&self) -> Option<String> {
         // Create a keyring entry for the forge API token
@@ -243,24 +248,22 @@ impl ClerkAuthClient {
             Ok(keyring) => keyring,
             Err(_) => return None,
         };
-        
+
         // Try to get the password (API token)
-        match keyring.get_password() {
-            Ok(password) => Some(password),
-            Err(_) => None,
-        }
+        keyring.get_password().ok()
     }
-    
+
     /// Delete the key from secure storage if it exists
     pub fn delete_key_from_keychain(&self) -> anyhow::Result<bool> {
         // Create a keyring entry for the forge API token
         let keyring = keyring::Entry::new("code-forge", "forge_user")?;
-        
+
         // Check if we have a token first
         if keyring.get_password().is_ok() {
             // Try to delete the password (API token)
-            keyring.delete_password()
-                .map_err(|e| anyhow::anyhow!("Failed to delete token from secure storage: {}", e))?;
+            keyring.delete_password().map_err(|e| {
+                anyhow::anyhow!("Failed to delete token from secure storage: {}", e)
+            })?;
             Ok(true)
         } else {
             // No token found, nothing to delete
@@ -272,24 +275,29 @@ impl ClerkAuthClient {
 #[cfg(test)]
 mod tests {
     use keyring::Entry;
-    
+
     #[test]
     fn test_keyring_basic_functionality() {
         // Create a test entry - using a unique name to avoid conflicts
-        let test_entry = Entry::new("code-forge-test", "test-user").expect("Failed to create keyring entry");
-        
+        let test_entry =
+            Entry::new("code-forge-test", "test-user").expect("Failed to create keyring entry");
+
         // Set a test password
-        test_entry.set_password("test-token-123").expect("Failed to set password");
-        
+        test_entry
+            .set_password("test-token-123")
+            .expect("Failed to set password");
+
         // Retrieve the password
         let retrieved = test_entry.get_password().expect("Failed to get password");
-        
+
         // Verify it matches what we stored
         assert_eq!(retrieved, "test-token-123");
-        
+
         // Clean up
-        test_entry.delete_password().expect("Failed to delete test password");
-        
+        test_entry
+            .delete_password()
+            .expect("Failed to delete test password");
+
         // Verify deletion
         let result = test_entry.get_password();
         assert!(result.is_err(), "Password should have been deleted");
