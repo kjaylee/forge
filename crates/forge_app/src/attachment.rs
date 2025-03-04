@@ -180,6 +180,7 @@ mod tests {
         file_service: MockFileReadService,
         vector_index: MockVectorIndex,
         embedding_service: MockEmbeddingService,
+        auth_service: MockAuthService,
     }
 
     impl MockInfrastructure {
@@ -189,6 +190,7 @@ mod tests {
                 file_service: MockFileReadService::new(),
                 vector_index: MockVectorIndex {},
                 embedding_service: MockEmbeddingService {},
+                auth_service: MockAuthService {},
             }
         }
     }
@@ -216,7 +218,7 @@ mod tests {
         }
 
         fn auth_service(&self) -> &Self::AuthService {
-            todo!()
+            &self.auth_service
         }
     }
 
