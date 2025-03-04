@@ -4,9 +4,11 @@ use anyhow::Result;
 use colored::Colorize;
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Model, Usage, API};
 use forge_display::TitleFormat;
+use forge_oauth::ClerkConfig;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
+use tracing::{error, info};
 
 use crate::banner;
 use crate::cli::Cli;
@@ -43,6 +45,22 @@ pub struct UI<F> {
     models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
+}
+
+async fn authenticate() -> anyhow::Result<()> {
+    let config = ClerkConfig::default();
+    let client = forge_oauth::ClerkAuthClient::new(config)?;
+    client.complete_auth_flow().await?;
+    info!("Authentication completed successfully");
+    Ok(())
+}
+
+async fn logout() -> anyhow::Result<bool> {
+    let config = ClerkConfig::default();
+    let client = forge_oauth::ClerkAuthClient::new(config)?;
+    let result = client.delete_key_from_keychain()?;
+    info!("Logout completed successfully");
+    Ok(result)
 }
 
 impl<F: API> UI<F> {
@@ -98,6 +116,62 @@ impl<F: API> UI<F> {
 
                     CONSOLE.writeln(info.to_string())?;
 
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
+                Command::Login => {
+                    info!("Starting OAuth authentication flow...");
+                    match authenticate().await {
+                        Ok(_message) => {
+                            info!("Login successful");
+                            CONSOLE.writeln("Login successful")?;
+                        }
+                        Err(err) => {
+                            error!("Login failed: {}", err);
+                            CONSOLE.writeln(
+                                TitleFormat::failed("login")
+                                    .error(format!("{}", err))
+                                    .format(),
+                            )?;
+                        }
+                    }
+
+                    // Get new input after login process completes
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
+                Command::Logout => {
+                    info!("Processing logout request...");
+                    match logout().await {
+                        Ok(true) => {
+                            info!("Logout successful");
+                            CONSOLE.writeln(
+                                TitleFormat::success("logout")
+                                    .sub_title("User has been logged out successfully")
+                                    .format(),
+                            )?;
+                        }
+                        Ok(false) => {
+                            info!("No active session to logout");
+                            CONSOLE.writeln(
+                                TitleFormat::failed("logout")
+                                    .error("No active session found")
+                                    .format(),
+                            )?;
+                        }
+                        Err(err) => {
+                            error!("Logout failed: {}", err);
+                            CONSOLE.writeln(
+                                TitleFormat::failed("logout")
+                                    .error(format!("{}", err))
+                                    .format(),
+                            )?;
+                        }
+                    }
+
+                    // Get new input after logout process completes
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
