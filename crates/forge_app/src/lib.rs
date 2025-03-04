@@ -10,6 +10,19 @@ use std::path::Path;
 pub use app::*;
 use forge_domain::{Point, Query, Suggestion};
 
+/// Authentication service for login and logout operations
+#[async_trait::async_trait]
+pub trait AuthService {
+    /// Authenticates the user and stores the credentials
+    async fn login(&self) -> anyhow::Result<()>;
+
+    /// Logs out the user by clearing stored credentials
+    fn logout(&self) -> anyhow::Result<bool>;
+
+    /// Checks if the user is authenticated
+    fn is_authenticated(&self) -> bool;
+}
+
 /// Repository for accessing system environment information
 #[async_trait::async_trait]
 pub trait EnvironmentService {
@@ -43,11 +56,13 @@ pub trait EmbeddingService: Send + Sync {
 }
 
 pub trait Infrastructure: Send + Sync + 'static {
+    type AuthService: forge_domain::AuthService;
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
     type VectorIndex: VectorIndex<Suggestion>;
     type EmbeddingService: EmbeddingService;
 
+    fn auth_service(&self) -> &Self::AuthService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
     fn vector_index(&self) -> &Self::VectorIndex;

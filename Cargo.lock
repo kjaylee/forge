@@ -1543,6 +1543,7 @@ dependencies = [
  "dotenv",
  "forge_app",
  "forge_domain",
+ "forge_oauth",
  "qdrant-client",
  "reqwest 0.12.12",
  "serde",

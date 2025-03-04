@@ -3,7 +3,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
-use forge_domain::*;
+use forge_domain::{
+    AgentMessage, App, AuthService, ChatRequest, ChatResponse, Conversation, ConversationId,
+    ConversationService, Environment, File, Model, ProviderService, ToolDefinition, ToolService,
+    Workflow,
+};
 use forge_infra::ForgeInfra;
 use forge_stream::MpscStream;
 
@@ -61,6 +65,18 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
 
     async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
         self.app.conversation_service().create(workflow).await
+    }
+
+    async fn login(&self) -> anyhow::Result<()> {
+        forge_domain::App::auth_service(&(*self.app)).login().await
+    }
+
+    fn logout(&self) -> anyhow::Result<bool> {
+        forge_domain::App::auth_service(&(*self.app)).logout()
+    }
+
+    fn is_authenticated(&self) -> bool {
+        forge_domain::App::auth_service(&(*self.app)).is_authenticated()
     }
 
     fn environment(&self) -> Environment {

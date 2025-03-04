@@ -42,7 +42,7 @@ mod tests {
     use forge_domain::{Environment, Point, Query, Suggestion};
 
     use super::*;
-    use crate::{EmbeddingService, FileReadService, VectorIndex};
+    use crate::{AuthService, EmbeddingService, FileReadService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -79,6 +79,21 @@ mod tests {
     }
 
     #[async_trait::async_trait]
+    impl forge_domain::AuthService for Stub {
+        async fn login(&self) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+
+        fn logout(&self) -> anyhow::Result<bool> {
+            unimplemented!()
+        }
+
+        fn is_authenticated(&self) -> bool {
+            false
+        }
+    }
+
+    #[async_trait::async_trait]
     impl EnvironmentService for Stub {
         fn get_environment(&self) -> Environment {
             self.env.clone()
@@ -103,10 +118,15 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
+        type AuthService = Stub;
         type EnvironmentService = Stub;
         type FileReadService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
+
+        fn auth_service(&self) -> &Self::AuthService {
+            self
+        }
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self

@@ -28,6 +28,16 @@ pub trait API {
         chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>>;
 
+    /// Authenticates the user with Clerk OAuth
+    async fn login(&self) -> anyhow::Result<()>;
+
+    /// Logs out the user by deleting stored credentials
+    /// Returns true if credentials were found and deleted, false otherwise
+    fn logout(&self) -> anyhow::Result<bool>;
+
+    /// Checks if the user is currently authenticated
+    fn is_authenticated(&self) -> bool;
+
     /// Returns the current environment
     fn environment(&self) -> Environment;
 

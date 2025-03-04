@@ -4,7 +4,6 @@ use anyhow::Result;
 use colored::Colorize;
 use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Model, Usage, API};
 use forge_display::TitleFormat;
-use forge_oauth::ClerkConfig;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
 use tokio_stream::StreamExt;
@@ -45,22 +44,6 @@ pub struct UI<F> {
     models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
-}
-
-async fn authenticate() -> anyhow::Result<()> {
-    let config = ClerkConfig::default();
-    let client = forge_oauth::ClerkAuthClient::new(config)?;
-    client.complete_auth_flow().await?;
-    info!("Authentication completed successfully");
-    Ok(())
-}
-
-async fn logout() -> anyhow::Result<bool> {
-    let config = ClerkConfig::default();
-    let client = forge_oauth::ClerkAuthClient::new(config)?;
-    let result = client.delete_key_from_keychain()?;
-    info!("Logout completed successfully");
-    Ok(result)
 }
 
 impl<F: API> UI<F> {
@@ -122,7 +105,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Login => {
                     info!("Starting OAuth authentication flow...");
-                    match authenticate().await {
+                    match self.api.login().await {
                         Ok(_message) => {
                             info!("Login successful");
                             CONSOLE.writeln("Login successful")?;
@@ -144,7 +127,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Logout => {
                     info!("Processing logout request...");
-                    match logout().await {
+                    match self.api.logout() {
                         Ok(true) => {
                             info!("Logout successful");
                             CONSOLE.writeln(

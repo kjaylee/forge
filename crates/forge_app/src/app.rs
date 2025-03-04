@@ -36,10 +36,15 @@ impl<F: Infrastructure> ForgeApp<F> {
 }
 
 impl<F: Infrastructure> App for ForgeApp<F> {
+    type AuthService = F::AuthService;
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
     type ConversationService = ForgeConversationService;
     type TemplateService = ForgeTemplateService<F, ForgeToolService>;
+
+    fn auth_service(&self) -> &Self::AuthService {
+        self.infra.auth_service()
+    }
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -59,10 +64,15 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 }
 
 impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
+    type AuthService = F::AuthService;
     type EnvironmentService = F::EnvironmentService;
     type FileReadService = F::FileReadService;
     type VectorIndex = F::VectorIndex;
     type EmbeddingService = F::EmbeddingService;
+
+    fn auth_service(&self) -> &Self::AuthService {
+        self.infra.auth_service()
+    }
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
