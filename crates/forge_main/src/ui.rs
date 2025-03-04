@@ -166,13 +166,14 @@ impl<F: API> UI<F> {
             }
         };
 
-        // Determine if this is the first message or an update based on conversation history
+        // Determine if this is the first message or an update based on conversation
+        // history
         let conversation = self.api.conversation(&conversation_id).await?;
 
         // Create a ChatRequest with the appropriate event type
         let event = if conversation
             .as_ref()
-            .map_or(true, |c| c.rfind_event(EVENT_USER_TASK_INIT).is_none())
+            .is_none_or(|c| c.rfind_event(EVENT_USER_TASK_INIT).is_none())
         {
             Self::create_task_init_event(content.clone())
         } else {
