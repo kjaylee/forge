@@ -173,7 +173,6 @@ mod tests {
         fn is_authenticated(&self) -> bool {
             true
         }
-        
     }
 
     struct MockInfrastructure {
@@ -215,9 +214,7 @@ mod tests {
         fn embedding_service(&self) -> &Self::EmbeddingService {
             &self.embedding_service
         }
-        
-        
-        
+
         fn auth_service(&self) -> &Self::AuthService {
             todo!()
         }
