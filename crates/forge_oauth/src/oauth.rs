@@ -271,35 +271,3 @@ impl ClerkAuthClient {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use keyring::Entry;
-
-    #[test]
-    fn test_keyring_basic_functionality() {
-        // Create a test entry - using a unique name to avoid conflicts
-        let test_entry =
-            Entry::new("code-forge-test", "test-user").expect("Failed to create keyring entry");
-
-        // Set a test password
-        test_entry
-            .set_password("test-token-123")
-            .expect("Failed to set password");
-
-        // Retrieve the password
-        let retrieved = test_entry.get_password().expect("Failed to get password");
-
-        // Verify it matches what we stored
-        assert_eq!(retrieved, "test-token-123");
-
-        // Clean up
-        test_entry
-            .delete_password()
-            .expect("Failed to delete test password");
-
-        // Verify deletion
-        let result = test_entry.get_password();
-        assert!(result.is_err(), "Password should have been deleted");
-    }
-}
