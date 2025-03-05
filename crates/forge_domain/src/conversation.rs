@@ -49,11 +49,11 @@ impl Conversation {
     pub fn new(id: ConversationId, workflow: Workflow) -> Self {
         Self {
             id,
-            workflow,
             archived: false,
             state: Default::default(),
             events: Default::default(),
-            variables: Default::default(),
+            variables: workflow.variables.clone(),
+            workflow,
         }
     }
 

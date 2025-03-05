@@ -1,6 +1,6 @@
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use serde_json::Value;
 
 use forge_domain::{
     Agent, Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
@@ -106,6 +106,8 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             // Add suggestions to the event context
             event_context = event_context.suggestions(suggestion_strings);
         }
+
+        debug!(event_context = ?event_context, "Event context");
 
         // Render the template with the event context
         Ok(self
