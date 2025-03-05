@@ -4,7 +4,7 @@ use forge_domain::{
     self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters,
     ProviderService, ResultStream,
 };
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
@@ -67,11 +67,32 @@ impl OpenRouter {
     fn headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
 
-        if let Some(ref api_key) = self.api_key {
-            headers.insert(
-                AUTHORIZATION,
-                HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
-            );
+        match self.provider {
+            Provider::OpenAI => {
+                if let Some(ref api_key) = self.api_key {
+                    headers.insert(
+                        AUTHORIZATION,
+                        HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
+                    );
+                }
+            },
+            Provider::OpenRouter => {
+                if let Some(ref api_key) = self.api_key {
+                    headers.insert(
+                        AUTHORIZATION,
+                        HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
+                    );
+                }
+            },
+            Provider::Antinomy => {
+                if let Some(ref api_key) = self.api_key {
+                    headers.insert(
+                        HeaderName::from_static("x-api-key"),
+                        HeaderValue::from_str(&format!("{}", api_key)).unwrap(),
+                    );
+                }
+            },
+            
         }
         headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
@@ -88,7 +109,6 @@ impl ProviderService for OpenRouter {
         let mut request = OpenRouterRequest::from(request)
             .model(model_id.clone())
             .stream(true);
-
         request = ProviderPipeline::new(&self.provider).transform(request);
 
         let url = self.url("chat/completions")?;
@@ -171,6 +191,33 @@ impl ProviderService for OpenRouter {
 
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         match self.provider {
+            Provider::Antinomy =>  {
+               // // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
+               let path = format!("model/{}/parameters", model.as_str());
+
+               let url = self.url(&path)?;
+               let text = self
+                   .client
+                   .get(url)
+                   .headers(self.headers())
+                   .send()
+                   .await?
+                   .error_for_status()?
+                   .text()
+                   .await?;
+
+               let response: ParameterResponse = serde_json::from_str(&text)
+                   .with_context(|| "Failed to parse parameter response".to_string())?;
+
+               Ok(Parameters {
+                   tool_supported: response
+                       .data
+                       .supported_parameters
+                       .iter()
+                       .flat_map(|parameter| parameter.iter())
+                       .any(|parameter| parameter == "tools"),
+               }) 
+            },
             Provider::OpenAI => {
                 // TODO: open-ai provider doesn't support parameters endpoint, so we return true
                 // for now.

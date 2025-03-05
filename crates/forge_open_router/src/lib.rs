@@ -1,6 +1,8 @@
 mod anthropic;
 mod open_router;
 
+use std::sync::Arc;
+
 use anthropic::Anthropic;
 use forge_domain::{Provider, ProviderService};
 use open_router::{OpenRouter, Provider as OpenRouterProvider};
@@ -21,26 +23,32 @@ impl ProviderBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Box<dyn ProviderService>, anyhow::Error> {
+    pub fn build(self) -> Result<Arc<dyn ProviderService>, anyhow::Error> {
         let provider = Provider::from_url(&self.url)
             .ok_or_else(|| anyhow::anyhow!("Failed to detect provider from URL: {}", self.url))?;
         let api_key = self
             .api_key
             .ok_or_else(|| anyhow::anyhow!("API key is required for provider: {}", provider))?;
         Ok(match provider {
-            Provider::OpenRouter => Box::new(
+            Provider::Antinomy => {
+                Arc::new(OpenRouter::builder()
+                    .provider(OpenRouterProvider::Antinomy)
+                    .api_key(api_key)
+                    .build()?)
+            },
+            Provider::OpenRouter => Arc::new(
                 OpenRouter::builder()
                     .provider(OpenRouterProvider::OpenRouter)
                     .api_key(api_key)
                     .build()?,
             ),
-            Provider::OpenAI => Box::new(
+            Provider::OpenAI => Arc::new(
                 OpenRouter::builder()
                     .provider(OpenRouterProvider::OpenAI)
                     .api_key(api_key)
                     .build()?,
             ),
-            Provider::Anthropic => Box::new(
+            Provider::Anthropic => Arc::new(
                 Anthropic::builder()
                     .api_key(api_key)
                     .base_url(self.url)

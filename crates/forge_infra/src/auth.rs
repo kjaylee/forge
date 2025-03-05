@@ -20,7 +20,7 @@ impl ForgeAuthService {
 
 #[async_trait::async_trait]
 impl AuthService for ForgeAuthService {
-    async fn login(&self) -> anyhow::Result<()> {
+    async fn authenticate(&self) -> anyhow::Result<()> {
         // Perform the OAuth flow which will store the token in the keychain
         self.auth_client.complete_auth_flow().await
     }
@@ -30,34 +30,10 @@ impl AuthService for ForgeAuthService {
         self.auth_client.delete_key_from_keychain()
     }
 
-    fn is_authenticated(&self) -> bool {
-        // Check if we have a key in the keychain
-        self.auth_client.get_key_from_keychain().is_some()
-    }
-}
-
-#[async_trait::async_trait]
-impl forge_domain::AuthService for ForgeAuthService {
-    async fn login(&self) -> anyhow::Result<()> {
-        // Perform the OAuth flow which will store the token in the keychain
-        self.auth_client.complete_auth_flow().await
-    }
-
-    fn logout(&self) -> anyhow::Result<bool> {
-        // Delete the token from the keychain
-        self.auth_client.delete_key_from_keychain()
-    }
-
-    fn is_authenticated(&self) -> bool {
-        // Check if we have a key in the keychain
-        self.auth_client.get_key_from_keychain().is_some()
-    }
-
-    fn get_auth_token(&self) -> anyhow::Result<String> {
+    fn get_auth_token(&self) -> Option<String> {
         // Get the token from the keychain
         self.auth_client
             .get_key_from_keychain()
-            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))
     }
 }
 

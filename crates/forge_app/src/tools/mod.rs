@@ -43,7 +43,7 @@ mod tests {
     use forge_domain::{Environment, Point, Query, Suggestion};
 
     use super::*;
-    use crate::{EmbeddingService, FileReadService, VectorIndex};
+    use crate::{AuthService, EmbeddingService, FileReadService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -64,6 +64,7 @@ mod tests {
                 provider_url: Default::default(),
                 provider_key: Default::default(),
                 openai_key: Default::default(),
+                force_antinomy: None,
             },
         }
     }
@@ -75,25 +76,6 @@ mod tests {
     #[async_trait::async_trait]
     impl EmbeddingService for Stub {
         async fn embed(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
-            unimplemented!()
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl forge_domain::AuthService for Stub {
-        async fn login(&self) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-
-        fn logout(&self) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-
-        fn is_authenticated(&self) -> bool {
-            false
-        }
-
-        fn get_auth_token(&self) -> anyhow::Result<String> {
             unimplemented!()
         }
     }
@@ -117,6 +99,21 @@ mod tests {
         }
 
         async fn search(&self, _query: Query) -> anyhow::Result<Vec<Point<Suggestion>>> {
+            unimplemented!()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl AuthService for Stub {
+        async fn authenticate(&self) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+
+        fn logout(&self) -> anyhow::Result<bool> {
+            unimplemented!()
+        }
+
+        fn get_auth_token(&self) -> Option<String> {
             unimplemented!()
         }
     }

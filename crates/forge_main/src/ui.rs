@@ -121,7 +121,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Login => {
                     info!("Starting OAuth authentication flow...");
-                    match self.api.login().await {
+                    match self.api.authenticate().await {
                         Ok(_message) => {
                             info!("Login successful");
                             CONSOLE.writeln("Login successful")?;

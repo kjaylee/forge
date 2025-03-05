@@ -71,7 +71,7 @@ mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        EmbeddingService, EnvironmentService, FileReadService, Infrastructure, VectorIndex,
+        AuthService, EmbeddingService, EnvironmentService, FileReadService, Infrastructure, VectorIndex
     };
 
     struct MockEnvironmentService {}
@@ -91,6 +91,7 @@ mod tests {
                 provider_key: "key".to_string(),
                 provider_url: "url".to_string(),
                 openai_key: None,
+                force_antinomy: None,
             }
         }
     }
@@ -158,26 +159,8 @@ mod tests {
         }
     }
 
-    struct MockAuthService {}
 
-    #[async_trait::async_trait]
-    impl forge_domain::AuthService for MockAuthService {
-        async fn login(&self) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-
-        fn logout(&self) -> anyhow::Result<bool> {
-            unimplemented!()
-        }
-
-        fn is_authenticated(&self) -> bool {
-            unimplemented!()
-        }
-
-        fn get_auth_token(&self) -> anyhow::Result<String> {
-            unimplemented!()
-        }
-    }
+    
 
     struct MockInfrastructure {
         env_service: MockEnvironmentService,
@@ -196,6 +179,23 @@ mod tests {
                 embedding_service: MockEmbeddingService {},
                 auth_service: MockAuthService {},
             }
+        }
+    }
+
+    struct MockAuthService {}
+
+    #[async_trait::async_trait]
+    impl AuthService for MockAuthService {
+        async fn authenticate(&self) -> Result<(), anyhow::Error> {
+            Ok(())
+        }
+
+        fn logout(&self) -> Result<bool, anyhow::Error> {
+            Ok(false)
+        }
+
+        fn get_auth_token(&self) -> Option<String> {
+            None
         }
     }
 
