@@ -108,7 +108,7 @@ mod tests {
         let usage_style = Style::new()
             .bold()
             .fg(Color::DarkGray)
-            .paint("[10/20/30]")
+            .paint("[ACT/30]")
             .to_string();
         let actual = prompt.render_prompt_right();
         let expected = usage_style;
@@ -119,7 +119,11 @@ mod tests {
     fn test_render_prompt_right_without_usage() {
         let prompt = ForgePrompt::default();
         let actual = prompt.render_prompt_right();
-        let expected = "";
+        let expected = Style::new()
+            .bold()
+            .fg(Color::DarkGray)
+            .paint("[ACT/0]")
+            .to_string();
         assert_eq!(actual, expected);
     }
 
