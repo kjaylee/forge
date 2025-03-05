@@ -53,11 +53,10 @@ impl forge_domain::AuthService for ForgeAuthService {
         self.auth_client.get_key_from_keychain().is_some()
     }
 
-    fn get_auth_token(&self) -> anyhow::Result<String> {
+    fn get_auth_token(&self) -> Option<String> {
         // Get the token from the keychain
         self.auth_client
             .get_key_from_keychain()
-            .ok_or_else(|| anyhow::anyhow!("Not authenticated"))
     }
 }
 

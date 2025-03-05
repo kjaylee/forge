@@ -174,7 +174,7 @@ mod tests {
             unimplemented!()
         }
 
-        fn get_auth_token(&self) -> anyhow::Result<String> {
+        fn get_auth_token(&self) -> Option<String> {
             unimplemented!()
         }
     }

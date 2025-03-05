@@ -18,7 +18,7 @@ use crate::Infrastructure;
 pub struct ForgeApp<F> {
     infra: Arc<F>,
     tool_service: Arc<ForgeToolService>,
-    provider_service: ForgeProviderService,
+    provider_service: ForgeProviderService<F>,
     conversation_service: ForgeConversationService,
     prompt_service: ForgeTemplateService<F, ForgeToolService>,
     attachment_service: ForgeChatRequest<F>,
@@ -41,7 +41,7 @@ impl<F: Infrastructure> ForgeApp<F> {
 impl<F: Infrastructure> App for ForgeApp<F> {
     type AuthService = F::AuthService;
     type ToolService = ForgeToolService;
-    type ProviderService = ForgeProviderService;
+    type ProviderService = ForgeProviderService<F>;
     type ConversationService = ForgeConversationService;
     type TemplateService = ForgeTemplateService<F, ForgeToolService>;
     type AttachmentService = ForgeChatRequest<F>;
