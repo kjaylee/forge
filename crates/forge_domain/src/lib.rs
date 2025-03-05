@@ -1,5 +1,4 @@
 mod agent;
-mod auth_service;
 mod chat_request;
 mod chat_response;
 mod context;
@@ -27,7 +26,6 @@ mod tool_usage;
 mod workflow;
 
 pub use agent::*;
-pub use auth_service::*;
 pub use chat_request::*;
 pub use chat_response::*;
 pub use context::*;
@@ -64,6 +62,8 @@ pub trait ProviderService: Send + Sync + 'static {
     async fn models(&self) -> anyhow::Result<Vec<Model>>;
     async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters>;
 }
+
+
 
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
@@ -115,14 +115,12 @@ pub trait AttachmentService {
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
 pub trait App: Send + Sync + 'static {
-    type AuthService: AuthService;
     type ToolService: ToolService;
     type ProviderService: ProviderService;
     type ConversationService: ConversationService;
     type TemplateService: TemplateService;
     type AttachmentService: AttachmentService;
 
-    fn auth_service(&self) -> &Self::AuthService;
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;

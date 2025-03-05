@@ -2,9 +2,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
+use forge_app::{AuthService, EnvironmentService, ForgeApp, Infrastructure};
 use forge_domain::{
-    AgentMessage, App, AuthService, ChatRequest, ChatResponse, Conversation, ConversationId,
+    AgentMessage, App, ChatRequest, ChatResponse, Conversation, ConversationId,
     ConversationService, Environment, File, Model, ProviderService, ToolDefinition, ToolService,
     Workflow,
 };
@@ -67,16 +67,16 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         self.app.conversation_service().create(workflow).await
     }
 
-    async fn login(&self) -> anyhow::Result<()> {
-        forge_domain::App::auth_service(&(*self.app)).login().await
+    async fn authenticate(&self) -> anyhow::Result<()> {
+        self.app.auth_service().authenticate().await
     }
 
     fn logout(&self) -> anyhow::Result<bool> {
-        forge_domain::App::auth_service(&(*self.app)).logout()
+        self.app.auth_service().logout()
     }
 
-    fn is_authenticated(&self) -> bool {
-        forge_domain::App::auth_service(&(*self.app)).is_authenticated()
+    fn get_key(&self) -> Option<String> {
+        self.app.auth_service().get_auth_token()
     }
 
     fn environment(&self) -> Environment {

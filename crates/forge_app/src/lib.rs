@@ -12,17 +12,18 @@ pub use app::*;
 use bytes::Bytes;
 use forge_domain::{Point, Query, Suggestion};
 
-/// Authentication service for login and logout operations
 #[async_trait::async_trait]
-pub trait AuthService {
-    /// Authenticates the user and stores the credentials
-    async fn login(&self) -> anyhow::Result<()>;
+pub trait AuthService: Send + Sync + 'static {
+    /// Authenticates the user and stores credentials
+    async fn authenticate(&self) -> anyhow::Result<()>;
 
-    /// Logs out the user by clearing stored credentials
+    /// Logs out the user by removing stored credentials
+    /// Returns true if credentials were found and removed, false otherwise
     fn logout(&self) -> anyhow::Result<bool>;
 
-    /// Checks if the user is authenticated
-    fn is_authenticated(&self) -> bool;
+    /// Retrieves the current authentication token if available
+    /// Returns the token as a string if found, or an error if not authenticated
+    fn get_auth_token(&self) -> Option<String>;
 }
 
 /// Repository for accessing system environment information
@@ -58,7 +59,7 @@ pub trait EmbeddingService: Send + Sync {
 }
 
 pub trait Infrastructure: Send + Sync + 'static {
-    type AuthService: forge_domain::AuthService;
+    type AuthService: AuthService;
     type EnvironmentService: EnvironmentService;
     type FileReadService: FileReadService;
     type VectorIndex: VectorIndex<Suggestion>;

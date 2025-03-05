@@ -39,16 +39,11 @@ impl<F: Infrastructure> ForgeApp<F> {
 }
 
 impl<F: Infrastructure> App for ForgeApp<F> {
-    type AuthService = F::AuthService;
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService<F>;
     type ConversationService = ForgeConversationService;
     type TemplateService = ForgeTemplateService<F, ForgeToolService>;
     type AttachmentService = ForgeChatRequest<F>;
-
-    fn auth_service(&self) -> &Self::AuthService {
-        self.infra.auth_service()
-    }
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service

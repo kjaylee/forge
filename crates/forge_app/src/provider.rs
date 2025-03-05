@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_domain::{
-    AuthService, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService, ResultStream
+    ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService, ResultStream
 };
 use forge_open_router::ProviderBuilder;
 use moka2::future::Cache;
 
-use crate::{EnvironmentService, Infrastructure};
+use crate::{AuthService, EnvironmentService, Infrastructure};
 
 pub struct ForgeProviderService<F> {
     infra: Arc<F>,
@@ -25,7 +25,7 @@ impl <F: Infrastructure> ForgeProviderService<F> {
         Self { infra: self.infra.clone(), or: Some(provider), cache: self.cache.clone() }
     }
 
-    pub fn build_provider_service(&self) -> Result<Self> {
+     fn build_provider_service(&self) -> Result<Self> {
         if let Some(_) = self.or {
             return Ok(Self{
                 infra: self.infra.clone(),
