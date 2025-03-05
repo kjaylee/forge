@@ -24,7 +24,7 @@ impl ForgeConversationService {
     }
 
     // Helper method for operations requiring mutable access to a conversation
-    async fn update<F, T>(&self, id: &ConversationId, f: F) -> Result<T>
+    async fn write<F, T>(&self, id: &ConversationId, f: F) -> Result<T>
     where
         F: FnOnce(&mut Conversation) -> T,
     {
@@ -36,7 +36,7 @@ impl ForgeConversationService {
     }
 
     // Helper method for operations requiring immutable access to a conversation
-    async fn with_conversation_ref<F, T>(&self, id: &ConversationId, f: F) -> Result<Option<T>>
+    async fn read<F, T>(&self, id: &ConversationId, f: F) -> Result<Option<T>>
     where
         F: FnOnce(&Conversation) -> Option<T>,
     {
@@ -78,25 +78,24 @@ impl ConversationService for ForgeConversationService {
     }
 
     async fn insert_event(&self, id: &ConversationId, event: Event) -> Result<()> {
-        self.update(id, |c| {
+        self.write(id, |c| {
             c.events.push(event);
         })
         .await
     }
 
     async fn get_variable(&self, id: &ConversationId, key: &str) -> Result<Option<Value>> {
-        self.with_conversation_ref(id, |c| c.get_variable(key).cloned())
-            .await
+        self.read(id, |c| c.get_variable(key).cloned()).await
     }
 
     async fn set_variable(&self, id: &ConversationId, key: String, value: Value) -> Result<()> {
-        self.update(id, |c| {
+        self.write(id, |c| {
             c.set_variable(key, value);
         })
         .await
     }
 
     async fn delete_variable(&self, id: &ConversationId, key: &str) -> Result<bool> {
-        self.update(id, |c| c.delete_variable(key)).await
+        self.write(id, |c| c.delete_variable(key)).await
     }
 }
