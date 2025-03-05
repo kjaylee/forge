@@ -44,18 +44,19 @@ impl<F: API> UI<F> {
 
         // Show message that mode changed
         let mode = self.state.mode.to_string();
-        CONSOLE.writeln(
-            TitleFormat::success("mode")
-                .sub_title(format!("switched to {} mode", mode))
-                .format(),
-        )?;
 
         // Set the mode variable in the conversation if a conversation exists
         if let Some(conversation_id) = &self.state.conversation_id {
             self.api
-                .set_variable(conversation_id, "mode".to_string(), Value::String(mode))
+                .set_variable(conversation_id, "mode".to_string(), Value::from(mode.as_str()))
                 .await?
         }
+
+        CONSOLE.write(
+            TitleFormat::success(&mode)
+                .sub_title("mode activated")
+                .format(),
+        )?;
 
         Ok(())
     }
