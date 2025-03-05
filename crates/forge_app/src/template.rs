@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::sync::Arc;
+use serde_json::Value;
 
 use forge_domain::{
     Agent, Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
@@ -74,9 +76,13 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         agent: &Agent,
         prompt: &Template<EventContext>,
         event: &Event,
+        variables: &HashMap<String, Value>,
     ) -> anyhow::Result<String> {
         // Create an EventContext with the provided event
         let mut event_context = EventContext::new(event.clone());
+
+        // Add variables to the context
+        event_context = event_context.variables(variables.clone());
 
         // Only add suggestions if the agent has suggestions enabled
         if agent.suggestions {

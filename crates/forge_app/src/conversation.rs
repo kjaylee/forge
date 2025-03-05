@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
+use serde_json::Value;
 use forge_domain::{
     AgentId, Context, Conversation, ConversationId, ConversationService, Event, Workflow,
 };
@@ -83,12 +84,12 @@ impl ConversationService for ForgeConversationService {
         .await
     }
 
-    async fn get_variable(&self, id: &ConversationId, key: &str) -> Result<Option<String>> {
+    async fn get_variable(&self, id: &ConversationId, key: &str) -> Result<Option<Value>> {
         self.with_conversation_ref(id, |c| c.get_variable(key).cloned())
             .await
     }
 
-    async fn set_variable(&self, id: &ConversationId, key: String, value: String) -> Result<()> {
+    async fn set_variable(&self, id: &ConversationId, key: String, value: Value) -> Result<()> {
         self.update(id, |c| {
             c.set_variable(key, value);
         })

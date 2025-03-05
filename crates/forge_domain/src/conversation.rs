@@ -4,6 +4,7 @@ use anyhow::Result;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{Agent, AgentId, Context, Error, Event, Workflow};
@@ -35,7 +36,7 @@ pub struct Conversation {
     pub state: HashMap<AgentId, AgentState>,
     pub events: Vec<Event>,
     pub workflow: Workflow,
-    pub variables: HashMap<String, String>,
+    pub variables: HashMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -82,14 +83,14 @@ impl Conversation {
     /// Get a variable value by its key
     ///
     /// Returns None if the variable doesn't exist
-    pub fn get_variable(&self, key: &str) -> Option<&String> {
+    pub fn get_variable(&self, key: &str) -> Option<&Value> {
         self.variables.get(key)
     }
 
     /// Set a variable with the given key and value
     ///
     /// If the key already exists, its value will be updated
-    pub fn set_variable(&mut self, key: String, value: String) -> &mut Self {
+    pub fn set_variable(&mut self, key: String, value: Value) -> &mut Self {
         self.variables.insert(key, value);
         self
     }
