@@ -298,8 +298,9 @@ impl<A: App> Orchestrator<A> {
         let content = if let Some(user_prompt) = &agent.user_prompt {
             // Get conversation variables from the conversation
             let variables = &conversation.variables;
-            
-            // Use the consolidated render_event method which handles suggestions and variables
+
+            // Use the consolidated render_event method which handles suggestions and
+            // variables
             self.app
                 .template_service()
                 .render_event(agent, user_prompt, event, variables)

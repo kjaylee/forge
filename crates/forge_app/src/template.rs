@@ -1,4 +1,3 @@
-use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -8,6 +7,7 @@ use forge_domain::{
 use forge_walker::Walker;
 use handlebars::Handlebars;
 use rust_embed::Embed;
+use serde_json::Value;
 use tracing::debug;
 
 use crate::{EmbeddingService, EnvironmentService, Infrastructure, VectorIndex};

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 use serde_json::Value;
 mod agent;
 mod chat_request;
@@ -90,7 +91,12 @@ pub trait ConversationService: Send + Sync {
         event: Event,
     ) -> anyhow::Result<()>;
     async fn get_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<Option<Value>>;
-    async fn set_variable(&self, id: &ConversationId, key: String, value: Value) -> anyhow::Result<()>;
+    async fn set_variable(
+        &self,
+        id: &ConversationId,
+        key: String,
+        value: Value,
+    ) -> anyhow::Result<()>;
     async fn delete_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<bool>;
 }
 

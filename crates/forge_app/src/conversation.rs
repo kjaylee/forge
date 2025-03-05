@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use serde_json::Value;
 use forge_domain::{
     AgentId, Context, Conversation, ConversationId, ConversationService, Event, Workflow,
 };
+use serde_json::Value;
 use tokio::sync::Mutex;
 
 pub struct ForgeConversationService {

@@ -6,6 +6,7 @@ use forge_api::{AgentMessage, ChatRequest, ChatResponse, Event, Model, API};
 use forge_display::TitleFormat;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
+use serde_json::Value;
 use tokio_stream::StreamExt;
 
 use crate::banner;
@@ -104,14 +105,44 @@ impl<F: API> UI<F> {
                 Command::Message(ref content) => {
                     let chat_result = self.chat(content.clone()).await;
                     if let Err(err) = chat_result {
-                        CONSOLE.writeln(
-                            TitleFormat::failed(format!("{:?}", err))
-                                .sub_title(self.state.usage.to_string())
-                                .format(),
-                        )?;
+                        CONSOLE.writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
                     }
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
+                }
+                Command::Act => {
+                    // Show message that mode changed
+                    CONSOLE.writeln(TitleFormat::success("Switched to Act mode").format())?;
+
+                    // Set the mode variable in the conversation
+                    if let Some(conversation_id) = &self.state.conversation_id {
+                        self.api
+                            .set_variable(conversation_id, "mode".to_string(), Value::from("ACT"))
+                            .await?
+                    }
+
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
+                Command::Plan => {
+                    // Show message that mode changed
+                    CONSOLE.writeln(TitleFormat::success("Switched to Plan mode").format())?;
+
+                    // Set the mode variable in the conversation
+                    if let Some(conversation_id) = &self.state.conversation_id {
+                        self.api
+                            .set_variable(
+                                conversation_id,
+                                "mode".to_string(),
+                                Value::String("PLAN".to_string()),
+                            )
+                            .await?
+                    }
+
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
                 }
                 Command::Exit => {
                     break;
@@ -254,17 +285,9 @@ impl<F: API> UI<F> {
                 CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
 
                 if tool_result.is_error {
-                    CONSOLE.writeln(
-                        TitleFormat::failed(tool_name)
-                            .sub_title(self.state.usage.to_string())
-                            .format(),
-                    )?;
+                    CONSOLE.writeln(TitleFormat::failed(tool_name).format())?;
                 } else {
-                    CONSOLE.writeln(
-                        TitleFormat::success(tool_name)
-                            .sub_title(self.state.usage.to_string())
-                            .format(),
-                    )?;
+                    CONSOLE.writeln(TitleFormat::success(tool_name).format())?;
                 }
             }
             ChatResponse::Custom(event) => {
