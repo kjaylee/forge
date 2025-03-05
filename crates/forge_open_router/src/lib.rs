@@ -30,12 +30,12 @@ impl ProviderBuilder {
             .api_key
             .ok_or_else(|| anyhow::anyhow!("API key is required for provider: {}", provider))?;
         Ok(match provider {
-            Provider::Antinomy => {
-                Arc::new(OpenRouter::builder()
+            Provider::Antinomy => Arc::new(
+                OpenRouter::builder()
                     .provider(OpenRouterProvider::Antinomy)
                     .api_key(api_key)
-                    .build()?)
-            },
+                    .build()?,
+            ),
             Provider::OpenRouter => Arc::new(
                 OpenRouter::builder()
                     .provider(OpenRouterProvider::OpenRouter)

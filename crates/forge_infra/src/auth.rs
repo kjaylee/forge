@@ -32,8 +32,7 @@ impl AuthService for ForgeAuthService {
 
     fn get_auth_token(&self) -> Option<String> {
         // Get the token from the keychain
-        self.auth_client
-            .get_key_from_keychain()
+        self.auth_client.get_key_from_keychain()
     }
 }
 

@@ -37,21 +37,19 @@ impl Provider {
             std::env::var("OPENAI_API_KEY"),
             std::env::var("ANTHROPIC_API_KEY"),
         ) {
-            (Ok(a),_,_,_,_) if a == "true" => {
-                Self::from_url(ANTINOMY_URL)
-            },
+            (Ok(a), _, _, _, _) if a == "true" => Self::from_url(ANTINOMY_URL),
 
-            (_,Ok(_), _, _, _) => {
+            (_, Ok(_), _, _, _) => {
                 // note: if we're using FORGE_KEY, we need FORGE_PROVIDER_URL to be set.
                 let provider_url = std::env::var("FORGE_PROVIDER_URL").ok()?;
                 Self::from_url(&provider_url)
-            },
-            (_,_, Ok(_), _, _) => Some(Self::OpenRouter),
-            (_,_, _, Ok(_), _) => Some(Self::OpenAI),
-            (_,_, _, _, Ok(_)) => Some(Self::Anthropic),
-            (Ok(a), _,_,_,_) if a == "false" => None,
+            }
+            (_, _, Ok(_), _, _) => Some(Self::OpenRouter),
+            (_, _, _, Ok(_), _) => Some(Self::OpenAI),
+            (_, _, _, _, Ok(_)) => Some(Self::Anthropic),
+            (Ok(a), _, _, _, _) if a == "false" => None,
             (Ok(_), Err(_), Err(_), Err(_), Err(_)) => None,
-            (Err(_),Err(_), Err(_), Err(_), Err(_)) => None,
+            (Err(_), Err(_), Err(_), Err(_), Err(_)) => None,
         }
     }
 

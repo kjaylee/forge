@@ -10,7 +10,7 @@ pub enum Provider {
 
 impl Provider {
     pub fn is_openai(&self) -> bool {
-        matches!(self, Self::OpenAI)|| matches!(self, Self::Antinomy)
+        matches!(self, Self::OpenAI) || matches!(self, Self::Antinomy)
     }
 
     pub fn is_open_router(&self) -> bool {

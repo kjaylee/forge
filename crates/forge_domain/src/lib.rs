@@ -63,8 +63,6 @@ pub trait ProviderService: Send + Sync + 'static {
     async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters>;
 }
 
-
-
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference

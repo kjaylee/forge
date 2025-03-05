@@ -71,7 +71,8 @@ mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        AuthService, EmbeddingService, EnvironmentService, FileReadService, Infrastructure, VectorIndex
+        AuthService, EmbeddingService, EnvironmentService, FileReadService, Infrastructure,
+        VectorIndex,
     };
 
     struct MockEnvironmentService {}
@@ -158,9 +159,6 @@ mod tests {
             Ok(vec![0.1, 0.2, 0.3])
         }
     }
-
-
-    
 
     struct MockInfrastructure {
         env_service: MockEnvironmentService,

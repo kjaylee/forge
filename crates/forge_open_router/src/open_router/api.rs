@@ -75,7 +75,7 @@ impl OpenRouter {
                         HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
                     );
                 }
-            },
+            }
             Provider::OpenRouter => {
                 if let Some(ref api_key) = self.api_key {
                     headers.insert(
@@ -83,16 +83,15 @@ impl OpenRouter {
                         HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
                     );
                 }
-            },
+            }
             Provider::Antinomy => {
                 if let Some(ref api_key) = self.api_key {
                     headers.insert(
                         HeaderName::from_static("x-api-key"),
-                        HeaderValue::from_str(&format!("{}", api_key)).unwrap(),
+                        HeaderValue::from_str(&api_key.to_string()).unwrap(),
                     );
                 }
-            },
-            
+            }
         }
         headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
@@ -191,33 +190,33 @@ impl ProviderService for OpenRouter {
 
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         match self.provider {
-            Provider::Antinomy =>  {
-               // // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
-               let path = format!("model/{}/parameters", model.as_str());
+            Provider::Antinomy => {
+                // // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
+                let path = format!("model/{}/parameters", model.as_str());
 
-               let url = self.url(&path)?;
-               let text = self
-                   .client
-                   .get(url)
-                   .headers(self.headers())
-                   .send()
-                   .await?
-                   .error_for_status()?
-                   .text()
-                   .await?;
+                let url = self.url(&path)?;
+                let text = self
+                    .client
+                    .get(url)
+                    .headers(self.headers())
+                    .send()
+                    .await?
+                    .error_for_status()?
+                    .text()
+                    .await?;
 
-               let response: ParameterResponse = serde_json::from_str(&text)
-                   .with_context(|| "Failed to parse parameter response".to_string())?;
+                let response: ParameterResponse = serde_json::from_str(&text)
+                    .with_context(|| "Failed to parse parameter response".to_string())?;
 
-               Ok(Parameters {
-                   tool_supported: response
-                       .data
-                       .supported_parameters
-                       .iter()
-                       .flat_map(|parameter| parameter.iter())
-                       .any(|parameter| parameter == "tools"),
-               }) 
-            },
+                Ok(Parameters {
+                    tool_supported: response
+                        .data
+                        .supported_parameters
+                        .iter()
+                        .flat_map(|parameter| parameter.iter())
+                        .any(|parameter| parameter == "tools"),
+                })
+            }
             Provider::OpenAI => {
                 // TODO: open-ai provider doesn't support parameters endpoint, so we return true
                 // for now.
