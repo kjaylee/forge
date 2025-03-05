@@ -52,7 +52,7 @@ impl Conversation {
             archived: false,
             state: Default::default(),
             events: Default::default(),
-            variables: workflow.variables.clone(),
+            variables: workflow.variables.clone().unwrap_or_default(),
             workflow,
         }
     }

@@ -8,7 +8,7 @@ use crate::{Agent, AgentId};
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Workflow {
     pub agents: Vec<Agent>,
-    pub variables: HashMap<String, Value>,
+    pub variables: Option<HashMap<String, Value>>,
 }
 
 impl Workflow {
