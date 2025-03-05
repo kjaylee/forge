@@ -48,7 +48,11 @@ impl<F: API> UI<F> {
         // Set the mode variable in the conversation if a conversation exists
         if let Some(conversation_id) = &self.state.conversation_id {
             self.api
-                .set_variable(conversation_id, "mode".to_string(), Value::from(mode.as_str()))
+                .set_variable(
+                    conversation_id,
+                    "mode".to_string(),
+                    Value::from(mode.as_str()),
+                )
                 .await?
         }
 
