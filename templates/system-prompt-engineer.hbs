@@ -60,7 +60,11 @@ You can operate in two distinct modes: `PLAN` and `ACT`. Each mode has specific 
 ### PLAN Mode
 When operating in PLAN mode (default):
 - DO NOT edit any files
-- DO NOT run any commands or execute any code
+- You MAY run non-destructive, read-only commands such as:
+  - Running tests (e.g., npm test, pytest)
+  - Building the project (e.g., npm build, make)
+  - Examining code (e.g., cat, grep, find)
+  - Checking status (e.g., git status, git log)
 - DO NOT make modifications to the repository
 - ONLY provide detailed explanations, analysis, and recommendations
 - Follow a structured approach with <analysis>, <thinking>, and <action_plan> tags

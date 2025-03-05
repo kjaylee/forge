@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use colored::Colorize;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, Event, Model, API};
+use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, API};
 use forge_display::TitleFormat;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
@@ -46,15 +46,14 @@ impl<F: API> UI<F> {
         let mode = self.state.mode.to_string();
 
         // Set the mode variable in the conversation if a conversation exists
-        if let Some(conversation_id) = &self.state.conversation_id {
-            self.api
-                .set_variable(
-                    conversation_id,
-                    "mode".to_string(),
-                    Value::from(mode.as_str()),
-                )
-                .await?
-        }
+        let conversation_id = self.init_conversation().await?;
+        self.api
+            .set_variable(
+                &conversation_id,
+                "mode".to_string(),
+                Value::from(mode.as_str()),
+            )
+            .await?;
 
         CONSOLE.write(
             TitleFormat::success(&mode)
@@ -173,19 +172,24 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    async fn chat(&mut self, content: String) -> Result<()> {
-        let conversation_id = match self.state.conversation_id {
-            Some(ref id) => id.clone(),
+    async fn init_conversation(&mut self) -> Result<ConversationId> {
+        match self.state.conversation_id {
+            Some(ref id) => Ok(id.clone()),
             None => {
                 let conversation_id = self
                     .api
                     .init(self.api.load(self.cli.workflow.as_deref()).await?)
                     .await?;
+
                 self.state.conversation_id = Some(conversation_id.clone());
 
-                conversation_id
+                Ok(conversation_id)
             }
-        };
+        }
+    }
+
+    async fn chat(&mut self, content: String) -> Result<()> {
+        let conversation_id = self.init_conversation().await?;
 
         // Determine if this is the first message or an update based on conversation
         // history
