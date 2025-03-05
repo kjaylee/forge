@@ -35,6 +35,7 @@ pub struct Conversation {
     pub state: HashMap<AgentId, AgentState>,
     pub events: Vec<Event>,
     pub workflow: Workflow,
+    pub variables: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -51,6 +52,7 @@ impl Conversation {
             archived: false,
             state: Default::default(),
             events: Default::default(),
+            variables: Default::default(),
         }
     }
 
@@ -75,5 +77,27 @@ impl Conversation {
 
     pub fn rfind_event(&self, event_name: &str) -> Option<&Event> {
         self.events.iter().rfind(|event| event.name == event_name)
+    }
+
+    /// Get a variable value by its key
+    ///
+    /// Returns None if the variable doesn't exist
+    pub fn get_variable(&self, key: &str) -> Option<&String> {
+        self.variables.get(key)
+    }
+
+    /// Set a variable with the given key and value
+    ///
+    /// If the key already exists, its value will be updated
+    pub fn set_variable(&mut self, key: String, value: String) -> &mut Self {
+        self.variables.insert(key, value);
+        self
+    }
+
+    /// Delete a variable by its key
+    ///
+    /// Returns true if the variable was present and removed, false otherwise
+    pub fn delete_variable(&mut self, key: &str) -> bool {
+        self.variables.remove(key).is_some()
     }
 }

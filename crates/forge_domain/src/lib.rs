@@ -87,6 +87,9 @@ pub trait ConversationService: Send + Sync {
         conversation_id: &ConversationId,
         event: Event,
     ) -> anyhow::Result<()>;
+    async fn get_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<Option<String>>;
+    async fn set_variable(&self, id: &ConversationId, key: String, value: String) -> anyhow::Result<()>;
+    async fn delete_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<bool>;
 }
 
 #[async_trait::async_trait]
