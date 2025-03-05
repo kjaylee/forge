@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use colored::Colorize;
-use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, Usage, API,
-};
+use forge_api::{AgentMessage, ChatRequest, ChatResponse, Event, Model, API};
 use forge_display::TitleFormat;
 use forge_tracker::EventKind;
 use lazy_static::lazy_static;
@@ -14,8 +12,9 @@ use crate::banner;
 use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::Info;
-use crate::input::{Console, PromptInput};
+use crate::input::Console;
 use crate::model::{Command, UserInput};
+use crate::state::UIState;
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -24,22 +23,6 @@ pub const EVENT_TITLE: &str = "title";
 
 lazy_static! {
     pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();
-}
-
-#[derive(Default)]
-struct UIState {
-    current_title: Option<String>,
-    conversation_id: Option<ConversationId>,
-    usage: Usage,
-}
-
-impl From<&UIState> for PromptInput {
-    fn from(state: &UIState) -> Self {
-        PromptInput::Update {
-            title: state.current_title.clone(),
-            usage: Some(state.usage.clone()),
-        }
-    }
 }
 
 pub struct UI<F> {
