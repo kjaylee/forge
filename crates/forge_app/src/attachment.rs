@@ -163,15 +163,19 @@ mod tests {
     #[async_trait::async_trait]
     impl forge_domain::AuthService for MockAuthService {
         async fn login(&self) -> anyhow::Result<()> {
-            Ok(())
+            unimplemented!()
         }
 
         fn logout(&self) -> anyhow::Result<bool> {
-            Ok(true)
+            unimplemented!()
         }
 
         fn is_authenticated(&self) -> bool {
-            true
+            unimplemented!()
+        }
+
+        fn get_auth_token(&self) -> anyhow::Result<String> {
+            unimplemented!()
         }
     }
 

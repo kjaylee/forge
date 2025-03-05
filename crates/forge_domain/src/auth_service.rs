@@ -12,4 +12,8 @@ pub trait AuthService: Send + Sync + 'static {
 
     /// Checks if the user is currently authenticated
     fn is_authenticated(&self) -> bool;
+
+    /// Retrieves the current authentication token if available
+    /// Returns the token as a string if found, or an error if not authenticated
+    fn get_auth_token(&self) -> Result<String>;
 }

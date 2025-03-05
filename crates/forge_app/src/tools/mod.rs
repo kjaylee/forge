@@ -92,6 +92,10 @@ mod tests {
         fn is_authenticated(&self) -> bool {
             false
         }
+
+        fn get_auth_token(&self) -> anyhow::Result<String> {
+            unimplemented!()
+        }
     }
 
     #[async_trait::async_trait]
