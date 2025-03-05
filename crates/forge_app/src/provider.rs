@@ -31,7 +31,7 @@ impl<F: Infrastructure> ForgeProviderService<F> {
     }
 
     fn build_provider_service(&self) -> Result<Self> {
-        if self.or.is_some(){
+        if self.or.is_some() {
             return Ok(Self {
                 infra: self.infra.clone(),
                 or: self.or.clone(),
