@@ -15,7 +15,7 @@ use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, UserInput};
-use crate::state::UIState;
+use crate::state::{Mode, UIState};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -37,6 +37,28 @@ pub struct UI<F> {
 }
 
 impl<F: API> UI<F> {
+    // Set the current mode and update conversation variable
+    async fn handle_mode_change(&mut self, mode: Mode) -> Result<()> {
+        // Update the mode in state
+        self.state.mode = mode;
+
+        // Show message that mode changed
+        let mode = self.state.mode.to_string();
+        CONSOLE.writeln(
+            TitleFormat::success("mode")
+                .sub_title(format!("switched to {} mode", mode))
+                .format(),
+        )?;
+
+        // Set the mode variable in the conversation if a conversation exists
+        if let Some(conversation_id) = &self.state.conversation_id {
+            self.api
+                .set_variable(conversation_id, "mode".to_string(), Value::String(mode))
+                .await?
+        }
+
+        Ok(())
+    }
     // Helper functions for creating events with the specific event names
     fn create_task_init_event(content: impl ToString) -> Event {
         Event::new(EVENT_USER_TASK_INIT, content)
@@ -111,34 +133,14 @@ impl<F: API> UI<F> {
                     input = self.console.prompt(prompt_input).await?;
                 }
                 Command::Act => {
-                    // Show message that mode changed
-                    CONSOLE.writeln(TitleFormat::success("Switched to Act mode").format())?;
-
-                    // Set the mode variable in the conversation
-                    if let Some(conversation_id) = &self.state.conversation_id {
-                        self.api
-                            .set_variable(conversation_id, "mode".to_string(), Value::from("ACT"))
-                            .await?
-                    }
+                    self.handle_mode_change(Mode::Act).await?;
 
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Plan => {
-                    // Show message that mode changed
-                    CONSOLE.writeln(TitleFormat::success("Switched to Plan mode").format())?;
-
-                    // Set the mode variable in the conversation
-                    if let Some(conversation_id) = &self.state.conversation_id {
-                        self.api
-                            .set_variable(
-                                conversation_id,
-                                "mode".to_string(),
-                                Value::String("PLAN".to_string()),
-                            )
-                            .await?
-                    }
+                    self.handle_mode_change(Mode::Plan).await?;
 
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;

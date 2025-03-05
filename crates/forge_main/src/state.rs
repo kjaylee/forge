@@ -2,12 +2,29 @@ use forge_api::{ConversationId, Usage};
 
 use crate::input::PromptInput;
 
+#[derive(Clone, Default)]
+pub enum Mode {
+    Plan,
+    #[default]
+    Act,
+}
+
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Mode::Plan => write!(f, "PLAN"),
+            Mode::Act => write!(f, "ACT"),
+        }
+    }
+}
+
 /// State information for the UI
 #[derive(Default)]
-pub(crate) struct UIState {
-    pub(crate) current_title: Option<String>,
-    pub(crate) conversation_id: Option<ConversationId>,
-    pub(crate) usage: Usage,
+pub struct UIState {
+    pub current_title: Option<String>,
+    pub conversation_id: Option<ConversationId>,
+    pub usage: Usage,
+    pub mode: Mode,
 }
 
 impl From<&UIState> for PromptInput {
@@ -15,6 +32,7 @@ impl From<&UIState> for PromptInput {
         PromptInput::Update {
             title: state.current_title.clone(),
             usage: Some(state.usage.clone()),
+            mode: state.mode.clone(),
         }
     }
 }
