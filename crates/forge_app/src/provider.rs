@@ -5,7 +5,7 @@ use forge_domain::{
     ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
     ResultStream,
 };
-use forge_open_router::ProviderBuilder;
+use forge_open_router::{Client, ClientBuilder};
 use moka2::future::Cache;
 use tokio::sync::Mutex;
 
@@ -14,19 +14,19 @@ use crate::{CredentialRepository, EnvironmentService, Infrastructure};
 pub struct ForgeProviderService<F> {
     infra: Arc<F>,
 
-    // FIXME: Drop the `dyn`
-    provider: Mutex<Option<Arc<dyn ProviderService>>>,
+    // The provider service implementation
+    client: Mutex<Option<Arc<Client>>>,
     cache: Cache<ModelId, Parameters>,
 }
 
 impl<F: Infrastructure> ForgeProviderService<F> {
     pub fn new(infra: Arc<F>) -> Self {
         let infra = infra.clone();
-        Self { infra, provider: Mutex::new(None), cache: Cache::new(1024) }
+        Self { infra, client: Mutex::new(None), cache: Cache::new(1024) }
     }
 
-    async fn provider(&self) -> Result<Arc<dyn ProviderService>> {
-        let mut guard = self.provider.lock().await;
+    async fn provider(&self) -> Result<Arc<Client>> {
+        let mut guard = self.client.lock().await;
         if let Some(provider) = guard.as_ref() {
             return Ok(provider.clone());
         }
@@ -40,9 +40,11 @@ impl<F: Infrastructure> ForgeProviderService<F> {
         } else {
             env.provider_key.clone()
         };
-        let provider = ProviderBuilder::from_url(env.provider_url)
-            .with_key(key)
-            .build()?;
+        let provider = Arc::new(
+            ClientBuilder::from_url(env.provider_url)
+                .with_key(key)
+                .build()?,
+        );
 
         *guard = Some(provider.clone());
         Ok(provider)
