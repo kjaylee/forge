@@ -32,7 +32,7 @@ impl<F: Infrastructure> ForgeProviderService<F> {
         }
 
         let env = self.infra.environment_service().get_environment();
-        let key = if let Some(_antinomy) = env.force_antinomy {
+        let key = if env.force_antinomy.unwrap_or_default() {
             self.infra
                 .credential_repository()
                 .credentials()

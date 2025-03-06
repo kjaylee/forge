@@ -192,5 +192,11 @@ mod tests {
             Provider::Anthropic.to_base_url().as_str(),
             "https://api.anthropic.com/v1/"
         );
+        assert_eq!(
+            Provider::OpenAiCompat(forge_domain::OpenAiCompat::Antinomy)
+                .to_base_url()
+                .as_str(),
+            "https://antinomy.ai/api/v1/"
+        );
     }
 }

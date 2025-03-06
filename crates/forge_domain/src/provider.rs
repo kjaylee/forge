@@ -7,7 +7,7 @@ use url::Url;
 const OPEN_ROUTER_URL: &str = "https://openrouter.ai/api/v1/";
 const OPENAI_URL: &str = "https://api.openai.com/v1/";
 const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/";
-const ANTINOMY_URL: &str = "https://antinomy.ai/api/v1";
+const ANTINOMY_URL: &str = "https://antinomy.ai/api/v1/";
 
 /// OpenAI Compatible providers
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
