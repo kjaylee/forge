@@ -42,7 +42,7 @@ impl<F: Infrastructure> ForgeProviderService<F> {
         };
         let provider = Arc::new(
             ClientBuilder::from_url(env.provider_url)
-                .with_key(key)
+                .api_key(key)
                 .build()?,
         );
 

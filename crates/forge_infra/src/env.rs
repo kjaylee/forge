@@ -101,7 +101,10 @@ mod tests {
         env::set_var("FORGE_PROVIDER_URL", "https://api.openai.com/v1/");
 
         let provider = Provider::from_env();
-        assert_eq!(provider, Some(Provider::OpenAI));
+        assert_eq!(
+            provider,
+            Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
+        );
     }
 
     #[test]
@@ -111,7 +114,12 @@ mod tests {
         env::set_var("OPENROUTER_API_KEY", "some_open_router_key");
 
         let provider = Provider::from_env();
-        assert_eq!(provider, Some(Provider::OpenRouter));
+        assert_eq!(
+            provider,
+            Some(Provider::OpenAiCompat(
+                forge_domain::OpenAiCompat::OpenRouter
+            ))
+        );
     }
 
     #[test]
@@ -121,7 +129,10 @@ mod tests {
         env::set_var("OPENAI_API_KEY", "some_openai_key");
 
         let provider = Provider::from_env();
-        assert_eq!(provider, Some(Provider::OpenAI));
+        assert_eq!(
+            provider,
+            Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
+        );
     }
 
     #[test]
@@ -147,11 +158,13 @@ mod tests {
     fn test_from_url() {
         assert_eq!(
             Provider::from_url("https://api.openai.com/v1/"),
-            Some(Provider::OpenAI)
+            Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
         );
         assert_eq!(
             Provider::from_url("https://api.openrouter.io/v1/"),
-            Some(Provider::OpenRouter)
+            Some(Provider::OpenAiCompat(
+                forge_domain::OpenAiCompat::OpenRouter
+            ))
         );
         assert_eq!(
             Provider::from_url("https://api.anthropic.com/v1/"),
@@ -163,13 +176,20 @@ mod tests {
     #[test]
     #[serial]
     fn test_to_url() {
-        assert_eq!(Provider::OpenAI.to_base_url(), "https://api.openai.com/v1/");
         assert_eq!(
-            Provider::OpenRouter.to_base_url(),
+            Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI)
+                .to_base_url()
+                .as_str(),
+            "https://api.openai.com/v1/"
+        );
+        assert_eq!(
+            Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenRouter)
+                .to_base_url()
+                .as_str(),
             "https://api.openrouter.io/v1/"
         );
         assert_eq!(
-            Provider::Anthropic.to_base_url(),
+            Provider::Anthropic.to_base_url().as_str(),
             "https://api.anthropic.com/v1/"
         );
     }
