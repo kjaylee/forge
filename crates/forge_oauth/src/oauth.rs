@@ -131,17 +131,11 @@ impl ClerkAuthClient {
         let (auth_url, pkce_verifier, csrf_token, _nonce) = self.generate_auth_url();
 
         // 2. Open browser for user authentication
-        println!("Opening browser for authentication...");
-        println!("If the browser doesn't open automatically, please visit this URL:");
-        println!("{}", auth_url);
-
         if let Err(e) = open::that(&auth_url) {
-            println!("Failed to open browser automatically: {}", e);
-            println!("Please open the URL manually in your browser.");
+           anyhow::bail!("Failed to open browser: {}", e);
         }
 
         // 3. Start the callback server and wait for the response
-        println!("Waiting for authentication response...");
         let callback_server = CallbackServer::default();
         // Get both the result and server handle
         let (callback_result, server_handle) = callback_server
@@ -213,7 +207,6 @@ impl ClerkAuthClient {
         code: String,
         pkce_verifier: PkceCodeVerifier,
     ) -> Result<openidconnect::core::CoreTokenResponse> {
-        println!("Exchanging code for token...");
 
         // Clone the client before moving it into the spawn_blocking task
         let client = self.client.clone();
