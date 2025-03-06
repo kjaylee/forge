@@ -9,6 +9,7 @@ use forge_domain::{
     Workflow,
 };
 use forge_infra::ForgeInfra;
+use forge_oauth::AuthFlowState;
 use forge_stream::MpscStream;
 use serde_json::Value;
 
@@ -68,8 +69,12 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         self.app.conversation_service().create(workflow).await
     }
 
-    async fn authenticate(&self) -> anyhow::Result<()> {
-        self.app.auth_service().authenticate().await
+    fn auth_url(&self) -> AuthFlowState {
+        self.app.auth_service().auth_url()
+    }
+
+    async fn authenticate(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
+        self.app.auth_service().authenticate(auth_flow_state).await
     }
 
     fn logout(&self) -> anyhow::Result<bool> {

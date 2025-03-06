@@ -17,9 +17,9 @@ mod tests {
         // Create configuration
         let config = ClerkConfig::default();
         let client = ClerkAuthClient::new(config).unwrap();
-
+        let auth_flow_state = client.generate_auth_url();
         // Start OAuth flow - this will open your browser
-        let result = client.complete_auth_flow().await;
+        let result = client.complete_auth_flow(auth_flow_state).await;
 
         if let Err(e) = result {
             println!("Error during authentication: {}", e);

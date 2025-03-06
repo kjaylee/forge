@@ -131,13 +131,24 @@ impl<F: API> UI<F> {
                 }
                 Command::Login => {
                     info!("Starting OAuth authentication flow...");
-                    match self.api.authenticate().await {
+                    let auth_flow_state = self.api.auth_url();
+                    CONSOLE.writeln(
+                        TitleFormat::execute("Opening browser for authentication")
+                            .sub_title(format!(
+                                "If the browser does not open, please visit the URL below \n {}",
+                                &auth_flow_state.auth_url
+                            ))
+                            .format(),
+                    )?;
+                    match self.api.authenticate(auth_flow_state).await {
                         Ok(_message) => {
-                            info!("Login successful");
-                            CONSOLE.writeln("Login successful")?;
+                            CONSOLE.writeln(
+                                TitleFormat::success("login")
+                                    .sub_title("You have been logged in successfully")
+                                    .format(),
+                            )?;
                         }
                         Err(err) => {
-                            error!("Login failed: {}", err);
                             CONSOLE.writeln(
                                 TitleFormat::failed("login")
                                     .error(format!("{}", err))

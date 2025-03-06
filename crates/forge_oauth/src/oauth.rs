@@ -35,6 +35,19 @@ pub struct Key {
     key: String,
 }
 
+/// Contains all the state information needed for the OAuth authorization flow
+#[derive(Debug)]
+pub struct AuthFlowState {
+    /// The authorization URL the user needs to visit
+    pub auth_url: String,
+    /// PKCE code verifier used to validate the code exchange
+    pub pkce_verifier: PkceCodeVerifier,
+    /// CSRF token used to prevent cross-site request forgery attacks
+    pub csrf_token: CsrfToken,
+    /// Nonce used for additional security
+    pub nonce: Nonce,
+}
+
 impl Default for ClerkConfig {
     fn default() -> Self {
         Self {
@@ -92,7 +105,7 @@ impl ClerkAuthClient {
     }
 
     /// Generate the authorization URL that the user needs to visit
-    pub fn generate_auth_url(&self) -> (String, PkceCodeVerifier, CsrfToken, Nonce) {
+    pub fn generate_auth_url(&self) -> AuthFlowState {
         // Generate PKCE code verifier and challenge
         let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -117,25 +130,16 @@ impl ClerkAuthClient {
 
         let auth_url = auth_url.to_string();
 
-        (auth_url, pkce_verifier, csrf_token, nonce)
+        AuthFlowState { auth_url, pkce_verifier, csrf_token, nonce }
     }
 
-    /// Complete the OAuth2 flow and return the token and user info
-    pub async fn complete_auth_flow(&self) -> Result<()> {
-        // Check if token already exists in keychain
-        if self.get_key_from_keychain().is_some() {
-            return Ok(());
+    pub async fn complete_auth_flow(&self, auth_state: AuthFlowState) -> Result<()> {
+        // Open browser for user authentication
+        if let Err(e) = open::that(&auth_state.auth_url) {
+            anyhow::bail!("Failed to open browser: {}", e);
         }
 
-        // 1. Generate authorization URL with PKCE
-        let (auth_url, pkce_verifier, csrf_token, _nonce) = self.generate_auth_url();
-
-        // 2. Open browser for user authentication
-        if let Err(e) = open::that(&auth_url) {
-           anyhow::bail!("Failed to open browser: {}", e);
-        }
-
-        // 3. Start the callback server and wait for the response
+        // Start the callback server and wait for the response
         let callback_server = CallbackServer::default();
         // Get both the result and server handle
         let (callback_result, server_handle) = callback_server
@@ -143,23 +147,23 @@ impl ClerkAuthClient {
             .await
             .map_err(AuthError::from)?;
 
-        // 4. Verify the state to prevent CSRF attacks
-        if callback_result.state != *csrf_token.secret() {
+        // Verify the state to prevent CSRF attacks
+        if callback_result.state != *auth_state.csrf_token.secret() {
             // Explicitly shut down the server before returning error
             server_handle.shutdown().await;
             return Err(AuthError::StateMismatch.into());
         }
 
-        // 5. Exchange the code for a token
+        // Exchange the code for a token
         let token_response = self
-            .exchange_code_for_token(callback_result.code, pkce_verifier)
+            .exchange_code_for_token(callback_result.code, auth_state.pkce_verifier)
             .await?;
 
         // Immediately shut down the server after we have the token
         // This is critical to ensure we don't leave servers running
         server_handle.shutdown().await;
 
-        // 6. Get user information
+        // Get user information
         let user_info = self
             .user_info_client
             .get_user_info(token_response.access_token())
@@ -181,7 +185,7 @@ impl ClerkAuthClient {
         let body = json!({
             "name": format!("{}-{}", user_info.name.clone().unwrap_or_default(), user_info.email.clone().unwrap_or_default()),
         });
-        // 7. create a new key
+        // Create a new key
         let client = reqwest::Client::new();
         let key: Key = client
             .put("https://antinomy.ai/api/v1/key")
@@ -195,7 +199,7 @@ impl ClerkAuthClient {
             .await
             .context("Failed to parse antinomy response")?;
 
-        // 8. save the key to the keychain
+        // Save the key to the keychain
         self.save_key_to_keychain(&key.key)?;
 
         Ok(())
@@ -207,7 +211,6 @@ impl ClerkAuthClient {
         code: String,
         pkce_verifier: PkceCodeVerifier,
     ) -> Result<openidconnect::core::CoreTokenResponse> {
-
         // Clone the client before moving it into the spawn_blocking task
         let client = self.client.clone();
 

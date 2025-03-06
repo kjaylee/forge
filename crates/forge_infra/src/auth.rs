@@ -1,5 +1,5 @@
 use forge_app::AuthService;
-use forge_oauth::{ClerkAuthClient, ClerkConfig};
+use forge_oauth::{AuthFlowState, ClerkAuthClient, ClerkConfig};
 
 pub struct ForgeAuthService {
     auth_client: ClerkAuthClient,
@@ -20,9 +20,13 @@ impl ForgeAuthService {
 
 #[async_trait::async_trait]
 impl AuthService for ForgeAuthService {
-    async fn authenticate(&self) -> anyhow::Result<()> {
+    fn auth_url(&self) -> AuthFlowState {
+        // Generate the authorization URL
+        self.auth_client.generate_auth_url()
+    }
+    async fn authenticate(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
         // Perform the OAuth flow which will store the token in the keychain
-        self.auth_client.complete_auth_flow().await
+        self.auth_client.complete_auth_flow(auth_flow_state).await
     }
 
     fn logout(&self) -> anyhow::Result<bool> {

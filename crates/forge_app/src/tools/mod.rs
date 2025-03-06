@@ -41,6 +41,7 @@ mod tests {
 
     use bytes::Bytes;
     use forge_domain::{Environment, Point, Query, Suggestion};
+    use forge_oauth::AuthFlowState;
 
     use super::*;
     use crate::{AuthService, EmbeddingService, FileReadService, VectorIndex};
@@ -105,7 +106,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl AuthService for Stub {
-        async fn authenticate(&self) -> anyhow::Result<()> {
+        fn auth_url(&self) -> AuthFlowState {
+            unimplemented!()
+        }
+        async fn authenticate(&self, _auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
             unimplemented!()
         }
 

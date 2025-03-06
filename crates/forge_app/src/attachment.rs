@@ -68,6 +68,7 @@ mod tests {
     use base64::Engine;
     use bytes::Bytes;
     use forge_domain::{AttachmentService, ContentType, Environment, Point, Query, Suggestion};
+    use forge_oauth::AuthFlowState;
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
@@ -184,7 +185,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl AuthService for MockAuthService {
-        async fn authenticate(&self) -> Result<(), anyhow::Error> {
+        fn auth_url(&self) -> AuthFlowState {
+            unimplemented!()
+        }
+        async fn authenticate(&self, _: AuthFlowState) -> Result<(), anyhow::Error> {
             Ok(())
         }
 

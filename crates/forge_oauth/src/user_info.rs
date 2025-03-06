@@ -28,8 +28,6 @@ impl UserInfoClient {
 
     /// Retrieve user information using the access token
     pub async fn get_user_info(&self, token: &AccessToken) -> Result<UserInfo> {
-        println!("Fetching user information...");
-
         let client = reqwest::Client::new();
         let response = client
             .get(&self.user_info_url)

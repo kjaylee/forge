@@ -7,6 +7,7 @@ use std::path::Path;
 
 pub use api::*;
 pub use forge_domain::*;
+use forge_oauth::AuthFlowState;
 use forge_stream::MpscStream;
 use serde_json::Value;
 
@@ -29,8 +30,9 @@ pub trait API {
         chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>>;
 
+    fn auth_url(&self) -> AuthFlowState;
     /// Authenticates the user with Clerk OAuth
-    async fn authenticate(&self) -> anyhow::Result<()>;
+    async fn authenticate(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()>;
 
     /// Logs out the user by deleting stored credentials
     /// Returns true if credentials were found and deleted, false otherwise

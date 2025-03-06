@@ -11,11 +11,14 @@ use std::path::Path;
 pub use app::*;
 use bytes::Bytes;
 use forge_domain::{Point, Query, Suggestion};
+use forge_oauth::AuthFlowState;
 
 #[async_trait::async_trait]
 pub trait AuthService: Send + Sync + 'static {
+    /// Returns the current authentication state
+    fn auth_url(&self) -> AuthFlowState;
     /// Authenticates the user and stores credentials
-    async fn authenticate(&self) -> anyhow::Result<()>;
+    async fn authenticate(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()>;
 
     /// Logs out the user by removing stored credentials
     /// Returns true if credentials were found and removed, false otherwise
