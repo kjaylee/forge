@@ -147,7 +147,7 @@ impl ProviderService for OpenRouter {
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        let text = self
+        let response = self
             .client
             .get(self.url("models")?)
             .headers(self.headers())
@@ -158,13 +158,16 @@ impl ProviderService for OpenRouter {
             .text()
             .await?;
 
-        let response: ListModelResponse = serde_json::from_str(&text)?;
-
-        Ok(response
-            .data
-            .iter()
-            .map(|r| r.clone().into())
-            .collect::<Vec<Model>>())
+        match self.provider {
+            Provider::Antinomy => {
+                let models: Vec<OpenRouterModel> = serde_json::from_str(&response)?;
+                Ok(models.into_iter().map(Into::into).collect())
+            }
+            _ => {
+                let list: ListModelResponse = serde_json::from_str(&response)?;
+                Ok(list.data.into_iter().map(Into::into).collect())
+            }
+        }
     }
 
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
