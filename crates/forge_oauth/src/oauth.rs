@@ -47,32 +47,18 @@ pub struct AuthFlowState {
     /// Nonce used for additional security
     pub nonce: Nonce,
 }
-
-impl Default for ClerkConfig {
-    fn default() -> Self {
-        Self {
-            client_id: "9gKakVrZfk7T1hen".to_string(),
-            redirect_url: "http://localhost:8080/callback".to_string(),
-            auth_url: "https://legible-finch-79.clerk.accounts.dev/oauth/authorize".to_string(),
-            token_url: "https://legible-finch-79.clerk.accounts.dev/oauth/token".to_string(),
-            user_info_url: "https://legible-finch-79.clerk.accounts.dev/oauth/userinfo".to_string(),
-            issuer_url: "https://legible-finch-79.clerk.accounts.dev".to_string(),
-            scope: "email".to_string(),
-        }
-    }
-}
-
 /// The main authentication client
 #[derive(Clone)]
 pub struct ClerkAuthClient {
     config: ClerkConfig,
     client: CoreClient,
     user_info_client: UserInfoClient,
+    key_url: String,
 }
 
 impl ClerkAuthClient {
     /// Create a new client with the given configuration
-    pub fn new(config: ClerkConfig) -> Result<Self> {
+    pub fn new(config: ClerkConfig, key_url: String) -> Result<Self> {
         // Set up the OpenID Connect client
         let client_id = ClientId::new(config.client_id.clone());
         let redirect_url = RedirectUrl::new(config.redirect_url.clone())
@@ -101,7 +87,7 @@ impl ClerkAuthClient {
 
         let user_info_client = UserInfoClient::new(config.user_info_url.clone());
 
-        Ok(Self { config, client, user_info_client })
+        Ok(Self { config, client, user_info_client, key_url })
     }
 
     /// Generate the authorization URL that the user needs to visit
@@ -188,7 +174,7 @@ impl ClerkAuthClient {
         // Create a new key
         let client = reqwest::Client::new();
         let key: Key = client
-            .put("https://antinomy.ai/api/v1/key")
+            .put(self.key_url.clone())
             .headers(headers)
             .json(&body)
             .send()
