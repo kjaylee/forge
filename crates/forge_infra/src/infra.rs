@@ -29,13 +29,13 @@ impl ForgeInfra {
 }
 
 impl Infrastructure for ForgeInfra {
-    type AuthService = ForgeAuthService;
+    type CredentialRepository = ForgeAuthService;
     type EnvironmentService = ForgeEnvironmentService;
     type FileReadService = ForgeFileReadService;
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
 
-    fn credentials_service(&self) -> &Self::AuthService {
+    fn credential_repository(&self) -> &Self::CredentialRepository {
         &self.auth_service
     }
 

@@ -44,7 +44,7 @@ mod tests {
     use forge_oauth::AuthFlowState;
 
     use super::*;
-    use crate::{AuthService, EmbeddingService, FileReadService, VectorIndex};
+    use crate::{CredentialRepository, EmbeddingService, FileReadService, VectorIndex};
 
     /// Create a default test environment
     fn stub() -> Stub {
@@ -105,15 +105,15 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl AuthService for Stub {
-        fn init_auth(&self) -> AuthFlowState {
+    impl CredentialRepository for Stub {
+        fn create(&self) -> AuthFlowState {
             unimplemented!()
         }
         async fn authenticate(&self, _auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
             unimplemented!()
         }
 
-        fn logout(&self) -> anyhow::Result<bool> {
+        fn delete(&self) -> anyhow::Result<bool> {
             unimplemented!()
         }
 
@@ -124,13 +124,13 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
-        type AuthService = Stub;
+        type CredentialRepository = Stub;
         type EnvironmentService = Stub;
         type FileReadService = Stub;
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
 
-        fn credentials_service(&self) -> &Self::AuthService {
+        fn credential_repository(&self) -> &Self::CredentialRepository {
             self
         }
 

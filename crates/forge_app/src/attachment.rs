@@ -72,7 +72,7 @@ mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        AuthService, EmbeddingService, EnvironmentService, FileReadService, Infrastructure,
+        CredentialRepository, EmbeddingService, EnvironmentService, FileReadService, Infrastructure,
         VectorIndex,
     };
 
@@ -184,15 +184,15 @@ mod tests {
     struct MockAuthService {}
 
     #[async_trait::async_trait]
-    impl AuthService for MockAuthService {
-        fn init_auth(&self) -> AuthFlowState {
+    impl CredentialRepository for MockAuthService {
+        fn create(&self) -> AuthFlowState {
             unimplemented!()
         }
         async fn authenticate(&self, _: AuthFlowState) -> Result<(), anyhow::Error> {
             Ok(())
         }
 
-        fn logout(&self) -> Result<bool, anyhow::Error> {
+        fn delete(&self) -> Result<bool, anyhow::Error> {
             Ok(false)
         }
 
@@ -206,7 +206,7 @@ mod tests {
         type FileReadService = MockFileReadService;
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
-        type AuthService = MockAuthService;
+        type CredentialRepository = MockAuthService;
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
         }
@@ -223,7 +223,7 @@ mod tests {
             &self.embedding_service
         }
 
-        fn credentials_service(&self) -> &Self::AuthService {
+        fn credential_repository(&self) -> &Self::CredentialRepository {
             &self.auth_service
         }
     }

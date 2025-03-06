@@ -1,4 +1,4 @@
-use forge_app::AuthService;
+use forge_app::CredentialRepository;
 use forge_oauth::{AuthFlowState, ClerkAuthClient, ClerkConfig};
 
 pub struct ForgeAuthService {
@@ -28,8 +28,8 @@ impl ForgeAuthService {
 }
 
 #[async_trait::async_trait]
-impl AuthService for ForgeAuthService {
-    fn init_auth(&self) -> AuthFlowState {
+impl CredentialRepository for ForgeAuthService {
+    fn create(&self) -> AuthFlowState {
         // Generate the authorization URL
         self.auth_client.generate_auth_url()
     }
@@ -38,7 +38,7 @@ impl AuthService for ForgeAuthService {
         self.auth_client.complete_auth_flow(auth_flow_state).await
     }
 
-    fn logout(&self) -> anyhow::Result<bool> {
+    fn delete(&self) -> anyhow::Result<bool> {
         // Delete the token from the keychain
         self.auth_client.delete_key_from_keychain()
     }

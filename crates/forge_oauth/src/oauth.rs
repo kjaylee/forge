@@ -39,14 +39,19 @@ pub struct Key {
 #[derive(Debug)]
 pub struct AuthFlowState {
     /// The authorization URL the user needs to visit
-    pub auth_url: String,
+    auth_url: String,
     /// PKCE code verifier used to validate the code exchange
-    pub pkce_verifier: PkceCodeVerifier,
+    pkce_verifier: PkceCodeVerifier,
     /// CSRF token used to prevent cross-site request forgery attacks
-    pub csrf_token: CsrfToken,
-    /// Nonce used for additional security
-    pub nonce: Nonce,
+    csrf_token: CsrfToken,
 }
+
+impl AuthFlowState {
+    pub fn url(&self) -> &str {
+        &self.auth_url
+    }
+}
+
 /// The main authentication client
 #[derive(Clone)]
 pub struct ClerkAuthClient {
@@ -116,7 +121,7 @@ impl ClerkAuthClient {
 
         let auth_url = auth_url.to_string();
 
-        AuthFlowState { auth_url, pkce_verifier, csrf_token, nonce }
+        AuthFlowState { auth_url, pkce_verifier, csrf_token }
     }
 
     pub async fn complete_auth_flow(&self, auth_state: AuthFlowState) -> Result<()> {

@@ -67,14 +67,14 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 }
 
 impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
-    type AuthService = F::AuthService;
+    type CredentialRepository = F::CredentialRepository;
     type EnvironmentService = F::EnvironmentService;
     type FileReadService = F::FileReadService;
     type VectorIndex = F::VectorIndex;
     type EmbeddingService = F::EmbeddingService;
 
-    fn credentials_service(&self) -> &Self::AuthService {
-        self.infra.credentials_service()
+    fn credential_repository(&self) -> &Self::CredentialRepository {
+        self.infra.credential_repository()
     }
 
     fn environment_service(&self) -> &Self::EnvironmentService {

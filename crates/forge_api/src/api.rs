@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{AuthService, EnvironmentService, ForgeApp, Infrastructure};
+use forge_app::{CredentialRepository, EnvironmentService, ForgeApp, Infrastructure};
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_oauth::AuthFlowState;
@@ -66,15 +66,15 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     }
 
     fn init_login(&self) -> AuthFlowState {
-        self.app.credentials_service().init_auth()
+        self.app.credential_repository().create()
     }
 
     async fn login(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
-        self.app.credentials_service().authenticate(auth_flow_state).await
+        self.app.credential_repository().authenticate(auth_flow_state).await
     }
 
     fn logout(&self) -> anyhow::Result<bool> {
-        self.app.credentials_service().logout()
+        self.app.credential_repository().delete()
     }
 
     fn environment(&self) -> Environment {

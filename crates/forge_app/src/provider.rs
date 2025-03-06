@@ -9,7 +9,7 @@ use forge_open_router::ProviderBuilder;
 use moka2::future::Cache;
 use tokio::sync::Mutex;
 
-use crate::{AuthService, EnvironmentService, Infrastructure};
+use crate::{CredentialRepository, EnvironmentService, Infrastructure};
 
 pub struct ForgeProviderService<F> {
     infra: Arc<F>,
@@ -34,7 +34,7 @@ impl<F: Infrastructure> ForgeProviderService<F> {
         let env = self.infra.environment_service().get_environment();
         let key = if let Some(_antinomy) = env.force_antinomy {
             self.infra
-                .credentials_service()
+                .credential_repository()
                 .credentials()
                 .ok_or_else(|| anyhow::anyhow!("Failed to authenticate the user"))?
         } else {

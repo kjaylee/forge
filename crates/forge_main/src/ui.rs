@@ -134,7 +134,7 @@ impl<F: API> UI<F> {
                         TitleFormat::execute("Opening browser for authentication")
                             .sub_title(format!(
                                 "If the browser does not open, please visit the URL below \n {}",
-                                &auth_flow_state.auth_url
+                                &auth_flow_state.url()
                             ))
                             .format(),
                     )?;
