@@ -9,12 +9,12 @@ impl ForgeAuthService {
     pub fn new() -> Self {
         // Create configuration for Clerk OAuth
         let config = ClerkConfig {
-            client_id: "9gKakVrZfk7T1hen".to_string(),
+            client_id: "wmVgjvoQ3hUcGbk8".to_string(),
             redirect_url: "http://localhost:8080/callback".to_string(),
-            auth_url: "https://legible-finch-79.clerk.accounts.dev/oauth/authorize".to_string(),
-            token_url: "https://legible-finch-79.clerk.accounts.dev/oauth/token".to_string(),
-            user_info_url: "https://legible-finch-79.clerk.accounts.dev/oauth/userinfo".to_string(),
-            issuer_url: "https://legible-finch-79.clerk.accounts.dev".to_string(),
+            auth_url: "https://clerk.antinomy.ai/oauth/authorize".to_string(),
+            token_url: "https://clerk.antinomy.ai/oauth/token".to_string(),
+            user_info_url: "https://clerk.antinomy.ai/oauth/userinfo".to_string(),
+            issuer_url: "https://clerk.antinomy.ai".to_string(),
             scope: "email".to_string(),
         };
         let key_url = "https://antinomy.ai/api/v1/key".to_string();
