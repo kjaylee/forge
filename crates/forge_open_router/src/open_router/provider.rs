@@ -42,7 +42,7 @@ mod tests {
         );
         assert_eq!(
             Provider::Antinomy.base_url(),
-            "https://antinomy.ai/api/v1".parse().unwrap()
+            "https://antinomy.ai/api/v1/".parse().unwrap()
         );
     }
 }
