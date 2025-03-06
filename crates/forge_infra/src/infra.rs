@@ -35,7 +35,7 @@ impl Infrastructure for ForgeInfra {
     type VectorIndex = QdrantVectorIndex;
     type EmbeddingService = OpenAIEmbeddingService;
 
-    fn auth_service(&self) -> &Self::AuthService {
+    fn credentials_service(&self) -> &Self::AuthService {
         &self.auth_service
     }
 

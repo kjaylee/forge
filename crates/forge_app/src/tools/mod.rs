@@ -117,7 +117,7 @@ mod tests {
             unimplemented!()
         }
 
-        fn get_auth_token(&self) -> Option<String> {
+        fn credentials(&self) -> Option<String> {
             unimplemented!()
         }
     }
@@ -130,7 +130,7 @@ mod tests {
         type VectorIndex = Stub;
         type EmbeddingService = Stub;
 
-        fn auth_service(&self) -> &Self::AuthService {
+        fn credentials_service(&self) -> &Self::AuthService {
             self
         }
 

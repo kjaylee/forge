@@ -43,7 +43,7 @@ impl AuthService for ForgeAuthService {
         self.auth_client.delete_key_from_keychain()
     }
 
-    fn get_auth_token(&self) -> Option<String> {
+    fn credentials(&self) -> Option<String> {
         // Get the token from the keychain
         self.auth_client.get_key_from_keychain()
     }

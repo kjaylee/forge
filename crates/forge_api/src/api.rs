@@ -66,15 +66,15 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     }
 
     fn init_login(&self) -> AuthFlowState {
-        self.app.auth_service().init_auth()
+        self.app.credentials_service().init_auth()
     }
 
     async fn login(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
-        self.app.auth_service().authenticate(auth_flow_state).await
+        self.app.credentials_service().authenticate(auth_flow_state).await
     }
 
     fn logout(&self) -> anyhow::Result<bool> {
-        self.app.auth_service().logout()
+        self.app.credentials_service().logout()
     }
 
     fn environment(&self) -> Environment {

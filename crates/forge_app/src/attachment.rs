@@ -196,7 +196,7 @@ mod tests {
             Ok(false)
         }
 
-        fn get_auth_token(&self) -> Option<String> {
+        fn credentials(&self) -> Option<String> {
             None
         }
     }
@@ -223,7 +223,7 @@ mod tests {
             &self.embedding_service
         }
 
-        fn auth_service(&self) -> &Self::AuthService {
+        fn credentials_service(&self) -> &Self::AuthService {
             &self.auth_service
         }
     }

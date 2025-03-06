@@ -13,6 +13,8 @@ use crate::{AuthService, EnvironmentService, Infrastructure};
 
 pub struct ForgeProviderService<F> {
     infra: Arc<F>,
+
+    // FIXME: Drop the `dyn`
     provider: Mutex<Option<Arc<dyn ProviderService>>>,
     cache: Cache<ModelId, Parameters>,
 }
@@ -32,8 +34,8 @@ impl<F: Infrastructure> ForgeProviderService<F> {
         let env = self.infra.environment_service().get_environment();
         let key = if let Some(_antinomy) = env.force_antinomy {
             self.infra
-                .auth_service()
-                .get_auth_token()
+                .credentials_service()
+                .credentials()
                 .ok_or_else(|| anyhow::anyhow!("Failed to authenticate the user"))?
         } else {
             env.provider_key.clone()

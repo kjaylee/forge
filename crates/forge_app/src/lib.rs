@@ -26,7 +26,7 @@ pub trait AuthService: Send + Sync + 'static {
 
     /// Retrieves the current authentication token if available
     /// Returns the token as a string if found, or an error if not authenticated
-    fn get_auth_token(&self) -> Option<String>;
+    fn credentials(&self) -> Option<String>;
 }
 
 /// Repository for accessing system environment information
@@ -68,7 +68,7 @@ pub trait Infrastructure: Send + Sync + 'static {
     type VectorIndex: VectorIndex<Suggestion>;
     type EmbeddingService: EmbeddingService;
 
-    fn auth_service(&self) -> &Self::AuthService;
+    fn credentials_service(&self) -> &Self::AuthService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_read_service(&self) -> &Self::FileReadService;
     fn vector_index(&self) -> &Self::VectorIndex;

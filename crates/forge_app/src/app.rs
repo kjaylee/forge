@@ -73,8 +73,8 @@ impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
     type VectorIndex = F::VectorIndex;
     type EmbeddingService = F::EmbeddingService;
 
-    fn auth_service(&self) -> &Self::AuthService {
-        self.infra.auth_service()
+    fn credentials_service(&self) -> &Self::AuthService {
+        self.infra.credentials_service()
     }
 
     fn environment_service(&self) -> &Self::EnvironmentService {
