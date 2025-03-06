@@ -70,7 +70,10 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn login(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
-        self.app.credential_repository().authenticate(auth_flow_state).await
+        self.app
+            .credential_repository()
+            .authenticate(auth_flow_state)
+            .await
     }
 
     fn logout(&self) -> anyhow::Result<bool> {

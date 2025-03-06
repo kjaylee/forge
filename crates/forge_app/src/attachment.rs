@@ -72,8 +72,8 @@ mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        CredentialRepository, EmbeddingService, EnvironmentService, FileReadService, Infrastructure,
-        VectorIndex,
+        CredentialRepository, EmbeddingService, EnvironmentService, FileReadService,
+        Infrastructure, VectorIndex,
     };
 
     struct MockEnvironmentService {}
