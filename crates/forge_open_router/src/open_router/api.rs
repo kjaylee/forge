@@ -4,7 +4,7 @@ use forge_domain::{
     self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters,
     ProviderService, ResultStream,
 };
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, AUTHORIZATION};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
@@ -66,32 +66,11 @@ impl OpenRouter {
 
     fn headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
-
-        match self.provider {
-            Provider::OpenAI => {
-                if let Some(ref api_key) = self.api_key {
-                    headers.insert(
-                        AUTHORIZATION,
-                        HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
-                    );
-                }
-            }
-            Provider::OpenRouter => {
-                if let Some(ref api_key) = self.api_key {
-                    headers.insert(
-                        AUTHORIZATION,
-                        HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
-                    );
-                }
-            }
-            Provider::Antinomy => {
-                if let Some(ref api_key) = self.api_key {
-                    headers.insert(
-                        HeaderName::from_static("x-api-key"),
-                        HeaderValue::from_str(&api_key.to_string()).unwrap(),
-                    );
-                }
-            }
+        if let Some(ref api_key) = self.api_key {
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
+            );
         }
         headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
