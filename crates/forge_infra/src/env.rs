@@ -161,7 +161,7 @@ mod tests {
             Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
         );
         assert_eq!(
-            Provider::from_url("https://api.openrouter.io/v1/"),
+            Provider::from_url("https://openrouter.ai/api/v1/"),
             Some(Provider::OpenAiCompat(
                 forge_domain::OpenAiCompat::OpenRouter
             ))
@@ -186,7 +186,7 @@ mod tests {
             Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenRouter)
                 .to_base_url()
                 .as_str(),
-            "https://api.openrouter.io/v1/"
+            "https://openrouter.ai/api/v1/"
         );
         assert_eq!(
             Provider::Anthropic.to_base_url().as_str(),
