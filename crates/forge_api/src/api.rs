@@ -77,7 +77,6 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         self.app.auth_service().logout()
     }
 
-    
     fn environment(&self) -> Environment {
         self.app.environment_service().get_environment().clone()
     }
