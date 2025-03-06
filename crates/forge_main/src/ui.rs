@@ -8,7 +8,6 @@ use forge_tracker::EventKind;
 use lazy_static::lazy_static;
 use serde_json::Value;
 use tokio_stream::StreamExt;
-use tracing::{error, info};
 
 use crate::banner;
 use crate::cli::Cli;
@@ -130,7 +129,6 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Login => {
-                    info!("Starting OAuth authentication flow...");
                     let auth_flow_state = self.api.auth_url();
                     CONSOLE.writeln(
                         TitleFormat::execute("Opening browser for authentication")
@@ -163,10 +161,8 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Logout => {
-                    info!("Processing logout request...");
                     match self.api.logout() {
                         Ok(true) => {
-                            info!("Logout successful");
                             CONSOLE.writeln(
                                 TitleFormat::success("logout")
                                     .sub_title("User has been logged out successfully")
@@ -174,7 +170,6 @@ impl<F: API> UI<F> {
                             )?;
                         }
                         Ok(false) => {
-                            info!("No active session to logout");
                             CONSOLE.writeln(
                                 TitleFormat::failed("logout")
                                     .error("No active session found")
@@ -182,7 +177,6 @@ impl<F: API> UI<F> {
                             )?;
                         }
                         Err(err) => {
-                            error!("Logout failed: {}", err);
                             CONSOLE.writeln(
                                 TitleFormat::failed("logout")
                                     .error(format!("{}", err))
