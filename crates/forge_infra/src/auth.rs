@@ -8,7 +8,7 @@ pub struct ForgeAuthService {
 impl ForgeAuthService {
     pub fn new() -> Self {
         // Create configuration for Clerk OAuth
-        let config = ClerkConfig{
+        let config = ClerkConfig {
             client_id: "9gKakVrZfk7T1hen".to_string(),
             redirect_url: "http://localhost:8080/callback".to_string(),
             auth_url: "https://legible-finch-79.clerk.accounts.dev/oauth/authorize".to_string(),
@@ -20,8 +20,8 @@ impl ForgeAuthService {
         let key_url = "https://antinomy.ai/api/v1/key".to_string();
 
         // Initialize the auth client
-        let auth_client =
-            ClerkAuthClient::new(config, key_url).expect("Failed to initialize authentication client");
+        let auth_client = ClerkAuthClient::new(config, key_url)
+            .expect("Failed to initialize authentication client");
 
         Self { auth_client }
     }
