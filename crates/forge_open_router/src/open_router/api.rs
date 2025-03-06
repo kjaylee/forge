@@ -158,7 +158,7 @@ impl ProviderService for OpenRouter {
             .await?;
 
         match self.provider {
-            Provider::Antinomy => {
+            OpenAiCompat::Antinomy => {
                 let models: Vec<OpenRouterModel> = serde_json::from_str(&response)?;
                 Ok(models.into_iter().map(Into::into).collect())
             }
