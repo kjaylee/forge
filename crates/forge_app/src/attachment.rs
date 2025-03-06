@@ -185,7 +185,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl AuthService for MockAuthService {
-        fn auth_url(&self) -> AuthFlowState {
+        fn init_auth(&self) -> AuthFlowState {
             unimplemented!()
         }
         async fn authenticate(&self, _: AuthFlowState) -> Result<(), anyhow::Error> {

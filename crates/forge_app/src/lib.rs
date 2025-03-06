@@ -16,7 +16,7 @@ use forge_oauth::AuthFlowState;
 #[async_trait::async_trait]
 pub trait AuthService: Send + Sync + 'static {
     /// Returns the current authentication state
-    fn auth_url(&self) -> AuthFlowState;
+    fn init_auth(&self) -> AuthFlowState;
     /// Authenticates the user and stores credentials
     async fn authenticate(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()>;
 

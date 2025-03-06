@@ -65,11 +65,11 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         self.app.conversation_service().create(workflow).await
     }
 
-    fn auth_url(&self) -> AuthFlowState {
-        self.app.auth_service().auth_url()
+    fn init_login(&self) -> AuthFlowState {
+        self.app.auth_service().init_auth()
     }
 
-    async fn authenticate(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
+    async fn login(&self, auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
         self.app.auth_service().authenticate(auth_flow_state).await
     }
 
@@ -77,10 +77,7 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
         self.app.auth_service().logout()
     }
 
-    fn get_key(&self) -> Option<String> {
-        self.app.auth_service().get_auth_token()
-    }
-
+    
     fn environment(&self) -> Environment {
         self.app.environment_service().get_environment().clone()
     }

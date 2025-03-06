@@ -29,7 +29,7 @@ impl ForgeAuthService {
 
 #[async_trait::async_trait]
 impl AuthService for ForgeAuthService {
-    fn auth_url(&self) -> AuthFlowState {
+    fn init_auth(&self) -> AuthFlowState {
         // Generate the authorization URL
         self.auth_client.generate_auth_url()
     }

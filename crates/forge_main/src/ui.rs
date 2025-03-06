@@ -129,7 +129,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Login => {
-                    let auth_flow_state = self.api.auth_url();
+                    let auth_flow_state = self.api.init_login();
                     CONSOLE.writeln(
                         TitleFormat::execute("Opening browser for authentication")
                             .sub_title(format!(
@@ -138,7 +138,7 @@ impl<F: API> UI<F> {
                             ))
                             .format(),
                     )?;
-                    match self.api.authenticate(auth_flow_state).await {
+                    match self.api.login(auth_flow_state).await {
                         Ok(_message) => {
                             CONSOLE.writeln(
                                 TitleFormat::success("login")

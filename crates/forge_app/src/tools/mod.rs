@@ -106,7 +106,7 @@ mod tests {
 
     #[async_trait::async_trait]
     impl AuthService for Stub {
-        fn auth_url(&self) -> AuthFlowState {
+        fn init_auth(&self) -> AuthFlowState {
             unimplemented!()
         }
         async fn authenticate(&self, _auth_flow_state: AuthFlowState) -> anyhow::Result<()> {
