@@ -134,6 +134,7 @@ mod tests {
     #[tokio::test]
     async fn test_url_for_models() {
         let anthropic = Anthropic::builder()
+            .client(Client::new())
             .api_key("sk-some-key".to_string())
             .build()
             .unwrap();
