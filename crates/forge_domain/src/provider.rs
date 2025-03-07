@@ -1,47 +1,37 @@
-use std::fmt::Display;
-
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 /// Providers that can be used.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Provider {
-    // FIXME: add key to Provider
-    OpenAI { url: Url },
-    Anthropic,
+    OpenAI { url: Url, key: Option<String> },
+    Anthropic { key: String },
 }
 
 impl Provider {
-    pub fn from_url(url: Url) -> Self {
-        if url.as_str().starts_with(Self::ANTHROPIC_URL) {
-            Provider::Anthropic
-        } else {
-            Provider::OpenAI { url }
+    pub fn antinomy(key: impl Into<String>) -> Provider {
+        Provider::OpenAI {
+            url: Url::parse(Provider::ANTINOMY_URL).unwrap(),
+            key: Some(key.into()),
         }
     }
 
-    pub fn antinomy() -> Provider {
-        Provider::OpenAI { url: Url::parse(Provider::ANTINOMY_URL).unwrap() }
-    }
-
-    pub fn openai() -> Provider {
-        Provider::OpenAI { url: Url::parse(Provider::OPENAI_URL).unwrap() }
-    }
-
-    pub fn open_router() -> Provider {
-        Provider::OpenAI { url: Url::parse(Provider::OPEN_ROUTER_URL).unwrap() }
-    }
-
-    pub fn anthropic() -> Provider {
-        Provider::Anthropic
-    }
-}
-
-impl Display for Provider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Provider::OpenAI { url } => write!(f, "OpenAI Compat {}", url),
-            Provider::Anthropic => write!(f, "Anthropic"),
+    pub fn openai(key: impl Into<String>) -> Provider {
+        Provider::OpenAI {
+            url: Url::parse(Provider::OPENAI_URL).unwrap(),
+            key: Some(key.into()),
         }
+    }
+
+    pub fn open_router(key: impl Into<String>) -> Provider {
+        Provider::OpenAI {
+            url: Url::parse(Provider::OPEN_ROUTER_URL).unwrap(),
+            key: Some(key.into()),
+        }
+    }
+
+    pub fn anthropic(key: impl Into<String>) -> Provider {
+        Provider::Anthropic { key: key.into() }
     }
 }
 
@@ -54,22 +44,22 @@ impl Provider {
     /// Converts the provider to it's base URL
     pub fn to_base_url(&self) -> Url {
         match self {
-            Provider::OpenAI { url } => url.clone(),
-            Provider::Anthropic => Url::parse(Self::ANTHROPIC_URL).unwrap(),
+            Provider::OpenAI { url, .. } => url.clone(),
+            Provider::Anthropic { .. } => Url::parse(Self::ANTHROPIC_URL).unwrap(),
         }
     }
 
     pub fn is_open_router(&self) -> bool {
         match self {
-            Provider::OpenAI { url } => url.as_str().starts_with(Self::OPEN_ROUTER_URL),
-            Provider::Anthropic => false,
+            Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::OPEN_ROUTER_URL),
+            Provider::Anthropic { .. } => false,
         }
     }
 
     pub fn is_open_ai(&self) -> bool {
         match self {
-            Provider::OpenAI { url } => url.as_str().starts_with(Self::OPENAI_URL),
-            Provider::Anthropic => false,
+            Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::OPENAI_URL),
+            Provider::Anthropic { .. } => false,
         }
     }
 }

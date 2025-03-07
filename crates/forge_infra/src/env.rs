@@ -7,6 +7,8 @@ pub struct ForgeEnvironmentService {
     restricted: bool,
 }
 
+type ProviderSearch = (&'static str, Box<dyn FnOnce(&str) -> Provider>);
+
 impl ForgeEnvironmentService {
     /// Creates a new EnvironmentFactory with current working directory
     ///
@@ -34,12 +36,21 @@ impl ForgeEnvironmentService {
     ///
     /// Returns a tuple of (provider_key, provider)
     /// Panics if no API key is found in the environment
-    fn resolve_provider(&self) -> (String, Provider) {
-        let keys = [
-            ("FORGE_KEY", Provider::antinomy()),
-            ("OPENROUTER_API_KEY", Provider::open_router()),
-            ("OPENAI_API_KEY", Provider::openai()),
-            ("ANTHROPIC_API_KEY", Provider::anthropic()),
+    fn resolve_provider(&self) -> Provider {
+        let keys: [ProviderSearch; 4] = [
+            ("FORGE_KEY", Box::new(|key: &str| Provider::antinomy(key))),
+            (
+                "OPENROUTER_API_KEY",
+                Box::new(|key: &str| Provider::open_router(key)),
+            ),
+            (
+                "OPENAI_API_KEY",
+                Box::new(|key: &str| Provider::openai(key)),
+            ),
+            (
+                "ANTHROPIC_API_KEY",
+                Box::new(|key: &str| Provider::anthropic(key)),
+            ),
         ];
 
         let env_variables = keys
@@ -48,15 +59,15 @@ impl ForgeEnvironmentService {
             .collect::<Vec<_>>()
             .join(", ");
 
-        keys.iter()
-            .find_map(|(key, url)| std::env::var(key).ok().map(|key| (key, url.clone())))
+        keys.into_iter()
+            .find_map(|(key, fun)| std::env::var(key).ok().map(|key| fun(&key)))
             .unwrap_or_else(|| panic!("No API key found. Please set one of: {}", env_variables))
     }
 
     fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
-        let (provider_key, provider) = self.resolve_provider();
+        let provider = self.resolve_provider();
 
         Environment {
             os: std::env::consts::OS.to_string(),
@@ -70,9 +81,8 @@ impl ForgeEnvironmentService {
 
             qdrant_key: std::env::var("QDRANT_KEY").ok(),
             qdrant_cluster: std::env::var("QDRANT_CLUSTER").ok(),
-            provider_key,
-            provider_url: provider.to_base_url().to_string(),
             openai_key: std::env::var("OPENAI_API_KEY").ok(),
+            provider,
         }
     }
 }

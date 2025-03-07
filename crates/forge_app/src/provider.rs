@@ -7,40 +7,35 @@ use forge_domain::{
 };
 use forge_open_router::{Client, ClientBuilder};
 use moka2::future::Cache;
-use reqwest::Url;
 use tokio::sync::Mutex;
 
 use crate::{EnvironmentService, Infrastructure};
 
-pub struct ForgeProviderService<F> {
-    infra: Arc<F>,
-
+pub struct ForgeProviderService {
     // The provider service implementation
     client: Mutex<Option<Arc<Client>>>,
     cache: Cache<ModelId, Parameters>,
+    provider: Provider,
 }
 
-impl<F: Infrastructure> ForgeProviderService<F> {
-    pub fn new(infra: Arc<F>) -> Self {
+impl ForgeProviderService {
+    pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
         let infra = infra.clone();
-        Self { infra, client: Mutex::new(None), cache: Cache::new(1024) }
+        let provider = infra
+            .environment_service()
+            .get_environment()
+            .provider
+            .clone();
+        Self { client: Mutex::new(None), cache: Cache::new(1024), provider }
     }
 
-    async fn provider(&self) -> Result<Arc<Client>> {
+    async fn client(&self) -> Result<Arc<Client>> {
         let mut guard = self.client.lock().await;
         if let Some(provider) = guard.as_ref() {
             return Ok(provider.clone());
         }
 
-        let env = self.infra.environment_service().get_environment();
-        let key = env.provider_key.clone();
-        let url = Url::parse(&env.provider_url)?;
-
-        let provider = Arc::new(
-            ClientBuilder::new(Provider::from_url(url))
-                .api_key(key)
-                .build()?,
-        );
+        let provider = Arc::new(ClientBuilder::new(self.provider.clone()).build()?);
 
         *guard = Some(provider.clone());
         Ok(provider)
@@ -48,13 +43,13 @@ impl<F: Infrastructure> ForgeProviderService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> ProviderService for ForgeProviderService<F> {
+impl ProviderService for ForgeProviderService {
     async fn chat(
         &self,
         model_id: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.provider()
+        self.client()
             .await?
             .chat(model_id, request)
             .await
@@ -62,13 +57,13 @@ impl<F: Infrastructure> ProviderService for ForgeProviderService<F> {
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        self.provider().await?.models().await
+        self.client().await?.models().await
     }
 
     async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters> {
         self.cache
             .try_get_with_by_ref(model, async {
-                self.provider()
+                self.client()
                     .await?
                     .parameters(model)
                     .await

@@ -21,6 +21,7 @@ pub struct OpenRouter {
     client: Client,
     api_key: Option<String>,
     url: Url,
+    provider: Provider,
 }
 
 impl OpenRouter {
@@ -65,7 +66,7 @@ impl ProviderService for OpenRouter {
         let mut request = OpenRouterRequest::from(request)
             .model(model_id.clone())
             .stream(true);
-        request = ProviderPipeline::new(&Provider::from_url(self.url.clone())).transform(request);
+        request = ProviderPipeline::new(&self.provider).transform(request);
 
         let url = self.url("chat/completions")?;
         debug!(url = %url, model = %model_id, "Connecting to OpenRouter API");

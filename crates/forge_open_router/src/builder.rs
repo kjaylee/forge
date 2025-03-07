@@ -1,7 +1,6 @@
 // Context trait is needed for error handling in the provider implementations
 
 use anyhow::Result;
-use derive_setters::Setters;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Parameters, Provider, ProviderService,
     ResultStream,
@@ -11,11 +10,9 @@ use crate::anthropic::Anthropic;
 use crate::open_router::OpenRouter;
 
 // ProviderBuilder moved from lib.rs
-#[derive(Debug, Setters)]
-#[setters(strip_option)]
+#[derive(Debug)]
 pub struct ClientBuilder {
     provider: Provider,
-    api_key: Option<String>,
 }
 
 pub enum Client {
@@ -25,26 +22,19 @@ pub enum Client {
 
 impl ClientBuilder {
     pub fn new(provider: Provider) -> Self {
-        Self { provider, api_key: None }
+        Self { provider }
     }
 
     pub fn build(self) -> Result<Client> {
         let provider = self.provider;
 
-        let api_key = self
-            .api_key
-            .ok_or_else(|| anyhow::anyhow!("API key is required for provider: {}", provider))?;
-
         match provider {
-            forge_domain::Provider::OpenAI { url } => Ok(Client::OpenAICompat(
-                OpenRouter::builder()
-                    .url(url)
-                    .api_key(Some(api_key))
-                    .build()?,
+            forge_domain::Provider::OpenAI { url, key } => Ok(Client::OpenAICompat(
+                OpenRouter::builder().url(url).api_key(key).build()?,
             )),
 
-            forge_domain::Provider::Anthropic => Ok(Client::Anthropic(
-                Anthropic::builder().api_key(api_key).build()?,
+            forge_domain::Provider::Anthropic { key } => Ok(Client::Anthropic(
+                Anthropic::builder().api_key(key).build()?,
             )),
         }
     }
