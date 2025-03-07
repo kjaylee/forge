@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
-    ResultStream,
+    ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, Provider,
+    ProviderService, ResultStream,
 };
 use forge_open_router::{Client, ClientBuilder};
 use moka2::future::Cache;
+use reqwest::Url;
 use tokio::sync::Mutex;
 
 use crate::{EnvironmentService, Infrastructure};
@@ -33,8 +34,13 @@ impl<F: Infrastructure> ForgeProviderService<F> {
 
         let env = self.infra.environment_service().get_environment();
         let key = env.provider_key.clone();
-        let url = env.provider_url.clone();
-        let provider = Arc::new(ClientBuilder::from_url(url).api_key(key).build()?);
+        let url = Url::parse(&env.provider_url)?;
+
+        let provider = Arc::new(
+            ClientBuilder::new(Provider::from_url(url))
+                .api_key(key)
+                .build()?,
+        );
 
         *guard = Some(provider.clone());
         Ok(provider)

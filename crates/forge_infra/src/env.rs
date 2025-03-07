@@ -33,14 +33,24 @@ impl ForgeEnvironmentService {
     fn get(&self) -> Environment {
         dotenv::dotenv().ok();
         let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
+        let keys = [
+            ("FORGE_KEY", Provider::antinomy()),
+            ("OPENROUTER_API_KEY", Provider::open_router()),
+            ("OPENAI_API_KEY", Provider::openai()),
+            ("ANTHROPIC_API_KEY", Provider::anthropic()),
+        ];
 
-        let provider_key = std::env::var("FORGE_KEY")
-            .or_else(|_| std::env::var("OPENROUTER_API_KEY"))
-            .or_else(|_| std::env::var("OPENAI_API_KEY"))
-            .or_else(|_| std::env::var("ANTHROPIC_API_KEY"))
-            .expect("No API key found. Please set one of: FORGE_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY or ANTHROPIC_API_KEY");
-        // note: since we know the key is set, we can unwrap here.
-        let provider = Provider::from_env().unwrap();
+        let env_variables = keys
+            .iter()
+            .map(|(key, _)| *key)
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let (provider_key, provider) = keys
+            .iter()
+            .find_map(|(key, url)| std::env::var(key).ok().map(|key| (key, url.clone())))
+            .unwrap_or_else(|| panic!("No API key found. Please set one of: {}", env_variables));
+
         Environment {
             os: std::env::consts::OS.to_string(),
             pid: std::process::id(),
@@ -63,139 +73,5 @@ impl ForgeEnvironmentService {
 impl EnvironmentService for ForgeEnvironmentService {
     fn get_environment(&self) -> Environment {
         self.get()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::env;
-
-    use forge_domain::Provider;
-    use serial_test::serial;
-
-    // reset the env variables for reliable tests
-    fn reset_env() {
-        env::remove_var("FORGE_KEY");
-        env::remove_var("FORGE_PROVIDER_URL");
-        env::remove_var("OPENROUTER_API_KEY");
-        env::remove_var("OPENAI_API_KEY");
-        env::remove_var("ANTHROPIC_API_KEY");
-    }
-
-    #[test]
-    #[serial]
-    fn test_provider_from_env_with_forge_key_and_without_provider_url() {
-        reset_env();
-        env::set_var("FORGE_KEY", "some_forge_key");
-
-        let provider = Provider::from_env();
-        assert_eq!(provider, None);
-    }
-
-    #[test]
-    #[serial]
-    fn test_provider_from_env_with_forge_key() {
-        reset_env();
-        env::set_var("FORGE_KEY", "some_forge_key");
-        env::set_var("FORGE_PROVIDER_URL", "https://api.openai.com/v1/");
-
-        let provider = Provider::from_env();
-        assert_eq!(
-            provider,
-            Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
-        );
-    }
-
-    #[test]
-    #[serial]
-    fn test_provider_from_env_with_open_router_key() {
-        reset_env();
-        env::set_var("OPENROUTER_API_KEY", "some_open_router_key");
-
-        let provider = Provider::from_env();
-        assert_eq!(
-            provider,
-            Some(Provider::OpenAiCompat(
-                forge_domain::OpenAiCompat::OpenRouter
-            ))
-        );
-    }
-
-    #[test]
-    #[serial]
-    fn test_provider_from_env_with_openai_key() {
-        reset_env();
-        env::set_var("OPENAI_API_KEY", "some_openai_key");
-
-        let provider = Provider::from_env();
-        assert_eq!(
-            provider,
-            Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
-        );
-    }
-
-    #[test]
-    #[serial]
-    fn test_provider_from_env_with_anthropic_key() {
-        reset_env();
-        env::set_var("ANTHROPIC_API_KEY", "some_anthropic_key");
-
-        let provider = Provider::from_env();
-        assert_eq!(provider, Some(Provider::Anthropic));
-    }
-
-    #[test]
-    #[serial]
-    fn test_provider_from_env_with_no_keys() {
-        reset_env();
-        let provider = Provider::from_env();
-        assert_eq!(provider, None);
-    }
-
-    #[test]
-    #[serial]
-    fn test_from_url() {
-        assert_eq!(
-            Provider::from_url("https://api.openai.com/v1/"),
-            Some(Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI))
-        );
-        assert_eq!(
-            Provider::from_url("https://openrouter.ai/api/v1/"),
-            Some(Provider::OpenAiCompat(
-                forge_domain::OpenAiCompat::OpenRouter
-            ))
-        );
-        assert_eq!(
-            Provider::from_url("https://api.anthropic.com/v1/"),
-            Some(Provider::Anthropic)
-        );
-        assert_eq!(Provider::from_url("https://unknown.url/"), None);
-    }
-
-    #[test]
-    #[serial]
-    fn test_to_url() {
-        assert_eq!(
-            Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenAI)
-                .to_base_url()
-                .as_str(),
-            "https://api.openai.com/v1/"
-        );
-        assert_eq!(
-            Provider::OpenAiCompat(forge_domain::OpenAiCompat::OpenRouter)
-                .to_base_url()
-                .as_str(),
-            "https://openrouter.ai/api/v1/"
-        );
-        assert_eq!(
-            Provider::Anthropic.to_base_url().as_str(),
-            "https://api.anthropic.com/v1/"
-        );
-        assert_eq!(
-            Provider::OpenAiCompat(forge_domain::OpenAiCompat::Antinomy)
-                .to_base_url()
-                .as_str(),
-            "https://antinomy.ai/api/v1/"
-        );
     }
 }

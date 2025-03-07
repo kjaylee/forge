@@ -3,7 +3,8 @@
 use anyhow::Result;
 use derive_setters::Setters;
 use forge_domain::{
-    ChatCompletionMessage, Context, Model, ModelId, Parameters, ProviderService, ResultStream,
+    ChatCompletionMessage, Context, Model, ModelId, Parameters, Provider, ProviderService,
+    ResultStream,
 };
 
 use crate::anthropic::Anthropic;
@@ -13,7 +14,7 @@ use crate::open_router::OpenRouter;
 #[derive(Debug, Setters)]
 #[setters(strip_option)]
 pub struct ClientBuilder {
-    url: String,
+    provider: Provider,
     api_key: Option<String>,
 }
 
@@ -23,25 +24,25 @@ pub enum Client {
 }
 
 impl ClientBuilder {
-    pub fn from_url<S: Into<String>>(url: S) -> Self {
-        Self { url: url.into(), api_key: None }
+    pub fn new(provider: Provider) -> Self {
+        Self { provider, api_key: None }
     }
 
     pub fn build(self) -> Result<Client> {
-        let provider = forge_domain::Provider::from_url(&self.url)
-            .ok_or_else(|| anyhow::anyhow!("Failed to detect provider from URL: {}", self.url))?;
+        let provider = self.provider;
 
         let api_key = self
             .api_key
             .ok_or_else(|| anyhow::anyhow!("API key is required for provider: {}", provider))?;
 
         match provider {
-            forge_domain::Provider::OpenAiCompat(provider) => Ok(Client::OpenAICompat(
+            forge_domain::Provider::OpenAI { url } => Ok(Client::OpenAICompat(
                 OpenRouter::builder()
-                    .provider(provider)
-                    .api_key(api_key)
+                    .url(url)
+                    .api_key(Some(api_key))
                     .build()?,
             )),
+
             forge_domain::Provider::Anthropic => Ok(Client::Anthropic(
                 Anthropic::builder().api_key(api_key).build()?,
             )),
