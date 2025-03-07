@@ -60,6 +60,7 @@ impl<F: Infrastructure> AttachmentService for ForgeChatRequest<F> {
 
 #[cfg(test)]
 mod tests {
+    use core::str;
     use std::collections::HashMap;
     use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
@@ -90,6 +91,7 @@ mod tests {
                 provider_key: "key".to_string(),
                 provider_url: "url".to_string(),
                 openai_key: None,
+                force_antinomy: None,
             }
         }
     }
@@ -180,7 +182,6 @@ mod tests {
         type FileReadService = MockFileReadService;
         type VectorIndex = MockVectorIndex;
         type EmbeddingService = MockEmbeddingService;
-
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
         }

@@ -97,6 +97,8 @@ impl Command {
             "/act".to_string(),
             "/plan".to_string(),
             "/dump".to_string(),
+            "/login".to_string(),
+            "/logout".to_string(),
         ]
     }
 
