@@ -1,6 +1,6 @@
 // Context trait is needed for error handling in the provider implementations
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Parameters, Provider, ProviderService,
     ResultStream,
@@ -9,32 +9,32 @@ use forge_domain::{
 use crate::anthropic::Anthropic;
 use crate::open_router::OpenRouter;
 
-// ProviderBuilder moved from lib.rs
-#[derive(Debug)]
-pub struct ClientBuilder {
-    provider: Provider,
-}
-
 pub enum Client {
     OpenAICompat(OpenRouter),
     Anthropic(Anthropic),
 }
 
-impl ClientBuilder {
-    pub fn new(provider: Provider) -> Self {
-        Self { provider }
-    }
+impl Client {
+    pub fn new(provider: Provider) -> Result<Self> {
+        let client = reqwest::Client::builder().build()?;
 
-    pub fn build(self) -> Result<Client> {
-        let provider = self.provider;
-
-        match provider {
-            forge_domain::Provider::OpenAI { url, key } => Ok(Client::OpenAICompat(
-                OpenRouter::builder().url(url).api_key(key).build()?,
+        match &provider {
+            Provider::OpenAI { url, .. } => Ok(Client::OpenAICompat(
+                OpenRouter::builder()
+                    .client(client)
+                    .provider(provider.clone())
+                    .build()
+                    .with_context(|| format!("Failed to initialize: {}", url))?,
             )),
 
-            forge_domain::Provider::Anthropic { key } => Ok(Client::Anthropic(
-                Anthropic::builder().api_key(key).build()?,
+            Provider::Anthropic { key } => Ok(Client::Anthropic(
+                Anthropic::builder()
+                    .client(client)
+                    .api_key(key.to_string())
+                    .build()
+                    .with_context(|| {
+                        format!("Failed to initialize: {}", Provider::ANTHROPIC_URL)
+                    })?,
             )),
         }
     }

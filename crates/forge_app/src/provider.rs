@@ -2,20 +2,18 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, Provider,
-    ProviderService, ResultStream,
+    ChatCompletionMessage, Context as ChatContext, Model, ModelId, Parameters, ProviderService,
+    ResultStream,
 };
-use forge_open_router::{Client, ClientBuilder};
+use forge_open_router::Client;
 use moka2::future::Cache;
-use tokio::sync::Mutex;
 
 use crate::{EnvironmentService, Infrastructure};
 
 pub struct ForgeProviderService {
     // The provider service implementation
-    client: Mutex<Option<Arc<Client>>>,
+    client: Client,
     cache: Cache<ModelId, Parameters>,
-    provider: Provider,
 }
 
 impl ForgeProviderService {
@@ -26,19 +24,10 @@ impl ForgeProviderService {
             .get_environment()
             .provider
             .clone();
-        Self { client: Mutex::new(None), cache: Cache::new(1024), provider }
-    }
-
-    async fn client(&self) -> Result<Arc<Client>> {
-        let mut guard = self.client.lock().await;
-        if let Some(provider) = guard.as_ref() {
-            return Ok(provider.clone());
+        Self {
+            client: Client::new(provider).unwrap(),
+            cache: Cache::new(1024),
         }
-
-        let provider = Arc::new(ClientBuilder::new(self.provider.clone()).build()?);
-
-        *guard = Some(provider.clone());
-        Ok(provider)
     }
 }
 
@@ -49,22 +38,20 @@ impl ProviderService for ForgeProviderService {
         model_id: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.client()
-            .await?
+        self.client
             .chat(model_id, request)
             .await
             .with_context(|| format!("Failed to chat with model: {}", model_id))
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        self.client().await?.models().await
+        self.client.models().await
     }
 
     async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters> {
         self.cache
             .try_get_with_by_ref(model, async {
-                self.client()
-                    .await?
+                self.client
                     .parameters(model)
                     .await
                     .with_context(|| format!("Failed to get parameters for model: {}", model))

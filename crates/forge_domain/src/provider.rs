@@ -33,6 +33,13 @@ impl Provider {
     pub fn anthropic(key: impl Into<String>) -> Provider {
         Provider::Anthropic { key: key.into() }
     }
+
+    pub fn key(&self) -> Option<&str> {
+        match self {
+            Provider::OpenAI { key, .. } => key.as_deref(),
+            Provider::Anthropic { key } => Some(key),
+        }
+    }
 }
 
 impl Provider {
@@ -46,6 +53,13 @@ impl Provider {
         match self {
             Provider::OpenAI { url, .. } => url.clone(),
             Provider::Anthropic { .. } => Url::parse(Self::ANTHROPIC_URL).unwrap(),
+        }
+    }
+
+    pub fn is_antinomy(&self) -> bool {
+        match self {
+            Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::ANTINOMY_URL),
+            Provider::Anthropic { .. } => false,
         }
     }
 

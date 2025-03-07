@@ -19,8 +19,6 @@ use crate::open_router::transformers::{ProviderPipeline, Transformer};
 #[derive(Clone, Builder)]
 pub struct OpenRouter {
     client: Client,
-    api_key: Option<String>,
-    url: Url,
     provider: Provider,
 }
 
@@ -38,14 +36,18 @@ impl OpenRouter {
         // Remove leading slash to avoid double slashes
         let path = path.trim_start_matches('/');
 
-        self.url
-            .join(path)
-            .with_context(|| format!("Failed to append {} to base URL: {}", path, self.url))
+        self.provider.to_base_url().join(path).with_context(|| {
+            format!(
+                "Failed to append {} to base URL: {}",
+                path,
+                self.provider.to_base_url()
+            )
+        })
     }
 
     fn headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
-        if let Some(ref api_key) = self.api_key {
+        if let Some(ref api_key) = self.provider.key() {
             headers.insert(
                 AUTHORIZATION,
                 HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
@@ -136,8 +138,7 @@ impl ProviderService for OpenRouter {
             .with_context(|| "Failed because of a non 200 status code".to_string())?
             .text()
             .await?;
-        let url = self.url.as_str();
-        if url.starts_with(Provider::OPEN_ROUTER_URL) | url.starts_with(Provider::ANTINOMY_URL) {
+        if self.provider.is_open_router() | self.provider.is_antinomy() {
             let data: Vec<OpenRouterModel> = serde_json::from_str(&response)?;
             Ok(data.into_iter().map(Into::into).collect())
         } else {
@@ -148,10 +149,9 @@ impl ProviderService for OpenRouter {
     }
 
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
-        let url = self.url.as_str();
-        if url.starts_with(Provider::OPEN_ROUTER_URL) | url.starts_with(Provider::ANTINOMY_URL) {
+        if self.provider.is_open_router() | self.provider.is_antinomy() {
             // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
-            let path = format!("model/{}/parameters", model.as_str());
+            let path = format!("parameters/{}", model.as_str());
 
             let url = self.url(&path)?;
             let text = self
@@ -160,7 +160,8 @@ impl ProviderService for OpenRouter {
                 .headers(self.headers())
                 .send()
                 .await?
-                .error_for_status()?
+                .error_for_status()
+                .with_context(|| "Failed to complete parameter request")?
                 .text()
                 .await?;
 
@@ -175,7 +176,7 @@ impl ProviderService for OpenRouter {
                     .flat_map(|parameter| parameter.iter())
                     .any(|parameter| parameter == "tools"),
             })
-        } else if url.starts_with(Provider::OPENAI_URL) {
+        } else if self.provider.is_open_ai() {
             return Ok(Parameters { tool_supported: true });
         } else {
             return Ok(Parameters { tool_supported: false });
