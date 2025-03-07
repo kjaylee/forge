@@ -30,9 +30,11 @@ impl ForgeEnvironmentService {
         }
     }
 
-    fn get(&self) -> Environment {
-        dotenv::dotenv().ok();
-        let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
+    /// Resolves the provider key and provider from environment variables
+    ///
+    /// Returns a tuple of (provider_key, provider)
+    /// Panics if no API key is found in the environment
+    fn resolve_provider(&self) -> (String, Provider) {
         let keys = [
             ("FORGE_KEY", Provider::antinomy()),
             ("OPENROUTER_API_KEY", Provider::open_router()),
@@ -46,10 +48,15 @@ impl ForgeEnvironmentService {
             .collect::<Vec<_>>()
             .join(", ");
 
-        let (provider_key, provider) = keys
-            .iter()
+        keys.iter()
             .find_map(|(key, url)| std::env::var(key).ok().map(|key| (key, url.clone())))
-            .unwrap_or_else(|| panic!("No API key found. Please set one of: {}", env_variables));
+            .unwrap_or_else(|| panic!("No API key found. Please set one of: {}", env_variables))
+    }
+
+    fn get(&self) -> Environment {
+        dotenv::dotenv().ok();
+        let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
+        let (provider_key, provider) = self.resolve_provider();
 
         Environment {
             os: std::env::consts::OS.to_string(),

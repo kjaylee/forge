@@ -1,12 +1,11 @@
 use std::fmt::Display;
 
-use derive_more::derive::From;
-use serde::{Deserialize, Serialize};
 use url::Url;
 
 /// Providers that can be used.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, From)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Provider {
+    // FIXME: add key to Provider
     OpenAI { url: Url },
     Anthropic,
 }
