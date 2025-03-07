@@ -91,7 +91,6 @@ mod tests {
                 provider_key: "key".to_string(),
                 provider_url: "url".to_string(),
                 openai_key: None,
-                force_antinomy: None,
             }
         }
     }

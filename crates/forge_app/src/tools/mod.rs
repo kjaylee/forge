@@ -64,7 +64,6 @@ mod tests {
                 provider_url: Default::default(),
                 provider_key: Default::default(),
                 openai_key: Default::default(),
-                force_antinomy: None,
             },
         }
     }
