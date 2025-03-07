@@ -135,6 +135,8 @@ mod tests {
     async fn test_url_for_models() {
         let anthropic = Anthropic::builder()
             .client(Client::new())
+            .base_url(Url::parse("https://api.anthropic.com/v1/").unwrap())
+            .anthropic_version("v1".to_string())
             .api_key("sk-some-key".to_string())
             .build()
             .unwrap();

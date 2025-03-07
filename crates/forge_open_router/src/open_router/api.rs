@@ -56,6 +56,23 @@ impl OpenRouter {
         headers.insert("X-Title", HeaderValue::from_static("code-forge"));
         headers
     }
+
+    // Fetches parameters from the API and returns the raw text response
+    async fn fetch_parameters(&self, path: &str) -> Result<String> {
+        let url = self.url(path)?;
+        let text = self
+            .client
+            .get(url)
+            .headers(self.headers())
+            .send()
+            .await?
+            .error_for_status()
+            .with_context(|| "Failed to complete parameter request")?
+            .text()
+            .await?;
+
+        Ok(text)
+    }
 }
 
 #[async_trait::async_trait]
@@ -151,19 +168,13 @@ impl ProviderService for OpenRouter {
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         if self.provider.is_open_router() | self.provider.is_antinomy() {
             // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp
-            let path = format!("parameters/{}", model.as_str());
+            let path = if self.provider.is_open_router() {
+                format!("parameters/{}", model)
+            } else {
+                format!("model/{}/parameters", model)
+            };
 
-            let url = self.url(&path)?;
-            let text = self
-                .client
-                .get(url)
-                .headers(self.headers())
-                .send()
-                .await?
-                .error_for_status()
-                .with_context(|| "Failed to complete parameter request")?
-                .text()
-                .await?;
+            let text = self.fetch_parameters(&path).await?;
 
             let response: ParameterResponse = serde_json::from_str(&text)
                 .with_context(|| "Failed to parse parameter response".to_string())?;
