@@ -33,7 +33,10 @@ pub fn init_tracing(log_path: PathBuf) -> anyhow::Result<Guard> {
     Ok(Guard(guard))
 }
 
-pub fn init_tracing_with_posthog(log_path: PathBuf, tracker: &'static crate::Tracker) -> anyhow::Result<Guard> {
+pub fn init_tracing_with_posthog(
+    log_path: PathBuf,
+    tracker: &'static crate::Tracker,
+) -> anyhow::Result<Guard> {
     debug!(path = %log_path.display(), "Initializing logging system with PostHog integration");
 
     let append = tracing_appender::rolling::daily(log_path, "forge.log");

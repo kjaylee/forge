@@ -1,8 +1,9 @@
-use tracing::{Event, Level, Subscriber};
-use tracing::span::{Attributes, Id, Record};
-use tracing_subscriber::layer::{Context, Layer};
-use crate::{Tracker, EventKind};
 use serde_json::json;
+use tracing::span::{Attributes, Id, Record};
+use tracing::{Event, Level, Subscriber};
+use tracing_subscriber::layer::{Context, Layer};
+
+use crate::{EventKind, Tracker};
 
 /// A tracing layer that forwards log events to PostHog
 pub struct PosthogLayer {
@@ -11,14 +12,8 @@ pub struct PosthogLayer {
 }
 
 impl PosthogLayer {
-    pub fn new(
-        tracker: &'static Tracker, 
-        min_level: Level,
-    ) -> Self {
-        Self { 
-            tracker, 
-            min_level,
-        }
+    pub fn new(tracker: &'static Tracker, min_level: Level) -> Self {
+        Self { tracker, min_level }
     }
 }
 
@@ -30,7 +25,7 @@ where
         // Extract metadata
         let meta = event.metadata();
         let level = *meta.level();
-        
+
         // Skip events below the minimum level
         if level < self.min_level {
             return;
@@ -56,7 +51,7 @@ where
             "module_path": module_path,
             "fields": fields,
         });
-        
+
         // Dispatch to PostHog
         // We're using fire-and-forget since we don't want logging to be blocking
         let tracker = self.tracker;
@@ -103,7 +98,12 @@ impl tracing::field::Visit for JsonVisitor {
         self.fields.insert(field.name().to_string(), json!(value));
     }
 
-    fn record_error(&mut self, field: &tracing::field::Field, value: &(dyn std::error::Error + 'static)) {
-        self.fields.insert(field.name().to_string(), json!(value.to_string()));
+    fn record_error(
+        &mut self,
+        field: &tracing::field::Field,
+        value: &(dyn std::error::Error + 'static),
+    ) {
+        self.fields
+            .insert(field.name().to_string(), json!(value.to_string()));
     }
 }
