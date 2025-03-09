@@ -28,10 +28,6 @@ impl Default for Fetch {
     }
 }
 
-fn default_max_length() -> Option<usize> {
-    Some(40000)
-}
-
 fn default_start_index() -> Option<usize> {
     Some(0)
 }

@@ -1,5 +1,6 @@
 use derive_more::derive::Display;
 use derive_setters::Setters;
+use merge::Merge;
 use serde::{Deserialize, Serialize};
 
 use crate::template::Template;
@@ -48,12 +49,16 @@ fn truth() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Merge)]
 pub struct Agent {
     /// Flag to enable/disable tool support for this agent.
     #[serde(default)]
+    #[merge(strategy = crate::merge::overwrite)]
     pub tool_supported: bool,
+    #[merge(strategy = crate::merge::overwrite)]
     pub id: AgentId,
+    
+    #[merge(strategy = crate::merge::overwrite)]
     pub model: ModelId,
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -64,27 +69,33 @@ pub struct Agent {
     /// When set to true all user events will also contain a suggestions field
     /// that is prefilled with the matching information from vector store.
     #[serde(skip_serializing_if = "is_true", default)]
+    #[merge(strategy = crate::merge::overwrite)]
     pub suggestions: bool,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.    
     #[serde(skip_serializing_if = "is_true", default = "truth")]
+    #[merge(strategy = crate::merge::overwrite)]
     pub ephemeral: bool,
 
     /// Flag to enable/disable the agent. When disabled (false), the agent will
     /// be completely ignored during orchestration execution.
     #[serde(skip_serializing_if = "is_true", default = "truth")]
+    #[merge(strategy = crate::merge::overwrite)]
     pub enable: bool,
 
     /// Tools that the agent can use    
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[merge(strategy = crate::merge::vec::unify)]
     pub tools: Vec<ToolName>,
 
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[merge(strategy = crate::merge::vec::append)]
     pub transforms: Vec<Transform>,
 
     /// Used to specify the events the agent is interested in    
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[merge(strategy = crate::merge::vec::unify)]
     pub subscribe: Vec<String>,
 
     /// Maximum number of turns the agent can take    
