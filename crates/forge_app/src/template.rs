@@ -34,11 +34,7 @@ impl<F, T> ForgeTemplateService<F, T> {
         // Register all partial templates
         hb.register_embed_templates::<Templates>().unwrap();
 
-        Self { 
-            hb, 
-            infra, 
-            tool_service,
-        }
+        Self { hb, infra, tool_service }
     }
 }
 

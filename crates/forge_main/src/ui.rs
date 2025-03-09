@@ -20,7 +20,7 @@ use crate::state::{Mode, UIState};
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
 pub const EVENT_USER_TASK_UPDATE: &str = "user_task_update";
-pub const EVENT_HELP_QUERY: &str = "help_query";
+pub const EVENT_USER_HELP_QUERY: &str = "user_help_query";
 pub const EVENT_TITLE: &str = "title";
 
 lazy_static! {
@@ -79,8 +79,8 @@ impl<F: API> UI<F> {
     fn create_task_update_event(content: impl ToString) -> Event {
         Event::new(EVENT_USER_TASK_UPDATE, content)
     }
-    fn create_help_query_event(content: impl ToString) -> Event {
-        Event::new(EVENT_HELP_QUERY, content)
+    fn create_user_help_query_event(content: impl ToString) -> Event {
+        Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -337,7 +337,7 @@ impl<F: API> UI<F> {
         let conversation_id = self.init_conversation().await?;
 
         // Create a help query event
-        let event = Self::create_help_query_event(content.clone());
+        let event = Self::create_user_help_query_event(content.clone());
 
         // Create the chat request with the help query event
         let chat = ChatRequest::new(event, conversation_id);

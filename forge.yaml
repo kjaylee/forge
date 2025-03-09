@@ -15,6 +15,16 @@ agents:
     system_prompt: "{{> system-prompt-title-generator.hbs }}"
     user_prompt: <technical_content>{{event.value}}</technical_content>
 
+  - id: help_agent
+    model: *efficiency_model
+    tools:
+      - tool_forge_event_dispatch
+    subscribe:
+      - user_help_query
+    system_prompt: |
+      {{> system-prompt-help.hbs }}
+    user_prompt: <user_query>{{event.value}}</user_query>
+
   - id: software-engineer
     model: *advanced_model
     tool_supported: true
