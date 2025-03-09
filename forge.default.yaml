@@ -18,7 +18,8 @@ agents:
   - id: help_agent
     model: google/gemini-2.0-flash-thinking-exp:free
     tools:
-      - tool_forge_event_dispatch
+      - tool_forge_fs_read
+      - tool_forge_fs_create
     subscribe:
       - user_help_query
     system_prompt: |
