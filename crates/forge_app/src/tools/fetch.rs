@@ -29,7 +29,7 @@ impl Default for Fetch {
 }
 
 fn default_max_length() -> Option<usize> {
-    Some(5000)
+    Some(40000)
 }
 
 fn default_start_index() -> Option<usize> {
@@ -45,7 +45,6 @@ pub struct FetchInput {
     /// URL to fetch
     url: String,
     /// Maximum number of characters to return (default: 40000)
-    #[serde(default = "default_max_length")]
     max_length: Option<usize>,
     /// Start content from this character index (default: 0),
     /// On return output starting at this character index, useful if a previous
