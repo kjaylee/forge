@@ -116,6 +116,10 @@ impl ProviderService for Anthropic {
         let response: ListModelResponse = serde_json::from_str(&text)?;
         Ok(response.data.into_iter().map(Into::into).collect())
     }
+    #[deprecated(
+        since = "next",
+        note = "Use the `tool_supported` field in the Agent struct instead"
+    )]
     async fn parameters(&self, _model: &ModelId) -> anyhow::Result<Parameters> {
         // TODO: anthropic provider doesn't have this API, so for now allowing tool
         // calls for all models.

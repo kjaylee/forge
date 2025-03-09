@@ -165,6 +165,10 @@ impl ProviderService for OpenRouter {
         }
     }
 
+    #[deprecated(
+        since = "next",
+        note = "Use the `tool_supported` field in the Agent struct instead"
+    )]
     async fn parameters(&self, model: &ModelId) -> Result<Parameters> {
         if self.provider.is_open_router() | self.provider.is_antinomy() {
             // For Eg: https://openrouter.ai/api/v1/parameters/google/gemini-pro-1.5-exp

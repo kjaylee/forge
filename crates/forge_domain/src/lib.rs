@@ -63,6 +63,16 @@ pub trait ProviderService: Send + Sync + 'static {
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
     async fn models(&self) -> anyhow::Result<Vec<Model>>;
+
+    /// Returns parameters for the specified model
+    ///
+    /// Deprecated: Tool support is now determined by the `tool_supported` field
+    /// in the Agent struct instead of querying the provider. This method
+    /// will be removed in a future version.
+    #[deprecated(
+        since = "next",
+        note = "Use the `tool_supported` field in the Agent struct instead"
+    )]
     async fn parameters(&self, model: &ModelId) -> anyhow::Result<Parameters>;
 }
 
