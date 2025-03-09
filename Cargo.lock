@@ -926,6 +926,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bytes",
  "forge_app",
  "forge_domain",
  "forge_infra",
@@ -933,6 +934,7 @@ dependencies = [
  "forge_stream",
  "forge_walker",
  "insta",
+ "merge",
  "serde",
  "serde_json",
  "serde_yaml",

@@ -309,6 +309,20 @@ You can configure your own workflows by creating a YAML file and pointing to it 
 forge -w /path/to/your/workflow.yaml
 ```
 
+### Configuration Loading and Precedence
+
+Forge loads workflow configurations using the following precedence rules:
+
+1. **Explicit Path**: When a path is provided with the `-w` flag, Forge loads that configuration directly without any merging
+2. **Project Configuration**: If no explicit path is provided, Forge looks for `forge.yaml` in the current directory
+3. **Default Configuration**: An embedded default configuration is always available as a fallback
+
+When a project configuration exists in the current directory, Forge creates a merged configuration where:
+- Project settings in `forge.yaml` take precedence over default settings
+- Any settings not specified in the project configuration inherit from defaults
+
+This approach allows you to customize only the parts of the configuration you need while inheriting sensible defaults for everything else.
+
 ### Workflow Configuration
 
 A workflow consists of agents connected via events. Each agent has specific capabilities and can perform designated tasks.
