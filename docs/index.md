@@ -18,6 +18,18 @@ To learn more about Code-Forge, explore the following sections:
 - [Development Guidelines](guidelines.html) - Best practices for developing with Code-Forge
 - [Service Documentation](service.html) - Implementation details for services in Code-Forge
 
+## User Documentation
+
+For end-user documentation, see:
+
+- [User Guide](user/) - Detailed user documentation
+  - [Installation](user/installation.html) - How to install Forge
+  - [Features](user/features.html) - Detailed explanation of features
+  - [Configuration Files](user/configuration.html) - Working with configuration files
+  - [Custom Workflows](user/workflows.html) - Creating custom workflows
+  - [Provider Configuration](user/providers.html) - Configuring AI providers
+  - [Why Shell?](user/why-shell.html) - Why a shell-based AI assistant makes sense
+
 ## Features
 
 Code-Forge provides several powerful features:
