@@ -33,10 +33,12 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     /// Loads the workflow from the given path.
     /// If a path is provided, uses that workflow directly without merging.
     /// If no path is provided:
-    ///   - Loads from current directory's forge.yaml merged with defaults (if forge.yaml exists)
+    ///   - Loads from current directory's forge.yaml merged with defaults (if
+    ///     forge.yaml exists)
     ///   - Falls back to embedded default if forge.yaml doesn't exist
     ///
-    /// When merging, the project's forge.yaml values take precedence over defaults.
+    /// When merging, the project's forge.yaml values take precedence over
+    /// defaults.
     pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         // Determine the workflow source
         let source = match path {
@@ -56,8 +58,8 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     /// Loads a workflow from a specific file path
     async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<Workflow> {
         let content = String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?;
-        let workflow: Workflow =
-            serde_yaml::from_str(&content).with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
+        let workflow: Workflow = serde_yaml::from_str(&content)
+            .with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
         Ok(workflow)
     }
 
@@ -72,18 +74,22 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     async fn load_with_project_config(&self) -> anyhow::Result<Workflow> {
         let default_workflow = self.load_default_workflow()?;
         let project_path = Path::new("forge.yaml");
-        
+
         let project_content = String::from_utf8(
-            self.0.file_read_service().read(project_path).await?.to_vec(),
+            self.0
+                .file_read_service()
+                .read(project_path)
+                .await?
+                .to_vec(),
         )?;
-        
+
         let project_workflow: Workflow = serde_yaml::from_str(&project_content)
             .with_context(|| "Failed to parse project workflow")?;
-            
+
         // Merge workflows with project taking precedence
         let mut merged_workflow = default_workflow;
         merged_workflow.merge(project_workflow);
-        
+
         Ok(merged_workflow)
     }
 }

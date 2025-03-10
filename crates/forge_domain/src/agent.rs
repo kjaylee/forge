@@ -53,13 +53,13 @@ fn truth() -> bool {
 pub struct Agent {
     /// Flag to enable/disable tool support for this agent.
     #[serde(default)]
-    #[merge(strategy = crate::merge::overwrite)]
+    #[merge(strategy = crate::merge::bool::overwrite_false)]
     pub tool_supported: bool,
-    #[merge(strategy = crate::merge::overwrite)]
+    #[merge(strategy = crate::merge::std::overwrite)]
     pub id: AgentId,
-    
-    #[merge(strategy = crate::merge::overwrite)]
-    pub model: ModelId,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<ModelId>,
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<Template<SystemContext>>,
@@ -69,23 +69,23 @@ pub struct Agent {
     /// When set to true all user events will also contain a suggestions field
     /// that is prefilled with the matching information from vector store.
     #[serde(skip_serializing_if = "is_true", default)]
-    #[merge(strategy = crate::merge::overwrite)]
+    #[merge(strategy = crate::merge::bool::overwrite_false)]
     pub suggestions: bool,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.    
-    #[serde(skip_serializing_if = "is_true", default = "truth")]
-    #[merge(strategy = crate::merge::overwrite)]
+    #[serde(skip_serializing_if = "is_true", default)]
+    #[merge(strategy = crate::merge::bool::overwrite_false)]
     pub ephemeral: bool,
 
     /// Flag to enable/disable the agent. When disabled (false), the agent will
     /// be completely ignored during orchestration execution.
     #[serde(skip_serializing_if = "is_true", default = "truth")]
-    #[merge(strategy = crate::merge::overwrite)]
+    #[merge(strategy = crate::merge::bool::overwrite_false)]
     pub enable: bool,
 
     /// Tools that the agent can use    
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     #[merge(strategy = crate::merge::vec::unify)]
     pub tools: Vec<ToolName>,
 

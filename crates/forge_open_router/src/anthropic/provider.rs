@@ -58,13 +58,13 @@ impl Anthropic {
 impl ProviderService for Anthropic {
     async fn chat(
         &self,
-        id: &ModelId,
+        model: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         // TODO: depending on model, we've to set the max_tokens for request. for now,
         // we're setting it to 4000.
         let request = Request::try_from(context)?
-            .model(id.to_string())
+            .model(model.as_str().to_string())
             .stream(true)
             .max_tokens(4000u64);
 

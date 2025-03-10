@@ -1,7 +1,8 @@
-pub fn overwrite<T>(base: &mut T, other: T) {
-    *base = other;
+pub mod std {
+    pub fn overwrite<T>(base: &mut T, other: T) {
+        *base = other;
+    }
 }
-
 pub mod vec {
     pub use merge::vec::*;
     pub fn unify<T: PartialEq>(base: &mut Vec<T>, other: Vec<T>) {
@@ -11,4 +12,8 @@ pub mod vec {
             }
         }
     }
+}
+
+pub mod bool {
+    pub use merge::bool::*;
 }
