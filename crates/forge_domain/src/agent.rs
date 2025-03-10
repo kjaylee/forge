@@ -3,6 +3,7 @@ use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 
+use crate::merge::Key;
 use crate::template::Template;
 use crate::{Environment, EventContext, ModelId, ToolName};
 
@@ -106,6 +107,14 @@ pub struct Agent {
     /// If not provided, the maximum possible depth will be used
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_walker_depth: Option<usize>,
+}
+
+impl Key for Agent {
+    type Id = AgentId;
+
+    fn key(&self) -> &Self::Id {
+        &self.id
+    }
 }
 
 /// Transformations that can be applied to the agent's context before sending it
