@@ -86,7 +86,7 @@ impl ProviderService for Anthropic {
                         }
                         Event::Message(_event) => Some(
                             serde_json::from_str::<EventData>(&_event.data)
-                                .with_context(|| "Failed to parse Anthronic event")
+                                .with_context(|| "Failed to parse Anthropic event")
                                 .and_then(|event| {
                                     ChatCompletionMessage::try_from(event)
                                         .with_context(|| "Failed to create completion message")
