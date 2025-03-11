@@ -21,8 +21,8 @@ pub struct SystemContext {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<String>,
     pub readme: String,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub rules: Vec<String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub rules: String,
 }
 
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]

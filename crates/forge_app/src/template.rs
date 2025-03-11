@@ -68,16 +68,12 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         // Find and read `.forgerules` file by traversing up the directory tree
         let rules = {
             let mut current = Some(std::path::PathBuf::from(&env.cwd));
-            let mut rules = Vec::new();
+            let mut rules = String::default();
 
             while let Some(dir) = current.take() {
                 let forgerules_path = dir.join(".forgerules");
                 if let Ok(content) = self.infra.file_read_service().read(&forgerules_path).await {
-                    rules = String::from_utf8_lossy(&content)
-                        .lines()
-                        .filter(|line| !line.trim().is_empty())
-                        .map(ToString::to_string)
-                        .collect();
+                    rules = String::from_utf8_lossy(&content).trim().to_string();
                     break;
                 }
                 current = dir.parent().map(PathBuf::from);
