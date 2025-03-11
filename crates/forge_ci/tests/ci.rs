@@ -187,7 +187,8 @@ fn generate() {
                 .add_with(("password", "${{ secrets.WINDOWS_CERT_PASSWORD }}"))
                 .add_with(("certificatesha1", "${{ secrets.WINDOWS_CERT_SHA1 }}"))
                 .add_with(("description", "Forge CLI"))
-                .add_with(("folder", "${{ matrix.binary_path }}")),
+                .add_with(("folder", "${{ matrix.binary_path }}"))
+                .add_with(("timestampUrl", "${{ secrets.WINDOWS_TIMESTAMP_URL }}"))
         );
     let label_cond = Expression::new("github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')");
     workflow = workflow.add_job(

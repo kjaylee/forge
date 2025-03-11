@@ -175,6 +175,7 @@ jobs:
         certificatesha1: ${{ secrets.WINDOWS_CERT_SHA1 }}
         description: Forge CLI
         folder: ${{ matrix.binary_path }}
+        timestampUrl: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
   build-release:
     needs:
     - build
@@ -263,6 +264,7 @@ jobs:
         certificatesha1: ${{ secrets.WINDOWS_CERT_SHA1 }}
         description: Forge CLI
         folder: ${{ matrix.binary_path }}
+        timestampUrl: ${{ secrets.WINDOWS_TIMESTAMP_URL }}
     - run: cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}
     - uses: xresloader/upload-to-github-release@v1
       with:
