@@ -1091,6 +1091,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_merger"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "forge_walker",
+ "serde",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "forge_open_router"
 version = "0.1.0"
 dependencies = [
