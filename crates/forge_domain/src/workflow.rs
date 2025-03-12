@@ -17,10 +17,7 @@ pub struct Workflow {
 
 impl Workflow {
     fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
-        self.agents
-            .iter()
-            .filter(|a| a.enable.unwrap_or_default())
-            .find(|a| a.id == *id)
+        self.agents.iter().find(|a| a.id == *id)
     }
 
     pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {

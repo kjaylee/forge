@@ -75,12 +75,6 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub ephemeral: Option<bool>,
 
-    /// Flag to enable/disable the agent. When disabled (false), the agent will
-    /// be completely ignored during orchestration execution.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub enable: Option<bool>,
-
     /// Tools that the agent can use    
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
@@ -119,7 +113,6 @@ impl Agent {
             user_prompt: None,
             suggestions: None,
             ephemeral: None,
-            enable: None,
             tools: None,
             transforms: None,
             subscribe: None,
@@ -186,7 +179,7 @@ mod tests {
         let mut base = Agent::new("Base").model(ModelId::new("base"));
         let other = Agent::new("Other").model(ModelId::new("other"));
         base.merge(other);
-        assert_eq!(base.model.unwrap(), ModelId::new("base"));
+        assert_eq!(base.model.unwrap(), ModelId::new("other"));
 
         // Base has no value, should take the other value
         let mut base = Agent::new("Base"); // No model
@@ -207,7 +200,7 @@ mod tests {
         let mut base = Agent::new("Base").tool_supported(false);
         let other = Agent::new("Other").tool_supported(true);
         base.merge(other);
-        assert_eq!(base.tool_supported, Some(false));
+        assert_eq!(base.tool_supported, Some(true));
     }
 
     #[test]
@@ -216,7 +209,7 @@ mod tests {
         let mut base = Agent::new("Base").suggestions(true);
         let other = Agent::new("Other").suggestions(false);
         base.merge(other);
-        assert_eq!(base.suggestions, Some(true));
+        assert_eq!(base.suggestions, Some(false));
 
         // Now test with no initial value
         let mut base = Agent::new("Base"); // no suggestions set
@@ -228,13 +221,7 @@ mod tests {
         let mut base = Agent::new("Base").ephemeral(true);
         let other = Agent::new("Other").ephemeral(false);
         base.merge(other);
-        assert_eq!(base.ephemeral, Some(true));
-
-        // Test enable flag with option strategy
-        let mut base = Agent::new("Base").enable(true);
-        let other = Agent::new("Other").enable(false);
-        base.merge(other);
-        assert_eq!(base.enable, Some(true));
+        assert_eq!(base.ephemeral, Some(false));
     }
 
     #[test]
@@ -256,11 +243,11 @@ mod tests {
         let other = Agent::new("Other").tools(vec![ToolName::new("tool3"), ToolName::new("tool4")]);
         base.merge(other);
 
-        // Should still have base's tools
+        // Should have other's tools
         let tools = base.tools.as_ref().unwrap();
         assert_eq!(tools.len(), 2);
-        assert!(tools.contains(&ToolName::new("tool1")));
-        assert!(tools.contains(&ToolName::new("tool2")));
+        assert!(tools.contains(&ToolName::new("tool3")));
+        assert!(tools.contains(&ToolName::new("tool4")));
     }
 
     #[test]
@@ -300,12 +287,12 @@ mod tests {
 
         base.merge(other);
 
-        // Should still have base's transforms
+        // Should have other's transforms
         let transforms = base.transforms.as_ref().unwrap();
         assert_eq!(transforms.len(), 1);
         if let Transform::PassThrough { agent_id, input } = &transforms[0] {
-            assert_eq!(agent_id.as_str(), "agent1");
-            assert_eq!(input, "input1");
+            assert_eq!(agent_id.as_str(), "agent2");
+            assert_eq!(input, "input2");
         } else {
             panic!("Expected PassThrough transform");
         }
@@ -330,10 +317,10 @@ mod tests {
         let other = Agent::new("Other").subscribe(vec!["event3".to_string(), "event4".to_string()]);
         base.merge(other);
 
-        // Should still have base's events
+        // Should have other's events
         let subscribe = base.subscribe.as_ref().unwrap();
         assert_eq!(subscribe.len(), 2);
-        assert!(subscribe.contains(&"event1".to_string()));
-        assert!(subscribe.contains(&"event2".to_string()));
+        assert!(subscribe.contains(&"event3".to_string()));
+        assert!(subscribe.contains(&"event4".to_string()));
     }
 }

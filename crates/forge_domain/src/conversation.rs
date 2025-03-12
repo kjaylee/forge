@@ -65,7 +65,6 @@ impl Conversation {
         self.workflow
             .agents
             .iter()
-            .filter(|a| a.enable.unwrap_or_default())
             .filter(|a| {
                 self.turn_count(&a.id).unwrap_or_default() < a.max_turns.unwrap_or(u64::MAX)
             })
