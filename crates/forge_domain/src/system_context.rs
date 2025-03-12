@@ -25,4 +25,7 @@ pub struct SystemContext {
 
     // README content to provide project context to the agent
     pub readme: String,
+
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub project_rules: String,
 }

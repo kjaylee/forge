@@ -3,6 +3,7 @@ pub mod std {
         *base = other;
     }
 }
+
 pub mod vec {
 
     use merge::Merge;

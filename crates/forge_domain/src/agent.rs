@@ -100,6 +100,11 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub max_walker_depth: Option<usize>,
+
+    /// A set of custom rules that the agent should follow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub project_rules: Option<String>,
 }
 
 impl Agent {
@@ -118,6 +123,7 @@ impl Agent {
             subscribe: None,
             max_turns: None,
             max_walker_depth: None,
+            project_rules: None,
         }
     }
 }
