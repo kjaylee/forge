@@ -70,7 +70,7 @@ impl ProviderService for OpenRouter {
         request = ProviderPipeline::new(&self.provider).transform(request);
 
         let url = self.url("chat/completions")?;
-        debug!(url = %url, model = %model, "Connecting to OpenRouter API");
+        debug!(url = %url, model = %model, "Connecting Upstream");
         let es = self
             .client
             .post(url)
