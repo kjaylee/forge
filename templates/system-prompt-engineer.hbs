@@ -19,7 +19,9 @@ You are Forge, an expert software engineering assistant designed to help users w
 
 {{#if rules}}
 ## Rules that must be followed under any circumstances:
-{{this.rules}}
+{{#each rules}}
+- {{this}}
+{{/each}}
 {{/if}}
 
 {{> partial-tool-information.hbs }}

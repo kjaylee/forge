@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use forge_domain::{
@@ -11,7 +10,7 @@ use rust_embed::Embed;
 use serde_json::Value;
 use tracing::debug;
 
-use crate::{EmbeddingService, EnvironmentService, FsReadService, Infrastructure, VectorIndex};
+use crate::{EmbeddingService, EnvironmentService, Infrastructure, VectorIndex};
 
 // Include README.md at compile time
 const README_CONTENT: &str = include_str!("../../../README.md");
@@ -65,22 +64,6 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         // Sort the files alphabetically to ensure consistent ordering
         files.sort();
 
-        // Find and read `.forgerules` file by traversing up the directory tree
-        let rules = {
-            let mut current = Some(std::path::PathBuf::from(&env.cwd));
-            let mut rules = String::default();
-
-            while let Some(dir) = current.take() {
-                let forgerules_path = dir.join(".forgerules");
-                if let Ok(content) = self.infra.file_read_service().read(&forgerules_path).await {
-                    rules = String::from_utf8_lossy(&content).trim().to_string();
-                    break;
-                }
-                current = dir.parent().map(PathBuf::from);
-            }
-            rules
-        };
-
         // Create the context with README content for all agents
         let ctx = SystemContext {
             env: Some(env),
@@ -88,7 +71,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             tool_supported: agent.tool_supported,
             files,
             readme: README_CONTENT.to_string(),
-            rules,
+            rules: agent.project_rules.clone(),
         };
 
         // Render the template with the context

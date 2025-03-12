@@ -21,8 +21,8 @@ pub struct SystemContext {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<String>,
     pub readme: String,
-    #[serde(skip_serializing_if = "String::is_empty")]
-    pub rules: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rules: Vec<String>,
 }
 
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
@@ -109,6 +109,11 @@ pub struct Agent {
     /// If not provided, the maximum possible depth will be used
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_walker_depth: Option<usize>,
+
+    /// Rules that the agent needs to follow.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    #[merge(strategy = crate::merge::vec::unify)]
+    pub project_rules: Vec<String>,
 }
 
 impl Key for Agent {
