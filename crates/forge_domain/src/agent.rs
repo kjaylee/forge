@@ -207,5 +207,13 @@ mod tests {
         let other = Agent::default();
         base.merge(other);
         assert!(base.project_rules.is_empty());
+
+        // case 4: base has some project rules and other has no project rules.
+        let mut base = Agent::default();
+        base.project_rules = "Rule 1: Be concise".to_string();
+
+        let other = Agent::default();
+        base.merge(other);
+        assert_eq!(base.project_rules, "Rule 1: Be concise");
     }
 }
