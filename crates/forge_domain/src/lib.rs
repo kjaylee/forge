@@ -18,6 +18,7 @@ mod point;
 mod provider;
 mod suggestion;
 mod summarize;
+mod system_context;
 mod template;
 mod tool;
 mod tool_call;
@@ -28,7 +29,6 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
-mod system_context;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -46,6 +46,7 @@ pub use point::*;
 pub use provider::*;
 pub use suggestion::*;
 pub use summarize::*;
+pub use system_context::*;
 pub use template::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -56,7 +57,6 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
 pub use workflow::*;
-pub use system_context::*;
 
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {
