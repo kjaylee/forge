@@ -151,8 +151,9 @@ pub enum Transform {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use merge::Merge;
+
+    use super::*;
 
     impl Default for Agent {
         fn default() -> Self {
