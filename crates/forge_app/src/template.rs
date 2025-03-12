@@ -65,9 +65,16 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         files.sort();
 
         // Get repository content if available
-        let repo_content = forge_merger::Merger::new(self.infra.environment_service().get_environment().cwd.clone())
-            .process()
-            .await.ok();
+        let repo_content = forge_merger::Merger::new(
+            self.infra
+                .environment_service()
+                .get_environment()
+                .cwd
+                .clone(),
+        )
+        .process()
+        .await
+        .ok();
         // Create the context with README content for all agents
         let ctx = SystemContext {
             env: Some(env),
@@ -75,7 +82,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             tool_supported: agent.tool_supported,
             files,
             readme: README_CONTENT.to_string(),
-            repo_content: repo_content,
+            repo_content,
         };
 
         // Render the template with the context
@@ -97,12 +104,18 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         event_context = event_context.variables(variables.clone());
 
         // Get repository content if available
-        let repo_content = forge_merger::Merger::new(self.infra.environment_service().get_environment().cwd.clone())
-            .process()
-            .await?;
+        let repo_content = forge_merger::Merger::new(
+            self.infra
+                .environment_service()
+                .get_environment()
+                .cwd
+                .clone(),
+        )
+        .process()
+        .await?;
         let mut variables = variables.clone();
         variables.insert("repo_content".to_string(), repo_content.into());
-        event_context = event_context.variables(variables); 
+        event_context = event_context.variables(variables);
 
         // Only add suggestions if the agent has suggestions enabled
         if agent.suggestions {
