@@ -21,6 +21,9 @@ pub struct SystemContext {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<String>,
     pub readme: String,
+    /// Repository content indexed in memory
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo_content: Option<String>,
 }
 
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
