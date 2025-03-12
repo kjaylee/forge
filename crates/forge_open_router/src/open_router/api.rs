@@ -7,6 +7,7 @@ use forge_domain::{
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
+use serde_json::Value;
 use tokio_stream::StreamExt;
 use tracing::debug;
 
@@ -93,35 +94,21 @@ impl OpenRouter {
                                 }),
                         ),
                     },
-                    Err(error) => {
-                        debug!(error = %error, "Failed to receive chat completion event");
-                        match error {
-                            reqwest_eventsource::Error::StreamEnded => None,
-                            reqwest_eventsource::Error::InvalidStatusCode(_, response) => Some(
-                                response
-                                    .json::<OpenRouterResponse>()
-                                    .await
-                                    .with_context(|| "Failed to parse OpenRouter response")
-                                    .and_then(|message| {
-                                        ChatCompletionMessage::try_from(message.clone())
-                                            .with_context(|| "Failed to create completion message")
-                                    })
-                                    .with_context(|| "Failed with invalid status code"),
-                            ),
-                            reqwest_eventsource::Error::InvalidContentType(_, response) => Some(
-                                response
-                                    .json::<OpenRouterResponse>()
-                                    .await
-                                    .with_context(|| "Failed to parse OpenRouter response")
-                                    .and_then(|message| {
-                                        ChatCompletionMessage::try_from(message.clone())
-                                            .with_context(|| "Failed to create completion message")
-                                    })
-                                    .with_context(|| "Failed with invalid content type"),
-                            ),
-                            err => Some(Err(err.into())),
+                    Err(error) => match error {
+                        reqwest_eventsource::Error::StreamEnded => None,
+                        reqwest_eventsource::Error::InvalidStatusCode(_, ref response) => {
+                            debug!(response = ?response, "Invalid status code");
+                            Some(Err(error.into()))
                         }
-                    }
+                        reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
+                            debug!(response = ?response, "Invalid content type");
+                            Some(Err(error.into()))
+                        }
+                        error => {
+                            debug!(error = %error, "Failed to receive chat completion event");
+                            Some(Err(error.into()))
+                        }
+                    },
                 }
             });
 
