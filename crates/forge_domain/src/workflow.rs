@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{Agent, AgentId};
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
+#[setters(strip_option)]
 pub struct Workflow {
     #[merge(strategy = crate::merge::vec::unify_by_key)]
     pub agents: Vec<Agent>,
@@ -17,7 +19,7 @@ impl Workflow {
     fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
         self.agents
             .iter()
-            .filter(|a| a.enable)
+            .filter(|a| a.enable.unwrap_or_default())
             .find(|a| a.id == *id)
     }
 

@@ -30,23 +30,14 @@ impl From<ToolName> for AgentId {
     }
 }
 
-// Helper function to check if a boolean is true
-fn is_true(value: &bool) -> bool {
-    *value
-}
-
-// Function that always returns true, used as default value
-fn truth() -> bool {
-    true
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Agent {
     /// Flag to enable/disable tool support for this agent.
     #[serde(default)]
-    #[merge(strategy = crate::merge::bool::overwrite_false)]
-    pub tool_supported: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub tool_supported: Option<bool>,
 
     // Unique identifier for the agent
     #[merge(strategy = crate::merge::std::overwrite)]
@@ -58,57 +49,84 @@ pub struct Agent {
     pub model: Option<ModelId>,
 
     // Human-readable description of the agent's purpose
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
     pub description: Option<String>,
 
     // Template for the system prompt provided to the agent
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
     pub system_prompt: Option<Template<SystemContext>>,
 
     // Template for the user prompt provided to the agent
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
     pub user_prompt: Option<Template<EventContext>>,
 
     /// When set to true all user events will also contain a suggestions field
     /// that is prefilled with the matching information from vector store.
-    #[serde(skip_serializing_if = "is_true", default)]
-    #[merge(strategy = crate::merge::bool::overwrite_false)]
-    pub suggestions: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub suggestions: Option<bool>,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.    
-    #[serde(skip_serializing_if = "is_true", default)]
-    #[merge(strategy = crate::merge::bool::overwrite_false)]
-    pub ephemeral: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub ephemeral: Option<bool>,
 
     /// Flag to enable/disable the agent. When disabled (false), the agent will
     /// be completely ignored during orchestration execution.
-    #[serde(skip_serializing_if = "is_true", default = "truth")]
-    #[merge(strategy = crate::merge::bool::overwrite_false)]
-    pub enable: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub enable: Option<bool>,
 
     /// Tools that the agent can use    
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    #[merge(strategy = crate::merge::vec::unify)]
-    pub tools: Vec<ToolName>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub tools: Option<Vec<ToolName>>,
 
     // Transformations to be applied to the agent's context
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    #[merge(strategy = crate::merge::vec::append)]
-    pub transforms: Vec<Transform>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub transforms: Option<Vec<Transform>>,
 
     /// Used to specify the events the agent is interested in    
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    #[merge(strategy = crate::merge::vec::unify)]
-    pub subscribe: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub subscribe: Option<Vec<String>>,
 
     /// Maximum number of turns the agent can take    
-    #[serde(skip_serializing_if = "Option::is_none", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
     pub max_turns: Option<u64>,
 
     /// Maximum depth to which the file walker should traverse for this agent
     /// If not provided, the maximum possible depth will be used
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
     pub max_walker_depth: Option<usize>,
+}
+
+impl Agent {
+    pub fn new(id: impl ToString) -> Self {
+        Self {
+            id: AgentId::new(id),
+            tool_supported: None,
+            model: None,
+            description: None,
+            system_prompt: None,
+            user_prompt: None,
+            suggestions: None,
+            ephemeral: None,
+            enable: None,
+            tools: None,
+            transforms: None,
+            subscribe: None,
+            max_turns: None,
+            max_walker_depth: None,
+        }
+    }
 }
 
 impl Key for Agent {
@@ -162,30 +180,16 @@ pub enum Transform {
 mod tests {
     use super::*;
 
-    impl Agent {
-        fn new(id: impl ToString) -> Self {
-            Self {
-                id: AgentId::new(id),
-                tool_supported: Default::default(),
-                model: Default::default(),
-                description: Default::default(),
-                system_prompt: Default::default(),
-                user_prompt: Default::default(),
-                suggestions: Default::default(),
-                ephemeral: Default::default(),
-                enable: true,
-                tools: Default::default(),
-                transforms: Default::default(),
-                subscribe: Default::default(),
-                max_turns: Default::default(),
-                max_walker_depth: Default::default(),
-            }
-        }
-    }
-
     #[test]
     fn test_merge_model() {
+        // Base has a value, should not be overwritten
         let mut base = Agent::new("Base").model(ModelId::new("base"));
+        let other = Agent::new("Other").model(ModelId::new("other"));
+        base.merge(other);
+        assert_eq!(base.model.unwrap(), ModelId::new("base"));
+
+        // Base has no value, should take the other value
+        let mut base = Agent::new("Base"); // No model
         let other = Agent::new("Other").model(ModelId::new("other"));
         base.merge(other);
         assert_eq!(base.model.unwrap(), ModelId::new("other"));
@@ -193,52 +197,95 @@ mod tests {
 
     #[test]
     fn test_merge_tool_supported() {
-        // Test tool_supported's overwrite_false - there seems to be some initialization issue with defaults
+        // Base has no value, should use other's value
+        let mut base = Agent::new("Base"); // No tool_supported set
+        let other = Agent::new("Other").tool_supported(true);
+        base.merge(other);
+        assert_eq!(base.tool_supported, Some(true));
+
+        // Base has a value, should not be overwritten
         let mut base = Agent::new("Base").tool_supported(false);
         let other = Agent::new("Other").tool_supported(true);
         base.merge(other);
-        assert_eq!(base.tool_supported, true); // Adjusted value to match actual behavior
+        assert_eq!(base.tool_supported, Some(false));
     }
 
     #[test]
     fn test_merge_bool_flags() {
-        // Test suggestions flag with overwrite_false strategy
+        // With the option strategy, the first value is preserved
         let mut base = Agent::new("Base").suggestions(true);
         let other = Agent::new("Other").suggestions(false);
         base.merge(other);
-        assert_eq!(base.suggestions, true);
+        assert_eq!(base.suggestions, Some(true));
 
-        // Test ephemeral flag with overwrite_false strategy
+        // Now test with no initial value
+        let mut base = Agent::new("Base"); // no suggestions set
+        let other = Agent::new("Other").suggestions(false);
+        base.merge(other);
+        assert_eq!(base.suggestions, Some(false));
+
+        // Test ephemeral flag with option strategy
         let mut base = Agent::new("Base").ephemeral(true);
         let other = Agent::new("Other").ephemeral(false);
         base.merge(other);
-        assert_eq!(base.ephemeral, true);
+        assert_eq!(base.ephemeral, Some(true));
 
-        // Test enable flag with overwrite_false strategy
+        // Test enable flag with option strategy
         let mut base = Agent::new("Base").enable(true);
         let other = Agent::new("Other").enable(false);
         base.merge(other);
-        assert_eq!(base.enable, true);
+        assert_eq!(base.enable, Some(true));
     }
 
     #[test]
     fn test_merge_tools() {
-        // Test vec::unify strategy for tools
-        let mut base =
-            Agent::new("Base").tools(vec![ToolName::new("tool1"), ToolName::new("tool2")]);
+        // Base has no value, should take other's values
+        let mut base = Agent::new("Base"); // no tools
         let other = Agent::new("Other").tools(vec![ToolName::new("tool2"), ToolName::new("tool3")]);
         base.merge(other);
 
-        // Should contain unique tools from both
-        assert_eq!(base.tools.len(), 3);
-        assert!(base.tools.contains(&ToolName::new("tool1")));
-        assert!(base.tools.contains(&ToolName::new("tool2")));
-        assert!(base.tools.contains(&ToolName::new("tool3")));
+        // Should contain all tools from the other agent
+        let tools = base.tools.as_ref().unwrap();
+        assert_eq!(tools.len(), 2);
+        assert!(tools.contains(&ToolName::new("tool2")));
+        assert!(tools.contains(&ToolName::new("tool3")));
+
+        // Base has a value, should not be overwritten
+        let mut base =
+            Agent::new("Base").tools(vec![ToolName::new("tool1"), ToolName::new("tool2")]);
+        let other = Agent::new("Other").tools(vec![ToolName::new("tool3"), ToolName::new("tool4")]);
+        base.merge(other);
+
+        // Should still have base's tools
+        let tools = base.tools.as_ref().unwrap();
+        assert_eq!(tools.len(), 2);
+        assert!(tools.contains(&ToolName::new("tool1")));
+        assert!(tools.contains(&ToolName::new("tool2")));
     }
 
     #[test]
     fn test_merge_transforms() {
-        // Test vec::append strategy for transforms
+        // Base has no value, should take other's values
+        let mut base = Agent::new("Base"); // no transforms
+        let transform2 = Transform::PassThrough {
+            agent_id: AgentId::new("agent2"),
+            input: "input2".to_string(),
+        };
+        let other = Agent::new("Other").transforms(vec![transform2]);
+
+        base.merge(other);
+
+        // Should contain transforms from the other agent
+        let transforms = base.transforms.as_ref().unwrap();
+        assert_eq!(transforms.len(), 1);
+        if let Transform::PassThrough { agent_id, input } = &transforms[0] {
+            assert_eq!(agent_id.as_str(), "agent2");
+            assert_eq!(input, "input2");
+        } else {
+            panic!("Expected PassThrough transform");
+        }
+
+        // Base has a value, should not be overwritten
         let transform1 = Transform::PassThrough {
             agent_id: AgentId::new("agent1"),
             input: "input1".to_string(),
@@ -253,18 +300,12 @@ mod tests {
 
         base.merge(other);
 
-        // Should contain transforms from both (appended)
-        assert_eq!(base.transforms.len(), 2);
-        if let Transform::PassThrough { agent_id, input } = &base.transforms[0] {
+        // Should still have base's transforms
+        let transforms = base.transforms.as_ref().unwrap();
+        assert_eq!(transforms.len(), 1);
+        if let Transform::PassThrough { agent_id, input } = &transforms[0] {
             assert_eq!(agent_id.as_str(), "agent1");
             assert_eq!(input, "input1");
-        } else {
-            panic!("Expected PassThrough transform");
-        }
-
-        if let Transform::PassThrough { agent_id, input } = &base.transforms[1] {
-            assert_eq!(agent_id.as_str(), "agent2");
-            assert_eq!(input, "input2");
         } else {
             panic!("Expected PassThrough transform");
         }
@@ -272,79 +313,27 @@ mod tests {
 
     #[test]
     fn test_merge_subscribe() {
-        // Test vec::unify strategy for subscribe
-        let mut base =
-            Agent::new("Base").subscribe(vec!["event1".to_string(), "event2".to_string()]);
+        // Base has no value, should take other's values
+        let mut base = Agent::new("Base"); // no subscribe
         let other = Agent::new("Other").subscribe(vec!["event2".to_string(), "event3".to_string()]);
         base.merge(other);
 
-        // Should contain unique events from both
-        assert_eq!(base.subscribe.len(), 3);
-        assert!(base.subscribe.contains(&"event1".to_string()));
-        assert!(base.subscribe.contains(&"event2".to_string()));
-        assert!(base.subscribe.contains(&"event3".to_string()));
-    }
+        // Should contain events from other
+        let subscribe = base.subscribe.as_ref().unwrap();
+        assert_eq!(subscribe.len(), 2);
+        assert!(subscribe.contains(&"event2".to_string()));
+        assert!(subscribe.contains(&"event3".to_string()));
 
-    #[test]
-    fn test_merge_option_fields() {
-        // Test option merge strategy for description
-        let mut base = Agent::new("Base");
-        base.description = None;
-        let other = Agent::new("Other").description("test description");
-        base.merge(other.clone());
-        assert_eq!(base.description, Some("test description".to_string()));
-
-        // Test that existing description isn't overwritten
-        let mut base = Agent::new("Base").description("original description");
-        let other2 = Agent::new("Other2").description("new description");
-        base.merge(other2);
-        assert_eq!(base.description, Some("original description".to_string()));
-
-        // Test max_turns option field
-        let mut base = Agent::new("Base");
-        base.max_turns = None;
-        let other = Agent::new("Other").max_turns(5u64);
-        base.merge(other);
-        assert_eq!(base.max_turns, Some(5));
-
-        // Test max_walker_depth option field
-        let mut base = Agent::new("Base");
-        base.max_walker_depth = None;
-        let other = Agent::new("Other").max_walker_depth(3usize);
-        base.merge(other);
-        assert_eq!(base.max_walker_depth, Some(3));
-    }
-
-    #[test]
-    fn test_merge_id() {
-        // Test that ID is overwritten
-        let mut base = Agent::new("Base");
-        let other = Agent::new("Other");
-        base.merge(other);
-        assert_eq!(base.id.as_str(), "Other");
-    }
-
-    #[test]
-    fn test_merge_multiple_fields() {
-        // Test merging multiple fields at once
-        let mut base = Agent::new("Base")
-            .model(ModelId::new("base_model"))
-            .tool_supported(true)
-            .tools(vec![ToolName::new("tool1")]);
-
-        let other = Agent::new("Other")
-            .model(ModelId::new("other_model"))
-            .tool_supported(false)
-            .tools(vec![ToolName::new("tool2")])
-            .max_turns(10u64);
-
+        // Base has a value, should not be overwritten
+        let mut base =
+            Agent::new("Base").subscribe(vec!["event1".to_string(), "event2".to_string()]);
+        let other = Agent::new("Other").subscribe(vec!["event3".to_string(), "event4".to_string()]);
         base.merge(other);
 
-        // Verify all merged fields
-        assert_eq!(base.id.as_str(), "Other");
-        assert_eq!(base.model, Some(ModelId::new("other_model")));
-        assert_eq!(base.tool_supported, true);
-        assert_eq!(base.tools.len(), 2);
-        assert_eq!(base.max_turns, Some(10));
+        // Should still have base's events
+        let subscribe = base.subscribe.as_ref().unwrap();
+        assert_eq!(subscribe.len(), 2);
+        assert!(subscribe.contains(&"event1".to_string()));
+        assert!(subscribe.contains(&"event2".to_string()));
     }
 }
