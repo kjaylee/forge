@@ -33,6 +33,12 @@ pub mod bool {
     pub use merge::bool::*;
 }
 
+pub fn option<A>(base: &mut Option<A>, other: Option<A>) {
+    if let Some(other) = other {
+        *base = Some(other);
+    }
+}
+
 pub trait Key {
     type Id: Eq;
     fn key(&self) -> &Self::Id;
