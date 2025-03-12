@@ -95,9 +95,18 @@ impl OpenRouter {
                     },
                     Err(error) => match error {
                         reqwest_eventsource::Error::StreamEnded => None,
-                        reqwest_eventsource::Error::InvalidStatusCode(_, ref response) => {
-                            debug!(response = ?response, "Invalid status code");
-                            Some(Err(error.into()))
+                        reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
+                            let headers = response.headers().clone();
+                            let status = response.status();
+                            match response.text().await {
+                                Ok(ref body) => {
+                                    debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
+                                 } 
+                                Err(error) => {
+                                    debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
+                                }
+                            }
+                            Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
                         }
                         reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                             debug!(response = ?response, "Invalid content type");
@@ -170,7 +179,7 @@ impl From<OpenRouterModel> for Model {
             id: value.id,
             name: value.name,
             description: value.description,
-            context_length: Some(value.context_length),
+            context_length: value.context_length,
         }
     }
 }
