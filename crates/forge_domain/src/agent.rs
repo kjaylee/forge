@@ -112,7 +112,7 @@ pub struct Agent {
 
     /// Rules that the agent needs to follow.
     #[serde(skip_serializing_if = "String::is_empty", default)]
-    #[merge(strategy = crate::merge::std::overwrite)]
+    #[merge(strategy = crate::merge::string::concat)]
     pub project_rules: String,
 }
 
