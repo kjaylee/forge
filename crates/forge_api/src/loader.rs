@@ -6,8 +6,8 @@ use forge_app::{FsReadService, Infrastructure};
 use forge_domain::Workflow;
 use merge::Merge;
 
-// Default forge.yaml content embedded in the binary
-const DEFAULT_FORGE_WORKFLOW: &str = include_str!("../../../forge.default.yaml");
+// Import the default configuration
+use crate::forge_default::create_default_workflow;
 
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
@@ -50,7 +50,11 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         // Load the workflow based on its source
         match source {
             WorkflowSource::ExplicitPath(path) => self.load_from_explicit_path(path).await,
-            WorkflowSource::Default => self.load_default_workflow(),
+            WorkflowSource::Default => {
+                // Use the programmatically created workflow
+                // This is the preferred method as it's type-safe
+                Ok(create_default_workflow())
+            }
             WorkflowSource::ProjectConfig => self.load_with_project_config().await,
         }
     }
@@ -63,16 +67,14 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         Ok(workflow)
     }
 
-    /// Loads the default workflow from embedded content
-    fn load_default_workflow(&self) -> anyhow::Result<Workflow> {
-        let workflow: Workflow = serde_yaml::from_str(DEFAULT_FORGE_WORKFLOW)
-            .with_context(|| "Failed to parse default workflow")?;
-        Ok(workflow)
-    }
-
     /// Loads workflow by merging project config with default workflow
     async fn load_with_project_config(&self) -> anyhow::Result<Workflow> {
-        let default_workflow = self.load_default_workflow()?;
+        let default_workflow = {
+            let this = &self;
+            // Use the programmatically created workflow
+            // This is the preferred method as it's type-safe
+            Ok(create_default_workflow())
+        }?;
         let project_path = Path::new("forge.yaml");
 
         let project_content = String::from_utf8(
