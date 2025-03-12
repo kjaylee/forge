@@ -23,7 +23,7 @@ pub mod vec {
 }
 
 pub fn option<A>(base: &mut Option<A>, other: Option<A>) {
-    if base.is_none() && other.is_some() {
+    if other.is_some() {
         *base = other;
     }
 }
