@@ -4,17 +4,10 @@ pub mod std {
     }
 }
 pub mod vec {
-    pub use merge::vec::*;
+
     use merge::Merge;
 
     use super::Key;
-    pub fn unify<T: PartialEq>(base: &mut Vec<T>, other: Vec<T>) {
-        for other_item in other {
-            if !base.contains(&other_item) {
-                base.push(other_item);
-            }
-        }
-    }
 
     pub fn unify_by_key<T: Merge + Key>(base: &mut Vec<T>, other: Vec<T>) {
         for other_agent in other {
@@ -29,13 +22,9 @@ pub mod vec {
     }
 }
 
-pub mod bool {
-    pub use merge::bool::*;
-}
-
 pub fn option<A>(base: &mut Option<A>, other: Option<A>) {
-    if let Some(other) = other {
-        *base = Some(other);
+    if base.is_none() && other.is_some() {
+        *base = other;
     }
 }
 
