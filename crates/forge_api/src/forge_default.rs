@@ -1,14 +1,14 @@
+//! Default configuration for Forge
+//!
+//! This module contains the default configuration that is used when no
+//! custom configuration is provided.
+
 use std::collections::HashMap;
 
 use forge_domain::{
     Agent, AgentId, EventContext, ModelId, SystemContext, Template, ToolName, Workflow,
 };
 use serde_json::json;
-
-/// Default configuration for Forge
-///
-/// This module contains the default configuration that is used when no
-/// custom configuration is provided.
 
 /// The original default forge.yaml content as a string constant.
 /// Kept for reference and backwards compatibility.
