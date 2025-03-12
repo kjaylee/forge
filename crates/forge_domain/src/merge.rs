@@ -9,7 +9,9 @@ pub mod string {
         if !base.is_empty() {
             base.push('\n');
         }
-        base.push_str(other.as_ref());
+        if !other.as_ref().is_empty() {
+            base.push_str(other.as_ref());
+        }
     }
 }
 

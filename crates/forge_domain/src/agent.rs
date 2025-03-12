@@ -148,3 +148,63 @@ pub enum Transform {
     /// context
     PassThrough { agent_id: AgentId, input: String },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use merge::Merge;
+
+    impl Default for Agent {
+        fn default() -> Self {
+            Agent {
+                tool_supported: false,
+                id: AgentId(String::new()),
+                model: None,
+                description: None,
+                system_prompt: None,
+                user_prompt: None,
+                suggestions: false,
+                ephemeral: false,
+                enable: true, // Assuming default is enabled
+                tools: Vec::new(),
+                transforms: Vec::new(),
+                subscribe: Vec::new(),
+                max_turns: None,
+                max_walker_depth: None,
+                project_rules: String::new(),
+            }
+        }
+    }
+
+    #[test]
+    fn test_merge_project_rules() {
+        // case 1: base has some project rules and other has some rules
+        let mut base = Agent::default();
+        base.project_rules = "Rule 1: Be concise".to_string();
+
+        let other = Agent {
+            project_rules: "Rule 2: Be precise".to_string(),
+            ..Agent::default()
+        };
+
+        base.merge(other);
+        assert_eq!(base.project_rules, "Rule 1: Be concise\nRule 2: Be precise");
+
+        // case 2: base has empty project rules but other has some rules
+        let mut base = Agent::default();
+        let other = Agent {
+            project_rules: "Rule 1: Be precise".to_string(),
+            ..Agent::default()
+        };
+
+        base.merge(other);
+        assert_eq!(base.project_rules, "Rule 1: Be precise");
+
+        // case 3: base and other has empty project rules
+        let mut base = Agent::default();
+
+        let other = Agent::default();
+        base.merge(other);
+        assert!(base.project_rules.is_empty());
+    }
+}
