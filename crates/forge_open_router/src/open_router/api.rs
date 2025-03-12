@@ -7,7 +7,6 @@ use forge_domain::{
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
-use serde_json::Value;
 use tokio_stream::StreamExt;
 use tracing::debug;
 
