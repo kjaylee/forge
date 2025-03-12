@@ -6,12 +6,10 @@ pub mod std {
 
 pub mod string {
     pub fn concat(base: &mut String, other: impl AsRef<str>) {
-        if !base.is_empty() {
+        if !base.is_empty() && !other.as_ref().is_empty() {
             base.push('\n');
         }
-        if !other.as_ref().is_empty() {
-            base.push_str(other.as_ref());
-        }
+        base.push_str(other.as_ref());
     }
 }
 
