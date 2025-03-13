@@ -230,7 +230,16 @@ impl<F: API> UI<F> {
                         .find(|command| command.command == custom_command);
 
                     if let Some(command) = command {
-                        todo!("Handle custom command: {:?}", command.command);
+                        let event = Event {
+                            name: command.command.clone(),
+                            value: custom_command.to_string(),
+                            id: format!(
+                                "custom-command-{}-{}",
+                                command.command, command.description
+                            ),
+                            timestamp: chrono::Utc::now().to_string(),
+                        };
+                        self.dispatch_event(event).await?;
                     } else {
                         CONSOLE.writeln(TitleFormat::failed("Command not found").format())?;
                     }
@@ -572,6 +581,15 @@ impl<F: API> UI<F> {
         let event = Self::create_user_help_query_event(content.clone());
 
         // Create the chat request with the help query event
+        let chat = ChatRequest::new(event, conversation_id);
+        match self.api.chat(chat).await {
+            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn dispatch_event(&mut self, event: Event) -> Result<()> {
+        let conversation_id = self.init_conversation().await?;
         let chat = ChatRequest::new(event, conversation_id);
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
