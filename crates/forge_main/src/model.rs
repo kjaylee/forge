@@ -189,7 +189,7 @@ impl Command {
             "/act" => Command::Act,
             "/plan" => Command::Plan,
             "/help" => Command::Help,
-            is_command => Command::Custom(is_command.to_string()),
+            text => Command::Custom(text.to_string()),
         }
     }
 }
