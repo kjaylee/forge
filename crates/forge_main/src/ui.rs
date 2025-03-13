@@ -16,7 +16,7 @@ use crate::cli::{Cli, Snapshot, SnapshotCommand};
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
-use crate::model::{Command, UserInput};
+use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::state::{Mode, UIState};
 
 // Event type constants moved to UI layer
@@ -46,6 +46,7 @@ pub struct UI<F> {
     api: Arc<F>,
     console: Console,
     cli: Cli,
+    forge_command_manager: ForgeCommandManager,
     models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
@@ -97,14 +98,18 @@ impl<F: API> UI<F> {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
-    pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
+    pub async fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
         // Parse CLI arguments first to get flags
-
         let env = api.environment();
+        // load the workflow.
+        let workflow = api.load(cli.workflow.as_deref()).await?;
+        let forge_command_manager = ForgeCommandManager::from(workflow.commands);
+
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console::new(env.clone()),
+            console: Console::new(env.clone(), forge_command_manager.clone()),
+            forge_command_manager,
             cli,
             models: None,
             _guard: forge_tracker::init_tracing(env.log_path())?,
@@ -130,7 +135,7 @@ impl<F: API> UI<F> {
         }
 
         // Display the banner in dimmed colors since we're in interactive mode
-        banner::display()?;
+        banner::display(&self.forge_command_manager)?;
 
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
@@ -147,7 +152,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::New => {
-                    banner::display()?;
+                    banner::display(&self.forge_command_manager)?;
                     self.state = Default::default();
                     input = self.console.prompt(None).await?;
 
@@ -215,6 +220,20 @@ impl<F: API> UI<F> {
                     CONSOLE.writeln(info.to_string())?;
 
                     input = self.console.prompt(None).await?;
+                }
+                Command::Custom(ref custom_command) => {
+                    let custom_command = custom_command.split_ascii_whitespace().next().unwrap();
+                    let command = self
+                        .forge_command_manager
+                        .list()
+                        .into_iter()
+                        .find(|command| command.command == custom_command);
+
+                    if let Some(command) = command {
+                        todo!("Handle custom command: {:?}", command.command);
+                    } else {
+                        CONSOLE.writeln(TitleFormat::failed("Command not found").format())?;
+                    }
                 }
             }
         }

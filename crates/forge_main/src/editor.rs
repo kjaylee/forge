@@ -5,6 +5,8 @@ use reedline::{
     KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
 
+use crate::model::ForgeCommandManager;
+
 use super::completer::InputCompleter;
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
@@ -60,7 +62,7 @@ impl ForgeEditor {
         keybindings
     }
 
-    pub fn start(env: Environment) -> Self {
+    pub fn start(env: Environment, command_manager: ForgeCommandManager) -> Self {
         // Store file history in system config directory
         let history_file = env.history_path();
 
@@ -78,7 +80,7 @@ impl ForgeEditor {
         let edit_mode = Box::new(Emacs::new(Self::init()));
 
         let editor = Reedline::create()
-            .with_completer(Box::new(InputCompleter::new(env.cwd)))
+            .with_completer(Box::new(InputCompleter::new(env.cwd, command_manager)))
             .with_history(history)
             .with_hinter(Box::new(
                 DefaultHinter::default().with_style(Style::new().fg(Color::DarkGray)),

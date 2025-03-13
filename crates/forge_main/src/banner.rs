@@ -2,12 +2,16 @@ use std::io;
 
 use colored::Colorize;
 
-use crate::model::Command;
+use crate::model::ForgeCommandManager;
 
 const BANNER: &str = include_str!("banner");
 
-pub fn display() -> io::Result<()> {
-    let commands = Command::available_commands();
+pub fn display(command_manager: &ForgeCommandManager) -> io::Result<()> {
+    let commands = command_manager
+        .list()
+        .into_iter()
+        .map(|command| command.command)
+        .collect::<Vec<_>>();
     // Split the banner into lines and display each line dimmed
     println!("{} {}", BANNER.dimmed(), commands.join(", ").bold());
     Ok(())

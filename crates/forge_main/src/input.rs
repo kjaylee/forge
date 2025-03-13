@@ -7,7 +7,7 @@ use tokio::fs;
 
 use crate::console::CONSOLE;
 use crate::editor::{ForgeEditor, ReadResult};
-use crate::model::{Command, UserInput};
+use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::prompt::ForgePrompt;
 use crate::state::Mode;
 
@@ -15,12 +15,13 @@ use crate::state::Mode;
 #[derive(Debug)]
 pub struct Console {
     env: Environment,
+    command_manager: ForgeCommandManager,
 }
 
 impl Console {
     /// Creates a new instance of `Console`.
-    pub fn new(env: Environment) -> Self {
-        Self { env }
+    pub fn new(env: Environment, command_manager: ForgeCommandManager) -> Self {
+        Self { env, command_manager }
     }
 }
 
@@ -37,7 +38,7 @@ impl UserInput for Console {
 
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
-        let mut engine = ForgeEditor::start(self.env.clone());
+        let mut engine = ForgeEditor::start(self.env.clone(), self.command_manager.clone());
         let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {

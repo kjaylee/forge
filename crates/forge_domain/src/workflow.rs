@@ -13,6 +13,9 @@ pub struct Workflow {
     #[merge(strategy = crate::merge::vec::unify_by_key)]
     pub agents: Vec<Agent>,
     pub variables: Option<HashMap<String, Value>>,
+    #[merge(strategy = crate::merge::std::overwrite)]
+    #[serde(default)]
+    pub commands: HashMap<String, String>,
 }
 
 impl Workflow {

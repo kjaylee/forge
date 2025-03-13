@@ -1,3 +1,6 @@
 agents:
   - id: software-engineer
     max_walker_depth: 1024
+commands:
+  commit: "can interactively create a commit"
+  pull-request-create: "Create a pull request automatically"

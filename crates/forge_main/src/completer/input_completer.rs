@@ -5,16 +5,18 @@ use reedline::{Completer, Suggestion};
 
 use crate::completer::search_term::SearchTerm;
 use crate::completer::CommandCompleter;
+use crate::model::ForgeCommandManager;
 
 #[derive(Clone)]
 pub struct InputCompleter {
     walker: Walker,
+    command: CommandCompleter,
 }
 
 impl InputCompleter {
-    pub fn new(cwd: PathBuf) -> Self {
+    pub fn new(cwd: PathBuf, command_manager: ForgeCommandManager) -> Self {
         let walker = Walker::max_all().cwd(cwd).skip_binary(true);
-        Self { walker }
+        Self { walker, command: CommandCompleter::new(command_manager) }
     }
 }
 
@@ -23,7 +25,7 @@ impl Completer for InputCompleter {
         if line.starts_with("/") {
             // if the line starts with '/' it's probably a command, so we delegate to the
             // command completer.
-            let result = CommandCompleter.complete(line, pos);
+            let result = self.command.complete(line, pos);
             if !result.is_empty() {
                 return result;
             }
