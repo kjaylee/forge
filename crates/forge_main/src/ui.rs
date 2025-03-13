@@ -99,6 +99,11 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        // Check for dispatch flag first
+        if let Some(dispatch_json) = self.cli.dispatch.clone() {
+            return self.handle_dispatch(dispatch_json).await;
+        }
+
         if let Some(snapshot_command) = self.cli.snapshot.as_ref() {
             return match snapshot_command {
                 Snapshot::Snapshot { sub_command } => self.handle_snaps(sub_command).await,
@@ -203,7 +208,43 @@ impl<F: API> UI<F> {
 
         Ok(())
     }
-    async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
+    // Handle dispatching events from the CLI
+    async fn handle_dispatch(&mut self, dispatch_json: String) -> Result<()> {
+        // Initialize the conversation
+        let conversation_id = self.init_conversation().await?;
+        
+        // Parse the JSON to determine the event name and value
+        let json_value: serde_json::Value = serde_json::from_str(&dispatch_json)
+            .map_err(|e| anyhow::anyhow!("Failed to parse dispatch JSON: {}", e))?;
+
+        if !json_value.is_object() || json_value.as_object().unwrap().len() != 1 {
+            return Err(anyhow::anyhow!(
+                "Dispatch JSON must be an object with a single key-value pair"
+            ));
+        }
+
+        let (event_name, event_value) = json_value.as_object().unwrap().iter().next().unwrap();
+        
+        // Create the event
+        let event_value_str = serde_json::to_string(event_value)?;
+        let event = Event::new(event_name, &event_value_str);
+
+        // Log the dispatch
+        CONSOLE.writeln(
+            TitleFormat::execute(format!("Dispatching event: {}", event_name))
+                .sub_title(format!("value: {}", event_value_str))
+                .format(),
+        )?;
+
+        // Create the chat request with the event
+        let chat = ChatRequest::new(event, conversation_id);
+
+        // Process the event
+        match self.api.chat(chat).await {
+            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
+            Err(err) => Err(err),
+        }
+    }    async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
         match snapshot_command {
             SnapshotCommand::List { path } => {
                 let snapshots: Vec<SnapshotInfo> = self.api.list_snapshots(path).await?;

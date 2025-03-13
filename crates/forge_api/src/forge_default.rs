@@ -60,6 +60,40 @@ agents:
     user_prompt: |
       <task>{{event.value}}</task>
       <mode>{{variables.mode}}</mode>
+
+  - id: github-task-agent
+    model: *advanced_model
+    tool_supported: true
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_net_fetch
+      - tool_forge_fs_search
+      - tool_forge_event_dispatch
+    subscribe:
+      - fix_issue
+      - update_pr
+    ephemeral: false
+    max_walker_depth: 4
+    system_prompt: |
+      {{> system-prompt-engineer.hbs }}
+
+      ## GitHub Task Management
+
+      - Process GitHub task commands: `fix_issue` and `update_pr`
+      - Create and update task files named `.task-{issue_number}.md`
+      - Always use GitHub CLI (gh) for GitHub operations
+      - Follow branch naming convention: `forge-{issue_number}`
+      - For `fix_issue` commands, create draft PRs with task details
+      - For `update_pr` commands, update the PR based on the task file
+      - Monitor PR comments and incorporate them into task planning
+    user_prompt: |
+      <event>{{event.name}}</event>
+      <value>{{event.value}}</value>
+      <mode>ACT</mode>
 "#;
 
 /// System prompt templates for each agent type
@@ -72,6 +106,9 @@ mod prompts {
 
     /// Software engineer agent system prompt template
     pub const ENGINEER: &str = "{{> system-prompt-engineer.hbs }}";
+
+    /// GitHub engineer agent system prompt template - extends the regular engineer
+    pub const GITHUB_ENGINEER: &str = "{{> system-prompt-engineer.hbs }}\n\n## GitHub Task Management\n\n- Process GitHub task commands: `fix_issue` and `update_pr`\n- Create and update task files named `.task-{issue_number}.md`\n- Always use GitHub CLI (gh) for GitHub operations\n- Follow branch naming convention: `forge-{issue_number}`\n- For `fix_issue` commands, create draft PRs with task details\n- For `update_pr` commands, update the PR based on the task file\n- Monitor PR comments and incorporate them into task planning";
 }
 
 /// Creates the default workflow using Rust constructors and setters
@@ -106,7 +143,7 @@ pub fn create_default_workflow() -> Workflow {
 
     // Create the software engineer agent
     let software_engineer = Agent::new(AgentId::new("software-engineer"))
-        .model(advanced_model)
+        .model(advanced_model.clone())
         .tool_supported(true)
         .tools(vec![
             ToolName::new("tool_forge_fs_read"),
@@ -132,8 +169,33 @@ pub fn create_default_workflow() -> Workflow {
     let mut variables = HashMap::new();
     variables.insert("mode".to_string(), json!("ACT"));
 
+    // Create the GitHub task agent
+    let github_task_agent = Agent::new(AgentId::new("github-task-agent"))
+        .model(advanced_model.clone())
+        .tool_supported(true)
+        .tools(vec![
+            ToolName::new("tool_forge_fs_read"),
+            ToolName::new("tool_forge_fs_create"),
+            ToolName::new("tool_forge_fs_remove"),
+            ToolName::new("tool_forge_fs_patch"),
+            ToolName::new("tool_forge_process_shell"),
+            ToolName::new("tool_forge_net_fetch"),
+            ToolName::new("tool_forge_fs_search"),
+            ToolName::new("tool_forge_event_dispatch"),
+        ])
+        .subscribe(vec![
+            "fix_issue".to_string(),
+            "update_pr".to_string(),
+        ])
+        .ephemeral(false)
+        .max_walker_depth(4_usize)
+        .system_prompt(Template::<SystemContext>::new(prompts::GITHUB_ENGINEER))
+        .user_prompt(Template::<EventContext>::new(
+            "<event>{{event.name}}</event>\n<value>{{event.value}}</value>\n<mode>ACT</mode>",
+        ));
+
     // Create the workflow with all agents
     Workflow::default()
-        .agents(vec![title_generation_worker, help_agent, software_engineer])
+        .agents(vec![title_generation_worker, help_agent, software_engineer, github_task_agent])
         .variables(variables)
 }
