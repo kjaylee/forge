@@ -232,15 +232,8 @@ impl<F: API> UI<F> {
                             .map(|args| args.join(" "))
                             .unwrap_or_default();
 
-                        // find the original command.
-                        let command = self
-                            .forge_command_manager
-                            .list()
-                            .into_iter()
-                            .find(|command| &command.name == parsed_command);
-
                         // if command is registered in our system then dispatch the event.
-                        if let Some(command) = command {
+                        if let Some(command) = self.forge_command_manager.find(parsed_command) {
                             let event = Event {
                                 name: command.name.clone(),
                                 value: args,

@@ -107,6 +107,11 @@ impl ForgeCommandManager {
         self
     }
 
+    /// Finds a command by name.
+    pub fn find(&self, command: &str) -> Option<&ForgeCommand> {
+        self.commands.iter().find(|c| c.name == command)
+    }
+
     pub fn command_names(&self) -> Vec<String> {
         self.commands
             .iter()
