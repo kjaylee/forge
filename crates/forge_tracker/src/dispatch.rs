@@ -83,8 +83,6 @@ impl Tracker {
             for collector in &self.collectors {
                 collector.collect(event.clone()).await?;
             }
-
-            debug!(event = ?event, "Event dispatched");
         }
 
         Ok(())
