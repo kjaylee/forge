@@ -107,6 +107,13 @@ impl ForgeCommandManager {
         self
     }
 
+    pub fn command_names(&self) -> Vec<String> {
+        self.commands
+            .iter()
+            .map(|command| command.name.clone())
+            .collect::<Vec<_>>()
+    }
+
     /// Registers a new command to the manager.
     pub fn register<F: Into<ForgeCommand>>(mut self, command: F) -> Self {
         self.commands.push(command.into());

@@ -135,7 +135,7 @@ impl<F: API> UI<F> {
         }
 
         // Display the banner in dimmed colors since we're in interactive mode
-        banner::display(&self.forge_command_manager)?;
+        banner::display(self.forge_command_manager.command_names())?;
 
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
@@ -152,7 +152,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::New => {
-                    banner::display(&self.forge_command_manager)?;
+                    banner::display(self.forge_command_manager.command_names())?;
                     self.state = Default::default();
                     input = self.console.prompt(None).await?;
 
