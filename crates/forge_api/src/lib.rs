@@ -14,6 +14,7 @@ use serde_json::Value;
 
 #[async_trait::async_trait]
 pub trait API: Sync + Send {
+    type App: App;
     /// List snapshots for a file path
     async fn list_snapshots(
         &self,
@@ -94,4 +95,18 @@ pub trait API: Sync + Send {
         key: String,
         value: Value,
     ) -> anyhow::Result<()>;
+    /// Returns the task service to handle task operations
+    fn task_service(&self) -> &<Self::App as App>::TaskService;
+
+    /// Parses a dispatch configuration from JSON
+    fn parse_dispatch_config(&self, json: &str) -> anyhow::Result<TaskDispatchConfig>;
+
+    /// Creates a task for fixing an issue
+    async fn create_issue_task(
+        &self,
+        config: &FixIssueConfig,
+    ) -> anyhow::Result<std::path::PathBuf>;
+
+    /// Updates a task based on PR comments
+    async fn update_task(&self, config: &UpdatePrConfig) -> anyhow::Result<()>;
 }

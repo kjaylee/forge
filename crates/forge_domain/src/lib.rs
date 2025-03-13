@@ -19,6 +19,7 @@ mod provider;
 mod suggestion;
 mod summarize;
 mod system_context;
+mod task;
 mod template;
 mod tool;
 mod tool_call;
@@ -47,6 +48,7 @@ pub use provider::*;
 pub use suggestion::*;
 pub use summarize::*;
 pub use system_context::*;
+pub use task::*;
 pub use template::*;
 pub use tool::*;
 pub use tool_call::*;
@@ -132,10 +134,13 @@ pub trait App: Send + Sync + 'static {
     type ConversationService: ConversationService;
     type TemplateService: TemplateService;
     type AttachmentService: AttachmentService;
+    type TaskService: TaskService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
     fn conversation_service(&self) -> &Self::ConversationService;
     fn template_service(&self) -> &Self::TemplateService;
     fn attachment_service(&self) -> &Self::AttachmentService;
+    /// Returns the task service to manage tasks
+    fn task_service(&self) -> &Self::TaskService;
 }

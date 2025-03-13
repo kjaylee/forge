@@ -7,6 +7,7 @@ use crate::conversation::ForgeConversationService;
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
+use crate::tools::task::ForgeTaskService;
 use crate::Infrastructure;
 
 /// ForgeApp is the main application container that implements the App trait.
@@ -22,6 +23,7 @@ pub struct ForgeApp<F> {
     conversation_service: ForgeConversationService,
     prompt_service: ForgeTemplateService<F, ForgeToolService>,
     attachment_service: ForgeChatRequest<F>,
+    task_service: ForgeTaskService<F>,
 }
 
 impl<F: Infrastructure> ForgeApp<F> {
@@ -33,7 +35,8 @@ impl<F: Infrastructure> ForgeApp<F> {
             conversation_service: ForgeConversationService::new(),
             prompt_service: ForgeTemplateService::new(infra.clone(), tool_service.clone()),
             tool_service,
-            attachment_service: ForgeChatRequest::new(infra),
+            attachment_service: ForgeChatRequest::new(infra.clone()),
+            task_service: ForgeTaskService::new(infra),
         }
     }
 }
@@ -44,6 +47,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
     type ConversationService = ForgeConversationService;
     type TemplateService = ForgeTemplateService<F, ForgeToolService>;
     type AttachmentService = ForgeChatRequest<F>;
+    type TaskService = ForgeTaskService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -63,6 +67,10 @@ impl<F: Infrastructure> App for ForgeApp<F> {
 
     fn attachment_service(&self) -> &Self::AttachmentService {
         &self.attachment_service
+    }
+
+    fn task_service(&self) -> &Self::TaskService {
+        &self.task_service
     }
 }
 

@@ -104,6 +104,12 @@ impl<F: API> UI<F> {
                 Snapshot::Snapshot { sub_command } => self.handle_snaps(sub_command).await,
             };
         }
+
+        // Handle dispatch flag if provided
+        if let Some(dispatch) = self.cli.dispatch.clone() {
+            return self.handle_dispatch(&dispatch).await;
+        }
+
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
@@ -525,5 +531,51 @@ impl<F: API> UI<F> {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
         }
+    }
+    async fn handle_dispatch(&self, json: &str) -> Result<()> {
+        // Parse the dispatch config
+        let config = self.api.parse_dispatch_config(json)?;
+
+        // Determine which operation to perform
+        if let Some(fix_issue_config) = config.fix_issue {
+            // Create task for fixing an issue
+            CONSOLE.writeln(
+                TitleFormat::execute("Task Creation")
+                    .sub_title(format!(
+                        "Creating task for issue #{}",
+                        fix_issue_config.issue
+                    ))
+                    .format(),
+            )?;
+
+            let task_path = self.api.create_issue_task(&fix_issue_config).await?;
+
+            CONSOLE.writeln(
+                TitleFormat::success("Task Created")
+                    .sub_title(format!("Task file created at: {}", task_path.display()))
+                    .format(),
+            )?;
+        } else if let Some(update_pr_config) = config.update_pr {
+            // Update task based on PR
+            CONSOLE.writeln(
+                TitleFormat::execute("Task Update")
+                    .sub_title(format!("Updating task for PR #{}", update_pr_config.pr))
+                    .format(),
+            )?;
+
+            self.api.update_task(&update_pr_config).await?;
+
+            CONSOLE.writeln(
+                TitleFormat::success("Task Updated")
+                    .sub_title(format!("PR #{} updated", update_pr_config.pr))
+                    .format(),
+            )?;
+        } else {
+            return Err(anyhow::anyhow!(
+                "Invalid dispatch configuration. Must specify either 'fix_issue' or 'update_pr'"
+            ));
+        }
+
+        Ok(())
     }
 }

@@ -3,6 +3,7 @@ mod fs;
 mod patch;
 mod shell;
 mod syn;
+pub mod task;
 mod think;
 mod utils;
 

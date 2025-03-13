@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -42,6 +42,8 @@ impl ForgeAPI<ForgeApp<ForgeInfra>> {
 
 #[async_trait::async_trait]
 impl<F: App + Infrastructure> API for ForgeAPI<F> {
+    type App = F;
+
     async fn list_snapshots(&self, file_path: &Path) -> Result<Vec<SnapshotInfo>> {
         self.app
             .file_snapshot_service()
@@ -158,5 +160,21 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
             .conversation_service()
             .set_variable(conversation_id, key, value)
             .await
+    }
+
+    fn task_service(&self) -> &<F as App>::TaskService {
+        self.app.task_service()
+    }
+
+    fn parse_dispatch_config(&self, json: &str) -> anyhow::Result<TaskDispatchConfig> {
+        self.app.task_service().parse_dispatch_config(json)
+    }
+
+    async fn create_issue_task(&self, config: &FixIssueConfig) -> anyhow::Result<PathBuf> {
+        self.app.task_service().create_issue_task(config).await
+    }
+
+    async fn update_task(&self, config: &UpdatePrConfig) -> anyhow::Result<()> {
+        self.app.task_service().update_task(config).await
     }
 }

@@ -45,6 +45,15 @@ pub struct Cli {
     #[arg(long, short = 'w')]
     pub workflow: Option<PathBuf>,
 
+    /// Execute a task dispatch operation (JSON format).
+    ///
+    /// Examples:
+    /// - Fix an issue: --dispatch='{"fix_issue": {"issue": 123,
+    ///   "min_proposals": 5}}'
+    /// - Update a PR: --dispatch='{"update_pr": {"pr": 321}}'
+    #[arg(long)]
+    pub dispatch: Option<String>,
+
     #[command(subcommand)]
     pub snapshot: Option<Snapshot>,
 }
