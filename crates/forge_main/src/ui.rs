@@ -6,6 +6,7 @@ use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, 
 use forge_display::TitleFormat;
 use forge_snaps::SnapshotInfo;
 use lazy_static::lazy_static;
+use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
 use tracing::error;
@@ -26,6 +27,18 @@ pub const EVENT_TITLE: &str = "title";
 
 lazy_static! {
     pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();
+}
+
+#[derive(Deserialize)]
+struct PartialEvent {
+    pub name: String,
+    pub value: String,
+}
+
+impl From<PartialEvent> for Event {
+    fn from(value: PartialEvent) -> Self {
+        Event::new(value.name, value.value)
+    }
 }
 
 pub struct UI<F> {
@@ -100,7 +113,7 @@ impl<F: API> UI<F> {
 
     pub async fn run(&mut self) -> Result<()> {
         // Check for dispatch flag first
-        if let Some(dispatch_json) = self.cli.dispatch.clone() {
+        if let Some(dispatch_json) = self.cli.event.clone() {
             return self.handle_dispatch(dispatch_json).await;
         }
 
@@ -209,35 +222,15 @@ impl<F: API> UI<F> {
         Ok(())
     }
     // Handle dispatching events from the CLI
-    async fn handle_dispatch(&mut self, dispatch_json: String) -> Result<()> {
+    async fn handle_dispatch(&mut self, json: String) -> Result<()> {
         // Initialize the conversation
         let conversation_id = self.init_conversation().await?;
 
         // Parse the JSON to determine the event name and value
-        let json_value: serde_json::Value = serde_json::from_str(&dispatch_json)
-            .map_err(|e| anyhow::anyhow!("Failed to parse dispatch JSON: {}", e))?;
-
-        if !json_value.is_object() || json_value.as_object().unwrap().len() != 1 {
-            return Err(anyhow::anyhow!(
-                "Dispatch JSON must be an object with a single key-value pair"
-            ));
-        }
-
-        let (event_name, event_value) = json_value.as_object().unwrap().iter().next().unwrap();
-
-        // Create the event
-        let event_value_str = serde_json::to_string(event_value)?;
-        let event = Event::new(event_name, &event_value_str);
-
-        // Log the dispatch
-        CONSOLE.writeln(
-            TitleFormat::execute(format!("Dispatching event: {}", event_name))
-                .sub_title(format!("value: {}", event_value_str))
-                .format(),
-        )?;
+        let event: PartialEvent = serde_json::from_str(&json)?;
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(event, conversation_id);
+        let chat = ChatRequest::new(event.into(), conversation_id);
 
         // Process the event
         let mut stream = self.api.chat(chat).await?;
