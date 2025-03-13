@@ -240,10 +240,8 @@ impl<F: API> UI<F> {
         let chat = ChatRequest::new(event, conversation_id);
 
         // Process the event
-        match self.api.chat(chat).await {
-            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
-            Err(err) => Err(err),
-        }
+        let mut stream = self.api.chat(chat).await?;
+        self.handle_chat_stream(&mut stream).await
     }
     async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
         match snapshot_command {
