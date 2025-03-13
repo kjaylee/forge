@@ -83,35 +83,40 @@ agents:
 
       ## GitHub Task Management
 
-      ### Workflow Steps
+      ### IMPORTANT: Event-Specific Responsibilities
 
-      **For `fix_issue` events:**
-      1. First, retrieve the issue details using `gh issue view {issue_number}`
-      2. Create a new branch named `forge-{issue_number}`
-      3. Create a `.task-{issue_number}.md` file containing:
-         - Original issue details (title, description)
-         - A plan to fix the issue
-         - Requirements and acceptance criteria
-      4. Create a draft PR with the initial commit containing only the task file
-      5. Push this initial commit and record the PR number for future reference
+      **For `fix_issue` events: PLANNING ONLY - NO CODE IMPLEMENTATION**
+      1. Your ONLY task is to CREATE A PLAN, never implement code changes
+      2. Retrieve the issue details using `gh issue view {issue_number}`
+      3. Create a new branch named `forge-{issue_number}`
+      4. Create a `.task-{issue_number}.md` file with the following sections:
+         - **Issue Details**: title and description from GitHub
+         - **Plan**: detailed plan to fix the issue
+         - **Requirements**: acceptance criteria and requirements
+      5. Commit ONLY this task file: `git add .task-{issue_number}.md`
+      6. Create a draft PR with this initial commit containing ONLY the task file
+      7. Push this commit and record the PR number
+      8. STOP after creating the PR - DO NOT implement any code changes
 
-      **For `update_pr` events:**
-      1. Check out the branch associated with the PR using `gh pr checkout {pr_number}`
-      2. Read the `.task-{issue_number}.md` file to understand the task
-      3. Check for any PR comments using `gh pr view {pr_number} --comments` and incorporate feedback
-      4. Implement the required changes in small, focused commits
-      5. Push commits frequently to show progress
-      6. Update the task file with your progress after each significant step
-      7. When the task is fully completed, mark the PR as ready for review with `gh pr ready {pr_number}`
+      **For `update_pr` events: IMPLEMENTATION PHASE**
+      1. This is when you actually implement the code changes
+      2. Check out the branch associated with the PR using `gh pr checkout {pr_number}`
+      3. Read the `.task-{issue_number}.md` file to understand the planned work
+      4. Check for any PR comments: `gh pr view {pr_number} --comments`
+      5. Implement the required changes in small, focused commits
+      6. Push commits frequently to show progress
+      7. Update the task file with your progress after each significant step
+      8. When the task is fully completed, mark the PR as ready: `gh pr ready {pr_number}`
 
-      ### Guidelines
-      - Always create the task file first before making code changes
+      ### Critical Rules
+      - NEVER implement code during `fix_issue` events - only create the plan file
+      - ONLY implement code during `update_pr` events
+      - The first commit must ONLY contain the task file, nothing else
+      - Code implementation begins ONLY after receiving an `update_pr` event
       - Make small, incremental commits with descriptive messages
       - Comment on the PR with progress updates after significant changes
       - Ensure all tests pass before marking the PR as ready
-      - Use proper Git practices (check branch status, pull before push)
-      - Always push changes to remote to make them visible
-      - When stuck, describe the issue in the PR comments
+      - Always push changes to make them visible
     user_prompt: |
       <event>{{event.name}}</event>
       <value>{{event.value}}</value>
@@ -131,7 +136,7 @@ mod prompts {
 
     /// GitHub engineer agent system prompt template - extends the regular
     /// engineer
-    pub const GITHUB_ENGINEER: &str = "{{> system-prompt-engineer.hbs }}\n\n## GitHub Task Management\n\n### Workflow Steps\n\n**For `fix_issue` events:**\n1. First, retrieve the issue details using `gh issue view {issue_number}`\n2. Create a new branch named `forge-{issue_number}`\n3. Create a `.task-{issue_number}.md` file containing:\n   - Original issue details (title, description)\n   - A plan to fix the issue\n   - Requirements and acceptance criteria\n4. Create a draft PR with the initial commit containing only the task file\n5. Push this initial commit and record the PR number for future reference\n\n**For `update_pr` events:**\n1. Check out the branch associated with the PR using `gh pr checkout {pr_number}`\n2. Read the `.task-{issue_number}.md` file to understand the task\n3. Check for any PR comments using `gh pr view {pr_number} --comments` and incorporate feedback\n4. Implement the required changes in small, focused commits\n5. Push commits frequently to show progress\n6. Update the task file with your progress after each significant step\n7. When the task is fully completed, mark the PR as ready for review with `gh pr ready {pr_number}`\n\n### Guidelines\n- Always create the task file first before making code changes\n- Make small, incremental commits with descriptive messages\n- Comment on the PR with progress updates after significant changes\n- Ensure all tests pass before marking the PR as ready\n- Use proper Git practices (check branch status, pull before push)\n- Always push changes to remote to make them visible\n- When stuck, describe the issue in the PR comments";
+    pub const GITHUB_ENGINEER: &str = "{{> system-prompt-engineer.hbs }}\n\n## GitHub Task Management\n\n### IMPORTANT: Event-Specific Responsibilities\n\n**For `fix_issue` events: PLANNING ONLY - NO CODE IMPLEMENTATION**\n1. Your ONLY task is to CREATE A PLAN, never implement code changes\n2. Retrieve the issue details using `gh issue view {issue_number}`\n3. Create a new branch named `forge-{issue_number}`\n4. Create a `.task-{issue_number}.md` file with the following sections:\n   - **Issue Details**: title and description from GitHub\n   - **Plan**: detailed plan to fix the issue\n   - **Requirements**: acceptance criteria and requirements\n5. Commit ONLY this task file: `git add .task-{issue_number}.md`\n6. Create a draft PR with this initial commit containing ONLY the task file\n7. Push this commit and record the PR number\n8. STOP after creating the PR - DO NOT implement any code changes\n\n**For `update_pr` events: IMPLEMENTATION PHASE**\n1. This is when you actually implement the code changes\n2. Check out the branch associated with the PR using `gh pr checkout {pr_number}`\n3. Read the `.task-{issue_number}.md` file to understand the planned work\n4. Check for any PR comments: `gh pr view {pr_number} --comments`\n5. Implement the required changes in small, focused commits\n6. Push commits frequently to show progress\n7. Update the task file with your progress after each significant step\n8. When the task is fully completed, mark the PR as ready: `gh pr ready {pr_number}`\n\n### Critical Rules\n- NEVER implement code during `fix_issue` events - only create the plan file\n- ONLY implement code during `update_pr` events\n- The first commit must ONLY contain the task file, nothing else\n- Code implementation begins ONLY after receiving an `update_pr` event\n- Make small, incremental commits with descriptive messages\n- Comment on the PR with progress updates after significant changes\n- Ensure all tests pass before marking the PR as ready\n- Always push changes to make them visible\n";
 }
 
 /// Creates the default workflow using Rust constructors and setters
