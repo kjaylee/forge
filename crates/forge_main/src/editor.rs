@@ -5,9 +5,8 @@ use reedline::{
     KeyCode, KeyModifiers, MenuBuilder, Prompt, Reedline, ReedlineEvent, ReedlineMenu, Signal,
 };
 
-use crate::model::ForgeCommandManager;
-
 use super::completer::InputCompleter;
+use crate::model::ForgeCommandManager;
 
 // TODO: Store the last `HISTORY_CAPACITY` commands in the history file
 const HISTORY_CAPACITY: usize = 1024;

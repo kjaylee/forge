@@ -226,7 +226,7 @@ impl<F: API> UI<F> {
                         .split_ascii_whitespace()
                         .collect::<Vec<&str>>();
 
-                    if let Some(parsed_command) = parts.get(0) {
+                    if let Some(parsed_command) = parts.first() {
                         let args = parts[1..].join(" ");
 
                         // find the original command.
