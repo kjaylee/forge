@@ -1,7 +1,8 @@
+use std::process::Command;
+
 use anyhow::{anyhow, Result};
 use forge_domain::*;
 use serde::Deserialize;
-use std::process::Command;
 
 use crate::tools::shell::*;
 
@@ -59,30 +60,35 @@ impl GithubClient {
     pub async fn get_issue_details(&self, issue_number: u32) -> Result<IssueDetails> {
         // Execute the gh CLI command directly
         let output = Command::new("gh")
-            .args(&[
-                "issue", 
-                "view", 
-                &issue_number.to_string(), 
-                "--json", 
-                "title,body,url,author,labels"
+            .args([
+                "issue",
+                "view",
+                &issue_number.to_string(),
+                "--json",
+                "title,body,url,author,labels",
             ])
             .output()
             .map_err(|e| anyhow!("Failed to execute GitHub CLI: {}", e))?;
-            
+
         if !output.status.success() {
             return Err(anyhow!(
                 "GitHub command failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
-        
+
         let json_content = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         // For debugging
         println!("JSON from direct command: {}", json_content);
 
-        let issue: IssueDetails = serde_json::from_str(&json_content)
-            .map_err(|e| anyhow!("Failed to parse issue details: {}\nJSON: {}", e, json_content))?;
+        let issue: IssueDetails = serde_json::from_str(&json_content).map_err(|e| {
+            anyhow!(
+                "Failed to parse issue details: {}\nJSON: {}",
+                e,
+                json_content
+            )
+        })?;
 
         Ok(issue)
     }
@@ -93,10 +99,10 @@ impl GithubClient {
 
         // Execute git directly
         let output = Command::new("git")
-            .args(&["checkout", "-b", &branch_name])
+            .args(["checkout", "-b", &branch_name])
             .output()
             .map_err(|e| anyhow!("Failed to create branch: {}", e))?;
-            
+
         if !output.status.success() {
             return Err(anyhow!(
                 "Git command failed: {}",
@@ -111,26 +117,21 @@ impl GithubClient {
     pub async fn create_draft_pr(&self, title: &str, body: &str, branch: &str) -> Result<u32> {
         // Execute gh CLI directly
         let output = Command::new("gh")
-            .args(&[
-                "pr", 
-                "create", 
-                "--draft",
-                "--title", title,
-                "--body", body,
-                "--head", branch
+            .args([
+                "pr", "create", "--draft", "--title", title, "--body", body, "--head", branch,
             ])
             .output()
             .map_err(|e| anyhow!("Failed to create PR: {}", e))?;
-            
+
         if !output.status.success() {
             return Err(anyhow!(
                 "GitHub PR command failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
-        
+
         let pr_url = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        
+
         // Extract PR number from the URL
         // The output is typically like: https://github.com/owner/repo/pull/123
         let pr_number = pr_url
@@ -146,25 +147,25 @@ impl GithubClient {
     pub async fn get_pr_comments(&self, pr_number: u32) -> Result<Vec<Comment>> {
         // Execute gh CLI directly
         let output = Command::new("gh")
-            .args(&[
-                "pr", 
-                "view", 
-                &pr_number.to_string(), 
-                "--json", 
+            .args([
+                "pr",
+                "view",
+                &pr_number.to_string(),
+                "--json",
                 "comments",
-                "--jq", 
-                ".comments[]"
+                "--jq",
+                ".comments[]",
             ])
             .output()
             .map_err(|e| anyhow!("Failed to fetch PR comments: {}", e))?;
-            
+
         if !output.status.success() {
             return Err(anyhow!(
                 "GitHub PR comments command failed: {}",
                 String::from_utf8_lossy(&output.stderr)
             ));
         }
-        
+
         let content = String::from_utf8_lossy(&output.stdout).to_string();
 
         if content.trim().is_empty() {
