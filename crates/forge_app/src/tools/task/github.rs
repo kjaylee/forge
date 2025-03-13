@@ -93,32 +93,62 @@ impl GithubClient {
         Ok(issue)
     }
 
-    /// Creates a branch for the issue
+    /// Creates a branch for the issue or uses an existing one if it already exists
     pub async fn create_branch_for_issue(&self, issue_number: u32) -> Result<String> {
         let branch_name = format!("fix/issue-{}", issue_number);
 
-        // Execute git directly
-        let output = Command::new("git")
-            .args(["checkout", "-b", &branch_name])
+        // First check if the branch already exists
+        let check_output = Command::new("git")
+            .args(&["branch", "--list", &branch_name])
             .output()
-            .map_err(|e| anyhow!("Failed to create branch: {}", e))?;
+            .map_err(|e| anyhow!("Failed to check for existing branch: {}", e))?;
 
-        if !output.status.success() {
-            return Err(anyhow!(
-                "Git command failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
+        let branch_exists = String::from_utf8_lossy(&check_output.stdout).contains(&branch_name);
+        
+        if branch_exists {
+            println!("Branch {} already exists, using it", branch_name);
+            
+            // Checkout the existing branch
+            let checkout_output = Command::new("git")
+                .args(&["checkout", &branch_name])
+                .output()
+                .map_err(|e| anyhow!("Failed to checkout existing branch: {}", e))?;
+                
+            if !checkout_output.status.success() {
+                return Err(anyhow!(
+                    "Failed to checkout existing branch: {}",
+                    String::from_utf8_lossy(&checkout_output.stderr)
+                ));
+            }
+        } else {
+            // Create and checkout a new branch
+            let output = Command::new("git")
+                .args(["checkout", "-b", &branch_name])
+                .output()
+                .map_err(|e| anyhow!("Failed to create branch: {}", e))?;
+    
+            if !output.status.success() {
+                return Err(anyhow!(
+                    "Git command failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+            }
         }
 
         Ok(branch_name)
     }
 
-    /// Creates a draft PR for the issue
+    /// Creates a draft PR for the issue or returns existing PR if one exists for the branch
     pub async fn create_draft_pr(&self, title: &str, body: &str, branch: &str) -> Result<u32> {
         // Execute gh CLI directly
         let output = Command::new("gh")
-            .args([
-                "pr", "create", "--draft", "--title", title, "--body", body, "--head", branch,
+            .args(&[
+                "pr", 
+                "create", 
+                "--draft",
+                "--title", title,
+                "--body", body,
+                "--head", branch
             ])
             .output()
             .map_err(|e| anyhow!("Failed to create PR: {}", e))?;

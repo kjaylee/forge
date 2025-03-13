@@ -8,7 +8,7 @@ use forge_domain::TaskStatus;
 pub struct TaskFile;
 
 impl TaskFile {
-    /// Creates a new task file for an issue
+    /// Creates a new task file for an issue or updates an existing one
     pub async fn create_for_issue(
         issue_number: u32,
         issue_title: &str,
@@ -19,6 +19,40 @@ impl TaskFile {
     ) -> Result<PathBuf> {
         let path = PathBuf::from(".task.md");
         let now = Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
+        // Check if the file already exists
+        if path.exists() {
+            println!("Task file already exists at {}, updating it", path.display());
+            
+            // Read the existing file content
+            let existing_content = tokio::fs::read_to_string(&path).await?;
+            
+            // Extract existing sections
+            let mut sections = Self::extract_sections(&existing_content);
+            
+            // Only update the timestamp in the current status section
+            if let Some(status_section) = sections.get_mut("Current Status") {
+                // Replace the last updated line
+                let updated_status = status_section.lines()
+                    .map(|line| {
+                        if line.starts_with("**Last Updated**:") {
+                            format!("**Last Updated**: {}", now)
+                        } else {
+                            line.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                
+                sections.insert("Current Status", updated_status);
+            }
+            
+            // Rebuild the content and write it back
+            let updated_content = Self::rebuild_content(sections);
+            tokio::fs::write(&path, updated_content).await?;
+            
+            return Ok(path);
+        }
 
         // Use custom title or generate one from issue title
         let title = custom_title.unwrap_or(issue_title);
