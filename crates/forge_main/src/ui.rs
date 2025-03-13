@@ -222,26 +222,37 @@ impl<F: API> UI<F> {
                     input = self.console.prompt(None).await?;
                 }
                 Command::Custom(ref custom_command) => {
-                    let custom_command = custom_command.split_ascii_whitespace().next().unwrap();
-                    let command = self
-                        .forge_command_manager
-                        .list()
-                        .into_iter()
-                        .find(|command| command.command == custom_command);
+                    let parts = custom_command
+                        .split_ascii_whitespace()
+                        .collect::<Vec<&str>>();
 
-                    if let Some(command) = command {
-                        let event = Event {
-                            name: command.command.clone(),
-                            value: custom_command.to_string(),
-                            id: format!(
-                                "custom-command-{}-{}",
-                                command.command, command.description
-                            ),
-                            timestamp: chrono::Utc::now().to_string(),
-                        };
-                        self.dispatch_event(event).await?;
+                    if let Some(parsed_command) = parts.get(0) {
+                        let args = parts[1..].join(" ");
+
+                        // find the original command.
+                        let command = self
+                            .forge_command_manager
+                            .list()
+                            .into_iter()
+                            .find(|command| &&command.command == parsed_command);
+
+                        // if command is registered in our system then dispatch the event.
+                        if let Some(command) = command {
+                            let event = Event {
+                                name: command.command.clone(),
+                                value: args,
+                                id: format!(
+                                    "custom-command-{}-{}",
+                                    command.command, command.description
+                                ),
+                                timestamp: chrono::Utc::now().to_string(),
+                            };
+                            self.dispatch_event(event).await?;
+                        } else {
+                            CONSOLE.writeln(TitleFormat::failed("Command not found").format())?;
+                        }
                     } else {
-                        CONSOLE.writeln(TitleFormat::failed("Command not found").format())?;
+                        CONSOLE.writeln(TitleFormat::failed("Invalid Command").format())?;
                     }
                 }
             }
