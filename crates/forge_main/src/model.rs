@@ -34,7 +34,7 @@ impl From<&[Model]> for Info {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForgeCommand {
-    pub command: String,
+    pub name: String,
     pub description: String,
 }
 
@@ -42,12 +42,12 @@ impl From<HashMap<String, String>> for ForgeCommandManager {
     fn from(value: HashMap<String, String>) -> Self {
         ForgeCommandManager::default().register_all(value.into_iter().map(
             |(command, description)| {
-                let command = if command.starts_with("/") {
+                let name = if command.starts_with("/") {
                     command
                 } else {
                     format!("/{}", command)
                 };
-                ForgeCommand { command, description }
+                ForgeCommand { name, description }
             },
         ))
     }
@@ -62,35 +62,35 @@ impl Default for ForgeCommandManager {
     fn default() -> Self {
         ForgeCommandManager { commands: vec![] }
             .register(ForgeCommand {
-                command: "/new".to_string(),
+                name: "/new".to_string(),
                 description: "Start a new conversation while preserving history.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/info".to_string(),
+                name: "/info".to_string(),
                 description: "Display system environment information.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/exit".to_string(),
+                name: "/exit".to_string(),
                 description: "Exit the application without any further action.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/models".to_string(),
+                name: "/models".to_string(),
                 description: "Lists the models available for use.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/act".to_string(),
+                name: "/act".to_string(),
                 description: "Switch to \"act\" mode.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/plan".to_string(),
+                name: "/plan".to_string(),
                 description: "Switch to \"plan\" mode.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/help".to_string(),
+                name: "/help".to_string(),
                 description: "Switch to \"help\" mode.".to_string(),
             })
             .register(ForgeCommand {
-                command: "/dump".to_string(),
+                name: "/dump".to_string(),
                 description: "Dumps the current conversation into a json file".to_string(),
             })
     }

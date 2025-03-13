@@ -16,9 +16,9 @@ impl Completer for CommandCompleter {
         self.0
             .list()
             .into_iter()
-            .filter(|cmd| cmd.command.starts_with(line))
+            .filter(|cmd| cmd.name.starts_with(line))
             .map(|cmd| Suggestion {
-                value: cmd.command,
+                value: cmd.name,
                 description: Some(cmd.description),
                 style: None,
                 extra: None,

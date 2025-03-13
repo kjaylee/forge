@@ -234,16 +234,16 @@ impl<F: API> UI<F> {
                             .forge_command_manager
                             .list()
                             .into_iter()
-                            .find(|command| &&command.command == parsed_command);
+                            .find(|command| &&command.name == parsed_command);
 
                         // if command is registered in our system then dispatch the event.
                         if let Some(command) = command {
                             let event = Event {
-                                name: command.command.clone(),
+                                name: command.name.clone(),
                                 value: args,
                                 id: format!(
                                     "custom-command-{}-{}",
-                                    command.command, command.description
+                                    command.name, command.description
                                 ),
                                 timestamp: chrono::Utc::now().to_string(),
                             };
