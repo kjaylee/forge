@@ -247,13 +247,31 @@ impl<F: API> UI<F> {
                                 ),
                                 timestamp: chrono::Utc::now().to_string(),
                             };
-                            self.dispatch_event(event).await?;
+
+                            if let Err(e) = self.dispatch_event(event).await {
+                                CONSOLE.writeln(
+                                    TitleFormat::failed("Command Execution Failed")
+                                        .sub_title("Command Execution")
+                                        .error(e.to_string())
+                                        .format(),
+                                )?;
+                            }
                         } else {
-                            CONSOLE.writeln(TitleFormat::failed("Command not found").format())?;
+                            CONSOLE.writeln(
+                                TitleFormat::failed("Command not found")
+                                    .sub_title("Command Execution")
+                                    .format(),
+                            )?;
                         }
                     } else {
-                        CONSOLE.writeln(TitleFormat::failed("Invalid Command").format())?;
+                        CONSOLE.writeln(
+                            TitleFormat::failed("Invalid Command")
+                                .sub_title("Command Execution")
+                                .format(),
+                        )?;
                     }
+
+                    input = self.console.prompt(None).await?;
                 }
             }
         }
