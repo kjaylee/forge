@@ -83,13 +83,35 @@ agents:
 
       ## GitHub Task Management
 
-      - Process GitHub task commands: `fix_issue` and `update_pr`
-      - Create and update task files named `.task-{issue_number}.md`
-      - Always use GitHub CLI (gh) for GitHub operations
-      - Follow branch naming convention: `forge-{issue_number}`
-      - For `fix_issue` commands, create draft PRs with task details
-      - For `update_pr` commands, update the PR based on the task file
-      - Monitor PR comments and incorporate them into task planning
+      ### Workflow Steps
+
+      **For `fix_issue` events:**
+      1. First, retrieve the issue details using `gh issue view {issue_number}`
+      2. Create a new branch named `forge-{issue_number}`
+      3. Create a `.task-{issue_number}.md` file containing:
+         - Original issue details (title, description)
+         - A plan to fix the issue
+         - Requirements and acceptance criteria
+      4. Create a draft PR with the initial commit containing only the task file
+      5. Push this initial commit and record the PR number for future reference
+
+      **For `update_pr` events:**
+      1. Check out the branch associated with the PR using `gh pr checkout {pr_number}`
+      2. Read the `.task-{issue_number}.md` file to understand the task
+      3. Check for any PR comments using `gh pr view {pr_number} --comments` and incorporate feedback
+      4. Implement the required changes in small, focused commits
+      5. Push commits frequently to show progress
+      6. Update the task file with your progress after each significant step
+      7. When the task is fully completed, mark the PR as ready for review with `gh pr ready {pr_number}`
+
+      ### Guidelines
+      - Always create the task file first before making code changes
+      - Make small, incremental commits with descriptive messages
+      - Comment on the PR with progress updates after significant changes
+      - Ensure all tests pass before marking the PR as ready
+      - Use proper Git practices (check branch status, pull before push)
+      - Always push changes to remote to make them visible
+      - When stuck, describe the issue in the PR comments
     user_prompt: |
       <event>{{event.name}}</event>
       <value>{{event.value}}</value>
@@ -109,7 +131,7 @@ mod prompts {
 
     /// GitHub engineer agent system prompt template - extends the regular
     /// engineer
-    pub const GITHUB_ENGINEER: &str = "{{> system-prompt-engineer.hbs }}\n\n## GitHub Task Management\n\n- Process GitHub task commands: `fix_issue` and `update_pr`\n- Create and update task files named `.task-{issue_number}.md`\n- Always use GitHub CLI (gh) for GitHub operations\n- Follow branch naming convention: `forge-{issue_number}`\n- For `fix_issue` commands, create draft PRs with task details\n- For `update_pr` commands, update the PR based on the task file\n- Monitor PR comments and incorporate them into task planning";
+    pub const GITHUB_ENGINEER: &str = "{{> system-prompt-engineer.hbs }}\n\n## GitHub Task Management\n\n### Workflow Steps\n\n**For `fix_issue` events:**\n1. First, retrieve the issue details using `gh issue view {issue_number}`\n2. Create a new branch named `forge-{issue_number}`\n3. Create a `.task-{issue_number}.md` file containing:\n   - Original issue details (title, description)\n   - A plan to fix the issue\n   - Requirements and acceptance criteria\n4. Create a draft PR with the initial commit containing only the task file\n5. Push this initial commit and record the PR number for future reference\n\n**For `update_pr` events:**\n1. Check out the branch associated with the PR using `gh pr checkout {pr_number}`\n2. Read the `.task-{issue_number}.md` file to understand the task\n3. Check for any PR comments using `gh pr view {pr_number} --comments` and incorporate feedback\n4. Implement the required changes in small, focused commits\n5. Push commits frequently to show progress\n6. Update the task file with your progress after each significant step\n7. When the task is fully completed, mark the PR as ready for review with `gh pr ready {pr_number}`\n\n### Guidelines\n- Always create the task file first before making code changes\n- Make small, incremental commits with descriptive messages\n- Comment on the PR with progress updates after significant changes\n- Ensure all tests pass before marking the PR as ready\n- Use proper Git practices (check branch status, pull before push)\n- Always push changes to remote to make them visible\n- When stuck, describe the issue in the PR comments";
 }
 
 /// Creates the default workflow using Rust constructors and setters
