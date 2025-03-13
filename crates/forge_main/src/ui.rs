@@ -246,7 +246,7 @@ impl<F: API> UI<F> {
 
                             if let Err(e) = self.dispatch_event(event).await {
                                 CONSOLE.writeln(
-                                    TitleFormat::failed("Failed to execute the command")
+                                    TitleFormat::failed("Failed to execute the command.")
                                         .sub_title("Command Execution")
                                         .error(e.to_string())
                                         .format(),
@@ -261,7 +261,7 @@ impl<F: API> UI<F> {
                         }
                     } else {
                         CONSOLE.writeln(
-                            TitleFormat::failed("Invalid Command Format")
+                            TitleFormat::failed("Invalid Command Format.")
                                 .sub_title("Command Execution")
                                 .format(),
                         )?;
