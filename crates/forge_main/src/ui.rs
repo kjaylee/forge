@@ -227,7 +227,10 @@ impl<F: API> UI<F> {
                         .collect::<Vec<&str>>();
 
                     if let Some(parsed_command) = parts.first() {
-                        let args = parts[1..].join(" ");
+                        let args = parts
+                            .get(1..)
+                            .map(|args| args.join(" "))
+                            .unwrap_or_default();
 
                         // find the original command.
                         let command = self
