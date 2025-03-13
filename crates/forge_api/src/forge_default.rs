@@ -107,7 +107,8 @@ mod prompts {
     /// Software engineer agent system prompt template
     pub const ENGINEER: &str = "{{> system-prompt-engineer.hbs }}";
 
-    /// GitHub engineer agent system prompt template - extends the regular engineer
+    /// GitHub engineer agent system prompt template - extends the regular
+    /// engineer
     pub const GITHUB_ENGINEER: &str = "{{> system-prompt-engineer.hbs }}\n\n## GitHub Task Management\n\n- Process GitHub task commands: `fix_issue` and `update_pr`\n- Create and update task files named `.task-{issue_number}.md`\n- Always use GitHub CLI (gh) for GitHub operations\n- Follow branch naming convention: `forge-{issue_number}`\n- For `fix_issue` commands, create draft PRs with task details\n- For `update_pr` commands, update the PR based on the task file\n- Monitor PR comments and incorporate them into task planning";
 }
 
@@ -183,10 +184,7 @@ pub fn create_default_workflow() -> Workflow {
             ToolName::new("tool_forge_fs_search"),
             ToolName::new("tool_forge_event_dispatch"),
         ])
-        .subscribe(vec![
-            "fix_issue".to_string(),
-            "update_pr".to_string(),
-        ])
+        .subscribe(vec!["fix_issue".to_string(), "update_pr".to_string()])
         .ephemeral(false)
         .max_walker_depth(4_usize)
         .system_prompt(Template::<SystemContext>::new(prompts::GITHUB_ENGINEER))
@@ -196,6 +194,11 @@ pub fn create_default_workflow() -> Workflow {
 
     // Create the workflow with all agents
     Workflow::default()
-        .agents(vec![title_generation_worker, help_agent, software_engineer, github_task_agent])
+        .agents(vec![
+            title_generation_worker,
+            help_agent,
+            software_engineer,
+            github_task_agent,
+        ])
         .variables(variables)
 }

@@ -46,8 +46,9 @@ pub struct Cli {
     pub workflow: Option<PathBuf>,
 
     /// Dispatch an event to the workflow.
-    /// Use JSON format: {event_name: event_value} or {event_name: {key1: value1, key2: value2}}
-    /// For example: --dispatch '{"fix_issue": 123}' or --dispatch '{"update_pr": 321}'
+    /// Use JSON format: {event_name: event_value} or {event_name: {key1:
+    /// value1, key2: value2}} For example: --dispatch '{"fix_issue": 123}'
+    /// or --dispatch '{"update_pr": 321}'
     #[arg(long, short = 'd')]
     pub dispatch: Option<String>,
 

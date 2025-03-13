@@ -212,7 +212,7 @@ impl<F: API> UI<F> {
     async fn handle_dispatch(&mut self, dispatch_json: String) -> Result<()> {
         // Initialize the conversation
         let conversation_id = self.init_conversation().await?;
-        
+
         // Parse the JSON to determine the event name and value
         let json_value: serde_json::Value = serde_json::from_str(&dispatch_json)
             .map_err(|e| anyhow::anyhow!("Failed to parse dispatch JSON: {}", e))?;
@@ -224,7 +224,7 @@ impl<F: API> UI<F> {
         }
 
         let (event_name, event_value) = json_value.as_object().unwrap().iter().next().unwrap();
-        
+
         // Create the event
         let event_value_str = serde_json::to_string(event_value)?;
         let event = Event::new(event_name, &event_value_str);
@@ -244,7 +244,8 @@ impl<F: API> UI<F> {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
         }
-    }    async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
+    }
+    async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
         match snapshot_command {
             SnapshotCommand::List { path } => {
                 let snapshots: Vec<SnapshotInfo> = self.api.list_snapshots(path).await?;
