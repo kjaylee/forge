@@ -100,7 +100,7 @@ impl GithubClient {
 
         // First check if the branch already exists
         let check_output = Command::new("git")
-            .args(&["branch", "--list", &branch_name])
+            .args(["branch", "--list", &branch_name])
             .output()
             .map_err(|e| anyhow!("Failed to check for existing branch: {}", e))?;
 
@@ -111,7 +111,7 @@ impl GithubClient {
 
             // Checkout the existing branch
             let checkout_output = Command::new("git")
-                .args(&["checkout", &branch_name])
+                .args(["checkout", &branch_name])
                 .output()
                 .map_err(|e| anyhow!("Failed to checkout existing branch: {}", e))?;
 
@@ -144,7 +144,7 @@ impl GithubClient {
     pub async fn create_draft_pr(&self, title: &str, body: &str, branch: &str) -> Result<u32> {
         // Execute gh CLI directly
         let output = Command::new("gh")
-            .args(&[
+            .args([
                 "pr", "create", "--draft", "--title", title, "--body", body, "--head", branch,
             ])
             .output()
