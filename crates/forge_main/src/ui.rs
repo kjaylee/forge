@@ -234,7 +234,7 @@ impl<F: API> UI<F> {
                             .forge_command_manager
                             .list()
                             .into_iter()
-                            .find(|command| &&command.name == parsed_command);
+                            .find(|command| &command.name == parsed_command);
 
                         // if command is registered in our system then dispatch the event.
                         if let Some(command) = command {
