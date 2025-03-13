@@ -76,7 +76,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         .process()
         .await
         .ok();
-        
+
         // Create the context with README content for all agents
         let ctx = SystemContext {
             env: Some(env),

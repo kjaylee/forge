@@ -29,7 +29,7 @@ pub struct SystemContext {
     // Project rules to be followed by the agent
     #[serde(skip_serializing_if = "String::is_empty")]
     pub project_rules: String,
-    
+
     /// Repository content indexed in memory
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repo_content: Option<String>,
