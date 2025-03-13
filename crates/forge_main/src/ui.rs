@@ -250,7 +250,7 @@ impl<F: API> UI<F> {
 
                             if let Err(e) = self.dispatch_event(event).await {
                                 CONSOLE.writeln(
-                                    TitleFormat::failed("Command Execution Failed")
+                                    TitleFormat::failed("Failed to execute the command")
                                         .sub_title("Command Execution")
                                         .error(e.to_string())
                                         .format(),
@@ -258,14 +258,14 @@ impl<F: API> UI<F> {
                             }
                         } else {
                             CONSOLE.writeln(
-                                TitleFormat::failed("Command not found")
+                                TitleFormat::failed("Command not registered within the system.")
                                     .sub_title("Command Execution")
                                     .format(),
                             )?;
                         }
                     } else {
                         CONSOLE.writeln(
-                            TitleFormat::failed("Invalid Command")
+                            TitleFormat::failed("Invalid Command Format")
                                 .sub_title("Command Execution")
                                 .format(),
                         )?;
