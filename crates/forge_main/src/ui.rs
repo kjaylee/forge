@@ -170,7 +170,11 @@ impl<F: API> UI<F> {
                     };
                     if let Err(err) = chat_result {
                         tokio::spawn(
-                            TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{:?}", err))),
+                            TRACKER.dispatch(forge_tracker::EventKind::error(
+                                "ChatRequestError", 
+                                &format!("{:?}", err), 
+                                "forge_main::ui::chat"
+                            )),
                         );
                         error!(error = ?err, "Chat request failed");
 
