@@ -23,7 +23,7 @@ impl Completer for CommandCompleter {
                 style: None,
                 extra: None,
                 span: Span::new(0, line.len()),
-                append_whitespace: true,
+                append_whitespace: false,
             })
             .collect()
     }
