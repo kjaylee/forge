@@ -64,9 +64,8 @@ pub struct ForgeCommandManager {
 impl Default for ForgeCommandManager {
     fn default() -> Self {
         let commands = Command::iter()
-            .filter(|command| {
-                !matches!(command, Command::Message(_)) || !matches!(command, Command::Custom(_))
-            })
+            .filter(|command| !matches!(command, Command::Message(_)))
+            .filter(|command| !matches!(command, Command::Custom(_)))
             .map(|command| ForgeCommand {
                 name: command.name().to_string(),
                 description: command.usage().to_string(),
