@@ -15,13 +15,19 @@ use crate::state::Mode;
 #[derive(Debug)]
 pub struct Console {
     env: Environment,
-    manager: ForgeCommandManager,
+    manager: Option<ForgeCommandManager>,
 }
 
 impl Console {
     /// Creates a new instance of `Console`.
-    pub fn new(env: Environment, manager: ForgeCommandManager) -> Self {
-        Self { env, manager }
+    pub fn new(env: Environment) -> Self {
+        Self { env, manager: None }
+    }
+
+    /// Sets the command manager for the console.
+    pub fn with_manager(&mut self, manager: ForgeCommandManager) -> &mut Self {
+       self.manager = Some(manager);
+       self
     }
 }
 
@@ -38,7 +44,8 @@ impl UserInput for Console {
 
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
-        let mut engine = ForgeEditor::start(self.env.clone(), self.manager.clone());
+        let manager = self.manager.clone().unwrap_or_default();
+        let mut engine = ForgeEditor::start(self.env.clone(), manager.clone());
         let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {
@@ -51,7 +58,7 @@ impl UserInput for Console {
                     tokio::spawn(
                         crate::ui::TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())),
                     );
-                    match self.manager.parse(&text) {
+                    match manager.parse(&text) {
                         Ok(command) => return Ok(command),
                         Err(e) => {
                             CONSOLE.writeln(

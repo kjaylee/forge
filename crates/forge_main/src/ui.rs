@@ -52,7 +52,6 @@ pub struct UI<F> {
     api: Arc<F>,
     console: Console,
     cli: Cli,
-    forge_command_manager: ForgeCommandManager,
     models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
@@ -104,18 +103,14 @@ impl<F: API> UI<F> {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
-    pub async fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
+    pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
         // Parse CLI arguments first to get flags
         let env = api.environment();
-        // load the workflow.
-        let workflow = api.load(cli.workflow.as_deref()).await?;
-        let forge_command_manager = ForgeCommandManager::from(workflow.commands);
 
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console::new(env.clone(), forge_command_manager.clone()),
-            forge_command_manager,
+            console: Console::new(env.clone()),
             cli,
             models: None,
             _guard: forge_tracker::init_tracing(env.log_path())?,
@@ -140,8 +135,12 @@ impl<F: API> UI<F> {
             return Ok(());
         }
 
+        // load the workflow
+        let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
+        let forge_command_manager = ForgeCommandManager::from(workflow.commands);
+
         // Display the banner in dimmed colors since we're in interactive mode
-        banner::display(self.forge_command_manager.command_names())?;
+        banner::display(forge_command_manager.command_names())?;
 
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
@@ -150,6 +149,11 @@ impl<F: API> UI<F> {
         };
 
         loop {
+            // load the workflow
+            let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
+            let forge_command_manager = ForgeCommandManager::from(workflow.commands);
+            self.console.with_manager(forge_command_manager.clone());
+
             match input {
                 Command::Dump => {
                     self.handle_dump().await?;
@@ -158,7 +162,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::New => {
-                    banner::display(self.forge_command_manager.command_names())?;
+                    banner::display(forge_command_manager.command_names())?;
                     self.state = Default::default();
                     input = self.console.prompt(None).await?;
 
