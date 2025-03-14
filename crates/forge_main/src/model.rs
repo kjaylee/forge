@@ -40,7 +40,7 @@ pub struct ForgeCommand {
 
 impl From<HashMap<String, String>> for ForgeCommandManager {
     fn from(value: HashMap<String, String>) -> Self {
-        ForgeCommandManager::default().from_iter(value.into_iter().map(|(command, description)| {
+        ForgeCommandManager::default().register_all(value.into_iter().map(|(command, description)| {
             let name = if command.starts_with("/") {
                 command
             } else {
@@ -96,7 +96,7 @@ impl Default for ForgeCommandManager {
 
 impl ForgeCommandManager {
     /// Registers multiple commands to the manager.
-    pub fn from_iter<I, T>(mut self, iter: I) -> Self
+    pub fn register_all<I, T>(mut self, iter: I) -> Self
     where
         I: IntoIterator<Item = T>,
         T: Into<ForgeCommand>,
