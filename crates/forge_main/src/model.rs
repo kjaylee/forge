@@ -127,6 +127,26 @@ impl ForgeCommandManager {
     pub fn list(&self) -> Vec<ForgeCommand> {
         self.commands.clone()
     }
+
+    pub fn parse(&self, input: &str) -> Command {
+        let trimmed = input.trim();
+        let is_command = trimmed.starts_with("/");
+        if !is_command {
+            return Command::Message(trimmed.to_string());
+        }
+
+        match trimmed {
+            "/new" => Command::New,
+            "/info" => Command::Info,
+            "/exit" => Command::Exit,
+            "/models" => Command::Models,
+            "/dump" => Command::Dump,
+            "/act" => Command::Act,
+            "/plan" => Command::Plan,
+            "/help" => Command::Help,
+            text => Command::Custom(text.to_string()),
+        }
+    }
 }
 
 /// Represents user input types in the chat application.
@@ -163,38 +183,6 @@ pub enum Command {
     Dump,
     /// Handles custom command defined in workflow file.
     Custom(String),
-}
-
-impl Command {
-    /// Parses a string input into an Input.
-    ///
-    /// This function:
-    /// - Trims whitespace from the input
-    /// - Recognizes and validates commands (starting with '/')
-    /// - Converts regular text into messages
-    ///
-    /// # Returns
-    /// - `Ok(Input)` - Successfully parsed input
-    /// - `Err` - Input was an invalid command
-    pub fn parse(input: &str) -> Self {
-        let trimmed = input.trim();
-        let is_command = trimmed.starts_with("/");
-        if !is_command {
-            return Command::Message(trimmed.to_string());
-        }
-
-        match trimmed {
-            "/new" => Command::New,
-            "/info" => Command::Info,
-            "/exit" => Command::Exit,
-            "/models" => Command::Models,
-            "/dump" => Command::Dump,
-            "/act" => Command::Act,
-            "/plan" => Command::Plan,
-            "/help" => Command::Help,
-            text => Command::Custom(text.to_string()),
-        }
-    }
 }
 
 /// A trait for handling user input in the application.

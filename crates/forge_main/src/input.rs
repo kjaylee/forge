@@ -51,7 +51,7 @@ impl UserInput for Console {
                     tokio::spawn(
                         crate::ui::TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())),
                     );
-                    return Ok(Command::parse(&text));
+                    return Ok(self.command_manager.parse(&text));
                 }
                 Err(e) => {
                     CONSOLE.writeln(TitleFormat::failed(e.to_string()).format())?;
