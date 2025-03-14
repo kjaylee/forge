@@ -29,10 +29,16 @@ lazy_static! {
     pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();
 }
 
-#[derive(Deserialize)]
-struct PartialEvent {
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct PartialEvent {
     pub name: String,
     pub value: String,
+}
+
+impl PartialEvent {
+    pub fn new(name: impl ToString, value: impl ToString) -> Self {
+        Self { name: name.to_string(), value: value.to_string() }
+    }
 }
 
 impl From<PartialEvent> for Event {
@@ -224,41 +230,12 @@ impl<F: API> UI<F> {
 
                     input = self.console.prompt(None).await?;
                 }
-                Command::Custom(ref custom_command) => {
-                    let parts = custom_command
-                        .split_ascii_whitespace()
-                        .collect::<Vec<&str>>();
-
-                    if let Some(parsed_command) = parts.first() {
-                        let args = parts
-                            .get(1..)
-                            .map(|args| args.join(" "))
-                            .unwrap_or_default();
-
-                        // if command is registered in our system then dispatch the event.
-                        if let Some(command) = self.forge_command_manager.find(parsed_command) {
-                            if let Err(e) = self
-                                .dispatch_event(Event::new(command.name.clone(), args))
-                                .await
-                            {
-                                CONSOLE.writeln(
-                                    TitleFormat::failed("Failed to execute the command.")
-                                        .sub_title("Command Execution")
-                                        .error(e.to_string())
-                                        .format(),
-                                )?;
-                            }
-                        } else {
-                            CONSOLE.writeln(
-                                TitleFormat::failed("Command not registered within the system.")
-                                    .sub_title("Command Execution")
-                                    .format(),
-                            )?;
-                        }
-                    } else {
+                Command::Custom(event) => {
+                    if let Err(e) = self.dispatch_event(event.into()).await {
                         CONSOLE.writeln(
-                            TitleFormat::failed("Invalid Command Format.")
+                            TitleFormat::failed("Failed to execute the command.")
                                 .sub_title("Command Execution")
+                                .error(e.to_string())
                                 .format(),
                         )?;
                     }

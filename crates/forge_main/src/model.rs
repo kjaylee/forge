@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use forge_api::Model;
 
 use crate::info::Info;
+use crate::ui::PartialEvent;
 
 fn humanize_context_length(length: u64) -> String {
     if length >= 1_000_000 {
@@ -130,23 +131,44 @@ impl ForgeCommandManager {
         self.commands.clone()
     }
 
-    pub fn parse(&self, input: &str) -> Command {
+    pub fn parse(&self, input: &str) -> anyhow::Result<Command> {
         let trimmed = input.trim();
         let is_command = trimmed.starts_with("/");
         if !is_command {
-            return Command::Message(trimmed.to_string());
+            return Ok(Command::Message(trimmed.to_string()));
         }
 
         match trimmed {
-            "/new" => Command::New,
-            "/info" => Command::Info,
-            "/exit" => Command::Exit,
-            "/models" => Command::Models,
-            "/dump" => Command::Dump,
-            "/act" => Command::Act,
-            "/plan" => Command::Plan,
-            "/help" => Command::Help,
-            text => Command::Custom(text.to_string()),
+            "/new" => Ok(Command::New),
+            "/info" => Ok(Command::Info),
+            "/exit" => Ok(Command::Exit),
+            "/models" => Ok(Command::Models),
+            "/dump" => Ok(Command::Dump),
+            "/act" => Ok(Command::Act),
+            "/plan" => Ok(Command::Plan),
+            "/help" => Ok(Command::Help),
+            text => {
+                let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
+
+                if let Some(parsed_command) = parts.first() {
+                    let args = parts
+                        .get(1..)
+                        .map(|args| args.join(" "))
+                        .unwrap_or_default();
+
+                    // if command is registered in our system then dispatch the event.
+                    if let Some(command) = self.find(parsed_command) {
+                        Ok(Command::Custom(PartialEvent::new(
+                            command.name.clone().strip_prefix('/').unwrap().to_string(),
+                            args,
+                        )))
+                    } else {
+                        Err(anyhow::anyhow!("Command not registered within the system."))
+                    }
+                } else {
+                    Err(anyhow::anyhow!("Invalid Command Format."))
+                }
+            }
         }
     }
 }
@@ -184,7 +206,7 @@ pub enum Command {
     /// Dumps the current conversation into a json file
     Dump,
     /// Handles custom command defined in workflow file.
-    Custom(String),
+    Custom(PartialEvent),
 }
 
 /// A trait for handling user input in the application.

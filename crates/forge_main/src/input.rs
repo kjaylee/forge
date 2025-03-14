@@ -51,7 +51,16 @@ impl UserInput for Console {
                     tokio::spawn(
                         crate::ui::TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())),
                     );
-                    return Ok(self.manager.parse(&text));
+                    match self.manager.parse(&text) {
+                        Ok(command) => return Ok(command),
+                        Err(e) => {
+                            CONSOLE.writeln(
+                                TitleFormat::failed(e.to_string())
+                                    .sub_title("Command Parsing Failed")
+                                    .format(),
+                            )?;
+                        }
+                    }
                 }
                 Err(e) => {
                     CONSOLE.writeln(TitleFormat::failed(e.to_string()).format())?;
