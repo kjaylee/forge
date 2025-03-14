@@ -33,14 +33,13 @@ jobs:
     name: process_issue
     runs-on: ubuntu-latest
     steps:
+    - uses: tibdex/github-app-token@v2
+      with:
+        private_key: ${{ secrets.FORGE_BOT_PRIVATE_KEY }}
+        app_id: ${{secrets.FORGE_BOT_APP_ID}}
     - uses: actions/checkout@v4
     - name: Install Forge CLI
       run: curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
-    - name: Run Forge to process issue
-      run: 'forge --event=''{"name": "fix_issue", "value": "${{ github.event.issue.number }}"}'''
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        FORGE_KEY: ${{ secrets.FORGE_KEY }}
     - name: Add comment to issue with action link
       uses: peter-evans/create-or-update-comment@v4
       with:
@@ -51,19 +50,23 @@ jobs:
           I've started working on this issue with the power of AI. You can watch my progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
           I'll analyze the issue and submit a solution shortly. Stay tuned for updates!
+    - name: Run Forge to process issue
+      run: 'forge --event=''{"name": "fix_issue", "value": "${{ github.event.issue.number }}"}'''
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        FORGE_KEY: ${{ secrets.FORGE_KEY }}
   update_pr:
     if: github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'forge-just-do-it')
     name: update_pr
     runs-on: ubuntu-latest
     steps:
+    - uses: tibdex/github-app-token@v2
+      with:
+        private_key: ${{ secrets.FORGE_BOT_PRIVATE_KEY }}
+        app_id: ${{secrets.FORGE_BOT_APP_ID}}
     - uses: actions/checkout@v4
     - name: Install Forge CLI
       run: curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash
-    - name: Run Forge to update PR based on comment
-      run: 'forge --event=''{"name": "update_pr", "value": "${{ github.event.issue.number }}"}'''
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        FORGE_KEY: ${{ secrets.FORGE_KEY }}
     - name: Add comment to PR with action link
       uses: peter-evans/create-or-update-comment@v4
       with:
@@ -74,3 +77,8 @@ jobs:
           I'm processing your comment and updating this PR accordingly. Watch the magic happen in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
           I'll analyze your request and implement the suggested changes. Check back soon for updates!
+    - name: Run Forge to update PR based on comment
+      run: 'forge --event=''{"name": "update_pr", "value": "${{ github.event.issue.number }}"}'''
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        FORGE_KEY: ${{ secrets.FORGE_KEY }}
