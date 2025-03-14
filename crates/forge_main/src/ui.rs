@@ -158,7 +158,7 @@ impl<F: API> UI<F> {
                 Command::New => {
                     self.state = Default::default();
                     self.init_conversation().await?;
-                    banner::display(self.command.command_names())?;                    
+                    banner::display(self.command.command_names())?;
                     input = self.console.prompt(None).await?;
 
                     continue;
