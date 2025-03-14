@@ -101,12 +101,6 @@ impl ForgeCommandManager {
             .collect::<Vec<_>>()
     }
 
-    /// Registers a new command to the manager.
-    pub fn register<F: Into<ForgeCommand>>(mut self, command: F) -> Self {
-        self.commands.push(command.into());
-        self
-    }
-
     /// Lists all registered commands.
     pub fn list(&self) -> Vec<ForgeCommand> {
         self.commands.clone()
