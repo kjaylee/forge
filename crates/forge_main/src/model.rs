@@ -78,6 +78,8 @@ impl ForgeCommandManager {
         let mut guard = self.commands.lock().unwrap();
         let mut commands = Self::default_commands();
 
+        commands.sort_by(|a, b| a.name.cmp(&b.name));
+
         commands.extend(
             workflow
                 .commands
@@ -85,7 +87,7 @@ impl ForgeCommandManager {
                 .into_iter()
                 .map(|(name, description)| ForgeCommand {
                     name: format!("/{}", name),
-                    description,
+                    description: format!("⚙ {}", description),
                 }),
         );
 
