@@ -118,9 +118,8 @@ impl<F: API> UI<F> {
     }
 
     pub async fn load_commands_manger(&mut self) -> anyhow::Result<ForgeCommandManager> {
-        let manager = ForgeCommandManager::from(
-            self.api.load(self.cli.workflow.as_deref()).await?.commands,
-        );
+        let manager =
+            ForgeCommandManager::from(self.api.load(self.cli.workflow.as_deref()).await?.commands);
         self.console.with_manager(manager.clone());
         Ok(manager)
     }
