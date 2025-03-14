@@ -51,6 +51,7 @@ pub struct UI<F> {
     state: UIState,
     api: Arc<F>,
     console: Console,
+    command: Arc<ForgeCommandManager>,
     cli: Cli,
     models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
@@ -106,27 +107,19 @@ impl<F: API> UI<F> {
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
         // Parse CLI arguments first to get flags
         let env = api.environment();
-
+        let command = Arc::new(ForgeCommandManager::default());
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console::new(env.clone()),
+            console: Console::new(env.clone(), command.clone()),
             cli,
+            command,
             models: None,
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
     }
 
-    pub async fn load_commands_manger(&mut self) -> anyhow::Result<ForgeCommandManager> {
-        let manager =
-            ForgeCommandManager::from(self.api.load(self.cli.workflow.as_deref()).await?.commands);
-        self.console.with_manager(manager.clone());
-        Ok(manager)
-    }
-
     pub async fn run(&mut self) -> Result<()> {
-        let mut manager = self.load_commands_manger().await?;
-
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
             return self.handle_dispatch(dispatch_json).await;
@@ -145,7 +138,8 @@ impl<F: API> UI<F> {
         }
 
         // Display the banner in dimmed colors since we're in interactive mode
-        banner::display(manager.command_names())?;
+        self.init_conversation().await?;
+        banner::display(self.command.command_names())?;
 
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
@@ -154,8 +148,6 @@ impl<F: API> UI<F> {
         };
 
         loop {
-            manager = self.load_commands_manger().await?;
-
             match input {
                 Command::Dump => {
                     self.handle_dump().await?;
@@ -164,7 +156,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::New => {
-                    banner::display(manager.command_names())?;
+                    banner::display(self.command.command_names())?;
                     self.state = Default::default();
                     input = self.console.prompt(None).await?;
 
@@ -446,11 +438,9 @@ impl<F: API> UI<F> {
         match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
-                let conversation_id = self
-                    .api
-                    .init(self.api.load(self.cli.workflow.as_deref()).await?)
-                    .await?;
-
+                let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
+                self.command.register_all(&workflow);
+                let conversation_id = self.api.init(workflow).await?;
                 self.state.conversation_id = Some(conversation_id.clone());
 
                 Ok(conversation_id)

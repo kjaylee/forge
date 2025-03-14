@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use forge_walker::Walker;
 use reedline::{Completer, Suggestion};
@@ -14,7 +15,7 @@ pub struct InputCompleter {
 }
 
 impl InputCompleter {
-    pub fn new(cwd: PathBuf, command_manager: ForgeCommandManager) -> Self {
+    pub fn new(cwd: PathBuf, command_manager: Arc<ForgeCommandManager>) -> Self {
         let walker = Walker::max_all().cwd(cwd).skip_binary(true);
         Self { walker, command: CommandCompleter::new(command_manager) }
     }

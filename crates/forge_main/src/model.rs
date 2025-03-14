@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use forge_api::Model;
+use forge_api::{Model, Workflow};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
@@ -41,24 +41,17 @@ pub struct ForgeCommand {
     pub description: String,
 }
 
-impl From<HashMap<String, String>> for ForgeCommandManager {
-    fn from(value: HashMap<String, String>) -> Self {
-        ForgeCommandManager::default().register_all(value.into_iter().map(
-            |(command, description)| {
-                let name = if command.starts_with("/") {
-                    command
-                } else {
-                    format!("/{}", command)
-                };
-                ForgeCommand { name, description }
-            },
-        ))
+impl From<&Workflow> for ForgeCommandManager {
+    fn from(value: &Workflow) -> Self {
+        let cmd = ForgeCommandManager::default();
+        cmd.register_all(value);
+        cmd
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct ForgeCommandManager {
-    commands: Vec<ForgeCommand>,
+    commands: Arc<Mutex<Vec<ForgeCommand>>>,
 }
 
 impl Default for ForgeCommandManager {
@@ -72,28 +65,39 @@ impl Default for ForgeCommandManager {
             })
             .collect::<Vec<_>>();
 
-        ForgeCommandManager { commands }
+        ForgeCommandManager { commands: Arc::new(Mutex::new(commands)) }
     }
 }
 
 impl ForgeCommandManager {
     /// Registers multiple commands to the manager.
-    pub fn register_all<I, T>(mut self, iter: I) -> Self
-    where
-        I: IntoIterator<Item = T>,
-        T: Into<ForgeCommand>,
-    {
-        self.commands.extend(iter.into_iter().map(Into::into));
-        self
+    pub fn register_all(&self, workflow: &Workflow) {
+        self.commands.lock().unwrap().extend(
+            workflow
+                .commands
+                .clone()
+                .into_iter()
+                .map(|(name, description)| ForgeCommand {
+                    name: format!("/{}", name),
+                    description,
+                }),
+        );
     }
 
     /// Finds a command by name.
-    pub fn find(&self, command: &str) -> Option<&ForgeCommand> {
-        self.commands.iter().find(|c| c.name == command)
+    fn find(&self, command: &str) -> Option<ForgeCommand> {
+        self.commands
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|c| c.name == command)
+            .cloned()
     }
 
     pub fn command_names(&self) -> Vec<String> {
         self.commands
+            .lock()
+            .unwrap()
             .iter()
             .map(|command| command.name.clone())
             .collect::<Vec<_>>()
@@ -101,7 +105,7 @@ impl ForgeCommandManager {
 
     /// Lists all registered commands.
     pub fn list(&self) -> Vec<ForgeCommand> {
-        self.commands.clone()
+        self.commands.lock().unwrap().clone()
     }
 
     pub fn parse(&self, input: &str) -> anyhow::Result<Command> {

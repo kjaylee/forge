@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use reedline::{Completer, Span, Suggestion};
 
 use crate::model::ForgeCommandManager;
 
 #[derive(Clone)]
-pub struct CommandCompleter(ForgeCommandManager);
+pub struct CommandCompleter(Arc<ForgeCommandManager>);
 
 impl CommandCompleter {
-    pub fn new(command_manager: ForgeCommandManager) -> Self {
+    pub fn new(command_manager: Arc<ForgeCommandManager>) -> Self {
         Self(command_manager)
     }
 }

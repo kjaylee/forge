@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use forge_api::{Environment, Usage};
@@ -15,18 +16,13 @@ use crate::state::Mode;
 #[derive(Debug)]
 pub struct Console {
     env: Environment,
-    manager: Option<ForgeCommandManager>,
+    command: Arc<ForgeCommandManager>,
 }
 
 impl Console {
     /// Creates a new instance of `Console`.
-    pub fn new(env: Environment) -> Self {
-        Self { env, manager: None }
-    }
-
-    /// Sets the command manager for the console.
-    pub fn with_manager(&mut self, manager: ForgeCommandManager) {
-        self.manager = Some(manager);
+    pub fn new(env: Environment, command: Arc<ForgeCommandManager>) -> Self {
+        Self { env, command }
     }
 }
 
@@ -43,8 +39,8 @@ impl UserInput for Console {
 
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
-        let manager = self.manager.clone().unwrap_or_default();
-        let mut engine = ForgeEditor::start(self.env.clone(), manager.clone());
+
+        let mut engine = ForgeEditor::new(self.env.clone(), self.command.clone());
         let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {
@@ -57,7 +53,7 @@ impl UserInput for Console {
                     tokio::spawn(
                         crate::ui::TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())),
                     );
-                    match manager.parse(&text) {
+                    match self.command.parse(&text) {
                         Ok(command) => return Ok(command),
                         Err(e) => {
                             CONSOLE.writeln(

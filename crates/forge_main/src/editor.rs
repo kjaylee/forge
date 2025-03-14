@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use forge_api::Environment;
 use nu_ansi_term::{Color, Style};
 use reedline::{
@@ -61,7 +63,7 @@ impl ForgeEditor {
         keybindings
     }
 
-    pub fn start(env: Environment, manager: ForgeCommandManager) -> Self {
+    pub fn new(env: Environment, manager: Arc<ForgeCommandManager>) -> Self {
         // Store file history in system config directory
         let history_file = env.history_path();
 
