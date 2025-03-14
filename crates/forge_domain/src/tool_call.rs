@@ -89,13 +89,26 @@ impl ToolCallFull {
             if let Some(value) = &part.call_id {
                 if let Some(tool_name) = tool_name {
                     if !input.is_empty() {
-                        tool_calls.push(ToolCallFull {
-                            name: tool_name.clone(),
-                            call_id: tool_call_id,
-                            arguments: serde_json::from_str(&input)
-                                .map_err(Error::ToolCallArgument)?,
-                        });
-                        input.clear();
+                        // Try to parse the JSON and handle fragmented/incomplete JSON
+                        match serde_json::from_str::<Value>(&input) {
+                            Ok(json_value) => {
+                                tool_calls.push(ToolCallFull {
+                                    name: tool_name.clone(),
+                                    call_id: tool_call_id,
+                                    arguments: json_value,
+                                });
+                                input.clear();
+                            }
+                            Err(err) => {
+                                // If JSON parsing fails, this might be incomplete/fragmented JSON
+                                // Log the error but don't attempt to parse it yet as we might receive more fragments
+                                return Err(Error::ToolCallIncompleteArguments(format!(
+                                    "Incomplete tool call arguments for {}: {}", 
+                                    tool_name.as_str(), 
+                                    err
+                                )));
+                            }
+                        }
                     }
                 }
                 tool_call_id = Some(value.clone());
@@ -110,11 +123,24 @@ impl ToolCallFull {
 
         if !input.is_empty() {
             if let Some(tool_name) = tool_name {
-                tool_calls.push(ToolCallFull {
-                    name: tool_name.clone(),
-                    call_id: tool_call_id,
-                    arguments: serde_json::from_str(&input).map_err(Error::ToolCallArgument)?,
-                });
+                // Try to parse the JSON and provide a detailed error if it fails
+                match serde_json::from_str::<Value>(&input) {
+                    Ok(json_value) => {
+                        tool_calls.push(ToolCallFull {
+                            name: tool_name.clone(),
+                            call_id: tool_call_id,
+                            arguments: json_value,
+                        });
+                    }
+                    Err(err) => {
+                        return Err(Error::ToolCallIncompleteArguments(format!(
+                            "Incomplete or malformed tool call arguments for {}: {}\nFragmented JSON: {}", 
+                            tool_name.as_str(), 
+                            err,
+                            input
+                        )));
+                    }
+                }
                 input.clear();
             }
         }
@@ -205,5 +231,76 @@ mod tests {
         let expected = vec![];
 
         assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_fragmented_json() {
+        // Test with a fragmented JSON string where a string value is split
+        let input = [
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_1".to_string())),
+                name: Some(ToolName::new("tool_forge_event_dispatch")),
+                arguments_part: "{\"id\": \"".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "time_ret".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "rieval\"".to_string(),
+            },
+        ];
+
+        // With our new implementation, this should now return an ToolCallIncompleteArguments error
+        let result = ToolCallFull::try_from_parts(&input);
+        assert!(result.is_err());
+        if let Err(err) = result {
+            match err {
+                Error::ToolCallIncompleteArguments(msg) => {
+                    assert!(msg.contains("Incomplete"));
+                    assert!(msg.contains("tool_forge_event_dispatch"));
+                }
+                _ => panic!("Expected ToolCallIncompleteArguments error, got {:?}", err),
+            }
+        }
+    }
+
+    #[test]
+    fn test_valid_multipart_json() {
+        // Test with JSON split into multiple parts but still valid when concatenated
+        let input = [
+            ToolCallPart {
+                call_id: Some(ToolCallId("call_1".to_string())),
+                name: Some(ToolName::new("tool_forge_fs_read")),
+                arguments_part: "{\"pa".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "th\": \"/h".to_string(),
+            },
+            ToolCallPart {
+                call_id: None,
+                name: None,
+                arguments_part: "ome/file.txt\"}".to_string(),
+            },
+        ];
+
+        // With the complete concatenated JSON, this should now parse successfully
+        let result = ToolCallFull::try_from_parts(&input);
+        
+        match result {
+            Ok(actual) => {
+                let expected = vec![ToolCallFull {
+                    call_id: Some(ToolCallId("call_1".to_string())),
+                    name: ToolName::new("tool_forge_fs_read"),
+                    arguments: serde_json::json!({"path": "/home/file.txt"}),
+                }];
+                assert_eq!(actual, expected);
+            },
+            Err(err) => panic!("Expected success but got error: {:?}", err),
+        }
     }
 }

@@ -16,6 +16,9 @@ pub enum Error {
     #[error("Invalid tool call arguments: {0}")]
     ToolCallArgument(serde_json::Error),
 
+    #[error("Incomplete or malformed tool call arguments: {0}")]
+    ToolCallIncompleteArguments(String),
+
     #[error("Invalid tool call XML: {0}")]
     ToolCallParse(String),
 
