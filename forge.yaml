@@ -12,4 +12,3 @@ agents:
         <task>{{event.value}}</task>
       {{/if}}
       <mode>{{variables.mode}}</mode>
-      
