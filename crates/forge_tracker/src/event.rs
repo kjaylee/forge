@@ -74,7 +74,7 @@ impl EventKind {
             Self::ErrorOccurred(_) => Name::from("error_occurred".to_string()),
         }
     }
-    
+
     pub fn value(&self) -> String {
         match self {
             Self::Start => "".to_string(),
@@ -83,7 +83,8 @@ impl EventKind {
             Self::Error(content) => content.to_string(),
             Self::ErrorOccurred(details) => {
                 // Serialize ErrorDetails to JSON
-                serde_json::to_string(details).unwrap_or_else(|_| "Error serializing error details".to_string())
+                serde_json::to_string(details)
+                    .unwrap_or_else(|_| "Error serializing error details".to_string())
             }
         }
     }
@@ -99,7 +100,12 @@ impl EventKind {
     }
 
     /// Create a new error event with stack trace included
-    pub fn error_with_trace(error_type: &str, message: &str, context: &str, stack_trace: String) -> Self {
+    pub fn error_with_trace(
+        error_type: &str,
+        message: &str,
+        context: &str,
+        stack_trace: String,
+    ) -> Self {
         Self::ErrorOccurred(ErrorDetails {
             error_type: error_type.to_string(),
             message: message.to_string(),
@@ -111,7 +117,7 @@ impl EventKind {
 
 #[cfg(test)]
 mod tests {
-    use super::{ErrorDetails, EventKind, Name};
+    use super::{ErrorDetails, EventKind};
 
     #[test]
     fn test_error_details_serialization() {
@@ -155,13 +161,13 @@ mod tests {
             context: "forge_main::data::process".to_string(),
             stack_trace: None,
         };
-        
+
         let error_kind = EventKind::ErrorOccurred(error_details);
         let value = error_kind.value();
-        
+
         // Parse the value as JSON to verify it contains the expected fields
         let parsed: serde_json::Value = serde_json::from_str(&value).unwrap();
-        
+
         assert_eq!(parsed["error_type"], "DataError");
         assert_eq!(parsed["message"], "Missing required field");
         assert_eq!(parsed["context"], "forge_main::data::process");
@@ -182,14 +188,15 @@ mod tests {
         }
 
         // Test error helper with stack trace
-        let stack_trace = "FileNotFoundError: unable to open file\n  at read_file (...)".to_string();
+        let stack_trace =
+            "FileNotFoundError: unable to open file\n  at read_file (...)".to_string();
         let error2 = EventKind::error_with_trace(
-            "FileError", 
-            "File not found", 
+            "FileError",
+            "File not found",
             "forge_main::fs::read",
-            stack_trace.clone()
+            stack_trace.clone(),
         );
-        
+
         if let EventKind::ErrorOccurred(details) = error2 {
             assert_eq!(details.error_type, "FileError");
             assert_eq!(details.message, "File not found");
