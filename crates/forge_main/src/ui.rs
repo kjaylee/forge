@@ -118,6 +118,11 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        // load the workflow
+        let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
+        let forge_command_manager = ForgeCommandManager::from(workflow.commands);
+        self.console.with_manager(forge_command_manager.clone());
+
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
             return self.handle_dispatch(dispatch_json).await;
@@ -134,10 +139,6 @@ impl<F: API> UI<F> {
             self.chat(prompt).await?;
             return Ok(());
         }
-
-        // load the workflow
-        let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
-        let forge_command_manager = ForgeCommandManager::from(workflow.commands);
 
         // Display the banner in dimmed colors since we're in interactive mode
         banner::display(forge_command_manager.command_names())?;

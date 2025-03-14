@@ -64,13 +64,23 @@ pub struct ForgeCommandManager {
 impl Default for ForgeCommandManager {
     fn default() -> Self {
         let commands = Command::iter()
+            .filter(|command| !matches!(command, Command::Message(_)))
             .filter(|command| {
-                matches!(command, Command::Custom(_)) || matches!(command, Command::Message(_))
+                if let Command::Custom(partial_event) = command {
+                    !partial_event.name.is_empty()
+                } else {
+                    true
+                }
             })
             .map(|command| {
-                let description = command.usage().to_string();
-                let name = command.name().to_string();
-                ForgeCommand { name, description }
+                if let Command::Custom(event) = command {
+                    ForgeCommand { name: format!("/{}", event.name), description: event.value }
+                } else {
+                    ForgeCommand {
+                        name: command.name().to_string(),
+                        description: command.usage().to_string(),
+                    }
+                }
             })
             .collect::<Vec<_>>();
 
