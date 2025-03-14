@@ -26,8 +26,8 @@ impl Console {
 
     /// Sets the command manager for the console.
     pub fn with_manager(&mut self, manager: ForgeCommandManager) -> &mut Self {
-       self.manager = Some(manager);
-       self
+        self.manager = Some(manager);
+        self
     }
 }
 
