@@ -1,5 +1,3 @@
-commands: 
-  commit: Commits all the changes in the current folder
 agents:
   - id: software-engineer
     max_walker_depth: 1024

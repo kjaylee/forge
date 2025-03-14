@@ -56,23 +56,29 @@ pub struct ForgeCommandManager {
 
 impl Default for ForgeCommandManager {
     fn default() -> Self {
-        let commands = Command::iter()
+        let commands = Self::default_commands();
+        ForgeCommandManager { commands: Arc::new(Mutex::new(commands)) }
+    }
+}
+
+impl ForgeCommandManager {
+    fn default_commands() -> Vec<ForgeCommand> {
+        Command::iter()
             .filter(|command| !matches!(command, Command::Message(_)))
             .filter(|command| !matches!(command, Command::Custom(_)))
             .map(|command| ForgeCommand {
                 name: command.name().to_string(),
                 description: command.usage().to_string(),
             })
-            .collect::<Vec<_>>();
-
-        ForgeCommandManager { commands: Arc::new(Mutex::new(commands)) }
+            .collect::<Vec<_>>()
     }
-}
 
-impl ForgeCommandManager {
     /// Registers multiple commands to the manager.
     pub fn register_all(&self, workflow: &Workflow) {
-        self.commands.lock().unwrap().extend(
+        let mut guard = self.commands.lock().unwrap();
+        let mut commands = Self::default_commands();
+
+        commands.extend(
             workflow
                 .commands
                 .clone()
@@ -82,6 +88,8 @@ impl ForgeCommandManager {
                     description,
                 }),
         );
+
+        *guard = commands;
     }
 
     /// Finds a command by name.
