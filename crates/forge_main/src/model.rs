@@ -3,6 +3,8 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 use forge_api::Model;
+use strum::{EnumProperty, IntoEnumIterator};
+use strum_macros::{EnumIter, EnumProperty};
 
 use crate::info::Info;
 use crate::ui::PartialEvent;
@@ -61,39 +63,18 @@ pub struct ForgeCommandManager {
 
 impl Default for ForgeCommandManager {
     fn default() -> Self {
-        ForgeCommandManager { commands: vec![] }
-            .register(ForgeCommand {
-                name: "/new".to_string(),
-                description: "Start a new conversation while preserving history.".to_string(),
+        let commands = Command::iter()
+            .filter(|command| {
+                matches!(command, Command::Custom(_)) || matches!(command, Command::Message(_))
             })
-            .register(ForgeCommand {
-                name: "/info".to_string(),
-                description: "Display system environment information.".to_string(),
+            .map(|command| {
+                let description = command.usage().to_string();
+                let name = command.name().to_string();
+                ForgeCommand { name, description }
             })
-            .register(ForgeCommand {
-                name: "/exit".to_string(),
-                description: "Exit the application without any further action.".to_string(),
-            })
-            .register(ForgeCommand {
-                name: "/models".to_string(),
-                description: "Lists the models available for use.".to_string(),
-            })
-            .register(ForgeCommand {
-                name: "/act".to_string(),
-                description: "Switch to \"act\" mode.".to_string(),
-            })
-            .register(ForgeCommand {
-                name: "/plan".to_string(),
-                description: "Switch to \"plan\" mode.".to_string(),
-            })
-            .register(ForgeCommand {
-                name: "/help".to_string(),
-                description: "Switch to \"help\" mode.".to_string(),
-            })
-            .register(ForgeCommand {
-                name: "/dump".to_string(),
-                description: "Dumps the current conversation into a json file".to_string(),
-            })
+            .collect::<Vec<_>>();
+
+        ForgeCommandManager { commands }
     }
 }
 
@@ -156,7 +137,6 @@ impl ForgeCommandManager {
                         .map(|args| args.join(" "))
                         .unwrap_or_default();
 
-                    // if command is registered in our system then dispatch the event.
                     if let Some(command) = self.find(parsed_command) {
                         Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
@@ -179,34 +159,68 @@ impl ForgeCommandManager {
 /// - System commands (starting with '/')
 /// - Regular chat messages
 /// - File content
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumProperty, EnumIter)]
 pub enum Command {
     /// Start a new conversation while preserving history.
     /// This can be triggered with the '/new' command.
+    #[strum(props(usage = "Start a new conversation while preserving history."))]
     New,
     /// A regular text message from the user to be processed by the chat system.
     /// Any input that doesn't start with '/' is treated as a message.
+    #[strum(props(
+        usage = "A regular text message from the user to be processed by the chat system."
+    ))]
     Message(String),
     /// Display system environment information.
     /// This can be triggered with the '/info' command.
+    #[strum(props(usage = "Display system environment information."))]
     Info,
     /// Exit the application without any further action.
+    #[strum(props(usage = "Exit the application without any further action."))]
     Exit,
     /// Lists the models available for use.
+    #[strum(props(usage = "Lists the models available for use."))]
     Models,
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
+    #[strum(props(usage = "Switch to \"act\" mode."))]
     Act,
     /// Switch to "plan" mode.
     /// This can be triggered with the '/plan' command.
+    #[strum(props(usage = "Switch to \"plan\" mode."))]
     Plan,
     /// Switch to "help" mode.
     /// This can be triggered with the '/help' command.
+    #[strum(props(usage = "Switch to \"help\" mode."))]
     Help,
     /// Dumps the current conversation into a json file
+    #[strum(props(usage = "Dumps the current conversation into a json file"))]
     Dump,
     /// Handles custom command defined in workflow file.
+    #[strum(props(usage = "Custom command defined in workflow file."))]
     Custom(PartialEvent),
+}
+
+impl Command {
+    pub fn name(&self) -> &str {
+        match self {
+            Command::New => "/new",
+            Command::Message(_) => "/message",
+            Command::Info => "/info",
+            Command::Exit => "/exit",
+            Command::Models => "/models",
+            Command::Act => "/act",
+            Command::Plan => "/plan",
+            Command::Help => "/help",
+            Command::Dump => "/dump",
+            Command::Custom(event) => &event.name,
+        }
+    }
+
+    /// Returns the usage description for the command.
+    pub fn usage(&self) -> &str {
+        self.get_str("usage").unwrap()
+    }
 }
 
 /// A trait for handling user input in the application.
