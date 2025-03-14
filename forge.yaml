@@ -3,3 +3,13 @@ commands:
 agents:
   - id: software-engineer
     max_walker_depth: 1024
+    subscribe:
+      - /commit
+    user_prompt: |
+      {{#if (eq event.name '/commit')}}
+        Use conventional commit messages and commit all the staged files.
+      {{else}}
+        <task>{{event.value}}</task>
+      {{/if}}
+      <mode>{{variables.mode}}</mode>
+      
