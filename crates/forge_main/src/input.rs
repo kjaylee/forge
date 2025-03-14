@@ -56,8 +56,11 @@ impl UserInput for Console {
                     match self.command.parse(&text) {
                         Ok(command) => return Ok(command),
                         Err(e) => {
-                            CONSOLE
-                                .writeln(TitleFormat::failed("command").sub_title(e.to_string()).format())?;
+                            CONSOLE.writeln(
+                                TitleFormat::failed("command")
+                                    .sub_title(e.to_string())
+                                    .format(),
+                            )?;
                         }
                     }
                 }
