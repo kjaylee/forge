@@ -170,7 +170,10 @@ impl<F: API> UI<F> {
                 }
                 Command::Message(ref content) => {
                     let chat_result = match self.state.mode {
-                        Mode::Help => self.help_chat(content.clone()).await,
+                        Mode::Help => {
+                            self.dispatch_event(Self::create_user_help_query_event(content.clone()))
+                                .await
+                        }
                         _ => self.chat(content.clone()).await,
                     };
                     if let Err(err) = chat_result {
@@ -274,6 +277,7 @@ impl<F: API> UI<F> {
 
         Ok(())
     }
+
     // Handle dispatching events from the CLI
     async fn handle_dispatch(&mut self, json: String) -> Result<()> {
         // Initialize the conversation
@@ -289,6 +293,7 @@ impl<F: API> UI<F> {
         let mut stream = self.api.chat(chat).await?;
         self.handle_chat_stream(&mut stream).await
     }
+
     async fn handle_snaps(&self, snapshot_command: &SnapshotCommand) -> Result<()> {
         match snapshot_command {
             SnapshotCommand::List { path } => {
@@ -598,19 +603,6 @@ impl<F: API> UI<F> {
             }
         }
         Ok(())
-    } // Handle help chat in HELP mode
-    async fn help_chat(&mut self, content: String) -> Result<()> {
-        let conversation_id = self.init_conversation().await?;
-
-        // Create a help query event
-        let event = Self::create_user_help_query_event(content.clone());
-
-        // Create the chat request with the help query event
-        let chat = ChatRequest::new(event, conversation_id);
-        match self.api.chat(chat).await {
-            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
-            Err(err) => Err(err),
-        }
     }
 
     async fn dispatch_event(&mut self, event: Event) -> Result<()> {
