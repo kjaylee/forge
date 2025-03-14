@@ -147,7 +147,7 @@ impl ForgeCommandManager {
                             args,
                         )))
                     } else {
-                        Err(anyhow::anyhow!("Command not registered within the system."))
+                        Err(anyhow::anyhow!("{} is not valid", parsed_command))
                     }
                 } else {
                     Err(anyhow::anyhow!("Invalid Command Format."))
@@ -167,41 +167,38 @@ impl ForgeCommandManager {
 pub enum Command {
     /// Start a new conversation while preserving history.
     /// This can be triggered with the '/new' command.
-    #[strum(props(usage = "Start a new conversation while preserving history."))]
+    #[strum(props(usage = "Start a new conversation"))]
     New,
     /// A regular text message from the user to be processed by the chat system.
     /// Any input that doesn't start with '/' is treated as a message.
-    #[strum(props(
-        usage = "A regular text message from the user to be processed by the chat system."
-    ))]
+    #[strum(props(usage = "Send a regular message"))]
     Message(String),
     /// Display system environment information.
     /// This can be triggered with the '/info' command.
-    #[strum(props(usage = "Display system environment information."))]
+    #[strum(props(usage = "Display system information"))]
     Info,
     /// Exit the application without any further action.
-    #[strum(props(usage = "Exit the application without any further action."))]
+    #[strum(props(usage = "Exit the application"))]
     Exit,
     /// Lists the models available for use.
-    #[strum(props(usage = "Lists the models available for use."))]
+    #[strum(props(usage = "List available models"))]
     Models,
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
-    #[strum(props(usage = "Switch to \"act\" mode."))]
+    #[strum(props(usage = "Enable implementation mode with code changes"))]
     Act,
     /// Switch to "plan" mode.
     /// This can be triggered with the '/plan' command.
-    #[strum(props(usage = "Switch to \"plan\" mode."))]
+    #[strum(props(usage = "Enable planning mode without code changes"))]
     Plan,
     /// Switch to "help" mode.
     /// This can be triggered with the '/help' command.
-    #[strum(props(usage = "Switch to \"help\" mode."))]
+    #[strum(props(usage = "Enable help mode for tool questions"))]
     Help,
     /// Dumps the current conversation into a json file
-    #[strum(props(usage = "Dumps the current conversation into a json file"))]
+    #[strum(props(usage = "Save conversation as JSON"))]
     Dump,
     /// Handles custom command defined in workflow file.
-    #[strum(props(usage = "Custom command defined in workflow file."))]
     Custom(PartialEvent),
 }
 
