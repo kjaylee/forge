@@ -237,7 +237,10 @@ impl<F: API> UI<F> {
 
                         // if command is registered in our system then dispatch the event.
                         if let Some(command) = self.forge_command_manager.find(parsed_command) {
-                            if let Err(e) = self.dispatch_event(Event::new(command.name.clone(), args)).await {
+                            if let Err(e) = self
+                                .dispatch_event(Event::new(command.name.clone(), args))
+                                .await
+                            {
                                 CONSOLE.writeln(
                                     TitleFormat::failed("Failed to execute the command.")
                                         .sub_title("Command Execution")
