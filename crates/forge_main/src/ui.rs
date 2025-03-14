@@ -117,11 +117,16 @@ impl<F: API> UI<F> {
         })
     }
 
+    pub async fn load_commands_manger(&mut self) -> anyhow::Result<ForgeCommandManager> {
+        let manager = ForgeCommandManager::from(
+            self.api.load(self.cli.workflow.as_deref()).await?.commands,
+        );
+        self.console.with_manager(manager.clone());
+        Ok(manager)
+    }
+
     pub async fn run(&mut self) -> Result<()> {
-        // load the workflow
-        let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
-        let forge_command_manager = ForgeCommandManager::from(workflow.commands);
-        self.console.with_manager(forge_command_manager.clone());
+        let mut manager = self.load_commands_manger().await?;
 
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
@@ -141,7 +146,7 @@ impl<F: API> UI<F> {
         }
 
         // Display the banner in dimmed colors since we're in interactive mode
-        banner::display(forge_command_manager.command_names())?;
+        banner::display(manager.command_names())?;
 
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
@@ -150,10 +155,7 @@ impl<F: API> UI<F> {
         };
 
         loop {
-            // load the workflow
-            let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
-            let forge_command_manager = ForgeCommandManager::from(workflow.commands);
-            self.console.with_manager(forge_command_manager.clone());
+            manager = self.load_commands_manger().await?;
 
             match input {
                 Command::Dump => {
@@ -163,7 +165,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::New => {
-                    banner::display(forge_command_manager.command_names())?;
+                    banner::display(manager.command_names())?;
                     self.state = Default::default();
                     input = self.console.prompt(None).await?;
 
