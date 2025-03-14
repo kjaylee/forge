@@ -39,6 +39,7 @@ impl From<&[Model]> for Info {
 pub struct ForgeCommand {
     pub name: String,
     pub description: String,
+    pub value: Option<String>,
 }
 
 impl From<&Workflow> for ForgeCommandManager {
@@ -69,6 +70,7 @@ impl ForgeCommandManager {
             .map(|command| ForgeCommand {
                 name: command.name().to_string(),
                 description: command.usage().to_string(),
+                value: None,
             })
             .collect::<Vec<_>>()
     }
@@ -80,16 +82,16 @@ impl ForgeCommandManager {
 
         commands.sort_by(|a, b| a.name.cmp(&b.name));
 
-        commands.extend(
-            workflow
-                .commands
-                .clone()
-                .into_iter()
-                .map(|(name, description)| ForgeCommand {
-                    name: format!("/{}", name),
-                    description: format!("⚙ {}", description),
-                }),
-        );
+        commands.extend(workflow.commands.clone().into_iter().map(|cmd| {
+            let name = format!("/{}", cmd.name);
+            let description = match cmd.value {
+                Some(ref value) => format!("⚙ {} ({})", name, value),
+                None => format!("⚙ {}", cmd.description),
+            };
+            let value = cmd.value.clone();
+
+            ForgeCommand { name, description, value }
+        }));
 
         *guard = commands;
     }
@@ -137,19 +139,26 @@ impl ForgeCommandManager {
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
-                if let Some(parsed_command) = parts.first() {
-                    let args = parts
-                        .get(1..)
-                        .map(|args| args.join(" "))
-                        .unwrap_or_default();
+                if let Some(command) = parts.first() {
+                    if let Some(command) = self.find(command) {
+                        let value_provided = parts.get(1..).map(|args| args.join(" "));
 
-                    if let Some(command) = self.find(parsed_command) {
+                        let value_default = self
+                            .commands
+                            .lock()
+                            .unwrap()
+                            .iter()
+                            .find(|c| c.name == command.name)
+                            .and_then(|cmd| cmd.value.clone());
+
+                        let value = value_provided.or(value_default);
+
                         Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
-                            args,
+                            value.unwrap_or_else(|| panic!("Event {} needs a value", command.name)),
                         )))
                     } else {
-                        Err(anyhow::anyhow!("{} is not valid", parsed_command))
+                        Err(anyhow::anyhow!("{} is not valid", command))
                     }
                 } else {
                     Err(anyhow::anyhow!("Invalid Command Format."))

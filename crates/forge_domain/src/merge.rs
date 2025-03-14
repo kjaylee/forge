@@ -4,21 +4,9 @@ pub mod std {
     }
 }
 
-pub mod hashmap {
-    pub fn unify<K, V>(
-        base: &mut std::collections::HashMap<K, V>,
-        other: std::collections::HashMap<K, V>,
-    ) where
-        K: std::hash::Hash + std::cmp::Eq,
-    {
-        for (key, value) in other {
-            base.insert(key, value);
-        }
-    }
-}
-
 pub mod vec {
 
+    pub use merge::vec::*;
     use merge::Merge;
 
     use super::Key;
