@@ -51,9 +51,9 @@ impl Provider {
     }
 
     pub fn anthropic(key: &str) -> Provider {
-        Provider::Anthropic { 
+        Provider::Anthropic {
             url: Url::parse(Provider::ANTHROPIC_URL).unwrap(),
-            key: key.into() 
+            key: key.into(),
         }
     }
 
