@@ -1,0 +1,80 @@
+commands:
+  - name: commit
+    description: Analyzes and organizes code changes into meaningful, well-structured commits
+
+variables:
+  mode: ACT
+
+agents:
+  - tool_supported: true
+    id: title_generation_worker
+    model: anthropic/claude-3.5-haiku
+    system_prompt: "{{> system-prompt-title-generator.hbs }}"
+    user_prompt: <technical_content>{{event.value}}</technical_content>
+    tools:
+      - tool_forge_event_dispatch
+    subscribe:
+      - user_task_init
+
+  - id: help_agent
+    model: google/gemini-2.0-flash-thinking-exp:free
+    system_prompt: "{{> system-prompt-help.hbs }}"
+    user_prompt: <query>{{event.value}}</query>
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+    subscribe:
+      - user_help_query
+
+  - tool_supported: true
+    id: software-engineer
+    model: anthropic/claude-3.7-sonnet
+    system_prompt: "{{> system-prompt-engineer.hbs }}"
+    user_prompt: |-
+      <task>{{event.value}}</task>
+      <mode>{{variables.mode}}</mode>
+    ephemeral: false
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_net_fetch
+      - tool_forge_fs_search
+    subscribe:
+      - user_task_init
+      - user_task_update
+    max_walker_depth: 4
+
+  - tool_supported: true
+    id: github-task-agent
+    model: anthropic/claude-3.7-sonnet
+    system_prompt: "{{> system-prompt-github-engineer.hbs }}"
+    user_prompt: |-
+      <event>{{event.name}}</event>
+      <value>{{event.value}}</value>
+      <mode>ACT</mode>
+    ephemeral: false
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_net_fetch
+      - tool_forge_fs_search
+      - tool_forge_event_dispatch
+    subscribe:
+      - fix_issue
+      - update_pr
+    max_walker_depth: 4
+
+  - tool_supported: true
+    id: git-commit-agent
+    model: anthropic/claude-3.5-haiku
+    system_prompt: "{{> system-prompt-git-commit.hbs }}"
+    tools:
+      - tool_forge_process_shell
+    subscribe:
+      - commit
