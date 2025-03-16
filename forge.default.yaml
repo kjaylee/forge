@@ -1,6 +1,8 @@
 commands:
   - name: commit
     description: Analyzes and organizes code changes into meaningful, well-structured commits
+  - name: pull-request
+    description: Analyzes code changes, generates comprehensive PR descriptions with linked issues.
 
 variables:
   mode: ACT
@@ -95,4 +97,4 @@ agents:
     tools:
       - tool_forge_process_shell
     subscribe:
-      - commit
+      - pull-request
