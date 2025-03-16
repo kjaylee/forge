@@ -60,7 +60,7 @@ impl Provider {
     pub fn key(&self) -> Option<&str> {
         match self {
             Provider::OpenAI { key, .. } => key.as_deref(),
-            Provider::Anthropic { key } => Some(key),
+            Provider::Anthropic { key, .. } => Some(key),
         }
     }
 }
