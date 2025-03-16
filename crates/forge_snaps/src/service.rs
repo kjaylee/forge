@@ -23,7 +23,7 @@ impl SnapshotService {
         // Create intermediary directories if they don't exist
         let snapshot_path = snapshot.snapshot_path(Some(self.snapshots_directory.clone()));
         if let Some(parent) = PathBuf::from(&snapshot_path).parent() {
-            forge_fs::ForgeFS::create_dir_all(parent).await?;
+            forge_fs::ForgeFS::create_dir_all(parent).await?
         }
 
         snapshot

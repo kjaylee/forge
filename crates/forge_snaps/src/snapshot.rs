@@ -64,7 +64,20 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub async fn create(path: PathBuf) -> anyhow::Result<Self> {
-        let path = path.canonicalize()?;
+        // Handle both existing and non-existing files
+        let canonicalize_result = path.canonicalize();
+
+        if canonicalize_result.is_err() {
+            // Use original path for files that don't exist yet
+            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
+            return Ok(Self {
+                id: SnapshotId::new(),
+                timestamp,
+                path: path.display().to_string(),
+            });
+        }
+
+        let path = canonicalize_result?;
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
         Ok(Self {
@@ -100,7 +113,15 @@ impl Snapshot {
     }
 
     pub async fn save(&self, path: Option<PathBuf>) -> anyhow::Result<()> {
-        let content = ForgeFS::read(&self.path).await?;
+        // Handle both existing and non-existing files
+        let content = if PathBuf::from(&self.path).exists() {
+            // For existing files, read their content
+            ForgeFS::read(&self.path).await?
+        } else {
+            // For new files, use empty content
+            Vec::new()
+        };
+
         let path = self.snapshot_path(path);
         ForgeFS::write(path, content).await?;
         Ok(())
