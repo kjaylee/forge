@@ -259,7 +259,7 @@ fn generate() {
                 Step::run("GITHUB_TOKEN=\"${{ secrets.HOMEBREW_ACCESS }}\" ./update-formula.sh ${{needs.draft_release.outputs.create_release_name }}"),
             ),
     );
-    
+
     // npm release job
     workflow = workflow.add_job(
         "npm_release",
