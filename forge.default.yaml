@@ -5,10 +5,17 @@ commands:
 variables:
   mode: ACT
 
+# Define model anchors with simpler, purpose-based names
+models:
+  # Role-based model definitions - easy to swap implementation
+  advanced: &advanced_model anthropic/claude-3.7-sonnet
+  standard: &standard_model anthropic/claude-3.5-haiku
+  fast: &fast_model google/gemini-2.0-flash-thinking-exp:free
+
 agents:
   - tool_supported: true
     id: title_generation_worker
-    model: anthropic/claude-3.5-haiku
+    model: *standard_model
     system_prompt: "{{> system-prompt-title-generator.hbs }}"
     user_prompt: <technical_content>{{event.value}}</technical_content>
     tools:
@@ -17,7 +24,7 @@ agents:
       - user_task_init
 
   - id: help_agent
-    model: google/gemini-2.0-flash-thinking-exp:free
+    model: *fast_model
     system_prompt: "{{> system-prompt-help.hbs }}"
     user_prompt: <query>{{event.value}}</query>
     tools:
@@ -28,7 +35,7 @@ agents:
 
   - tool_supported: true
     id: software-engineer
-    model: anthropic/claude-3.7-sonnet
+    model: *advanced_model
     system_prompt: "{{> system-prompt-engineer.hbs }}"
     user_prompt: |-
       <task>{{event.value}}</task>
@@ -49,7 +56,7 @@ agents:
 
   - tool_supported: true
     id: github-task-agent
-    model: anthropic/claude-3.7-sonnet
+    model: *advanced_model
     system_prompt: "{{> system-prompt-github-engineer.hbs }}"
     user_prompt: |-
       <event>{{event.name}}</event>
@@ -72,8 +79,19 @@ agents:
 
   - tool_supported: true
     id: git-commit-agent
-    model: anthropic/claude-3.5-haiku
+    model: *standard_model
     system_prompt: "{{> system-prompt-git-commit.hbs }}"
+    user_prompt: "Go ahead and make the commit"
+    tools:
+      - tool_forge_process_shell
+    subscribe:
+      - commit
+
+  - tool_supported: true
+    id: github-pull-request-create
+    model: *standard_model
+    system_prompt: "{{> system-prompt-github-pr.hbs }}"
+    user_prompt: "Go ahead and create a PR"
     tools:
       - tool_forge_process_shell
     subscribe:
