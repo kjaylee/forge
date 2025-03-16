@@ -8,9 +8,9 @@ variables:
 # Define model anchors with simpler, purpose-based names
 models:
   # Role-based model definitions - easy to swap implementation
-  advanced: &advanced_model anthropic/claude-3.7-sonnet
-  standard: &standard_model anthropic/claude-3.5-haiku
-  fast: &fast_model google/gemini-2.0-flash-thinking-exp:free
+  - &advanced_model anthropic/claude-3.7-sonnet
+  - &standard_model anthropic/claude-3.5-haiku
+  - &fast_model google/gemini-2.0-flash-thinking-exp:free
 
 agents:
   - tool_supported: true
