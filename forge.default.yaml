@@ -82,8 +82,9 @@ agents:
   - tool_supported: true
     id: git-commit-agent
     model: *standard_model
+    ephemeral: true
     system_prompt: "{{> system-prompt-git-commit.hbs }}"
-    user_prompt: "Go ahead and make the commit"
+    user_prompt: "Go ahead and make the commit, {{event.value}}"
     tools:
       - tool_forge_process_shell
     subscribe:
@@ -92,6 +93,7 @@ agents:
   - tool_supported: true
     id: github-pull-request-create
     model: *standard_model
+    ephemeral: true
     system_prompt: "{{> system-prompt-github-pr.hbs }}"
     user_prompt: "Go ahead and create a PR"
     tools:
