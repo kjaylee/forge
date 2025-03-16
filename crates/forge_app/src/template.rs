@@ -1,7 +1,7 @@
-use chrono::Local;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use chrono::Local;
 use forge_domain::{
     Agent, Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
 };
