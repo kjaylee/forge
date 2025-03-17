@@ -305,6 +305,10 @@ jobs:
         repository: antinomyhq/npm-code-forge
         ref: main
         token: ${{ secrets.NPM_ACCESS }}
-    - run: NPM_TOKEN="${{ secrets.NPM_TOKEN }}" ./update-package.sh ${{needs.draft_release.outputs.create_release_name}}
+    - run: ./update-package.sh ${{needs.draft_release.outputs.create_release_name}}
+      env:
+        AUTO_PUSH: 'true'
+        CI: 'true'
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

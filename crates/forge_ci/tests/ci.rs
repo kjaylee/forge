@@ -282,7 +282,10 @@ fn generate() {
             )
             // Make script executable and run it with token
             .add_step(
-                Step::run("NPM_TOKEN=\"${{ secrets.NPM_TOKEN }}\" ./update-package.sh ${{needs.draft_release.outputs.create_release_name}}"),
+                Step::run("./update-package.sh ${{needs.draft_release.outputs.create_release_name}}")
+                .add_env(("AUTO_PUSH", "true"))
+                .add_env(("CI", "true"))
+                .add_env(("NPM_TOKEN", "${{ secrets.NPM_TOKEN }}")),
             ),
     );
 
