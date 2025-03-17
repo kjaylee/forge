@@ -70,7 +70,7 @@ impl ProviderService for Anthropic {
             .max_tokens(4000u64);
 
         let url = self.url("/messages")?;
-        debug!(url = %url, model = %model.as_str(), "Connecting to Anthropic");
+        debug!(url = %url, model = %model, "Connecting Upstream");
         let es = self
             .client
             .post(url)
@@ -85,7 +85,7 @@ impl ProviderService for Anthropic {
                     Ok(event) => match event {
                         Event::Open => None,
                         Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
-                            debug!("Received completion from Anthropic");
+                            debug!("Received completion from Upstream");
                             None
                         }
                         Event::Message(message) => Some(
@@ -132,13 +132,13 @@ impl ProviderService for Anthropic {
     }
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
         let url = self.url("models")?;
-        debug!(url = %url, "Fetching Anthropic models");
+        debug!(url = %url, "Fetching models");
 
         let result = self.client.get(url).headers(self.headers()).send().await;
 
         match result {
             Err(err) => {
-                debug!(error = %err, "Failed to fetch Anthropic models");
+                debug!(error = %err, "Failed to fetch models");
                 anyhow::bail!(err)
             }
             Ok(response) => {
