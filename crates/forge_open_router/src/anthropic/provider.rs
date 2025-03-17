@@ -133,29 +133,24 @@ impl ProviderService for Anthropic {
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
         let url = self.url("models")?;
         debug!(url = %url, "Fetching Anthropic models");
-        match self.fetch_models(url).await {
+
+        let result = self.client.get(url).headers(self.headers()).send().await;
+
+        match result {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch Anthropic models");
                 anyhow::bail!(err)
             }
-            Ok(text) => {
+            Ok(response) => {
+                let text = response
+                    .error_for_status()
+                    .with_context(|| "Failed because of a non 200 status code".to_string())?
+                    .text()
+                    .await?;
                 let response: ListModelResponse = serde_json::from_str(&text)?;
                 Ok(response.data.into_iter().map(Into::into).collect())
             }
         }
-    }
-    
-    async fn fetch_models(&self, url: Url) -> anyhow::Result<String> {
-        Ok(self
-            .client
-            .get(url)
-            .headers(self.headers())
-            .send()
-            .await?
-            .error_for_status()
-            .with_context(|| "Failed because of a non 200 status code".to_string())?
-            .text()
-            .await?)
     }
 }
 
