@@ -13,7 +13,7 @@ fn generate_comment_body(emoji: &str, title: &str, message: &str) -> String {
 /// Generate a forge event JSON string with proper escaping
 fn forge_event_json(event_name: &str, value_expr: &str) -> String {
     let escaped_value = value_expr
-        .replace('\\', "\\\\")  // Escape backslashes first
+        .replace('\\', "\\\\") // Escape backslashes first
         .replace('"', "\\\"")
         .replace('\r', "\\r")
         .replace('\n', "\\n")
@@ -302,7 +302,7 @@ mod tests {
         assert!(condition.contains("test-label"));
         assert!(condition.contains("/test-command"));
     }
-    
+
     #[test]
     fn test_forge_event_json_with_special_chars() {
         let json = forge_event_json("test_event", "test_value\r\nwith\tspecial\"chars");
