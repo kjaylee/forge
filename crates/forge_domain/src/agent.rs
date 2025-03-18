@@ -106,7 +106,8 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub project_rules: Option<String>,
 
-    /// Token count threshold after which the context is automatically summarized
+    /// Token count threshold after which the context is automatically
+    /// summarized
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub auto_compact: Option<u64>,
