@@ -472,10 +472,7 @@ Forge provides two main approaches for handling custom command events in agents.
 In this approach, the event value itself contains complete instructions that are passed directly to the agent:
 
 ```yaml
-variables:
-  models:
-    advanced_model: &advanced_model anthropic/claude-3.7-sonnet
-    efficiency_model: &efficiency_model anthropic/claude-3.5-haiku
+
 
 commands:
   - name: commit
@@ -491,7 +488,7 @@ commands:
 
 agents:
   - id: developer
-    model: *advanced_model
+    model: anthropic/claude-3.7-sonnet
     tools:
       - tool_forge_fs_read
       - tool_forge_fs_create
@@ -519,11 +516,6 @@ In this example, the entire value from the event is passed directly as the task.
 In this approach, the event value is used as data within a template that formats different tasks based on the event name:
 
 ```yaml
-variables:
-  models:
-    advanced_model: &advanced_model anthropic/claude-3.7-sonnet
-    efficiency_model: &efficiency_model anthropic/claude-3.5-haiku
-
 commands:
   - name: commit
     description: Create a git commit with the provided message
@@ -533,7 +525,7 @@ commands:
 
 agents:
   - id: developer
-    model: *advanced_model
+    model: anthropic/claude-3.7-sonnet
     tools:
       - tool_forge_fs_read
       - tool_forge_fs_create
