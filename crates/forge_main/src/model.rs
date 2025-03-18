@@ -117,6 +117,38 @@ impl ForgeCommandManager {
         self.commands.lock().unwrap().clone()
     }
 
+    /// Extracts the command value from the input parts
+    ///
+    /// # Arguments
+    /// * `command` - The command for which to extract the value
+    /// * `parts` - The parts of the command input after the command name
+    ///
+    /// # Returns
+    /// * `Option<String>` - The extracted value, if any
+    fn extract_command_value(&self, command: &ForgeCommand, parts: &[&str]) -> Option<String> {
+        // Try to get value provided in the command
+        let value_provided = if !parts.is_empty() {
+            Some(parts.join(" "))
+        } else {
+            None
+        };
+
+        // Try to get default value from command definition
+        let value_default = self
+            .commands
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|c| c.name == command.name)
+            .and_then(|cmd| cmd.value.clone());
+
+        // Use provided value if non-empty, otherwise use default
+        match value_provided {
+            Some(value) if !value.trim().is_empty() => Some(value),
+            _ => value_default,
+        }
+    }
+
     pub fn parse(&self, input: &str) -> anyhow::Result<Command> {
         let trimmed = input.trim();
         let is_command = trimmed.starts_with("/");
@@ -138,20 +170,7 @@ impl ForgeCommandManager {
 
                 if let Some(command) = parts.first() {
                     if let Some(command) = self.find(command) {
-                        let value_provided = parts.get(1..).map(|args| args.join(" "));
-
-                        let value_default = self
-                            .commands
-                            .lock()
-                            .unwrap()
-                            .iter()
-                            .find(|c| c.name == command.name)
-                            .and_then(|cmd| cmd.value.clone());
-
-                        let value = match value_provided {
-                            Some(value) if !value.trim().is_empty() => Some(value),
-                            _ => value_default,
-                        };
+                        let value = self.extract_command_value(&command, &parts[1..]);
 
                         Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
