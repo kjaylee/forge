@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::merge::Key;
 use crate::template::Template;
-use crate::{EventContext, ModelId, SystemContext, ToolName};
+use crate::{Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName};
 
 // Unique identifier for an agent
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
@@ -104,7 +104,7 @@ pub struct Agent {
     /// A set of custom rules that the agent should follow
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
-    pub project_rules: Option<String>,
+    pub custom_rules: Option<String>,
 }
 
 impl Agent {
@@ -123,8 +123,16 @@ impl Agent {
             subscribe: None,
             max_turns: None,
             max_walker_depth: None,
-            project_rules: None,
+            custom_rules: None,
         }
+    }
+
+    pub fn tool_definition(&self) -> Result<ToolDefinition> {
+        if self.description.is_none() || self.description.as_ref().map_or(true, |d| d.is_empty()) {
+            return Err(Error::MissingAgentDescription(self.id.clone()));
+        }
+        Ok(ToolDefinition::new(self.id.as_str().to_string())
+            .description(self.description.clone().unwrap()))
     }
 }
 

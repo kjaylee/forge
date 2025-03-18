@@ -76,8 +76,7 @@ impl<A: App> Orchestrator<A> {
         let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
         let mut forge_tools = self.init_default_tool_definitions();
 
-        // Adding self to the list of tool definitions
-
+        // Adding Event tool to the list of tool definitions
         forge_tools.push(Event::tool_definition());
 
         forge_tools
