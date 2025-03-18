@@ -147,6 +147,7 @@ impl<F: API> UI<F> {
         
         info
     }
+    
     // Helper functions for creating events with the specific event names
     fn create_task_init_event(content: impl ToString) -> Event {
         Event::new(EVENT_USER_TASK_INIT, content)
@@ -492,5 +493,52 @@ impl<F: API> UI<F> {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use forge_domain::{Agent, AgentId, ModelId, ToolName};
+
+    #[test]
+    fn test_format_agent_info_empty() {
+        // Test with empty agent list
+        let agents: Vec<Agent> = Vec::new();
+        let info = UI::<()>::format_agent_info(&agents);
+        let formatted = info.to_string();
+        
+        // Verify the output contains the expected messages
+        assert!(formatted.contains("Agents"));
+        assert!(formatted.contains("Status"));
+        assert!(formatted.contains("No agents found in active workflow"));
+    }
+    
+    #[test]
+    fn test_format_agent_info() {
+        // Create a test agent with all fields populated
+        let mut agent = Agent::new("test-agent");
+        agent.model = Some(ModelId::new("gpt-4"));
+        agent.description = Some("Test agent description".to_string());
+        agent.tool_supported = Some(true);
+        agent.tools = Some(vec![ToolName::new("tool1"), ToolName::new("tool2")]);
+        agent.subscribe = Some(vec!["event1".to_string(), "event2".to_string()]);
+        agent.max_turns = Some(10);
+        
+        let agents = vec![agent];
+        let info = UI::<()>::format_agent_info(&agents);
+        let formatted = info.to_string();
+        
+        // Verify the output contains all expected information
+        assert!(formatted.contains("Agents"));
+        assert!(formatted.contains("test-agent"));
+        assert!(formatted.contains("gpt-4"));
+        assert!(formatted.contains("Test agent description"));
+        assert!(formatted.contains("Tools Supported"));
+        assert!(formatted.contains("Yes"));
+        assert!(formatted.contains("tool1, tool2"));
+        assert!(formatted.contains("event1, event2"));
+        assert!(formatted.contains("Max Turns"));
+        assert!(formatted.contains("10"));
     }
 }
