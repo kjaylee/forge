@@ -68,7 +68,7 @@ impl Summary<'_, '_> {
 }
 
 // TODO: this is a quick hack to get a ballpark token count
-fn token_count(text: &str) -> usize {
+pub fn token_count(text: &str) -> usize {
     text.split_whitespace().count() * 75 / 100
 }
 

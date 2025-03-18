@@ -105,6 +105,11 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub project_rules: Option<String>,
+
+    /// Token count threshold after which the context is automatically summarized
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub auto_compact: Option<u64>,
 }
 
 impl Agent {
@@ -124,6 +129,7 @@ impl Agent {
             max_turns: None,
             max_walker_depth: None,
             project_rules: None,
+            auto_compact: None,
         }
     }
 }
@@ -328,5 +334,19 @@ mod tests {
         assert_eq!(subscribe.len(), 2);
         assert!(subscribe.contains(&"event3".to_string()));
         assert!(subscribe.contains(&"event4".to_string()));
+    }
+    #[test]
+    fn test_merge_auto_compact() {
+        // Base has no value, should take other's value
+        let mut base = Agent::new("Base"); // No auto_compact set
+        let other = Agent::new("Other").auto_compact(10000u64);
+        base.merge(other);
+        assert_eq!(base.auto_compact, Some(10000u64));
+
+        // Base has a value, should be overwritten by other's value
+        let mut base = Agent::new("Base").auto_compact(5000u64);
+        let other = Agent::new("Other").auto_compact(15000u64);
+        base.merge(other);
+        assert_eq!(base.auto_compact, Some(15000u64));
     }
 }
