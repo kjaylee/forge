@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use colored::Colorize;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, API};
+use forge_api::{AgentMessage, Agent, ChatRequest, ChatResponse, ConversationId, Event, Model, API};
 use forge_display::TitleFormat;
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -91,6 +91,52 @@ impl<F: API> UI<F> {
 
         Ok(())
     }
+    
+    // Format agent information into Info struct for display
+    fn format_agent_info(agents: &[Agent]) -> Info {
+        let mut info = Info::new().add_title("Agents");
+        
+        if agents.is_empty() {
+            info = info.add_key_value("Status", "No agents found in active workflow");
+        } else {
+            // For each agent, add information
+            for agent in agents {
+                // Add agent ID as a title for each agent section
+                info = info.add_title(agent.id.as_str());
+                
+                // Add model information if specified
+                if let Some(model) = &agent.model {
+                    info = info.add_key_value("Model", model.as_str());
+                }
+                
+                // Add description if available
+                if let Some(description) = &agent.description {
+                    info = info.add_key_value("Description", description);
+                }
+                
+                // Add tools if specified
+                if let Some(tools) = &agent.tools {
+                    if !tools.is_empty() {
+                        let tool_list = tools.iter()
+                            .map(|t| t.as_str())
+                            .collect::<Vec<&str>>()
+                            .join(", ");
+                        info = info.add_key_value("Tools", tool_list);
+                    }
+                }
+                
+                // Add subscribed events if specified
+                if let Some(events) = &agent.subscribe {
+                    if !events.is_empty() {
+                        let events_list = events.join(", ");
+                        info = info.add_key_value("Events", events_list);
+                    }
+                }
+            }
+        }
+        
+        info
+    }
     // Helper functions for creating events with the specific event names
     fn create_task_init_event(content: impl ToString) -> Event {
         Event::new(EVENT_USER_TASK_INIT, content)
@@ -176,49 +222,8 @@ impl<F: API> UI<F> {
                             if let Some(workflow) = conversation.workflow {
                                 let agents = &workflow.agents;
                                 
-                                // Create display information
-                                let mut info = Info::new().add_title("Agents");
-                                
-                                if agents.is_empty() {
-                                    info = info.add_key_value("Status", "No agents found in active workflow");
-                                } else {
-                                    // For each agent, add information
-                                    for agent in agents {
-                                        // Add agent ID as a title for each agent section
-                                        info = info.add_title(agent.id.as_str());
-                                        
-                                        // Add model information if specified
-                                        if let Some(model) = &agent.model {
-                                            info = info.add_key_value("Model", model.as_str());
-                                        }
-                                        
-                                        // Add description if available
-                                        if let Some(description) = &agent.description {
-                                            info = info.add_key_value("Description", description);
-                                        }
-                                        
-                                        // Add tools if specified
-                                        if let Some(tools) = &agent.tools {
-                                            if !tools.is_empty() {
-                                                let tool_list = tools.iter()
-                                                    .map(|t| t.as_str())
-                                                    .collect::<Vec<&str>>()
-                                                    .join(", ");
-                                                info = info.add_key_value("Tools", tool_list);
-                                            }
-                                        }
-                                        
-                                        // Add subscribed events if specified
-                                        if let Some(events) = &agent.subscribe {
-                                            if !events.is_empty() {
-                                                let events_list = events.join(", ");
-                                                info = info.add_key_value("Events", events_list);
-                                            }
-                                        }
-                                    }
-                                }
-                                
-                                // Display the agent information
+                                // Format and display agent information
+                                let info = Self::format_agent_info(agents);
                                 CONSOLE.writeln(info.to_string())?;
                             } else {
                                 // No workflow in the conversation
