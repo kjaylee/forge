@@ -84,10 +84,7 @@ impl ForgeCommandManager {
 
         commands.extend(workflow.commands.clone().into_iter().map(|cmd| {
             let name = format!("/{}", cmd.name);
-            let description = match cmd.value {
-                Some(ref value) => format!("⚙ {} (PROMPT: '{}')", cmd.description, value),
-                None => format!("⚙ {}", cmd.description),
-            };
+            let description = format!("⚙ {}", cmd.description);
             let value = cmd.value.clone();
 
             ForgeCommand { name, description, value }
