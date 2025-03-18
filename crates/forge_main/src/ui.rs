@@ -114,6 +114,11 @@ impl<F: API> UI<F> {
                     info = info.add_key_value("Description", description);
                 }
                 
+                // Add tool_supported flag if specified
+                if let Some(tool_supported) = agent.tool_supported {
+                    info = info.add_key_value("Tools Supported", if tool_supported { "Yes" } else { "No" });
+                }
+                
                 // Add tools if specified
                 if let Some(tools) = &agent.tools {
                     if !tools.is_empty() {
@@ -131,6 +136,11 @@ impl<F: API> UI<F> {
                         let events_list = events.join(", ");
                         info = info.add_key_value("Events", events_list);
                     }
+                }
+                
+                // Add max_turns if specified
+                if let Some(max_turns) = agent.max_turns {
+                    info = info.add_key_value("Max Turns", max_turns.to_string());
                 }
             }
         }
