@@ -163,7 +163,7 @@ fn test_forge_automation() {
                 ))),
         )
         .add_step(
-            Step::run("echo \"${{ github.event.issue.number }}|${{ github.event.comment.body }}\" > comment_value.txt && forge --event='{\"name\": \"revise_plan\", \"value\": \"'\"$(cat comment_value.txt | jq -sRr @json | sed 's/^\"//;s/\"$//')\"'\"}'")
+            Step::run(forge_event_json("revise_plan", "${{ github.event.issue.number }}|${{ github.event.comment.body }}"))
                 .name("Run Forge to revise plan based on feedback")
                 .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
                 .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}")),
