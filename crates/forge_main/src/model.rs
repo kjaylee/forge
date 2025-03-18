@@ -155,7 +155,7 @@ impl ForgeCommandManager {
 
                         Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
-                            value.unwrap_or_else(|| panic!("Event {} needs a value", command.name)),
+                            value.unwrap_or_default(),
                         )))
                     } else {
                         Err(anyhow::anyhow!("{} is not valid", command))
