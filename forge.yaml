@@ -1,3 +1,27 @@
+commands:
+  - name: fixme
+    description: Looks for all the fixme comments in the code and attempts to fix them
+    value: Find all the FIXME comments and attempt to fix them
 agents:
   - id: software-engineer
     max_walker_depth: 1024
+
+  - tool_supported: true
+    id: fixme-agent
+    model: anthropic/claude-3.7-sonnet
+    system_prompt: "{{> system-prompt-engineer.hbs }}"
+    user_prompt: |-
+      <task>{{event.value}}</task>
+      <mode>ACT</mode>
+    ephemeral: true
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_net_fetch
+      - tool_forge_fs_search
+    subscribe:
+      - fixme
+    max_walker_depth: 4
