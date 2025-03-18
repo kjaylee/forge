@@ -230,7 +230,7 @@ impl<F: API> UI<F> {
                         // Get the conversation (which contains workflow)
                         if let Some(conversation) = self.api.conversation(&conversation_id).await? {
                             // Check if workflow contains agents
-                            if let Some(workflow) = conversation.workflow {
+                            if let Some(workflow) = &conversation.workflow {
                                 let agents = &workflow.agents;
                                 
                                 // Format and display agent information
