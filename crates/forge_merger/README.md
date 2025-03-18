@@ -1,6 +1,6 @@
 # Forge Merger
 
-A utility library crate for the Forge project that merges all non-ignored files in a directory into a single file. Each file's content is preceded by its full path enclosed in separators.
+A utility library crate for the Forge project that merges all non-ignored files in a directory into a single string. Each file's content is preceded by its full path enclosed in separators.
 
 ## Features
 
@@ -16,13 +16,17 @@ A utility library crate for the Forge project that merges all non-ignored files 
 ```rust
 use forge_merger::Merger;
 use anyhow::Result;
+use tokio::fs;
 
 async fn merge_files() -> Result<()> {
     // Create a new merger instance
-    let merger = Merger::new("/path/to/directory", "/path/to/output.txt");
+    let merger = Merger::new("/path/to/directory");
     
-    // Process all files
-    merger.process().await?;
+    // Process all files and get merged content as a string
+    let merged_content = merger.process().await?;
+    
+    // Optionally write the merged content to a file
+    fs::write("/path/to/output.txt", merged_content).await?;
     
     Ok(())
 }
@@ -33,14 +37,18 @@ async fn merge_files() -> Result<()> {
 ```rust
 use forge_merger::Merger;
 use anyhow::Result;
+use tokio::fs;
 
 async fn merge_files() -> Result<()> {
     // Create a merger with a custom separator
-    let merger = Merger::new("/path/to/directory", "/path/to/output.txt")
+    let merger = Merger::new("/path/to/directory")
         .with_separator("-------------------");
     
-    // Process all files
-    merger.process().await?;
+    // Process all files and get merged content
+    let merged_content = merger.process().await?;
+    
+    // Optionally write the merged content to a file
+    fs::write("/path/to/output.txt", merged_content).await?;
     
     Ok(())
 }
@@ -48,7 +56,7 @@ async fn merge_files() -> Result<()> {
 
 ## Output Format
 
-The merged file will have the following format:
+The merged content will have the following format:
 
 ```
 ================
