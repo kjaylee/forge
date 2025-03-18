@@ -101,6 +101,28 @@ agents:
     max_walker_depth: 4
 
   - tool_supported: true
+    id: github-review-handler
+    model: *advanced_model
+    system_prompt: "{{> system-prompt-github-review-handler.hbs }}"
+    user_prompt: |-
+      <event>{{event.name}}</event>
+      <value>{{event.value}}</value>
+      <mode>ACT</mode>
+    ephemeral: false
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_net_fetch
+      - tool_forge_fs_search
+      - tool_forge_event_dispatch
+    subscribe:
+      - fix-review-comment
+    max_walker_depth: 4
+
+  - tool_supported: true
     id: git-commit-worker
     model: *advanced_model
     ephemeral: true
