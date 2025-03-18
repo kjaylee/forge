@@ -167,6 +167,88 @@ impl<F: API> UI<F> {
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
+                Command::Agents => {
+                    // Check if a conversation and workflow exist
+                    if let Some(conversation_id) = self.state.conversation_id.clone() {
+                        // Get the conversation (which contains workflow)
+                        if let Some(conversation) = self.api.conversation(&conversation_id).await? {
+                            // Check if workflow contains agents
+                            if let Some(workflow) = conversation.workflow {
+                                let agents = &workflow.agents;
+                                
+                                // Create display information
+                                let mut info = Info::new().add_title("Agents");
+                                
+                                if agents.is_empty() {
+                                    info = info.add_key_value("Status", "No agents found in active workflow");
+                                } else {
+                                    // For each agent, add information
+                                    for agent in agents {
+                                        // Add agent ID as a title for each agent section
+                                        info = info.add_title(agent.id.as_str());
+                                        
+                                        // Add model information if specified
+                                        if let Some(model) = &agent.model {
+                                            info = info.add_key_value("Model", model.as_str());
+                                        }
+                                        
+                                        // Add description if available
+                                        if let Some(description) = &agent.description {
+                                            info = info.add_key_value("Description", description);
+                                        }
+                                        
+                                        // Add tools if specified
+                                        if let Some(tools) = &agent.tools {
+                                            if !tools.is_empty() {
+                                                let tool_list = tools.iter()
+                                                    .map(|t| t.as_str())
+                                                    .collect::<Vec<&str>>()
+                                                    .join(", ");
+                                                info = info.add_key_value("Tools", tool_list);
+                                            }
+                                        }
+                                        
+                                        // Add subscribed events if specified
+                                        if let Some(events) = &agent.subscribe {
+                                            if !events.is_empty() {
+                                                let events_list = events.join(", ");
+                                                info = info.add_key_value("Events", events_list);
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // Display the agent information
+                                CONSOLE.writeln(info.to_string())?;
+                            } else {
+                                // No workflow in the conversation
+                                CONSOLE.writeln(
+                                    TitleFormat::failed("No workflow available")
+                                        .sub_title("The active conversation does not contain a workflow")
+                                        .format(),
+                                )?;
+                            }
+                        } else {
+                            // Conversation not found
+                            CONSOLE.writeln(
+                                TitleFormat::failed("Conversation not found")
+                                    .sub_title("Unable to retrieve the active conversation")
+                                    .format(),
+                            )?;
+                        }
+                    } else {
+                        // No active conversation
+                        CONSOLE.writeln(
+                            TitleFormat::failed("No active workflow")
+                                .sub_title("Start a conversation first")
+                                .format(),
+                        )?;
+                    }
+                    
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
                 Command::Message(ref content) => {
                     let chat_result = match self.state.mode {
                         Mode::Help => {
