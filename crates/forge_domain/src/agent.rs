@@ -178,6 +178,10 @@ pub enum Transform {
         agent_id: AgentId,
         // Input template for the transformation
         input: String,
+    },    /// Automatically compacts the context when token count exceeds a threshold
+    AutoCompact {
+        // Maximum token limit before compaction
+        token_limit: usize,
     },
 }
 

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 mod agent;
+mod agent_tests;
 mod chat_request;
 mod chat_response;
 mod context;

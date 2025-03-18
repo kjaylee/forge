@@ -1,0 +1,14 @@
+# Example configuration using transforms for auto-compaction
+agents:
+  my_agent:
+    id: "my_agent"
+    description: "Agent with auto-compaction via transform"
+    model: "openai/gpt-4o"
+    transforms:
+      - type: auto_compact
+        token_limit: 10000
+    tool_supported: true
+    tools:
+      - "forge_fs_read"
+      - "forge_fs_write"
+      - "forge_process_shell"

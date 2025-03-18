@@ -7,8 +7,8 @@ use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use tracing::debug;
 
-use crate::*;
 use crate::summarize::token_count;
+use crate::*;
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
 
@@ -243,6 +243,31 @@ impl<A: App> Orchestrator<A> {
                     // NOTE: Tap transformers will not modify the context
                     self.init_agent_with_event(agent_id, &input).await?;
                 }
+                Transform::AutoCompact { token_limit } => {
+                    let total_tokens = token_count(&context.to_text());
+
+                    if total_tokens > *token_limit {
+                        let mut summarize = Summarize::new(&mut context, *token_limit);
+
+                        // Apply summarization until we're below the threshold
+                        while let Some(mut summary) = summarize.summarize() {
+                            let turn_content = summary.get();
+                            let summary_text = format!(
+                                "Auto-summarized conversation turn with {} tokens",
+                                token_count(&turn_content)
+                            );
+                            summary.set(summary_text);
+                        }
+
+                        debug!(
+                            conversation_id = %self.conversation_id,
+                            tokens_before = %total_tokens,
+                            threshold = %token_limit,
+                            tokens_after = %token_count(&context.to_text()),
+                            "Auto-compaction performed"
+                        );
+                    }
+                }
             }
         }
 
@@ -341,23 +366,25 @@ impl<A: App> Orchestrator<A> {
         // Check if auto_compact is enabled for this agent and perform summarization if needed
         if let Some(auto_compact_threshold) = agent.auto_compact {
             let total_tokens = token_count(&context.to_text()) as u64;
-            
+
             if total_tokens > auto_compact_threshold {
                 // Create a summarizer with the auto_compact threshold as token limit
                 let mut summarize = Summarize::new(&mut context, auto_compact_threshold as usize);
-                
+
                 // Apply summarization until we're below the threshold
                 while let Some(mut summary) = summarize.summarize() {
                     let turn_content = summary.get();
                     // Create a simple summary of the turn
-                    let summary_text = format!("Auto-summarized conversation turn with {} tokens", 
-                                               token_count(&turn_content));
+                    let summary_text = format!(
+                        "Auto-summarized conversation turn with {} tokens",
+                        token_count(&turn_content)
+                    );
                     summary.set(summary_text);
                 }
-                
+
                 // Update the context in the conversation with the summarized version
                 self.set_context(&agent.id, context.clone()).await?;
-                
+
                 // Log that auto-compaction was performed
                 debug!(
                     conversation_id = %self.conversation_id,
