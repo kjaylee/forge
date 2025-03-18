@@ -33,6 +33,13 @@ impl From<ToolName> for AgentId {
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Agent {
+    /// Flag to disable this agent, when true agent will not be activated
+    /// Default is false (agent is enabled)
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub disable: Option<bool>,
+
     /// Flag to enable/disable tool support for this agent.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -111,6 +118,7 @@ impl Agent {
     pub fn new(id: impl ToString) -> Self {
         Self {
             id: AgentId::new(id),
+            disable: None,
             tool_supported: None,
             model: None,
             description: None,
@@ -215,6 +223,21 @@ mod tests {
         let other = Agent::new("Other").tool_supported(true);
         base.merge(other);
         assert_eq!(base.tool_supported, Some(true));
+    }
+
+    #[test]
+    fn test_merge_disable() {
+        // Base has no value, should use other's value
+        let mut base = Agent::new("Base"); // No disable set
+        let other = Agent::new("Other").disable(true);
+        base.merge(other);
+        assert_eq!(base.disable, Some(true));
+
+        // Base has a value, should be overwritten
+        let mut base = Agent::new("Base").disable(false);
+        let other = Agent::new("Other").disable(true);
+        base.merge(other);
+        assert_eq!(base.disable, Some(true));
     }
 
     #[test]
