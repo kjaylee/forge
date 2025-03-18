@@ -64,9 +64,9 @@ jobs:
         body: |-
           ✨ **Forge Automation Engaged!** ✨
 
-          I've started working on this issue with the power of AI. You can watch my progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+          I've started working on this issue with the power of AI. I'll analyze the issue and create a plan for review. Stay tuned for updates You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
-          I'll analyze the issue and create a plan for review. Stay tuned for updates!
+          .
     - name: Run Forge to process issue
       run: 'forge --event=''{"name": "fix_issue", "value": "${{ github.event.issue.number }}"}'''
       env:
@@ -97,9 +97,9 @@ jobs:
         body: |-
           📝 **Revising Plan** 📝
 
-          I'm working on revising the plan based on your feedback. You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+          I'm working on revising the plan based on your feedback. I'll update the task file with the revised plan shortly You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
-          I'll update the task file with the revised plan shortly.
+          .
     - name: Run Forge to revise plan based on feedback
       run: 'forge --event=''{"name": "revise_plan", "value": "${{ github.event.issue.number }}|${{ github.event.comment.body }}"}'''
       env:
@@ -115,6 +115,7 @@ jobs:
       with:
         private_key: ${{ secrets.FORGE_BOT_PRIVATE_KEY }}
         app_id: ${{secrets.FORGE_BOT_APP_ID}}
+    - uses: actions/checkout@v4
     - name: Add comment to PR about plan approval
       uses: peter-evans/create-or-update-comment@v4
       with:
@@ -123,7 +124,9 @@ jobs:
         body: |-
           ✅ **Plan Approved** ✅
 
-          Thank you for approving the plan! I'm now ready to implement the changes. You can either wait for automatic implementation or trigger it manually with `/forge continue`.
+          Thank you for approving the plan! I'm now ready to implement the changes. You can either wait for automatic implementation or trigger it manually with `/forge continue` You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+          .
     - name: 'Update labels: remove forge-plan-review, add forge-implement'
       uses: actions/github-script@v6
       with:
@@ -173,9 +176,9 @@ jobs:
         body: |-
           🔨️ **Implementation In Progress** 🔨️
 
-          I'm now implementing the approved plan. You can watch my progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+          I'm now implementing the approved plan. I'll update this PR with the implementation soon You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
-          I'll update this PR with the implementation soon.
+          .
     - name: Run Forge to implement PR based on approved plan
       run: 'forge --event=''{"name": "update_pr", "value": "${{ github.event_name == ''issue_comment'' && github.event.issue.number || github.event.pull_request.number }}"}'''
       env:
@@ -206,9 +209,9 @@ jobs:
         body: |-
           💬 **Processing Review Comment** 💬
 
-          I'm analyzing and addressing this review comment. You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+          I'm analyzing and addressing this review comment. I'll update the PR shortly with the requested changes You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
-          I'll update the PR shortly with the requested changes.
+          .
     - name: Run Forge to address review comments
       run: 'forge --event=''{"name": "fix-review-comment", "value": "${{ github.event.pull_request.number }}"}'''
       env:
