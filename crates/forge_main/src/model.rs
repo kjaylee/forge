@@ -148,7 +148,10 @@ impl ForgeCommandManager {
                             .find(|c| c.name == command.name)
                             .and_then(|cmd| cmd.value.clone());
 
-                        let value = value_provided.or(value_default);
+                        let value = match value_provided {
+                            Some(value) if !value.trim().is_empty() => Some(value),
+                            _ => value_default,
+                        };
 
                         Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
