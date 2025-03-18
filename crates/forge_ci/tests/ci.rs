@@ -309,6 +309,17 @@ fn test_forge_automation() {
         .on(Event {
             issues: Some(Issues { types: vec![IssuesType::Labeled] }),
             issue_comment: Some(IssueComment { types: vec![IssueCommentType::Created] }),
+            pull_request: Some(PullRequest {
+                types: vec![
+                    PullRequestType::Opened,
+                    PullRequestType::Reopened,
+                    PullRequestType::Labeled,
+                    PullRequestType::Unlabeled,
+                    PullRequestType::Edited,
+                ],
+                branches: vec![],
+                paths: vec![],
+            }),
             pull_request_review: Some(PullRequestReview {
                 types: vec![
                     PullRequestReviewType::Submitted,
@@ -330,16 +341,16 @@ fn test_forge_automation() {
                 .pull_requests(Level::Write),
         );
 
-    // Process issues job - runs when an issue is labeled with "forge-just-do-it"
+    // Process issues job - runs when an issue is labeled with "forge-automate"  
     forge_automation = forge_automation.add_job(
         "process_issue",
         Job::new("process_issue")
             .runs_on("ubuntu-latest")
-            .cond(Expression::new("github.event_name == 'issues' && github.event.label.name == 'forge-just-do-it'"))
+            .cond(Expression::new("github.event_name == 'issues' && github.event.label.name == 'forge-automate'"))
             .add_step(Step::uses("tibdex", "github-app-token", "v2")
-            .id("generate-token")
-            .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
-            .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}")))
+                .id("generate-token")
+                .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
+                .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}")))
             .add_step(Step::uses("actions", "checkout", "v4"))
             .add_step(
                 Step::run("curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash")
@@ -350,8 +361,9 @@ fn test_forge_automation() {
                     .name("Add comment to issue with action link")
                     .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
                     .add_with(("issue-number", "${{ github.event.issue.number }}"))
-                    .add_with(("body", "✨ **Forge Automation Engaged!** ✨\n\nI've started working on this issue with the power of AI. You can watch my progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n\nI'll analyze the issue and submit a solution shortly. Stay tuned for updates!")),
-            ).add_step(
+                    .add_with(("body", "✨ **Forge Automation Engaged!** ✨\n\nI've started working on this issue with the power of AI. You can watch my progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n\nI'll analyze the issue and create a plan for review. Stay tuned for updates!")),
+            )
+            .add_step(
                 Step::run("forge --event='{\"name\": \"fix_issue\", \"value\": \"${{ github.event.issue.number }}\"}'")
                     .name("Run Forge to process issue")
                     .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
@@ -359,48 +371,144 @@ fn test_forge_automation() {
             ),
     );
 
-    // Process PR comment job - runs when a comment is added to a PR with the
-    // "forge-just-do-it" label
+    // Revise plan job - runs when a comment with "/forge revise-plan" is added to a PR with the "forge-plan-review" label
     forge_automation = forge_automation.add_job(
-        "update_pr",
-        Job::new("update_pr")
+        "revise_plan",
+        Job::new("revise_plan")
             .runs_on("ubuntu-latest")
-            .cond(Expression::new(
-                "(github.event_name == 'issue_comment' && \
-                  github.event.issue.pull_request && \
-                  contains(github.event.issue.labels.*.name, 'forge-just-do-it') && \
-                  github.actor != 'forge-at-your-service[bot]') || \
-                 (github.event_name == 'pull_request_review' && \
-                  contains(github.event.pull_request.labels.*.name, 'forge-just-do-it') && \
-                  github.actor != 'forge-at-your-service[bot]') || \
-                 (github.event_name == 'pull_request_review_comment' && \
-                  contains(github.event.pull_request.labels.*.name, 'forge-just-do-it') && \
-                  github.actor != 'forge-at-your-service[bot]')",
-            ))
+                .cond(Expression::new("github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'forge-plan-review') && startsWith(github.event.comment.body, '/forge revise-plan')"))
             .add_step(Step::uses("tibdex", "github-app-token", "v2")
-            .id("generate-token")
-            .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
-            .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}"))
-        )
+                .id("generate-token")
+                .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
+                .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}")))
             .add_step(Step::uses("actions", "checkout", "v4"))
+            .add_step(
+                Step::run("git fetch origin pull/${{ github.event.issue.number }}/head:pr-${{ github.event.issue.number }}")
+                    .name("Fetch PR branch"),
+            )
+            .add_step(
+                Step::run("git checkout pr-${{ github.event.issue.number }}")
+                    .name("Checkout PR branch"),
+            )
             .add_step(
                 Step::run("curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash")
                     .name("Install Forge CLI"),
             )
             .add_step(
                 Step::uses("peter-evans", "create-or-update-comment", "v4")
-                    .name("Add comment to PR with action link")
+                    .name("Add comment to PR about plan revision")
                     .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
-                    .add_with(("issue-number", "${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}"))
-                    .add_with(("body", "🔧 **Forge at your service!** 🔧\n\nI'm processing your comment and updating this PR accordingly. Watch the magic happen in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n\nI'll analyze your request and implement the suggested changes. Check back soon for updates!")),
+                    .add_with(("issue-number", "${{ github.event.issue.number }}"))
+                    .add_with(("body", "📝 **Revising Plan** 📝\n\nI'm working on revising the plan based on your feedback. You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n\nI'll update the task file with the revised plan shortly.")),
             )
             .add_step(
-                Step::run("forge --event='{\"name\": \"update_pr\", \"value\": \"${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}\"}'") 
-                    .name("Run Forge to update PR based on comment")
+                Step::run("forge --event='{\"name\": \"revise_plan\", \"value\": \"${{ github.event.issue.number }}|${{ github.event.comment.body }}\"}'")
+                    .name("Run Forge to revise plan based on feedback")
                     .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
-                    .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}"))
+                    .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}")),
+            ),
+    );
+
+    // Approve plan job - runs when a comment with "/forge approve-plan" is added to a PR with the "forge-plan-review" label
+    forge_automation = forge_automation.add_job(
+        "approve_plan",
+        Job::new("approve_plan")
+            .runs_on("ubuntu-latest")
+                .cond(Expression::new("github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'forge-plan-review') && startsWith(github.event.comment.body, '/forge approve-plan')"))
+            .add_step(Step::uses("tibdex", "github-app-token", "v2")
+                .id("generate-token")
+                .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
+                .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}")))
+            .add_step(
+                Step::uses("peter-evans", "create-or-update-comment", "v4")
+                    .name("Add comment to PR about plan approval")
+                    .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
+                    .add_with(("issue-number", "${{ github.event.issue.number }}"))
+                    .add_with(("body", "✅ **Plan Approved** ✅\n\nThank you for approving the plan! I'm now ready to implement the changes. You can either wait for automatic implementation or trigger it manually with `/forge continue`.")),
             )
-            ,
+            .add_step(
+                Step::uses("actions", "github-script", "v6")
+                    .name("Update labels: remove forge-plan-review, add forge-implement")
+                    .add_with(("script", "\nconst issueNumber = context.payload.issue.number;\n\n// Remove forge-plan-review label\nawait github.rest.issues.removeLabel({\n  owner: context.repo.owner,\n  repo: context.repo.repo,\n  issue_number: issueNumber,\n  name: 'forge-plan-review'\n});\n\n// Add forge-implement label\nawait github.rest.issues.addLabels({\n  owner: context.repo.owner,\n  repo: context.repo.repo,\n  issue_number: issueNumber,\n  labels: ['forge-implement']\n});\n"))
+                    .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}")),
+            ),
+    );
+
+    // Implement PR job - runs when a PR has the "forge-implement" label and not the "forge-plan-review" label,
+    // or when a comment with "/forge continue" is added to a PR with the "forge-implement" label
+    forge_automation = forge_automation.add_job(
+        "implement_pr",
+        Job::new("implement_pr")
+            .runs_on("ubuntu-latest")
+                .cond(Expression::new("(github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'forge-implement') && !contains(github.event.pull_request.labels.*.name, 'forge-plan-review') && github.event.pull_request.draft == true) || (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.issue.labels.*.name, 'forge-implement') && !contains(github.event.issue.labels.*.name, 'forge-plan-review') && startsWith(github.event.comment.body, '/forge continue'))"))
+            .add_step(Step::uses("tibdex", "github-app-token", "v2")
+                .id("generate-token")
+                .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
+                .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}")))
+            .add_step(Step::uses("actions", "checkout", "v4"))
+            .add_step(
+                Step::run("git fetch origin pull/${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}/head:pr-${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}")
+                    .name("Fetch PR branch"),
+            )
+            .add_step(
+                Step::run("git checkout pr-${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}")
+                    .name("Checkout PR branch"),
+            )
+            .add_step(
+                Step::run("curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash")
+                    .name("Install Forge CLI"),
+            )
+            .add_step(
+                Step::uses("peter-evans", "create-or-update-comment", "v4")
+                    .name("Add comment to PR about implementation")
+                    .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
+                    .add_with(("issue-number", "${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}"))
+                    .add_with(("body", "🔨️ **Implementation In Progress** 🔨️\n\nI'm now implementing the approved plan. You can watch my progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n\nI'll update this PR with the implementation soon.")),
+            )
+            .add_step(
+                Step::run("forge --event='{\"name\": \"update_pr\", \"value\": \"${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}\"}'")
+                    .name("Run Forge to implement PR based on approved plan")
+                    .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
+                    .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}")),
+            ),
+    );
+
+    // Handle review comments job - runs when a review comment is added to a PR with the "forge-automate" label
+    forge_automation = forge_automation.add_job(
+        "handle_review",
+        Job::new("handle_review")
+            .runs_on("ubuntu-latest")
+            .cond(Expression::new("(github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review') && contains(github.event.pull_request.labels.*.name, 'forge-automate')"))
+            .add_step(Step::uses("tibdex", "github-app-token", "v2")
+                .id("generate-token")
+                .add_with(("private_key", "${{ secrets.FORGE_BOT_PRIVATE_KEY }}"))
+                .add_with(("app_id", "${{secrets.FORGE_BOT_APP_ID}}")))
+            .add_step(Step::uses("actions", "checkout", "v4"))
+            .add_step(
+                Step::run("git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-${{ github.event.pull_request.number }}")
+                    .name("Fetch PR branch"),
+            )
+            .add_step(
+                Step::run("git checkout pr-${{ github.event.pull_request.number }}")
+                    .name("Checkout PR branch"),
+            )
+            .add_step(
+                Step::run("curl -L https://raw.githubusercontent.com/antinomyhq/forge/main/install.sh | bash")
+                    .name("Install Forge CLI"),
+            )
+            .add_step(
+                Step::uses("peter-evans", "create-or-update-comment", "v4")
+                    .name("Add comment to PR about handling review comment")
+                    .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
+                    .add_with(("issue-number", "${{ github.event.pull_request.number }}"))
+                    .add_with(("body", "💬 **Processing Review Comment** 💬\n\nI'm analyzing and addressing this review comment. You can track progress in the [GitHub Action run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).\n\nI'll update the PR shortly with the requested changes.")),
+            )
+            .add_step(
+                Step::run("forge --event='{\"name\": \"fix-review-comment\", \"value\": \"${{ github.event.pull_request.number }}\"}'")
+                    .name("Run Forge to address review comments")
+                    .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
+                    .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}")),
+            ),
     );
 
     Generate::new(forge_automation)
