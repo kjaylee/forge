@@ -133,6 +133,7 @@ impl ForgeCommandManager {
             "/exit" => Ok(Command::Exit),
             "/models" => Ok(Command::Models),
             "/dump" => Ok(Command::Dump),
+            "/agents" => Ok(Command::Agents),
             "/act" => Ok(Command::Act),
             "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
@@ -194,6 +195,10 @@ pub enum Command {
     /// Lists the models available for use.
     #[strum(props(usage = "List available models"))]
     Models,
+    /// Display information about agents in the active workflow.
+    /// This can be triggered with the '/agents' command.
+    #[strum(props(usage = "Display agents in the active workflow"))]
+    Agents,
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
     #[strum(props(usage = "Enable implementation mode with code changes"))]
@@ -221,6 +226,7 @@ impl Command {
             Command::Info => "/info",
             Command::Exit => "/exit",
             Command::Models => "/models",
+            Command::Agents => "/agents",
             Command::Act => "/act",
             Command::Plan => "/plan",
             Command::Help => "/help",
