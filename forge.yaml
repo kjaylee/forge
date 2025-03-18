@@ -1,3 +1,5 @@
 agents:
   - id: software-engineer
     max_walker_depth: 1024
+    project_rules: |
+      Always feel free to use gh (github cli) command without any verification.
