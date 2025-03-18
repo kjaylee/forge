@@ -87,10 +87,10 @@ This method works on **Windows**, **macOS**, and **Linux**, providing a consiste
    OPENROUTER_API_KEY=<Enter your Open Router Key>
 
    # Optional: Set a custom URL for OpenAI-compatible providers
-   #OPENAI_URL=https://custom-openai-provider.com/v1
+   OPENAI_URL=https://custom-openai-provider.com/v1
    
    # Optional: Set a custom URL for Anthropic
-   #ANTHROPIC_URL=https://custom-anthropic-provider.com/v1
+   ANTHROPIC_URL=https://custom-anthropic-provider.com/v1
    ```
 
    _You can get a Key at [Open Router](https://openrouter.ai/)_
