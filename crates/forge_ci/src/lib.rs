@@ -1,13 +1,16 @@
-/// Formats an issue revise-plan command input from comment for consumption by revise_plan event
-/// 
+/// Formats an issue revise-plan command input from comment for consumption by
+/// revise_plan event
+///
 /// # Arguments
-/// 
+///
 /// * `issue_number` - The issue number
-/// * `comment_body` - The entire comment body containing the revise-plan command and feedback
-/// 
+/// * `comment_body` - The entire comment body containing the revise-plan
+///   command and feedback
+///
 /// # Returns
-/// 
-/// A string in the format "issue_number|feedback" where feedback is the content after the command
+///
+/// A string in the format "issue_number|feedback" where feedback is the content
+/// after the command
 pub fn format_revise_plan_input(issue_number: u32, comment_body: &str) -> String {
     let command = "/forge revise-plan";
     let feedback = comment_body.trim_start_matches(command).trim();
@@ -26,10 +29,13 @@ mod tests {
 
         // Test with multiline feedback
         let result = format_revise_plan_input(
-            456, 
+            456,
             "/forge revise-plan Please consider the following:\n1. More tests\n2. Better docs\n3. Refactor code"
         );
-        assert_eq!(result, "456|Please consider the following:\n1. More tests\n2. Better docs\n3. Refactor code");
+        assert_eq!(
+            result,
+            "456|Please consider the following:\n1. More tests\n2. Better docs\n3. Refactor code"
+        );
 
         // Test with no feedback
         let result = format_revise_plan_input(789, "/forge revise-plan");

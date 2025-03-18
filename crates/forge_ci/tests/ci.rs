@@ -341,7 +341,7 @@ fn test_forge_automation() {
                 .pull_requests(Level::Write),
         );
 
-    // Process issues job - runs when an issue is labeled with "forge-automate"  
+    // Process issues job - runs when an issue is labeled with "forge-automate"
     forge_automation = forge_automation.add_job(
         "process_issue",
         Job::new("process_issue")
@@ -371,7 +371,8 @@ fn test_forge_automation() {
             ),
     );
 
-    // Revise plan job - runs when a comment with "/forge revise-plan" is added to a PR with the "forge-plan-review" label
+    // Revise plan job - runs when a comment with "/forge revise-plan" is added to a
+    // PR with the "forge-plan-review" label
     forge_automation = forge_automation.add_job(
         "revise_plan",
         Job::new("revise_plan")
@@ -409,7 +410,8 @@ fn test_forge_automation() {
             ),
     );
 
-    // Approve plan job - runs when a comment with "/forge approve-plan" is added to a PR with the "forge-plan-review" label
+    // Approve plan job - runs when a comment with "/forge approve-plan" is added to
+    // a PR with the "forge-plan-review" label
     forge_automation = forge_automation.add_job(
         "approve_plan",
         Job::new("approve_plan")
@@ -434,8 +436,9 @@ fn test_forge_automation() {
             ),
     );
 
-    // Implement PR job - runs when a PR has the "forge-implement" label and not the "forge-plan-review" label,
-    // or when a comment with "/forge continue" is added to a PR with the "forge-implement" label
+    // Implement PR job - runs when a PR has the "forge-implement" label and not the
+    // "forge-plan-review" label, or when a comment with "/forge continue" is
+    // added to a PR with the "forge-implement" label
     forge_automation = forge_automation.add_job(
         "implement_pr",
         Job::new("implement_pr")
@@ -473,7 +476,8 @@ fn test_forge_automation() {
             ),
     );
 
-    // Handle review comments job - runs when a review comment is added to a PR with the "forge-automate" label
+    // Handle review comments job - runs when a review comment is added to a PR with
+    // the "forge-automate" label
     forge_automation = forge_automation.add_job(
         "handle_review",
         Job::new("handle_review")
