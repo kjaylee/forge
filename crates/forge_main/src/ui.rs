@@ -499,13 +499,12 @@ impl<F: API> UI<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use forge_domain::{Agent, AgentId, ModelId, ToolName};
-
+    
     #[test]
     fn test_format_agent_info_empty() {
         // Test with empty agent list
-        let agents: Vec<Agent> = Vec::new();
-        let info = UI::<()>::format_agent_info(&agents);
+        let agents = Vec::<Agent>::new();
+        let info = UI::<MockApi>::format_agent_info(&agents);
         let formatted = info.to_string();
         
         // Verify the output contains the expected messages
@@ -518,15 +517,15 @@ mod tests {
     fn test_format_agent_info() {
         // Create a test agent with all fields populated
         let mut agent = Agent::new("test-agent");
-        agent.model = Some(ModelId::new("gpt-4"));
+        agent.model = Some(forge_api::ModelId::new("gpt-4"));
         agent.description = Some("Test agent description".to_string());
         agent.tool_supported = Some(true);
-        agent.tools = Some(vec![ToolName::new("tool1"), ToolName::new("tool2")]);
+        agent.tools = Some(vec![forge_api::ToolName::new("tool1"), forge_api::ToolName::new("tool2")]);
         agent.subscribe = Some(vec!["event1".to_string(), "event2".to_string()]);
         agent.max_turns = Some(10);
         
         let agents = vec![agent];
-        let info = UI::<()>::format_agent_info(&agents);
+        let info = UI::<MockApi>::format_agent_info(&agents);
         let formatted = info.to_string();
         
         // Verify the output contains all expected information
@@ -540,5 +539,66 @@ mod tests {
         assert!(formatted.contains("event1, event2"));
         assert!(formatted.contains("Max Turns"));
         assert!(formatted.contains("10"));
+    }
+    
+    // Mock implementation of API trait for testing
+    struct MockApi;
+    
+    #[async_trait::async_trait]
+    impl API for MockApi {
+        async fn suggestions(&self) -> anyhow::Result<Vec<forge_api::File>> {
+            unimplemented!()
+        }
+
+        async fn tools(&self) -> Vec<forge_api::ToolDefinition> {
+            unimplemented!()
+        }
+
+        async fn models(&self) -> anyhow::Result<Vec<forge_api::Model>> {
+            unimplemented!()
+        }
+
+        async fn chat(
+            &self,
+            _: forge_api::ChatRequest,
+        ) -> anyhow::Result<forge_stream::MpscStream<anyhow::Result<forge_api::AgentMessage<forge_api::ChatResponse>, anyhow::Error>>> {
+            unimplemented!()
+        }
+
+        fn environment(&self) -> forge_api::Environment {
+            unimplemented!()
+        }
+
+        async fn init(&self, _: forge_api::Workflow) -> anyhow::Result<forge_api::ConversationId> {
+            unimplemented!()
+        }
+
+        async fn load(&self, _: Option<&std::path::Path>) -> anyhow::Result<forge_api::Workflow> {
+            unimplemented!()
+        }
+
+        async fn conversation(
+            &self,
+            _: &forge_api::ConversationId,
+        ) -> anyhow::Result<Option<forge_api::Conversation>> {
+            unimplemented!()
+        }
+
+        async fn get_variable(
+            &self,
+            _: &forge_api::ConversationId,
+            _: &str,
+        ) -> anyhow::Result<Option<serde_json::Value>> {
+            unimplemented!()
+        }
+
+        async fn set_variable(
+            &self,
+            _: &forge_api::ConversationId,
+            _: String,
+            _: serde_json::Value,
+        ) -> anyhow::Result<()> {
+            unimplemented!()
+        }
     }
 }
