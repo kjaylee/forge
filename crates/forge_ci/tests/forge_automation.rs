@@ -10,11 +10,18 @@ fn generate_comment_body(emoji: &str, title: &str, message: &str) -> String {
     )
 }
 
-/// Generate a forge event JSON string
+/// Generate a forge event JSON string with proper escaping
 fn forge_event_json(event_name: &str, value_expr: &str) -> String {
+    let escaped_value = value_expr
+        .replace('\\', "\\\\") // Escape backslashes first
+        .replace('"', "\\\"")
+        .replace('\r', "\\r")
+        .replace('\n', "\\n")
+        .replace('\t', "\\t");
+
     format!(
-        "forge --event='{{\"{}\": \"{}\", \"value\": \"{}\"}}\'",
-        "name", event_name, value_expr
+        "forge --event='{{\"name\": \"{}\", \"value\": \"{}\"}}'",
+        event_name, escaped_value
     )
 }
 
@@ -156,7 +163,7 @@ fn test_forge_automation() {
                 ))),
         )
         .add_step(
-            Step::run(forge_event_json("revise_plan", "${{ github.event.issue.number }}|${{ github.event.comment.body }}"))
+            Step::run(forge_event_json("revise_plan", "${{ github.event.issue.number }}"))
                 .name("Run Forge to revise plan based on feedback")
                 .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
                 .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}")),
@@ -231,7 +238,7 @@ fn test_forge_automation() {
 
     // Handle review comments job - runs when a review comment is added to a PR with
     // the "forge-automate" label
-    let handle_review_condition = "(github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review') && contains(github.event.pull_request.labels.*.name, 'forge-automate')";
+    let handle_review_condition = "(github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review') && (contains(github.event.pull_request.labels.*.name, 'forge-automate') || contains(github.event.pull_request.labels.*.name, 'forge-implement'))";
 
     let handle_review_job = add_forge_cli_installation(
         add_pr_checkout_steps(
@@ -261,6 +268,41 @@ fn test_forge_automation() {
         );
 
     forge_automation = forge_automation.add_job("handle_review", handle_review_job);
+
+    // Handle regular PR comments job - runs when a regular comment is added to a PR
+    // with the "forge-automate" or "forge-implement" label, excluding comments
+    // starting with "/forge" and excluding comments made by the bot itself to
+    // prevent infinite loops
+    let handle_pr_comment_condition = "github.event_name == 'issue_comment' && github.event.issue.pull_request && (contains(github.event.issue.labels.*.name, 'forge-automate') || contains(github.event.issue.labels.*.name, 'forge-implement')) && !startsWith(github.event.comment.body, '/forge') && github.actor != 'forge-by-antinomy[bot]'";
+
+    let handle_pr_comment_job = add_forge_cli_installation(
+        add_pr_checkout_steps(
+            add_common_setup_steps(
+                Job::new("handle_pr_comment")
+                    .runs_on("ubuntu-latest")
+                    .cond(Expression::new(handle_pr_comment_condition))
+            ),
+            "${{ github.event.issue.number }}"
+        ))
+        .add_step(
+            Step::uses("peter-evans", "create-or-update-comment", "v4")
+                .name("Add comment to PR about handling general comment")
+                .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
+                .add_with(("issue-number", "${{ github.event.issue.number }}"))
+                .add_with(("body", generate_comment_body(
+                    "💬", 
+                    "Processing PR Comment", 
+                    "I'm analyzing and addressing your comment. I'll update the PR shortly with any needed changes"
+                ))),
+        )
+        .add_step(
+            Step::run(forge_event_json("fix-review-comment", "${{ github.event.issue.number }}"))
+                .name("Run Forge to address PR comment")
+                .add_env(("GITHUB_TOKEN", "${{ steps.generate-token.outputs.token }}"))
+                .add_env(("FORGE_KEY", "${{ secrets.FORGE_KEY }}")),
+        );
+
+    forge_automation = forge_automation.add_job("handle_pr_comment", handle_pr_comment_job);
 
     Generate::new(forge_automation)
         .name("forge-automation.yml")
@@ -294,5 +336,24 @@ mod tests {
         let condition = issue_comment_condition("test-label", "/test-command");
         assert!(condition.contains("test-label"));
         assert!(condition.contains("/test-command"));
+    }
+
+    #[test]
+    fn test_pr_comment_condition() {
+        let condition = "github.event_name == 'issue_comment' && github.event.issue.pull_request && (contains(github.event.issue.labels.*.name, 'forge-automate') || contains(github.event.issue.labels.*.name, 'forge-implement')) && !startsWith(github.event.comment.body, '/forge') && github.actor != 'forge-by-antinomy[bot]'";
+        assert!(condition.contains("github.event_name == 'issue_comment'"));
+        assert!(condition.contains("github.event.issue.pull_request"));
+        assert!(condition.contains("contains(github.event.issue.labels.*.name, 'forge-automate')"));
+        assert!(condition.contains("!startsWith(github.event.comment.body, '/forge')"));
+        assert!(condition.contains("github.actor != 'forge-by-antinomy[bot]'"));
+    }
+
+    #[test]
+    fn test_forge_event_json_with_special_chars() {
+        let json = forge_event_json("test_event", "test_value\r\nwith\tspecial\"chars");
+        assert_eq!(
+            json,
+            "forge --event='{\"name\": \"test_event\", \"value\": \"test_value\\r\\nwith\\tspecial\\\"chars\"}'"
+        );
     }
 }
