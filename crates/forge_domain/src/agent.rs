@@ -206,6 +206,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn test_merge_model() {
