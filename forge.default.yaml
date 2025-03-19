@@ -16,8 +16,9 @@ models:
 
 agents:
   - tool_supported: true
-    id: title_generation_worker
+    id: title_generation
     model: *standard_model
+    hide_content: true
     system_prompt: "{{> system-prompt-title-generator.hbs }}"
     user_prompt: <technical_content>{{event.value}}</technical_content>
     tools:
@@ -124,7 +125,8 @@ agents:
     max_walker_depth: 4
 
   - tool_supported: true
-    id: git-commit-worker
+    id: git-commit
+    hide_content: true
     model: *advanced_model
     ephemeral: true
     system_prompt: "{{> system-prompt-git-commit.hbs }}"
@@ -157,7 +159,8 @@ agents:
     max_walker_depth: 4
 
   - tool_supported: true
-    id: github-pull-request-create-worker
+    id: github-pull-request-create
+    hide_content: true
     model: *advanced_model
     ephemeral: true
     system_prompt: "{{> system-prompt-github-pull-request.hbs }}"
