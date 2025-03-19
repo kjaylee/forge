@@ -3,7 +3,7 @@ variables:
   models:
     advanced_model: &advanced_model anthropic/claude-3.7-sonnet
     efficiency_model: &efficiency_model anthropic/claude-3.5-haiku
-    knowledge_model: &knowledge_model google/gemini-2.0-flash-thinking-exp:free
+    knowledge_model: &knowledge_model google/gemini-2.0-flash-001
   mode: ACT
 
 agents:
@@ -80,7 +80,9 @@ agents:
       - **ALWAYS** send questions to the repo_knowledge_agent BEFORE making ANY decisions
       - **RELY ONLY** on the information provided by repo_knowledge_agent about the codebase
       - For **EVERY** new aspect of the codebase you need to understand, SEND A NEW QUERY
-      - **DO NOT** end your response or proceed with your task until you've received complete information from the knowledge agent
+      - **WAIT FOR** the knowledge agent's response before making ANY decisions about the task
+      - **DO NOT PROCEED** with implementing any solution until you've received and analyzed the knowledge agent's response
+      - After receiving the knowledge agent's response, carefully **INCORPORATE** the information into your solution
       
     user_prompt: |
       <task>{{event.value}}</task>
