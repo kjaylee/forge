@@ -136,7 +136,7 @@ impl Agent {
     }
 
     pub fn tool_definition(&self) -> Result<ToolDefinition> {
-        if self.description.is_none() || self.description.as_ref().map_or(true, |d| d.is_empty()) {
+        if self.description.is_none() || self.description.as_ref().is_none_or(|d| d.is_empty()) {
             return Err(Error::MissingAgentDescription(self.id.clone()));
         }
         Ok(ToolDefinition::new(self.id.as_str().to_string())

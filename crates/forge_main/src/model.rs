@@ -127,7 +127,7 @@ impl ForgeCommandManager {
     /// * `Option<String>` - The extracted value, if any
     fn extract_command_value(&self, command: &ForgeCommand, parts: &[&str]) -> Option<String> {
         // Unit tests implemented in the test module below
-        
+
         // Try to get value provided in the command
         let value_provided = if !parts.is_empty() {
             Some(parts.join(" "))
@@ -300,10 +300,10 @@ mod tests {
             value: None,
         };
         let parts = vec!["arg1", "arg2"];
-        
+
         // Execute
         let result = cmd_manager.extract_command_value(&command, &parts);
-        
+
         // Verify
         assert_eq!(result, Some(String::from("arg1 arg2")));
     }
@@ -312,13 +312,11 @@ mod tests {
     fn test_extract_command_value_with_empty_parts_default_value() {
         // Setup
         let cmd_manager = ForgeCommandManager {
-            commands: Arc::new(Mutex::new(vec![
-                ForgeCommand {
-                    name: String::from("/test"),
-                    description: String::from("Test command"),
-                    value: Some(String::from("default_value")),
-                },
-            ])),
+            commands: Arc::new(Mutex::new(vec![ForgeCommand {
+                name: String::from("/test"),
+                description: String::from("Test command"),
+                value: Some(String::from("default_value")),
+            }])),
         };
         let command = ForgeCommand {
             name: String::from("/test"),
@@ -326,10 +324,10 @@ mod tests {
             value: None,
         };
         let parts: Vec<&str> = vec![];
-        
+
         // Execute
         let result = cmd_manager.extract_command_value(&command, &parts);
-        
+
         // Verify
         assert_eq!(result, Some(String::from("default_value")));
     }
@@ -338,13 +336,11 @@ mod tests {
     fn test_extract_command_value_with_empty_string_parts() {
         // Setup
         let cmd_manager = ForgeCommandManager {
-            commands: Arc::new(Mutex::new(vec![
-                ForgeCommand {
-                    name: String::from("/test"),
-                    description: String::from("Test command"),
-                    value: Some(String::from("default_value")),
-                },
-            ])),
+            commands: Arc::new(Mutex::new(vec![ForgeCommand {
+                name: String::from("/test"),
+                description: String::from("Test command"),
+                value: Some(String::from("default_value")),
+            }])),
         };
         let command = ForgeCommand {
             name: String::from("/test"),
@@ -352,10 +348,10 @@ mod tests {
             value: None,
         };
         let parts = vec![""];
-        
+
         // Execute
         let result = cmd_manager.extract_command_value(&command, &parts);
-        
+
         // Verify - should use default as the provided value is empty
         assert_eq!(result, Some(String::from("default_value")));
     }
@@ -364,13 +360,11 @@ mod tests {
     fn test_extract_command_value_with_whitespace_parts() {
         // Setup
         let cmd_manager = ForgeCommandManager {
-            commands: Arc::new(Mutex::new(vec![
-                ForgeCommand {
-                    name: String::from("/test"),
-                    description: String::from("Test command"),
-                    value: Some(String::from("default_value")),
-                },
-            ])),
+            commands: Arc::new(Mutex::new(vec![ForgeCommand {
+                name: String::from("/test"),
+                description: String::from("Test command"),
+                value: Some(String::from("default_value")),
+            }])),
         };
         let command = ForgeCommand {
             name: String::from("/test"),
@@ -378,10 +372,10 @@ mod tests {
             value: None,
         };
         let parts = vec!["  "];
-        
+
         // Execute
         let result = cmd_manager.extract_command_value(&command, &parts);
-        
+
         // Verify - should use default as the provided value is just whitespace
         assert_eq!(result, Some(String::from("default_value")));
     }
@@ -390,13 +384,11 @@ mod tests {
     fn test_extract_command_value_no_default_no_provided() {
         // Setup
         let cmd_manager = ForgeCommandManager {
-            commands: Arc::new(Mutex::new(vec![
-                ForgeCommand {
-                    name: String::from("/test"),
-                    description: String::from("Test command"),
-                    value: None,
-                },
-            ])),
+            commands: Arc::new(Mutex::new(vec![ForgeCommand {
+                name: String::from("/test"),
+                description: String::from("Test command"),
+                value: None,
+            }])),
         };
         let command = ForgeCommand {
             name: String::from("/test"),
@@ -404,10 +396,10 @@ mod tests {
             value: None,
         };
         let parts: Vec<&str> = vec![];
-        
+
         // Execute
         let result = cmd_manager.extract_command_value(&command, &parts);
-        
+
         // Verify - should be None as there's no default and no provided value
         assert_eq!(result, None);
     }
@@ -416,13 +408,11 @@ mod tests {
     fn test_extract_command_value_provided_overrides_default() {
         // Setup
         let cmd_manager = ForgeCommandManager {
-            commands: Arc::new(Mutex::new(vec![
-                ForgeCommand {
-                    name: String::from("/test"),
-                    description: String::from("Test command"),
-                    value: Some(String::from("default_value")),
-                },
-            ])),
+            commands: Arc::new(Mutex::new(vec![ForgeCommand {
+                name: String::from("/test"),
+                description: String::from("Test command"),
+                value: Some(String::from("default_value")),
+            }])),
         };
         let command = ForgeCommand {
             name: String::from("/test"),
@@ -430,10 +420,10 @@ mod tests {
             value: None,
         };
         let parts = vec!["provided_value"];
-        
+
         // Execute
         let result = cmd_manager.extract_command_value(&command, &parts);
-        
+
         // Verify - provided value should override default
         assert_eq!(result, Some(String::from("provided_value")));
     }
