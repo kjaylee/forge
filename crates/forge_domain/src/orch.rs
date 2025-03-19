@@ -42,11 +42,10 @@ impl<A: App> Orchestrator<A> {
         for tool_call in tool_calls.iter() {
             self.send(agent_id, ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
-            if let Some(tool_result) = self.execute_tool(agent_id, tool_call).await? {
-                tool_results.push(tool_result.clone());
-                self.send(agent_id, ChatResponse::ToolCallEnd(tool_result))
-                    .await?;
-            }
+            let tool_result = self.execute_tool(agent_id, tool_call).await?;
+            tool_results.push(tool_result.clone());
+            self.send(agent_id, ChatResponse::ToolCallEnd(tool_result))
+                .await?;
         }
 
         Ok(tool_results)
@@ -200,17 +199,15 @@ impl<A: App> Orchestrator<A> {
         &self,
         agent_id: &AgentId,
         tool_call: &ToolCallFull,
-    ) -> anyhow::Result<Option<ToolResult>> {
+    ) -> anyhow::Result<ToolResult> {
         if let Some(event) = Event::parse(tool_call) {
             self.send(agent_id, ChatResponse::Custom(event.clone()))
                 .await?;
 
             self.dispatch_spawned(event).await?;
-            Ok(Some(
-                ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"),
-            ))
+            Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
         } else {
-            Ok(Some(self.app.tool_service().call(tool_call.clone()).await))
+            Ok(self.app.tool_service().call(tool_call.clone()).await)
         }
     }
 
