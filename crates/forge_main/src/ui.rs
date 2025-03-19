@@ -350,10 +350,7 @@ impl<F: API> UI<F> {
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
-            ChatResponse::Text(text) => {
-                // No need to check agent ID anymore as filtering happens at orchestrator level
-                CONSOLE.write(&text)?
-            }
+            ChatResponse::Text(text) => CONSOLE.write(&text)?,
             ChatResponse::ToolCallStart(_) => {
                 CONSOLE.newline()?;
                 CONSOLE.newline()?;

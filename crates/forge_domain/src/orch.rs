@@ -57,8 +57,7 @@ impl<A: App> Orchestrator<A> {
 
     async fn send_message(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
-            // Only send message if hide_content is true
-            // Default is false (hide content), so if None or Some(false), don't send
+            // Only send message if hide_content is false
             if !agent.hide_content.unwrap_or_default() {
                 sender
                     .send(Ok(AgentMessage { agent: agent.id.clone(), message }))

@@ -16,7 +16,7 @@ models:
 
 agents:
   - tool_supported: true
-    id: title_generation
+    id: title-generation
     model: *standard_model
     hide_content: true
     system_prompt: "{{> system-prompt-title-generator.hbs }}"
