@@ -15,13 +15,19 @@ This is by far the most important factor in tool performance. Your descriptions 
 - **Limitations and caveats** - Note what information the tool does not return or handle
 - **Additional context** - If the tool name is unclear, provide extra clarification
 
-### 2. Use Comprehensive Descriptions
+### 2. Use Comprehensive But Concise Descriptions
 
-The more context you can give Claude about your tools, the better it will be at deciding when and how to use them. Aim for at least 3-4 sentences per tool description, or more if the tool is complex.
+The more context you can give Claude about your tools, the better it will be at deciding when and how to use them. Aim for 3-4 sentences per tool description, or more if the tool is complex.
+
+> **IMPORTANT**: Tool descriptions must never exceed 1024 characters. This is enforced by tests to ensure compatibility with LLM API constraints.
 
 ### 3. Prioritize Descriptions Over Examples
 
 While you can include examples of how to use a tool in its description or in the accompanying prompt, this is less important than having a clear and comprehensive explanation of the tool's purpose and parameters. Only add examples after you've fully fleshed out the description.
+
+### 4. Register All Tools in the Registry
+
+Every tool must be registered in the `crates/forge_app/src/tools/registry.rs` file to be available for use. The `ToolRegistry::tools()` method returns all available tools configured with the given infrastructure.
 
 ## Example Comparison
 
@@ -80,7 +86,9 @@ The poor description is too brief and leaves Claude with many open questions abo
 3. **Explain tool selection criteria** - Help Claude understand when to pick this tool over others
 4. **Describe error handling** - Note how the tool behaves with invalid inputs
 5. **Include domain-specific details** - Add contextual information related to the tool's domain
+6. **Keep descriptions under 1024 characters** - Ensure compatibility with LLM API constraints
+7. **Register your tool in the registry** - Add your tool to the registry.rs file for availability
 
-Thorough tool descriptions lead to more accurate tool selection, fewer clarification questions, and better overall performance when using Claude with tools.
+Thorough yet concise tool descriptions lead to more accurate tool selection, fewer clarification questions, and better overall performance when using Claude with tools.
 
 Source: [Anthropic Documentation on Tool Use](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/overview#example-poor-tool-description)
