@@ -6,19 +6,21 @@ use serde::{Deserialize, Serialize};
 /// Sends a formatted markdown message to the user's terminal display.
 /// This tool allows the agent to communicate information to the user with
 /// proper text formatting. Use this when you need to display structured content
-/// such as headers, lists, tables, code blocks, or text with emphasis (bold/italic).
-/// The content parameter must contain valid markdown syntax. The tool will render
-/// this content in the terminal with appropriate formatting using the termimad library.
-/// Do NOT use this tool for collecting user input or for messages that don't benefit
-/// from formatting. Returns a simple confirmation string but does not capture user responses.
+/// such as headers, lists, tables, code blocks, or text with emphasis
+/// (bold/italic). The content parameter must contain valid markdown syntax. The
+/// tool will render this content in the terminal with appropriate formatting
+/// using the termimad library. Do NOT use this tool for collecting user input
+/// or for messages that don't benefit from formatting. Returns a simple
+/// confirmation string but does not capture user responses.
 #[derive(Clone, Default, ToolDescription)]
 pub struct ShowUser;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShowUserInput {
-    /// The markdown content to display to the user. Should contain valid markdown syntax
-    /// such as headers (#), lists (-, *), emphasis (**bold**, *italic*), code blocks,
-    /// and other markdown formatting elements.
+    /// The markdown content to display to the user. Should contain valid
+    /// markdown syntax such as headers (#), lists (-, *), emphasis
+    /// (**bold**, *italic*), code blocks, and other markdown formatting
+    /// elements.
     pub content: String,
 }
 
