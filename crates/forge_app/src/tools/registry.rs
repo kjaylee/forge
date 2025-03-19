@@ -23,7 +23,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
     pub fn tools(&self) -> Vec<Tool> {
         let env = self.infra.environment_service().get_environment();
         vec![
-            FSRead.into(),
+            FSRead::new(self.infra.clone()).into(),
             FSWrite::new(self.infra.clone()).into(),
             FSRemove::new(self.infra.clone()).into(),
             FSList::default().into(),
