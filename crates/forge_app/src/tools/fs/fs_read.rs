@@ -47,15 +47,20 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         assert_absolute_path(path)?;
 
         // Use the infrastructure to read the file
-        let bytes = self.0
+        let bytes = self
+            .0
             .file_read_service()
             .read(path)
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
-        
+
         // Convert bytes to string
-        let content = String::from_utf8(bytes.to_vec())
-            .with_context(|| format!("Failed to convert file content to UTF-8 from {}", input.path))?;
+        let content = String::from_utf8(bytes.to_vec()).with_context(|| {
+            format!(
+                "Failed to convert file content to UTF-8 from {}",
+                input.path
+            )
+        })?;
 
         // Display a message about the file being read
         let title = "read";
@@ -92,19 +97,19 @@ mod test {
         let test_content = "Hello, World!";
         fs::write(&file_path, test_content).await.unwrap();
 
-        // For the test, we'll switch to using tokio::fs directly rather than going through
-        // the infrastructure (which would require more complex mocking)
+        // For the test, we'll switch to using tokio::fs directly rather than going
+        // through the infrastructure (which would require more complex mocking)
         let path = Path::new(&file_path);
         assert_absolute_path(path).unwrap();
-        
+
         // Read the file directly
         let content = tokio::fs::read_to_string(path).await.unwrap();
-        
+
         // Display a message - just for testing
         let title = "read";
         let message = TitleFormat::success(title).sub_title(path.display().to_string());
         println!("{}", message);
-        
+
         // Assert the content matches
         assert_eq!(content, test_content);
     }
@@ -113,7 +118,7 @@ mod test {
     async fn test_fs_read_nonexistent_file() {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent_file = temp_dir.path().join("nonexistent.txt");
-        
+
         let result = tokio::fs::read_to_string(&nonexistent_file).await;
         assert!(result.is_err());
     }
@@ -123,7 +128,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("empty.txt");
         fs::write(&file_path, "").await.unwrap();
-        
+
         let content = tokio::fs::read_to_string(&file_path).await.unwrap();
         assert_eq!(content, "");
     }
