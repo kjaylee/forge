@@ -5,7 +5,7 @@ use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, Too
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
-use crate::Infrastructure;
+use crate::{tools::ToolRegistry, Infrastructure};
 
 // Timeout duration for tool calls
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
@@ -17,7 +17,8 @@ pub struct ForgeToolService {
 
 impl ForgeToolService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
-        ForgeToolService::from_iter(crate::tools::tools(infra.clone()))
+        let registry = ToolRegistry::new(infra.clone());
+        ForgeToolService::from_iter(registry.tools())
     }
 }
 
