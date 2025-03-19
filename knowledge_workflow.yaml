@@ -7,6 +7,17 @@ variables:
   mode: ACT
 
 agents:
+  - id: router_agent
+    model: *efficiency_model
+    tool_supported: true
+    tools:
+      - tool_forge_event_dispatch
+    subscribe:
+      - user_task_init
+    system_prompt: "{{> system-prompt-router-agent.hbs }}"
+    user_prompt: <task>{{event.value}}</task>
+    description: "Router agent that directs tasks to either the knowledge agent or the engineer agent based on the nature of the query."
+
   - id: title_generation_worker
     model: *efficiency_model
     tool_supported: true
@@ -51,38 +62,13 @@ agents:
       - tool_forge_fs_search
       - tool_forge_event_dispatch
     subscribe:
-      - user_task_init
       - user_task_update
       - repo_knowledge_response
     ephemeral: false
     max_walker_depth: 4
     system_prompt: |
       {{> system-prompt-engineer.hbs }}
-      ## Repository Knowledge Agent Integration
-
-      You have access to a Repository Knowledge Agent that knows the entire codebase.
-
-      ### Knowledge Agent Workflow
-
-      Before performing any analysis or making any decisions about the codebase:
-
-      1. **Always** consult the repo_knowledge_agent by sending a clear, specific question
-      2. To ask a question, dispatch a 'repo_knowledge_query' event with your question
-      3. The knowledge agent will receive your query through its subscription to that event
-      4. After analyzing the repository content, the knowledge agent will dispatch a 'repo_knowledge_response' event
-      5. You will receive this response as a separate message from the system
-      6. Wait for the knowledge agent's response before proceeding with your analysis
-      7. If the response is incomplete or raises new questions, send additional queries
-
-      ### CRITICAL RULES
-
-      - **NEVER** try to understand the codebase through direct file analysis
-      - **ALWAYS** send questions to the repo_knowledge_agent BEFORE making ANY decisions
-      - **RELY ONLY** on the information provided by repo_knowledge_agent about the codebase
-      - For **EVERY** new aspect of the codebase you need to understand, SEND A NEW QUERY
-      - **WAIT FOR** the knowledge agent's response before making ANY decisions about the task
-      - **DO NOT PROCEED** with implementing any solution until you've received and analyzed the knowledge agent's response
-      - After receiving the knowledge agent's response, carefully **INCORPORATE** the information into your solution
+      
       
     user_prompt: |
       <task>{{event.value}}</task>
