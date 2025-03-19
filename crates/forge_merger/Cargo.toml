@@ -11,6 +11,7 @@ async-trait = { workspace = true }
 tokio = { workspace = true }
 forge_walker = { path = "../forge_walker" }
 serde = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
