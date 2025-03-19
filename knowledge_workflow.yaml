@@ -3,7 +3,7 @@ variables:
   models:
     advanced_model: &advanced_model anthropic/claude-3.7-sonnet
     efficiency_model: &efficiency_model anthropic/claude-3.5-haiku
-    knowledge_model: &knowledge_model google/gemini-2.0-flash-lite-001
+    knowledge_model: &knowledge_model google/gemini-2.0-flash-thinking-exp:free
   mode: ACT
 
 agents:
@@ -58,34 +58,30 @@ agents:
     max_walker_depth: 4
     system_prompt: |
       {{> system-prompt-engineer.hbs }}
+      ## Repository Knowledge Agent Integration
+
       You have access to a Repository Knowledge Agent that knows the entire codebase.
-      First, ALWAYS consult the repo_knowledge_agent before doing any analysis:
-      After receiving the response, begin your preliminary analysis inside `<analysis>` tags:
-      1. To ask a question, dispatch a 'repo_knowledge_query' event with your question
-      2. The knowledge agent will receive your query through its subscription to that event
-      3. After analyzing the repository content, the knowledge agent will dispatch a 'repo_knowledge_response' event
-      4. You will receive this response as a separate message from the system
+
+      ### Knowledge Agent Workflow
+
+      Before performing any analysis or making any decisions about the codebase:
+
+      1. **Always** consult the repo_knowledge_agent by sending a clear, specific question
+      2. To ask a question, dispatch a 'repo_knowledge_query' event with your question
+      3. The knowledge agent will receive your query through its subscription to that event
+      4. After analyzing the repository content, the knowledge agent will dispatch a 'repo_knowledge_response' event
+      5. You will receive this response as a separate message from the system
+      6. Wait for the knowledge agent's response before proceeding with your analysis
+      7. If the response is incomplete or raises new questions, send additional queries
+
+      ### CRITICAL RULES
+
+      - **NEVER** try to understand the codebase through direct file analysis
+      - **ALWAYS** send questions to the repo_knowledge_agent BEFORE making ANY decisions
+      - **RELY ONLY** on the information provided by repo_knowledge_agent about the codebase
+      - For **EVERY** new aspect of the codebase you need to understand, SEND A NEW QUERY
+      - **DO NOT** end your response or proceed with your task until you've received complete information from the knowledge agent
       
-      CRITICAL INSTRUCTION: 
-      - NEVER try to understand the codebase through direct file analysis
-      - ALWAYS send questions to the repo_knowledge_agent BEFORE making ANY decisions  
-      - WAIT for responses from repo_knowledge_agent before proceeding with your task
-      - RELY ONLY on the information provided by repo_knowledge_agent about the codebase
-      - For EVERY new aspect of the codebase you need to understand, SEND A NEW QUERY
-      
-      Example workflow:
-      
-      1. Send query:
-      ```xml
-      <tool_call>
-      <tool_forge_event_dispatch>
-      <event>repo_knowledge_query</event>
-      <value>How does the error handling work in the forge_domain crate?</value>
-      </tool_forge_event_dispatch>
-      </tool_call>
-      ```
-      
-      2. The knowledge agent will process your query and respond separately.
     user_prompt: |
       <task>{{event.value}}</task>
       <mode>{{variables.mode}}</mode>
