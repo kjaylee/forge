@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::{EnvironmentService, Infrastructure};
 use forge_domain::Tool;
 
 use super::fetch::Fetch;
@@ -9,6 +8,7 @@ use super::patch::*;
 use super::shell::Shell;
 use super::show_user::ShowUser;
 use super::think::Think;
+use crate::{EnvironmentService, Infrastructure};
 
 pub struct ToolRegistry<F> {
     infra: Arc<F>,
@@ -33,7 +33,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Shell::new(env.clone()).into(),
             Think::default().into(),
             Fetch::default().into(),
-            ShowUser::default().into(),
+            ShowUser.into(),
         ]
     }
 }

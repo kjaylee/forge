@@ -2,7 +2,6 @@ use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use termimad;
 
 /// Renders markdown content to the terminal for user display.
 /// This tool takes plain text with markdown formatting and
@@ -43,7 +42,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_show_user() {
-        let show_user = ShowUser::default();
+        let show_user = ShowUser;
         let input = ShowUserInput {
             content: "# Test Heading\nThis is a test with **bold** and *italic* text.".to_string(),
         };

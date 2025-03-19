@@ -5,7 +5,8 @@ use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, Too
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
-use crate::{tools::ToolRegistry, Infrastructure};
+use crate::tools::ToolRegistry;
+use crate::Infrastructure;
 
 // Timeout duration for tool calls
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
