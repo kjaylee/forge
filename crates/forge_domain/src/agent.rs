@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::merge::Key;
 use crate::template::Template;
-use crate::{EventContext, ModelId, SystemContext, ToolName};
+use crate::{Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName};
 
 // Unique identifier for an agent
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
@@ -33,6 +33,13 @@ impl From<ToolName> for AgentId {
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Agent {
+    /// Flag to disable this agent, when true agent will not be activated
+    /// Default is false (agent is enabled)
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub disable: Option<bool>,
+
     /// Flag to enable/disable tool support for this agent.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -87,7 +94,7 @@ pub struct Agent {
 
     /// Used to specify the events the agent is interested in    
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
+    #[merge(strategy = merge_subscription)]
     pub subscribe: Option<Vec<String>>,
 
     /// Maximum number of turns the agent can take    
@@ -104,13 +111,24 @@ pub struct Agent {
     /// A set of custom rules that the agent should follow
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
-    pub project_rules: Option<String>,
+    pub custom_rules: Option<String>,
+}
+
+fn merge_subscription(base: &mut Option<Vec<String>>, other: Option<Vec<String>>) {
+    if let Some(other) = other {
+        if let Some(base) = base {
+            base.extend(other);
+        } else {
+            *base = Some(other);
+        }
+    }
 }
 
 impl Agent {
     pub fn new(id: impl ToString) -> Self {
         Self {
             id: AgentId::new(id),
+            disable: None,
             tool_supported: None,
             model: None,
             description: None,
@@ -123,8 +141,16 @@ impl Agent {
             subscribe: None,
             max_turns: None,
             max_walker_depth: None,
-            project_rules: None,
+            custom_rules: None,
         }
+    }
+
+    pub fn tool_definition(&self) -> Result<ToolDefinition> {
+        if self.description.is_none() || self.description.as_ref().is_none_or(|d| d.is_empty()) {
+            return Err(Error::MissingAgentDescription(self.id.clone()));
+        }
+        Ok(ToolDefinition::new(self.id.as_str().to_string())
+            .description(self.description.clone().unwrap()))
     }
 }
 
@@ -177,6 +203,8 @@ pub enum Transform {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -207,6 +235,21 @@ mod tests {
         let other = Agent::new("Other").tool_supported(true);
         base.merge(other);
         assert_eq!(base.tool_supported, Some(true));
+    }
+
+    #[test]
+    fn test_merge_disable() {
+        // Base has no value, should use other's value
+        let mut base = Agent::new("Base"); // No disable set
+        let other = Agent::new("Other").disable(true);
+        base.merge(other);
+        assert_eq!(base.disable, Some(true));
+
+        // Base has a value, should be overwritten
+        let mut base = Agent::new("Base").disable(false);
+        let other = Agent::new("Other").disable(true);
+        base.merge(other);
+        assert_eq!(base.disable, Some(true));
     }
 
     #[test]
@@ -325,7 +368,9 @@ mod tests {
 
         // Should have other's events
         let subscribe = base.subscribe.as_ref().unwrap();
-        assert_eq!(subscribe.len(), 2);
+        assert_eq!(subscribe.len(), 4);
+        assert!(subscribe.contains(&"event1".to_string()));
+        assert!(subscribe.contains(&"event2".to_string()));
         assert!(subscribe.contains(&"event3".to_string()));
         assert!(subscribe.contains(&"event4".to_string()));
     }
