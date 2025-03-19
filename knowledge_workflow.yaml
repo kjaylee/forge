@@ -3,21 +3,10 @@ variables:
   models:
     advanced_model: &advanced_model anthropic/claude-3.7-sonnet
     efficiency_model: &efficiency_model anthropic/claude-3.5-haiku
-    knowledge_model: &knowledge_model google/gemini-2.0-flash-001
+    knowledge_model: &knowledge_model google/gemini-2.0-flash-lite-001
   mode: ACT
 
 agents:
-  - id: router_agent
-    model: *efficiency_model
-    tool_supported: true
-    tools:
-      - tool_forge_event_dispatch
-    subscribe:
-      - user_task_init
-    system_prompt: "{{> system-prompt-router-agent.hbs }}"
-    user_prompt: <task>{{event.value}}</task>
-    description: "Router agent that directs tasks to either the knowledge agent or the engineer agent based on the nature of the query."
-
   - id: title_generation_worker
     model: *efficiency_model
     tool_supported: true
@@ -29,14 +18,14 @@ agents:
     user_prompt: <technical_content>{{event.value}}</technical_content>
 
   - id: repo_knowledge_agent
-    model: *knowledge_model
+    model: *advanced_model
     tool_supported: true
     tools:
       - tool_forge_event_dispatch
     subscribe:
-      - repo_knowledge_query
+      - ask_agent
     system_prompt: "{{> system-prompt-repo-knowledge-agent.hbs }}"
-    user_prompt: <query>{{event.value}}</query>
+    user_prompt: <ask>{{event.value}}</ask>
 
   - id: help_agent
     model: *knowledge_model
@@ -53,6 +42,7 @@ agents:
     model: *advanced_model
     tool_supported: true
     tools:
+      - tool_forge_event_dispatch
       - tool_forge_fs_read
       - tool_forge_fs_create
       - tool_forge_fs_remove
@@ -60,10 +50,10 @@ agents:
       - tool_forge_process_shell
       - tool_forge_net_fetch
       - tool_forge_fs_search
-      - tool_forge_event_dispatch
     subscribe:
+      - user_task_init
       - user_task_update
-      - repo_knowledge_response
+      - agent_answer
     ephemeral: false
     max_walker_depth: 4
     system_prompt: |
