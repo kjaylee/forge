@@ -30,7 +30,8 @@ impl<F: App> ForgeExecutorService<F> {
                 .unwrap_or_default()
                 .expect("conversation for the request should've been created");
             conversation.state.values_mut().for_each(|state| {
-                // since this is a new request, we clear the queue and start fresh with new events.
+                // since this is a new request, we clear the queue and start fresh with new
+                // events.
                 state.queue.clear();
             });
 
