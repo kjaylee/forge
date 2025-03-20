@@ -5,6 +5,7 @@ use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use tokio::sync::RwLock;
 use tracing::debug;
 
 use crate::*;
@@ -21,7 +22,7 @@ pub struct AgentMessage<T> {
 pub struct Orchestrator<App> {
     app: Arc<App>,
     sender: Option<ArcSender>,
-    conversation_id: ConversationId,
+    conversation: Arc<RwLock<Conversation>>,
 }
 
 struct ChatCompletionResult {
@@ -51,8 +52,12 @@ impl<A: App> Orchestrator<A> {
         Ok(tool_results)
     }
 
-    pub fn new(svc: Arc<A>, conversation_id: ConversationId, sender: Option<ArcSender>) -> Self {
-        Self { app: svc, sender, conversation_id }
+    pub fn new(svc: Arc<A>, conversation: Conversation, sender: Option<ArcSender>) -> Self {
+        Self {
+            app: svc,
+            sender,
+            conversation: Arc::new(RwLock::new(conversation)),
+        }
     }
 
     async fn send_message(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
@@ -174,23 +179,27 @@ impl<A: App> Orchestrator<A> {
     }
 
     pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
+        let mut conversation = self.conversation.write().await;
         debug!(
-            conversation_id = %self.conversation_id,
+            conversation_id = %conversation.id,
             event_name = %event.name,
             event_value = %event.value,
             "Dispatching event"
         );
 
-        let agents = self
-            .app
-            .conversation_service()
-            .update(&self.conversation_id, |conversation| {
-                conversation.dispatch_event(event)
-            })
-            .await?;
+        // get the in-active agents.
+        let inactive_agents = conversation
+            .state
+            .iter()
+            .filter(|(_, state)| state.queue.is_empty())
+            .map(|(agent_id, _)| agent_id.clone())
+            .collect::<Vec<_>>();
+
+        // insert the event into the agents which have subscribed to the event.
+        conversation.insert_event(event.clone());
 
         // Execute all initialization futures in parallel
-        join_all(agents.iter().map(|id| self.init_agent(id)))
+        join_all(inactive_agents.iter().map(|id| self.init_agent(id)))
             .await
             .into_iter()
             .collect::<anyhow::Result<Vec<()>>>()?;
@@ -270,40 +279,42 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<Event>> {
-        Ok(self.get_conversation().await?.rfind_event(name).cloned())
+        let conversation = self.conversation.read().await;
+        Ok(conversation.rfind_event(name).cloned())
     }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
-        Ok(self
-            .app
-            .conversation_service()
-            .get(&self.conversation_id)
-            .await?
-            .ok_or(Error::ConversationNotFound(self.conversation_id.clone()))?)
+        Ok(self.conversation.read().await.clone())
     }
 
     async fn complete_turn(&self, agent_id: &AgentId) -> anyhow::Result<()> {
-        self.app
-            .conversation_service()
-            .inc_turn(&self.conversation_id, agent_id)
-            .await
+        let mut conversation = self.conversation.write().await;
+        conversation
+            .state
+            .entry(agent_id.clone())
+            .or_default()
+            .turn_count += 1;
+        Ok(())
     }
 
     async fn set_context(&self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
-        self.app
-            .conversation_service()
-            .set_context(&self.conversation_id, agent_id, context)
-            .await
+        let mut conversation = self.conversation.write().await;
+        conversation
+            .state
+            .entry(agent_id.clone())
+            .or_default()
+            .context = Some(context.clone());
+        Ok(())
     }
 
     async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+        let conversation = self.get_conversation().await?;
         debug!(
-            conversation_id = %self.conversation_id,
+            conversation_id = %conversation.id,
             agent = %agent_id,
             event = ?event,
             "Initializing agent"
         );
-        let conversation = self.get_conversation().await?;
         let agent = conversation.workflow.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
@@ -389,24 +400,36 @@ impl<A: App> Orchestrator<A> {
 
             self.set_context(&agent.id, context.clone()).await?;
 
+            // sync the conversation service with the updated conversation
+            self.app
+                .conversation_service()
+                .set(&conversation.id, self.conversation.read().await.clone())
+                .await?;
+
             if tool_results.is_empty() {
                 break;
             }
         }
 
         self.complete_turn(&agent.id).await?;
+        // sync the conversation service with the updated conversation
+        self.app
+            .conversation_service()
+            .set(&conversation.id, self.conversation.read().await.clone())
+            .await?;
 
         Ok(())
     }
 
     async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
-        let conversation_service = self.app.conversation_service();
-
-        while let Some(event) = conversation_service
-            .update(&self.conversation_id, |c| c.poll_event(agent_id))
-            .await?
-        {
-            self.init_agent_with_event(agent_id, &event).await?;
+        loop {
+            let mut conversation = self.conversation.write().await;
+            if let Some(event) = conversation.poll_event(agent_id) {
+                drop(conversation);
+                self.init_agent_with_event(agent_id, &event).await?;
+            } else {
+                break;
+            }
         }
 
         Ok(())
