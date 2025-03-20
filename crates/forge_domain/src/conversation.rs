@@ -191,9 +191,8 @@ impl Conversation {
     }
 
     /// Resets the agents state
-    pub fn reset_agents(&mut self) {
+    pub fn reset_agents_queue(&mut self) {
         self.state.iter_mut().for_each(|(_, state)| {
-            state.turn_count = 0;
             state.queue.clear();
         });
     }

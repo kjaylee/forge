@@ -418,7 +418,7 @@ impl<A: App> Drop for Orchestrator<A> {
             .app
             .conversation_service()
             .update(&self.conversation_id, |conversation| {
-                conversation.reset_agents();
+                conversation.reset_agents_queue();
             });
     }
 }
