@@ -179,27 +179,16 @@ impl<A: App> Orchestrator<A> {
     }
 
     pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
-        let mut conversation = self.conversation.write().await;
-        debug!(
-            conversation_id = %conversation.id,
-            event_name = %event.name,
-            event_value = %event.value,
-            "Dispatching event"
-        );
-
-        // insert the event into the agents which have subscribed to the event.
-        conversation.insert_event(event.clone());
-
-        // get the in-active agents.
-        let inactive_agents = conversation
-            .state
-            .iter()
-            .filter(|(_, state)| !state.is_active)
-            .map(|(agent_id, _)| agent_id.clone())
-            .collect::<Vec<_>>();
-
-        // drop the conversation lock since we're done with it.
-        drop(conversation);
+        let inactive_agents = {
+            let mut conversation = self.conversation.write().await;
+            debug!(
+                conversation_id = %conversation.id,
+                event_name = %event.name,
+                event_value = %event.value,
+                "Dispatching event"
+            );
+            conversation.dispatch_event(event.clone())
+        };
 
         // Execute all initialization futures in parallel
         join_all(inactive_agents.iter().map(|id| self.init_agent(id)))
