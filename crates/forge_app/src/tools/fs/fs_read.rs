@@ -29,10 +29,11 @@ impl<F: Infrastructure> FSRead<F> {
         Self(f)
     }
 
-    /// Formats a path for display, converting absolute paths to relative when possible
+    /// Formats a path for display, converting absolute paths to relative when
+    /// possible
     ///
-    /// If the path starts with the current working directory, returns a relative path.
-    /// Otherwise, returns the original absolute path.
+    /// If the path starts with the current working directory, returns a
+    /// relative path. Otherwise, returns the original absolute path.
     fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
         // Get the current working directory
         let env = self.0.environment_service().get_environment();
