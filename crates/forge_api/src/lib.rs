@@ -48,6 +48,9 @@ pub trait API: Sync + Send {
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>>;
 
+    /// Reset the agent's in conversation state
+    async fn reset_agents(&self, conversation_id: &ConversationId) -> anyhow::Result<()>;
+
     /// Gets a variable from the conversation
     async fn get_variable(
         &self,

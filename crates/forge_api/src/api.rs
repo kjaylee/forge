@@ -101,4 +101,18 @@ impl<F: App + Infrastructure> API for ForgeAPI<F> {
             .set_variable(conversation_id, key, value)
             .await
     }
+
+    async fn reset_agents(&self, conversation_id: &ConversationId) -> anyhow::Result<()> {
+        let _ = self
+            .app
+            .conversation_service()
+            .update(conversation_id, |conversation| {
+                conversation.state.iter_mut().for_each(|(_, state)| {
+                    state.queue.clear();
+                    state.is_active = false;
+                });
+            })
+            .await?;
+        Ok(())
+    }
 }

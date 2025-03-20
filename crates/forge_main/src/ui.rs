@@ -298,6 +298,11 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
+                    if let Some(conversation_id) = self.state.conversation_id.as_ref() {
+                        if let Err(e) = self.api.reset_agents(conversation_id).await {
+                            error!(error = ?e, "Failed to reset agents");
+                        }
+                    }
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
