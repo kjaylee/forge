@@ -298,7 +298,6 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
-                    // Stream drop will trigger Orchestrator cleanup
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
