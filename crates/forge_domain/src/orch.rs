@@ -52,7 +52,12 @@ impl<A: App> Orchestrator<A> {
         Ok(tool_results)
     }
 
-    pub fn new(svc: Arc<A>, conversation: Conversation, sender: Option<ArcSender>) -> Self {
+    pub fn new(svc: Arc<A>, mut conversation: Conversation, sender: Option<ArcSender>) -> Self {
+        // since this is a new request, we clear the queue
+        conversation.state.values_mut().for_each(|state| {
+            state.queue.clear();
+        });
+
         Self {
             app: svc,
             sender,

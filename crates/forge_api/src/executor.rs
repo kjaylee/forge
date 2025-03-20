@@ -20,21 +20,17 @@ impl<F: App> ForgeExecutorService<F> {
         request: ChatRequest,
     ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>>>> {
         let app = self.app.clone();
+        let conversation = app
+            .conversation_service()
+            .find(&request.conversation_id)
+            .await
+            .unwrap_or_default()
+            .expect("conversation for the request should've been created");
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
-            let mut conversation = app
-                .conversation_service()
-                .find(&request.conversation_id)
-                .await
-                .unwrap_or_default()
-                .expect("conversation for the request should've been created");
 
-            // since this is a new request, we clear the queue
-            conversation.state.values_mut().for_each(|state| {
-                state.queue.clear();
-            });
-
+        
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
             match orch.dispatch(request.event).await {
