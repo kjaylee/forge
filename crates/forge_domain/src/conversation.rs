@@ -163,11 +163,11 @@ impl Conversation {
     /// now activated
     pub fn dispatch_event(&mut self, event: Event) -> Vec<AgentId> {
         let name = event.name.as_str();
-        self.insert_event(event.clone());
 
         let mut agents = self.subscriptions(name);
 
-        agents
+        // find out inactive agents
+        let agents = agents
             .iter_mut()
             .filter_map(|agent| {
                 let is_inactive = self
@@ -182,7 +182,12 @@ impl Conversation {
                     None
                 }
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+
+        // insert event to all agents
+        self.insert_event(event.clone());
+
+        agents
     }
 
     /// Resets the agents state
