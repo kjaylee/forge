@@ -418,10 +418,7 @@ impl<A: App> Drop for Orchestrator<A> {
             .app
             .conversation_service()
             .update(&self.conversation_id, |conversation| {
-                conversation.state.iter_mut().for_each(|(_, state)| {
-                    state.queue.clear();
-                    state.is_active = false;
-                });
+                conversation.reset_agents();
             });
     }
 }

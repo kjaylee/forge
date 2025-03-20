@@ -45,8 +45,6 @@ pub struct AgentState {
     pub context: Option<Context>,
     /// holds the events that are waiting to be processed
     pub queue: VecDeque<Event>,
-    /// indicates if the agent is currently processing events
-    pub is_active: bool,
 }
 
 impl Conversation {
@@ -148,8 +146,6 @@ impl Conversation {
             if let Some(event) = agent.queue.pop_front() {
                 return Some(event);
             }
-            // since no event is present, set the agent as inactive
-            agent.is_active = false;
         }
         None
     }
@@ -177,17 +173,24 @@ impl Conversation {
                 let is_inactive = self
                     .state
                     .get(&agent.id)
-                    .is_none_or(|state| !state.is_active);
+                    .map(|state| state.queue.is_empty())
+                    .unwrap_or(true);
 
                 if is_inactive {
-                    // Mark agent as active by setting is_active to true in the agent's state
-                    self.state.entry(agent.id.clone()).or_default().is_active = true;
-
                     Some(agent.id.clone())
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>()
+    }
+
+    /// Resets the agents state
+    pub fn reset_agents(&mut self) {
+        self.state.iter_mut().for_each(|(_, state)| {
+            state.turn_count = 0;
+            state.context = None;
+            state.queue.clear();
+        });
     }
 }
