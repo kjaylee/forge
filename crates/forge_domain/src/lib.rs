@@ -103,7 +103,7 @@ pub trait ConversationService: Send + Sync {
 
     /// This is useful when you want to perform several operations on a
     /// conversation atomically.
-    async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
+    fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
     where
         F: FnOnce(&mut Conversation) -> T + Send;
 }

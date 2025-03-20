@@ -18,7 +18,7 @@ pub struct AgentMessage<T> {
 }
 
 #[derive(Clone)]
-pub struct Orchestrator<App> {
+pub struct Orchestrator<App: crate::App> {
     app: Arc<App>,
     sender: Option<ArcSender>,
     conversation_id: ConversationId,
@@ -186,8 +186,7 @@ impl<A: App> Orchestrator<A> {
             .conversation_service()
             .update(&self.conversation_id, |conversation| {
                 conversation.dispatch_event(event)
-            })
-            .await?;
+            })?;
 
         // Execute all initialization futures in parallel
         join_all(agents.iter().map(|id| self.init_agent(id)))
@@ -402,13 +401,27 @@ impl<A: App> Orchestrator<A> {
     async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         let conversation_service = self.app.conversation_service();
 
-        while let Some(event) = conversation_service
-            .update(&self.conversation_id, |c| c.poll_event(agent_id))
-            .await?
+        while let Some(event) =
+            conversation_service.update(&self.conversation_id, |c| c.poll_event(agent_id))?
         {
             self.init_agent_with_event(agent_id, &event).await?;
         }
 
         Ok(())
+    }
+}
+
+impl<A: App> Drop for Orchestrator<A> {
+    fn drop(&mut self) {
+        // Clear the conversation state and set is_active to false
+        let _ = self
+            .app
+            .conversation_service()
+            .update(&self.conversation_id, |conversation| {
+                conversation.state.iter_mut().for_each(|(_, state)| {
+                    state.queue.clear();
+                    state.is_active = false;
+                });
+            });
     }
 }
