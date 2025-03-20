@@ -426,9 +426,7 @@ impl<A: App> Orchestrator<A> {
 
     async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         loop {
-            let mut conversation = self.conversation.write().await;
-            if let Some(event) = conversation.poll_event(agent_id) {
-                drop(conversation);
+            if let Some(event) = self.conversation.write().await.poll_event(agent_id) {
                 self.init_agent_with_event(agent_id, &event).await?;
             } else {
                 break;
