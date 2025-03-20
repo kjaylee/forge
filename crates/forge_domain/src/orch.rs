@@ -270,6 +270,15 @@ impl<A: App> Orchestrator<A> {
         Ok(context)
     }
 
+    async fn sync_conversation(&self) -> anyhow::Result<()> {
+        let conversation = self.conversation.read().await.clone();
+        self.app
+            .conversation_service()
+            .set(&conversation.id.clone(), conversation)
+            .await?;
+        Ok(())
+    }
+
     async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<Event>> {
         let conversation = self.conversation.read().await;
         Ok(conversation.rfind_event(name).cloned())
@@ -391,12 +400,7 @@ impl<A: App> Orchestrator<A> {
                 .add_tool_results(tool_results.clone());
 
             self.set_context(&agent.id, context.clone()).await?;
-
-            // sync the conversation service with the updated conversation
-            self.app
-                .conversation_service()
-                .set(&conversation.id, self.conversation.read().await.clone())
-                .await?;
+            self.sync_conversation().await?;
 
             if tool_results.is_empty() {
                 break;
@@ -404,11 +408,7 @@ impl<A: App> Orchestrator<A> {
         }
 
         self.complete_turn(&agent.id).await?;
-        // sync the conversation service with the updated conversation
-        self.app
-            .conversation_service()
-            .set(&conversation.id, self.conversation.read().await.clone())
-            .await?;
+        self.sync_conversation().await?;
 
         Ok(())
     }
