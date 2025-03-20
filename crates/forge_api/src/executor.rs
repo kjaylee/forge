@@ -30,7 +30,6 @@ impl<F: App> ForgeExecutorService<F> {
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
 
-        
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
             match orch.dispatch(request.event).await {
