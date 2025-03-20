@@ -84,15 +84,6 @@ pub trait ConversationService: Send + Sync {
 
     async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
 
-    async fn inc_turn(&self, id: &ConversationId, agent: &AgentId) -> anyhow::Result<()>;
-
-    async fn set_context(
-        &self,
-        id: &ConversationId,
-        agent: &AgentId,
-        context: Context,
-    ) -> anyhow::Result<()>;
-
     async fn get_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<Option<Value>>;
 
     async fn set_variable(
