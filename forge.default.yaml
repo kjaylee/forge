@@ -11,7 +11,7 @@ variables:
 models:
   # Role-based model definitions - easy to swap implementation
   - &advanced_model anthropic/claude-3.7-sonnet
-  - &standard_model anthropic/claude-3.5-haiku  
+  - &standard_model anthropic/claude-3.5-haiku
 
 agents:
   - id: title-generation
@@ -29,7 +29,6 @@ agents:
     model: *advanced_model
     system_prompt: "{{> system-prompt-help.hbs }}"
     user_prompt: <query>{{event.value}}</query>
-    hide_content: true
     tool_supported: true
     tools:
       - tool_forge_display_show_user
@@ -126,7 +125,6 @@ agents:
 
   - tool_supported: true
     id: git-commit
-    hide_content: true
     model: *advanced_model
     ephemeral: true
     system_prompt: "{{> system-prompt-git-commit.hbs }}"
@@ -160,7 +158,6 @@ agents:
 
   - tool_supported: true
     id: github-pull-request-create
-    hide_content: true
     model: *advanced_model
     ephemeral: true
     system_prompt: "{{> system-prompt-github-pull-request.hbs }}"
