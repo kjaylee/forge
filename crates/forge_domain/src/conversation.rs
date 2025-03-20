@@ -181,7 +181,7 @@ impl Conversation {
             })
             .collect::<Vec<_>>();
 
-        self.insert_event(event.clone());
+        self.insert_event(event);
 
         inactive_agents
     }

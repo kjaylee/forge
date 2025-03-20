@@ -184,7 +184,7 @@ impl<A: App> Orchestrator<A> {
                 event_value = %event.value,
                 "Dispatching event"
             );
-            conversation.dispatch_event(event.clone())
+            conversation.dispatch_event(event)
         };
 
         // Execute all initialization futures in parallel
@@ -276,8 +276,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<Event>> {
-        let conversation = self.conversation.read().await;
-        Ok(conversation.rfind_event(name).cloned())
+        Ok(self.conversation.read().await.rfind_event(name).cloned())
     }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
@@ -300,7 +299,7 @@ impl<A: App> Orchestrator<A> {
             .state
             .entry(agent_id.clone())
             .or_default()
-            .context = Some(context.clone());
+            .context = Some(context);
         Ok(())
     }
 
