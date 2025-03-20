@@ -38,8 +38,11 @@ impl ConversationService for ForgeConversationService {
         Ok(self.workflows.lock().await.get(id).cloned())
     }
 
-    async fn upsert(&self, id: &ConversationId, conversation: Conversation) -> Result<()> {
-        self.workflows.lock().await.insert(id.clone(), conversation);
+    async fn upsert(&self, conversation: Conversation) -> Result<()> {
+        self.workflows
+            .lock()
+            .await
+            .insert(conversation.id.clone(), conversation);
         Ok(())
     }
 

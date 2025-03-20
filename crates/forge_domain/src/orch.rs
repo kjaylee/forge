@@ -268,10 +268,7 @@ impl<A: App> Orchestrator<A> {
 
     async fn sync_conversation(&self) -> anyhow::Result<()> {
         let conversation = self.conversation.read().await.clone();
-        self.app
-            .conversation_service()
-            .upsert(&conversation.id.clone(), conversation)
-            .await?;
+        self.app.conversation_service().upsert(conversation).await?;
         Ok(())
     }
 

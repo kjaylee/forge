@@ -80,7 +80,7 @@ pub trait ToolService: Send + Sync {
 pub trait ConversationService: Send + Sync {
     async fn find(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
 
-    async fn upsert(&self, id: &ConversationId, conversation: Conversation) -> anyhow::Result<()>;
+    async fn upsert(&self, conversation: Conversation) -> anyhow::Result<()>;
 
     async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
 
