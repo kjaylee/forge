@@ -21,13 +21,18 @@ impl<F: App> ForgeExecutorService<F> {
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
-            match Orchestrator::try_new(app, request.conversation_id, Some(tx.clone())).await {
-                Ok(orch) => match orch.dispatch(request.event).await {
-                    Ok(_) => {}
-                    Err(err) => tx.send(Err(err)).await.unwrap(),
-                },
-                Err(e) => tx.send(Err(e)).await.unwrap(),
+            
+            let orch = match Orchestrator::try_new(app, request.conversation_id, Some(tx.clone())).await {
+                Ok(orch) => orch,
+                Err(e) => {
+                    let _ = tx.send(Err(e)).await;
+                    return;
+                }
             };
+
+            if let Err(e) = orch.dispatch(request.event).await {
+                let _ = tx.send(Err(e)).await;
+            }
         }))
     }
 }
