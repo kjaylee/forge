@@ -25,7 +25,7 @@ impl<F: App> ForgeExecutorService<F> {
             let tx = Arc::new(tx);
             let mut conversation = app
                 .conversation_service()
-                .get(&request.conversation_id)
+                .find(&request.conversation_id)
                 .await
                 .unwrap_or_default()
                 .expect("conversation for the request should've been created");

@@ -270,7 +270,7 @@ impl<A: App> Orchestrator<A> {
         let conversation = self.conversation.read().await.clone();
         self.app
             .conversation_service()
-            .set(&conversation.id.clone(), conversation)
+            .upsert(&conversation.id.clone(), conversation)
             .await?;
         Ok(())
     }

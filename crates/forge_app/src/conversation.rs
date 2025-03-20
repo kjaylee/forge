@@ -34,11 +34,11 @@ impl ConversationService for ForgeConversationService {
         Ok(f(conversation))
     }
 
-    async fn get(&self, id: &ConversationId) -> Result<Option<Conversation>> {
+    async fn find(&self, id: &ConversationId) -> Result<Option<Conversation>> {
         Ok(self.workflows.lock().await.get(id).cloned())
     }
 
-    async fn set(&self, id: &ConversationId, conversation: Conversation) -> Result<()> {
+    async fn upsert(&self, id: &ConversationId, conversation: Conversation) -> Result<()> {
         self.workflows.lock().await.insert(id.clone(), conversation);
         Ok(())
     }
