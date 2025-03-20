@@ -9,7 +9,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::tools::utils::assert_absolute_path;
-use crate::{FsReadService, Infrastructure};
+use crate::{EnvironmentService, FsReadService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSReadInput {
@@ -27,6 +27,28 @@ pub struct FSRead<F>(Arc<F>);
 impl<F: Infrastructure> FSRead<F> {
     pub fn new(f: Arc<F>) -> Self {
         Self(f)
+    }
+
+    /// Formats a path for display, converting absolute paths to relative when possible
+    ///
+    /// If the path starts with the current working directory, returns a relative path.
+    /// Otherwise, returns the original absolute path.
+    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
+        // Get the current working directory
+        let env = self.0.environment_service().get_environment();
+        let cwd = env.cwd.as_path();
+
+        // Try to create a relative path for display if possible
+        let display_path = if path.starts_with(cwd) {
+            match path.strip_prefix(cwd) {
+                Ok(rel_path) => rel_path.display().to_string(),
+                Err(_) => path.display().to_string(),
+            }
+        } else {
+            path.display().to_string()
+        };
+
+        Ok(display_path)
     }
 }
 
@@ -62,7 +84,8 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
 
         // Display a message about the file being read
         let title = "read";
-        let message = TitleFormat::success(title).sub_title(path.display().to_string());
+        let display_path = self.format_display_path(path)?;
+        let message = TitleFormat::success(title).sub_title(display_path);
         println!("{}", message);
 
         Ok(content)
@@ -146,5 +169,22 @@ mod test {
             .unwrap_err()
             .to_string()
             .contains("Path must be absolute"));
+    }
+    #[tokio::test]
+    async fn test_format_display_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Create a mock infrastructure with controlled cwd
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_read = FSRead::new(infra);
+
+        // Test with a mock path
+        let display_path = fs_read.format_display_path(Path::new(&file_path));
+
+        // Since MockInfrastructure has a fixed cwd of "/test",
+        // and our temp path won't start with that, we expect the full path
+        assert!(display_path.is_ok());
+        assert_eq!(display_path.unwrap(), file_path.display().to_string());
     }
 }
