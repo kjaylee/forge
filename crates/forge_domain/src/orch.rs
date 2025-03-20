@@ -187,16 +187,19 @@ impl<A: App> Orchestrator<A> {
             "Dispatching event"
         );
 
+        // insert the event into the agents which have subscribed to the event.
+        conversation.insert_event(event.clone());
+
         // get the in-active agents.
         let inactive_agents = conversation
             .state
             .iter()
-            .filter(|(_, state)| state.queue.is_empty())
+            .filter(|(_, state)| !state.is_active)
             .map(|(agent_id, _)| agent_id.clone())
             .collect::<Vec<_>>();
 
-        // insert the event into the agents which have subscribed to the event.
-        conversation.insert_event(event.clone());
+        // drop the conversation lock since we're done with it.
+        drop(conversation);
 
         // Execute all initialization futures in parallel
         join_all(inactive_agents.iter().map(|id| self.init_agent(id)))

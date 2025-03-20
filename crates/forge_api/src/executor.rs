@@ -23,6 +23,7 @@ impl<F: App> ForgeExecutorService<F> {
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
+            // ideally, conversation should've been created at this point.
             let conversation = app
                 .conversation_service()
                 .get(&request.conversation_id)
