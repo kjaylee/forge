@@ -3,8 +3,10 @@ use std::collections::{HashMap, VecDeque};
 use anyhow::Result;
 use derive_more::derive::Display;
 use derive_setters::Setters;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::error;
 use uuid::Uuid;
 
 use crate::{Agent, AgentId, Context, Error, Event, Workflow};
@@ -78,9 +80,15 @@ impl Conversation {
                 self.turn_count(&a.id).unwrap_or_default() < a.max_turns.unwrap_or(u64::MAX)
             })
             .filter(|a| {
-                a.subscribe
-                    .as_ref()
-                    .is_some_and(|subs| subs.contains(&event_name.to_string()))
+                a.subscribe.as_ref().is_some_and(|subs| {
+                    subs.iter().any(|name| match Regex::new(name) {
+                        Ok(regex) => regex.is_match(event_name),
+                        Err(e) => {
+                            error!(pattern = ?name, reason = ?e, "Failed to compile regex pattern");
+                            name == event_name
+                        }
+                    })
+                })
             })
             .cloned()
             .collect::<Vec<_>>()
