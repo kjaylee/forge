@@ -57,8 +57,10 @@ impl<A: App> Orchestrator<A> {
 
     async fn send_message(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
-            // Only send message if hide_content is false
-            if !agent.hide_content.unwrap_or_default() {
+            // Send message if it's a Custom type or if hide_content is false
+            if matches!(&message, ChatResponse::Custom(_))
+                || !agent.hide_content.unwrap_or_default()
+            {
                 sender
                     .send(Ok(AgentMessage { agent: agent.id.clone(), message }))
                     .await?
