@@ -52,12 +52,27 @@ impl<A: App> Orchestrator<A> {
         Ok(tool_results)
     }
 
-    pub fn new(svc: Arc<A>, conversation: Conversation, sender: Option<ArcSender>) -> Self {
-        Self {
+    pub async fn try_new(
+        svc: Arc<A>,
+        conversation_id: ConversationId,
+        sender: Option<ArcSender>,
+    ) -> anyhow::Result<Self> {
+        let mut conversation = svc
+            .conversation_service()
+            .find(&conversation_id)
+            .await?
+            .context("Failed to find conversation")?;
+
+        // since this is a new request, we clear the queue
+        conversation.state.values_mut().for_each(|state| {
+            state.queue.clear();
+        });
+
+        Ok(Self {
             app: svc,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
-        }
+        })
     }
 
     async fn send(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
