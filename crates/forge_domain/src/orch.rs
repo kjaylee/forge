@@ -413,7 +413,7 @@ impl<A: App> Orchestrator<A> {
 
 impl<A: App> Drop for Orchestrator<A> {
     fn drop(&mut self) {
-        // Clear the conversation state and set is_active to false
+        // on drop, clear the agents queue.
         let _ = self
             .app
             .conversation_service()
