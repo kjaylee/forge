@@ -23,13 +23,12 @@ impl<F: App> ForgeExecutorService<F> {
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
-            // ideally, conversation should've been created at this point.
             let mut conversation = app
                 .conversation_service()
                 .get(&request.conversation_id)
                 .await
                 .unwrap_or_default()
-                .unwrap();
+                .expect("conversation for the request should've been created");
             conversation.state.values_mut().for_each(|state| {
                 // since this is a new request, we clear the queue and start fresh with new events.
                 state.queue.clear();
