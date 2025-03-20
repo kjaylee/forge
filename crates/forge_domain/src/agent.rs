@@ -121,7 +121,7 @@ pub struct Agent {
     pub custom_rules: Option<String>,
 }
 
-fn merge_subscription(base: &mut Option<Vec<String>>, other: Option<Vec<String>>) {
+fn merge_subscription<T>(base: &mut Option<Vec<T>>, other: Option<Vec<T>>) {
     if let Some(other) = other {
         if let Some(base) = base {
             base.extend(other);
