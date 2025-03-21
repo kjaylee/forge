@@ -19,6 +19,9 @@ use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::state::{Mode, UIState};
 
 // Event type constants moved to UI layer
+// Event names will be prefixed with the current mode (act/, plan/, or help/)
+// during dispatch For example: "act/user/task_init", "plan/user/task_update",
+// "help/user/help_query"
 pub const EVENT_USER_TASK_INIT: &str = "user/task_init";
 pub const EVENT_USER_TASK_UPDATE: &str = "user/task_update";
 pub const EVENT_USER_HELP_QUERY: &str = "user/help_query";
@@ -91,16 +94,12 @@ impl<F: API> UI<F> {
 
         Ok(())
     }
-    // Helper functions for creating events with the specific event names
-    fn create_task_init_event(content: impl ToString) -> Event {
-        Event::new(EVENT_USER_TASK_INIT, content)
-    }
 
-    fn create_task_update_event(content: impl ToString) -> Event {
-        Event::new(EVENT_USER_TASK_UPDATE, content)
-    }
-    fn create_user_help_query_event(content: impl ToString) -> Event {
-        Event::new(EVENT_USER_HELP_QUERY, content)
+    // Helper method to create events with mode prefix
+    fn create_event(&self, name: impl ToString, content: impl ToString) -> Event {
+        let mode = self.state.mode.to_string().to_lowercase();
+        let name = format!("{}/{}", mode, name.to_string());
+        Event::new(name, content)
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -170,7 +169,7 @@ impl<F: API> UI<F> {
                 Command::Message(ref content) => {
                     let chat_result = match self.state.mode {
                         Mode::Help => {
-                            self.dispatch_event(Self::create_user_help_query_event(content.clone()))
+                            self.dispatch_event(self.create_event(EVENT_USER_HELP_QUERY, content))
                                 .await
                         }
                         _ => self.chat(content.clone()).await,
@@ -277,9 +276,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            Self::create_task_init_event(content.clone())
+            self.create_event(EVENT_USER_TASK_INIT, content)
         } else {
-            Self::create_task_update_event(content.clone())
+            self.create_event(EVENT_USER_TASK_UPDATE, content)
         };
 
         // Create the chat request with the event

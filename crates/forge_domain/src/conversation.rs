@@ -66,7 +66,7 @@ impl Conversation {
     }
 
     /// Returns all the agents that are subscribed to the given event.
-    pub fn subscriptions(&self, event_name: &str) -> Vec<Agent> {
+    pub fn subscribers(&self, event: &str) -> Vec<Agent> {
         self.workflow
             .agents
             .iter()
@@ -77,13 +77,13 @@ impl Conversation {
             .filter(|a| {
                 self.turn_count(&a.id).unwrap_or_default() < a.max_turns.unwrap_or(u64::MAX)
             })
-            .filter(|a| {
-                a.subscribe.as_ref().is_some_and(|subs| {
-                    subs.iter().any(|name| match Regex::new(name) {
-                        Ok(regex) => regex.is_match(event_name),
+            .filter(|agent| {
+                agent.subscribe.as_ref().is_some_and(|patterns| {
+                    patterns.iter().any(|pattern| match Regex::new(pattern) {
+                        Ok(pattern) => pattern.is_match(event),
                         Err(e) => {
-                            error!(pattern = ?name, reason = ?e, "Failed to compile regex pattern");
-                            name == event_name
+                            error!(pattern = ?pattern, reason = ?e, "Failed to compile regex pattern");
+                            pattern == event
                         }
                     })
                 })
@@ -127,7 +127,7 @@ impl Conversation {
 
     /// Add an event to the queue of subscribed agents
     pub fn insert_event(&mut self, event: Event) -> &mut Self {
-        let subscribed_agents = self.subscriptions(&event.name);
+        let subscribed_agents = self.subscribers(&event.name);
         self.events.push(event.clone());
 
         subscribed_agents.iter().for_each(|agent| {
@@ -171,7 +171,7 @@ impl Conversation {
     /// now activated
     pub fn dispatch_event(&mut self, event: Event) -> Vec<AgentId> {
         let name = event.name.as_str();
-        let mut agents = self.subscriptions(name);
+        let mut agents = self.subscribers(name);
 
         let inactive_agents = agents
             .iter_mut()
@@ -192,5 +192,26 @@ impl Conversation {
         self.insert_event(event);
 
         inactive_agents
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::{Conversation, ConversationId};
+    use crate::Workflow;
+
+    #[test]
+    fn test_using_subpath() {
+        let conversation = Conversation::new(
+            ConversationId::generate(),
+            Workflow::default().agents(vec![
+                crate::Agent::new("agent1").subscribe(vec![r"user/task_init".to_string()])
+            ]),
+        );
+
+        let actual = conversation.subscribers("act/user/task_init").len();
+        assert_eq!(actual, 1);
     }
 }
