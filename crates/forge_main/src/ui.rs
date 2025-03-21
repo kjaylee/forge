@@ -19,10 +19,10 @@ use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::state::{Mode, UIState};
 
 // Event type constants moved to UI layer
-pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
-pub const EVENT_USER_TASK_UPDATE: &str = "user_task_update";
-pub const EVENT_USER_HELP_QUERY: &str = "user_help_query";
-pub const EVENT_TITLE: &str = "title";
+pub const EVENT_USER_TASK_INIT: &str = "user/task_init";
+pub const EVENT_USER_TASK_UPDATE: &str = "user/task_update";
+pub const EVENT_USER_HELP_QUERY: &str = "user/help_query";
+pub const EVENT_TITLE: &str = "ui/title";
 
 lazy_static! {
     pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();

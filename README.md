@@ -354,8 +354,8 @@ Agents communicate through events which they can publish and subscribe to:
 
 **Built-in Events**
 
-- `user_task_init` - Published when a new task is initiated
-- `user_task_update` - Published when follow-up instructions are provided by the user
+- `user/task_init` - Published when a new task is initiated
+- `user/task_update` - Published when follow-up instructions are provided by the user
 
 #### Agent Tools
 
@@ -494,8 +494,8 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
     subscribe:
-      - user_task_init
-      - user_task_update
+      - user/task_init
+      - user/task_update
       - commit # Subscribe to the commit command event
       - pull-request # Subscribe to the pull-request command event
     ephemeral: false
@@ -536,8 +536,8 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
     subscribe:
-      - user_task_init
-      - user_task_update
+      - user/task_init
+      - user/task_update
       - commit # Subscribe to the commit command event
       - pull-request # Subscribe to the pull-request command event
     ephemeral: false
