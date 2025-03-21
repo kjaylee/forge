@@ -4,6 +4,7 @@ use forge_domain::{
     AgentMessage, App, ChatRequest, ChatResponse, ConversationService, Orchestrator,
 };
 use forge_stream::MpscStream;
+use tracing::error;
 
 pub struct ForgeExecutorService<F> {
     app: Arc<F>,
@@ -33,7 +34,10 @@ impl<F: App> ForgeExecutorService<F> {
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
             if let Err(err) = orch.dispatch(request.event).await {
-                let _ = tx.send(Err(err)).await;
+                error!("Error occured in orchestrator: {:#?}", err);
+                if let Err(e) = tx.send(Err(err)).await {
+                    error!("Failed to send error to stream: {:#?}", e);
+                }
             }
         }))
     }
