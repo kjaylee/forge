@@ -25,7 +25,7 @@ impl<F: App> ForgeExecutorService<F> {
             .find(&request.conversation_id)
             .await
             .unwrap_or_default()
-            .expect("conversation for the request should've been created");
+            .expect("conversation for the request should've been created at this point.");
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
