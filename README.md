@@ -67,14 +67,16 @@ Forge is a comprehensive coding agent that integrates AI capabilities with your 
 
 ### NPM
 
+Run directly without installation using npx
+
+```bash
+npx @antinomyhq/forge@latest
+```
+
 Install Forge globally using npm:
 
 ```bash
-# Install Forge globally using npm
 npm install -g @antinomyhq/forge
-
-# Or run directly without installation using npx
-npx @antinomyhq/forge
 ```
 
 This method works on **Windows**, **macOS**, and **Linux**, providing a consistent installation experience across all platforms.
@@ -89,7 +91,7 @@ This method works on **Windows**, **macOS**, and **Linux**, providing a consiste
 
    # Optional: Set a custom URL for OpenAI-compatible providers
    OPENAI_URL=https://custom-openai-provider.com/v1
-   
+
    # Optional: Set a custom URL for Anthropic
    ANTHROPIC_URL=https://custom-anthropic-provider.com/v1
    ```
