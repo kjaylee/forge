@@ -381,7 +381,8 @@ mod tests {
     fn test_merge_subscribe() {
         // Base has no value, should take other's values
         let mut base = Agent::new("Base"); // no subscribe
-        let other = Agent::new("Other").subscribe(vec!["test/event2".to_string(), "test/event3".to_string()]);
+        let other = Agent::new("Other")
+            .subscribe(vec!["test/event2".to_string(), "test/event3".to_string()]);
         base.merge(other);
 
         // Should contain events from other
@@ -391,9 +392,10 @@ mod tests {
         assert!(subscribe.contains(&"test/event3".to_string()));
 
         // Base has a value, should not be overwritten
-        let mut base =
-            Agent::new("Base").subscribe(vec!["test/event1".to_string(), "test/event2".to_string()]);
-        let other = Agent::new("Other").subscribe(vec!["test/event3".to_string(), "test/event4".to_string()]);
+        let mut base = Agent::new("Base")
+            .subscribe(vec!["test/event1".to_string(), "test/event2".to_string()]);
+        let other = Agent::new("Other")
+            .subscribe(vec!["test/event3".to_string(), "test/event4".to_string()]);
         base.merge(other);
 
         // Should have other's events
