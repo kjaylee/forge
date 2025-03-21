@@ -32,9 +32,8 @@ impl<F: App> ForgeExecutorService<F> {
 
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
-            match orch.dispatch(request.event).await {
-                Ok(_) => {}
-                Err(err) => tx.send(Err(err)).await.unwrap(),
+            if let Err(err) = orch.dispatch(request.event).await {
+                let _ = tx.send(Err(err)).await;
             }
         }))
     }
