@@ -34,7 +34,6 @@ impl<F: App> ForgeExecutorService<F> {
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
             if let Err(err) = orch.dispatch(request.event).await {
-                error!("Error occured in orchestrator: {:#?}", err);
                 if let Err(e) = tx.send(Err(err)).await {
                     error!("Failed to send error to stream: {:#?}", e);
                 }
