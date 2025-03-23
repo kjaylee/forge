@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::*;
 use forge_infra::ForgeInfra;
-use forge_services::{EnvironmentService, ForgeApp, Infrastructure};
+use forge_services::{EnvironmentService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
 use serde_json::Value;
 
@@ -31,10 +31,10 @@ impl<F: App + Infrastructure> ForgeAPI<F> {
     }
 }
 
-impl ForgeAPI<ForgeApp<ForgeInfra>> {
+impl ForgeAPI<ForgeServices<ForgeInfra>> {
     pub fn init(restricted: bool) -> Self {
         let infra = Arc::new(ForgeInfra::new(restricted));
-        let app = Arc::new(ForgeApp::new(infra));
+        let app = Arc::new(ForgeServices::new(infra));
         ForgeAPI::new(app)
     }
 }

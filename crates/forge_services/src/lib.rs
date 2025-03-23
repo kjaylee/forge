@@ -1,4 +1,4 @@
-mod app;
+mod forge_services;
 mod attachment;
 mod conversation;
 mod infra;
@@ -7,5 +7,5 @@ mod template;
 mod tool_service;
 mod tools;
 
-pub use app::*;
+pub use forge_services::*;
 pub use infra::*;

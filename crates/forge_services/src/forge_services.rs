@@ -16,7 +16,7 @@ use crate::Infrastructure;
 /// - F: The infrastructure implementation that provides core services like
 ///   environment, file reading, vector indexing, and embedding.
 #[derive(Clone)]
-pub struct ForgeApp<F> {
+pub struct ForgeServices<F> {
     infra: Arc<F>,
     tool_service: Arc<ForgeToolService>,
     provider_service: ForgeProviderService,
@@ -25,7 +25,7 @@ pub struct ForgeApp<F> {
     attachment_service: ForgeChatRequest<F>,
 }
 
-impl<F: Infrastructure> ForgeApp<F> {
+impl<F: Infrastructure> ForgeServices<F> {
     pub fn new(infra: Arc<F>) -> Self {
         let tool_service = Arc::new(ForgeToolService::new(infra.clone()));
         Self {
@@ -39,7 +39,7 @@ impl<F: Infrastructure> ForgeApp<F> {
     }
 }
 
-impl<F: Infrastructure> App for ForgeApp<F> {
+impl<F: Infrastructure> App for ForgeServices<F> {
     type ToolService = ForgeToolService;
     type ProviderService = ForgeProviderService;
     type ConversationService = ForgeConversationService;
@@ -67,7 +67,7 @@ impl<F: Infrastructure> App for ForgeApp<F> {
     }
 }
 
-impl<F: Infrastructure> Infrastructure for ForgeApp<F> {
+impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
     type EnvironmentService = F::EnvironmentService;
     type FsReadService = F::FsReadService;
     type FsWriteService = F::FsWriteService;
