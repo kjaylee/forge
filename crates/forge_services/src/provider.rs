@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use forge_domain::{
     ChatCompletionMessage, Context as ChatContext, Model, ModelId, ProviderService, ResultStream,
 };
-use forge_open_router::Client;
+use forge_provider::Client;
 
 use crate::{EnvironmentService, Infrastructure};
 

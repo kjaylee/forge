@@ -1081,7 +1081,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "forge_open_router"
+name = "forge_provider"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1119,7 +1119,7 @@ dependencies = [
  "dissimilar",
  "forge_display",
  "forge_domain",
- "forge_open_router",
+ "forge_provider",
  "forge_snaps",
  "forge_tool_macros",
  "forge_walker",

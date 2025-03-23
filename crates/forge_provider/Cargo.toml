@@ -1,5 +1,5 @@
 [package]
-name = "forge_open_router"
+name = "forge_provider"
 version = "0.1.0"
 edition = "2021"
 
