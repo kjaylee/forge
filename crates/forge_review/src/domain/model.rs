@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+#[derive(Serialize)]
 pub struct PullRequest;
 
 impl Default for PullRequest {

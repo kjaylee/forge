@@ -11,25 +11,30 @@ use super::{PullRequest, Rule, SummaryAgent};
 use crate::infra::{Config, ProjectRules, ReviewInfrastructure, TemplateRender};
 
 pub struct ArchitectureAgent<I> {
-    review: Arc<PullRequest>,
+    pull_request: Arc<PullRequest>,
     file: PathBuf,
     infra: Arc<I>,
 }
 
 #[derive(Serialize)]
-struct PromptContext {
-    file: PathBuf,
-    rule: Rule,
+struct PromptContext<'a> {
+    file: &'a PathBuf,
+    pull_request: &'a PullRequest,
+    rule: &'a Rule,
 }
 
 impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
     pub fn new(review: Arc<PullRequest>, file: PathBuf, infra: Arc<I>) -> Self {
-        Self { review, file, infra }
+        Self { pull_request: review, file, infra }
     }
 
     fn create_prompt(&self, rule: &Rule) -> Result<String> {
         let template = self.infra.config().get("architect.prompt")?;
-        let context = PromptContext { file: self.file.clone(), rule: rule.clone() };
+        let context = PromptContext {
+            file: &self.file,
+            rule,
+            pull_request: &self.pull_request,
+        };
         self.infra.template_renderer().render(&template, context)
     }
 
@@ -63,11 +68,11 @@ impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
     async fn check_rule(&self, rule: &Rule) -> Result<Option<String>> {
         let agent = Agent::new("architect").subscribe(vec!["user".to_string()]);
         let workflow = Workflow::default().agents(vec![agent]);
-        let conversation = self.infra.agent_api().init(workflow).await?;
+        let conversation = self.infra.forge_workflow().init(workflow).await?;
         let prompt = self.create_prompt(rule)?;
         let event = Event::new("user", prompt);
         let chat = ChatRequest::new(event, conversation);
-        let mut stream = self.infra.agent_api().chat(chat).await?;
+        let mut stream = self.infra.forge_workflow().chat(chat).await?;
 
         while let Some(response) = stream.next().await {
             let response = response?;

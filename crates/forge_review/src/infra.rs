@@ -31,7 +31,7 @@ pub trait ReviewInfrastructure: Send + Sync {
 
     fn github_api(&self) -> &Self::GithubAPI;
     fn project_rules(&self) -> &Self::ProjectRules;
-    fn agent_api(&self) -> &Self::API;
+    fn forge_workflow(&self) -> &Self::API;
     fn config(&self) -> &Self::Config;
     fn template_renderer(&self) -> &Self::TemplateRender;
 }
