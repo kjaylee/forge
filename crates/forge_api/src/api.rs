@@ -2,9 +2,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, ForgeApp, Infrastructure};
 use forge_domain::*;
 use forge_infra::ForgeInfra;
+use forge_services::{EnvironmentService, ForgeApp, Infrastructure};
 use forge_stream::MpscStream;
 use serde_json::Value;
 

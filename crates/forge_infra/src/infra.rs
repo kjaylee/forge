@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_app::{EnvironmentService, Infrastructure};
+use forge_services::{EnvironmentService, Infrastructure};
 
 use crate::embedding::OpenAIEmbeddingService;
 use crate::env::ForgeEnvironmentService;

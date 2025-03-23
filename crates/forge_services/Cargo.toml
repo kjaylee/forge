@@ -1,5 +1,5 @@
 [package]
-name = "forge_app"
+name = "forge_services"
 version = "0.1.0"
 edition = "2021"
 
