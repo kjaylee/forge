@@ -2,14 +2,17 @@ use std::{path::PathBuf, sync::Arc};
 
 // Import all the agents
 use crate::{
-    domain::PullRequest,
     github::{GithubFileCommentator, GithubPRCommentator},
     infra::ReviewInfrastructure,
+    domain::PullRequest,
 };
 use anyhow::Result;
 use futures::future::join_all;
 
-use super::{bug_reporter::BugReporterAgent, code_smell::CodeSmellAgent, summarizer::CombineSummaryAgent, SummaryAgent};
+use super::{
+    SummaryAgent, bug_reporter::BugReporterAgent, code_smell::CodeSmellAgent,
+    summarizer::CombineSummaryAgent,
+};
 
 #[derive(Clone)]
 pub struct ReviewWorkflow<A> {
@@ -56,13 +59,7 @@ impl<L: ReviewInfrastructure> ReviewWorkflow<L> {
     }
 
     pub async fn run(&self) -> Result<()> {
-        let pull_request = Arc::new(
-            {
-                let this = &self;
-                async move { this.lib.get_pull_request().await }
-            }
-            .await?,
-        );
+        let pull_request: Arc<PullRequest> = Arc::new(self.lib.get_pull_request().await?);
         let modified_files = pull_request.modified_files();
 
         // Run file reviews in parallel using futures::future::join_all

@@ -1,21 +1,20 @@
 use std::sync::Arc;
 
-use crate::domain::PullRequest;
 
-use super::SummaryAgent;
+use super::{PullRequest, SummaryAgent};
 
-pub struct BugReporterAgent {
+pub struct ArchitectureAgent {
     review: Arc<PullRequest>,
 }
 
-impl BugReporterAgent {
+impl ArchitectureAgent {
     pub fn new(review: Arc<PullRequest>) -> Self {
         Self { review }
     }
 }
 
 #[async_trait::async_trait]
-impl SummaryAgent for BugReporterAgent {
+impl SummaryAgent for ArchitectureAgent {
     async fn summarize(&self) -> anyhow::Result<String> {
         todo!()
     }
