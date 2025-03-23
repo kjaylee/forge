@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use serde_json::Value;
 
-use crate::{Agent, Attachment, ChatCompletionMessage, Context, Conversation, ConversationId, Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template, ToolCallFull, ToolDefinition, ToolResult, Workflow};
+use crate::{
+    Agent, Attachment, ChatCompletionMessage, Context, Conversation, ConversationId, Event,
+    EventContext, Model, ModelId, ResultStream, SystemContext, Template, ToolCallFull,
+    ToolDefinition, ToolResult, Workflow,
+};
 
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {
