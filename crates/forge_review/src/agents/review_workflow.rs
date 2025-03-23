@@ -2,32 +2,23 @@ use std::{path::PathBuf, sync::Arc};
 
 // Import all the agents
 use crate::{
-    agents::{
-        ArchitectureAgent, BugReporterAgent, CodeSmellAgent, CombineSummaryAgent, SummaryAgent,
-    },
     domain::PullRequest,
-    github::GithubFileCommentator,
+    github::{GithubFileCommentator, GithubPRCommentator},
+    infra::ReviewInfrastructure,
 };
 use anyhow::Result;
 use futures::future::join_all;
 
+use super::{bug_reporter::BugReporterAgent, code_smell::CodeSmellAgent, summarizer::CombineSummaryAgent, SummaryAgent};
+
 #[derive(Clone)]
-pub struct Review<A> {
+pub struct ReviewWorkflow<A> {
     lib: Arc<A>,
 }
 
-#[async_trait::async_trait]
-pub trait ReviewLib {
-    async fn get_pull_request(&self) -> Result<PullRequest>;
-}
-
-impl<L: ReviewLib> Review<L> {
+impl<L: ReviewInfrastructure> ReviewWorkflow<L> {
     pub fn new(lib: Arc<L>) -> Self {
         Self { lib }
-    }
-
-    pub async fn get_pull_request(&self) -> Result<PullRequest> {
-        self.lib.get_pull_request().await
     }
 
     pub async fn review_each_file(
@@ -38,7 +29,7 @@ impl<L: ReviewLib> Review<L> {
         // Create agents for file-specific reviews
         let agents: Vec<Box<dyn SummaryAgent>> = vec![
             Box::new(CodeSmellAgent::new(pull_request.clone(), file.clone())),
-            Box::new(BugReporterAgent::new(pull_request.clone(), file.clone())),
+            Box::new(BugReporterAgent::new(pull_request.clone())),
         ];
 
         // Execute all futures concurrently
@@ -57,11 +48,21 @@ impl<L: ReviewLib> Review<L> {
     }
 
     pub async fn review_complete_pr(&self, review: Arc<PullRequest>) -> Result<()> {
-        todo!()
+        let bug_reporter = BugReporterAgent::new(review.clone());
+        let comments = bug_reporter.summarize().await?;
+
+        let commentator = GithubPRCommentator::new(comments);
+        commentator.comment().await
     }
 
     pub async fn run(&self) -> Result<()> {
-        let pull_request = Arc::new(self.get_pull_request().await?);
+        let pull_request = Arc::new(
+            {
+                let this = &self;
+                async move { this.lib.get_pull_request().await }
+            }
+            .await?,
+        );
         let modified_files = pull_request.modified_files();
 
         // Run file reviews in parallel using futures::future::join_all

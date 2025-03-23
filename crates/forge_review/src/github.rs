@@ -29,3 +29,27 @@ impl GithubFileCommentator {
         Ok(())
     }
 }
+
+/// Struct for handling GitHub PR level comments
+pub struct GithubPRCommentator {
+    comment: String,
+}
+
+impl GithubPRCommentator {
+    /// Creates a new instance with the provided PR comment
+    pub fn new(comment: String) -> Self {
+        Self { comment }
+    }
+    
+    /// Posts a comment to the GitHub PR
+    pub async fn comment(&self) -> Result<()> {
+        // Log the action for now
+        println!("Posting comment to GitHub PR");
+        println!("Comment: {}", self.comment);
+        
+        // TODO: Implement actual GitHub API integration
+        // This would typically use octocrab or github-rs crate to post a comment
+        // to the overall Pull Request
+        todo!()
+    }
+}

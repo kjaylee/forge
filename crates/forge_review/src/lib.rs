@@ -1,4 +1,6 @@
 mod agents;
 mod domain;
 mod github;
-mod review;
+mod infra;
+
+pub use agents::ReviewWorkflow;

@@ -1,12 +1,12 @@
 mod architect;
 mod bug_reporter;
 mod code_smell;
+mod comment_file;
+mod comment_pr;
+mod review_workflow;
 mod summarizer;
 
-pub use code_smell::CodeSmellAgent;
-pub use architect::ArchitectureAgent;
-pub use bug_reporter::BugReporterAgent;
-pub use summarizer::CombineSummaryAgent;
+pub use review_workflow::ReviewWorkflow;
 
 #[async_trait::async_trait]
 pub trait SummaryAgent {

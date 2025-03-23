@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use crate::domain::PullRequest;
 
@@ -6,12 +6,11 @@ use super::SummaryAgent;
 
 pub struct BugReporterAgent {
     review: Arc<PullRequest>,
-    file: PathBuf,
 }
 
 impl BugReporterAgent {
-    pub fn new(review: Arc<PullRequest>, file: PathBuf) -> Self {
-        Self { review, file }
+    pub fn new(review: Arc<PullRequest>) -> Self {
+        Self { review }
     }
 }
 
