@@ -1161,6 +1161,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_review"
+version = "0.1.0"
+dependencies = [
+ "forge_api",
+]
+
+[[package]]
 name = "forge_snaps"
 version = "0.1.0"
 dependencies = [
