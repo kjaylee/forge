@@ -1164,7 +1164,10 @@ dependencies = [
 name = "forge_review"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "forge_api",
+ "futures",
 ]
 
 [[package]]
