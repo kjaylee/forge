@@ -1,8 +1,8 @@
-use std::{path::PathBuf, sync::Arc};
-
-use crate::domain::PullRequest;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use super::SummaryAgent;
+use crate::domain::PullRequest;
 
 pub struct CodeSmellAgent {
     review: Arc<PullRequest>,

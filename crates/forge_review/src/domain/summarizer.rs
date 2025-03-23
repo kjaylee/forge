@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use crate::domain::PullRequest;
-
 use super::SummaryAgent;
+use crate::domain::PullRequest;
 
 pub struct CombineSummaryAgent {
     review: Arc<PullRequest>,

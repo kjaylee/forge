@@ -1,5 +1,6 @@
-use anyhow::Result;
 use std::path::PathBuf;
+
+use anyhow::Result;
 
 /// Struct for handling GitHub PR file comments
 pub struct GithubFileCommentator {

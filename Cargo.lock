@@ -1167,7 +1167,11 @@ dependencies = [
  "anyhow",
  "async-trait",
  "forge_api",
+ "forge_fs",
  "futures",
+ "schemars",
+ "serde",
+ "tempfile",
 ]
 
 [[package]]

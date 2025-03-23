@@ -1,27 +1,29 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
-// Import all the agents
-use crate::{
-    github::{GithubFileCommentator, GithubPRCommentator},
-    infra::ReviewInfrastructure,
-    domain::PullRequest,
-};
 use anyhow::Result;
 use futures::future::join_all;
 
-use super::{
-    SummaryAgent, bug_reporter::BugReporterAgent, code_smell::CodeSmellAgent,
-    summarizer::CombineSummaryAgent,
+use super::SummaryAgent;
+use super::architect::ArchitectureAgent;
+use super::bug_reporter::BugReporterAgent;
+use super::code_smell::CodeSmellAgent;
+use super::summarizer::CombineSummaryAgent;
+// Import all the agents
+use crate::{
+    domain::PullRequest,
+    github::{GithubFileCommentator, GithubPRCommentator},
+    infra::{GithubAPI, ReviewInfrastructure},
 };
 
 #[derive(Clone)]
-pub struct ReviewWorkflow<A> {
-    lib: Arc<A>,
+pub struct ReviewWorkflow<I> {
+    infra: Arc<I>,
 }
 
-impl<L: ReviewInfrastructure> ReviewWorkflow<L> {
-    pub fn new(lib: Arc<L>) -> Self {
-        Self { lib }
+impl<I: ReviewInfrastructure> ReviewWorkflow<I> {
+    pub fn new(infra: Arc<I>) -> Self {
+        Self { infra }
     }
 
     pub async fn review_each_file(
@@ -32,7 +34,11 @@ impl<L: ReviewInfrastructure> ReviewWorkflow<L> {
         // Create agents for file-specific reviews
         let agents: Vec<Box<dyn SummaryAgent>> = vec![
             Box::new(CodeSmellAgent::new(pull_request.clone(), file.clone())),
-            Box::new(BugReporterAgent::new(pull_request.clone())),
+            Box::new(ArchitectureAgent::new(
+                pull_request.clone(),
+                file.clone(),
+                self.infra.clone(),
+            )),
         ];
 
         // Execute all futures concurrently
@@ -59,7 +65,8 @@ impl<L: ReviewInfrastructure> ReviewWorkflow<L> {
     }
 
     pub async fn run(&self) -> Result<()> {
-        let pull_request: Arc<PullRequest> = Arc::new(self.lib.get_pull_request().await?);
+        let pull_request: Arc<PullRequest> =
+            Arc::new(self.infra.github_api().get_pull_request().await?);
         let modified_files = pull_request.modified_files();
 
         // Run file reviews in parallel using futures::future::join_all
