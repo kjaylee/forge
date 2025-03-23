@@ -4,13 +4,13 @@ use super::SummaryAgent;
 use crate::domain::PullRequest;
 
 pub struct CombineSummaryAgent {
-    review: Arc<PullRequest>,
+    pull_request: Arc<PullRequest>,
     summary: Vec<String>,
 }
 
 impl CombineSummaryAgent {
-    pub fn new(review: Arc<PullRequest>, summary: Vec<String>) -> Self {
-        Self { review, summary }
+    pub fn new(pull_request: Arc<PullRequest>, summary: Vec<String>) -> Self {
+        Self { pull_request, summary }
     }
 }
 
