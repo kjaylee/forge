@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use forge_api::API;
 
@@ -9,12 +11,12 @@ pub trait GithubAPI {
 }
 
 #[async_trait::async_trait]
-pub trait ProjectRules {
+pub trait ProjectRules: Send + Sync {
     async fn rules(&self) -> Result<RuleList>;
 }
 
 #[async_trait::async_trait]
-pub trait Config {
+pub trait Config: Send + Sync {
     async fn get(&self, key: &str) -> Result<String>;
 }
 
@@ -25,14 +27,16 @@ pub trait TemplateRender {
 #[async_trait::async_trait]
 pub trait ReviewInfrastructure: Send + Sync {
     type GithubAPI: GithubAPI;
-    type ProjectRules: ProjectRules;
+    type ArchitectureRules: ProjectRules;
+    type CodeSmellRules: ProjectRules;
     type API: API;
     type Config: Config;
     type TemplateRender: TemplateRender;
 
-    fn github_api(&self) -> &Self::GithubAPI;
-    fn project_rules(&self) -> &Self::ProjectRules;
-    fn forge_workflow(&self) -> &Self::API;
-    fn config(&self) -> &Self::Config;
-    fn template_renderer(&self) -> &Self::TemplateRender;
+    fn github_api(&self) -> Arc<Self::GithubAPI>;
+    fn architecture_rules(&self) -> Arc<Self::ArchitectureRules>;
+    fn code_smell_rules(&self) -> Arc<Self::CodeSmellRules>;
+    fn forge_workflow(&self) -> Arc<Self::API>;
+    fn config(&self) -> Arc<Self::Config>;
+    fn template_renderer(&self) -> Arc<Self::TemplateRender>;
 }

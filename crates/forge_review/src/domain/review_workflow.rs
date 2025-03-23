@@ -5,9 +5,8 @@ use anyhow::Result;
 use futures::future::join_all;
 
 use super::SummaryAgent;
-use super::architect::ArchitectureAgent;
 use super::bug_reporter::BugReporterAgent;
-use super::code_smell::CodeSmellAgent;
+use super::rule_based::RuleAgent;
 use super::summarizer::CombineSummaryAgent;
 // Import all the agents
 use crate::{
@@ -32,24 +31,29 @@ impl<I: ReviewInfrastructure> ReviewWorkflow<I> {
         file: PathBuf,
     ) -> Result<String> {
         // Create agents for file-specific reviews
-        let agents: Vec<Box<dyn SummaryAgent>> = vec![
-            Box::new(CodeSmellAgent::new(pull_request.clone(), file.clone())),
-            Box::new(ArchitectureAgent::new(
-                pull_request.clone(),
-                file.clone(),
-                self.infra.clone(),
-            )),
-        ];
+        let code_smell = RuleAgent::new(
+            "code-smell",
+            "code-smell.prompt",
+            pull_request.clone(),
+            file.clone(),
+            self.infra.clone(),
+            self.infra.code_smell_rules(),
+        );
+
+        let architect = RuleAgent::new(
+            "architect",
+            "architect.prompt",
+            pull_request.clone(),
+            file.clone(),
+            self.infra.clone(),
+            self.infra.architecture_rules(),
+        );
 
         // Execute all futures concurrently
-        let results = join_all(
-            agents
-                .into_iter()
-                .map(|agent| async move { agent.summarize().await }),
-        )
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>>>()?;
+        let results = join_all(vec![code_smell.summarize(), architect.summarize()])
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>>>()?;
 
         // Combine all the comments
         let combiner = CombineSummaryAgent::new(pull_request, results);

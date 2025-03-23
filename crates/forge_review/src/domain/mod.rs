@@ -1,10 +1,9 @@
-mod architect;
 mod bug_reporter;
-mod code_smell;
 mod comment_file;
 mod comment_pr;
 mod model;
 mod review_workflow;
+mod rule_based;
 mod summarizer;
 
 pub use model::*;

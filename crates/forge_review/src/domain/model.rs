@@ -9,7 +9,7 @@ pub struct PullRequest {
     files: Vec<File>,
 }
 
-/// Sample Response available at: 
+/// Sample Response available at:
 /// https://api.github.com/repos/antinomyhq/forge/pulls/200/files
 #[derive(Serialize)]
 pub struct File {

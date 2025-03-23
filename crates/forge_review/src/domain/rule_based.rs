@@ -10,10 +10,13 @@ use serde::Serialize;
 use super::{PullRequest, Rule, SummaryAgent};
 use crate::infra::{Config, ProjectRules, ReviewInfrastructure, TemplateRender};
 
-pub struct ArchitectureAgent<I> {
+pub struct RuleAgent<I, R> {
     pull_request: Arc<PullRequest>,
     file: PathBuf,
+    rule_repo: Arc<R>,
     infra: Arc<I>,
+    prompt_key: String,
+    agent_name: String,
 }
 
 #[derive(Serialize)]
@@ -23,22 +26,36 @@ struct PromptContext<'a> {
     rule: &'a Rule,
 }
 
-impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
-    pub fn new(review: Arc<PullRequest>, file: PathBuf, infra: Arc<I>) -> Self {
-        Self { pull_request: review, file, infra }
+impl<I: ReviewInfrastructure, R: ProjectRules> RuleAgent<I, R> {
+    pub fn new(
+        name: impl Into<String>,
+        prompt_key: impl Into<String>,
+        review: Arc<PullRequest>,
+        file: PathBuf,
+        infra: Arc<I>,
+        rules: Arc<R>,
+    ) -> Self {
+        Self {
+            agent_name: name.into(),
+            prompt_key: prompt_key.into(),
+            pull_request: review,
+            file,
+            infra,
+            rule_repo: rules,
+        }
     }
 
     async fn create_prompt(&self, template: &str, rule: &Rule) -> Result<String> {
         let context = PromptContext { file: &self.file, rule, pull_request: &self.pull_request };
-        self.infra.template_renderer().render(&template, context)
+        self.infra.template_renderer().render(template, context)
     }
 
     async fn _summarize(&self) -> Result<String> {
-        let rules = self.infra.project_rules().rules().await?.rules;
-        let template = &self.infra.config().get("architect.prompt").await?;
+        let rules = self.rule_repo.rules().await?.rules;
+        let template = &self.infra.config().get(&self.prompt_key).await?;
 
         let failures = join_all(rules.iter().map(|rule| async move {
-            let cause = self.check_rule(&template, rule).await?;
+            let cause = self.check_rule(template, rule).await?;
             Ok((rule, cause))
         }))
         .await
@@ -51,7 +68,7 @@ impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
             .collect::<Vec<_>>();
 
         if failures.is_empty() {
-            Ok("No architecture issues found".to_string())
+            Ok("No issues found".to_string())
         } else {
             Ok(failures
                 .into_iter()
@@ -62,7 +79,7 @@ impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
     }
 
     async fn check_rule(&self, template: &str, rule: &Rule) -> Result<Option<String>> {
-        let agent = Agent::new("architect").subscribe(vec!["user".to_string()]);
+        let agent = Agent::new(self.agent_name.clone()).subscribe(vec!["user".to_string()]);
         let workflow = Workflow::default().agents(vec![agent]);
         let conversation = self.infra.forge_workflow().init(workflow).await?;
         let prompt = self.create_prompt(template, rule).await?;
@@ -84,7 +101,7 @@ impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
 }
 
 #[async_trait::async_trait]
-impl<I: ReviewInfrastructure> SummaryAgent for ArchitectureAgent<I> {
+impl<I: ReviewInfrastructure, R: ProjectRules> SummaryAgent for RuleAgent<I, R> {
     async fn summarize(&self) -> anyhow::Result<String> {
         self._summarize().await
     }
