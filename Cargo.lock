@@ -1145,6 +1145,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_review"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "forge_api",
+ "forge_fs",
+ "futures",
+ "schemars",
+ "serde",
+ "tempfile",
+]
+
+[[package]]
 name = "forge_snaps"
 version = "0.1.0"
 dependencies = [
