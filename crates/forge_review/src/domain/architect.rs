@@ -28,21 +28,17 @@ impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
         Self { pull_request: review, file, infra }
     }
 
-    fn create_prompt(&self, rule: &Rule) -> Result<String> {
-        let template = self.infra.config().get("architect.prompt")?;
-        let context = PromptContext {
-            file: &self.file,
-            rule,
-            pull_request: &self.pull_request,
-        };
+    async fn create_prompt(&self, template: &str, rule: &Rule) -> Result<String> {
+        let context = PromptContext { file: &self.file, rule, pull_request: &self.pull_request };
         self.infra.template_renderer().render(&template, context)
     }
 
     async fn _summarize(&self) -> Result<String> {
         let rules = self.infra.project_rules().rules().await?.rules;
+        let template = &self.infra.config().get("architect.prompt").await?;
 
         let failures = join_all(rules.iter().map(|rule| async move {
-            let cause = self.check_rule(rule).await?;
+            let cause = self.check_rule(&template, rule).await?;
             Ok((rule, cause))
         }))
         .await
@@ -65,11 +61,11 @@ impl<I: ReviewInfrastructure> ArchitectureAgent<I> {
         }
     }
 
-    async fn check_rule(&self, rule: &Rule) -> Result<Option<String>> {
+    async fn check_rule(&self, template: &str, rule: &Rule) -> Result<Option<String>> {
         let agent = Agent::new("architect").subscribe(vec!["user".to_string()]);
         let workflow = Workflow::default().agents(vec![agent]);
         let conversation = self.infra.forge_workflow().init(workflow).await?;
-        let prompt = self.create_prompt(rule)?;
+        let prompt = self.create_prompt(template, rule).await?;
         let event = Event::new("user", prompt);
         let chat = ChatRequest::new(event, conversation);
         let mut stream = self.infra.forge_workflow().chat(chat).await?;

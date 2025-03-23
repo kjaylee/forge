@@ -13,8 +13,9 @@ pub trait ProjectRules {
     async fn rules(&self) -> Result<RuleList>;
 }
 
+#[async_trait::async_trait]
 pub trait Config {
-    fn get(&self, key: &str) -> Result<String>;
+    async fn get(&self, key: &str) -> Result<String>;
 }
 
 pub trait TemplateRender {
