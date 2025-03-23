@@ -31,14 +31,14 @@ struct ChatCompletionResult {
 }
 
 impl<A: App> Orchestrator<A> {
-    pub fn new(svc: Arc<A>, mut conversation: Conversation, sender: Option<ArcSender>) -> Self {
+    pub fn new(app: Arc<A>, mut conversation: Conversation, sender: Option<ArcSender>) -> Self {
         // since this is a new request, we clear the queue
         conversation.state.values_mut().for_each(|state| {
             state.queue.clear();
         });
 
         Self {
-            app: svc,
+            app,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
         }
