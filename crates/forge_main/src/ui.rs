@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use colored::Colorize;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, API};
+use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, API, SignalManager, AppSignal};
 use forge_display::TitleFormat;
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -53,6 +53,7 @@ pub struct UI<F> {
     command: Arc<ForgeCommandManager>,
     cli: Cli,
     models: Option<Vec<Model>>,
+    signal_manager: Arc<SignalManager>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
 }
@@ -103,7 +104,7 @@ impl<F: API> UI<F> {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
-    pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
+    pub fn init(cli: Cli, api: Arc<F>, signal_manager: Arc<SignalManager>) -> Result<Self> {
         // Parse CLI arguments first to get flags
         let env = api.environment();
         let command = Arc::new(ForgeCommandManager::default());
@@ -114,6 +115,7 @@ impl<F: API> UI<F> {
             cli,
             command,
             models: None,
+            signal_manager,
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
     }
@@ -295,9 +297,27 @@ impl<F: API> UI<F> {
         &mut self,
         stream: &mut (impl StreamExt<Item = Result<AgentMessage<ChatResponse>>> + Unpin),
     ) -> Result<()> {
+        let mut signal_rx = self.signal_manager.subscribe();
+        
         loop {
             tokio::select! {
+                signal = signal_rx.recv() => {
+                    match signal {
+                        Ok(AppSignal::Cancel) => {
+                            return Ok(());
+                        }
+                        Ok(AppSignal::Exit) => {
+                            return Err(anyhow::anyhow!("Exit requested"));
+                        }
+                        Err(_) => {
+                            // Channel closed, continue processing
+                        }
+                    }
+                }
                 _ = tokio::signal::ctrl_c() => {
+                    // Send a cancel signal through the signal manager
+                    self.signal_manager.cancel();
+                    // Also return to make this handler return immediately
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
