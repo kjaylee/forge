@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use colored::Colorize;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, Model, API, SignalManager, AppSignal};
+use forge_api::{
+    AgentMessage, AppSignal, ChatRequest, ChatResponse, ConversationId, Event, Model,
+    SignalManager, API,
+};
 use forge_display::TitleFormat;
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -298,7 +301,7 @@ impl<F: API> UI<F> {
         stream: &mut (impl StreamExt<Item = Result<AgentMessage<ChatResponse>>> + Unpin),
     ) -> Result<()> {
         let mut signal_rx = self.signal_manager.subscribe();
-        
+
         loop {
             tokio::select! {
                 signal = signal_rx.recv() => {

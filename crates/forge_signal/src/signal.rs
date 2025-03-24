@@ -20,17 +20,17 @@ impl SignalManager {
         let (tx, _) = broadcast::channel(16);
         Self { tx }
     }
-    
+
     /// Subscribe to signals
     pub fn subscribe(&self) -> broadcast::Receiver<AppSignal> {
         self.tx.subscribe()
     }
-    
+
     /// Send a cancel signal
     pub fn cancel(&self) {
         let _ = self.tx.send(AppSignal::Cancel);
     }
-    
+
     /// Send an exit signal
     pub fn exit(&self) {
         let _ = self.tx.send(AppSignal::Exit);
