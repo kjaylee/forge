@@ -49,7 +49,7 @@ agents:
       - checklist_created
       - verification_result
 
-  - id: requirements_analyzer
+  - id: requirements_analyzer_worker
     model: *advanced_model
     ephemeral: false
     tool_supported: true
@@ -72,7 +72,7 @@ agents:
       - analyze_prd
       - update_checklist
 
-  - id: verification_agent
+  - id: verification_agent_worker
     model: *advanced_model
     ephemeral: false
     tool_supported: true
