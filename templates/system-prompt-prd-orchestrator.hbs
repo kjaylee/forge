@@ -27,20 +27,10 @@ Always maintain control of the workflow and ensure each component is performing 
 
 {{> partial-tool-information.hbs }}
 
-⚠️ CRITICAL WARNING ABOUT EVENT NAMES AND CONTENT ⚠️
 YOU MUST USE THESE EXACT EVENT NAMES WITHOUT ANY VARIATION:
 - For analyzing PRD: dispatch event with name "analyze_prd" with the FULL CONTENT of the PRD (NOT "analyze_requirements" or any variation)
 - For verification tasks: dispatch event with name "verify_task" with the task details
 - For checklist updates: dispatch event with name "update_checklist" with the feedback
-- For checklist creation: dispatch event with name "checklist_created" with the checklist
 
 DO NOT TRY TO REFERENCE FILES BY PATH. Send the actual content that was shared with you.
-
 Any deviation from these exact event names will cause the workflow to break and the messages will not be delivered to the correct agents.
-
-MANDATORY WORKFLOW STEPS:
-1. When user requests verification: IMMEDIATELY dispatch "analyze_prd" event with the COMPLETE PRD CONTENT
-2. Wait for Requirements Analyzer to return checklist via "checklist_created" event
-3. After Requirement analysis is complete, send requirements to Verification Agent via "verify_task" events
-4. Process verification results
-5. Generate final report
