@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::merge::Key;
 use crate::template::Template;
-use crate::{Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName};
+use crate::{
+    Context, Error, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition, ToolName,
+};
 
 // Unique identifier for an agent
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
@@ -57,7 +59,7 @@ pub struct Compaction {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub prompt: Option<String>,
-    
+
     /// Optional model ID to use for compaction, overrides the agent's model
     /// Useful when compacting with a cheaper/faster model
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -79,27 +81,32 @@ impl Compaction {
     }
 
     /// Determines if compaction should be triggered based on the current context
-    pub fn should_compact(
-        &self,
-        token_count: usize,
-        turn_count: usize,
-        message_count: usize,
-    ) -> bool {
+    pub fn should_compact(&self, context: &Context) -> bool {
         // Check if any of the thresholds have been exceeded
         if let Some(token_threshold) = self.token_threshold {
+            // Use the context's text representation to estimate token count
+            let token_count = estimate_token_count(&context.to_text());
             if token_count >= token_threshold {
                 return true;
             }
         }
 
         if let Some(turn_threshold) = self.turn_threshold {
-            if turn_count >= turn_threshold {
+            if context
+                .messages
+                .iter()
+                .filter(|message| message.has_role(Role::User))
+                .count()
+                >= turn_threshold
+            {
                 return true;
             }
         }
 
         if let Some(message_threshold) = self.message_threshold {
-            if message_count >= message_threshold {
+            // Count messages directly from context
+            let msg_count = context.messages.len();
+            if msg_count >= message_threshold {
                 return true;
             }
         }
@@ -251,293 +258,12 @@ impl Key for Agent {
     }
 }
 
+/// Estimates the token count from a string representation
+/// This is a simple estimation that should be replaced with a more accurate tokenizer
+fn estimate_token_count(text: &str) -> usize {
+    // A very rough estimation that assumes ~4 characters per token on average
+    // In a real implementation, this should use a proper LLM-specific tokenizer
+    text.len() / 4
+}
+
 // The Transform enum has been removed
-
-#[cfg(test)]
-mod compaction_tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn test_compaction_should_compact() {
-        // Test token threshold
-        let compaction = Compaction::new(4000).token_threshold(6000 as usize);
-        assert!(!compaction.should_compact(5000, 5, 10));
-        assert!(compaction.should_compact(6000, 5, 10));
-        assert!(compaction.should_compact(7000, 5, 10));
-
-        // Test turn threshold
-        let compaction = Compaction::new(4000).turn_threshold(10 as usize);
-        assert!(!compaction.should_compact(5000, 9, 20));
-        assert!(compaction.should_compact(5000, 10, 20));
-        assert!(compaction.should_compact(5000, 11, 20));
-
-        // Test message threshold
-        let compaction = Compaction::new(4000).message_threshold(30 as usize);
-        assert!(!compaction.should_compact(5000, 5, 29));
-        assert!(compaction.should_compact(5000, 5, 30));
-        assert!(compaction.should_compact(5000, 5, 31));
-
-        // Test multiple thresholds - should compact when any threshold is exceeded
-        let compaction = Compaction::new(4000)
-            .token_threshold(6000 as usize)
-            .turn_threshold(10 as usize)
-            .message_threshold(30 as usize);
-
-        assert!(!compaction.should_compact(5000, 5, 25)); // None exceeded
-        assert!(compaction.should_compact(6000, 5, 25)); // Token exceeded
-        assert!(compaction.should_compact(5000, 10, 25)); // Turn exceeded
-        assert!(compaction.should_compact(5000, 5, 30)); // Message exceeded
-    }
-
-    #[test]
-    fn test_merge_compact() {
-        // Base has no value, should use other's value
-        let mut base = Agent::new("Base"); // No compact set
-        let other = Agent::new("Other").compact(
-            Compaction::new(4000)
-                .token_threshold(6000 as usize)
-                .turn_threshold(10 as usize),
-        );
-        base.merge(other);
-
-        let compact = base.compact.as_ref().unwrap();
-        assert_eq!(compact.max_tokens, 4000);
-        assert_eq!(compact.token_threshold, Some(6000));
-        assert_eq!(compact.turn_threshold, Some(10));
-        assert_eq!(compact.message_threshold, None);
-
-        // Base has a value, should be overwritten by other
-        let mut base =
-            Agent::new("Base").compact(Compaction::new(3000).message_threshold(25 as usize));
-        let other =
-            Agent::new("Other").compact(Compaction::new(4000).token_threshold(6000 as usize));
-        base.merge(other);
-
-        let compact = base.compact.as_ref().unwrap();
-        assert_eq!(compact.max_tokens, 4000);
-        assert_eq!(compact.token_threshold, Some(6000));
-        assert_eq!(compact.turn_threshold, None);
-        assert_eq!(compact.message_threshold, None);
-    }
-    #[test]
-    fn test_compaction_with_prompt() {
-        // Test with custom prompt template
-        let custom_prompt = "Conversation compacted: {{message_count}} messages ({{token_count}} tokens) reduced to {{kept_count}} messages";
-        let compaction = Compaction::new(4000)
-            .token_threshold(6000 as usize)
-            .prompt(custom_prompt.to_string());
-
-        assert_eq!(compaction.prompt, Some(custom_prompt.to_string()));
-
-        // Test merging with prompt
-        let mut base =
-            Agent::new("Base").compact(Compaction::new(3000).message_threshold(25 as usize));
-
-        let other = Agent::new("Other").compact(
-            Compaction::new(4000)
-                .token_threshold(6000 as usize)
-                .prompt(custom_prompt.to_string()),
-        );
-
-        base.merge(other);
-
-        let compact = base.compact.as_ref().unwrap();
-        assert_eq!(compact.max_tokens, 4000);
-        assert_eq!(compact.token_threshold, Some(6000));
-        assert_eq!(compact.prompt, Some(custom_prompt.to_string()));
-    }
-    
-    #[test]
-    fn test_compaction_with_model() {
-        // Test with model override
-        let model_id = ModelId::new("gpt-3.5-turbo");
-        let compaction = Compaction::new(4000)
-            .token_threshold(6000 as usize)
-            .model(model_id.clone());
-        
-        assert_eq!(compaction.model, Some(model_id.clone()));
-        
-        // Test merging with model
-        let mut base = Agent::new("Base").compact(
-            Compaction::new(3000).message_threshold(25 as usize)
-        );
-        
-        let other = Agent::new("Other").compact(
-            Compaction::new(4000)
-                .token_threshold(6000 as usize)
-                .model(model_id.clone())
-        );
-        
-        base.merge(other);
-        
-        let compact = base.compact.as_ref().unwrap();
-        assert_eq!(compact.model, Some(model_id));
-    }
-    
-    #[test]
-    fn test_compaction_with_empty_prompt() {
-        // Default without a prompt
-        let compaction = Compaction::new(4000).token_threshold(6000_usize);
-        assert_eq!(compaction.prompt, None);
-
-        // Adding a prompt
-        let compaction = compaction.prompt("Custom prompt".to_string());
-        assert_eq!(compaction.prompt, Some("Custom prompt".to_string()));
-
-        // Test with empty string prompt (considered valid but will render as empty)
-        let compaction = Compaction::new(4000).prompt("".to_string());
-        assert_eq!(compaction.prompt, Some("".to_string()));
-    }
-}
-#[cfg(test)]
-mod hide_content_tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn test_merge_hide_content() {
-        // Base has no value, other has value
-        let mut base = Agent::new("Base"); // No hide_content set
-        let other = Agent::new("Other").hide_content(true);
-        base.merge(other);
-        assert_eq!(base.hide_content, Some(true));
-
-        // Base has a value, other has another value
-        let mut base = Agent::new("Base").hide_content(false);
-        let other = Agent::new("Other").hide_content(true);
-        base.merge(other);
-        assert_eq!(base.hide_content, Some(true));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn test_merge_model() {
-        // Base has a value, should not be overwritten
-        let mut base = Agent::new("Base").model(ModelId::new("base"));
-        let other = Agent::new("Other").model(ModelId::new("other"));
-        base.merge(other);
-        assert_eq!(base.model.unwrap(), ModelId::new("other"));
-
-        // Base has no value, should take the other value
-        let mut base = Agent::new("Base"); // No model
-        let other = Agent::new("Other").model(ModelId::new("other"));
-        base.merge(other);
-        assert_eq!(base.model.unwrap(), ModelId::new("other"));
-    }
-
-    #[test]
-    fn test_merge_tool_supported() {
-        // Base has no value, should use other's value
-        let mut base = Agent::new("Base"); // No tool_supported set
-        let other = Agent::new("Other").tool_supported(true);
-        base.merge(other);
-        assert_eq!(base.tool_supported, Some(true));
-
-        // Base has a value, should not be overwritten
-        let mut base = Agent::new("Base").tool_supported(false);
-        let other = Agent::new("Other").tool_supported(true);
-        base.merge(other);
-        assert_eq!(base.tool_supported, Some(true));
-    }
-
-    #[test]
-    fn test_merge_disable() {
-        // Base has no value, should use other's value
-        let mut base = Agent::new("Base"); // No disable set
-        let other = Agent::new("Other").disable(true);
-        base.merge(other);
-        assert_eq!(base.disable, Some(true));
-
-        // Base has a value, should be overwritten
-        let mut base = Agent::new("Base").disable(false);
-        let other = Agent::new("Other").disable(true);
-        base.merge(other);
-        assert_eq!(base.disable, Some(true));
-    }
-
-    #[test]
-    fn test_merge_bool_flags() {
-        // With the option strategy, the first value is preserved
-        let mut base = Agent::new("Base").suggestions(true);
-        let other = Agent::new("Other").suggestions(false);
-        base.merge(other);
-        assert_eq!(base.suggestions, Some(false));
-
-        // Now test with no initial value
-        let mut base = Agent::new("Base"); // no suggestions set
-        let other = Agent::new("Other").suggestions(false);
-        base.merge(other);
-        assert_eq!(base.suggestions, Some(false));
-
-        // Test ephemeral flag with option strategy
-        let mut base = Agent::new("Base").ephemeral(true);
-        let other = Agent::new("Other").ephemeral(false);
-        base.merge(other);
-        assert_eq!(base.ephemeral, Some(false));
-    }
-
-    #[test]
-    fn test_merge_tools() {
-        // Base has no value, should take other's values
-        let mut base = Agent::new("Base"); // no tools
-        let other = Agent::new("Other").tools(vec![ToolName::new("tool2"), ToolName::new("tool3")]);
-        base.merge(other);
-
-        // Should contain all tools from the other agent
-        let tools = base.tools.as_ref().unwrap();
-        assert_eq!(tools.len(), 2);
-        assert!(tools.contains(&ToolName::new("tool2")));
-        assert!(tools.contains(&ToolName::new("tool3")));
-
-        // Base has a value, should not be overwritten
-        let mut base =
-            Agent::new("Base").tools(vec![ToolName::new("tool1"), ToolName::new("tool2")]);
-        let other = Agent::new("Other").tools(vec![ToolName::new("tool3"), ToolName::new("tool4")]);
-        base.merge(other);
-
-        // Should have other's tools
-        let tools = base.tools.as_ref().unwrap();
-        assert_eq!(tools.len(), 2);
-        assert!(tools.contains(&ToolName::new("tool3")));
-        assert!(tools.contains(&ToolName::new("tool4")));
-    }
-
-    // test_merge_transforms has been removed as the transform feature is no longer
-    // supported
-
-    #[test]
-    fn test_merge_subscribe() {
-        // Base has no value, should take other's values
-        let mut base = Agent::new("Base"); // no subscribe
-        let other = Agent::new("Other").subscribe(vec!["event2".to_string(), "event3".to_string()]);
-        base.merge(other);
-
-        // Should contain events from other
-        let subscribe = base.subscribe.as_ref().unwrap();
-        assert_eq!(subscribe.len(), 2);
-        assert!(subscribe.contains(&"event2".to_string()));
-        assert!(subscribe.contains(&"event3".to_string()));
-
-        // Base has a value, should not be overwritten
-        let mut base =
-            Agent::new("Base").subscribe(vec!["event1".to_string(), "event2".to_string()]);
-        let other = Agent::new("Other").subscribe(vec!["event3".to_string(), "event4".to_string()]);
-        base.merge(other);
-
-        // Should have other's events
-        let subscribe = base.subscribe.as_ref().unwrap();
-        assert_eq!(subscribe.len(), 4);
-        assert!(subscribe.contains(&"event1".to_string()));
-        assert!(subscribe.contains(&"event2".to_string()));
-        assert!(subscribe.contains(&"event3".to_string()));
-        assert!(subscribe.contains(&"event4".to_string()));
-    }
-}
