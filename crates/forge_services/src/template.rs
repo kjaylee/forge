@@ -145,7 +145,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             agent
                 .compact
                 .as_ref()
-                .and_then(|compact| compact.prompt.as_ref().map(String::as_str))
+                .and_then(|compact| compact.prompt.as_deref())
                 .unwrap_or("Summarize the following conversation: {{context}}"),
             &ctx,
         )?;

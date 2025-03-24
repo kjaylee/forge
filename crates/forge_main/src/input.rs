@@ -65,7 +65,7 @@ impl UserInput for Console {
                     }
                 }
                 Err(e) => {
-                    CONSOLE.writeln(TitleFormat::failed(e.to_string()).format())?;
+                    CONSOLE.writeln(TitleFormat::failed(format!("{:?}", e)).format())?;
                 }
             }
         }

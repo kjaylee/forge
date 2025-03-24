@@ -68,8 +68,9 @@ pub trait TemplateService: Send + Sync {
     ) -> anyhow::Result<String>;
 
     /// Renders a custom summarization prompt for context compaction
-    /// This takes a raw string template and renders it with information about the compaction
-    /// and the original context (which allows for more sophisticated compaction templates)
+    /// This takes a raw string template and renders it with information about
+    /// the compaction and the original context (which allows for more
+    /// sophisticated compaction templates)
     async fn render_summarization(
         &self,
         agent: &Agent,

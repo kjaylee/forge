@@ -37,8 +37,8 @@ impl From<ToolName> for AgentId {
 #[setters(strip_option, into)]
 pub struct Compaction {
     /// Maximum number of tokens to keep after compaction
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub max_tokens: usize,
+    #[merge(strategy = crate::merge::option)]
+    pub max_tokens: Option<usize>,
 
     /// Maximum number of tokens before triggering compaction
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -62,25 +62,26 @@ pub struct Compaction {
 
     /// Optional model ID to use for compaction, overrides the agent's model
     /// Useful when compacting with a cheaper/faster model
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub model: Option<ModelId>,
+    #[merge(strategy = crate::merge::std::overwrite)]
+    pub model: ModelId,
 }
 
 impl Compaction {
-    /// Creates a new compaction configuration with the specified maximum token limit
-    pub fn new(max_tokens: usize) -> Self {
+    /// Creates a new compaction configuration with the specified maximum token
+    /// limit
+    pub fn new(model: ModelId) -> Self {
         Self {
-            max_tokens,
+            max_tokens: None,
             token_threshold: None,
             turn_threshold: None,
             message_threshold: None,
             prompt: None,
-            model: None,
+            model,
         }
     }
 
-    /// Determines if compaction should be triggered based on the current context
+    /// Determines if compaction should be triggered based on the current
+    /// context
     pub fn should_compact(&self, context: &Context) -> bool {
         // Check if any of the thresholds have been exceeded
         if let Some(token_threshold) = self.token_threshold {
@@ -259,7 +260,8 @@ impl Key for Agent {
 }
 
 /// Estimates the token count from a string representation
-/// This is a simple estimation that should be replaced with a more accurate tokenizer
+/// This is a simple estimation that should be replaced with a more accurate
+/// tokenizer
 fn estimate_token_count(text: &str) -> usize {
     // A very rough estimation that assumes ~4 characters per token on average
     // In a real implementation, this should use a proper LLM-specific tokenizer
