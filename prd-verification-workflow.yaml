@@ -9,36 +9,6 @@ commands:
     value: |
       Start the PRD verification process for the specified feature. The PRD should be provided as a file path.
 
-  - name: update_checklist
-    description: Update the verification checklist based on feedback
-    value: |
-      Update the verification checklist with the following feedback.
-
-  - name: analyze_prd
-    description: Analyzes the PRD to create a verification checklist
-    value: |
-      Analyze the PRD to create a comprehensive verification checklist.
-      
-  - name: verify_task
-    description: Verifies a specific requirement against the implementation
-    value: |
-      Verify that this requirement has been properly implemented.
-      
-  - name: checklist_created
-    description: Handle newly created checklists
-    value: |
-      Review this checklist and present it to the user for validation.
-      
-  - name: verification_result
-    description: Process verification results
-    value: |
-      Process these verification results and determine next steps.
-      
-  - name: verification_complete
-    description: Completes the verification process
-    value: |
-      The verification process is now complete. Generate a final report.
-
 agents:
   - id: orchestrator
     model: *advanced_model
@@ -49,12 +19,16 @@ agents:
       {{#if (eq event.name "verify_prd")}}
       <task>Start the PRD verification process with the following request: {{event.value}}</task>
       {{else if (eq event.name "checklist_created")}}
-      <task>Review the following checklist and present it to the user for validation:
+      <task>Received the following checklist:
       {{event.value}}
+
+      Prioritizing tasks and sending them to the Verification Agent for verification.
       </task>
       {{else if (eq event.name "verification_result")}}
       <task>Process the following verification result and decide on next steps:
       {{event.value}}
+
+      If there are more tasks to verify, send the next task to the Verification Agent. If all tasks are verified, generate a final report.
       </task>
       {{else if (eq event.name "user_task_update")}}
       <task>User has provided feedback: {{event.value}}</task>
@@ -74,7 +48,6 @@ agents:
       - user_task_update
       - checklist_created
       - verification_result
-      - verification_complete
 
   - id: requirements_analyzer
     model: *advanced_model
@@ -94,10 +67,7 @@ agents:
       <task>{{event.value}}</task>
       {{/if}}
     tools:
-      - tool_forge_fs_read
-      - tool_forge_fs_search
       - tool_forge_event_dispatch
-      - tool_forge_process_think
     subscribe:
       - analyze_prd
       - update_checklist

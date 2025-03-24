@@ -27,6 +27,4 @@ Your verification report for each task should include:
 
 {{> partial-tool-information.hbs }}
 
-{{#if tools.tool_forge_event_dispatch}}
-When you complete a verification task, dispatch an event "verification_result" with your findings to the Orchestrator.
-{{/if}} 
+When you complete a verification task, dispatch an event with name "verification_result" with your findings to the Orchestrator.
