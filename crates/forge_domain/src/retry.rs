@@ -4,7 +4,7 @@ use std::future::Future;
 
 use anyhow::Context as _;
 use tokio::time::Duration;
-use tracing::{debug, info, warn, error};
+use tracing::{debug, error, info, warn};
 
 /// Configuration for retry behavior with exponential backoff
 #[derive(Debug, Clone, Copy)]
