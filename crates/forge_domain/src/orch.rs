@@ -176,6 +176,7 @@ impl<A: App> Orchestrator<A> {
 
     pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
         let this = self.clone();
+        // TODO: Drop this task as soon as the orchestrator is dropped.
         let _ = tokio::spawn(async move { this.dispatch(event).await });
         Ok(())
     }
