@@ -17,7 +17,7 @@ fn should_retry(err: &anyhow::Error) -> bool {
     if let Some(domain_err) = err.downcast_ref::<Error>() {
         return matches!(
             domain_err,
-            Error::ToolCallParse(_) | Error::ToolCallArgument(_)
+            Error::ToolCallParse(_) | Error::ToolCallArgument(_) | Error::ToolCallMissingName
         );
     }
     false

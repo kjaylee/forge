@@ -4,7 +4,7 @@ use std::future::Future;
 
 use anyhow::Context as _;
 use tokio::time::Duration;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, warn, error};
 
 /// Configuration for retry behavior with exponential backoff
 #[derive(Debug, Clone, Copy)]
@@ -79,7 +79,7 @@ where
                         );
                     } else if !is_retriable {
                         // Log differently for errors that aren't retried at all
-                        debug!(
+                        error!(
                             operation = %operation_name,
                             error = ?err,
                             "Operation failed with non-retryable error"
