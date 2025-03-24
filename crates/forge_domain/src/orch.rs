@@ -244,7 +244,8 @@ impl<A: App> Orchestrator<A> {
                     let mut summarize = Summarize::new(&mut context, *token_limit);
                     while let Some(mut summary) = summarize.summarize() {
                         let input = Event::new(input_key, summary.get());
-                        self.init_agent_with_event(agent_id, &input).await?;
+                        self.init_retriable_agent_with_event(agent_id, &input)
+                            .await?;
 
                         if let Some(value) = self.get_last_event(output_key).await? {
                             summary.set(serde_json::to_string(&value)?);
@@ -259,7 +260,8 @@ impl<A: App> Orchestrator<A> {
                     })) = context.messages.last_mut()
                     {
                         let task = Event::new(input_key, content.clone());
-                        self.init_agent_with_event(agent_id, &task).await?;
+                        self.init_retriable_agent_with_event(agent_id, &task)
+                            .await?;
 
                         if let Some(output) = self.get_last_event(output_key).await? {
                             let message = &output.value;
@@ -273,7 +275,8 @@ impl<A: App> Orchestrator<A> {
                     let input = Event::new(input_key, context.to_text());
 
                     // NOTE: Tap transformers will not modify the context
-                    self.init_agent_with_event(agent_id, &input).await?;
+                    self.init_retriable_agent_with_event(agent_id, &input)
+                        .await?;
                 }
             }
         }
@@ -316,11 +319,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     // Create a helper method with the core functionality
-    async fn init_agent_with_event_core(
-        &self,
-        agent_id: &AgentId,
-        event: &Event,
-    ) -> anyhow::Result<()> {
+    async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
         debug!(
             conversation_id = %conversation.id,
@@ -427,7 +426,11 @@ impl<A: App> Orchestrator<A> {
 
     // Modified init_agent_with_event that uses retry mechanism with specific error
     // predicate
-    async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+    async fn init_retriable_agent_with_event(
+        &self,
+        agent_id: &AgentId,
+        event: &Event,
+    ) -> anyhow::Result<()> {
         // Clone variables for the retry closure
         let agent_id_clone = agent_id.clone();
         let event_clone = event.clone();
@@ -440,11 +443,7 @@ impl<A: App> Orchestrator<A> {
                 let event = event_clone.clone();
                 let orchestrator = self_clone.clone();
 
-                async move {
-                    orchestrator
-                        .init_agent_with_event_core(&agent_id, &event)
-                        .await
-                }
+                async move { orchestrator.init_agent_with_event(&agent_id, &event).await }
             },
             RetryConfig::default(),
             should_retry,
@@ -457,7 +456,8 @@ impl<A: App> Orchestrator<A> {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
-            self.init_agent_with_event(agent_id, &event).await?;
+            self.init_retriable_agent_with_event(agent_id, &event)
+                .await?;
         }
 
         Ok(())
