@@ -94,11 +94,7 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub tools: Option<Vec<ToolName>>,
 
-    // Transformations to be applied to the agent's context
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub transforms: Option<Vec<Transform>>,
-
+    // The transforms feature has been removed
     /// Used to specify the events the agent is interested in    
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = merge_subscription)]
@@ -144,7 +140,7 @@ impl Agent {
             suggestions: None,
             ephemeral: None,
             tools: None,
-            transforms: None,
+            // transforms field removed
             subscribe: None,
             max_turns: None,
             max_walker_depth: None,
@@ -172,42 +168,7 @@ impl Key for Agent {
     }
 }
 
-/// Transformations that can be applied to the agent's context before sending it
-/// upstream to the provider.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Transform {
-    /// Compresses multiple assistant messages into a single message
-    Assistant {
-        // Input template for the transformation
-        input: String,
-        // Output template after transformation
-        output: String,
-        // ID of the agent performing the transformation
-        agent_id: AgentId,
-        // Maximum token limit for the compressed message
-        token_limit: usize,
-    },
-
-    /// Works on the user prompt by enriching it with additional information
-    User {
-        // ID of the agent performing the transformation
-        agent_id: AgentId,
-        // Output template after transformation
-        output: String,
-        // Input template for the transformation
-        input: String,
-    },
-
-    /// Intercepts the context and performs an operation without changing the
-    /// context
-    PassThrough {
-        // ID of the agent performing the pass-through
-        agent_id: AgentId,
-        // Input template for the transformation
-        input: String,
-    },
-}
+// The Transform enum has been removed
 
 #[cfg(test)]
 mod hide_content_tests {
@@ -329,53 +290,8 @@ mod tests {
         assert!(tools.contains(&ToolName::new("tool4")));
     }
 
-    #[test]
-    fn test_merge_transforms() {
-        // Base has no value, should take other's values
-        let mut base = Agent::new("Base"); // no transforms
-        let transform2 = Transform::PassThrough {
-            agent_id: AgentId::new("agent2"),
-            input: "input2".to_string(),
-        };
-        let other = Agent::new("Other").transforms(vec![transform2]);
-
-        base.merge(other);
-
-        // Should contain transforms from the other agent
-        let transforms = base.transforms.as_ref().unwrap();
-        assert_eq!(transforms.len(), 1);
-        if let Transform::PassThrough { agent_id, input } = &transforms[0] {
-            assert_eq!(agent_id.as_str(), "agent2");
-            assert_eq!(input, "input2");
-        } else {
-            panic!("Expected PassThrough transform");
-        }
-
-        // Base has a value, should not be overwritten
-        let transform1 = Transform::PassThrough {
-            agent_id: AgentId::new("agent1"),
-            input: "input1".to_string(),
-        };
-        let mut base = Agent::new("Base").transforms(vec![transform1]);
-
-        let transform2 = Transform::PassThrough {
-            agent_id: AgentId::new("agent2"),
-            input: "input2".to_string(),
-        };
-        let other = Agent::new("Other").transforms(vec![transform2]);
-
-        base.merge(other);
-
-        // Should have other's transforms
-        let transforms = base.transforms.as_ref().unwrap();
-        assert_eq!(transforms.len(), 1);
-        if let Transform::PassThrough { agent_id, input } = &transforms[0] {
-            assert_eq!(agent_id.as_str(), "agent2");
-            assert_eq!(input, "input2");
-        } else {
-            panic!("Expected PassThrough transform");
-        }
-    }
+    // test_merge_transforms has been removed as the transform feature is no longer
+    // supported
 
     #[test]
     fn test_merge_subscribe() {

@@ -217,59 +217,7 @@ impl<A: App> Orchestrator<A> {
         }
     }
 
-    #[async_recursion]
-    async fn execute_transform(
-        &self,
-        transforms: &[Transform],
-        mut context: Context,
-    ) -> anyhow::Result<Context> {
-        for transform in transforms.iter() {
-            match transform {
-                Transform::Assistant {
-                    agent_id,
-                    token_limit,
-                    input: input_key,
-                    output: output_key,
-                } => {
-                    let mut summarize = Summarize::new(&mut context, *token_limit);
-                    while let Some(mut summary) = summarize.summarize() {
-                        let input = Event::new(input_key, summary.get());
-                        self.init_agent_with_event(agent_id, &input).await?;
-
-                        if let Some(value) = self.get_last_event(output_key).await? {
-                            summary.set(serde_json::to_string(&value)?);
-                        }
-                    }
-                }
-                Transform::User { agent_id, input: input_key, output: output_key } => {
-                    if let Some(ContextMessage::ContentMessage(ContentMessage {
-                        role: Role::User,
-                        content,
-                        ..
-                    })) = context.messages.last_mut()
-                    {
-                        let task = Event::new(input_key, content.clone());
-                        self.init_agent_with_event(agent_id, &task).await?;
-
-                        if let Some(output) = self.get_last_event(output_key).await? {
-                            let message = &output.value;
-                            content
-                                .push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
-                        }
-                        debug!(content = %content, "Transforming user input");
-                    }
-                }
-                Transform::PassThrough { agent_id, input: input_key } => {
-                    let input = Event::new(input_key, context.to_text());
-
-                    // NOTE: Tap transformers will not modify the context
-                    self.init_agent_with_event(agent_id, &input).await?;
-                }
-            }
-        }
-
-        Ok(context)
-    }
+    // execute_transform method has been removed
 
     async fn sync_conversation(&self) -> anyhow::Result<()> {
         let conversation = self.conversation.read().await.clone();
@@ -277,9 +225,8 @@ impl<A: App> Orchestrator<A> {
         Ok(())
     }
 
-    async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<Event>> {
-        Ok(self.conversation.read().await.rfind_event(name).cloned())
-    }
+    // get_last_event method has been removed as it was only used by the transform
+    // feature
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
         Ok(self.conversation.read().await.clone())
@@ -368,12 +315,7 @@ impl<A: App> Orchestrator<A> {
         self.set_context(&agent.id, context.clone()).await?;
 
         loop {
-            context = self
-                .execute_transform(
-                    agent.transforms.as_ref().map_or(&[], |t| t.as_slice()),
-                    context,
-                )
-                .await?;
+            // Transforms feature has been removed, context remains unchanged;
             self.set_context(&agent.id, context.clone()).await?;
             let response = self
                 .app
