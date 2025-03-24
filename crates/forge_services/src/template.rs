@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use chrono::Local;
 use forge_domain::{
-    Agent, Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
+    Agent, Context, Event, EventContext, Query, SystemContext, Template, TemplateService,
+    ToolService,
 };
 use forge_walker::Walker;
 use handlebars::Handlebars;
@@ -128,5 +129,26 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         Ok(self
             .hb
             .render_template(prompt.template.as_str(), &event_context)?)
+    }
+
+    async fn render_summarization(
+        &self,
+        agent: &Agent,
+        context: &Context,
+    ) -> anyhow::Result<String> {
+        let ctx = serde_json::json!({
+            "context": context.to_text()
+        });
+
+        // Render the template with the context
+        let result = self.hb.render_template(
+            agent
+                .compact
+                .as_ref()
+                .and_then(|compact| compact.prompt.as_ref().map(String::as_str))
+                .unwrap_or("Summarize the following conversation: {{context}}"),
+            &ctx,
+        )?;
+        Ok(result)
     }
 }
