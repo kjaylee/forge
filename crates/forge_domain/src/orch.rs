@@ -258,30 +258,38 @@ impl<A: App> Orchestrator<A> {
     /// Check if compaction is needed and compact the context if so
     async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context> {
         if let Some(ref compact) = agent.compact {
-            let prompt = self
-                .services
-                .template_service()
-                .render_summarization(agent, &context)
-                .await?;
+            if compact.should_compact(&context) {
+                debug!(
+                    agent_id = %agent.id,
+                    "Context compaction triggered"
+                );
+                let prompt = self
+                    .services
+                    .template_service()
+                    .render_summarization(agent, &context)
+                    .await?;
 
-            let message = ContextMessage::user(prompt);
+                let message = ContextMessage::user(prompt);
 
-            let mut context = Context::default();
-            context = context.add_message(message);
-            let response = self
-                .services
-                .provider_service()
-                .chat(&compact.model, context)
-                .await?;
+                let mut context = Context::default();
+                context = context.add_message(message);
+                let response = self
+                    .services
+                    .provider_service()
+                    .chat(&compact.model, context)
+                    .await?;
 
-            let content = self.collect_messages(agent, response).await?.content;
+                let content = self.collect_messages(agent, response).await?.content;
 
-            let context = self
-                .init_agent_context(agent)
-                .await?
-                .add_message(ContextMessage::assistant(content, None));
+                let context = self
+                    .init_agent_context(agent)
+                    .await?
+                    .add_message(ContextMessage::assistant(content, None));
 
-            Ok(context)
+                Ok(context)
+            } else {
+                Ok(context)
+            }
         } else {
             Ok(context)
         }
