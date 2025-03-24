@@ -257,154 +257,149 @@ impl<A: App> Orchestrator<A> {
 
     /// Check if compaction is needed and compact the context if so
     async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context> {
-            if let Some(ref compact) = agent.compact {
-                let prompt = self
-                    .services
-                    .template_service()
-                    .render_summarization(agent, &context)
-                    .await?;
-
-                let message = ContextMessage::user(prompt);
-
-                let mut context = Context::default();
-                context = context.add_message(message);
-                let response = self
-                    .services
-                    .provider_service()
-                    .chat(&compact.model, context)
-                    .await?;
-
-                let content = self.collect_messages(agent, response).await?.content;
-
-                let context = self
-                    .init_agent_context(agent)
-                    .await?
-                    .add_message(ContextMessage::assistant(content, None));
-
-                Ok(context)
-            } else {
-                Ok(context)
-            }
-        }
-
-        async fn init_agent_with_event(
-            &self,
-            agent_id: &AgentId,
-            event: &Event,
-        ) -> anyhow::Result<()> {
-            let conversation = self.get_conversation().await?;
-            debug!(
-                conversation_id = %conversation.id,
-                agent = %agent_id,
-                event = ?event,
-                "Initializing agent"
-            );
-            let agent = conversation.workflow.get_agent(agent_id)?;
-
-            let mut context = if agent.ephemeral.unwrap_or_default() {
-                self.init_agent_context(agent).await?
-            } else {
-                match conversation.context(&agent.id) {
-                    Some(context) => context.clone(),
-                    None => self.init_agent_context(agent).await?,
-                }
-            };
-
-            let content = if let Some(user_prompt) = &agent.user_prompt {
-                // Get conversation variables from the conversation
-                let variables = &conversation.variables;
-
-                // Use the consolidated render_event method which handles suggestions and
-                // variables
-                self.services
-                    .template_service()
-                    .render_event(agent, user_prompt, event, variables)
-                    .await?
-            } else {
-                // Use the raw event value as content if no user_prompt is provided
-                event.value.clone()
-            };
-
-            if !content.is_empty() {
-                context = context.add_message(ContextMessage::user(content));
-            }
-
-            // Process attachments
-            let attachments = self
+        if let Some(ref compact) = agent.compact {
+            let prompt = self
                 .services
-                .attachment_service()
-                .attachments(&event.value)
+                .template_service()
+                .render_summarization(agent, &context)
                 .await?;
 
-            for attachment in attachments.into_iter() {
-                match attachment.content_type {
-                    ContentType::Image => {
-                        context = context.add_message(ContextMessage::Image(attachment.content));
-                    }
-                    ContentType::Text => {
-                        let content = format!(
-                            "<file_content path=\"{}\">{}</file_content>",
-                            attachment.path, attachment.content
-                        );
-                        context = context.add_message(ContextMessage::user(content));
-                    }
+            let message = ContextMessage::user(prompt);
+
+            let mut context = Context::default();
+            context = context.add_message(message);
+            let response = self
+                .services
+                .provider_service()
+                .chat(&compact.model, context)
+                .await?;
+
+            let content = self.collect_messages(agent, response).await?.content;
+
+            let context = self
+                .init_agent_context(agent)
+                .await?
+                .add_message(ContextMessage::assistant(content, None));
+
+            Ok(context)
+        } else {
+            Ok(context)
+        }
+    }
+
+    async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+        let conversation = self.get_conversation().await?;
+        debug!(
+            conversation_id = %conversation.id,
+            agent = %agent_id,
+            event = ?event,
+            "Initializing agent"
+        );
+        let agent = conversation.workflow.get_agent(agent_id)?;
+
+        let mut context = if agent.ephemeral.unwrap_or_default() {
+            self.init_agent_context(agent).await?
+        } else {
+            match conversation.context(&agent.id) {
+                Some(context) => context.clone(),
+                None => self.init_agent_context(agent).await?,
+            }
+        };
+
+        let content = if let Some(user_prompt) = &agent.user_prompt {
+            // Get conversation variables from the conversation
+            let variables = &conversation.variables;
+
+            // Use the consolidated render_event method which handles suggestions and
+            // variables
+            self.services
+                .template_service()
+                .render_event(agent, user_prompt, event, variables)
+                .await?
+        } else {
+            // Use the raw event value as content if no user_prompt is provided
+            event.value.clone()
+        };
+
+        if !content.is_empty() {
+            context = context.add_message(ContextMessage::user(content));
+        }
+
+        // Process attachments
+        let attachments = self
+            .services
+            .attachment_service()
+            .attachments(&event.value)
+            .await?;
+
+        for attachment in attachments.into_iter() {
+            match attachment.content_type {
+                ContentType::Image => {
+                    context = context.add_message(ContextMessage::Image(attachment.content));
+                }
+                ContentType::Text => {
+                    let content = format!(
+                        "<file_content path=\"{}\">{}</file_content>",
+                        attachment.path, attachment.content
+                    );
+                    context = context.add_message(ContextMessage::user(content));
                 }
             }
+        }
+
+        self.set_context(&agent.id, context.clone()).await?;
+
+        loop {
+            // Set context for the current loop iteration
+            self.set_context(&agent.id, context.clone()).await?;
+            let response = self
+                .services
+                .provider_service()
+                .chat(
+                    agent
+                        .model
+                        .as_ref()
+                        .ok_or(Error::MissingModel(agent.id.clone()))?,
+                    context.clone(),
+                )
+                .await?;
+            let ChatCompletionResult { tool_calls, content } =
+                self.collect_messages(agent, response).await?;
+
+            // Get all tool results using the helper function
+            let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
+
+            context = context
+                .add_message(ContextMessage::assistant(content, Some(tool_calls)))
+                .add_tool_results(tool_results.clone());
+
+            // Check if context requires compression
+
+            context = self.compact_context(agent, context).await?;
 
             self.set_context(&agent.id, context.clone()).await?;
-
-            loop {
-                // Set context for the current loop iteration
-                self.set_context(&agent.id, context.clone()).await?;
-                let response = self
-                    .services
-                    .provider_service()
-                    .chat(
-                        agent
-                            .model
-                            .as_ref()
-                            .ok_or(Error::MissingModel(agent.id.clone()))?,
-                        context.clone(),
-                    )
-                    .await?;
-                let ChatCompletionResult { tool_calls, content } =
-                    self.collect_messages(agent, response).await?;
-
-                // Get all tool results using the helper function
-                let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
-
-                context = context
-                    .add_message(ContextMessage::assistant(content, Some(tool_calls)))
-                    .add_tool_results(tool_results.clone());
-
-                // Check if context requires compression
-
-                context = self.compact_context(agent, context).await?;
-
-                self.set_context(&agent.id, context.clone()).await?;
-                self.sync_conversation().await?;
-
-                if tool_results.is_empty() {
-                    break;
-                }
-            }
-
-            self.complete_turn(&agent.id).await?;
-
             self.sync_conversation().await?;
 
-            Ok(())
-        }
-
-        async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
-            while let Some(event) = {
-                let mut conversation = self.conversation.write().await;
-                conversation.poll_event(agent_id)
-            } {
-                self.init_agent_with_event(agent_id, &event).await?;
+            if tool_results.is_empty() {
+                break;
             }
-
-            Ok(())
         }
+
+        self.complete_turn(&agent.id).await?;
+
+        self.sync_conversation().await?;
+
+        Ok(())
+    }
+
+    async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
+        while let Some(event) = {
+            let mut conversation = self.conversation.write().await;
+            conversation.poll_event(agent_id)
+        } {
+            self.init_agent_with_event(agent_id, &event).await?;
+        }
+
+        Ok(())
     }
 }
