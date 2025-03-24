@@ -317,12 +317,6 @@ impl<F: API> UI<F> {
                         }
                     }
                 }
-                _ = tokio::signal::ctrl_c() => {
-                    // Send a cancel signal through the signal manager
-                    self.signal_manager.cancel();
-                    // Also return to make this handler return immediately
-                    return Ok(());
-                }
                 maybe_message = stream.next() => {
                     match maybe_message {
                         Some(Ok(message)) => self.handle_chat_response(message)?,

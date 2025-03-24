@@ -13,20 +13,9 @@ async fn main() -> Result<()> {
     // Set up signal handlers
     let signal_manager_clone = signal_manager.clone();
     tokio::spawn(async move {
-        let mut ctrl_c =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt()).unwrap();
-        let mut term =
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
-
         loop {
-            tokio::select! {
-                _ = ctrl_c.recv() => {
-                    signal_manager_clone.cancel();
-                }
-                _ = term.recv() => {
-                    signal_manager_clone.exit();
-                    break;
-                }
+            if let Ok(()) = tokio::signal::ctrl_c().await {
+                signal_manager_clone.cancel();
             }
         }
     });
