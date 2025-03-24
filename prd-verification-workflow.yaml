@@ -19,21 +19,19 @@ agents:
       {{#if (eq event.name "verify_prd")}}
       <task>Start the PRD verification process with the following request: {{event.value}}</task>
       {{else if (eq event.name "checklist_created")}}
-      <task>Received the following checklist:
+      <task>Received checklist from Requirements Analyzer:
       {{event.value}}
 
-      Prioritizing tasks and sending them to the Verification Agent for verification.
+      ACTION REQUIRED: Dispatch "verify_task" event to Verification Agent with the next unchecked item from the checklist.
       </task>
       {{else if (eq event.name "verification_result")}}
-      <task>Process the following verification result and decide on next steps:
+      <task>Received verification result:
       {{event.value}}
 
-      If there are more tasks to verify, send the next task to the Verification Agent. If all tasks are verified, generate a final report.
+      ACTION REQUIRED: Check if there are more items in the checklist. If yes, dispatch "verify_task" with the next item. If no, generate final report.
       </task>
       {{else if (eq event.name "user_task_update")}}
       <task>User has provided feedback: {{event.value}}</task>
-      {{else if (eq event.name "verification_complete")}}
-      <task>Generate a final verification report based on all completed tasks.</task>
       {{else}}
       <task>{{event.value}}</task>
       {{/if}}
