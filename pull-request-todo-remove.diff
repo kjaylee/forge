@@ -1,0 +1,90 @@
+diff --git a/src/main.rs b/src/main.rs
+index fd396b3..e2f9a23 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -42,6 +42,27 @@ fn main() {
+                     process::exit(1);
+                 }
+             }
++        }
++        "remove" => {
++            if args.len() != 3 {
++                eprintln!("Error: Task ID is required");
++                process::exit(1);
++            }
++            
++            // Parse the task ID
++            let task_id = match args[2].parse::<u32>() {
++                Ok(id) => id,
++                Err(_) => {
++                    eprintln!("Error: Invalid task ID");
++                    process::exit(1);
++                }
++            };
++            
++            match task_manager.remove_task(task_id) {
++                Ok(task) => println!("Task removed: {}. {}", task.id, task.title),
++                Err(e) => {
++                    eprintln!("Error: {}", e);
++                    process::exit(1);
++                }
++            }
+         }
+         _ => {
+             eprintln!("Unknown command: {}", command);
+@@ -49,6 +70,7 @@ fn main() {
+             process::exit(1);
+         }
+     }
+ }
+ 
+diff --git a/src/task_manager.rs b/src/task_manager.rs
+index 2dfec80..f234a91 100644
+--- a/src/task_manager.rs
++++ b/src/task_manager.rs
+@@ -37,6 +37,17 @@ impl TaskManager {
+         
+         Ok(task)
+     }
++
++    pub fn remove_task(&mut self, id: u32) -> Result<Task, TaskError> {
++        if let Some(index) = self.tasks.iter().position(|task| task.id == id) {
++            let task = self.tasks.remove(index);
++            Ok(task)
++        } else {
++            Err(TaskError(format!(
++                "Task with ID {} not found",
++                id
++            )))
++        }
++    }
+     
+     pub fn get_tasks(&self) -> &Vec<Task> {
+         &self.tasks
+@@ -81,4 +92,27 @@ mod tests {
+         
+         assert!(result.is_err());
+     }
++
++    #[test]
++    fn test_remove_existing_task() {
++        let mut manager = TaskManager::new();
++        let task = manager.add_task("Test task").unwrap();
++        let removed_task = manager.remove_task(task.id).unwrap();
++        
++        assert_eq!(removed_task.id, task.id);
++        assert_eq!(removed_task.title, task.title);
++        assert_eq!(manager.get_tasks().len(), 0);
++    }
++    
++    #[test]
++    fn test_remove_nonexistent_task() {
++        let mut manager = TaskManager::new();
++        let result = manager.remove_task(1);
++        
++        assert!(result.is_err());
++        if let Err(e) = result {
++            assert_eq!(e.to_string(), "Task with ID 1 not found");
++        }
++    }
+ } 
