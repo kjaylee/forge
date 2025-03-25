@@ -76,8 +76,8 @@ agents:
       1. Analyze the provided functional requirements to understand them
       2. Generate formal TLA+ specifications that satisfy the requirements
       3. Create a "laws" directory under {{env.cwd}}/prd-verification-workflow-artifacts if it doesn't exist
-      4. Store all TLA+ specifications in the "laws" directory using the naming format laws/tla_[function_req_name].md
-      4. Ensure all specifications are consistent with the requirements and with each other
+      4. Store specifications using the naming format tla_req_[x].md where [x] is the requirement number
+      5. Ensure all specifications are consistent with the requirements and with each other
       
       When generating TLA+ specifications, you should:
       - Define appropriate modules for each set of requirements
