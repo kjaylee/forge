@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use anyhow::{bail, Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
@@ -67,17 +65,6 @@ impl OpenRouter {
             .model(model.clone())
             .stream(true);
         request = ProviderPipeline::new(&self.provider).transform(request);
-
-        let mut fs = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .append(true)
-            .open("request.json")
-            .unwrap();
-
-        fs.write_all(serde_json::to_string_pretty(&request).unwrap().as_bytes())
-            .unwrap();
-        fs.write_all(b"\n\n\n").unwrap();
 
         let url = self.url("chat/completions")?;
         debug!(url = %url, model = %model, "Connecting Upstream");
