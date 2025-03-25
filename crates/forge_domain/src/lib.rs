@@ -27,6 +27,7 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
+pub mod functional_req;
 
 pub use agent::*;
 pub use chat_request::*;
@@ -56,3 +57,4 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
 pub use workflow::*;
+pub use functional_req::{FunctionalRequirements, Requirement, Dependency};
