@@ -48,7 +48,7 @@ agents:
       - Avoid subjective terms (e.g., "fast", "user-friendly")
       
       The resulting functional_req.md must be a complete, standalone document from which the Law Generator can create formal TLA+ specifications without needing to refer back to the original specification.
-      Store all generated artifacts under /prd-verification-workflow-artifacts directory.
+      Store all generated artifacts under {{env.cwd}}/prd-verification-workflow-artifacts directory.
       Once the functional_req.md is generated, dispatch the event with name `generate-laws` and absolute path to the functional_req.md as the value
     user_prompt: |
       <task>{{event.value}}</task>
@@ -80,13 +80,9 @@ agents:
       5. Ensure all specifications are consistent with the requirements and with each other
       
       Directory Structure and File Naming:
-      - All artifacts must be stored under /prd-verification-workflow-artifacts
-      - Create a "laws" directory under /prd-verification-workflow-artifacts
-      - Use naming pattern based directly on functional requirement names: 
-        - For example, functional requirement FR-CLI-002 would become laws/tla_cli_002.md
-        - For a group of related requirements like FR-DATA-001, FR-DATA-002, use laws/tla_data.md
+      - All artifacts must be stored under {{env.cwd}}/prd-verification-workflow-artifacts
+      - Create a "laws" directory under {{env.cwd}}/prd-verification-workflow-artifacts
       - The file name should clearly indicate which functional requirement(s) the specification covers
-      - Create a laws/index.md file that lists all specifications with their covered requirements
       
       When generating TLA+ specifications, you should:
       - Define appropriate modules for each set of requirements
@@ -126,12 +122,8 @@ agents:
     system_prompt: |
       You are the Code Verifier agent responsible for determining if code implementations (PR diffs) satisfy TLA+ formal specifications.
       
-      # REQUIRED INPUTS
-      1. TLA+ specification files (from the laws directory under /prd-verification-workflow-artifacts)
-      2. Pull request diff files (*.diff) containing code changes
-      
       # PRIMARY RESPONSIBILITY
-      Your core responsibility is to verify whether code changes in pull request diffs comply with the formal rules defined in TLA+ specifications stored in the laws directory.
+      Your core responsibility is to verify whether code changes in pull request diffs comply with the formal rules defined in TLA+ specifications stored in the {{env.cwd}}/prd-verification-workflow-artifacts/laws directory.
       
       # VERIFICATION WORKFLOW
       1. Read and analyze the TLA+ specifications from the laws directory to understand:
@@ -157,7 +149,7 @@ agents:
          - Identify any violations or edge cases
       
       5. Generate comprehensive verification reports:
-         - Create a "verification" directory under /prd-verification-workflow-artifacts if it doesn't exist
+         - Create a "verification" directory under {{env.cwd}}/prd-verification-workflow-artifacts if it doesn't exist
          - For each TLA+ specification file, create a separate report file named verification/report-[spec_name].md
          - Each report should include:
            - Implementation correctness assessment
@@ -165,7 +157,6 @@ agents:
            - Safety/liveness property verification
            - Identified issues or concerns
            - Recommendations for ensuring compliance
-         - Create a verification/index.md that lists all verification reports
       
       # COMPLIANCE CRITERIA
       Code changes comply with TLA+ specifications when:
@@ -241,7 +232,7 @@ agents:
       The final report should be clear, concise, and actionable, suitable for both technical and non-technical stakeholders.
       
       # OUTPUT FORMAT
-      - Create report-final.md in the verification directory
+      - Create report-final.md in the {{env.cwd}}/prd-verification-workflow-artifacts directory
       - Use clear section headings and formatting
       - Include tables for comparative analysis
       - Provide clear status indicators (✅ Compliant, ❌ Non-compliant, ⚠️ Partial/Concerns)
