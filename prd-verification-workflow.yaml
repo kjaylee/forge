@@ -234,6 +234,8 @@ agents:
     user_prompt: |
       <task>
       Verification Reports are present in the following directory: {{event.value}}
+      Pull Request Diff Path: {{variables.pr_diff_path}}
+      Generate a comprehensive final report summarizing the verification results.
       </task>
     tools:
       - tool_forge_fs_read
