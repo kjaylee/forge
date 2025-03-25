@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_domain::{Services, File};
+use forge_domain::{File, Services};
 use forge_services::{EnvironmentService, Infrastructure};
 use forge_walker::Walker;
 

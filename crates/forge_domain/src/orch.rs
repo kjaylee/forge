@@ -8,6 +8,8 @@ use futures::{Stream, StreamExt};
 use tokio::sync::RwLock;
 use tracing::debug;
 
+use crate::compaction::ContextCompactor;
+use crate::services::Services;
 use crate::*;
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
@@ -23,6 +25,7 @@ pub struct Orchestrator<App> {
     services: Arc<App>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
+    compactor: ContextCompactor<App>,
 }
 
 struct ChatCompletionResult {
@@ -31,14 +34,19 @@ struct ChatCompletionResult {
 }
 
 impl<A: Services> Orchestrator<A> {
-    pub fn new(app: Arc<A>, mut conversation: Conversation, sender: Option<ArcSender>) -> Self {
+    pub fn new(
+        services: Arc<A>,
+        mut conversation: Conversation,
+        sender: Option<ArcSender>,
+    ) -> Self {
         // since self is a new request, we clear the queue
         conversation.state.values_mut().for_each(|state| {
             state.queue.clear();
         });
 
         Self {
-            services: app,
+            compactor: ContextCompactor::new(services.clone()),
+            services,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
         }
@@ -217,8 +225,6 @@ impl<A: Services> Orchestrator<A> {
         }
     }
 
-    // execute_transform method has been removed
-
     async fn sync_conversation(&self) -> anyhow::Result<()> {
         let conversation = self.conversation.read().await.clone();
         self.services
@@ -227,9 +233,6 @@ impl<A: Services> Orchestrator<A> {
             .await?;
         Ok(())
     }
-
-    // get_last_event method has been removed as it was only used by the transform
-    // feature
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
         Ok(self.conversation.read().await.clone())
@@ -253,46 +256,6 @@ impl<A: Services> Orchestrator<A> {
             .or_default()
             .context = Some(context);
         Ok(())
-    }
-
-    /// Check if compaction is needed and compact the context if so
-    async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context> {
-        if let Some(ref compact) = agent.compact {
-            if compact.should_compact(&context) {
-                debug!(
-                    agent_id = %agent.id,
-                    "Context compaction triggered"
-                );
-                let prompt = self
-                    .services
-                    .template_service()
-                    .render_summarization(agent, &context)
-                    .await?;
-
-                let message = ContextMessage::user(prompt);
-
-                let mut context = Context::default();
-                context = context.add_message(message);
-                let response = self
-                    .services
-                    .provider_service()
-                    .chat(&compact.model, context)
-                    .await?;
-
-                let content = self.collect_messages(agent, response).await?.content;
-
-                let context = self
-                    .init_agent_context(agent)
-                    .await?
-                    .add_message(ContextMessage::assistant(content, None));
-
-                Ok(context)
-            } else {
-                Ok(context)
-            }
-        } else {
-            Ok(context)
-        }
     }
 
     async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
@@ -382,8 +345,7 @@ impl<A: Services> Orchestrator<A> {
                 .add_tool_results(tool_results.clone());
 
             // Check if context requires compression
-
-            context = self.compact_context(agent, context).await?;
+            context = self.compactor.compact_context(agent, context).await?;
 
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;

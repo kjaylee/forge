@@ -1,6 +1,7 @@
 mod agent;
 mod chat_request;
 mod chat_response;
+mod compaction;
 mod context;
 mod conversation;
 mod env;
@@ -30,6 +31,7 @@ mod workflow;
 pub use agent::*;
 pub use chat_request::*;
 pub use chat_response::*;
+pub use compaction::*;
 pub use context::*;
 pub use conversation::*;
 pub use env::*;
