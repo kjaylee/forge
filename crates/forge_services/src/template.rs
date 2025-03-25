@@ -133,6 +133,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
     async fn render_summarization(
         &self,
+        // FIXME: Lets only pass the compact object instead of the whole agent
         agent: &Agent,
         context: &Context,
     ) -> anyhow::Result<String> {
