@@ -4,7 +4,10 @@ use anyhow::Result;
 use futures::StreamExt;
 use tracing::debug;
 
-use crate::{Agent, ChatCompletionMessage, Context, ContextMessage, ProviderService, Services, TemplateService};
+use crate::{
+    Agent, ChatCompletionMessage, Context, ContextMessage, ProviderService, Services,
+    TemplateService,
+};
 
 /// Handles the compaction of conversation contexts to manage token usage
 #[derive(Clone)]
@@ -31,13 +34,14 @@ impl<S: Services> ContextCompactor<S> {
 
         let summary = self.generate_summary(agent, &context).await?;
         let compacted_context = self.build_compacted_context(agent, summary).await?;
-        
+
         Ok(compacted_context)
     }
 
     /// Determines whether context compaction should be performed
     fn should_perform_compaction(&self, agent: &Agent, context: &Context) -> bool {
-        agent.compact
+        agent
+            .compact
             .as_ref()
             .map(|compact| compact.should_compact(context))
             .unwrap_or(false)
@@ -46,7 +50,7 @@ impl<S: Services> ContextCompactor<S> {
     /// Generates a summary of the current context using the provider service
     async fn generate_summary(&self, agent: &Agent, context: &Context) -> Result<String> {
         let compact = agent.compact.as_ref().unwrap();
-        
+
         let prompt = self
             .services
             .template_service()
@@ -55,7 +59,7 @@ impl<S: Services> ContextCompactor<S> {
 
         let message = ContextMessage::user(prompt);
         let summary_context = Context::default().add_message(message);
-        
+
         let response = self
             .services
             .provider_service()
@@ -66,9 +70,9 @@ impl<S: Services> ContextCompactor<S> {
     }
 
     /// Collects the content from a streaming ChatCompletionMessage response
-    async fn collect_completion_stream_content<T>(&self, mut stream: T) -> Result<String> 
-    where 
-        T: futures::Stream<Item = Result<ChatCompletionMessage>> + Unpin
+    async fn collect_completion_stream_content<T>(&self, mut stream: T) -> Result<String>
+    where
+        T: futures::Stream<Item = Result<ChatCompletionMessage>> + Unpin,
     {
         let mut result_content = String::new();
 
