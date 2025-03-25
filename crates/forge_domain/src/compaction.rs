@@ -96,14 +96,19 @@ impl<S: Services> ContextCompactor<S> {
             .render_summarization(compact, &sequence_context)
             .await?;
 
+        // Create a new context
+        let mut context = Context::default().add_message(ContextMessage::user(prompt));
+
+        // Set max_tokens for summary
+        if let Some(max_token) = compact.max_tokens {
+            context = context.max_tokens(max_token);
+        }
+
         // Get summary from the provider
         let response = self
             .services
             .provider_service()
-            .chat(
-                &compact.model,
-                Context::default().add_message(ContextMessage::user(prompt)),
-            )
+            .chat(&compact.model, context)
             .await?;
 
         self.collect_completion_stream_content(agent, response)
