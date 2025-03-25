@@ -64,6 +64,11 @@ pub struct Compaction {
     /// cheaper/faster model
     #[merge(strategy = crate::merge::std::overwrite)]
     pub model: ModelId,
+    /// Optional tag name to extract content from when summarizing (e.g.,
+    /// "summary")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub summary_tag: Option<String>,
 }
 
 impl Compaction {
@@ -76,6 +81,7 @@ impl Compaction {
             turn_threshold: None,
             message_threshold: None,
             prompt: None,
+            summary_tag: None,
             model,
         }
     }

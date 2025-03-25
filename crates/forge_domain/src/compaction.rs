@@ -5,8 +5,8 @@ use futures::StreamExt;
 use tracing::debug;
 
 use crate::{
-    Agent, ChatCompletionMessage, Context, ContextMessage, ProviderService, Role, Services,
-    TemplateService,
+    extract_tag_content, Agent, ChatCompletionMessage, Context, ContextMessage, ProviderService,
+    Role, Services, TemplateService,
 };
 
 /// Handles the compaction of conversation contexts to manage token usage
@@ -106,7 +106,8 @@ impl<S: Services> ContextCompactor<S> {
             )
             .await?;
 
-        self.collect_completion_stream_content(response).await
+        self.collect_completion_stream_content(agent, response)
+            .await
     }
 
     /// Determines whether context compaction should be performed
@@ -118,7 +119,12 @@ impl<S: Services> ContextCompactor<S> {
     }
 
     /// Collects the content from a streaming ChatCompletionMessage response
-    async fn collect_completion_stream_content<T>(&self, mut stream: T) -> Result<String>
+    /// and extracts text within the configured tag if present
+    async fn collect_completion_stream_content<T>(
+        &self,
+        agent: &Agent,
+        mut stream: T,
+    ) -> Result<String>
     where
         T: futures::Stream<Item = Result<ChatCompletionMessage>> + Unpin,
     {
@@ -131,6 +137,17 @@ impl<S: Services> ContextCompactor<S> {
             }
         }
 
+        // Extract content from within configured tags if present and if tag is
+        // configured
+        if let Some(agent_compact) = &agent.compact {
+            if let Some(tag_name) = &agent_compact.summary_tag {
+                if let Some(extracted) = extract_tag_content(&result_content, tag_name) {
+                    return Ok(extracted.to_string());
+                }
+            }
+        }
+
+        // If no tag extraction performed, return the original content
         Ok(result_content)
     }
 }

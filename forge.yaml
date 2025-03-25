@@ -6,6 +6,14 @@ commands:
 
 agents:
   - id: software-engineer
+    max_walker_depth: 1024
+    subscribe:
+      - fixme
+    compact:
+      max_tokens: 10000
+      token_threshold: 50000
+      model: google/gemini-2.0-flash-001
+      prompt: "{{> system-prompt-context-summarizer.hbs }}"
     custom_rules: |
       Handling Errors:
 
@@ -37,11 +45,9 @@ agents:
       - Use words like `fixture`, `actual` and `expected` in test functions.
       - Fixtures should be generic and reusable.
       - Test should always be written in the same file as the source code.
-    max_walker_depth: 1024
-    subscribe:
-      - fixme
-    compact:
-      max_tokens: 10000
-      token_threshold: 50000
-      model: google/gemini-2.0-flash-001
-      prompt: "{{> system-prompt-context-summarizer.hbs }}"
+
+      Verification:
+      - run the following command to format and validate if the code is working:
+        ```
+        cargo +nightly fmt --all; cargo +nightly clippy --fix --allow-staged --allow-dirty --workspace;
+        ```
