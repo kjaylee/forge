@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 /// Extracts content between the specified XML-style tags
 ///
 /// # Arguments
@@ -22,7 +20,7 @@ use anyhow::Result;
 pub fn extract_tag_content<'a>(text: &'a str, tag_name: &str) -> Option<&'a str> {
     let opening_tag = format!("<{}>", tag_name);
     let closing_tag = format!("</{}>", tag_name);
-    
+
     if let Some(start_idx) = text.find(&opening_tag) {
         if let Some(end_idx) = text.find(&closing_tag) {
             let content_start = start_idx + opening_tag.len();
@@ -31,14 +29,15 @@ pub fn extract_tag_content<'a>(text: &'a str, tag_name: &str) -> Option<&'a str>
             }
         }
     }
-    
+
     None
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_extract_tag_content() {
@@ -63,7 +62,7 @@ mod tests {
         let expected = Some("Custom content");
         assert_eq!(actual, expected);
     }
-    
+
     #[test]
     fn test_extract_tag_content_with_malformed_tags() {
         let fixture = "Text with <opening> but no closing tag";

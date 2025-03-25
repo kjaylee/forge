@@ -59,6 +59,7 @@ mod tests {
             ],
             tools: vec![],
             tool_choice: None,
+            max_tokens: None,
         };
 
         let request = OpenRouterRequest::from(context);

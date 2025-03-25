@@ -1,4 +1,5 @@
 mod agent;
+mod attachment;
 mod chat_request;
 mod chat_response;
 mod compaction;
@@ -30,6 +31,7 @@ mod tool_usage;
 mod workflow;
 
 pub use agent::*;
+pub use attachment::*;
 pub use chat_request::*;
 pub use chat_response::*;
 pub use compaction::*;
