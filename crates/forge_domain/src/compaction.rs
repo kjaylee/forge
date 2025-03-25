@@ -54,55 +54,27 @@ impl<S: Services> ContextCompactor<S> {
     async fn compress_single_sequence(
         &self,
         agent: &Agent,
-        original_context: Context,
+        mut context: Context,
         sequence: (usize, usize),
     ) -> Result<Context> {
-        let messages = original_context.messages;
         let (start, end) = sequence;
 
         // Extract the sequence to summarize
-        let sequence_messages = &messages[start..=end];
+        let sequence_messages = &context.messages[start..=end];
 
         // Generate summary for this sequence
         let summary = self
             .generate_summary_for_sequence(agent, sequence_messages)
             .await?;
 
-        // Build a new context with the sequence replaced by the summary
-        let mut compacted_messages = Vec::new();
+        // Replace the sequence with a single summary message using splice
+        // This removes the sequence and inserts the summary message in-place
+        context.messages.splice(
+            start..=end,
+            std::iter::once(ContextMessage::assistant(summary, None)),
+        );
 
-        // Add messages before the sequence
-        compacted_messages.extend(messages[0..start].to_vec());
-
-        // Add the summary as a single assistant message
-        compacted_messages.push(ContextMessage::assistant(summary, None));
-
-        // Add messages after the sequence
-        if end + 1 < messages.len() {
-            compacted_messages.extend(messages[end + 1..].to_vec());
-        }
-
-        // Build the new context
-        let mut compacted_context = Context::default();
-
-        // Add system message if present in original context
-        if let Some(system_msg) = messages.first().filter(|m| m.has_role(Role::System)) {
-            compacted_context = compacted_context.add_message(system_msg.clone());
-        }
-
-        // Add all other processed messages
-        for msg in compacted_messages
-            .into_iter()
-            .filter(|m| !m.has_role(Role::System))
-        {
-            compacted_context = compacted_context.add_message(msg);
-        }
-
-        // Preserve tools and tool_choice from the original context
-        compacted_context.tools = original_context.tools;
-        compacted_context.tool_choice = original_context.tool_choice;
-
-        Ok(compacted_context)
+        Ok(context)
     }
 
     /// Generate a summary for a specific sequence of assistant messages
