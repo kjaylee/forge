@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use chrono::Local;
 use forge_domain::{
-    Agent, Context, Event, EventContext, Query, SystemContext, Template, TemplateService,
-    ToolService,
+    Agent, Compaction, Context, Event, EventContext, Query, SystemContext, Template,
+    TemplateService, ToolService,
 };
 use forge_walker::Walker;
 use handlebars::Handlebars;
@@ -133,8 +133,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
     async fn render_summarization(
         &self,
-        // FIXME: Lets only pass the compact object instead of the whole agent
-        agent: &Agent,
+        compaction: &Compaction,
         context: &Context,
     ) -> anyhow::Result<String> {
         let ctx = serde_json::json!({
@@ -143,10 +142,9 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
         // Render the template with the context
         let result = self.hb.render_template(
-            agent
-                .compact
-                .as_ref()
-                .and_then(|compact| compact.prompt.as_deref())
+            compaction
+                .prompt
+                .as_deref()
                 .unwrap_or("Summarize the following conversation: {{context}}"),
             &ctx,
         )?;
