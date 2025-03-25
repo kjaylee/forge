@@ -119,7 +119,8 @@ impl<S: Services> ContextCompactor<S> {
             sequence_context = sequence_context.add_message(msg.clone());
         }
 
-        // Render the summarization prompt - provide the compaction config instead of agent
+        // Render the summarization prompt - provide the compaction config instead of
+        // agent
         let prompt = self
             .services
             .template_service()
@@ -166,7 +167,8 @@ impl<S: Services> ContextCompactor<S> {
     }
 }
 
-/// Identifies the first sequence of assistant messages that can be compressed (2+ consecutive messages)
+/// Identifies the first sequence of assistant messages that can be compressed
+/// (2+ consecutive messages)
 fn identify_first_compressible_sequence(context: &Context) -> Option<(usize, usize)> {
     let messages = &context.messages;
     let mut current_sequence_start: Option<usize> = None;
