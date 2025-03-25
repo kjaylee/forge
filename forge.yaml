@@ -11,7 +11,7 @@ agents:
     max_walker_depth: 1024
     subscribe:
       - fixme
-    compact: 
+    compact:
       max_tokens: 10000
       token_threshold: 50000
       model: google/gemini-2.0-flash-001

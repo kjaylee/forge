@@ -30,7 +30,7 @@ struct ChatCompletionResult {
     pub tool_calls: Vec<ToolCallFull>,
 }
 
-impl<A: App> Orchestrator<A> {
+impl<A: Services> Orchestrator<A> {
     pub fn new(app: Arc<A>, mut conversation: Conversation, sender: Option<ArcSender>) -> Self {
         // since self is a new request, we clear the queue
         conversation.state.values_mut().for_each(|state| {
