@@ -145,7 +145,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             compaction
                 .prompt
                 .as_deref()
-                .unwrap_or("Summarize the following conversation: {{context}}"),
+                .unwrap_or("Summarize the following conversation:\n{{context}}"),
             &ctx,
         )?;
         Ok(result)

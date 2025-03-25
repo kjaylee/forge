@@ -201,7 +201,7 @@ impl<A: Services> Orchestrator<A> {
         };
 
         // Execute all initialization futures in parallel
-        join_all(inactive_agents.iter().map(|id| self.init_agent(id)))
+        join_all(inactive_agents.iter().map(|id| self.wake_agent(id)))
             .await
             .into_iter()
             .collect::<anyhow::Result<Vec<()>>>()?;
@@ -258,7 +258,7 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+    async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
         debug!(
             conversation_id = %conversation.id,
@@ -362,12 +362,12 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
+    async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         while let Some(event) = {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
-            self.init_agent_with_event(agent_id, &event).await?;
+            self.init_agent(agent_id, &event).await?;
         }
 
         Ok(())
