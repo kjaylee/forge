@@ -941,7 +941,11 @@ dependencies = [
  "derive_setters",
  "forge_api",
  "forge_display",
+ "forge_domain",
  "forge_fs",
+ "forge_infra",
+ "forge_review",
+ "forge_services",
  "forge_snaps",
  "forge_tracker",
  "forge_walker",
@@ -974,6 +978,7 @@ dependencies = [
  "forge_snaps",
  "forge_stream",
  "forge_walker",
+ "futures-util",
  "insta",
  "merge",
  "serde",
@@ -1103,6 +1108,14 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "forge_review"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "tokio",
 ]
 
 [[package]]

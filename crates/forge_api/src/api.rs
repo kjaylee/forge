@@ -1,4 +1,5 @@
 use std::path::Path;
+use futures_util::StreamExt;
 
 pub use forge_domain::*;
 use forge_stream::MpscStream;
@@ -54,4 +55,14 @@ pub trait API: Sync + Send {
         key: String,
         value: Value,
     ) -> anyhow::Result<()>;
+
+
+    /// Runs a workflow with the given event
+    async fn run(&self, workflow: &Workflow, event: Event) -> anyhow::Result<()> {
+        let conversation_id = self.init(workflow.clone()).await?;
+        let request = ChatRequest::new(event, conversation_id);
+        let stream = self.chat(request).await?;
+        let _ = stream.collect::<Vec<_>>().await;
+        Ok(())
+    }
 }

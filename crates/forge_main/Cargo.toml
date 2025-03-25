@@ -12,6 +12,9 @@ forge_display.workspace = true
 forge_tracker.workspace = true
 forge_snaps.workspace = true
 forge_fs.workspace = true
+forge_services.workspace = true
+forge_domain.workspace = true
+forge_infra.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 colored.workspace = true
@@ -30,6 +33,7 @@ serde.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 base64.workspace = true
+forge_review.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
