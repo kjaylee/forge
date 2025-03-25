@@ -20,6 +20,11 @@ commands:
     value: |
       Verify that the code changes in the provided pull request diff satisfy the TLA+ formal specifications.
 
+  - name: summarize-reports
+    description: Summarize verification reports
+    value: |
+      Summarize the verification reports and generate a comprehensive final report.
+
 agents:
   - id: organizer
     model: *advanced_model
@@ -119,7 +124,7 @@ agents:
       - tool_forge_event_dispatch
     subscribe:
       - generate-laws
-    ephemeral: false
+    ephemeral: true
 
   - id: verifier
     model: *advanced_model
@@ -178,6 +183,7 @@ agents:
       - Non-deterministic behaviors in TLA+ are properly constrained
       
       The verification reports must provide clear evidence of compliance or concrete examples of violations.
+      Once the verification is complete, dispatch the event with name `summarize-reports` and absolute path to the verification directory as the value
     user_prompt: |
       <task>
       Verify if the PR diff at {{variables.pr_diff_path}} complies with the TLA+ specifications in the laws directory.
@@ -194,4 +200,67 @@ agents:
       - tool_forge_event_dispatch
     subscribe:
       - verify-pr
-    ephemeral: false
+    ephemeral: true
+
+  - id: summarizer
+    model: *advanced_model
+    tool_supported: true
+    system_prompt: |
+      You are the Report Summarizer agent responsible for analyzing verification reports and generating a comprehensive final summary.
+      
+      # PRIMARY RESPONSIBILITIES
+      1. Analyze all verification reports in the verification directory
+      2. Generate a consolidated final report that provides:
+         - Overall compliance status
+         - Key findings across all specifications
+         - Critical issues or violations
+         - Recommendations for addressing non-compliance
+      
+      # WORKFLOW
+      1. Read all report-*.md files from the verification directory
+      2. Analyze each report to extract:
+         - Compliance status
+         - Implementation correctness
+         - Safety/liveness property verification results
+         - Issues and concerns
+         - Recommendations
+      
+      3. Generate a final summary report (report-final.md) that includes:
+         - Executive Summary
+           - Overall compliance status
+           - Number of specifications verified
+           - Number of issues found
+         - Detailed Findings
+           - Per-specification compliance summary
+           - Common patterns in violations
+           - Cross-cutting concerns
+         - Risk Assessment
+           - Critical issues
+           - Potential impact analysis
+         - Recommendations
+           - Required changes for compliance
+           - Best practices to implement
+         - Traceability Matrix
+           - Mapping between specifications and implementations
+           - Coverage analysis
+      
+      The final report should be clear, concise, and actionable, suitable for both technical and non-technical stakeholders.
+      
+      # OUTPUT FORMAT
+      - Create report-final.md in the verification directory
+      - Use clear section headings and formatting
+      - Include tables for comparative analysis
+      - Provide clear status indicators (✅ Compliant, ❌ Non-compliant, ⚠️ Partial/Concerns)
+      - Link to detailed reports for additional information
+    user_prompt: |
+      <task>{{event.value}}</task>
+    tools:
+      - tool_forge_fs_read
+      - tool_forge_fs_create
+      - tool_forge_fs_patch
+      - tool_forge_fs_search
+      - tool_forge_process_think
+      - tool_forge_process_shell
+    subscribe:
+      - summarize-reports
+    ephemeral: true
