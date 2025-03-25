@@ -23,30 +23,29 @@ impl<S: Services> ContextCompactor<S> {
 
     /// Check if compaction is needed and compact the context if so
     pub async fn compact_context(&self, agent: &Agent, context: Context) -> Result<Context> {
+        // Early return if compaction not needed
         if !self.should_perform_compaction(agent, &context) {
             return Ok(context);
         }
 
-        debug!(
-            agent_id = %agent.id,
-            "Context compaction triggered"
-        );
+        debug!(agent_id = %agent.id, "Context compaction triggered");
 
-        // Identify the first compressible sequence
-        if let Some(sequence) = identify_first_compressible_sequence(&context) {
-            debug!(
-                agent_id = %agent.id,
-                sequence_start = sequence.0,
-                sequence_end = sequence.1,
-                "Compressing assistant message sequence"
-            );
-
-            // Compress just this sequence
-            self.compress_single_sequence(agent, context, sequence)
-                .await
-        } else {
-            debug!(agent_id = %agent.id, "No compressible sequences found");
-            Ok(context)
+        // Identify and compress the first compressible sequence
+        match identify_first_compressible_sequence(&context) {
+            Some(sequence) => {
+                debug!(
+                    agent_id = %agent.id,
+                    sequence_start = sequence.0,
+                    sequence_end = sequence.1,
+                    "Compressing assistant message sequence"
+                );
+                self.compress_single_sequence(agent, context, sequence)
+                    .await
+            }
+            None => {
+                debug!(agent_id = %agent.id, "No compressible sequences found");
+                Ok(context)
+            }
         }
     }
 
@@ -86,27 +85,25 @@ impl<S: Services> ContextCompactor<S> {
         let compact = agent.compact.as_ref().unwrap();
 
         // Create a temporary context with just the sequence for summarization
-        let mut sequence_context = Context::default();
-        for msg in messages {
-            sequence_context = sequence_context.add_message(msg.clone());
-        }
+        let sequence_context = messages
+            .iter()
+            .fold(Context::default(), |ctx, msg| ctx.add_message(msg.clone()));
 
-        // Render the summarization prompt - provide the compaction config instead of
-        // agent
+        // Render the summarization prompt
         let prompt = self
             .services
             .template_service()
             .render_summarization(compact, &sequence_context)
             .await?;
 
-        let message = ContextMessage::user(prompt);
-        let summary_context = Context::default().add_message(message);
-
         // Get summary from the provider
         let response = self
             .services
             .provider_service()
-            .chat(&compact.model, summary_context)
+            .chat(
+                &compact.model,
+                Context::default().add_message(ContextMessage::user(prompt)),
+            )
             .await?;
 
         self.collect_completion_stream_content(response).await
@@ -117,8 +114,7 @@ impl<S: Services> ContextCompactor<S> {
         agent
             .compact
             .as_ref()
-            .map(|compact| compact.should_compact(context))
-            .unwrap_or(false)
+            .is_some_and(|compact| compact.should_compact(context))
     }
 
     /// Collects the content from a streaming ChatCompletionMessage response
