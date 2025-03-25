@@ -31,113 +31,85 @@ impl<S: Services> ContextCompactor<S> {
             agent_id = %agent.id,
             "Context compaction triggered"
         );
-        
+
         // Identify the first compressible sequence
-        if let Some(sequence) = self.identify_first_compressible_sequence(&context) {
+        if let Some(sequence) = identify_first_compressible_sequence(&context) {
             debug!(
                 agent_id = %agent.id,
                 sequence_start = sequence.0,
                 sequence_end = sequence.1,
                 "Compressing assistant message sequence"
             );
-            
+
             // Compress just this sequence
-            self.compress_single_sequence(agent, context, sequence).await
+            self.compress_single_sequence(agent, context, sequence)
+                .await
         } else {
             debug!(agent_id = %agent.id, "No compressible sequences found");
             Ok(context)
         }
     }
 
-    /// Identifies the first sequence of assistant messages that can be compressed (2+ consecutive messages)
-    fn identify_first_compressible_sequence(&self, context: &Context) -> Option<(usize, usize)> {
-        let messages = &context.messages;
-        let mut current_sequence_start: Option<usize> = None;
-        
-        for (i, message) in messages.iter().enumerate() {
-            if message.has_role(Role::Assistant) {
-                // Start a new sequence or continue current one
-                if current_sequence_start.is_none() {
-                    current_sequence_start = Some(i);
-                }
-            } else {
-                // End of a potential sequence
-                if let Some(start) = current_sequence_start {
-                    // Only compress sequences with more than 1 assistant message
-                    if i - start > 1 {
-                        return Some((start, i - 1));
-                    }
-                    current_sequence_start = None;
-                }
-            }
-        }
-        
-        // Check for a sequence at the end
-        if let Some(start) = current_sequence_start {
-            let end = messages.len() - 1;
-            if end - start > 0 {  // More than 1 message
-                return Some((start, end));
-            }
-        }
-        
-        None // No compressible sequence found
-    }
-
     /// Compress a single identified sequence of assistant messages
     async fn compress_single_sequence(
-        &self, 
-        agent: &Agent, 
-        original_context: Context, 
-        sequence: (usize, usize)
+        &self,
+        agent: &Agent,
+        original_context: Context,
+        sequence: (usize, usize),
     ) -> Result<Context> {
         let messages = original_context.messages;
         let (start, end) = sequence;
-        
+
         // Extract the sequence to summarize
         let sequence_messages = &messages[start..=end];
-        
+
         // Generate summary for this sequence
-        let summary = self.generate_summary_for_sequence(agent, sequence_messages).await?;
-        
+        let summary = self
+            .generate_summary_for_sequence(agent, sequence_messages)
+            .await?;
+
         // Build a new context with the sequence replaced by the summary
         let mut compacted_messages = Vec::new();
-        
+
         // Add messages before the sequence
         compacted_messages.extend(messages[0..start].to_vec());
-        
+
         // Add the summary as a single assistant message
         compacted_messages.push(ContextMessage::assistant(summary, None));
-        
+
         // Add messages after the sequence
         if end + 1 < messages.len() {
-            compacted_messages.extend(messages[end+1..].to_vec());
+            compacted_messages.extend(messages[end + 1..].to_vec());
         }
-        
+
         // Build the new context
         let mut compacted_context = Context::default();
-        
+
         // Add system message if present in original context
         if let Some(system_msg) = messages.first().filter(|m| m.has_role(Role::System)) {
             compacted_context = compacted_context.add_message(system_msg.clone());
         }
-        
+
         // Add all other processed messages
-        for msg in compacted_messages.into_iter().filter(|m| !m.has_role(Role::System)) {
+        for msg in compacted_messages
+            .into_iter()
+            .filter(|m| !m.has_role(Role::System))
+        {
             compacted_context = compacted_context.add_message(msg);
         }
 
         // Preserve tools and tool_choice from the original context
         compacted_context.tools = original_context.tools;
         compacted_context.tool_choice = original_context.tool_choice;
-        
+
         Ok(compacted_context)
     }
 
     /// Generate a summary for a specific sequence of assistant messages
     async fn generate_summary_for_sequence(
-        &self, 
-        agent: &Agent, 
-        messages: &[ContextMessage]
+        &self,
+        agent: &Agent,
+        messages: &[ContextMessage],
     ) -> Result<String> {
         let compact = agent.compact.as_ref().unwrap();
 
@@ -146,12 +118,12 @@ impl<S: Services> ContextCompactor<S> {
         for msg in messages {
             sequence_context = sequence_context.add_message(msg.clone());
         }
-        
-        // Render the summarization prompt
+
+        // Render the summarization prompt - provide the compaction config instead of agent
         let prompt = self
             .services
             .template_service()
-            .render_summarization(agent, &sequence_context)
+            .render_summarization(compact, &sequence_context)
             .await?;
 
         let message = ContextMessage::user(prompt);
@@ -191,5 +163,103 @@ impl<S: Services> ContextCompactor<S> {
         }
 
         Ok(result_content)
+    }
+}
+
+/// Identifies the first sequence of assistant messages that can be compressed (2+ consecutive messages)
+fn identify_first_compressible_sequence(context: &Context) -> Option<(usize, usize)> {
+    let messages = &context.messages;
+    let mut current_sequence_start: Option<usize> = None;
+
+    for (i, message) in messages.iter().enumerate() {
+        if message.has_role(Role::Assistant) {
+            // Start a new sequence or continue current one
+            if current_sequence_start.is_none() {
+                current_sequence_start = Some(i);
+            }
+        } else {
+            // End of a potential sequence
+            if let Some(start) = current_sequence_start {
+                // Only compress sequences with more than 1 assistant message
+                if i - start > 1 {
+                    return Some((start, i - 1));
+                }
+                current_sequence_start = None;
+            }
+        }
+    }
+
+    // Check for a sequence at the end
+    if let Some(start) = current_sequence_start {
+        let end = messages.len() - 1;
+        if end - start > 0 {
+            // More than 1 message
+            return Some((start, end));
+        }
+    }
+
+    None // No compressible sequence found
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_identify_first_compressible_sequence() {
+        // Create a context with a sequence of assistant messages
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message 1"))
+            .add_message(ContextMessage::assistant("Assistant message 1", None))
+            .add_message(ContextMessage::assistant("Assistant message 2", None))
+            .add_message(ContextMessage::assistant("Assistant message 3", None))
+            .add_message(ContextMessage::user("User message 2"))
+            .add_message(ContextMessage::assistant("Assistant message 4", None));
+
+        // The first sequence is from index 2 to 4 (assistant messages 1, 2, and 3)
+        let sequence = identify_first_compressible_sequence(&context);
+        assert!(sequence.is_some());
+
+        let (start, end) = sequence.unwrap();
+        assert_eq!(start, 2);
+        assert_eq!(end, 4);
+    }
+
+    #[test]
+    fn test_no_compressible_sequence() {
+        // Create a context with no sequence of multiple assistant messages
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message 1"))
+            .add_message(ContextMessage::assistant("Assistant message 1", None))
+            .add_message(ContextMessage::user("User message 2"))
+            .add_message(ContextMessage::assistant("Assistant message 2", None))
+            .add_message(ContextMessage::user("User message 3"))
+            .add_message(ContextMessage::assistant("Assistant message 3", None));
+
+        // There are no sequences of multiple assistant messages
+        let sequence = identify_first_compressible_sequence(&context);
+        assert!(sequence.is_none());
+    }
+
+    #[test]
+    fn test_sequence_at_end_of_context() {
+        // Create a context with a sequence at the end
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message 1"))
+            .add_message(ContextMessage::assistant("Assistant message 1", None))
+            .add_message(ContextMessage::user("User message 2"))
+            .add_message(ContextMessage::assistant("Assistant message 2", None))
+            .add_message(ContextMessage::assistant("Assistant message 3", None));
+
+        // The sequence is at the end (indices 4-5)
+        let sequence = identify_first_compressible_sequence(&context);
+        assert!(sequence.is_some());
+
+        let (start, end) = sequence.unwrap();
+        assert_eq!(start, 4);
+        assert_eq!(end, 5);
     }
 }
