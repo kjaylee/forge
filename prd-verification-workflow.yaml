@@ -2,7 +2,7 @@ variables:
   models:
     advanced_model: &advanced_model anthropic/claude-3.7-sonnet
     standard_model: &standard_model anthropic/claude-3.5-haiku
-  pr_diff_path: &pr_diff_path ./pull-request-todo-remove.diff
+  pr_diff_path: &pr_diff_path ./pull-request-todo-done.diff
 
 commands:
   - name: analyze-spec

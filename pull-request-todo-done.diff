@@ -1,0 +1,119 @@
+diff --git a/src/task.rs b/src/task.rs
+index 6e64693..8f2a391 100644
+--- a/src/task.rs
++++ b/src/task.rs
+@@ -2,12 +2,14 @@
+ pub struct Task {
+     pub id: u32,
+     pub title: String,
++    pub done: bool,
+ }
+ 
+ impl Task {
+     pub fn new(id: u32, title: &str) -> Self {
+         Task {
+             id,
+             title: title.to_string(),
++            done: false,
+         }
+     }
+ }
+@@ -20,6 +22,7 @@ mod tests {
+         let task = Task::new(1, "Test task");
+         assert_eq!(task.id, 1);
+         assert_eq!(task.title, "Test task");
++        assert_eq!(task.done, false);
+     }
+ }
+
+diff --git a/src/task_manager.rs b/src/task_manager.rs
+index 2dfec80..9a12f91 100644
+--- a/src/task_manager.rs
++++ b/src/task_manager.rs
+@@ -37,6 +37,24 @@ impl TaskManager {
+         Ok(task)
+     }
+ 
++    pub fn mark_done(&mut self, id: u32) -> Result<Task, TaskError> {
++        if let Some(task) = self.tasks.iter_mut().find(|t| t.id == id) {
++            task.done = true;
++            Ok(task.clone())
++        } else {
++            Err(TaskError(format!(
++                "Task with ID {} not found",
++                id
++            )))
++        }
++    }
++
+     pub fn get_tasks(&self) -> &Vec<Task> {
+         &self.tasks
+     }
+@@ -81,4 +99,31 @@ mod tests {
+         
+         assert!(result.is_err());
+     }
++
++    #[test]
++    fn test_mark_task_done() {
++        let mut manager = TaskManager::new();
++        let task = manager.add_task("Test task").unwrap();
++        let marked_task = manager.mark_done(task.id).unwrap();
++        
++        assert_eq!(marked_task.id, task.id);
++        assert_eq!(marked_task.done, true);
++    }
++    
++    #[test]
++    fn test_mark_nonexistent_task() {
++        let mut manager = TaskManager::new();
++        let result = manager.mark_done(1);
++        
++        assert!(result.is_err());
++    }
++    
++    #[test]
++    fn test_mark_already_done_task() {
++        let mut manager = TaskManager::new();
++        let task = manager.add_task("Test task").unwrap();
++        manager.mark_done(task.id).unwrap();
++        let result = manager.mark_done(task.id);
++        
++        assert!(result.is_err());
++    }
+ }
+
+diff --git a/src/main.rs b/src/main.rs
+index fd396b3..a2f9b23 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -42,6 +42,27 @@ fn main() {
+                     process::exit(1);
+                 }
+             }
++        }
++        "done" => {
++            if args.len() != 3 {
++                eprintln!("Error: Task ID is required");
++                process::exit(1);
++            }
++            
++            // Parse the task ID
++            let task_id = match args[2].parse::<u32>() {
++                Ok(id) => id,
++                Err(_) => {
++                    eprintln!("Error: Invalid task ID");
++                    process::exit(1);
++                }
++            };
++            
++            match task_manager.mark_done(task_id) {
++                Ok(task) => println!("Task marked as done: {}. {}", task.id, task.title),
++                Err(e) => {
++                    eprintln!("Error: {}", e);
++                    process::exit(1);
++                }
++            }
+         }
+         _ => {
+             eprintln!("Unknown command: {}", command);
