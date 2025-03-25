@@ -60,8 +60,8 @@ pub struct Compaction {
     #[merge(strategy = crate::merge::option)]
     pub prompt: Option<String>,
 
-    /// Optional model ID to use for compaction, overrides the agent's model
-    /// Useful when compacting with a cheaper/faster model
+    /// Model ID to use for compaction, useful when compacting with a
+    /// cheaper/faster model
     #[merge(strategy = crate::merge::std::overwrite)]
     pub model: ModelId,
 }
