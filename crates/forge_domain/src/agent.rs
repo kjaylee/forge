@@ -286,3 +286,152 @@ fn estimate_token_count(text: &str) -> usize {
 }
 
 // The Transform enum has been removed
+
+#[cfg(test)]
+mod hide_content_tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_merge_hide_content() {
+        // Base has no value, other has value
+        let mut base = Agent::new("Base"); // No hide_content set
+        let other = Agent::new("Other").hide_content(true);
+        base.merge(other);
+        assert_eq!(base.hide_content, Some(true));
+
+        // Base has a value, other has another value
+        let mut base = Agent::new("Base").hide_content(false);
+        let other = Agent::new("Other").hide_content(true);
+        base.merge(other);
+        assert_eq!(base.hide_content, Some(true));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_merge_model() {
+        // Base has a value, should not be overwritten
+        let mut base = Agent::new("Base").model(ModelId::new("base"));
+        let other = Agent::new("Other").model(ModelId::new("other"));
+        base.merge(other);
+        assert_eq!(base.model.unwrap(), ModelId::new("other"));
+
+        // Base has no value, should take the other value
+        let mut base = Agent::new("Base"); // No model
+        let other = Agent::new("Other").model(ModelId::new("other"));
+        base.merge(other);
+        assert_eq!(base.model.unwrap(), ModelId::new("other"));
+    }
+
+    #[test]
+    fn test_merge_tool_supported() {
+        // Base has no value, should use other's value
+        let mut base = Agent::new("Base"); // No tool_supported set
+        let other = Agent::new("Other").tool_supported(true);
+        base.merge(other);
+        assert_eq!(base.tool_supported, Some(true));
+
+        // Base has a value, should not be overwritten
+        let mut base = Agent::new("Base").tool_supported(false);
+        let other = Agent::new("Other").tool_supported(true);
+        base.merge(other);
+        assert_eq!(base.tool_supported, Some(true));
+    }
+
+    #[test]
+    fn test_merge_disable() {
+        // Base has no value, should use other's value
+        let mut base = Agent::new("Base"); // No disable set
+        let other = Agent::new("Other").disable(true);
+        base.merge(other);
+        assert_eq!(base.disable, Some(true));
+
+        // Base has a value, should be overwritten
+        let mut base = Agent::new("Base").disable(false);
+        let other = Agent::new("Other").disable(true);
+        base.merge(other);
+        assert_eq!(base.disable, Some(true));
+    }
+
+    #[test]
+    fn test_merge_bool_flags() {
+        // With the option strategy, the first value is preserved
+        let mut base = Agent::new("Base").suggestions(true);
+        let other = Agent::new("Other").suggestions(false);
+        base.merge(other);
+        assert_eq!(base.suggestions, Some(false));
+
+        // Now test with no initial value
+        let mut base = Agent::new("Base"); // no suggestions set
+        let other = Agent::new("Other").suggestions(false);
+        base.merge(other);
+        assert_eq!(base.suggestions, Some(false));
+
+        // Test ephemeral flag with option strategy
+        let mut base = Agent::new("Base").ephemeral(true);
+        let other = Agent::new("Other").ephemeral(false);
+        base.merge(other);
+        assert_eq!(base.ephemeral, Some(false));
+    }
+
+    #[test]
+    fn test_merge_tools() {
+        // Base has no value, should take other's values
+        let mut base = Agent::new("Base"); // no tools
+        let other = Agent::new("Other").tools(vec![ToolName::new("tool2"), ToolName::new("tool3")]);
+        base.merge(other);
+
+        // Should contain all tools from the other agent
+        let tools = base.tools.as_ref().unwrap();
+        assert_eq!(tools.len(), 2);
+        assert!(tools.contains(&ToolName::new("tool2")));
+        assert!(tools.contains(&ToolName::new("tool3")));
+
+        // Base has a value, should not be overwritten
+        let mut base =
+            Agent::new("Base").tools(vec![ToolName::new("tool1"), ToolName::new("tool2")]);
+        let other = Agent::new("Other").tools(vec![ToolName::new("tool3"), ToolName::new("tool4")]);
+        base.merge(other);
+
+        // Should have other's tools
+        let tools = base.tools.as_ref().unwrap();
+        assert_eq!(tools.len(), 2);
+        assert!(tools.contains(&ToolName::new("tool3")));
+        assert!(tools.contains(&ToolName::new("tool4")));
+    }
+
+    #[test]
+    fn test_merge_subscribe() {
+        // Base has no value, should take other's values
+        let mut base = Agent::new("Base"); // no subscribe
+        let other = Agent::new("Other").subscribe(vec!["event2".to_string(), "event3".to_string()]);
+        base.merge(other);
+
+        // Should contain events from other
+        let subscribe = base.subscribe.as_ref().unwrap();
+        assert_eq!(subscribe.len(), 2);
+        assert!(subscribe.contains(&"event2".to_string()));
+        assert!(subscribe.contains(&"event3".to_string()));
+
+        // Base has a value, should not be overwritten
+        let mut base =
+            Agent::new("Base").subscribe(vec!["event1".to_string(), "event2".to_string()]);
+        let other = Agent::new("Other").subscribe(vec!["event3".to_string(), "event4".to_string()]);
+        base.merge(other);
+
+        // Should have other's events
+        let subscribe = base.subscribe.as_ref().unwrap();
+        assert_eq!(subscribe.len(), 4);
+        assert!(subscribe.contains(&"event1".to_string()));
+        assert!(subscribe.contains(&"event2".to_string()));
+        assert!(subscribe.contains(&"event3".to_string()));
+        assert!(subscribe.contains(&"event4".to_string()));
+    }
+}
