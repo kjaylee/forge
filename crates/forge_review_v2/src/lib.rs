@@ -135,3 +135,13 @@ pub fn extract_tag_content<'a>(text: &'a str, tag_name: &str) -> Vec<&'a str> {
     
     results
 }
+
+pub trait XMLExtensions {
+    fn extract_tag(&self, tag: &str) -> Vec<&str>;
+}
+
+impl<T: AsRef<str>> XMLExtensions for T {
+    fn extract_tag(&self, tag: &str) -> Vec<&str> {
+        extract_tag_content(self.as_ref(), tag)
+    }
+}
