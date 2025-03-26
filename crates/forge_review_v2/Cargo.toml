@@ -13,6 +13,7 @@ serde.workspace = true
 serde_json.workspace = true
 forge_api.workspace = true
 pulldown-cmark = "0.9"
+derive_setters.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
