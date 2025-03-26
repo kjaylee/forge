@@ -28,20 +28,12 @@ pub trait WorkflowStep {
 
 // Composition trait
 pub trait StepCompose: Sized {
-    fn then<Next>(self, next: Next) -> Sequence<Self, Next>
+    fn pipe<Next>(self, next: Next) -> Sequence<Self, Next>
     where
         Self: WorkflowStep,
         Next: WorkflowStep<Input = Self::Output>,
     {
         Sequence(self, next)
-    }
-
-    fn parallel<Other>(self, other: Other) -> Parallel<Self, Other>
-    where
-        Self: WorkflowStep,
-        Other: WorkflowStep<Input = Self::Input>,
-    {
-        Parallel(self, other)
     }
 }
 
@@ -95,43 +87,6 @@ where
             .execute(intermediate)
             .await
             .map_err(|e| Error::Generation(e.to_string()))
-    }
-}
-
-pub struct Parallel<A, B>(pub A, pub B);
-
-#[async_trait]
-impl<A, B> WorkflowStep for Parallel<A, B>
-where
-    A: WorkflowStep + Send + Sync,
-    B: WorkflowStep<Input = A::Input> + Send + Sync,
-    A::Input: Clone + Send,
-    A::Output: Send,
-    B::Output: Send,
-{
-    type Input = A::Input;
-    type Output = (A::Output, B::Output);
-    type Error = Error;
-
-    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let input_a = input.clone();
-        let input_b = input;
-
-        let (a_result, b_result) = tokio::join!(
-            async {
-                self.0
-                    .execute(input_a)
-                    .await
-                    .map_err(|e| Error::Analysis(e.to_string()))
-            },
-            async {
-                self.1
-                    .execute(input_b)
-                    .await
-                    .map_err(|e| Error::Generation(e.to_string()))
-            }
-        );
-        Ok((a_result?, b_result?))
     }
 }
 

@@ -76,11 +76,7 @@ impl<T: API + Send + Sync> WorkflowStep for AnalyzeSpec<T> {
     type Error = Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let payload = json!({
-            "specification_path": input.0.specification_path,
-            "output_path": input.0.requirements_output
-        });
-        let event = Event::new("analyze-spec", payload);
+        let event = Event::new("analyze-spec", input.0.clone());
         self.api
             .run(&self.workflow, event)
             .await
@@ -215,6 +211,7 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
                 let verification_path =
                     verification_path.join(format!("{}_verification.md", law_id));
 
+                // TODO: optimization: instead of passing the pull_request path, we should read and send the diff content to save tool call and roundtrip time.
                 let payload = json!({
                     "verification_content": law.content,
                     "pull_request_path": pull_request_path,

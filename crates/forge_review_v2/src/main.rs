@@ -15,18 +15,18 @@ async fn main() -> Result<()> {
 
     // start the workflow
     let output = AnalyzeSpec::new(api.clone(), workflow.clone())
-        .then(GenerateLaws::new(
+        .pipe(GenerateLaws::new(
             api.clone(),
             workflow.clone(),
             artifact_path.join("laws"),
         ))
-        .then(VerifyLaws::new(
+        .pipe(VerifyLaws::new(
             api.clone(),
             workflow.clone(),
             artifact_path.join("verification"),
             artifact_path.join("pull-request.diff"),
         ))
-        .then(SummarizeReport::new(
+        .pipe(SummarizeReport::new(
             api.clone(),
             workflow.clone(),
             artifact_path.join("pull-request.diff"),
