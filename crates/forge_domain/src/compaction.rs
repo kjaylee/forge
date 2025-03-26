@@ -153,58 +153,67 @@ fn identify_first_compressible_sequence(
     context: &Context,
     preserve_last_n: usize,
 ) -> Option<(usize, usize)> {
+    // Get all compressible sequences, considering the preservation window
+    find_compressible_sequences(context, preserve_last_n)
+        .into_iter()
+        .next()
+}
+
+/// Determines if a message is compressible (assistant or tool result)
+fn is_compressible(message: &ContextMessage) -> bool {
+    message.has_role(Role::Assistant) || matches!(message, ContextMessage::ToolMessage(_))
+}
+
+/// Finds all valid compressible sequences in the context, respecting the
+/// preservation window
+fn find_compressible_sequences(context: &Context, preserve_last_n: usize) -> Vec<(usize, usize)> {
     let messages = &context.messages;
-    let mut current_sequence_start: Option<usize> = None;
 
     // Calculate the index before which messages can be considered for compression
-    // We don't compress the last N messages
     let compressible_end_idx = messages.len().saturating_sub(preserve_last_n);
 
     // Early return if there are no messages available for compression
     if compressible_end_idx == 0 {
-        return None;
+        return Vec::new();
     }
 
-    for (i, message) in messages.iter().enumerate() {
-        // Skip messages that should be preserved (recent messages)
-        if i >= compressible_end_idx {
-            break;
-        }
+    // Find all sequences of compressible messages
+    find_sequences_by_predicate(&messages[0..compressible_end_idx], is_compressible)
+        .into_iter()
+        // Filter for sequences with at least 2 messages
+        .filter(|(start, end)| end > start)
+        .collect()
+}
 
-        // Check if message is an assistant message or a tool result
-        let is_compressible =
-            message.has_role(Role::Assistant) || matches!(message, ContextMessage::ToolMessage(_));
+/// General-purpose function to find sequences of elements matching a predicate
+fn find_sequences_by_predicate<T, F>(elements: &[T], predicate: F) -> Vec<(usize, usize)>
+where
+    F: Fn(&T) -> bool,
+{
+    let mut sequences = Vec::new();
+    let mut current_sequence_start: Option<usize> = None;
 
-        if is_compressible {
+    // Iterate through all elements
+    for (i, element) in elements.iter().enumerate() {
+        if predicate(element) {
             // Start a new sequence or continue current one
             if current_sequence_start.is_none() {
                 current_sequence_start = Some(i);
             }
         } else {
-            // End of a potential sequence
-            if let Some(start) = current_sequence_start {
-                // Only compress sequences with more than 1 compressible message
-                if i - start > 1 {
-                    return Some((start, i - 1));
-                }
-                current_sequence_start = None;
+            // End of sequence - if we had one in progress, record it
+            if let Some(start) = current_sequence_start.take() {
+                sequences.push((start, i - 1));
             }
         }
     }
 
-    // Check for a sequence at the end (but still respecting the preserve limit)
+    // Check for a sequence that ends at the last element
     if let Some(start) = current_sequence_start {
-        let end = compressible_end_idx.saturating_sub(1); // Last compressible index
-        if end > start && end < messages.len() {
-            // Make sure we have a valid range
-            // More than 1 message
-            if end - start > 0 {
-                return Some((start, end));
-            }
-        }
+        sequences.push((start, elements.len() - 1));
     }
 
-    None // No compressible sequence found
+    sequences
 }
 
 #[cfg(test)]
@@ -567,5 +576,39 @@ mod tests {
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 4);
         assert_eq!(end, 5);
+    }
+
+    #[test]
+    fn test_is_compressible() {
+        // Test assistant message
+        let assistant_message = ContextMessage::assistant("Test message", None);
+        assert!(is_compressible(&assistant_message));
+
+        // Test tool result
+        let tool_result = ContextMessage::tool_result(
+            ToolResult::new(ToolName::new("test_tool")).success("test result".to_string()),
+        );
+        assert!(is_compressible(&tool_result));
+
+        // Test user message (not compressible)
+        let user_message = ContextMessage::user("User message");
+        assert!(!is_compressible(&user_message));
+
+        // Test system message (not compressible)
+        let system_message = ContextMessage::system("System message");
+        assert!(!is_compressible(&system_message));
+    }
+
+    #[test]
+    fn test_find_sequences_by_predicate() {
+        // Test with a simple vector of numbers, finding sequences of even numbers
+        let numbers = vec![1, 2, 4, 6, 7, 8, 10, 11, 12];
+
+        let sequences = find_sequences_by_predicate(&numbers, |&n| n % 2 == 0);
+
+        assert_eq!(sequences.len(), 3);
+        assert_eq!(sequences[0], (1, 3)); // 2, 4, 6
+        assert_eq!(sequences[1], (5, 6)); // 8, 10
+        assert_eq!(sequences[2], (8, 8)); // 12
     }
 }
