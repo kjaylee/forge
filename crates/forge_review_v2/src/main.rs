@@ -111,8 +111,13 @@ async fn main() -> Result<()> {
 
     let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
     tokio::fs::write(
-        output.join(format!("verification-{}.json", now)),
-        serde_json::to_string_pretty(&verification)?,
+        output.join(format!("verification-{}.md", now)),
+        verification.iter().fold(String::new(), |mut acc, s| {
+            acc.push_str(format!("Requirement: {}\n", s.requirement).as_str());
+            acc.push_str(format!("Status: {}\n", s.status).as_str());
+            acc.push_str("\n");
+            acc
+        }),
     )
     .await?;
 
@@ -129,7 +134,7 @@ async fn main() -> Result<()> {
 
     tokio::fs::write(
         output.join(format!("summary-{}.md", now)),
-        serde_json::to_string_pretty(&summary)?,
+        summary.join("\n"),
     )
     .await?;
 

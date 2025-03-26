@@ -101,7 +101,6 @@ index 9a12f91..e4d2391 100644
  }
  
  impl TaskManager {
-+    /// Creates a new TaskManager without email notifications
      pub fn new() -> Self {
          Self {
              tasks: Vec::new(),
@@ -109,7 +108,6 @@ index 9a12f91..e4d2391 100644
          }
      }
  
-+    /// Creates a new TaskManager with email notifications enabled
 +    pub fn with_email() -> anyhow::Result<Self> {
 +        Ok(Self {
 +            tasks: Vec::new(),
@@ -127,12 +125,10 @@ index 9a12f91..e4d2391 100644
 -            task.done = true;
 +            
 +            
-+            // Then send email notification if configured
 +            if let Some(notifier) = &self.email_notifier {
 +                let _ = notifier.notify_completion(task);
 +            }
 +
-+            // Mark the task as done
 +            task.mark_done();
              
              Ok(task.clone())
@@ -159,7 +155,6 @@ index a2f9b23..e4d2391 100644
      }
  
 -    let mut task_manager = TaskManager::new();
-+    // Initialize TaskManager with email if environment variables are set
 +    let mut task_manager = match TaskManager::with_email() {
 +        Ok(tm) => tm,
 +        Err(_) => {
