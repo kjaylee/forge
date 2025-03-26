@@ -7,7 +7,6 @@ mod env;
 mod error;
 mod event;
 mod file;
-pub mod functional_req;
 mod merge;
 mod message;
 mod model;
