@@ -7,7 +7,7 @@ use anyhow::Result;
 use forge_api::{ForgeAPI, API};
 use forge_review_v2::{
     prelude::*,
-    steps::{AnalyzeSpec, GenerateLaws, SpecDocument},
+    steps::{AnalyzeSpec, GenerateLaws, SpecDocument, SummarizeReport},
 };
 
 #[tokio::main]
@@ -29,6 +29,12 @@ async fn main() -> Result<()> {
             workflow.clone(),
             artifact_path.join("verification"),
             artifact_path.join("pull-request.diff"),
+        ))
+        .then(SummarizeReport::new(
+            api.clone(),
+            workflow.clone(),
+            artifact_path.join("pull-request.diff"),
+            artifact_path.join("final-report.md"),
         ))
         .execute(WorkflowState::new(SpecDocument::new(
             PathBuf::from("./todo-mark-done-prd.md"),

@@ -5,12 +5,14 @@ use std::marker::PhantomData;
 // Core error type
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Analysis error: {0}")]
+    #[error("Analysis Agent error: {0}")]
     Analysis(String),
-    #[error("Generation error: {0}")]
+    #[error("Law Generation Agent error: {0}")]
     Generation(String),
-    #[error("Verification error: {0}")]
+    #[error("Verification Agent error: {0}")]
     Verification(String),
+    #[error("Summarization Agent error: {0}")]
+    Summarization(String),
 }
 
 // Core workflow trait
@@ -54,6 +56,9 @@ pub struct Analyzed;
 pub struct Generated;
 #[derive(Clone, Debug)]
 pub struct Verified;
+
+#[derive(Clone, Debug)]
+pub struct Finished;
 
 // State wrapper
 #[derive(Clone, Debug)]
@@ -135,7 +140,7 @@ pub mod steps;
 // Re-exports
 pub mod prelude {
     pub use super::steps::{
-        AnalyzeSpec, GenerateLaws, Law, Requirements, SpecDocument, VerificationResult, VerifyLaws,
+        AnalyzeSpec, GenerateLaws, Law, Requirements, SpecDocument, VerifyLaws,
     };
     pub use super::{
         Analyzed, Error, Generated, Initial, StepCompose, Verified, WorkflowState, WorkflowStep,

@@ -1,4 +1,4 @@
-use crate::{Analyzed, Error, Generated, Initial, Verified, WorkflowState, WorkflowStep};
+use crate::{Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
 use async_trait::async_trait;
 use forge_api::{Event, Workflow, API};
 use forge_domain::FunctionalRequirements;
@@ -50,21 +50,6 @@ pub struct Law {
     pub output_path: PathBuf,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerificationResult {
-    pub law_id: String,
-    pub is_valid: bool,
-    pub details: String,
-    pub output_path: PathBuf,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FinalReport {
-    pub verification_results: Vec<VerificationResult>,
-    pub pull_request_path: PathBuf,
-    pub output_path: PathBuf,
-}
-
 pub struct AnalyzeSpec<T: API> {
     pub api: Arc<T>,
     pub workflow: Workflow,
@@ -74,6 +59,12 @@ impl<T: API> AnalyzeSpec<T> {
     pub fn new(api: Arc<T>, workflow: Workflow) -> Self {
         Self { api, workflow }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VerificationReport {
+    pub report: String,
+    pub path: PathBuf,
 }
 
 #[async_trait]
@@ -134,7 +125,7 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for GenerateLaws<T> {
             let api = self.api.clone();
             let workflow = self.workflow.clone();
             let law_path = self.law_path.clone();
-            
+
             futures.push(tokio::spawn(async move {
                 let requirement_id = req.id.clone();
                 let law_path = law_path.join(format!("{}.tla", requirement_id));
@@ -149,13 +140,13 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for GenerateLaws<T> {
                     .await
                     .map_err(|e| Error::Generation(e.to_string()))?;
 
-                let content = tokio::fs::read_to_string(&law_path)
-                    .await
-                    .map_err(|e| Error::Generation(format!(
+                let content = tokio::fs::read_to_string(&law_path).await.map_err(|e| {
+                    Error::Generation(format!(
                         "Failed to read law file {}: {}",
                         law_path.display(),
                         e
-                    )))?;
+                    ))
+                })?;
 
                 Ok::<Law, Error>(Law {
                     id: requirement_id.clone(),
@@ -204,7 +195,7 @@ impl<T: API> VerifyLaws<T> {
 #[async_trait]
 impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
     type Input = WorkflowState<Generated, Vec<Law>>;
-    type Output = WorkflowState<Verified, Vec<String>>;
+    type Output = WorkflowState<Verified, Vec<VerificationReport>>;
     type Error = Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
@@ -216,10 +207,11 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
             let workflow = self.workflow.clone();
             let verification_path = self.verification_path.clone();
             let pull_request_path = self.pull_request_path.clone();
-            
+
             futures.push(tokio::spawn(async move {
                 let law_id = law.id.clone();
-                let verification_path = verification_path.join(format!("{}_verification.md", law_id));
+                let verification_path =
+                    verification_path.join(format!("{}_verification.md", law_id));
 
                 let payload = json!({
                     "verification_content": law.content,
@@ -235,12 +227,14 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
                 // Read and parse the verification result from the output file
                 let content = tokio::fs::read_to_string(&verification_path)
                     .await
-                    .map_err(|e| Error::Verification(format!(
-                        "Failed to read verification file: {}",
-                        e
-                    )))?;
+                    .map_err(|e| {
+                        Error::Verification(format!("Failed to read verification file: {}", e))
+                    })?;
 
-                Ok::<String, Error>(content)
+                Ok::<VerificationReport, Error>(VerificationReport {
+                    report: content,
+                    path: verification_path,
+                })
             }));
         }
 
@@ -254,9 +248,56 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
         }
 
         if verification_results.is_empty() {
-            return Err(Error::Verification("No verification results found".to_string()));
+            return Err(Error::Verification(
+                "No verification results found".to_string(),
+            ));
         }
 
         Ok(WorkflowState(verification_results, PhantomData))
+    }
+}
+
+pub struct SummarizeReport<T: API> {
+    pub api: Arc<T>,
+    pub workflow: Workflow,
+    pub pull_request_path: PathBuf,
+    pub output_path: PathBuf,
+}
+
+impl<T: API> SummarizeReport<T> {
+    pub fn new(
+        api: Arc<T>,
+        workflow: Workflow,
+        pull_request_path: PathBuf,
+        output_path: PathBuf,
+    ) -> Self {
+        Self { api, workflow, pull_request_path, output_path }
+    }
+}
+
+#[async_trait]
+impl<T: API + Send + Sync + 'static> WorkflowStep for SummarizeReport<T> {
+    type Input = WorkflowState<Verified, Vec<VerificationReport>>;
+    type Output = WorkflowState<Finished, String>;
+    type Error = Error;
+
+    async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
+        // TODO: if we've multiple reports then there's possibility of context overflow for agent.
+        let payload = serde_json::json!({
+            "pull_request_path": self.pull_request_path,
+            "verification_reports": input.0,
+            "output_path": self.output_path
+        });
+        let event = Event::new("summarize-reports", payload);
+        self.api
+            .run(&self.workflow, event)
+            .await
+            .map_err(|e| Error::Summarization(e.to_string()))?;
+
+        let content = tokio::fs::read_to_string(&self.output_path)
+            .await
+            .map_err(|e| Error::Summarization(format!("Failed to read summary file: {}", e)))?;
+
+        Ok(WorkflowState(content, PhantomData))
     }
 }
