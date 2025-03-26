@@ -1,48 +1,17 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::sync::Arc;
 
 use anyhow::Result;
-use forge_api::{ForgeAPI, API};
-use forge_review_v2::{
-    prelude::*,
-    steps::{AnalyzeSpec, GenerateLaws, SpecDocument, SummarizeReport},
-};
+use clap::Parser;
+use forge::{Cli, UI};
+use forge_api::ForgeAPI;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize API and load workflow configuration
-    let api = Arc::new(ForgeAPI::init(false));
-    let path = Path::new("./review.yaml");
-    let workflow = api.load(Some(path)).await?;
-    let artifact_path = Path::new("./prd-verification-workflow-artifacts");
-
-    let output = AnalyzeSpec::new(api.clone(), workflow.clone())
-        .then(GenerateLaws::new(
-            api.clone(),
-            workflow.clone(),
-            artifact_path.join("laws"),
-        ))
-        .then(VerifyLaws::new(
-            api.clone(),
-            workflow.clone(),
-            artifact_path.join("verification"),
-            artifact_path.join("pull-request.diff"),
-        ))
-        .then(SummarizeReport::new(
-            api.clone(),
-            workflow.clone(),
-            artifact_path.join("pull-request.diff"),
-            artifact_path.join("final-report.md"),
-        ))
-        .execute(WorkflowState::new(SpecDocument::new(
-            PathBuf::from("./todo-mark-done-prd.md"),
-            artifact_path.join("functional_requirements.md"),
-        )))
-        .await?;
-
-    println!("{:#?}", output);
+    // Initialize and run the UI
+    let cli = Cli::parse();
+    let api = Arc::new(ForgeAPI::init(cli.restricted));
+    let mut ui = UI::init(cli, api)?;
+    ui.run().await?;
 
     Ok(())
 }
