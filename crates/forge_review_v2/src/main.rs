@@ -18,30 +18,34 @@ async fn main() -> Result<()> {
     let artifact_path = current_dir.join(".forge");
     // files avail at root level.
     let spec_path = current_dir.join("todo-mark-done-prd.md");
+    let spec_summary_path = current_dir.join("todo-mark-done-prd-summary.md");
     let pull_request_path = current_dir.join("pull-request.diff");
+
+    // paths
+    let laws_dir = artifact_path.join("laws");
+    let verifications_dir = artifact_path.join("verifications");
+    let functional_requirement_path = artifact_path.join("functional_requirements.md");
+    let final_report_path = artifact_path.join("final-report.md");
 
     // start the workflow
     let _ = AnalyzeSpec::new(api.clone(), workflow.clone())
-        .pipe(GenerateLaws::new(
-            api.clone(),
-            workflow.clone(),
-            artifact_path.join("laws"),
-        ))
+        .pipe(GenerateLaws::new(api.clone(), workflow.clone(), laws_dir))
         .pipe(VerifyLaws::new(
             api.clone(),
             workflow.clone(),
-            artifact_path.join("verifications"),
+            verifications_dir,
             pull_request_path.clone(),
         ))
         .pipe(SummarizeReport::new(
             api.clone(),
             workflow.clone(),
             pull_request_path,
-            artifact_path.join("final-report.md"),
+            final_report_path,
         ))
         .execute(WorkflowState::new(SpecDocument::new(
-            spec_path.clone(),
-            artifact_path.join("functional_requirements.md"),
+            spec_path,
+            functional_requirement_path,
+            spec_summary_path,
         )))
         .await?;
 

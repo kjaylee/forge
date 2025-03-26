@@ -17,19 +17,31 @@ use crate::{Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowSta
 pub struct SpecDocument {
     pub specification_path: PathBuf,
     pub requirements_output: PathBuf,
+    pub spec_summary_path: PathBuf,
 }
 
 impl SpecDocument {
-    pub fn new(specification_path: PathBuf, requirements_output: PathBuf) -> Self {
-        Self { specification_path, requirements_output }
+    pub fn new(
+        specification_path: PathBuf,
+        requirements_output: PathBuf,
+        spec_summary_path: PathBuf,
+    ) -> Self {
+        Self { specification_path, requirements_output, spec_summary_path }
     }
 }
 
 impl Display for SpecDocument {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "specification_path: {:?}", self.specification_path)?;
-        writeln!(f, "requirements_output: {:?}", self.requirements_output)
+        writeln!(f, "requirements_output: {:?}", self.requirements_output)?;
+        writeln!(f, "spec_summary_path: {:?}", self.spec_summary_path)
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecAnalysisReport {
+    pub functional_requirements: FunctionalRequirements,
+    pub specification_summary: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,7 +84,7 @@ pub struct VerificationReport {
 #[async_trait]
 impl<T: API + Send + Sync> WorkflowStep for AnalyzeSpec<T> {
     type Input = WorkflowState<Initial, SpecDocument>;
-    type Output = WorkflowState<Analyzed, FunctionalRequirements>;
+    type Output = WorkflowState<Analyzed, SpecAnalysisReport>;
     type Error = Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
@@ -92,7 +104,17 @@ impl<T: API + Send + Sync> WorkflowStep for AnalyzeSpec<T> {
             Error::Analysis(format!("Failed to parse requirements markdown: {}", e))
         })?;
 
-        Ok(WorkflowState(functional_requirements, PhantomData))
+        Ok(WorkflowState(
+            SpecAnalysisReport {
+                functional_requirements,
+                specification_summary: fs::read_to_string(&input.0.spec_summary_path)
+                    .await
+                    .map_err(|e| {
+                        Error::Analysis(format!("Failed to read specification summary file: {}", e))
+                    })?,
+            },
+            PhantomData,
+        ))
     }
 }
 
@@ -110,12 +132,13 @@ impl<T: API> GenerateLaws<T> {
 
 #[async_trait]
 impl<T: API + Send + Sync + 'static> WorkflowStep for GenerateLaws<T> {
-    type Input = WorkflowState<Analyzed, FunctionalRequirements>;
+    type Input = WorkflowState<Analyzed, SpecAnalysisReport>;
     type Output = WorkflowState<Generated, Vec<Law>>;
     type Error = Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        let requirements = input.0.requirements;
+        let requirements = input.0.functional_requirements.requirements;
+        let specification_summary = input.0.specification_summary;
         let mut futures = FuturesUnordered::new();
 
         // Spawn tasks for each requirement
@@ -123,6 +146,7 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for GenerateLaws<T> {
             let api = self.api.clone();
             let workflow = self.workflow.clone();
             let law_path = self.law_path.clone();
+            let specification_summary = specification_summary.clone();
 
             futures.push(tokio::spawn(async move {
                 let requirement_id = req.id.clone();
@@ -130,6 +154,7 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for GenerateLaws<T> {
 
                 let payload = json!({
                     "functional_requirement": req,
+                    "specification_summary": specification_summary,
                     "output_path": law_path
                 });
 
@@ -212,7 +237,7 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
                     verification_path.join(format!("{}_verification.md", law_id));
 
                 // TODO: optimization: instead of passing the pull_request path, we should read
-                // and send the diff content to save tool call and roundtrip time.
+                // and send the diff content to save tool call and extra roundtrip required to get the toolcall and send the response to agent.
                 let payload = json!({
                     "verification_content": law.content,
                     "pull_request_path": pull_request_path,
