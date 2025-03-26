@@ -1,5 +1,5 @@
 use std::fmt::Display;
-
+use pulldown_cmark::{Parser, Event, Tag, HeadingLevel};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,126 +41,219 @@ pub struct Dependency {
     pub explanation: String,
 }
 
+#[derive(Debug)]
+enum ParsingState {
+    Initial,
+    Overview,
+    Requirements,
+    Dependencies,
+    Ambiguities,
+}
+
+#[derive(Debug)]
+enum RequirementParsingState {
+    Initial,
+    Statement,
+    AcceptanceCriteria,
+}
+
 impl FunctionalRequirements {
     pub fn parse(content: &str) -> Result<Self, String> {
-        let sections: Vec<&str> = content.split("\n## ").collect();
-        if sections.is_empty() {
-            return Err("Empty content".to_string());
-        }
-
-        // Parse header and overview
-        let header = sections[0].trim();
-        let title = header
-            .lines()
-            .next()
-            .ok_or("Missing title")?
-            .trim_start_matches("# ")
-            .trim_start_matches("Functional Requirements: ")
-            .to_string();
-
-        let overview = header
-            .lines()
-            .skip_while(|l| !l.contains("Overview"))
-            .skip(1)
-            .take_while(|l| !l.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n")
-            .trim()
-            .to_string();
-
-        // Parse requirements
-        let requirements_section = sections
-            .iter()
-            .find(|s| s.trim().starts_with("Functional Requirements"))
-            .ok_or("Missing Functional Requirements section")?;
-
+        let parser = Parser::new(content);
+        let mut state = ParsingState::Initial;
+        let mut req_state = RequirementParsingState::Initial;
+        
+        let mut title = String::new();
+        let mut overview = String::new();
         let mut requirements = Vec::new();
-        for req_block in requirements_section.split("\n### ").skip(1) {
-            let mut lines = req_block.lines();
-            let header = lines.next().ok_or("Missing requirement header")?;
-            let id = header
-                .split(':')
-                .next()
-                .ok_or("Invalid requirement format")?
-                .trim()
-                .to_string();
-            let name = header
-                .split(':')
-                .nth(1)
-                .ok_or("Missing requirement name")?
-                .trim()
-                .to_string();
-
-            let mut statement = String::new();
-            let mut criteria = Vec::new();
-            let mut in_criteria = false;
-
-            for line in lines {
-                if line.contains("**Requirement:**") {
-                    statement = line
-                        .split("**Requirement:**")
-                        .nth(1)
-                        .unwrap_or("")
-                        .trim()
-                        .to_string();
-                } else if line.contains("**Acceptance Criteria:**") {
-                    in_criteria = true;
-                } else if in_criteria && line.trim().starts_with('-') {
-                    criteria.push(line.trim_start_matches('-').trim().to_string());
-                }
-            }
-
-            requirements.push(Requirement { id, name, statement, acceptance_criteria: criteria });
-        }
-
-        // Parse dependencies
-        let dependencies_section = sections
-            .iter()
-            .find(|s| s.trim().starts_with("Dependencies"))
-            .copied()
-            .unwrap_or("");
-
         let mut dependencies = Vec::new();
-        for dep_line in dependencies_section.lines() {
-            if dep_line.starts_with("- **D") {
-                let parts: Vec<&str> = dep_line.split(':').collect();
-                if parts.len() == 2 {
-                    let id = parts[0]
-                        .trim_start_matches("- **")
-                        .trim_end_matches("**")
-                        .to_string();
-                    let dep_text = parts[1].trim();
-
-                    // Parse "R3 depends on R2" format
-                    if let Some((reqs, explanation)) = dep_text.split_once(" [") {
-                        let reqs_parts: Vec<&str> = reqs.split(" depends on ").collect();
-                        if reqs_parts.len() == 2 {
-                            dependencies.push(Dependency {
-                                id,
-                                from_req: reqs_parts[0].trim().to_string(),
-                                to_req: reqs_parts[1].trim().to_string(),
-                                explanation: explanation.trim_end_matches(']').to_string(),
-                            });
+        let mut ambiguities = Vec::new();
+        
+        // Current requirement being parsed
+        let mut current_req = Requirement {
+            id: String::new(),
+            name: String::new(),
+            statement: String::new(),
+            acceptance_criteria: Vec::new(),
+        };
+        
+        // Current dependency being parsed
+        let mut current_dep = Dependency {
+            id: String::new(),
+            from_req: String::new(),
+            to_req: String::new(),
+            explanation: String::new(),
+        };
+        
+        let mut current_text = String::new();
+        let mut in_strong = false;
+        
+        for event in parser {
+            match event {
+                Event::Start(Tag::Heading(level, ..)) => {
+                    current_text.clear();
+                    match level {
+                        HeadingLevel::H1 => state = ParsingState::Initial,
+                        HeadingLevel::H2 => {
+                            // Save current requirement if any
+                            if !current_req.id.is_empty() {
+                                requirements.push(current_req.clone());
+                                current_req = Requirement {
+                                    id: String::new(),
+                                    name: String::new(),
+                                    statement: String::new(),
+                                    acceptance_criteria: Vec::new(),
+                                };
+                            }
                         }
+                        HeadingLevel::H3 => {
+                            if matches!(state, ParsingState::Requirements) {
+                                // Save current requirement if any
+                                if !current_req.id.is_empty() {
+                                    requirements.push(current_req.clone());
+                                }
+                                current_req = Requirement {
+                                    id: String::new(),
+                                    name: String::new(),
+                                    statement: String::new(),
+                                    acceptance_criteria: Vec::new(),
+                                };
+                                req_state = RequirementParsingState::Initial;
+                            }
+                        }
+                        _ => {}
                     }
                 }
+                Event::End(Tag::Heading(level, ..)) => {
+                    let text = current_text.trim();
+                    match level {
+                        HeadingLevel::H1 => {
+                            if text.starts_with("Functional Requirements:") {
+                                title = text.trim_start_matches("Functional Requirements:").trim().to_string();
+                            }
+                        }
+                        HeadingLevel::H2 => {
+                            match text {
+                                "Overview" => state = ParsingState::Overview,
+                                "Functional Requirements" => state = ParsingState::Requirements,
+                                "Dependencies" => state = ParsingState::Dependencies,
+                                "Notes on Ambiguities" => state = ParsingState::Ambiguities,
+                                _ => {}
+                            }
+                        }
+                        HeadingLevel::H3 => {
+                            if matches!(state, ParsingState::Requirements) {
+                                let parts: Vec<&str> = text.split(':').collect();
+                                if parts.len() == 2 {
+                                    current_req.id = parts[0].trim().to_string();
+                                    current_req.name = parts[1].trim().to_string();
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                    current_text.clear();
+                }
+                Event::Start(Tag::Strong) => {
+                    in_strong = true;
+                    current_text.clear();
+                }
+                Event::End(Tag::Strong) => {
+                    let text = current_text.trim();
+                    match text {
+                        "Requirement:" => req_state = RequirementParsingState::Statement,
+                        "Acceptance Criteria:" => req_state = RequirementParsingState::AcceptanceCriteria,
+                        _ if text.ends_with(':') && matches!(state, ParsingState::Dependencies) => {
+                            current_dep.id = text.trim_end_matches(':').to_string();
+                        }
+                        _ => {}
+                    }
+                    in_strong = false;
+                    current_text.clear();
+                }
+                Event::Start(Tag::List(_)) => {}
+                Event::End(Tag::List(_)) => {}
+                Event::Start(Tag::Item) => {
+                    current_text.clear();
+                }
+                Event::End(Tag::Item) => {
+                    let text = current_text.trim();
+                    match state {
+                        ParsingState::Requirements => {
+                            match req_state {
+                                RequirementParsingState::Statement => {
+                                    if !in_strong {
+                                        current_req.statement = text.to_string();
+                                    }
+                                }
+                                RequirementParsingState::AcceptanceCriteria => {
+                                    if !text.is_empty() {
+                                        current_req.acceptance_criteria.push(text.to_string());
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                        ParsingState::Dependencies => {
+                            if !current_dep.id.is_empty() {
+                                if let Some((reqs, explanation)) = text.split_once('[') {
+                                    if let Some((from, to)) = reqs.split_once("depends on") {
+                                        current_dep.from_req = from.trim().to_string();
+                                        current_dep.to_req = to.trim().to_string();
+                                        current_dep.explanation = explanation.trim_end_matches(']').trim().to_string();
+                                        dependencies.push(current_dep.clone());
+                                        current_dep = Dependency {
+                                            id: String::new(),
+                                            from_req: String::new(),
+                                            to_req: String::new(),
+                                            explanation: String::new(),
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                        ParsingState::Ambiguities => {
+                            if !text.is_empty() {
+                                ambiguities.push(text.to_string());
+                            }
+                        }
+                        _ => {}
+                    }
+                    current_text.clear();
+                }
+                Event::Text(text) => {
+                    current_text.push_str(text.as_ref());
+                }
+                Event::Start(Tag::Paragraph) => {
+                    current_text.clear();
+                }
+                Event::End(Tag::Paragraph) => {
+                    let text = current_text.trim();
+                    if matches!(state, ParsingState::Overview) && !text.is_empty() {
+                        overview = text.to_string();
+                    }
+                    current_text.clear();
+                }
+                _ => {}
             }
         }
-
-        // Parse ambiguities
-        let ambiguities_section = sections
-            .iter()
-            .find(|s| s.trim().starts_with("Notes on Ambiguities"))
-            .copied()
-            .unwrap_or("");
-
-        let ambiguities = ambiguities_section
-            .lines()
-            .filter(|l| l.starts_with('-'))
-            .map(|l| l.trim_start_matches('-').trim().to_string())
-            .collect();
-
-        Ok(FunctionalRequirements { title, overview, requirements, dependencies, ambiguities })
+        
+        // Add the last requirement if any
+        if !current_req.id.is_empty() {
+            requirements.push(current_req);
+        }
+        
+        if title.is_empty() {
+            return Err("Missing title".to_string());
+        }
+        
+        Ok(FunctionalRequirements {
+            title,
+            overview,
+            requirements,
+            dependencies,
+            ambiguities,
+        })
     }
 }
 
@@ -203,5 +296,51 @@ This is a test overview.
         assert_eq!(result.requirements.len(), 2);
         assert_eq!(result.dependencies.len(), 1);
         assert_eq!(result.ambiguities.len(), 2);
+        
+        // Test first requirement
+        let r1 = &result.requirements[0];
+        assert_eq!(r1.id, "R1");
+        assert_eq!(r1.name, "First Requirement");
+        assert_eq!(r1.statement, "The system shall do something.");
+        assert_eq!(r1.acceptance_criteria, vec!["Criterion 1", "Criterion 2"]);
+        
+        // Test second requirement
+        let r2 = &result.requirements[1];
+        assert_eq!(r2.id, "R2");
+        assert_eq!(r2.name, "Second Requirement");
+        assert_eq!(r2.statement, "The system shall do something else.");
+        assert_eq!(r2.acceptance_criteria, vec!["Criterion 3", "Criterion 4"]);
+        
+        // Test dependency
+        let d1 = &result.dependencies[0];
+        assert_eq!(d1.id, "D1");
+        assert_eq!(d1.from_req, "R2");
+        assert_eq!(d1.to_req, "R1");
+        assert_eq!(d1.explanation, "needs first thing to work");
+        
+        // Test ambiguities
+        assert_eq!(result.ambiguities[0], "First ambiguity note");
+        assert_eq!(result.ambiguities[1], "Second ambiguity note");
+    }
+    
+    #[test]
+    fn test_parse_empty_content() {
+        let result = FunctionalRequirements::parse("");
+        assert!(result.is_err());
+    }
+    
+    #[test]
+    fn test_parse_missing_sections() {
+        let content = r#"# Functional Requirements: Test Feature
+
+## Overview
+This is a test overview.
+"#;
+        let result = FunctionalRequirements::parse(content).unwrap();
+        assert_eq!(result.title, "Test Feature");
+        assert_eq!(result.overview, "This is a test overview.");
+        assert!(result.requirements.is_empty());
+        assert!(result.dependencies.is_empty());
+        assert!(result.ambiguities.is_empty());
     }
 }

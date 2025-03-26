@@ -36,6 +36,12 @@ index 2dfec80..9a12f91 100644
  
 +    pub fn mark_done(&mut self, id: u32) -> Result<Task, TaskError> {
 +        if let Some(task) = self.tasks.iter_mut().find(|t| t.id == id) {
++           if task.done {         
++               return Err(TaskError(format!(
++                   "Task with ID {} is already done",
++                   id
++               )));
++            }
 +            task.done = true;
 +            Ok(task.clone())
 +        } else {
