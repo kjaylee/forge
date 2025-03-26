@@ -136,8 +136,8 @@ where
 }
 
 // Concrete steps module
-pub mod steps;
 mod functional_req;
+pub mod steps;
 
 // Re-exports
 pub mod prelude {

@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::fs;
 
-use crate::{functional_req::FunctionalRequirements, Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
+use crate::functional_req::FunctionalRequirements;
+use crate::{Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecDocument {
