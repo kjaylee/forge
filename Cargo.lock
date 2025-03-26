@@ -977,7 +977,6 @@ dependencies = [
  "forge_domain",
  "forge_fs",
  "forge_infra",
- "forge_review",
  "forge_review_v2",
  "forge_services",
  "forge_snaps",
@@ -1142,14 +1141,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
-]
-
-[[package]]
-name = "forge_review"
-version = "0.1.0"
-dependencies = [
- "futures",
- "tokio",
 ]
 
 [[package]]
