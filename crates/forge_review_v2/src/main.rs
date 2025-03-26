@@ -11,7 +11,7 @@ async fn main() -> Result<()> {
     // Initialize API and load workflow configuration
     let api = Arc::new(ForgeAPI::init(false));
     let workflow = api.load(Some(Path::new("./review.yaml"))).await?;
-    let artifact_path = Path::new("./prd-verification-workflow-artifacts");
+    let artifact_path = Path::new("./.forge");
 
     // start the workflow
     let output = AnalyzeSpec::new(api.clone(), workflow.clone())
@@ -23,8 +23,8 @@ async fn main() -> Result<()> {
         .pipe(VerifyLaws::new(
             api.clone(),
             workflow.clone(),
-            artifact_path.join("verification"),
-            artifact_path.join("pull-request.diff"),
+            artifact_path.join("verifications"),
+            PathBuf::from("./pull-request.diff"),
         ))
         .pipe(SummarizeReport::new(
             api.clone(),
