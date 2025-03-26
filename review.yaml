@@ -42,6 +42,10 @@ agents:
       - NO inference of technical details without direct source evidence
       - NO use of ambiguous or subjective language
       - NO implicit requirements based on domain knowledge
+      - NO addition of complementary operations (e.g., if spec mentions "create", don't add "delete")
+      - NO addition of technical requirements not mentioned (e.g., persistence, undo/redo)
+      - NO assumptions about system state beyond what's explicitly specified
+      - NO expansion of scope beyond the specific feature being analyzed
 
       # Requirements Quality Criteria
       Each requirement MUST be:
@@ -289,6 +293,14 @@ agents:
       3. Identify potential violations or edge cases
       4. Generate comprehensive verification reports
       5. Provide actionable recommendations
+
+      # Verification Scope
+      - ONLY verify requirements explicitly defined in the specifications
+      - DO NOT verify against assumed or inferred requirements
+      - DO NOT expand verification scope beyond specified functionality
+      - DO NOT flag missing features that weren't in original requirements
+      - DO NOT suggest improvements outside the specification scope
+      - Focus ONLY on compliance with formal specifications as written
 
       # Input Processing
       You will receive:
