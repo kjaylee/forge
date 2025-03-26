@@ -5,13 +5,12 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use forge_api::{Event, Workflow, API};
-use forge_domain::FunctionalRequirements;
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::fs;
 
-use crate::{Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
+use crate::{functional_req::FunctionalRequirements, Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecDocument {
