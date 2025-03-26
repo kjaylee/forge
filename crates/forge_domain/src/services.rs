@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::{
-    Agent, Attachment, ChatCompletionMessage, Compaction, Context, Conversation, ConversationId,
+    Agent, Attachment, ChatCompletionMessage, Compact, Context, Conversation, ConversationId,
     Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template, ToolCallFull,
     ToolDefinition, ToolResult, Workflow,
 };
@@ -73,7 +73,7 @@ pub trait TemplateService: Send + Sync {
     /// sophisticated compaction templates)
     async fn render_summarization(
         &self,
-        compaction: &Compaction,
+        compaction: &Compact,
         context: &Context,
     ) -> anyhow::Result<String>;
 }

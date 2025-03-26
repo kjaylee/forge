@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use chrono::Local;
 use forge_domain::{
-    Agent, Compaction, Context, Event, EventContext, Query, SystemContext, Template,
-    TemplateService, ToolService,
+    Agent, Compact, Context, Event, EventContext, Query, SystemContext, Template, TemplateService,
+    ToolService,
 };
 use forge_walker::Walker;
 use handlebars::Handlebars;
@@ -133,7 +133,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
     async fn render_summarization(
         &self,
-        compaction: &Compaction,
+        compaction: &Compact,
         context: &Context,
     ) -> anyhow::Result<String> {
         let summary_tag = compaction.summary_tag.as_deref().unwrap_or("summary");

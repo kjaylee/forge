@@ -11,7 +11,7 @@ agents:
       - fixme
     compact:
       max_tokens: 2000
-      token_threshold: 50000
+      token_threshold: 60000
       model: google/gemini-2.0-flash-001
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     custom_rules: |

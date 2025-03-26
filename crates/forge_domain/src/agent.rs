@@ -35,7 +35,12 @@ impl From<ToolName> for AgentId {
 /// Configuration for automatic context compaction
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
-pub struct Compaction {
+pub struct Compact {
+    /// Number of most recent messages to preserve during compaction
+    /// These messages won't be considered for summarization
+    #[serde(default = "default_preserve_count")]
+    #[merge(strategy = crate::merge::std::overwrite)]
+    pub retention_window: usize,
     /// Maximum number of tokens to keep after compaction
     #[merge(strategy = crate::merge::option)]
     pub max_tokens: Option<usize>,
@@ -71,7 +76,12 @@ pub struct Compaction {
     pub summary_tag: Option<String>,
 }
 
-impl Compaction {
+/// Default number of messages to preserve during compaction
+fn default_preserve_count() -> usize {
+    6
+}
+
+impl Compact {
     /// Creates a new compaction configuration with the specified maximum token
     /// limit
     pub fn new(model: ModelId) -> Self {
@@ -83,6 +93,7 @@ impl Compaction {
             prompt: None,
             summary_tag: None,
             model,
+            retention_window: default_preserve_count(),
         }
     }
 
@@ -205,7 +216,7 @@ pub struct Agent {
     /// Configuration for automatic context compaction
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
-    pub compact: Option<Compaction>,
+    pub compact: Option<Compact>,
 
     /// A set of custom rules that the agent should follow
     #[serde(skip_serializing_if = "Option::is_none")]
