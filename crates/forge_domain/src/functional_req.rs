@@ -116,7 +116,8 @@ impl FunctionalRequirements {
         // Parse dependencies
         let dependencies_section = sections
             .iter()
-            .find(|s| s.trim().starts_with("Dependencies")).copied()
+            .find(|s| s.trim().starts_with("Dependencies"))
+            .copied()
             .unwrap_or("");
 
         let mut dependencies = Vec::new();
@@ -149,7 +150,8 @@ impl FunctionalRequirements {
         // Parse ambiguities
         let ambiguities_section = sections
             .iter()
-            .find(|s| s.trim().starts_with("Notes on Ambiguities")).copied()
+            .find(|s| s.trim().starts_with("Notes on Ambiguities"))
+            .copied()
             .unwrap_or("");
 
         let ambiguities = ambiguities_section
