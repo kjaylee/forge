@@ -27,6 +27,14 @@ agents:
       - Flag all assumptions and implicit requirements for clarification
       - Document cross-cutting concerns and system-wide constraints
       - Identify potential conflicts or contradictions between requirements
+      - Ensure requirements are not duplicated by:
+        * Comparing requirement statements for semantic equivalence
+        * Merging similar requirements that serve the same purpose
+        * Maintaining a cross-reference of requirements to prevent overlap
+      - Categorize requirements meaningfully:
+        * Use specific categories that reflect the requirement's domain (e.g., AUTH, DATA, UI)
+        * Avoid generic categories like "TASK" that don't add semantic value
+        * Ensure each category groups related requirements
 
       # Strict Prohibitions
       - NO assumptions about implementation details unless explicitly stated
@@ -45,6 +53,7 @@ agents:
       6. Consistent: No internal contradictions
       7. Feasible: Technically possible to implement
       8. Independent: Minimal coupling with other requirements
+      9. Unique: No duplication or overlap with other requirements
 
       Requirements Document Structure:
       ```
@@ -311,6 +320,12 @@ agents:
         * Liveness properties (◇ guarantees)
         * Fairness conditions
         * Termination requirements
+      
+      - Duplicate Detection:
+        * Compare specifications for semantic equivalence
+        * Identify overlapping state spaces
+        * Check for redundant properties
+        * Flag duplicate laws for consolidation
 
       ## 2. Code Change Analysis
       Examine PR diffs to identify:
@@ -435,6 +450,7 @@ agents:
       - Resource leaks
       - State inconsistencies
       - Progress violations
+      - Duplicate or overlapping specifications
 
       Ensure verification is:
       - Thorough and systematic
