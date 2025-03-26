@@ -1,6 +1,7 @@
-use async_trait::async_trait;
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
+
+use async_trait::async_trait;
 
 // Core error type
 #[derive(Debug, thiserror::Error)]

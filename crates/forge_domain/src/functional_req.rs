@@ -13,9 +13,9 @@ pub struct FunctionalRequirements {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Requirement {
-    pub id: String,           // e.g. "R1"
-    pub name: String,         // e.g. "Task Completion Command"
-    pub statement: String,    // The "shall" statement
+    pub id: String,        // e.g. "R1"
+    pub name: String,      // e.g. "Task Completion Command"
+    pub statement: String, // The "shall" statement
     pub acceptance_criteria: Vec<String>,
 }
 
@@ -24,17 +24,20 @@ impl Display for Requirement {
         writeln!(f, "id: {}", self.id)?;
         writeln!(f, "name: {}", self.name)?;
         writeln!(f, "statement: {}", self.statement)?;
-        writeln!(f, "acceptance_criteria: {}", self.acceptance_criteria.join(", "))?;
+        writeln!(
+            f,
+            "acceptance_criteria: {}",
+            self.acceptance_criteria.join(", ")
+        )?;
         Ok(())
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dependency {
-    pub id: String,          // e.g. "D1"
-    pub from_req: String,    // e.g. "R3"
-    pub to_req: String,      // e.g. "R2"
+    pub id: String,       // e.g. "D1"
+    pub from_req: String, // e.g. "R3"
+    pub to_req: String,   // e.g. "R2"
     pub explanation: String,
 }
 
@@ -94,7 +97,12 @@ impl FunctionalRequirements {
 
             for line in lines {
                 if line.contains("**Requirement:**") {
-                    statement = line.split("**Requirement:**").nth(1).unwrap_or("").trim().to_string();
+                    statement = line
+                        .split("**Requirement:**")
+                        .nth(1)
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
                 } else if line.contains("**Acceptance Criteria:**") {
                     in_criteria = true;
                 } else if in_criteria && line.trim().starts_with('-') {
@@ -102,19 +110,13 @@ impl FunctionalRequirements {
                 }
             }
 
-            requirements.push(Requirement {
-                id,
-                name,
-                statement,
-                acceptance_criteria: criteria,
-            });
+            requirements.push(Requirement { id, name, statement, acceptance_criteria: criteria });
         }
 
         // Parse dependencies
         let dependencies_section = sections
             .iter()
-            .find(|s| s.trim().starts_with("Dependencies"))
-            .map(|s| *s)
+            .find(|s| s.trim().starts_with("Dependencies")).copied()
             .unwrap_or("");
 
         let mut dependencies = Vec::new();
@@ -127,7 +129,7 @@ impl FunctionalRequirements {
                         .trim_end_matches("**")
                         .to_string();
                     let dep_text = parts[1].trim();
-                    
+
                     // Parse "R3 depends on R2" format
                     if let Some((reqs, explanation)) = dep_text.split_once(" [") {
                         let reqs_parts: Vec<&str> = reqs.split(" depends on ").collect();
@@ -147,8 +149,7 @@ impl FunctionalRequirements {
         // Parse ambiguities
         let ambiguities_section = sections
             .iter()
-            .find(|s| s.trim().starts_with("Notes on Ambiguities"))
-            .map(|s| *s)
+            .find(|s| s.trim().starts_with("Notes on Ambiguities")).copied()
             .unwrap_or("");
 
         let ambiguities = ambiguities_section
@@ -157,13 +158,7 @@ impl FunctionalRequirements {
             .map(|l| l.trim_start_matches('-').trim().to_string())
             .collect();
 
-        Ok(FunctionalRequirements {
-            title,
-            overview,
-            requirements,
-            dependencies,
-            ambiguities,
-        })
+        Ok(FunctionalRequirements { title, overview, requirements, dependencies, ambiguities })
     }
 }
 
@@ -207,4 +202,4 @@ This is a test overview.
         assert_eq!(result.dependencies.len(), 1);
         assert_eq!(result.ambiguities.len(), 2);
     }
-} 
+}

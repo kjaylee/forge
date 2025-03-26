@@ -1,15 +1,17 @@
-use crate::{Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
+use std::fmt::Display;
+use std::marker::PhantomData;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use forge_api::{Event, Workflow, API};
 use forge_domain::FunctionalRequirements;
 use futures::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::fmt::Display;
-use std::marker::PhantomData;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::fs;
+
+use crate::{Analyzed, Error, Finished, Generated, Initial, Verified, WorkflowState, WorkflowStep};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecDocument {
@@ -282,7 +284,8 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for SummarizeReport<T> {
     type Error = Error;
 
     async fn execute(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
-        // TODO: if we've multiple reports then there's possibility of context overflow for agent.
+        // TODO: if we've multiple reports then there's possibility of context overflow
+        // for agent.
         let payload = serde_json::json!({
             "pull_request_path": self.pull_request_path,
             "verification_reports": input.0,

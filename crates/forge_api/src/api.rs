@@ -1,8 +1,8 @@
 use std::path::Path;
-use futures_util::StreamExt;
 
 pub use forge_domain::*;
 use forge_stream::MpscStream;
+use futures_util::StreamExt;
 use serde_json::Value;
 
 #[async_trait::async_trait]
@@ -55,7 +55,6 @@ pub trait API: Sync + Send {
         key: String,
         value: Value,
     ) -> anyhow::Result<()>;
-
 
     /// Runs a workflow with the given event
     async fn run(&self, workflow: &Workflow, event: Event) -> anyhow::Result<()> {

@@ -1,14 +1,10 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::Result;
 use forge_api::{ForgeAPI, API};
-use forge_review_v2::{
-    prelude::*,
-    steps::{AnalyzeSpec, GenerateLaws, SpecDocument, SummarizeReport},
-};
+use forge_review_v2::prelude::*;
+use forge_review_v2::steps::{AnalyzeSpec, GenerateLaws, SpecDocument, SummarizeReport};
 
 #[tokio::main]
 async fn main() -> Result<()> {
