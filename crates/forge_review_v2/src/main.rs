@@ -10,10 +10,10 @@ use forge_review_v2::steps::{AnalyzeSpec, GenerateLaws, SpecDocument, SummarizeR
 async fn main() -> Result<()> {
     // Initialize API and load workflow configuration
     let api = Arc::new(ForgeAPI::init(false));
-    let path = Path::new("./review.yaml");
-    let workflow = api.load(Some(path)).await?;
+    let workflow = api.load(Some(Path::new("./review.yaml"))).await?;
     let artifact_path = Path::new("./prd-verification-workflow-artifacts");
 
+    // start the workflow
     let output = AnalyzeSpec::new(api.clone(), workflow.clone())
         .then(GenerateLaws::new(
             api.clone(),
