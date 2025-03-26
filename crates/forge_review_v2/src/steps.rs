@@ -211,7 +211,8 @@ impl<T: API + Send + Sync + 'static> WorkflowStep for VerifyLaws<T> {
                 let verification_path =
                     verification_path.join(format!("{}_verification.md", law_id));
 
-                // TODO: optimization: instead of passing the pull_request path, we should read and send the diff content to save tool call and roundtrip time.
+                // TODO: optimization: instead of passing the pull_request path, we should read
+                // and send the diff content to save tool call and roundtrip time.
                 let payload = json!({
                     "verification_content": law.content,
                     "pull_request_path": pull_request_path,
