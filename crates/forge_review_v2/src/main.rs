@@ -34,29 +34,29 @@ async fn main() -> Result<()> {
     let pull_request = &tokio::fs::read_to_string(pull_request_path).await?;
 
     // Output Paths
-    // let output = current_dir.join(".forge");
-    // let product_requirements_summary = current_dir.join("todo-mark-done-prd-summary.md");
-    // let laws_dir = output.join("laws");
-    // let verifications_dir = output.join("verifications");
-    // let functional_requirement_path = output.join("functional_requirements.md");
-    // let final_report_path = output.join("final-report.md");
+    let output = current_dir.join(".forge");
+    // let product_requirements_summary =
+    // current_dir.join("todo-mark-done-prd-summary.md"); let laws_dir =
+    // output.join("laws"); let verifications_dir =
+    // output.join("verifications"); let functional_requirement_path =
+    // output.join("functional_requirements.md"); let final_report_path =
+    // output.join("final-report.md");
 
     let product_requirements = tokio::fs::read_to_string(product_requirements).await?;
 
     let raw_fr = api
         .run(
-            &workflow,
+            workflow,
             Event::new("analyze-spec", product_requirements.clone()),
         )
         .await?;
 
     let requirements = raw_fr.extract_tag("requirement");
 
-    let laws = try_join_all(requirements.into_iter().take(1).map(|req| {
+    let laws = try_join_all(requirements.into_iter().map(|req| {
         let product_requirements = product_requirements.clone();
         let api = api.clone();
         async move {
-            println!("{:#?}", req);
             let value = json!({
                 "product_requirements": product_requirements.clone(),
                 "functional_requirement": req
@@ -64,7 +64,7 @@ async fn main() -> Result<()> {
 
             let raw_law = api
                 .clone()
-                .run(&workflow, Event::new("generate-laws", value))
+                .run(workflow, Event::new("generate-laws", value))
                 .await?;
 
             let laws = raw_law.extract_tag("law");
@@ -85,7 +85,6 @@ async fn main() -> Result<()> {
         let law = verification.law.clone();
         let api = api.clone();
         async move {
-            println!("{:#?}", law);
             let value = json!({
                 "pull_request": pull_request.clone(),
                 "law": law
@@ -93,7 +92,7 @@ async fn main() -> Result<()> {
 
             let raw_verification = api
                 .clone()
-                .run(&workflow, Event::new("verify-pr", value))
+                .run(workflow, Event::new("verify-pr", value))
                 .await?;
 
             anyhow::Ok(
@@ -110,18 +109,29 @@ async fn main() -> Result<()> {
     .flatten()
     .collect::<Vec<_>>();
 
+    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+    tokio::fs::write(
+        output.join(format!("verification-{}.json", now)),
+        serde_json::to_string_pretty(&verification)?,
+    )
+    .await?;
+
     let value = json!({
         "pull_request_diff": pull_request,
         "verification_status": verification
     });
 
     let raw_summary = api
-        .run(&workflow, Event::new("summarize-reports", value))
+        .run(workflow, Event::new("summarize-reports", value))
         .await?;
 
     let summary = raw_summary.extract_tag("summary");
 
-    println!("{:#?}", summary);
+    tokio::fs::write(
+        output.join(format!("summary-{}.md", now)),
+        serde_json::to_string_pretty(&summary)?,
+    )
+    .await?;
 
     Ok(())
 }

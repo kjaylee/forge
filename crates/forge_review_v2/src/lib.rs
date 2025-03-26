@@ -122,7 +122,8 @@ mod tests_extract_tag {
 
     #[test]
     fn test_extract_tag_content_with_attributes() {
-        // The current function doesn't parse attributes, but it should still extract content
+        // The current function doesn't parse attributes, but it should still extract
+        // content
         let input = "<tag id=\"1\" class=\"test\">content with attributes</tag>";
         let result = extract_tag_content(input, "tag");
         assert!(result.is_empty()); // Since it looks for exact tag match

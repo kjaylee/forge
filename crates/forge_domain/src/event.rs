@@ -75,11 +75,6 @@ impl Event {
         let id = uuid::Uuid::new_v4().to_string();
         let timestamp = chrono::Utc::now().to_rfc3339();
 
-        Self {
-            id,
-            name: name.to_string(),
-            value: value.into(),
-            timestamp,
-        }
+        Self { id, name: name.to_string(), value: value.into(), timestamp }
     }
 }

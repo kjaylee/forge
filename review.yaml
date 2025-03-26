@@ -129,13 +129,13 @@ agents:
       First, here is the TLA+ law you will be using for verification:
 
       <law>
-      {{law}}
+      {{event.value.law}}
       </law>
 
       Now, here is the pull request diff you need to analyze:
 
       <pull_request>
-      {{pull_request}}
+      {{event.value.pull_request}}
       </pull_request>
 
       To complete this task, follow these steps:
