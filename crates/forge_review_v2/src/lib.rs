@@ -96,11 +96,11 @@ pub mod steps;
 
 // Re-exports
 pub mod prelude {
+    pub use super::functional_req::FunctionalRequirements;
     pub use super::steps::{
         AnalyzeSpec, GenerateLaws, Law, Requirements, SpecDocument, VerifyLaws,
     };
     pub use super::{
         Analyzed, Error, Generated, Initial, StepCompose, Verified, WorkflowState, WorkflowStep,
     };
-    pub use super::functional_req::FunctionalRequirements;
 }

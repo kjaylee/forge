@@ -1,4 +1,4 @@
-use pulldown_cmark::{Parser, Event, Tag, HeadingLevel};
+use pulldown_cmark::{Event, HeadingLevel, Parser, Tag};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -117,7 +117,11 @@ impl std::fmt::Display for Requirement {
         writeln!(f, "category: {}", self.category)?;
         writeln!(f, "statement: {}", self.statement)?;
         writeln!(f, "state_changes: {}", self.state_changes)?;
-        writeln!(f, "acceptance_criteria: {}", self.acceptance_criteria.join(", "))?;
+        writeln!(
+            f,
+            "acceptance_criteria: {}",
+            self.acceptance_criteria.join(", ")
+        )?;
         Ok(())
     }
 }
@@ -127,9 +131,7 @@ enum ParsingState {
     Initial,
     Overview,
     Requirements,
-    OperationOrdering {
-        substate: OperationOrderingState,
-    },
+    OperationOrdering { substate: OperationOrderingState },
     Dependencies,
     Ambiguities,
 }
@@ -174,47 +176,45 @@ impl FunctionalRequirements {
         let parser = Parser::new(content);
         let mut state = ParsingState::Initial;
         let mut req_state = RequirementParsingState::Initial;
-        
+
         let mut title = String::new();
         let mut overview = String::new();
         let mut requirements = Vec::new();
         let mut operation_ordering = OperationOrdering::default();
         let mut dependencies = Vec::new();
         let mut ambiguities = Vec::new();
-        
+
         let mut current_req = Requirement::default();
         let mut current_text = String::new();
         let mut list_level = 0;
         let mut current_dependency_type: Option<String> = None;
-        
+
         for event in parser {
             match event {
-                Event::Start(Tag::Heading(level, ..)) => {
-                    match level {
-                        HeadingLevel::H1 => {
-                            state = ParsingState::Initial;
-                            current_text.clear();
+                Event::Start(Tag::Heading(level, ..)) => match level {
+                    HeadingLevel::H1 => {
+                        state = ParsingState::Initial;
+                        current_text.clear();
+                    }
+                    HeadingLevel::H2 => {
+                        if !current_req.id.is_empty() {
+                            requirements.push(current_req.clone());
+                            current_req = Requirement::default();
                         }
-                        HeadingLevel::H2 => {
+                        current_text.clear();
+                    }
+                    HeadingLevel::H3 => {
+                        if matches!(state, ParsingState::Requirements) {
                             if !current_req.id.is_empty() {
                                 requirements.push(current_req.clone());
-                                current_req = Requirement::default();
                             }
-                            current_text.clear();
+                            current_req = Requirement::default();
+                            req_state = RequirementParsingState::Initial;
                         }
-                        HeadingLevel::H3 => {
-                            if matches!(state, ParsingState::Requirements) {
-                                if !current_req.id.is_empty() {
-                                    requirements.push(current_req.clone());
-                                }
-                                current_req = Requirement::default();
-                                req_state = RequirementParsingState::Initial;
-                            }
-                            current_text.clear();
-                        }
-                        _ => {}
+                        current_text.clear();
                     }
-                }
+                    _ => {}
+                },
                 Event::End(Tag::Heading(level, ..)) => {
                     let text = current_text.trim();
                     match level {
@@ -223,20 +223,18 @@ impl FunctionalRequirements {
                                 title = t.trim().to_string();
                             }
                         }
-                        HeadingLevel::H2 => {
-                            match text {
-                                "Overview" => state = ParsingState::Overview,
-                                "Functional Requirements" => state = ParsingState::Requirements,
-                                "Operation Ordering" => {
-                                    state = ParsingState::OperationOrdering {
-                                        substate: OperationOrderingState::Initial,
-                                    };
-                                }
-                                "Dependencies" => state = ParsingState::Dependencies,
-                                "Notes on Ambiguities" => state = ParsingState::Ambiguities,
-                                _ => {}
+                        HeadingLevel::H2 => match text {
+                            "Overview" => state = ParsingState::Overview,
+                            "Functional Requirements" => state = ParsingState::Requirements,
+                            "Operation Ordering" => {
+                                state = ParsingState::OperationOrdering {
+                                    substate: OperationOrderingState::Initial,
+                                };
                             }
-                        }
+                            "Dependencies" => state = ParsingState::Dependencies,
+                            "Notes on Ambiguities" => state = ParsingState::Ambiguities,
+                            _ => {}
+                        },
                         HeadingLevel::H3 => {
                             if matches!(state, ParsingState::Requirements) {
                                 if let Some((id, name)) = text.split_once(':') {
@@ -246,17 +244,24 @@ impl FunctionalRequirements {
                             } else if matches!(state, ParsingState::OperationOrdering { .. }) {
                                 match text {
                                     "State Transition Rules" => {
-                                        if let ParsingState::OperationOrdering { substate } = &mut state {
-                                            *substate = OperationOrderingState::StateTransitionRules;
+                                        if let ParsingState::OperationOrdering { substate } =
+                                            &mut state
+                                        {
+                                            *substate =
+                                                OperationOrderingState::StateTransitionRules;
                                         }
                                     }
                                     "Side Effect Rules" => {
-                                        if let ParsingState::OperationOrdering { substate } = &mut state {
+                                        if let ParsingState::OperationOrdering { substate } =
+                                            &mut state
+                                        {
                                             *substate = OperationOrderingState::SideEffectRules;
                                         }
                                     }
                                     "Temporal Invariants" => {
-                                        if let ParsingState::OperationOrdering { substate } = &mut state {
+                                        if let ParsingState::OperationOrdering { substate } =
+                                            &mut state
+                                        {
                                             *substate = OperationOrderingState::TemporalInvariants;
                                         }
                                     }
@@ -301,52 +306,56 @@ impl FunctionalRequirements {
                 Event::End(Tag::Item) => {
                     let text = current_text.trim();
                     match &state {
-                        ParsingState::Requirements => {
-                            match &req_state {
-                                RequirementParsingState::Statement => {
-                                    current_req.statement = text.to_string();
-                                }
-                                RequirementParsingState::Category => {
-                                    current_req.category = text.to_string();
-                                }
-                                RequirementParsingState::StateChanges => {
-                                    current_req.state_changes = text.to_string();
-                                }
-                                RequirementParsingState::Ordering => {
-                                    parse_ordering(text, &mut current_req.ordering);
-                                }
-                                RequirementParsingState::Dependencies => {
-                                    if text.ends_with("Dependencies:") {
-                                        current_dependency_type = Some(text.to_string());
-                                    } else {
-                                        parse_dependencies(text, &current_dependency_type, &mut current_req.dependencies);
-                                    }
-                                }
-                                RequirementParsingState::Invariants => {
-                                    parse_invariants(text, &mut current_req.invariants);
-                                }
-                                RequirementParsingState::AcceptanceCriteria => {
-                                    if !text.is_empty() {
-                                        current_req.acceptance_criteria.push(text.to_string());
-                                    }
-                                }
-                                _ => {}
+                        ParsingState::Requirements => match &req_state {
+                            RequirementParsingState::Statement => {
+                                current_req.statement = text.to_string();
                             }
-                        }
-                        ParsingState::OperationOrdering { substate } => {
-                            match substate {
-                                OperationOrderingState::StateTransitionRules => {
-                                    operation_ordering.state_transition_rules.push(text.to_string());
-                                }
-                                OperationOrderingState::SideEffectRules => {
-                                    operation_ordering.side_effect_rules.push(text.to_string());
-                                }
-                                OperationOrderingState::TemporalInvariants => {
-                                    operation_ordering.temporal_invariants.push(text.to_string());
-                                }
-                                _ => {}
+                            RequirementParsingState::Category => {
+                                current_req.category = text.to_string();
                             }
-                        }
+                            RequirementParsingState::StateChanges => {
+                                current_req.state_changes = text.to_string();
+                            }
+                            RequirementParsingState::Ordering => {
+                                parse_ordering(text, &mut current_req.ordering);
+                            }
+                            RequirementParsingState::Dependencies => {
+                                if text.ends_with("Dependencies:") {
+                                    current_dependency_type = Some(text.to_string());
+                                } else {
+                                    parse_dependencies(
+                                        text,
+                                        &current_dependency_type,
+                                        &mut current_req.dependencies,
+                                    );
+                                }
+                            }
+                            RequirementParsingState::Invariants => {
+                                parse_invariants(text, &mut current_req.invariants);
+                            }
+                            RequirementParsingState::AcceptanceCriteria => {
+                                if !text.is_empty() {
+                                    current_req.acceptance_criteria.push(text.to_string());
+                                }
+                            }
+                            _ => {}
+                        },
+                        ParsingState::OperationOrdering { substate } => match substate {
+                            OperationOrderingState::StateTransitionRules => {
+                                operation_ordering
+                                    .state_transition_rules
+                                    .push(text.to_string());
+                            }
+                            OperationOrderingState::SideEffectRules => {
+                                operation_ordering.side_effect_rules.push(text.to_string());
+                            }
+                            OperationOrderingState::TemporalInvariants => {
+                                operation_ordering
+                                    .temporal_invariants
+                                    .push(text.to_string());
+                            }
+                            _ => {}
+                        },
                         ParsingState::Dependencies => {
                             if let Some(dep) = parse_dependency(text) {
                                 dependencies.push(dep);
@@ -406,31 +415,27 @@ fn parse_ordering(text: &str, ordering: &mut RequirementOrdering) {
     let text = text.trim();
     if let Some(constraint) = text.strip_prefix("Must occur BEFORE:") {
         if let Some((req_id, desc)) = parse_constraint(constraint) {
-            ordering.must_occur_before.push(OrderingConstraint {
-                requirement_id: req_id,
-                description: desc,
-            });
+            ordering
+                .must_occur_before
+                .push(OrderingConstraint { requirement_id: req_id, description: desc });
         }
     } else if let Some(constraint) = text.strip_prefix("Must occur AFTER:") {
         if let Some((req_id, desc)) = parse_constraint(constraint) {
-            ordering.must_occur_after.push(OrderingConstraint {
-                requirement_id: req_id,
-                description: desc,
-            });
+            ordering
+                .must_occur_after
+                .push(OrderingConstraint { requirement_id: req_id, description: desc });
         }
     } else if let Some(constraint) = text.strip_prefix("Must NOT occur BEFORE:") {
         if let Some((req_id, desc)) = parse_constraint(constraint) {
-            ordering.must_not_occur_before.push(OrderingConstraint {
-                requirement_id: req_id,
-                description: desc,
-            });
+            ordering
+                .must_not_occur_before
+                .push(OrderingConstraint { requirement_id: req_id, description: desc });
         }
     } else if let Some(constraint) = text.strip_prefix("Must NOT occur AFTER:") {
         if let Some((req_id, desc)) = parse_constraint(constraint) {
-            ordering.must_not_occur_after.push(OrderingConstraint {
-                requirement_id: req_id,
-                description: desc,
-            });
+            ordering
+                .must_not_occur_after
+                .push(OrderingConstraint { requirement_id: req_id, description: desc });
         }
     }
 }
@@ -453,12 +458,12 @@ fn parse_dependencies(
     dependencies: &mut RequirementDependencies,
 ) {
     let text = text.trim();
-    
+
     // Check if this is a dependency type line (contains a colon)
     if let Some((dep_type, content)) = text.split_once(':') {
         let dep_type = dep_type.trim();
         let content = content.trim();
-        
+
         if dep_type.contains("State Dependencies") {
             dependencies.state_dependencies.push(content.to_string());
         } else if dep_type.contains("Event Dependencies") {
@@ -468,13 +473,14 @@ fn parse_dependencies(
         }
         return;
     }
-    
+
     // If it's just a header line with "Dependencies:" and nothing else, just return
     if text.contains("Dependencies") && !text.contains(':') {
         return;
     }
-    
-    // Handle case where we're continuing from a previously identified dependency type
+
+    // Handle case where we're continuing from a previously identified dependency
+    // type
     match dependency_type.as_deref() {
         Some(dtype) if dtype.contains("State Dependencies") => {
             dependencies.state_dependencies.push(text.to_string());
@@ -498,7 +504,8 @@ fn parse_invariants(text: &str, invariants: &mut RequirementInvariants) {
 }
 
 fn parse_dependency(text: &str) -> Option<Dependency> {
-    // Format: **DEP-001:** REQ-NOTIFY-001 depends on REQ-STATE-001 [notifications are only sent for successfully completed tasks]
+    // Format: **DEP-001:** REQ-NOTIFY-001 depends on REQ-STATE-001 [notifications
+    // are only sent for successfully completed tasks]
     if let Some((id_part, rest)) = text.split_once(':') {
         let id = id_part.trim_start_matches('*').trim_end_matches('*').trim();
         if let Some((reqs, explanation)) = rest.trim().split_once('[') {
@@ -516,7 +523,8 @@ fn parse_dependency(text: &str) -> Option<Dependency> {
 }
 
 fn parse_ambiguity(text: &str) -> Option<Ambiguity> {
-    // Format: **AMB-001:** The specification does not detail what happens if email notification fails.
+    // Format: **AMB-001:** The specification does not detail what happens if email
+    // notification fails.
     if let Some((id_part, description)) = text.split_once(':') {
         let id = id_part.trim_start_matches('*').trim_end_matches('*').trim();
         Some(Ambiguity {
@@ -531,33 +539,32 @@ fn parse_ambiguity(text: &str) -> Option<Ambiguity> {
 // Add is_empty methods for the types
 impl RequirementOrdering {
     pub fn is_empty(&self) -> bool {
-        self.must_occur_before.is_empty() &&
-        self.must_occur_after.is_empty() &&
-        self.must_not_occur_before.is_empty() &&
-        self.must_not_occur_after.is_empty()
+        self.must_occur_before.is_empty()
+            && self.must_occur_after.is_empty()
+            && self.must_not_occur_before.is_empty()
+            && self.must_not_occur_after.is_empty()
     }
 }
 
 impl RequirementDependencies {
     pub fn is_empty(&self) -> bool {
-        self.state_dependencies.is_empty() &&
-        self.event_dependencies.is_empty() &&
-        self.temporal_dependencies.is_empty()
+        self.state_dependencies.is_empty()
+            && self.event_dependencies.is_empty()
+            && self.temporal_dependencies.is_empty()
     }
 }
 
 impl RequirementInvariants {
     pub fn is_empty(&self) -> bool {
-        self.state_invariants.is_empty() &&
-        self.temporal_invariants.is_empty()
+        self.state_invariants.is_empty() && self.temporal_invariants.is_empty()
     }
 }
 
 impl OperationOrdering {
     pub fn is_empty(&self) -> bool {
-        self.state_transition_rules.is_empty() &&
-        self.side_effect_rules.is_empty() &&
-        self.temporal_invariants.is_empty()
+        self.state_transition_rules.is_empty()
+            && self.side_effect_rules.is_empty()
+            && self.temporal_invariants.is_empty()
     }
 }
 
@@ -603,7 +610,7 @@ This is a test overview.
         assert_eq!(result.requirements.len(), 2);
         assert_eq!(result.dependencies.len(), 1);
         assert_eq!(result.ambiguities.len(), 2);
-        
+
         // Test first requirement
         let r1 = &result.requirements[0];
         assert_eq!(r1.id, "R1");
@@ -611,7 +618,7 @@ This is a test overview.
         assert_eq!(r1.statement, "The system shall do something.");
         assert_eq!(r1.category, "TEST");
         assert_eq!(r1.acceptance_criteria, vec!["Criterion 1", "Criterion 2"]);
-        
+
         // Test second requirement
         let r2 = &result.requirements[1];
         assert_eq!(r2.id, "R2");
@@ -619,7 +626,7 @@ This is a test overview.
         assert_eq!(r2.statement, "The system shall do something else.");
         assert_eq!(r2.category, "TEST");
         assert_eq!(r2.acceptance_criteria, vec!["Criterion 3", "Criterion 4"]);
-        
+
         // Test dependency
         let d1 = &result.dependencies[0];
         assert_eq!(d1.id, "D1");
@@ -628,13 +635,13 @@ This is a test overview.
         assert_eq!(d1.to_req, "R1");
         assert_eq!(d1.explanation, "needs first thing to work");
     }
-    
+
     #[test]
     fn test_parse_empty_content() {
         let result = FunctionalRequirements::parse("");
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_parse_missing_sections() {
         let content = r#"# Functional Requirements: Test Feature
@@ -649,7 +656,7 @@ This is a test overview.
         assert!(result.dependencies.is_empty());
         assert!(result.ambiguities.is_empty());
     }
-    
+
     #[test]
     fn test_parse_ordering_constraints() {
         let mut ordering = RequirementOrdering::default();
@@ -659,14 +666,17 @@ This is a test overview.
         );
         assert_eq!(ordering.must_occur_before.len(), 1);
         assert_eq!(ordering.must_occur_before[0].requirement_id, "REQ-002");
-        assert_eq!(ordering.must_occur_before[0].description, "test description");
+        assert_eq!(
+            ordering.must_occur_before[0].description,
+            "test description"
+        );
     }
 
     #[test]
     fn test_parse_dependency() {
         let test_input = "**DEP-001:** REQ-002 depends on REQ-001 [test explanation]";
         let dep = parse_dependency(test_input).unwrap();
-        
+
         assert_eq!(dep.id, "DEP-001");
         assert_eq!(dep.from_req, "** REQ-002");
         assert_eq!(dep.to_req, "REQ-001");
@@ -677,7 +687,7 @@ This is a test overview.
     fn test_parse_ambiguity() {
         let test_input = "**AMB-001:** Test ambiguity description";
         let amb = parse_ambiguity(test_input).unwrap();
-        
+
         assert_eq!(amb.id, "AMB-001");
         assert_eq!(amb.description, "** Test ambiguity description");
     }
@@ -753,8 +763,13 @@ This document outlines the functional requirements for the task completion featu
         let result = FunctionalRequirements::parse(content).unwrap();
 
         // Test document metadata
-        assert_eq!(result.title, "Todo List Application - Task Completion Feature");
-        assert!(result.overview.contains("command-line todo list application"));
+        assert_eq!(
+            result.title,
+            "Todo List Application - Task Completion Feature"
+        );
+        assert!(result
+            .overview
+            .contains("command-line todo list application"));
 
         // Test requirements
         assert_eq!(result.requirements.len(), 2);
@@ -765,15 +780,20 @@ This document outlines the functional requirements for the task completion featu
         assert_eq!(req_state.name, "Mark Task as Complete");
         assert_eq!(req_state.category, "STATE");
         assert!(req_state.statement.contains("update the completion status"));
-        assert!(req_state.state_changes.contains("changes from incomplete to complete"));
-        
+        assert!(req_state
+            .state_changes
+            .contains("changes from incomplete to complete"));
+
         // Test REQ-STATE-001 ordering - check at least one entry exists
         assert!(!req_state.ordering.must_occur_before.is_empty());
-        
+
         // Test REQ-NOTIFY-001
         let req_notify = &result.requirements[1];
         assert_eq!(req_notify.id, "REQ-NOTIFY-001");
-        assert_eq!(req_notify.name, "Send Email Notification on Task Completion");
+        assert_eq!(
+            req_notify.name,
+            "Send Email Notification on Task Completion"
+        );
         assert_eq!(req_notify.category, "NOTIFY");
         assert!(req_notify.statement.contains("send an email notification"));
         assert_eq!(req_notify.state_changes, "None (side effect only)");
@@ -785,7 +805,7 @@ This document outlines the functional requirements for the task completion featu
 
         // Test dependencies
         assert!(!result.dependencies.is_empty());
-        
+
         // Test ambiguities
         assert!(!result.ambiguities.is_empty());
     }
@@ -797,12 +817,12 @@ This document outlines the functional requirements for the task completion featu
             id: "R1".to_string(),
             name: "Test Requirement".to_string(),
             statement: "This is a test".to_string(),
-            category: "".to_string(), // Empty string
-            state_changes: "".to_string(), // Empty string
-            ordering: RequirementOrdering::default(), // Empty struct
+            category: "".to_string(),                         // Empty string
+            state_changes: "".to_string(),                    // Empty string
+            ordering: RequirementOrdering::default(),         // Empty struct
             dependencies: RequirementDependencies::default(), // Empty struct
-            invariants: RequirementInvariants::default(), // Empty struct
-            acceptance_criteria: vec![], // Empty vector
+            invariants: RequirementInvariants::default(),     // Empty struct
+            acceptance_criteria: vec![],                      // Empty vector
         };
 
         // Serialize to JSON
