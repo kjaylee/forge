@@ -136,8 +136,11 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         compaction: &Compaction,
         context: &Context,
     ) -> anyhow::Result<String> {
+        let summary_tag = compaction.summary_tag.as_deref().unwrap_or("summary");
+        
         let ctx = serde_json::json!({
-            "context": context.to_text()
+            "context": context.to_text(),
+            "summary_tag": summary_tag
         });
 
         // Render the template with the context
