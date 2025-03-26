@@ -102,4 +102,5 @@ pub mod prelude {
     pub use super::{
         Analyzed, Error, Generated, Initial, StepCompose, Verified, WorkflowState, WorkflowStep,
     };
+    pub use super::functional_req::FunctionalRequirements;
 }

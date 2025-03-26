@@ -1,33 +1,44 @@
-Product Requirements Document: Todo List CLI Application - Mark Task as Done
+# Todo List Application - Product Requirements Document
 
-Overview
-This document outlines the requirements for marking tasks as done in a simple command-line Todo List application built with Rust.
+## 1. Overview
+A command-line todo list application that helps technical professionals manage tasks efficiently with email notifications for task completion.
 
-Goal
-Enable users to mark todo items as completed through a command-line interface
+### Target Users
+- Software developers and technical professionals who prefer command-line tools
+- Users who need simple task management with completion tracking
 
-Functional Requirements
-Task Completion (P0)
+## 2. Core Features
 
-1.1. Users must be able to mark existing tasks as done using their ID
-1.2. The system should provide a command done to mark tasks as completed
-1.3. The system must validate that the specified task ID exists
-1.4. Tasks should maintain a completion status (done/not done)
-1.5. The system should confirm task completion with a success message
-1.6. The system should display an error if the specified task ID doesn't exist
-1.7. The system should prevent marking an already completed task as done
+### 2.1 Task Completion
+**Value:** Enable users to track completed tasks with immediate feedback
 
-Implementation Examples
+**Requirements:**
+- Mark tasks as complete using task ID
+- Show clear success/error messages
+- Maintain completion status
+
+### 2.2 Email Notifications
+**Value:** Provide completion records and progress tracking
+
+**Requirements:**
+- Send automatic emails on task completion
+- Include task ID, description, and timestamp
+- Ensure reliable delivery
+
+## 3. User Experience
 ```bash
-# Marking a task as done
+# Mark task as complete
 $ todo done 1
-Task marked as done: 1. Buy groceries
+✓ Task marked as done: 1. Buy groceries
+📧 Notification sent
 
-# Attempting to mark non-existent task
+# Error case
 $ todo done 999
-Error: Task with ID 999 not found
+❌ Error: Task not found
+```
 
-# Attempting to mark already completed task
-$ todo done 1
-Error: Task 1 is already marked as done
-``` 
+## 4. Technical Requirements
+- Command-line interface
+- Email server integration
+- Local data storage
+- Minimal dependencies
