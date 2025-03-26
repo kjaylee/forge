@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
     let pull_request_path = current_dir.join("pull-request.diff");
 
     // start the workflow
-    let output = AnalyzeSpec::new(api.clone(), workflow.clone())
+    let _ = AnalyzeSpec::new(api.clone(), workflow.clone())
         .pipe(GenerateLaws::new(
             api.clone(),
             workflow.clone(),
