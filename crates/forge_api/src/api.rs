@@ -57,11 +57,26 @@ pub trait API: Sync + Send {
     ) -> anyhow::Result<()>;
 
     /// Runs a workflow with the given event
-    async fn run(&self, workflow: &Workflow, event: Event) -> anyhow::Result<()> {
+    async fn run(&self, workflow: &Workflow, event: Event) -> anyhow::Result<String> {
         let conversation_id = self.init(workflow.clone()).await?;
         let request = ChatRequest::new(event, conversation_id);
-        let stream = self.chat(request).await?;
-        let _ = stream.collect::<Vec<_>>().await;
-        Ok(())
+        let stream = self
+            .chat(request)
+            .await?
+            .filter_map(async |message| match message {
+                Ok(message) => match message.message {
+                    ChatResponse::Text(text) => Some(Ok(text)),
+                    _ => None,
+                },
+                Err(err) => Some(Err(err)),
+            });
+
+        let text = stream
+            .collect::<Vec<anyhow::Result<String>>>()
+            .await
+            .into_iter()
+            .collect::<anyhow::Result<Vec<String>>>()?
+            .join("");
+        Ok(text)
     }
 }
