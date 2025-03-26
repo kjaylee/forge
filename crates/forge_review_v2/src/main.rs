@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::env;
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -11,7 +12,13 @@ async fn main() -> Result<()> {
     // Initialize API and load workflow configuration
     let api = Arc::new(ForgeAPI::init(false));
     let workflow = api.load(Some(Path::new("./review.yaml"))).await?;
-    let artifact_path = Path::new("./.forge");
+
+    // Convert relative path to absolute path
+    let current_dir = env::current_dir()?;
+    let artifact_path = current_dir.join(".forge");
+    // files avail at root level.
+    let spec_path = current_dir.join("todo-mark-done-prd.md");
+    let pull_request_path = current_dir.join("pull-request.diff");
 
     // start the workflow
     let output = AnalyzeSpec::new(api.clone(), workflow.clone())
@@ -24,16 +31,16 @@ async fn main() -> Result<()> {
             api.clone(),
             workflow.clone(),
             artifact_path.join("verifications"),
-            PathBuf::from("./pull-request.diff"),
+            pull_request_path.clone(),
         ))
         .pipe(SummarizeReport::new(
             api.clone(),
             workflow.clone(),
-            artifact_path.join("pull-request.diff"),
+            pull_request_path,
             artifact_path.join("final-report.md"),
         ))
         .execute(WorkflowState::new(SpecDocument::new(
-            PathBuf::from("./todo-mark-done-prd.md"),
+            spec_path.clone(),
             artifact_path.join("functional_requirements.md"),
         )))
         .await?;
