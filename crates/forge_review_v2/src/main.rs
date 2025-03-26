@@ -45,7 +45,10 @@ async fn main() -> Result<()> {
         )))
         .await?;
 
-    println!("{:#?}", output);
+    println!(
+        "Review of spec completed successfully and can be found at {} ",
+        artifact_path.join("final-report.md").display()
+    );
 
     Ok(())
 }
