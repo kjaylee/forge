@@ -37,7 +37,6 @@ pub use env::*;
 pub use error::*;
 pub use event::*;
 pub use file::*;
-pub use functional_req::{Dependency, FunctionalRequirements, Requirement};
 pub use message::*;
 pub use model::*;
 pub use orch::*;
