@@ -16,7 +16,7 @@ pulldown-cmark = "0.9"
 derive_setters.workspace = true
 chrono.workspace = true
 clap = { workspace = true, features = ["derive"] }
-indicatif = "0.17.6"
+indicatif.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
