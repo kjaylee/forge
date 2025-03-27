@@ -66,8 +66,8 @@ async fn main() -> Result<()> {
     workflow_spinner.set_message("Initializing workflow configuration...");
     
     let workflow = &api.load(Some(&args.workflow_path)).await?;
-    workflow_spinner.finish_with_message("Workflow configuration loaded successfully");
     workflow_spinner.set_prefix(success_prefix);
+    workflow_spinner.finish_with_message("Workflow configuration loaded successfully");
 
     // Convert relative path to absolute path
     let current_dir = env::current_dir()?;
@@ -86,8 +86,8 @@ async fn main() -> Result<()> {
     let pull_request = &tokio::fs::read_to_string(pull_request_path).await?;
     let product_requirements = tokio::fs::read_to_string(product_requirements_path).await?;
     
-    files_spinner.finish_with_message("Input files loaded successfully");
     files_spinner.set_prefix(success_prefix);
+    files_spinner.finish_with_message("Input files loaded successfully");
 
     // Output Paths
     let output = current_dir.join(".forge").join(now);
@@ -100,8 +100,8 @@ async fn main() -> Result<()> {
     
     tokio::fs::create_dir_all(output.clone()).await?;
     
-    output_spinner.finish_with_message(format!("Output directory ready at {}", output.display()));
     output_spinner.set_prefix(success_prefix);
+    output_spinner.finish_with_message(format!("Output directory ready at {}", output.display()));
 
     // Analyze specification
     let analyze_spinner = multi_progress.add(ProgressBar::new_spinner());
@@ -120,8 +120,8 @@ async fn main() -> Result<()> {
     let requirements = raw_fr.extract_tag("requirement");
     let requirements_count = requirements.len();
     
-    analyze_spinner.finish_with_message(format!("Discovered {} functional requirements", requirements_count));
     analyze_spinner.set_prefix(success_prefix);
+    analyze_spinner.finish_with_message(format!("Discovered {} functional requirements", requirements_count));
 
     tokio::fs::write(
         output.join("functional-requirements.md"),
@@ -173,8 +173,8 @@ async fn main() -> Result<()> {
 
             let laws = raw_law.extract_tag("law");
             
-            task_spinner.set_message(format!("Task {}/{}: Generated {} laws", i + 1, requirements_count, laws.len()));
             task_spinner.set_prefix(success_prefix);
+            task_spinner.set_message(format!("Task {}/{}: Generated {} laws", i + 1, requirements_count, laws.len()));
             task_spinner.finish();
 
             anyhow::Ok(
@@ -189,8 +189,8 @@ async fn main() -> Result<()> {
     .flatten()
     .collect::<Vec<_>>();
     
-    laws_main_spinner.finish_with_message(format!("All {} requirements processed, generated {} laws", requirements_count, laws.len()));
     laws_main_spinner.set_prefix(success_prefix);
+    laws_main_spinner.finish_with_message(format!("All {} requirements processed, generated {} laws", requirements_count, laws.len()));
 
     // Verify pull request against laws
     // Main progress indicator for verification
@@ -242,8 +242,8 @@ async fn main() -> Result<()> {
                 .map(|status| verification.clone().status(status))
                 .collect::<Vec<_>>();
             
-            verify_spinner.set_message(format!("Law {}/{}: Complete", i + 1, laws_count));
             verify_spinner.set_prefix(success_prefix);
+            verify_spinner.set_message(format!("Law {}/{}: Complete", i + 1, laws_count));
             verify_spinner.finish();
             
             anyhow::Ok(result)
@@ -254,8 +254,8 @@ async fn main() -> Result<()> {
     .flatten()
     .collect::<Vec<_>>();
     
-    verify_main_spinner.finish_with_message(format!("All {} laws verified against pull request", laws_count));
     verify_main_spinner.set_prefix(success_prefix);
+    verify_main_spinner.finish_with_message(format!("All {} laws verified against pull request", laws_count));
 
     // Save verification results
     let report_spinner = multi_progress.add(ProgressBar::new_spinner());
@@ -275,8 +275,8 @@ async fn main() -> Result<()> {
     )
     .await?;
     
-    report_spinner.finish_with_message(format!("Verification report with {} laws completed", verification.len()));
     report_spinner.set_prefix(success_prefix);
+    report_spinner.finish_with_message(format!("Verification report with {} laws completed", verification.len()));
 
     // Generate summary
     let summary_spinner = multi_progress.add(ProgressBar::new_spinner());
@@ -298,8 +298,8 @@ async fn main() -> Result<()> {
 
     tokio::fs::write(output.join("summary.md"), summary.join("\n")).await?;
     
-    summary_spinner.finish_with_message(format!("Summary of {} verifications completed", verification.len()));
     summary_spinner.set_prefix(success_prefix);
+    summary_spinner.finish_with_message(format!("Summary of {} verifications completed", verification.len()));
     
     // Final message - With more styling
     println!("\n\n{:=^80}", " Code Review Complete ");
