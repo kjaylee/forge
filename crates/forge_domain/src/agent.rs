@@ -120,9 +120,9 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub custom_rules: Option<String>,
 
-    /// This setting influences the variety in the model’s responses. 
-    /// Lower values lead to more predictable and typical responses, 
-    /// while higher values encourage more diverse and less common responses. 
+    /// This setting influences the variety in the model’s responses.
+    /// Lower values lead to more predictable and typical responses,
+    /// while higher values encourage more diverse and less common responses.
     /// At 0, the model always gives the same response for a given input.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
