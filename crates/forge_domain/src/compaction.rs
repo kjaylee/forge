@@ -34,8 +34,9 @@ impl<S: Services> ContextCompactor<S> {
             // Identify and compress the first compressible sequence
             // Get all compressible sequences, considering the preservation window
             match find_sequence(&context, compact.retention_window)
-            .into_iter()
-            .next() {
+                .into_iter()
+                .next()
+            {
                 Some(sequence) => {
                     debug!(
                         agent_id = %agent.id,
@@ -197,7 +198,8 @@ fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, us
 
     start_positions
         .iter()
-        .zip(end_positions.iter()).find(|(start, end)| (*end - *start) >= 1)
+        .zip(end_positions.iter())
+        .find(|(start, end)| (*end - *start) >= 1)
         .map(|(a, b)| (*a, *b))
 }
 
