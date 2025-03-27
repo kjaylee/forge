@@ -1,5 +1,4 @@
 use std::{env, path::PathBuf};
-use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -15,15 +14,15 @@ use serde_json::json;
 #[derive(Parser, Debug)]
 struct Cli {
     /// Path to the pull request diff file
-    #[arg(short, long)]
+    #[arg(short = 'r', long)]
     pull_request_path: PathBuf,
 
     /// Path to the product requirements document
-    #[arg(short, long)]
+    #[arg(short = 'p', long)]
     product_requirement_path: PathBuf,
 
     /// Path to the workflow configuration file
-    #[arg(short, long)]
+    #[arg(short = 'w', long)]
     workflow_path: PathBuf,
 }
 
