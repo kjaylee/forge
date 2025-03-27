@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
     // Generate laws from requirements
     let progress_bar = ui.create_progress_bar(
         requirements_count as u64,
-        format!("Processing requirements...")
+        "Processing requirements...".to_string(),
     );
     progress_bar.set_prefix("🔍");
 
@@ -129,7 +129,10 @@ async fn main() -> Result<()> {
 
             // Increment the progress bar
             progress_bar.inc(1);
-            progress_bar.set_message(format!("Generating laws for requirement #{}", progress_bar.position()));
+            progress_bar.set_message(format!(
+                "Generating laws for requirement #{}",
+                progress_bar.position()
+            ));
 
             anyhow::Ok(
                 laws.into_iter()
@@ -142,15 +145,19 @@ async fn main() -> Result<()> {
     .into_iter()
     .flatten()
     .collect::<Vec<_>>();
-    
-    ui.complete_progress_bar(&progress_bar, format!("Successfully processed all {} requirements", requirements_count));
+
+    ui.complete_progress_bar(
+        &progress_bar,
+        format!(
+            "Successfully processed all {} requirements",
+            requirements_count
+        ),
+    );
 
     // Main progress indicator for verification
     let laws_count = laws.len();
-    let verify_progress_bar = ui.create_progress_bar(
-        laws_count as u64, 
-        format!("Verifying laws...")
-    );
+    let verify_progress_bar =
+        ui.create_progress_bar(laws_count as u64, "Verifying laws...".to_string());
     verify_progress_bar.set_prefix("✓");
 
     let verification = try_join_all(laws.into_iter().map(|verification| {
@@ -177,7 +184,8 @@ async fn main() -> Result<()> {
 
             // Increment the progress bar
             verify_progress_bar.inc(1);
-            verify_progress_bar.set_message(format!("Verifying law #{}", verify_progress_bar.position()));
+            verify_progress_bar
+                .set_message(format!("Verifying law #{}", verify_progress_bar.position()));
 
             anyhow::Ok(result)
         }
@@ -186,8 +194,11 @@ async fn main() -> Result<()> {
     .into_iter()
     .flatten()
     .collect::<Vec<_>>();
-    
-    ui.complete_progress_bar(&verify_progress_bar, format!("Successfully verified all {} laws", laws_count));
+
+    ui.complete_progress_bar(
+        &verify_progress_bar,
+        format!("Successfully verified all {} laws", laws_count),
+    );
 
     tokio::fs::write(
         output.join("verification.md"),
