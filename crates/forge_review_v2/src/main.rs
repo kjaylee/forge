@@ -131,7 +131,7 @@ async fn main() -> Result<()> {
             // Increment the completed count and update spinner
             let completed = completed_reqs.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             laws_main_spinner.set_message(format!(
-                "Completed {}/{} requirements",
+                "Generated Laws for {}/{} requirements",
                 completed, requirements_count
             ));
 
@@ -154,7 +154,7 @@ async fn main() -> Result<()> {
     // Main progress indicator for verification
     let verify_main_spinner = ui.create_spinner(
         "Verifying".to_string(),
-        format!("Completed 0/{} laws...", laws.len()),
+        format!("Verified 0/{} laws...", laws.len()),
     );
     let laws_count = laws.len();
     let completed_laws = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -184,7 +184,7 @@ async fn main() -> Result<()> {
 
             // Increment the completed count and update spinner
             let completed = completed_laws.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            verify_main_spinner.set_message(format!("Completed {}/{} laws", completed, laws_count));
+            verify_main_spinner.set_message(format!("Verified {}/{} laws", completed, laws_count));
 
             anyhow::Ok(result)
         }
