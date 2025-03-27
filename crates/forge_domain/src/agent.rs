@@ -38,7 +38,6 @@ impl From<ToolName> for AgentId {
 pub struct Compact {
     /// Number of most recent messages to preserve during compaction
     /// These messages won't be considered for summarization
-    #[serde(default = "default_preserve_count")]
     #[merge(strategy = crate::merge::std::overwrite)]
     pub retention_window: usize,
     /// Maximum number of tokens to keep after compaction
@@ -71,22 +70,19 @@ pub struct Compact {
     pub model: ModelId,
     /// Optional tag name to extract content from when summarizing (e.g.,
     /// "summary")
-    #[serde(skip_serializing_if = "is_default_summary_tag")]
     #[merge(strategy = crate::merge::std::overwrite)]
-    pub summary_tag: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary_tag: Option<String>,
 }
 
-/// Default number of messages to preserve during compaction
-fn default_preserve_count() -> usize {
-    6
-}
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SummaryTag(String);
 
-fn is_default_summary_tag(a: &str) -> bool {
-    a == default_summary_tag()
-}
-
-fn default_summary_tag() -> String {
-    "forge_context_summary".to_string()
+impl Default for SummaryTag {
+    fn default() -> Self {
+        SummaryTag("forge_context_summary".to_string())
+    }
 }
 
 impl Compact {
@@ -99,9 +95,9 @@ impl Compact {
             turn_threshold: None,
             message_threshold: None,
             prompt: None,
-            summary_tag: default_summary_tag(),
+            summary_tag: None,
             model,
-            retention_window: default_preserve_count(),
+            retention_window: 0,
         }
     }
 
