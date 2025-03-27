@@ -206,7 +206,9 @@ agents:
             - Identify the file and component where the issue occurs.
             - Consider potential conflicts between the changes and the requirement.
             - Analyze potential security implications related to this requirement.
+            - Infer the severity of the violation (Low, Medium, High).
         c. Note any patterns or inconsistencies that could impact verification.
+        d. Merge any duplicate issues, combining their information.
 
       3. After your analysis, provide a structured summary using the following format:
 
