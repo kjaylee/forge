@@ -617,4 +617,53 @@ mod tests {
         assert_eq!(sequences[1], (5, 6)); // 8, 10
         assert_eq!(sequences[2], (8, 8)); // 12
     }
+
+    #[test]
+    fn test_preserve_tool_call_atomicity() {
+        let tool_calls = Some(vec![ToolCallFull {
+            name: ToolName::new("tool_forge_fs_read"),
+            call_id: None,
+            arguments: json!({"path": "/test/path"}),
+        }]);
+
+        let tool_results = vec![ToolResult::new(ToolName::new("tool_forge_fs_read"))
+            .call_id(ToolCallId::new("call_123"))
+            .success(json!({"content": "File content 1"}).to_string())];
+
+        // Create a context with a sequence at the end
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user("User Message 1")) // 1
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 1",
+                tool_calls.clone(),
+            )) // 2
+            .add_tool_results(tool_results.clone()) // 3
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 2",
+                tool_calls.clone(),
+            )) // 4
+            .add_tool_results(tool_results.clone()) // 5
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 3",
+                tool_calls.clone(),
+            )) // 6
+            .add_tool_results(tool_results.clone()) // 7
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 4",
+                tool_calls.clone(),
+            )) // 8
+            .add_tool_results(tool_results.clone()); // 9
+
+        // All the messages should be considered
+        let sequence = identify_first_compressible_sequence(&context, 0).unwrap();
+        assert_eq!(sequence, (2, 9));
+
+        // Since we can not break in between a tool call is corresponding tool-result
+        let sequence = identify_first_compressible_sequence(&context, 1).unwrap();
+        assert_eq!(sequence, (2, 7));
+
+        let sequence = identify_first_compressible_sequence(&context, 2).unwrap();
+        assert_eq!(sequence, (2, 7));
+    }
 }
