@@ -6,7 +6,7 @@ variables:
 agents:
   - id: organizer
     model: openai/o3-mini-high
-    tool_supported: true
+    tool_supported: false
     user_prompt: |
       You are an experienced software analyst tasked with extracting functional requirements from a product requirement document. Your goal is to identify and list all the functional requirements clearly and concisely.
 
@@ -70,7 +70,7 @@ agents:
 
   - id: law-generator
     model: *advanced_model
-    tool_supported: true
+    tool_supported: false
     user_prompt: |
       You are a formal methods expert specializing in TLA+ (Temporal Logic of Actions) specifications. Your task is to create multiple TLA+ laws to verify the correctness of a specific functional requirement from a set of product requirements.
 
@@ -138,7 +138,7 @@ agents:
 
   - id: verifier
     model: openai/o3-mini-high
-    tool_supported: true
+    tool_supported: false
     user_prompt: |
       You are tasked with verifying if a given pull request satisfies a specific TLA+ law. Your job is to analyze the pull request diff and determine whether it complies with, violates, or has an unclear relationship to the provided law.
 
@@ -186,7 +186,7 @@ agents:
 
   - id: summarizer
     model: google/gemini-2.0-flash-001
-    tool_supported: true
+    tool_supported: false
     subscribe:
       - summarize-reports
     ephemeral: true
@@ -237,8 +237,8 @@ agents:
 
       [List of verification requirements with non-success statuses]
       ### [Requirement Name]
-      - [🏆 Success / 🔥 Failure / ⚠️ Unclear]: [Brief description of the issue 1]
-      - [🏆 Success / 🔥 Failure / ⚠️ Unclear]: [Brief description of the issue 2]
+      - [🏆 Success / 🔥 Failure / ⚠️ Unclear]: [Detailed description of the issue 1]
+      - [🏆 Success / 🔥 Failure / ⚠️ Unclear]: [Detailed description of the issue 2]
         ...
 
       ### [Next requirement with non-success status...]

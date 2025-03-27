@@ -63,8 +63,8 @@ async fn main() -> Result<()> {
     // Input Paths from command line arguments
     let files_spinner =
         ui.create_spinner("Reading".to_string(), "Loading input files...".to_string());
-    let pull_request = &tokio::fs::read_to_string(&args.product_requirement_path).await?;
-    let product_requirements = tokio::fs::read_to_string(&args.pull_request_path).await?;
+    let pull_request = &tokio::fs::read_to_string(&args.pull_request_path).await?;
+    let product_requirements = tokio::fs::read_to_string(&args.product_requirement_path).await?;
     ui.complete_spinner(
         &files_spinner,
         "Input files loaded successfully".to_string(),
@@ -103,17 +103,16 @@ async fn main() -> Result<()> {
     .await?;
 
     // Generate laws from requirements
-    let laws_main_spinner = ui.create_spinner(
-        "Processing".to_string(),
-        format!("Processing 0/{} requirements...", requirements_count),
+    let progress_bar = ui.create_progress_bar(
+        requirements_count as u64,
+        format!("Processing requirements...")
     );
-    let completed_reqs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    progress_bar.set_prefix("🔍");
 
     let laws = try_join_all(requirements.into_iter().map(|req| {
         let product_requirements = product_requirements.clone();
         let api = api.clone();
-        let laws_main_spinner = laws_main_spinner.clone();
-        let completed_reqs = completed_reqs.clone();
+        let progress_bar = progress_bar.clone();
 
         async move {
             let value = json!({
@@ -128,12 +127,9 @@ async fn main() -> Result<()> {
 
             let laws = raw_law.extract_tag("law");
 
-            // Increment the completed count and update spinner
-            let completed = completed_reqs.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            laws_main_spinner.set_message(format!(
-                "Generated Laws for {}/{} requirements",
-                completed, requirements_count
-            ));
+            // Increment the progress bar
+            progress_bar.inc(1);
+            progress_bar.set_message(format!("Generating laws for requirement #{}", progress_bar.position()));
 
             anyhow::Ok(
                 laws.into_iter()
@@ -146,24 +142,21 @@ async fn main() -> Result<()> {
     .into_iter()
     .flatten()
     .collect::<Vec<_>>();
-    ui.complete_spinner(
-        &laws_main_spinner,
-        format!("All {} requirements processed.", requirements_count),
-    );
+    
+    ui.complete_progress_bar(&progress_bar, format!("Successfully processed all {} requirements", requirements_count));
 
     // Main progress indicator for verification
-    let verify_main_spinner = ui.create_spinner(
-        "Verifying".to_string(),
-        format!("Verified 0/{} laws...", laws.len()),
-    );
     let laws_count = laws.len();
-    let completed_laws = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let verify_progress_bar = ui.create_progress_bar(
+        laws_count as u64, 
+        format!("Verifying laws...")
+    );
+    verify_progress_bar.set_prefix("✓");
 
     let verification = try_join_all(laws.into_iter().map(|verification| {
         let law = verification.law.clone();
         let api = api.clone();
-        let verify_main_spinner = verify_main_spinner.clone();
-        let completed_laws = completed_laws.clone();
+        let verify_progress_bar = verify_progress_bar.clone();
 
         async move {
             let value = json!({
@@ -182,9 +175,9 @@ async fn main() -> Result<()> {
                 .map(|status| verification.clone().status(status))
                 .collect::<Vec<_>>();
 
-            // Increment the completed count and update spinner
-            let completed = completed_laws.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            verify_main_spinner.set_message(format!("Verified {}/{} laws", completed, laws_count));
+            // Increment the progress bar
+            verify_progress_bar.inc(1);
+            verify_progress_bar.set_message(format!("Verifying law #{}", verify_progress_bar.position()));
 
             anyhow::Ok(result)
         }
@@ -193,10 +186,8 @@ async fn main() -> Result<()> {
     .into_iter()
     .flatten()
     .collect::<Vec<_>>();
-    ui.complete_spinner(
-        &verify_main_spinner,
-        format!("All {} laws verified against pull request", laws_count),
-    );
+    
+    ui.complete_progress_bar(&verify_progress_bar, format!("Successfully verified all {} laws", laws_count));
 
     tokio::fs::write(
         output.join("verification.md"),

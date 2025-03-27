@@ -50,4 +50,31 @@ impl UI {
         spinner.set_style(self.create_completion_style());
         spinner.finish_with_message(message);
     }
+
+    /// Create a progress bar with the given length.
+    pub fn create_progress_bar(&self, length: u64, message: String) -> ProgressBar {
+        let progress_bar = self.multi_progress.add(ProgressBar::new(length));
+        progress_bar.set_style(
+            ProgressStyle::default_bar()
+                .template("{spinner:.green} {prefix:<2.bold.dim} [{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} • {wide_msg}")
+                .unwrap()
+                .progress_chars("█▓▒░ ")
+                .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+        );
+        progress_bar.enable_steady_tick(Duration::from_millis(80));
+        progress_bar.set_message(message);
+        progress_bar
+    }
+
+    /// Complete a progress bar with a success style and message.
+    pub fn complete_progress_bar(&self, progress_bar: &ProgressBar, message: String) {
+        progress_bar.set_prefix(self.success_prefix);
+        progress_bar.set_style(
+            ProgressStyle::default_bar()
+                .template("{prefix:<2.bold.green} {wide_msg} [{elapsed_precise}] {bar:40.bright_green} {percent}%")
+                .unwrap()
+                .progress_chars("█▓▒░ ")
+        );
+        progress_bar.finish_with_message(message);
+    }
 }
