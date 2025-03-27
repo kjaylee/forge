@@ -20,6 +20,7 @@ struct Verification {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
     // Initialize API and load workflow configuration
     let api = Arc::new(ForgeAPI::init(false));
     let workflow = &api.load(Some(Path::new("./review.yaml"))).await?;
@@ -34,7 +35,7 @@ async fn main() -> Result<()> {
     let pull_request = &tokio::fs::read_to_string(pull_request_path).await?;
 
     // Output Paths
-    let output = current_dir.join(".forge");
+    let output = current_dir.join(".forge").join(now);
 
     let product_requirements = tokio::fs::read_to_string(product_requirements).await?;
 
@@ -46,6 +47,8 @@ async fn main() -> Result<()> {
         .await?;
 
     let requirements = raw_fr.extract_tag("requirement");
+
+    tokio::fs::write("functional-requirements.md", requirements.join("\n\n")).await?;
 
     let laws = try_join_all(requirements.into_iter().map(|req| {
         let product_requirements = product_requirements.clone();
@@ -103,9 +106,8 @@ async fn main() -> Result<()> {
     .flatten()
     .collect::<Vec<_>>();
 
-    let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
     tokio::fs::write(
-        output.join(format!("verification-{}.md", now)),
+        output.join("verification.md"),
         verification.iter().fold(String::new(), |mut acc, s| {
             acc.push_str(format!("Requirement: {}\n", s.requirement).as_str());
             acc.push_str(format!("Status: {}\n", s.status).as_str());
@@ -126,11 +128,7 @@ async fn main() -> Result<()> {
 
     let summary = raw_summary.extract_tag("summary");
 
-    tokio::fs::write(
-        output.join(format!("summary-{}.md", now)),
-        summary.join("\n"),
-    )
-    .await?;
+    tokio::fs::write(output.join("summary.md"), summary.join("\n")).await?;
 
     Ok(())
 }

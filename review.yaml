@@ -5,28 +5,44 @@ variables:
 
 agents:
   - id: organizer
-    model: google/gemini-2.0-flash-001
+    model: openai/o3-mini-high
     tool_supported: true
     user_prompt: |
+      You are an experienced software analyst tasked with extracting functional requirements from a product requirement document. Your goal is to identify and list all the functional requirements clearly and concisely.
+
       Here is the product requirement document you need to analyze:
 
       <product_requirement_document>
       {{event.value}}
       </product_requirement_document>
 
-      You are an experienced software analyst tasked with extracting functional requirements from a product requirement document. Your goal is to identify and list all the functional requirements clearly and concisely.
-
       Please follow these steps to extract and format the functional requirements:
 
       1. Read the product requirement document carefully.
 
-      2. Wrap your thought process in <requirement_analysis> tags:
+      2. Conduct a thorough analysis of the requirements. Wrap your analysis in <requirement_extraction> tags:
         a. Identify and list key sections of the document.
         b. Extract and quote potential functional requirements from each section.
-        c. Classify each extracted item as a functional or non-functional requirement, briefly explaining your reasoning.
-        d. Refine the functional requirements into clear, concise statements starting with action verbs.
-        e. Categorize each requirement as high, medium, or low priority, explaining your reasoning.
-        f. Identify any potential dependencies between requirements.
+        c. List all potential functional requirements you've identified.
+        d. For each potential requirement:
+            - Classify it as functional or non-functional, briefly explaining your reasoning.
+            - If functional, refine it into a clear, concise statement starting with an action verb.
+            - Categorize it as high, medium, or low priority, explaining your reasoning.
+        e. Identify any potential dependencies between requirements.
+        f. Consider edge cases and potential conflicts between requirements.
+
+        During your analysis, pay special attention to the following areas:
+
+        - Concurrency & State Management: Look for potential race conditions, deadlocks, atomicity violations, and transaction boundary issues.
+        - Data Consistency & Integrity: Identify partial updates, stale reads, improper error handling, and invariant violations.
+        - Error Handling & Resilience: Check for unwrapped fallible operations, missing retries, poor backoff strategies, and lack of failure logging.
+        - Performance Pitfalls: Look for unbounded growth, blocking operations in async contexts, repeated expensive calls, and poor caching strategies.
+        - Modularity & Maintainability: Identify overly large functions or files, tight coupling, violations of Single Responsibility Principle, and unclear abstractions.
+        - Security Footguns: Check for improper input validation, incorrect auth checks, sensitive data exposure, and race conditions in access control.
+        - Resource Management: Look for unclosed resources, unjoined tasks or threads, and lack of cancellation/timeout logic.
+        - Dependency Management: Check for version drift, security vulnerabilities in dependencies, and opportunities to use battle-tested libraries.
+        - Testing & Observability: Identify lack of tests, flaky tests, poor observability, and code that's not testable in isolation.
+        - Idempotency & Retry Safety: Look for non-idempotent operations and missing deduplication tokens.
 
       3. After your analysis, list all the functional requirements you've identified.
 
@@ -42,9 +58,9 @@ agents:
       Here's an example of the desired output format:
 
       <functional_requirements>
-      1. <requirement>Action verb + clear description of the first requirement</requirement>
-      2. <requirement>Action verb + clear description of the second requirement</requirement>
-      3. <requirement>Action verb + clear description of the third requirement</requirement>
+      1. <requirement>Verb + clear description of the first requirement</requirement>
+      2. <requirement>Verb + clear description of the second requirement</requirement>
+      3. <requirement>Verb + clear description of the third requirement</requirement>
       </functional_requirements>
 
       Please proceed with your analysis and extraction of functional requirements from the product requirement document.

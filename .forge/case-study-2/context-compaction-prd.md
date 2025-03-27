@@ -32,7 +32,7 @@ An intelligent conversation management system that automatically identifies and 
 ### 4.1 Core Capabilities
 
 **Selective Compression:** Only compress assistant messages and tool results, preserving user inputs.
-**Flow-Coherence:** Compression should not break the assistant's on-going thinking process and toolcalls. 
+**Tool Call Coherence:** Compression should not break the assistant's on-going process of calling tools. 
 **Incremental Approach:** Compress the earliest sequence of messages first, working forward over time.
 **Intelligent Summarization:** Use AI to create concise summaries of previous exchanges.
 **Recency Preservation:** Maintain most recent messages untouched via configurable window.
