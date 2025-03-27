@@ -119,6 +119,11 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub custom_rules: Option<String>,
+
+    /// Temperature used for agent
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub temperature: Option<f32>,
 }
 
 fn merge_subscription(base: &mut Option<Vec<String>>, other: Option<Vec<String>>) {
@@ -150,6 +155,7 @@ impl Agent {
             max_walker_depth: None,
             custom_rules: None,
             hide_content: None,
+            temperature: None,
         }
     }
 
