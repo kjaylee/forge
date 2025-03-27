@@ -50,4 +50,4 @@ impl UI {
         spinner.set_style(self.create_completion_style());
         spinner.finish_with_message(message);
     }
-} 
+}
