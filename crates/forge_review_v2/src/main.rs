@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
     analyze_spinner.set_style(create_spinner_style());
     analyze_spinner.set_prefix("Analyzing");
     analyze_spinner.enable_steady_tick(Duration::from_millis(80));
-    analyze_spinner.set_message("Processing product specifications...");
+    analyze_spinner.set_message("Processing product requirement specifications...");
 
     let raw_fr = api
         .run(
