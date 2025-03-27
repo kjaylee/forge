@@ -53,13 +53,13 @@ async fn main() -> Result<()> {
     let create_spinner_style = || -> ProgressStyle {
         ProgressStyle::default_spinner()
             .tick_chars("⣾⣽⣻⢿⡿⣟⣯⣷")
-            .template("{prefix:>12.cyan} {spinner:.blue} {wide_msg}")
+            .template("{prefix:<2.cyan} {spinner:.blue} {wide_msg}")
             .unwrap()
     };
     
     let create_completion_style = || -> ProgressStyle {
         ProgressStyle::default_spinner()
-            .template("{prefix:>12.cyan} {wide_msg}")
+            .template("{prefix:<2.cyan} {wide_msg}")
             .unwrap()
     };
     
