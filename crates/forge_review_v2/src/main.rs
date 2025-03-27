@@ -1,14 +1,31 @@
-use std::env;
+use std::{env, path::PathBuf};
 use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
+use clap::Parser;
 use derive_setters::Setters;
 use forge_api::{Event, ForgeAPI, API};
 use forge_review_v2::XMLExtensions;
 use futures::future::try_join_all;
 use serde::Serialize;
 use serde_json::json;
+
+/// CLI tool for reviewing code changes against product requirements
+#[derive(Parser, Debug)]
+struct Cli {
+    /// Path to the pull request diff file
+    #[arg(short, long)]
+    pull_request_path: PathBuf,
+
+    /// Path to the product requirements document
+    #[arg(short, long)]
+    product_requirement_path: PathBuf,
+
+    /// Path to the workflow configuration file
+    #[arg(short, long)]
+    workflow_path: PathBuf,
+}
 
 #[derive(Clone, Debug, Default, Setters, Serialize)]
 #[setters(into)]
@@ -20,25 +37,27 @@ struct Verification {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Parse command line arguments
+    let args = Cli::parse();
+
     let now = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
     // Initialize API and load workflow configuration
     let api = Arc::new(ForgeAPI::init(false));
-    let workflow = &api.load(Some(Path::new("./review.yaml"))).await?;
+    let workflow = &api.load(Some(&args.workflow_path)).await?;
 
     // Convert relative path to absolute path
     let current_dir = env::current_dir()?;
-    let input = current_dir.join(".forge").join("case-study-2");
-
-    // Input Paths
-    let product_requirements = input.join("context-compaction-prd.md");
-    let pull_request_path = input.join("pull-request.diff");
+    
+    // Input Paths from command line arguments
+    let product_requirements_path = &args.product_requirement_path;
+    let pull_request_path = &args.pull_request_path;
     let pull_request = &tokio::fs::read_to_string(pull_request_path).await?;
 
     // Output Paths
     let output = current_dir.join(".forge").join(now);
     tokio::fs::create_dir_all(output.clone()).await?;
 
-    let product_requirements = tokio::fs::read_to_string(product_requirements).await?;
+    let product_requirements = tokio::fs::read_to_string(product_requirements_path).await?;
 
     let raw_fr = api
         .run(

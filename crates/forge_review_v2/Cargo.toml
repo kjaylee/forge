@@ -15,7 +15,7 @@ forge_api.workspace = true
 pulldown-cmark = "0.9"
 derive_setters.workspace = true
 chrono.workspace = true
-
+clap = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tempfile.workspace = true
