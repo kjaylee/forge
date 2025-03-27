@@ -224,39 +224,32 @@ agents:
             - Analyze potential security implications related to this requirement.
             - Infer the severity of the violation (Low, Medium, High).
         c. Note any patterns or inconsistencies that could impact verification.
-        d. Merge any duplicate issues, combining their information.
+        d. Merge all duplicate requirements into one and combine their information.
 
       3. After your analysis, provide a structured summary using the following format:
 
       <summary>
-      <overview>
+      # [Title]
       
       [Brief overview emphasizing verification status and key changes]
       
-      </overview>
-
-      <verification_issues>
+      ## Verification Issues
 
       [List of verification requirements with non-success statuses]
-      ## [Requirement Name]
-      ```
-      Status: [🏆 Success / 🔥 Failure / ⚠️ Unclear]: 
-      ```
-      [Brief description of the issue]
-      
-      ## [Next requirement with non-success status...]
+      ### [Requirement Name]
+      - [🏆 Success / 🔥 Failure / ⚠️ Unclear]: [Brief description of the issue 1]
+      - [🏆 Success / 🔥 Failure / ⚠️ Unclear]: [Brief description of the issue 2]
+        ...
+
+      ### [Next requirement with non-success status...]
       ...
       
-      </verification_issues>
-
-      <potential_conflicts>
+      ## Potential Conflicts
       
       [List of potential conflicts between changes and verification requirements]
       - [Conflict 1]
       - [Conflict 2]
       ...
-      
-      </potential_conflicts>
       
       </summary>
 
