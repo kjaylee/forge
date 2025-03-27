@@ -36,6 +36,7 @@ async fn main() -> Result<()> {
 
     // Output Paths
     let output = current_dir.join(".forge").join(now);
+    tokio::fs::create_dir_all(output.clone()).await?;
 
     let product_requirements = tokio::fs::read_to_string(product_requirements).await?;
 
@@ -48,7 +49,11 @@ async fn main() -> Result<()> {
 
     let requirements = raw_fr.extract_tag("requirement");
 
-    tokio::fs::write("functional-requirements.md", requirements.join("\n\n")).await?;
+    tokio::fs::write(
+        output.join("functional-requirements.md"),
+        requirements.join("\n\n"),
+    )
+    .await?;
 
     let laws = try_join_all(requirements.into_iter().map(|req| {
         let product_requirements = product_requirements.clone();
