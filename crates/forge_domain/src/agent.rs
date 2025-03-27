@@ -127,6 +127,7 @@ pub struct Agent {
     /// - Higher values (e.g., 0.8) make responses more creative, diverse, and exploratory
     /// - Valid range is 0.0 to 2.0
     /// - If not specified, the model provider's default temperature will be used
+    #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(deserialize_with = "validate_temperature_range")]
     #[merge(strategy = crate::merge::option)]
