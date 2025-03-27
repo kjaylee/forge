@@ -37,6 +37,7 @@ An intelligent conversation management system that automatically identifies and 
 **Intelligent Summarization:** Use AI to create concise summaries of previous exchanges.
 **Recency Preservation:** Maintain most recent messages untouched via configurable window.
 **Flexible Triggers:** Configure when compaction occurs based on tokens, messages, or turns.
+**Retention Window:** Retain a min N most recent messages.
 
 ### 4.2 Configuration Parameters
 
