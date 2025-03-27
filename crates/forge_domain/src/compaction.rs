@@ -138,10 +138,8 @@ impl<S: Services> ContextCompactor<S> {
 
         // Extract content from within configured tags if present and if tag is
         // configured
-        if let Some(tag_name) = &compact.summary_tag {
-            if let Some(extracted) = extract_tag_content(&result_content, tag_name) {
-                return Ok(extracted.to_string());
-            }
+        if let Some(extracted) = extract_tag_content(&result_content, &compact.summary_tag) {
+            return Ok(extracted.to_string());
         }
 
         // If no tag extraction performed, return the original content

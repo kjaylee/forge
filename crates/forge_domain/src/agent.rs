@@ -71,14 +71,22 @@ pub struct Compact {
     pub model: ModelId,
     /// Optional tag name to extract content from when summarizing (e.g.,
     /// "summary")
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub summary_tag: Option<String>,
+    #[serde(skip_serializing_if = "is_default_summary_tag")]
+    #[merge(strategy = crate::merge::std::overwrite)]
+    pub summary_tag: String,
 }
 
 /// Default number of messages to preserve during compaction
 fn default_preserve_count() -> usize {
     6
+}
+
+fn is_default_summary_tag(a: &str) -> bool {
+    a == default_summary_tag()
+}
+
+fn default_summary_tag() -> String {
+    "forge_context_summary".to_string()
 }
 
 impl Compact {
@@ -91,7 +99,7 @@ impl Compact {
             turn_threshold: None,
             message_threshold: None,
             prompt: None,
-            summary_tag: None,
+            summary_tag: default_summary_tag(),
             model,
             retention_window: default_preserve_count(),
         }
