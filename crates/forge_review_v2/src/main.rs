@@ -115,7 +115,7 @@ async fn main() -> Result<()> {
         verification.iter().fold(String::new(), |mut acc, s| {
             acc.push_str(format!("Requirement: {}\n", s.requirement).as_str());
             acc.push_str(format!("Status: {}\n", s.status).as_str());
-            acc.push_str("\n");
+            acc.push('\n');
             acc
         }),
     )
