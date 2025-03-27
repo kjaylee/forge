@@ -55,6 +55,14 @@ impl ContextMessage {
             ContextMessage::Image(_) => Role::User == role,
         }
     }
+
+    pub fn has_tool_call(&self) -> bool {
+        match self {
+            ContextMessage::ContentMessage(message) => message.tool_calls.is_some(),
+            ContextMessage::ToolMessage(_) => false,
+            ContextMessage::Image(_) => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Setters)]
