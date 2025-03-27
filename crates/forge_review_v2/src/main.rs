@@ -1,5 +1,4 @@
-use std::env;
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -226,14 +225,8 @@ async fn main() -> Result<()> {
     let summary = raw_summary.extract_tag("summary");
 
     tokio::fs::write(output.join("summary.md"), summary.join("\n")).await?;
-
-    ui.complete_spinner(
-        &summary_spinner,
-        format!("Summary of {} verifications completed", verification.len()),
-    );
-
-    // Display final summary
-    ui.display_final_summary(&output, requirements_count, verification.len());
-
+    
+    ui.complete_spinner(&summary_spinner, format!("Summary of {} verifications completed", verification.len()));
+    
     Ok(())
 }

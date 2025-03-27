@@ -50,26 +50,4 @@ impl UI {
         spinner.set_style(self.create_completion_style());
         spinner.finish_with_message(message);
     }
-
-    /// Display the final summary message with the generated files information.
-    pub fn display_final_summary(
-        &self,
-        output_path: &std::path::Path,
-        requirements_count: usize,
-        verification_len: usize,
-    ) {
-        println!("\n\n{:=^80}", " Code Review Complete ");
-        println!("\n📊 Reports saved to: {}\n", output_path.display());
-        println!("{:-^80}\n", " Generated Files ");
-        println!(
-            "  📄 functional-requirements.md - {} requirements",
-            requirements_count
-        );
-        println!(
-            "  📄 verification.md - {} law verifications",
-            verification_len
-        );
-        println!("  📄 summary.md - Final assessment");
-        println!("\n{:=^80}\n", "");
-    }
-}
+} 
