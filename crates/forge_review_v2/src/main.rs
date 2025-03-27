@@ -26,21 +26,15 @@ async fn main() -> Result<()> {
 
     // Convert relative path to absolute path
     let current_dir = env::current_dir()?;
-    let input = current_dir.clone();
+    let input = current_dir.join(".forge").join("case-study-2");
 
     // Input Paths
-    let product_requirements = input.join("todo-mark-done-prd.md");
+    let product_requirements = input.join("context-compaction-prd.md");
     let pull_request_path = input.join("pull-request.diff");
     let pull_request = &tokio::fs::read_to_string(pull_request_path).await?;
 
     // Output Paths
     let output = current_dir.join(".forge");
-    // let product_requirements_summary =
-    // current_dir.join("todo-mark-done-prd-summary.md"); let laws_dir =
-    // output.join("laws"); let verifications_dir =
-    // output.join("verifications"); let functional_requirement_path =
-    // output.join("functional_requirements.md"); let final_report_path =
-    // output.join("final-report.md");
 
     let product_requirements = tokio::fs::read_to_string(product_requirements).await?;
 
