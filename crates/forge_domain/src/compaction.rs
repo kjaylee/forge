@@ -67,6 +67,9 @@ impl<S: Services> ContextCompactor<S> {
             .generate_summary_for_sequence(compact, sequence_messages)
             .await?;
 
+        // Log the summary for debugging
+        debug!(summary = %summary, "Created context compaction summary");
+
         // Replace the sequence with a single summary message using splice
         // This removes the sequence and inserts the summary message in-place
         context.messages.splice(
