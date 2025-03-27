@@ -49,24 +49,33 @@ async fn main() -> Result<()> {
     // Setup progress indicators
     let multi_progress = Arc::new(MultiProgress::new());
     
-    // Modern spinner style with a more visually appealing design
-    let spinner_style = ProgressStyle::default_spinner()
-        .tick_chars("⣾⣽⣻⢿⡿⣟⣯⣷")
-        .template("{prefix:>12.cyan} {spinner:.blue} {wide_msg}")
-        .unwrap();
+    // Function to create spinner and completion styles
+    let create_spinner_style = || -> ProgressStyle {
+        ProgressStyle::default_spinner()
+            .tick_chars("⣾⣽⣻⢿⡿⣟⣯⣷")
+            .template("{prefix:>12.cyan} {spinner:.blue} {wide_msg}")
+            .unwrap()
+    };
+    
+    let create_completion_style = || -> ProgressStyle {
+        ProgressStyle::default_spinner()
+            .template("{prefix:>12.cyan} {wide_msg}")
+            .unwrap()
+    };
     
     // Success prefix - will be used for completed tasks
     let success_prefix = "\x1b[32m✓\x1b[0m";  // Green checkmark with color reset
     
     // Create a spinner for workflow loading
     let workflow_spinner = multi_progress.add(ProgressBar::new_spinner());
-    workflow_spinner.set_style(spinner_style.clone());
+    workflow_spinner.set_style(create_spinner_style());
     workflow_spinner.set_prefix("Loading");
     workflow_spinner.enable_steady_tick(Duration::from_millis(80));
     workflow_spinner.set_message("Initializing workflow configuration...");
     
     let workflow = &api.load(Some(&args.workflow_path)).await?;
     workflow_spinner.set_prefix(success_prefix);
+    workflow_spinner.set_style(create_completion_style());
     workflow_spinner.finish_with_message("Workflow configuration loaded successfully");
 
     // Convert relative path to absolute path
@@ -78,7 +87,7 @@ async fn main() -> Result<()> {
     
     // Create spinners for file reading
     let files_spinner = multi_progress.add(ProgressBar::new_spinner());
-    files_spinner.set_style(spinner_style.clone());
+    files_spinner.set_style(create_spinner_style());
     files_spinner.set_prefix("Reading");
     files_spinner.enable_steady_tick(Duration::from_millis(80));
     files_spinner.set_message("Loading input files...");
@@ -87,13 +96,14 @@ async fn main() -> Result<()> {
     let product_requirements = tokio::fs::read_to_string(product_requirements_path).await?;
     
     files_spinner.set_prefix(success_prefix);
+    files_spinner.set_style(create_completion_style());
     files_spinner.finish_with_message("Input files loaded successfully");
 
     // Output Paths
     let output = current_dir.join(".forge").join(now);
     
     let output_spinner = multi_progress.add(ProgressBar::new_spinner());
-    output_spinner.set_style(spinner_style.clone());
+    output_spinner.set_style(create_spinner_style());
     output_spinner.set_prefix("Creating");
     output_spinner.enable_steady_tick(Duration::from_millis(80));
     output_spinner.set_message("Preparing output directory...");
@@ -101,11 +111,12 @@ async fn main() -> Result<()> {
     tokio::fs::create_dir_all(output.clone()).await?;
     
     output_spinner.set_prefix(success_prefix);
+    output_spinner.set_style(create_completion_style());
     output_spinner.finish_with_message(format!("Output directory ready at {}", output.display()));
 
     // Analyze specification
     let analyze_spinner = multi_progress.add(ProgressBar::new_spinner());
-    analyze_spinner.set_style(spinner_style.clone());
+    analyze_spinner.set_style(create_spinner_style());
     analyze_spinner.set_prefix("Analyzing");
     analyze_spinner.enable_steady_tick(Duration::from_millis(80));
     analyze_spinner.set_message("Processing product specifications...");
@@ -121,6 +132,7 @@ async fn main() -> Result<()> {
     let requirements_count = requirements.len();
     
     analyze_spinner.set_prefix(success_prefix);
+    analyze_spinner.set_style(create_completion_style());
     analyze_spinner.finish_with_message(format!("Discovered {} functional requirements", requirements_count));
 
     tokio::fs::write(
@@ -131,7 +143,7 @@ async fn main() -> Result<()> {
 
     // Generate laws from requirements
     let laws_main_spinner = multi_progress.add(ProgressBar::new_spinner());
-    laws_main_spinner.set_style(spinner_style.clone());
+    laws_main_spinner.set_style(create_spinner_style());
     laws_main_spinner.set_prefix("Generating");
     laws_main_spinner.enable_steady_tick(Duration::from_millis(80));
     laws_main_spinner.set_message(format!("Preparing to process {} requirements...", requirements_count));
@@ -174,6 +186,9 @@ async fn main() -> Result<()> {
             let laws = raw_law.extract_tag("law");
             
             task_spinner.set_prefix(success_prefix);
+            task_spinner.set_style(ProgressStyle::default_spinner()
+                .template("      {prefix} {msg}")
+                .unwrap());
             task_spinner.set_message(format!("Task {}/{}: Generated {} laws", i + 1, requirements_count, laws.len()));
             task_spinner.finish();
 
@@ -190,12 +205,13 @@ async fn main() -> Result<()> {
     .collect::<Vec<_>>();
     
     laws_main_spinner.set_prefix(success_prefix);
+    laws_main_spinner.set_style(create_completion_style());
     laws_main_spinner.finish_with_message(format!("All {} requirements processed, generated {} laws", requirements_count, laws.len()));
 
     // Verify pull request against laws
     // Main progress indicator for verification
     let verify_main_spinner = multi_progress.add(ProgressBar::new_spinner());
-    verify_main_spinner.set_style(spinner_style.clone());
+    verify_main_spinner.set_style(create_spinner_style());
     verify_main_spinner.set_prefix("Verifying");
     verify_main_spinner.enable_steady_tick(Duration::from_millis(80));
     verify_main_spinner.set_message(format!("Preparing to validate {} laws...", laws.len()));
@@ -243,6 +259,9 @@ async fn main() -> Result<()> {
                 .collect::<Vec<_>>();
             
             verify_spinner.set_prefix(success_prefix);
+            verify_spinner.set_style(ProgressStyle::default_spinner()
+                .template("      {prefix} {msg}")
+                .unwrap());
             verify_spinner.set_message(format!("Law {}/{}: Complete", i + 1, laws_count));
             verify_spinner.finish();
             
@@ -255,11 +274,12 @@ async fn main() -> Result<()> {
     .collect::<Vec<_>>();
     
     verify_main_spinner.set_prefix(success_prefix);
+    verify_main_spinner.set_style(create_completion_style());
     verify_main_spinner.finish_with_message(format!("All {} laws verified against pull request", laws_count));
 
     // Save verification results
     let report_spinner = multi_progress.add(ProgressBar::new_spinner());
-    report_spinner.set_style(spinner_style.clone());
+    report_spinner.set_style(create_spinner_style());
     report_spinner.set_prefix("Reporting");
     report_spinner.enable_steady_tick(Duration::from_millis(80));
     report_spinner.set_message(format!("Creating verification report for {} laws...", verification.len()));
@@ -276,11 +296,12 @@ async fn main() -> Result<()> {
     .await?;
     
     report_spinner.set_prefix(success_prefix);
+    report_spinner.set_style(create_completion_style());
     report_spinner.finish_with_message(format!("Verification report with {} laws completed", verification.len()));
 
     // Generate summary
     let summary_spinner = multi_progress.add(ProgressBar::new_spinner());
-    summary_spinner.set_style(spinner_style.clone());
+    summary_spinner.set_style(create_spinner_style());
     summary_spinner.set_prefix("Summarizing");
     summary_spinner.enable_steady_tick(Duration::from_millis(80));
     summary_spinner.set_message("Creating summary from verification results...");
@@ -299,6 +320,7 @@ async fn main() -> Result<()> {
     tokio::fs::write(output.join("summary.md"), summary.join("\n")).await?;
     
     summary_spinner.set_prefix(success_prefix);
+    summary_spinner.set_style(create_completion_style());
     summary_spinner.finish_with_message(format!("Summary of {} verifications completed", verification.len()));
     
     // Final message - With more styling
