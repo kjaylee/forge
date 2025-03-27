@@ -146,33 +146,18 @@ async fn main() -> Result<()> {
     laws_main_spinner.set_style(create_spinner_style());
     laws_main_spinner.set_prefix("Generating");
     laws_main_spinner.enable_steady_tick(Duration::from_millis(80));
-    laws_main_spinner.set_message(format!("Preparing to process {} requirements...", requirements_count));
+    laws_main_spinner.set_message(format!("Processing 0/{} requirements...", requirements_count));
     
-    // Create a progress bar style for individual tasks
-    let task_style = ProgressStyle::default_spinner()
-        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-        .template("      {spinner:.green} Requirement {msg}")
-        .unwrap();
+    // Create a counter for completed requirements
+    let completed_reqs = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     
-    // Create a vector to hold all task spinners
-    let mut task_spinners = Vec::with_capacity(requirements_count);
-    
-    // Create a spinner for each requirement
-    for i in 0..requirements_count {
-        let spinner = multi_progress.add(ProgressBar::new_spinner());
-        spinner.set_style(task_style.clone());
-        spinner.enable_steady_tick(Duration::from_millis(80));
-        spinner.set_message(format!("Task {}/{}: Waiting...", i + 1, requirements_count));
-        task_spinners.push(spinner);
-    }
-    
-    let laws = try_join_all(requirements.into_iter().enumerate().map(|(i, req)| {
+    let laws = try_join_all(requirements.into_iter().map(|req| {
         let product_requirements = product_requirements.clone();
         let api = api.clone();
-        let task_spinner = task_spinners[i].clone();
+        let laws_main_spinner = laws_main_spinner.clone();
+        let completed_reqs = completed_reqs.clone();
+        
         async move {
-            task_spinner.set_message(format!("Task {}/{}: Processing...", i + 1, requirements_count));
-            
             let value = json!({
                 "product_requirements": product_requirements.clone(),
                 "functional_requirement": req
@@ -185,13 +170,10 @@ async fn main() -> Result<()> {
 
             let laws = raw_law.extract_tag("law");
             
-            task_spinner.set_prefix(success_prefix);
-            task_spinner.set_style(ProgressStyle::default_spinner()
-                .template("      {prefix} {msg}")
-                .unwrap());
-            task_spinner.set_message(format!("Task {}/{}: Generated {} laws", i + 1, requirements_count, laws.len()));
-            task_spinner.finish();
-
+            // Increment the completed count and update spinner
+            let completed = completed_reqs.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            laws_main_spinner.set_message(format!("Completed {}/{} requirements", completed, requirements_count));
+            
             anyhow::Ok(
                 laws.into_iter()
                     .map(|law| Verification::default().law(law).requirement(req))
@@ -214,34 +196,21 @@ async fn main() -> Result<()> {
     verify_main_spinner.set_style(create_spinner_style());
     verify_main_spinner.set_prefix("Verifying");
     verify_main_spinner.enable_steady_tick(Duration::from_millis(80));
-    verify_main_spinner.set_message(format!("Preparing to validate {} laws...", laws.len()));
+    verify_main_spinner.set_message(format!("Completed 0/{} laws...", laws.len()));
     
-    // Create a vector to hold all verification task spinners
+    // Each law completion will update the spinner message
     let laws_count = laws.len();
-    let mut verify_spinners = Vec::with_capacity(laws_count);
     
-    // Style for verification tasks
-    let verification_task_style = ProgressStyle::default_spinner()
-        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-        .template("      {spinner:.green} Law {msg}")
-        .unwrap();
+    // Create a counter for completed laws
+    let completed_laws = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     
-    // Create a spinner for each law verification
-    for i in 0..laws_count {
-        let spinner = multi_progress.add(ProgressBar::new_spinner());
-        spinner.set_style(verification_task_style.clone());
-        spinner.enable_steady_tick(Duration::from_millis(80));
-        spinner.set_message(format!("Law {}/{}: Waiting...", i + 1, laws_count));
-        verify_spinners.push(spinner);
-    }
-    
-    let verification = try_join_all(laws.into_iter().enumerate().map(|(i, verification)| {
+    let verification = try_join_all(laws.into_iter().map(|verification| {
         let law = verification.law.clone();
         let api = api.clone();
-        let verify_spinner = verify_spinners[i].clone();
+        let verify_main_spinner = verify_main_spinner.clone();
+        let completed_laws = completed_laws.clone();
+        
         async move {
-            verify_spinner.set_message(format!("Law {}/{}: Validating...", i + 1, laws_count));
-            
             let value = json!({
                 "pull_request": pull_request.clone(),
                 "law": law
@@ -258,12 +227,9 @@ async fn main() -> Result<()> {
                 .map(|status| verification.clone().status(status))
                 .collect::<Vec<_>>();
             
-            verify_spinner.set_prefix(success_prefix);
-            verify_spinner.set_style(ProgressStyle::default_spinner()
-                .template("      {prefix} {msg}")
-                .unwrap());
-            verify_spinner.set_message(format!("Law {}/{}: Complete", i + 1, laws_count));
-            verify_spinner.finish();
+            // Increment the completed count and update spinner
+            let completed = completed_laws.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+            verify_main_spinner.set_message(format!("Completed {}/{} laws", completed, laws_count));
             
             anyhow::Ok(result)
         }
