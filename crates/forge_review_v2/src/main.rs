@@ -174,6 +174,7 @@ async fn main() -> Result<()> {
             let laws = raw_law.extract_tag("law");
             
             task_spinner.set_message(format!("Task {}/{}: Generated {} laws", i + 1, requirements_count, laws.len()));
+            task_spinner.set_prefix(success_prefix);
             task_spinner.finish();
 
             anyhow::Ok(
@@ -242,6 +243,7 @@ async fn main() -> Result<()> {
                 .collect::<Vec<_>>();
             
             verify_spinner.set_message(format!("Law {}/{}: Complete", i + 1, laws_count));
+            verify_spinner.set_prefix(success_prefix);
             verify_spinner.finish();
             
             anyhow::Ok(result)
