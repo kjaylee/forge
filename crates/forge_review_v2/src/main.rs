@@ -1,4 +1,5 @@
-use std::{env, path::PathBuf};
+use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -46,7 +47,7 @@ async fn main() -> Result<()> {
 
     // Convert relative path to absolute path
     let current_dir = env::current_dir()?;
-    
+
     // Input Paths from command line arguments
     let product_requirements_path = &args.product_requirement_path;
     let pull_request_path = &args.pull_request_path;
