@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 
-/// Creates and configures the progress indicators and UI elements for the CLI application.
+/// Creates and configures the progress indicators and UI elements for the CLI
+/// application.
 pub struct UI {
     multi_progress: Arc<MultiProgress>,
     success_prefix: &'static str,
@@ -51,13 +52,24 @@ impl UI {
     }
 
     /// Display the final summary message with the generated files information.
-    pub fn display_final_summary(&self, output_path: &std::path::Path, requirements_count: usize, verification_len: usize) {
+    pub fn display_final_summary(
+        &self,
+        output_path: &std::path::Path,
+        requirements_count: usize,
+        verification_len: usize,
+    ) {
         println!("\n\n{:=^80}", " Code Review Complete ");
         println!("\n📊 Reports saved to: {}\n", output_path.display());
         println!("{:-^80}\n", " Generated Files ");
-        println!("  📄 functional-requirements.md - {} requirements", requirements_count);
-        println!("  📄 verification.md - {} law verifications", verification_len);
+        println!(
+            "  📄 functional-requirements.md - {} requirements",
+            requirements_count
+        );
+        println!(
+            "  📄 verification.md - {} law verifications",
+            verification_len
+        );
         println!("  📄 summary.md - Final assessment");
         println!("\n{:=^80}\n", "");
     }
-} 
+}
