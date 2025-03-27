@@ -31,7 +31,12 @@ impl<S: Services> ContextCompactor<S> {
             debug!(agent_id = %agent.id, "Context compaction triggered");
 
             // Identify and compress the first compressible sequence
-            match identify_first_compressible_sequence(&context, compact.retention_window) {
+            // Get all compressible sequences, considering the preservation window
+            match {
+                find_compressible_sequences(&context, compact.retention_window)
+                    .into_iter()
+                    .next()
+            } {
                 Some(sequence) => {
                     debug!(
                         agent_id = %agent.id,
@@ -152,19 +157,6 @@ impl<S: Services> ContextCompactor<S> {
     }
 }
 
-/// Identifies the first sequence of compressible messages (assistant messages
-/// and tool results) that can be compressed (2+ consecutive messages)
-/// taking into account the preserve_last_n_messages setting from the agent
-fn identify_first_compressible_sequence(
-    context: &Context,
-    preserve_last_n: usize,
-) -> Option<(usize, usize)> {
-    // Get all compressible sequences, considering the preservation window
-    find_compressible_sequences(context, preserve_last_n)
-        .into_iter()
-        .next()
-}
-
 /// Determines if a message is compressible (assistant or tool result)
 fn is_compressible(message: &ContextMessage) -> bool {
     message.has_role(Role::Assistant) || matches!(message, ContextMessage::ToolMessage(_))
@@ -172,7 +164,10 @@ fn is_compressible(message: &ContextMessage) -> bool {
 
 /// Finds all valid compressible sequences in the context, respecting the
 /// preservation window
-fn find_compressible_sequences(context: &Context, preserve_last_n: usize) -> Vec<(usize, usize)> {
+fn find_compressible_sequences(
+    context: &Context,
+    preserve_last_n: usize,
+) -> Option<(usize, usize)> {
     let messages = &context.messages;
 
     // Calculate the index before which messages can be considered for compression
@@ -180,7 +175,7 @@ fn find_compressible_sequences(context: &Context, preserve_last_n: usize) -> Vec
 
     // Early return if there are no messages available for compression
     if compressible_end_idx == 0 {
-        return Vec::new();
+        return None;
     }
 
     // Find all sequences of compressible messages
@@ -188,7 +183,7 @@ fn find_compressible_sequences(context: &Context, preserve_last_n: usize) -> Vec
         .into_iter()
         // Filter for sequences with at least 2 messages
         .filter(|(start, end)| end > start)
-        .collect()
+        .next()
 }
 
 /// General-purpose function to find sequences of elements matching a predicate
@@ -242,7 +237,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 4", None));
 
         // The first sequence is from index 2 to 4 (assistant messages 1, 2, and 3)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -263,7 +258,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 3", None));
 
         // There are no sequences of multiple assistant messages
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_none());
     }
 
@@ -279,7 +274,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 3", None));
 
         // The sequence is at the end (indices 4-5)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -310,7 +305,7 @@ mod tests {
             .add_message(ContextMessage::user("User message 2"));
 
         // The sequence is from index 2 to 3 (both assistant messages with tool calls)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -348,7 +343,7 @@ mod tests {
 
         // Now tool results are considered compressible
         // The sequence is from index 2 to 5 (assistant + tool + 2 assistant messages)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -398,7 +393,7 @@ mod tests {
 
         // With the new logic, we now have a compressible sequence from index 1-2
         // (assistant + tool result)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -448,7 +443,7 @@ mod tests {
 
         // The sequence now includes both assistant messages and tool results (indices
         // 1-5)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -474,7 +469,7 @@ mod tests {
             .add_message(ContextMessage::user("User message 2"));
 
         // The sequence is the two tool results (indices 1-2)
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
 
         let (start, end) = sequence.unwrap();
@@ -508,7 +503,7 @@ mod tests {
 
         // No compressible sequence as each potential message is separated by a user
         // message
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_none());
     }
     #[test]
@@ -525,7 +520,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 5", None)); // 7
 
         // Without preservation, we'd compress messages 2-4
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
@@ -533,7 +528,7 @@ mod tests {
 
         // With preserve_last_n = 3, we should preserve the last 3 messages (indices 5,
         // 6, 7) So we should still get the sequence at 2-4
-        let sequence = identify_first_compressible_sequence(&context, 3);
+        let sequence = find_compressible_sequences(&context, 3);
         assert!(sequence.is_some());
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
@@ -542,12 +537,12 @@ mod tests {
         // With preserve_last_n = 5, we should preserve indices 3-7
         // So we should get no compressible sequence, since we can only consider indices
         // 0-2
-        let sequence = identify_first_compressible_sequence(&context, 5);
+        let sequence = find_compressible_sequences(&context, 5);
         assert!(sequence.is_none());
 
         // With preserve_last_n = 8 (more than total messages), we should get no
         // compressible sequence
-        let sequence = identify_first_compressible_sequence(&context, 8);
+        let sequence = find_compressible_sequences(&context, 8);
         assert!(sequence.is_none());
     }
     #[test]
@@ -563,7 +558,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message 4", None)); // 6
 
         // Without preservation, we'd compress the sequence at indices 4-6
-        let sequence = identify_first_compressible_sequence(&context, 0);
+        let sequence = find_compressible_sequences(&context, 0);
         assert!(sequence.is_some());
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 4);
@@ -572,12 +567,12 @@ mod tests {
         // With preserve_last_n = 2, we should preserve indices 5-6
         // So the compressible sequence should be index 4 only, which is not enough for
         // compression
-        let sequence = identify_first_compressible_sequence(&context, 2);
+        let sequence = find_compressible_sequences(&context, 2);
         assert!(sequence.is_none());
 
         // With preserve_last_n = 1, we should preserve index 6
         // So the compressible sequence should be indices 4-5
-        let sequence = identify_first_compressible_sequence(&context, 1);
+        let sequence = find_compressible_sequences(&context, 1);
         assert!(sequence.is_some());
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 4);
@@ -656,14 +651,14 @@ mod tests {
             .add_tool_results(tool_results.clone()); // 9
 
         // All the messages should be considered
-        let sequence = identify_first_compressible_sequence(&context, 0).unwrap();
+        let sequence = find_compressible_sequences(&context, 0).unwrap();
         assert_eq!(sequence, (2, 9));
 
         // Since we can not break in between a tool call is corresponding tool-result
-        let sequence = identify_first_compressible_sequence(&context, 1).unwrap();
+        let sequence = find_compressible_sequences(&context, 1).unwrap();
         assert_eq!(sequence, (2, 7));
 
-        let sequence = identify_first_compressible_sequence(&context, 2).unwrap();
+        let sequence = find_compressible_sequences(&context, 2).unwrap();
         assert_eq!(sequence, (2, 7));
     }
 }
