@@ -102,9 +102,7 @@ impl OpenRouter {
                             match response.text().await {
                                 Ok(ref body) => {
                                     debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                    if status.eq(&reqwest::StatusCode::FORBIDDEN) | status.eq(&reqwest::StatusCode::TOO_MANY_REQUESTS) {
-                                        return Some(Err(anyhow::anyhow!("Invalid status code: {}", status).context(body.clone())));
-                                    }
+                                    return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)));
                                 }
                                 Err(error) => {
                                     debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
