@@ -137,7 +137,7 @@ agents:
     ephemeral: true
 
   - id: verifier
-    model: *advanced_model
+    model: openai/o3-mini-high
     tool_supported: true
     user_prompt: |
       You are tasked with verifying if a given pull request satisfies a specific TLA+ law. Your job is to analyze the pull request diff and determine whether it complies with, violates, or has an unclear relationship to the provided law.
@@ -230,26 +230,34 @@ agents:
 
       <summary>
       <overview>
+      
       [Brief overview emphasizing verification status and key changes]
+      
       </overview>
 
       <verification_issues>
+
       [List of verification requirements with non-success statuses]
-      1. [Requirement Name] - Status: [Success/Failure/Unclear]
-        - File: [Relevant file name]
-        - Component: [Relevant component name]
-        - Issue: [Brief description of the issue]
-        - Related Changes: [Relevant code changes, if any]
-      2. [Next requirement with non-success status...]
-        ...
+      ## [Requirement Name]
+      ```
+      Status: [🏆 Success / 🔥 Failure / ⚠️ Unclear]: 
+      ```
+      [Brief description of the issue]
+      
+      ## [Next requirement with non-success status...]
+      ...
+      
       </verification_issues>
 
       <potential_conflicts>
+      
       [List of potential conflicts between changes and verification requirements]
       - [Conflict 1]
       - [Conflict 2]
       ...
+      
       </potential_conflicts>
+      
       </summary>
 
       Ensure that your summary is accurate, concise, and follows the specified format. The entire output must be enclosed within the <summary> tags. Focus only on verification requirements with non-success statuses and how the changes in the pull request relate to and impact these specific verification issues.
