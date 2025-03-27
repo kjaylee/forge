@@ -1,4 +1,5 @@
-// FIXME: compaction should be expose as a service via forge_app instead of being code to the domain.
+// FIXME: compaction should be expose as a service via forge_app instead of
+// being code to the domain.
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -141,7 +142,7 @@ impl<S: Services> ContextCompactor<S> {
         // configured
         if let Some(extracted) = extract_tag_content(
             &result_content,
-            &compact.summary_tag.as_deref().unwrap_or_default(),
+            compact.summary_tag.as_deref().unwrap_or_default(),
         ) {
             return Ok(extracted.to_string());
         }
