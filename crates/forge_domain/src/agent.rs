@@ -477,7 +477,7 @@ mod tests {
             );
             let err = agent.unwrap_err().to_string();
             assert!(
-                err.contains("Temperature must be between 0.0 and 2.0"),
+                err.contains("temperature must be between 0.0 and 2.0"),
                 "Error should mention valid range: {}",
                 err
             );
