@@ -5,6 +5,7 @@ variables:
 
 agents:
   - id: organizer
+    temperature: 0
     model: openai/o3-mini-high
     tool_supported: false
     user_prompt: |
@@ -69,6 +70,7 @@ agents:
     ephemeral: true
 
   - id: law-generator
+    temperature: 0
     model: *advanced_model
     tool_supported: false
     user_prompt: |
@@ -137,6 +139,7 @@ agents:
     ephemeral: true
 
   - id: verifier
+    temperature: 0
     model: openai/o3-mini-high
     tool_supported: false
     user_prompt: |
@@ -185,6 +188,7 @@ agents:
     ephemeral: true
 
   - id: summarizer
+    temperature: 0
     model: google/gemini-2.0-flash-001
     tool_supported: false
     subscribe:
