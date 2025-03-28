@@ -204,7 +204,8 @@ agents:
       <verification_status>
       {{#each event.value.verification_status}}
       <requirement>{{this.requirement}}</requirement>
-      <status>{{this.status}}</status>
+      <tla_rule>{{this.law}}</tla_rule>
+      <status>{{this.analysis}}</status>
       {{/each}}
       </verification_status>
 

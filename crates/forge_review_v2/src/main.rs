@@ -36,7 +36,7 @@ struct Cli {
 struct Verification {
     law: String,
     requirement: String,
-    status: String,
+    analysis: String,
 }
 
 #[tokio::main]
@@ -179,7 +179,7 @@ async fn main() -> Result<()> {
             let result = raw_verification
                 .extract_tag("verification")
                 .into_iter()
-                .map(|status| verification.clone().status(status))
+                .map(|analysis| verification.clone().analysis(analysis))
                 .collect::<Vec<_>>();
 
             // Increment the progress bar
@@ -204,7 +204,7 @@ async fn main() -> Result<()> {
         output.join("verification.md"),
         verification.iter().fold(String::new(), |mut acc, s| {
             acc.push_str(format!("## {}\n", s.requirement).as_str());
-            acc.push_str(format!("Status: {}\n", s.status).as_str());
+            acc.push_str(format!("Analysis: {}\n", s.analysis).as_str());
             acc.push('\n');
             acc
         }),
