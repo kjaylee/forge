@@ -204,6 +204,7 @@ async fn main() -> Result<()> {
         output.join("verification.md"),
         verification.iter().fold(String::new(), |mut acc, s| {
             acc.push_str(format!("## {}\n", s.requirement).as_str());
+            acc.push_str(format!("TLA:\n```\n{}\n```\n", s.law).as_str());
             acc.push_str(format!("Analysis: {}\n", s.analysis).as_str());
             acc.push('\n');
             acc
