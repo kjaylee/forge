@@ -6,6 +6,9 @@ use tracing::debug;
 use super::{ToolCallFull, ToolResult};
 use crate::{ToolChoice, ToolDefinition};
 
+/// Represents a message being sent to the LLM provider
+/// NOTE: ToolResults message are part of the larger Request object and not part
+/// of the message.
 #[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextMessage {
@@ -102,6 +105,8 @@ pub struct Context {
     pub tool_choice: Option<ToolChoice>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
 }
 
 impl Context {

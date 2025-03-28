@@ -223,7 +223,7 @@ impl From<Context> for OpenRouterRequest {
             stop: Default::default(),
             stream: Default::default(),
             max_tokens: request.max_tokens.map(|t| t as u32),
-            temperature: Default::default(),
+            temperature: request.temperature,
             tool_choice: request.tool_choice.map(|tc| tc.into()),
             seed: Default::default(),
             top_p: Default::default(),

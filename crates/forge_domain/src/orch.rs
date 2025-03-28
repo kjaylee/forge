@@ -277,6 +277,10 @@ impl<A: Services> Orchestrator<A> {
             }
         };
 
+        if let Some(temperature) = agent.temperature {
+            context = context.temperature(temperature);
+        }
+
         let content = if let Some(user_prompt) = &agent.user_prompt {
             // Get conversation variables from the conversation
             let variables = &conversation.variables;
