@@ -390,10 +390,12 @@ mod tests {
 
     #[test]
     fn test_attachment_parse_all_with_multibyte_chars() {
-        let text = String::from("Check this file @\"🚀/path/with spaces/file.txt🔥\" and also @🌟simple_path");
+        let text = String::from(
+            "Check this file @\"🚀/path/with spaces/file.txt🔥\" and also @🌟simple_path",
+        );
         let paths = Attachment::parse_all(text);
         assert_eq!(paths.len(), 2);
-        
+
         assert!(paths.contains("🚀/path/with spaces/file.txt🔥"));
         assert!(paths.contains("🌟simple_path"));
     }
