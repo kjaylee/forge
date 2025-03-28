@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use futures::StreamExt;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::{
     extract_tag_content, Agent, ChatCompletionMessage, Compact, Context, ContextMessage,
@@ -30,8 +30,8 @@ impl<S: Services> ContextCompactor<S> {
 
         if let Some(ref compact) = agent.compact {
             // Ensure that compaction conditions are met
-            if !compact.should_compact(&context)  {
-                return Ok(context)
+            if !compact.should_compact(&context) {
+                return Ok(context);
             }
 
             debug!(agent_id = %agent.id, "Context compaction triggered");
@@ -43,12 +43,6 @@ impl<S: Services> ContextCompactor<S> {
                 .next()
             {
                 Some(sequence) => {
-                    debug!(
-                        agent_id = %agent.id,
-                        sequence_start = sequence.0,
-                        sequence_end = sequence.1,
-                        "Compressing assistant message sequence"
-                    );
                     self.compress_single_sequence(compact, context, sequence)
                         .await
                 }
@@ -80,7 +74,12 @@ impl<S: Services> ContextCompactor<S> {
             .await?;
 
         // Log the summary for debugging
-        debug!(summary = %summary, "Created context compaction summary");
+        info!(
+            summary = %summary,
+            sequence_start = sequence.0,
+            sequence_end = sequence.1,
+            "Created context compaction summary"
+        );
 
         // Replace the sequence with a single summary message using splice
         // This removes the sequence and inserts the summary message in-place
