@@ -5,7 +5,6 @@ variables:
 
 agents:
   - id: organizer
-    temperature: 0
     model: openai/o3-mini-high
     tool_supported: false
     user_prompt: |
@@ -71,7 +70,7 @@ agents:
 
   - id: law-generator
     temperature: 0
-    model: *advanced_model
+    model: anthropic/claude-3.7-sonnet
     tool_supported: false
     user_prompt: |
       You are a formal methods expert specializing in TLA+ (Temporal Logic of Actions) specifications. Your task is to create multiple TLA+ laws to verify the correctness of a specific functional requirement from a set of product requirements.
@@ -139,7 +138,6 @@ agents:
     ephemeral: true
 
   - id: verifier
-    temperature: 0
     model: openai/o3-mini-high
     tool_supported: false
     user_prompt: |
@@ -237,9 +235,9 @@ agents:
 
       <summary>
       # [Title]
-      
+
       [Brief overview emphasizing verification status and key changes]
-      
+
       ## Verification Issues
 
       [List of verification requirements with non-success statuses]
@@ -252,14 +250,14 @@ agents:
 
       ### [Next requirement with non-success status...]
       ...
-      
+
       ## Potential Conflicts
-      
+
       [List of potential conflicts between changes and verification requirements]
       - [Conflict 1]
       - [Conflict 2]
       ...
-      
+
       </summary>
 
       Ensure that your summary is accurate, concise, and follows the specified format. The entire output must be enclosed within the <summary> tags. Focus only on verification requirements with non-success statuses and how the changes in the pull request relate to and impact these specific verification issues.
