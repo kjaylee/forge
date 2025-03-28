@@ -29,6 +29,11 @@ impl<S: Services> ContextCompactor<S> {
         // Early return if compaction not needed
 
         if let Some(ref compact) = agent.compact {
+            // Ensure that compaction conditions are met
+            if !compact.should_compact(&context)  {
+                return Ok(context)
+            }
+
             debug!(agent_id = %agent.id, "Context compaction triggered");
 
             // Identify and compress the first compressible sequence
