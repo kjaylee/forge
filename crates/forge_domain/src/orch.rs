@@ -340,7 +340,7 @@ impl<A: App> Orchestrator<A> {
                 .await?
         } else {
             // Use the raw event value as content if no user_prompt is provided
-            event.value.clone().to_string()
+            event.value.to_string()
         };
 
         if !content.is_empty() {
