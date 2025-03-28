@@ -202,11 +202,6 @@ impl Context {
         self
     }
 
-    pub fn with_temperature(mut self, temperature: Option<f32>) -> Self {
-        self.temperature = temperature;
-        self
-    }
-
     pub fn add_tool(mut self, tool: impl Into<ToolDefinition>) -> Self {
         let tool: ToolDefinition = tool.into();
         self.tools.push(tool);

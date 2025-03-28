@@ -322,8 +322,11 @@ impl<A: App> Orchestrator<A> {
                 Some(context) => context.clone(),
                 None => self.init_agent_context(agent).await?,
             }
+        };
+
+        if let Some(temperature) = agent.temperature {
+            context = context.temperature(temperature);
         }
-        .with_temperature(agent.temperature);
 
         let content = if let Some(user_prompt) = &agent.user_prompt {
             // Get conversation variables from the conversation
