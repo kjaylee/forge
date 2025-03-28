@@ -145,6 +145,7 @@ impl<A: Services> Orchestrator<A> {
             }
 
             if let Some(usage) = message.usage {
+                debug!(usage = ?usage, "Usage");
                 self.send(agent, ChatResponse::Usage(usage)).await?;
             }
         }
