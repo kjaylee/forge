@@ -5,7 +5,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
-use tracing::debug;
+use tracing::{debug, error};
 
 use super::request::Request;
 use super::response::{EventData, ListModelResponse};
@@ -105,15 +105,16 @@ impl ProviderService for Anthropic {
                         reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
                             let headers = response.headers().clone();
                             let status = response.status();
-                            match response.text().await {
+                             match response.text().await {
                                 Ok(ref body) => {
                                     debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
+                                    Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body)))
                                 }
                                 Err(error) => {
-                                    debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
+                                    error!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
+                                    Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
                                 }
                             }
-                            Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
                         }
                         reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                             debug!(response = ?response, "Invalid content type");

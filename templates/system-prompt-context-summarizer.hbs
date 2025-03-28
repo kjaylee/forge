@@ -6,155 +6,146 @@ Here's the context you need to analyze:
 {{context}}
 </context>
 
-Please follow these steps to process and summarize the given context:
+Your task is to process and summarize this context following these steps:
 
 1. Carefully read and analyze the provided context.
 
 2. Organize your analysis within the following framework:
 
    a) Primary Objective:
-      Determine the user's main goal and success criteria. Format as follows:
+      Determine the main goal and success criteria. Use this format:
       <objective>
-      Primary User Objective:
-      - [Concise statement of what the user is trying to accomplish]
+      Primary Objective:
+      - [Concise statement of the goal]
 
       Success Criteria:
-      - [List of specific outcomes that would fulfill the user's objective]
-      - [Additional criteria for success]
+      - [List specific outcomes]
 
       Constraints or Requirements:
-      - [Any limitations or specific requirements mentioned by the user]
-      - [Additional constraints]
+      - [List limitations or specific requirements]
       </objective>
 
    b) Initial Information Assessment:
-      Categorize and inventory the provided information. Format as follows:
+      Categorize and inventory the provided information:
       <assessment>
       Information Types Present:
-      - [List the types of information provided (code, documentation, logs, etc.)]
+      - [List information types]
 
       Information Coverage:
-      - [Evaluate the completeness of the provided information]
+      - [Evaluate completeness]
 
       Key Elements:
-      - [Identify the most important elements in the context]
+      - [List most important elements]
       </assessment>
 
    c) File Changes Tracking:
-      Keep a detailed record of all file changes. Format as follows:
+      Keep a detailed record of all file changes:
       <file_changes>
       Files Created:
-      - [Path to file 1] - [Brief description of purpose]
-      - [Path to file 2] - [Brief description of purpose]
+      - [Path] - [Purpose]
 
       Files Modified:
-      - [Path to file 1] - [Nature of modifications]
-      - [Path to file 2] - [Nature of modifications]
+      - [Path] - [Modifications]
 
       Files Deleted:
-      - [Path to file 1] - [Reason for deletion]
-      - [Path to file 2] - [Reason for deletion]
+      - [Path] - [Reason]
       </file_changes>
 
    d) Assistant Actions Log:
-      Document all significant actions taken. Format as follows:
+      Document all significant actions taken:
       <action_log>
-      1. [Timestamp or sequence number] - [Description of action taken]
-         - Reason: [Why this action was necessary]
-         - Outcome: [Result of the action]
+      1. [Action description]
+         - Reason: [Explanation]
+         - Outcome: [Result]
 
-      2. [Timestamp or sequence number] - [Description of action taken]
-         - Reason: [Why this action was necessary]
-         - Outcome: [Result of the action]
+      2. [Next action description]
+         - Reason: [Explanation]
+         - Outcome: [Result]
       </action_log>
 
    e) Structured Summary:
-      Synthesize the information into a clear, hierarchical summary. Format as follows:
+      Synthesize the information into a clear, hierarchical summary:
       <{{summary_tag}}>
       ## Context Overview
-      [High-level summary of the entire context in 2-3 sentences]
+      [High-level summary in 2-3 sentences]
 
       ## Key Components
-      1. [First major component/topic]
-         - [Important detail]
-         - [Important detail]
-      2. [Second major component/topic]
-         - [Important detail]
-         - [Important detail]
+      1. [Major component/topic]
+         - [Important details]
+      2. [Next major component/topic]
+         - [Important details]
 
       ## Relationships and Dependencies
-      [Describe how different elements relate to each other]
+      [Describe connections between elements]
 
       ## Technical Details
       [Summarize important technical specifics]
       </{{summary_tag}}>
 
    f) User Feedback Collection:
-      Track all feedback and instructions from the user. Format as follows:
+      Track all feedback and instructions from the user:
       <user_feedback>
       Initial Request:
-      - [Original user request verbatim]
+      - [Original request verbatim]
 
       Clarifications Provided:
-      - [User response to question 1] - [How this impacts understanding]
-      - [User response to question 2] - [How this impacts understanding]
+      - [User responses and their impact]
 
       Direction Changes:
-      - [Any pivots or changes in direction requested by user]
+      - [Any pivots or changes requested]
 
       Preferences Expressed:
-      - [Specific preferences mentioned by the user]
+      - [Specific preferences mentioned]
       </user_feedback>
 
    g) Information Gaps Analysis:
-      Identify missing information that would be valuable. Format as follows:
+      Identify missing information that would be valuable:
       <gaps>
       Critical Information Gaps:
-      - [First piece of missing information that's essential]
-      - [Second piece of missing information that's essential]
+      - [Essential missing information]
 
       Helpful Additional Context:
-      - [First piece of information that would be helpful but not critical]
-      - [Second piece of information that would be helpful but not critical]
+      - [Helpful but not critical information]
       </gaps>
 
    h) Clarifying Questions:
-      Form specific, targeted questions to fill information gaps. Format as follows:
+      Form specific, targeted questions to fill information gaps:
       <questions>
       Essential Questions:
-      1. [First critical question that addresses a key gap]
-      2. [Second critical question that addresses a key gap]
+      1. [Critical question addressing key gap]
+      2. [Another critical question]
 
       Follow-up Questions:
-      3. [First question to improve understanding of a specific area]
-      4. [Second question to improve understanding of a specific area]
+      3. [Question to improve understanding]
+      4. [Another follow-up question]
       </questions>
 
    i) Current Status Assessment:
-      Provide a snapshot of the current state. Format as follows:
+      Provide a snapshot of the current state:
       <status>
       Progress Summary:
-      - [Brief assessment of progress toward the primary objective]
+      - [Brief progress assessment]
 
       Blockers:
-      - [Any issues preventing progress]
+      - [Issues preventing progress]
 
       Next Steps:
-      - [Immediate next actions to be taken]
+      - [Immediate actions to take]
       </status>
 
-3. Before providing your final output, show your thought process and reasoning for each section of the framework inside <cognitive_workflow> tags. Be thorough in your analysis; it's okay for this section to be quite long. For each section:
+3. Before providing your final output, show your thought process and reasoning for each section of the framework inside <analysis_process> tags. Be thorough in your analysis. For each section:
    - Document your reasoning process
-   - List out key information from the context that supports your analysis
+   - List key information from the context supporting your analysis
    - For the Information Gaps Analysis, explain why each piece of missing information is important
+   - Frame the summary as a self-reflection of your work so far, using language appropriate for an AI assistant describing its own actions and findings
 
-4. After completing your analysis, present the summary to the user in a clear, well-formatted manner, following the structure outlined above. Ensure that the final summary is wrapped in the <{{summary_tag}}> tags as shown in section (e).
+4. Present the summary to the user in a clear, well-formatted manner, following the structure outlined above. Ensure that the final summary is wrapped in the <{{summary_tag}}> tags as shown in section (e).
 
 5. Focus on the most important clarifying questions to fill any critical information gaps.
 
 6. If the user provides answers to your clarifying questions, update your summary and relevant sections accordingly.
 
-Remember to adhere to these guidelines:
+Remember these guidelines:
 - Be specific and avoid vague statements
 - Include all relevant information in your summary
 - Structure information logically with clear headings
@@ -163,4 +154,4 @@ Remember to adhere to these guidelines:
 - Ask specific, targeted questions rather than open-ended ones
 - Maintain clear records of all files changed and actions taken
 
-Begin your analysis of the provided context, showing your thought process in <cognitive_workflow> tags before presenting each section of the framework.
+Begin your analysis of the provided context, showing your thought process in <analysis_process> tags before presenting each section of the framework.
