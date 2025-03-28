@@ -71,10 +71,10 @@ impl Event {
         message.map(|message| message.into())
     }
 
-    pub fn new(name: impl ToString, value: Value) -> Self {
+    pub fn new<V: Into<Value>>(name: impl ToString, value:V ) -> Self {
         let id = uuid::Uuid::new_v4().to_string();
         let timestamp = chrono::Utc::now().to_rfc3339();
 
-        Self { id, name: name.to_string(), value: value, timestamp }
+        Self { id, name: name.to_string(), value: value.into(), timestamp }
     }
 }

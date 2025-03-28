@@ -35,8 +35,8 @@ pub struct PartialEvent {
 }
 
 impl PartialEvent {
-    pub fn new(name: impl ToString, value: Value) -> Self {
-        Self { name: name.to_string(), value: value }
+    pub fn new<V: Into<Value>>(name: impl ToString, value: V) -> Self {
+        Self { name: name.to_string(), value: value.into() }
     }
 }
 
@@ -92,14 +92,14 @@ impl<F: API> UI<F> {
         Ok(())
     }
     // Helper functions for creating events with the specific event names
-    fn create_task_init_event(content: Value) -> Event {
+    fn create_task_init_event<V: Into<Value>>(content: V) -> Event {
         Event::new(EVENT_USER_TASK_INIT, content)
     }
 
-    fn create_task_update_event(content: Value) -> Event {
+    fn create_task_update_event<V: Into<Value>>(content: V) -> Event {
         Event::new(EVENT_USER_TASK_UPDATE, content)
     }
-    fn create_user_help_query_event(content: Value) -> Event {
+    fn create_user_help_query_event<V: Into<Value>>(content: V) -> Event {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
@@ -170,7 +170,7 @@ impl<F: API> UI<F> {
                 Command::Message(ref content) => {
                     let chat_result = match self.state.mode {
                         Mode::Help => {
-                            self.dispatch_event(Self::create_user_help_query_event(serde_json::Value::String(content.clone())))
+                            self.dispatch_event(Self::create_user_help_query_event(content.clone()))
                                 .await
                         }
                         _ => self.chat(content.clone()).await,
@@ -277,9 +277,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            Self::create_task_init_event(serde_json::Value::String(content.clone()))
+            Self::create_task_init_event(content.clone())
         } else {
-            Self::create_task_update_event(serde_json::Value::String(content.clone()))
+            Self::create_task_update_event(content.clone())
         };
 
         // Create the chat request with the event
