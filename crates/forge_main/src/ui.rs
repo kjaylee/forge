@@ -31,12 +31,12 @@ lazy_static! {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct PartialEvent {
     pub name: String,
-    pub value: String,
+    pub value: Value,
 }
 
 impl PartialEvent {
-    pub fn new(name: impl ToString, value: impl ToString) -> Self {
-        Self { name: name.to_string(), value: value.to_string() }
+    pub fn new(name: impl ToString, value: Value) -> Self {
+        Self { name: name.to_string(), value: value }
     }
 }
 
@@ -92,14 +92,14 @@ impl<F: API> UI<F> {
         Ok(())
     }
     // Helper functions for creating events with the specific event names
-    fn create_task_init_event(content: impl ToString) -> Event {
+    fn create_task_init_event(content: Value) -> Event {
         Event::new(EVENT_USER_TASK_INIT, content)
     }
 
-    fn create_task_update_event(content: impl ToString) -> Event {
+    fn create_task_update_event(content: Value) -> Event {
         Event::new(EVENT_USER_TASK_UPDATE, content)
     }
-    fn create_user_help_query_event(content: impl ToString) -> Event {
+    fn create_user_help_query_event(content: Value) -> Event {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
@@ -170,7 +170,7 @@ impl<F: API> UI<F> {
                 Command::Message(ref content) => {
                     let chat_result = match self.state.mode {
                         Mode::Help => {
-                            self.dispatch_event(Self::create_user_help_query_event(content.clone()))
+                            self.dispatch_event(Self::create_user_help_query_event(serde_json::Value::String(content.clone())))
                                 .await
                         }
                         _ => self.chat(content.clone()).await,
@@ -277,9 +277,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            Self::create_task_init_event(content.clone())
+            Self::create_task_init_event(serde_json::Value::String(content.clone()))
         } else {
-            Self::create_task_update_event(content.clone())
+            Self::create_task_update_event(serde_json::Value::String(content.clone()))
         };
 
         // Create the chat request with the event
@@ -372,7 +372,7 @@ impl<F: API> UI<F> {
             }
             ChatResponse::Event(event) => {
                 if event.name == EVENT_TITLE {
-                    self.state.current_title = Some(event.value);
+                    self.state.current_title = Some(event.value.to_string());
                 }
             }
             ChatResponse::Usage(u) => {

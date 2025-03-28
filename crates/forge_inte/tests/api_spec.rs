@@ -51,7 +51,7 @@ impl Fixture {
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",
-                "There is a cat hidden in the codebase. What is its name?",
+                "There is a cat hidden in the codebase. What is its name?".into(),
             ),
             conversation_id,
         );
