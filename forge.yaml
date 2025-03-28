@@ -13,6 +13,7 @@ agents:
       max_tokens: 2000
       token_threshold: 60000
       model: google/gemini-2.0-flash-001
+      retention_window: 10
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     custom_rules: |
       Handling Errors:

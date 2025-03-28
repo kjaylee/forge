@@ -72,16 +72,22 @@ pub struct Compact {
     /// "summary")
     #[merge(strategy = crate::merge::std::overwrite)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary_tag: Option<String>,
+    pub summary_tag: Option<SummaryTag>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(transparent)]
 pub struct SummaryTag(String);
 
 impl Default for SummaryTag {
     fn default() -> Self {
         SummaryTag("forge_context_summary".to_string())
+    }
+}
+
+impl SummaryTag {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
     }
 }
 

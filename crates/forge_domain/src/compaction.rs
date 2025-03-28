@@ -151,7 +151,12 @@ impl<S: Services> ContextCompactor<S> {
         // configured
         if let Some(extracted) = extract_tag_content(
             &result_content,
-            compact.summary_tag.as_deref().unwrap_or_default(),
+            compact
+                .summary_tag
+                .as_ref()
+                .cloned()
+                .unwrap_or_default()
+                .as_str(),
         ) {
             return Ok(extracted.to_string());
         }
