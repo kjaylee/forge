@@ -231,6 +231,7 @@ agents:
         c. Note any patterns or inconsistencies that could impact verification.
         d. Merge all duplicate requirements into one and combine their information.
         e. Summary should not use the term TLA or TLA+, instead it should explain the scenario in simple english.
+        f. The issue descriptions should contain problem code-samples.
 
       3. After your analysis, provide a structured summary using the following format:
 
