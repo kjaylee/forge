@@ -173,7 +173,14 @@ fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, us
         return None;
     }
 
-    if messages[max_len - 1].has_tool_call() {
+    // Additional check: if max_len < 1, we can't safely do max_len - 1
+    if max_len < 1 {
+        return None;
+    }
+    if messages
+        .get(max_len - 1)
+        .is_some_and(|msg| msg.has_tool_call())
+    {
         max_len -= 1;
     }
 
@@ -184,22 +191,31 @@ fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, us
         .filter(|(_, message)| message.has_role(Role::User))
         .collect::<Vec<_>>();
 
+    // If there are no user messages, there can't be any sequences
+    if user_messages.is_empty() {
+        return None;
+    }
     let start_positions = user_messages
         .iter()
-        .map(|(start, _)| min(start + 1, max_len - 1))
+        .map(|(start, _)| min(start.saturating_add(1), max_len.saturating_sub(1)))
         .collect::<Vec<_>>();
 
     let mut end_positions = user_messages
         .iter()
         .skip(1)
-        .map(|(pos, _)| pos - 1)
+        .map(|(pos, _)| pos.saturating_sub(1))
         .collect::<Vec<_>>();
     end_positions.push(max_len - 1);
+
+    // If either vector is empty, there can't be any compressible sequences
+    if start_positions.is_empty() || end_positions.is_empty() {
+        return None;
+    }
 
     start_positions
         .iter()
         .zip(end_positions.iter())
-        .find(|(start, end)| (*end - *start) >= 1)
+        .find(|(start, end)| *end > *start)
         .map(|(a, b)| (*a, *b))
 }
 
@@ -613,5 +629,109 @@ mod tests {
 
         let sequence = find_sequence(&context, 2).unwrap();
         assert_eq!(sequence, (2, 7));
+    }
+
+    #[test]
+    fn test_empty_context() {
+        // Test edge case: an empty context
+        let context = Context::default();
+        let result = find_sequence(&context, 0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_single_message_context() {
+        // Test edge case: context with only one message
+        let context = Context::default().add_message(ContextMessage::system("System message"));
+        let result = find_sequence(&context, 0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_preserve_equals_length() {
+        // Test edge case: preservation window equals message count
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message"))
+            .add_message(ContextMessage::assistant("Assistant message", None));
+
+        // Context has 3 messages, preserve_last_n = 3
+        let result = find_sequence(&context, 3);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_max_len_zero_after_tool_call() {
+        // Test edge case: max_len becomes 0 after tool call adjustment
+        // Create a context with 2 messages where the second one has a tool call
+        let tool_call = ToolCallFull {
+            name: ToolName::new("tool_forge_fs_read"),
+            call_id: Some(ToolCallId::new("call_123")),
+            arguments: json!({"path": "/test/path"}),
+        };
+
+        let context = Context::default()
+            .add_message(ContextMessage::user("User message"))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call]),
+            ));
+
+        // With preserve_last_n = 0, max_len = 2, but after tool call adjustment it
+        // could become 1 which might lead to underflow in some parts of the
+        // code
+        let result = find_sequence(&context, 0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_empty_start_end_positions() {
+        // Test edge case: empty start/end positions
+        // Create a context with only system and user messages (no assistant messages)
+        // which would result in empty start/end position vectors
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message 1"))
+            .add_message(ContextMessage::user("User message 2"))
+            .add_message(ContextMessage::user("User message 3"));
+
+        let result = find_sequence(&context, 0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_potential_underflow_edge_cases() {
+        // Test edge case: potential integer underflow scenarios
+
+        // Case 1: preserve_last_n = 1, total messages = 2, with the last message having
+        // a tool call
+        let tool_call = ToolCallFull {
+            name: ToolName::new("tool_forge_fs_read"),
+            call_id: Some(ToolCallId::new("call_123")),
+            arguments: json!({"path": "/test/path"}),
+        };
+
+        let context = Context::default()
+            .add_message(ContextMessage::user("User message"))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call]),
+            ));
+
+        // With preserve_last_n = 1, max_len = 2-1 = 1,
+        // then if we try to check messages[max_len-1] this could cause underflow if not
+        // handled
+        let result = find_sequence(&context, 1);
+        assert!(result.is_none());
+
+        // Case 2: Context with exactly 2 messages (user, assistant)
+        let context = Context::default()
+            .add_message(ContextMessage::user("User message"))
+            .add_message(ContextMessage::assistant("Assistant message", None));
+
+        // With preserve_last_n = 0, max_len = 2, but we need at least 3 messages for
+        // compression
+        let result = find_sequence(&context, 0);
+        assert!(result.is_none());
     }
 }
