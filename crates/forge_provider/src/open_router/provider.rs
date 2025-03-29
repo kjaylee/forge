@@ -53,7 +53,10 @@ impl OpenRouter {
             );
         }
         headers.insert("X-Title", HeaderValue::from_static("forge"));
-        headers.insert("HTTP-Referer", HeaderValue::from_static("https://github.com/antinomyhq/forge"));
+        headers.insert(
+            "HTTP-Referer",
+            HeaderValue::from_static("https://github.com/antinomyhq/forge"),
+        );
         headers
     }
 
