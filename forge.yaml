@@ -10,8 +10,8 @@ agents:
     subscribe:
       - fixme
     compact:
-      max_tokens: 4000
-      token_threshold: 120000
+      max_tokens: 2000
+      token_threshold: 80000
       model: google/gemini-2.0-flash-001
       retention_window: 6
       prompt: "{{> system-prompt-context-summarizer.hbs }}"

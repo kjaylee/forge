@@ -47,7 +47,7 @@ pub struct Compact {
     /// Maximum number of tokens before triggering compaction
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
-    pub token_threshold: Option<usize>,
+    pub token_threshold: Option<u64>,
 
     /// Maximum number of conversation turns before triggering compaction
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -329,10 +329,10 @@ impl Key for Agent {
 /// Estimates the token count from a string representation
 /// This is a simple estimation that should be replaced with a more accurate
 /// tokenizer
-fn estimate_token_count(text: &str) -> usize {
+fn estimate_token_count(text: &str) -> u64 {
     // A very rough estimation that assumes ~4 characters per token on average
     // In a real implementation, this should use a proper LLM-specific tokenizer
-    text.len() / 4
+    text.len() as u64 / 4
 }
 
 // The Transform enum has been removed
