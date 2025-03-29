@@ -10,6 +10,8 @@ use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::RetryIf;
 use tracing::debug;
 
+use crate::compaction::ContextCompactor;
+use crate::services::Services;
 use crate::*;
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
@@ -68,9 +70,10 @@ pub struct AgentMessage<T> {
 
 #[derive(Clone)]
 pub struct Orchestrator<App> {
-    app: Arc<App>,
+    services: Arc<App>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
+    compactor: ContextCompactor<App>,
     retry_strategy: std::iter::Take<tokio_retry::strategy::ExponentialBackoff>,
 }
 
@@ -79,15 +82,20 @@ struct ChatCompletionResult {
     pub tool_calls: Vec<ToolCallFull>,
 }
 
-impl<A: App> Orchestrator<A> {
-    pub fn new(app: Arc<A>, mut conversation: Conversation, sender: Option<ArcSender>) -> Self {
-        // since this is a new request, we clear the queue
+impl<A: Services> Orchestrator<A> {
+    pub fn new(
+        services: Arc<A>,
+        mut conversation: Conversation,
+        sender: Option<ArcSender>,
+    ) -> Self {
+        // since self is a new request, we clear the queue
         conversation.state.values_mut().for_each(|state| {
             state.queue.clear();
         });
 
         Self {
-            app,
+            compactor: ContextCompactor::new(services.clone()),
+            services,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
             retry_strategy: ExponentialBackoff::from_millis(200)
@@ -131,7 +139,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
-        self.app.tool_service().list()
+        self.services.tool_service().list()
     }
 
     fn init_tool_definitions(&self, agent: &Agent) -> Vec<ToolDefinition> {
@@ -157,7 +165,7 @@ impl<A: App> Orchestrator<A> {
 
         if let Some(system_prompt) = &agent.system_prompt {
             let system_message = self
-                .app
+                .services
                 .template_service()
                 .render_system(agent, system_prompt)
                 .await?;
@@ -189,6 +197,7 @@ impl<A: App> Orchestrator<A> {
             }
 
             if let Some(usage) = message.usage {
+                debug!(usage = ?usage, "Usage");
                 self.send(agent, ChatResponse::Usage(usage)).await?;
             }
         }
@@ -245,7 +254,7 @@ impl<A: App> Orchestrator<A> {
         };
 
         // Execute all initialization futures in parallel
-        join_all(inactive_agents.iter().map(|id| self.init_agent(id)))
+        join_all(inactive_agents.iter().map(|id| self.wake_agent(id)))
             .await
             .into_iter()
             .collect::<anyhow::Result<Vec<()>>>()?;
@@ -265,93 +274,17 @@ impl<A: App> Orchestrator<A> {
             self.dispatch_spawned(event).await?;
             Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
         } else {
-            Ok(self.app.tool_service().call(tool_call.clone()).await)
+            Ok(self.services.tool_service().call(tool_call.clone()).await)
         }
-    }
-
-    #[async_recursion]
-    async fn execute_transform(
-        &self,
-        transforms: &[Transform],
-        mut context: Context,
-    ) -> anyhow::Result<Context> {
-        for transform in transforms.iter() {
-            match transform {
-                Transform::Assistant {
-                    agent_id,
-                    token_limit,
-                    input: input_key,
-                    output: output_key,
-                } => {
-                    let mut summarize = Summarize::new(&mut context, *token_limit);
-                    while let Some(mut summary) = summarize.summarize() {
-                        let input = Event::new(input_key, summary.get());
-                        let operation_name = format!("transform_assistant::{}", agent_id);
-                        self.init_retriable_agent_with_event(
-                            agent_id,
-                            &input,
-                            self.retry_strategy.clone().map(jitter),
-                            operation_name,
-                        )
-                        .await?;
-
-                        if let Some(value) = self.get_last_event(output_key).await? {
-                            summary.set(serde_json::to_string(&value)?);
-                        }
-                    }
-                }
-                Transform::User { agent_id, input: input_key, output: output_key } => {
-                    if let Some(ContextMessage::ContentMessage(ContentMessage {
-                        role: Role::User,
-                        content,
-                        ..
-                    })) = context.messages.last_mut()
-                    {
-                        let task = Event::new(input_key, content.clone());
-                        let operation_name = format!("transform_user::{}", agent_id);
-                        self.init_retriable_agent_with_event(
-                            agent_id,
-                            &task,
-                            self.retry_strategy.clone().map(jitter),
-                            operation_name,
-                        )
-                        .await?;
-
-                        if let Some(output) = self.get_last_event(output_key).await? {
-                            let message = &output.value;
-                            content
-                                .push_str(&format!("\n<{output_key}>\n{message}\n</{output_key}>"));
-                        }
-                        debug!(content = %content, "Transforming user input");
-                    }
-                }
-                Transform::PassThrough { agent_id, input: input_key } => {
-                    let input = Event::new(input_key, context.to_text());
-
-                    // NOTE: Tap transformers will not modify the context
-                    let operation_name = format!("transform_passthrough::{}", agent_id);
-                    self.init_retriable_agent_with_event(
-                        agent_id,
-                        &input,
-                        self.retry_strategy.clone().map(jitter),
-                        operation_name,
-                    )
-                    .await?;
-                }
-            }
-        }
-
-        Ok(context)
     }
 
     async fn sync_conversation(&self) -> anyhow::Result<()> {
         let conversation = self.conversation.read().await.clone();
-        self.app.conversation_service().upsert(conversation).await?;
+        self.services
+            .conversation_service()
+            .upsert(conversation)
+            .await?;
         Ok(())
-    }
-
-    async fn get_last_event(&self, name: &str) -> anyhow::Result<Option<Event>> {
-        Ok(self.conversation.read().await.rfind_event(name).cloned())
     }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
@@ -379,7 +312,7 @@ impl<A: App> Orchestrator<A> {
     }
 
     // Create a helper method with the core functionality
-    async fn init_agent_with_event(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+    async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
         debug!(
             conversation_id = %conversation.id,
@@ -408,7 +341,7 @@ impl<A: App> Orchestrator<A> {
 
             // Use the consolidated render_event method which handles suggestions and
             // variables
-            self.app
+            self.services
                 .template_service()
                 .render_event(agent, user_prompt, event, variables)
                 .await?
@@ -423,7 +356,7 @@ impl<A: App> Orchestrator<A> {
 
         // Process attachments
         let attachments = self
-            .app
+            .services
             .attachment_service()
             .attachments(&event.value.to_string())
             .await?;
@@ -446,15 +379,10 @@ impl<A: App> Orchestrator<A> {
         self.set_context(&agent.id, context.clone()).await?;
 
         loop {
-            context = self
-                .execute_transform(
-                    agent.transforms.as_ref().map_or(&[], |t| t.as_slice()),
-                    context,
-                )
-                .await?;
+            // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
             let response = self
-                .app
+                .services
                 .provider_service()
                 .chat(
                     agent
@@ -474,6 +402,9 @@ impl<A: App> Orchestrator<A> {
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results.clone());
 
+            // Check if context requires compression
+            context = self.compactor.compact_context(agent, context).await?;
+
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
 
@@ -483,6 +414,7 @@ impl<A: App> Orchestrator<A> {
         }
 
         self.complete_turn(&agent.id).await?;
+
         self.sync_conversation().await?;
 
         Ok(())
@@ -517,7 +449,7 @@ impl<A: App> Orchestrator<A> {
             let op_name = operation_name_clone.clone();
 
             async move {
-                let result = orchestrator.init_agent_with_event(&agent_id, &event).await;
+                let result = orchestrator.init_agent(&agent_id, &event).await;
                 if let Err(ref err) = result {
                     // Log the error but don't handle it yet
                     debug!(
@@ -555,7 +487,7 @@ impl<A: App> Orchestrator<A> {
         result.with_context(|| format!("Failed to initialize agent {}", agent_id))
     }
 
-    async fn init_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
+    async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         while let Some(event) = {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
