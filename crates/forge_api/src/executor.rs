@@ -1,20 +1,21 @@
 use std::sync::Arc;
 
 use forge_domain::{
-    AgentMessage, App, ChatRequest, ChatResponse, ConversationService, Orchestrator,
+    AgentMessage, ChatRequest, ChatResponse, ConversationService, Orchestrator, Services,
 };
 use forge_stream::MpscStream;
+use tracing::error;
 
 pub struct ForgeExecutorService<F> {
     app: Arc<F>,
 }
-impl<F: App> ForgeExecutorService<F> {
+impl<F: Services> ForgeExecutorService<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self { app: infra }
     }
 }
 
-impl<F: App> ForgeExecutorService<F> {
+impl<F: Services> ForgeExecutorService<F> {
     pub async fn chat(
         &self,
         request: ChatRequest,
@@ -25,16 +26,17 @@ impl<F: App> ForgeExecutorService<F> {
             .find(&request.conversation_id)
             .await
             .unwrap_or_default()
-            .expect("conversation for the request should've been created");
+            .expect("conversation for the request should've been created at this point.");
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
 
             let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
 
-            match orch.dispatch(request.event).await {
-                Ok(_) => {}
-                Err(err) => tx.send(Err(err)).await.unwrap(),
+            if let Err(err) = orch.dispatch(request.event).await {
+                if let Err(e) = tx.send(Err(err)).await {
+                    error!("Failed to send error to stream: {:#?}", e);
+                }
             }
         }))
     }

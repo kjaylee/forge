@@ -33,12 +33,12 @@ lazy_static! {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct PartialEvent {
     pub name: String,
-    pub value: String,
+    pub value: Value,
 }
 
 impl PartialEvent {
-    pub fn new(name: impl ToString, value: impl ToString) -> Self {
-        Self { name: name.to_string(), value: value.to_string() }
+    pub fn new<V: Into<Value>>(name: impl ToString, value: V) -> Self {
+        Self { name: name.to_string(), value: value.into() }
     }
 }
 
@@ -95,7 +95,7 @@ impl<F: API> UI<F> {
     }
 
     // Helper method to create events with mode prefix
-    fn create_user_event(&mut self, content: impl ToString) -> Event {
+    fn create_user_event(&mut self, content: impl Into<Value>) -> Event {
         let mode = self.state.mode.to_string().to_lowercase();
         let author = "user".to_string();
 
@@ -340,7 +340,7 @@ impl<F: API> UI<F> {
             }
             ChatResponse::Event(event) => {
                 if event.name == EVENT_TITLE {
-                    self.state.current_title = Some(event.value);
+                    self.state.current_title = Some(event.value.to_string());
                 }
             }
             ChatResponse::Usage(u) => {

@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, Infrastructure};
-use forge_domain::{App, File};
+use forge_domain::{File, Services};
+use forge_services::{EnvironmentService, Infrastructure};
 use forge_walker::Walker;
 
 pub struct ForgeSuggestionService<F> {
     domain: Arc<F>,
 }
 
-impl<F: App> ForgeSuggestionService<F> {
+impl<F: Services> ForgeSuggestionService<F> {
     pub fn new(domain: Arc<F>) -> Self {
         Self { domain }
     }
 }
 
-impl<F: App + Infrastructure> ForgeSuggestionService<F> {
+impl<F: Services + Infrastructure> ForgeSuggestionService<F> {
     pub async fn suggestions(&self) -> Result<Vec<File>> {
         let cwd = self
             .domain
