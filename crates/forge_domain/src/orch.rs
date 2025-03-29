@@ -414,7 +414,7 @@ impl<A: App> Orchestrator<A> {
                 .await?
         } else {
             // Use the raw event value as content if no user_prompt is provided
-            event.value.clone()
+            event.value.to_string()
         };
 
         if !content.is_empty() {
@@ -425,7 +425,7 @@ impl<A: App> Orchestrator<A> {
         let attachments = self
             .app
             .attachment_service()
-            .attachments(&event.value)
+            .attachments(&event.value.to_string())
             .await?;
 
         for attachment in attachments.into_iter() {
