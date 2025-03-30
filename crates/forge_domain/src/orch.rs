@@ -93,14 +93,23 @@ impl<A: Services> Orchestrator<A> {
             state.queue.clear();
         });
 
+        let retry_config = conversation.workflow.retry.as_ref();
+        let initial_backoff_ms = retry_config
+            .and_then(|rc| rc.initial_backoff_ms)
+            .unwrap_or(200);
+        let backoff_factor = retry_config.and_then(|rc| rc.backoff_factor).unwrap_or(2);
+        let max_retry_attempts = retry_config
+            .and_then(|rc| rc.max_retry_attempts)
+            .unwrap_or(MAX_RETRY_ATTEMPTS);
+
         Self {
             compactor: ContextCompactor::new(services.clone()),
             services,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
-            retry_strategy: ExponentialBackoff::from_millis(200)
-                .factor(2)
-                .take(MAX_RETRY_ATTEMPTS),
+            retry_strategy: ExponentialBackoff::from_millis(initial_backoff_ms)
+                .factor(backoff_factor)
+                .take(max_retry_attempts),
         }
     }
 
