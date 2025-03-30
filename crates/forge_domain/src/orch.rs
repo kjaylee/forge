@@ -28,26 +28,20 @@ async fn check_and_log_retry_condition(
     agent: Option<&Agent>,
     sender: Option<&ArcSender>,
 ) -> bool {
-    let is_retriable = RetryError::is_retriable(err);
-
-    // Only send retry event if the error is retriable and we haven't exceeded max
-    // attempts
-    if is_retriable && attempt < max_attempts {
-        // Send retry event if agent and sender are provided
-        if let (Some(agent), Some(sender)) = (agent, sender) {
-            // Send retry message
-            let agent_id = agent.id.clone();
-            let retry_msg =
-                ChatResponse::Retry { error: RetryError::from_error(err), attempt, max_attempts };
-
-            // Ignore errors when sending the retry message
-            let _ = sender
-                .send(Ok(AgentMessage { agent: agent_id, message: retry_msg }))
-                .await;
-        }
+    let is_retriable = RetryError::is_retriable(err) && attempt < max_attempts;
+    if let (true, Some(a), Some(s)) = (is_retriable, agent, sender) {
+        let _ = s
+            .send(Ok(AgentMessage {
+                agent: a.id.clone(),
+                message: ChatResponse::Retry {
+                    error: RetryError::from_error(err),
+                    attempt,
+                    max_attempts,
+                },
+            }))
+            .await;
     }
-
-    is_retriable && attempt < max_attempts
+    is_retriable
 }
 
 #[derive(Debug, Clone)]
@@ -429,53 +423,32 @@ impl<A: Services> Orchestrator<A> {
     where
         I: IntoIterator<Item = std::time::Duration> + Clone,
     {
-        // Get conversation to retrieve agent
         let conversation = self.get_conversation().await?;
         let agent = conversation.workflow.get_agent(agent_id)?;
-
-        // Track attempt count
         let mut attempt = 0;
 
-        // Use Arc to avoid cloning in each retry iteration
+        // Arc wrap the values to avoid cloning in retries
         let agent_id = Arc::new(agent_id.clone());
         let event = Arc::new(event.clone());
-
-        // Store references to be passed to retry condition
+        let self_ref = self;
         let sender_ref = self.sender.as_ref();
 
-        // Define the operation to retry
-        let self_ref = self;
-        let operation = || {
-            // Use Arc to avoid expensive clones in each retry
-            let agent_id = Arc::clone(&agent_id);
-            let event = Arc::clone(&event);
-
-            async move {
-                let result = self_ref.init_agent(&agent_id, &event).await;
-                if let Err(ref err) = result {
-                    debug!(
-                        agent = %agent_id,
-                        error = ?err,
-                        "Operation failed, may retry"
-                    );
-                }
-                result
-            }
+        // Define operation and condition for retry
+        let operation = || async {
+            let result = self_ref.init_agent(&agent_id, &event).await;
+            result
         };
 
-        // Create a retry condition function
         let retry_condition = move |err: &anyhow::Error| {
             attempt += 1;
-            // Simple check without await since this isn't an async closure
             RetryError::is_retriable(err) && attempt < MAX_RETRY_ATTEMPTS
         };
 
-        // Use RetryIf to retry the operation with the condition
+        // Execute the operation with retries
         let result = RetryIf::spawn(retry_strategy, operation, retry_condition).await;
 
-        // If we need to send retry events, do it here for errors
+        // Handle error notifications and logging
         if let Err(ref err) = result {
-            // Send the retry notification after all retries
             check_and_log_retry_condition(
                 err,
                 attempt,
@@ -485,16 +458,6 @@ impl<A: Services> Orchestrator<A> {
             )
             .await;
         }
-
-        // Log success if we succeeded after retries
-        if result.is_ok() && attempt > 0 {
-            debug!(
-                agent = %*agent_id,
-                attempts = attempt,
-                "Operation succeeded after retries"
-            );
-        }
-
         result.with_context(|| format!("Failed to initialize agent {}", *agent_id))
     }
 
