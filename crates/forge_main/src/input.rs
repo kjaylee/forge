@@ -73,7 +73,7 @@ pub enum PromptInput {
     Update {
         title: Option<String>,
         usage: Option<Usage>,
-        mode: Mode,
+        mode: Option<Mode>,
     },
 }
 
@@ -82,7 +82,9 @@ impl From<PromptInput> for ForgePrompt {
         match input {
             PromptInput::Update { title, usage, mode } => {
                 let mut prompt = ForgePrompt::default();
-                prompt.mode(mode);
+                if let Some(mode_value) = mode {
+                    prompt.mode(mode_value);
+                }
                 if let Some(title) = title {
                     prompt.title(title);
                 }

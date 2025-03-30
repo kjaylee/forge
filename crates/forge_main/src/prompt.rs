@@ -19,7 +19,7 @@ const RIGHT_CHEVRON: &str = "❯";
 pub struct ForgePrompt {
     title: Option<String>,
     usage: Option<Usage>,
-    mode: Mode,
+    mode: Option<Mode>,
 }
 
 impl Prompt for ForgePrompt {
@@ -41,7 +41,14 @@ impl Prompt for ForgePrompt {
             .as_ref()
             .unwrap_or(&Usage::default())
             .total_tokens;
-        let usage_text = format!("[{}/{}/{}]", self.mode, VERSION, usage);
+
+        // Use a default "NO_MODE" string if mode is None
+        let mode_display = self
+            .mode
+            .as_ref()
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "NO_MODE".to_string());
+        let usage_text = format!("[{}/{}/{}]", mode_display, VERSION, usage);
         Cow::Owned(
             Style::new()
                 .bold()
@@ -105,6 +112,7 @@ mod tests {
     fn test_render_prompt_right_with_usage() {
         let usage = Usage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
         let mut prompt = ForgePrompt::default();
+        prompt.mode(Mode::new("ACT"));
         prompt.usage(usage);
         let usage_style = Style::new()
             .bold()
@@ -118,7 +126,8 @@ mod tests {
 
     #[test]
     fn test_render_prompt_right_without_usage() {
-        let prompt = ForgePrompt::default();
+        let mut prompt = ForgePrompt::default();
+        prompt.mode(Mode::new("ACT"));
         let actual = prompt.render_prompt_right();
         let expected = Style::new()
             .bold()

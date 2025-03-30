@@ -83,20 +83,20 @@ impl ForgeCommandManager {
         // Add mode commands from workflow configuration
         for mode in &workflow.modes {
             let command_name = mode.command.clone();
-            let description = format!("Enable {} mode - {}", mode.name, mode.description);
+            let description = format!("[MODE] {}", mode.description);
 
             commands.push(ForgeCommand { name: command_name, description, value: None });
         }
 
-        commands.sort_by(|a, b| a.name.cmp(&b.name));
-
         commands.extend(workflow.commands.clone().into_iter().map(|cmd| {
             let name = format!("/{}", cmd.name);
-            let description = format!("⚙ {}", cmd.description);
+            let description = format!("[COMMAND] {}", cmd.description);
             let value = cmd.value.clone();
 
             ForgeCommand { name, description, value }
         }));
+
+        commands.sort_by(|a, b| a.name.cmp(&b.description));
 
         *guard = commands;
     }
@@ -172,10 +172,6 @@ impl ForgeCommandManager {
             "/exit" => Ok(Command::Exit),
             "/models" => Ok(Command::Models),
             "/dump" => Ok(Command::Dump),
-            // Built-in mode commands for backwards compatibility
-            "/act" => Ok(Command::Act),
-            "/plan" => Ok(Command::Plan),
-            "/help" => Ok(Command::Help),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -185,10 +181,8 @@ impl ForgeCommandManager {
 
                         // Check if this is a mode command from the configuration
                         if let Some(mode_name) = command.name.strip_prefix('/') {
-                            // Try to create a custom mode command
-                            if let Ok(mode_cmd) = Command::mode_from_str(mode_name) {
-                                return Ok(mode_cmd);
-                            }
+                            // Create a custom mode command
+                            return Ok(Command::Custom(PartialEvent::new("mode", mode_name)));
                         }
 
                         Ok(Command::Custom(PartialEvent::new(
@@ -232,18 +226,6 @@ pub enum Command {
     /// Lists the models available for use.
     #[strum(props(usage = "List available models"))]
     Models,
-    /// Switch to "act" mode.
-    /// This can be triggered with the '/act' command.
-    #[strum(props(usage = "Enable implementation mode with code changes"))]
-    Act,
-    /// Switch to "plan" mode.
-    /// This can be triggered with the '/plan' command.
-    #[strum(props(usage = "Enable planning mode without code changes"))]
-    Plan,
-    /// Switch to "help" mode.
-    /// This can be triggered with the '/help' command.
-    #[strum(props(usage = "Enable help mode for tool questions"))]
-    Help,
     /// Dumps the current conversation into a json file
     #[strum(props(usage = "Save conversation as JSON"))]
     Dump,
@@ -259,9 +241,6 @@ impl Command {
             Command::Info => "/info",
             Command::Exit => "/exit",
             Command::Models => "/models",
-            Command::Act => "/act",
-            Command::Plan => "/plan",
-            Command::Help => "/help",
             Command::Dump => "/dump",
             Command::Custom(event) => &event.name,
         }
@@ -270,22 +249,6 @@ impl Command {
     /// Returns the usage description for the command.
     pub fn usage(&self) -> &str {
         self.get_str("usage").unwrap()
-    }
-
-    /// Creates a mode command from a string
-    pub fn mode_from_str(mode_name: &str) -> anyhow::Result<Self> {
-        // Check built-in modes first (for backwards compatibility)
-        let mode_upper = mode_name.to_uppercase();
-        match mode_upper.as_str() {
-            "ACT" => Ok(Command::Act),
-            "PLAN" => Ok(Command::Plan),
-            "HELP" => Ok(Command::Help),
-            _ => {
-                // For custom modes, create a Custom command with the mode name
-                // This will be handled specially in the UI
-                Ok(Command::Custom(PartialEvent::new("mode", mode_name)))
-            }
-        }
     }
 }
 

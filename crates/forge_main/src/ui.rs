@@ -67,10 +67,10 @@ impl<F: API> UI<F> {
     // Set the current mode and update conversation variable
     async fn handle_mode_change(&mut self, mode: Mode) -> Result<()> {
         // Update the mode in state
-        self.state.mode = mode;
+        self.state.mode = Some(mode);
 
         // Show message that mode changed
-        let mode_str = self.state.mode.to_string();
+        let mode_str = self.state.get_mode()?.to_string();
 
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
@@ -82,21 +82,17 @@ impl<F: API> UI<F> {
             )
             .await?;
 
-        // Print a mode-specific message
-        let mode_str = self.state.mode.as_str();
-        let mode_message = if mode_str == "ACT" {
-            "mode - executes commands and makes file changes"
-        } else if mode_str == "PLAN" {
-            "mode - plans actions without making changes"
-        } else if mode_str == "HELP" {
-            "mode - answers questions (type /act or /plan to switch back)"
-        } else {
-            "custom mode"
-        };
+        // Try to get the mode description from the configuration
+        let mut description = String::from("custom mode");
+        if let Ok(Some(conversation)) = self.api.conversation(&conversation_id).await {
+            if let Some(mode_config) = conversation.workflow.find_mode(mode_str.as_str()) {
+                description = format!("{} {}", "MODE".bold(), mode_config.description);
+            }
+        }
 
         CONSOLE.write(
-            TitleFormat::success(mode_str)
-                .sub_title(mode_message)
+            TitleFormat::success(&mode_str)
+                .sub_title(&description)
                 .format(),
         )?;
 
@@ -104,8 +100,8 @@ impl<F: API> UI<F> {
     }
 
     // Helper method to create events with mode prefix
-    fn create_user_event(&mut self, content: impl Into<Value>) -> Event {
-        let mode = self.state.mode.to_string().to_lowercase();
+    fn create_user_event(&mut self, content: impl Into<Value>) -> Result<Event> {
+        let mode = self.state.get_mode()?.to_string().to_lowercase();
         let author = "user".to_string();
 
         let name = if self.state.is_first {
@@ -115,7 +111,10 @@ impl<F: API> UI<F> {
             EVENT_USER_TASK_UPDATE
         };
 
-        Event::new(vec![mode.as_str(), author.as_str(), name], content)
+        Ok(Event::new(
+            vec![mode.as_str(), author.as_str(), name],
+            content,
+        ))
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -143,7 +142,7 @@ impl<F: API> UI<F> {
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
-            let event = self.create_user_event(prompt);
+            let event = self.create_user_event(prompt)?;
             self.chat(event).await?;
             return Ok(());
         }
@@ -186,7 +185,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Message(ref content) => {
                     let content_clone = content.clone();
-                    let event = self.create_user_event(content_clone);
+                    let event = self.create_user_event(content_clone)?;
                     let chat_result = self.chat(event).await;
                     if let Err(err) = chat_result {
                         tokio::spawn(
@@ -198,27 +197,6 @@ impl<F: API> UI<F> {
                     }
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
-                }
-                Command::Act => {
-                    self.handle_mode_change(Mode::act()).await?;
-
-                    let prompt_input = Some((&self.state).into());
-                    input = self.console.prompt(prompt_input).await?;
-                    continue;
-                }
-                Command::Plan => {
-                    self.handle_mode_change(Mode::plan()).await?;
-
-                    let prompt_input = Some((&self.state).into());
-                    input = self.console.prompt(prompt_input).await?;
-                    continue;
-                }
-                Command::Help => {
-                    self.handle_mode_change(Mode::help()).await?;
-
-                    let prompt_input = Some((&self.state).into());
-                    input = self.console.prompt(prompt_input).await?;
-                    continue;
                 }
                 Command::Exit => {
                     break;
@@ -271,8 +249,23 @@ impl<F: API> UI<F> {
             None => {
                 let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
                 self.command.register_all(&workflow);
-                let conversation_id = self.api.init(workflow).await?;
+                let conversation_id = self.api.init(workflow.clone()).await?;
                 self.state.conversation_id = Some(conversation_id.clone());
+
+                // Set the mode from the first available mode in the configuration
+                if let Some(first_mode) = workflow.modes.first() {
+                    self.state.mode = Some(Mode::new(&first_mode.name));
+                    // Set the mode variable
+                    self.api
+                        .set_variable(
+                            &conversation_id,
+                            "mode".to_string(),
+                            Value::from(self.state.get_mode()?.to_string()),
+                        )
+                        .await?;
+                } else {
+                    return Err(anyhow::anyhow!("No modes defined in workflow configuration. At least one mode must be configured."));
+                }
 
                 Ok(conversation_id)
             }
@@ -360,7 +353,8 @@ impl<F: API> UI<F> {
             }
             ChatResponse::Event(event) => {
                 if event.name.to_string() == EVENT_TITLE {
-                    self.state.current_title = Some(event.value.to_string());
+                    self.state.current_title =
+                        Some(event.value.as_str().unwrap_or_default().to_string());
                 }
             }
             ChatResponse::Usage(u) => {
@@ -375,5 +369,43 @@ impl<F: API> UI<F> {
         let chat = ChatRequest::new(event, conversation_id);
         let mut stream = self.api.chat(chat).await?;
         self.handle_chat_stream(&mut stream).await
+    }
+}
+#[cfg(test)]
+mod tests {
+    use forge_api::ModeConfig;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_default_mode_from_configuration() {
+        // Create a basic workflow with modes
+        let workflow = forge_api::Workflow {
+            modes: vec![
+                ModeConfig {
+                    name: "TEST_MODE".to_string(),
+                    description: "The test mode".to_string(),
+                    command: "/test-mode".to_string(),
+                },
+                ModeConfig {
+                    name: "SECONDARY_MODE".to_string(),
+                    description: "The secondary mode".to_string(),
+                    command: "/secondary".to_string(),
+                },
+            ],
+            ..Default::default()
+        };
+
+        // Create a UI with default state
+        let mut state = UIState::default();
+        assert_eq!(state.mode, None);
+
+        // Mock setting first mode from configuration
+        if let Some(first_mode) = workflow.modes.first() {
+            state.mode = Some(Mode::new(&first_mode.name));
+        }
+
+        // Verify the first mode was set
+        assert_eq!(state.mode.as_ref().unwrap().as_str(), "TEST_MODE");
     }
 }
