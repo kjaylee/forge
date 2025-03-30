@@ -71,14 +71,19 @@ pub struct EventContext {
     event: Event,
     suggestions: Vec<String>,
     variables: HashMap<String, Value>,
+    current_time: String,
 }
 
 impl EventContext {
     pub fn new(event: Event) -> Self {
+        // Get current date and time in format YYYY-MM-DD HH:MM:SS
+        let current_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
         Self {
             event,
             suggestions: Default::default(),
             variables: Default::default(),
+            current_time,
         }
     }
 }

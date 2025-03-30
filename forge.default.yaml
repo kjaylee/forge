@@ -56,6 +56,7 @@ agents:
     user_prompt: |-
       <task>{{event.value}}</task>
       <mode>{{variables.mode}}</mode>
+      <current_time>{{current_time}}</current_time>
     ephemeral: false
     tools:
       - tool_forge_fs_read

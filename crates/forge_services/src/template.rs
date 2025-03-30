@@ -69,11 +69,11 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         files.sort();
 
         // Get current date and time in format YYYY-MM-DD HH:MM:SS
-        let current_date = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let current_time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
         // Create the context with README content for all agents
         let ctx = SystemContext {
-            current_date,
+            current_time,
             env: Some(env),
             tool_information: Some(self.tool_service.usage_prompt()),
             tool_supported: agent.tool_supported.unwrap_or_default(),
