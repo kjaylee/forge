@@ -100,7 +100,7 @@ impl Conversation {
         self.state
             .values()
             .flat_map(|state| state.queue.iter().rev())
-            .find(|event| event.name == event_name)
+            .find(|event| event.name.to_string() == event_name)
     }
 
     /// Get a variable value by its key
@@ -127,7 +127,7 @@ impl Conversation {
 
     /// Add an event to the queue of subscribed agents
     pub fn insert_event(&mut self, event: Event) -> &mut Self {
-        let subscribed_agents = self.subscribers(&event.name);
+        let subscribed_agents = self.subscribers(&event.name.to_string());
         self.events.push(event.clone());
 
         subscribed_agents.iter().for_each(|agent| {
@@ -170,8 +170,8 @@ impl Conversation {
     /// Returns a vector of AgentIds for all agents that were inactive and are
     /// now activated
     pub fn dispatch_event(&mut self, event: Event) -> Vec<AgentId> {
-        let name = event.name.as_str();
-        let mut agents = self.subscribers(name);
+        let name = event.name.to_string();
+        let mut agents = self.subscribers(name.as_str());
 
         let inactive_agents = agents
             .iter_mut()

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use derive_setters::Setters;
 use schemars::{schema_for, JsonSchema};
@@ -11,9 +12,45 @@ use crate::{NamedTool, ToolCallFull, ToolDefinition, ToolName};
 #[derive(Debug, Deserialize, Serialize, Clone, Setters)]
 pub struct Event {
     pub id: String,
-    pub name: String,
+    pub name: Name,
     pub value: Value,
     pub timestamp: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(transparent)]
+pub struct Name {
+    parts: Vec<String>,
+}
+
+impl Display for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.parts.join("/"))
+    }
+}
+
+impl<T, S> From<T> for Name
+where
+    T: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    fn from(value: T) -> Self {
+        Self {
+            parts: value.into_iter().map(|s| s.as_ref().to_string()).collect(),
+        }
+    }
+}
+
+impl Name {
+    // FIXME: Handle unsupported characters
+    pub fn parse(value: impl ToString) -> Self {
+        let parts = value
+            .to_string()
+            .split('/')
+            .map(|s| s.to_string())
+            .collect();
+        Self { parts }
+    }
 }
 
 #[derive(Debug, JsonSchema, Deserialize, Serialize, Clone)]
@@ -24,7 +61,8 @@ pub struct EventMessage {
 
 impl From<EventMessage> for Event {
     fn from(value: EventMessage) -> Self {
-        Self::new(value.name, value.value)
+        let name = Name::parse(value.name.clone());
+        Self::new(name, value.value)
     }
 }
 
@@ -71,10 +109,40 @@ impl Event {
         message.map(|message| message.into())
     }
 
-    pub fn new<V: Into<Value>>(name: impl ToString, value: V) -> Self {
+    // New constructor that takes vector directly
+    pub fn new<N: Into<Name>, V: Into<Value>>(name: N, value: V) -> Self {
         let id = uuid::Uuid::new_v4().to_string();
         let timestamp = chrono::Utc::now().to_rfc3339();
 
-        Self { id, name: name.to_string(), value: value.into(), timestamp }
+        Self { id, name: name.into(), value: value.into(), timestamp }
+    }
+
+    // Pattern matching for subscriptions
+    pub fn matches_pattern(&self, pattern: &str) -> bool {
+        let name_str = self.name.to_string();
+        match regex::Regex::new(pattern) {
+            Ok(re) => re.is_match(&name_str),
+            Err(_) => name_str == pattern,
+        }
+    }
+}
+
+// Add Display trait for easy string conversion
+impl Display for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+// Add PartialEq trait for comparison with strings (for compatibility)
+impl PartialEq<str> for Event {
+    fn eq(&self, other: &str) -> bool {
+        self.name.to_string() == other
+    }
+}
+
+impl PartialEq<&str> for Event {
+    fn eq(&self, other: &&str) -> bool {
+        self.name.to_string() == *other
     }
 }

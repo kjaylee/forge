@@ -11,7 +11,7 @@ use serde::Deserialize;
 
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
-use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
+use crate::{EnvironmentService, FsMetaService, FsReadService, FsWriteService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSWriteInput {
@@ -40,6 +40,29 @@ pub struct FSWrite<F>(Arc<F>);
 impl<F: Infrastructure> FSWrite<F> {
     pub fn new(f: Arc<F>) -> Self {
         Self(f)
+    }
+
+    /// Formats a path for display, converting absolute paths to relative when
+    /// possible
+    ///
+    /// If the path starts with the current working directory, returns a
+    /// relative path. Otherwise, returns the original absolute path.
+    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
+        // Get the current working directory
+        let env = self.0.environment_service().get_environment();
+        let cwd = env.cwd.as_path();
+
+        // Try to create a relative path for display if possible
+        let display_path = if path.starts_with(cwd) {
+            match path.strip_prefix(cwd) {
+                Ok(rel_path) => rel_path.display().to_string(),
+                Err(_) => path.display().to_string(),
+            }
+        } else {
+            path.display().to_string()
+        };
+
+        Ok(display_path)
     }
 }
 
@@ -111,8 +134,9 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         // record the file content after they're modified
         let new_content = String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?;
         let title = if file_exists { "overwrite" } else { "create" };
+        let display_path = self.format_display_path(path)?;
         let diff = DiffFormat::format(title, path.to_path_buf(), &old_content, &new_content);
-        println!("{}", diff);
+        println!("{}\nPath: {}", diff, display_path);
 
         Ok(result)
     }

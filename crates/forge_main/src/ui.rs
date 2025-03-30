@@ -40,11 +40,15 @@ impl PartialEvent {
     pub fn new<V: Into<Value>>(name: impl ToString, value: V) -> Self {
         Self { name: name.to_string(), value: value.into() }
     }
+
+    pub fn into_event(self) -> Event {
+        Event::new(vec![self.name], self.value)
+    }
 }
 
 impl From<PartialEvent> for Event {
     fn from(value: PartialEvent) -> Self {
-        Event::new(value.name, value.value)
+        value.into_event()
     }
 }
 
@@ -79,14 +83,19 @@ impl<F: API> UI<F> {
             .await?;
 
         // Print a mode-specific message
-        let mode_message = match self.state.mode {
-            Mode::Act => "mode - executes commands and makes file changes",
-            Mode::Plan => "mode - plans actions without making changes",
-            Mode::Help => "mode - answers questions (type /act or /plan to switch back)",
+        let mode_str = self.state.mode.as_str();
+        let mode_message = if mode_str == "ACT" {
+            "mode - executes commands and makes file changes"
+        } else if mode_str == "PLAN" {
+            "mode - plans actions without making changes"
+        } else if mode_str == "HELP" {
+            "mode - answers questions (type /act or /plan to switch back)"
+        } else {
+            "custom mode"
         };
 
         CONSOLE.write(
-            TitleFormat::success(&mode_str)
+            TitleFormat::success(mode_str)
                 .sub_title(mode_message)
                 .format(),
         )?;
@@ -106,7 +115,7 @@ impl<F: API> UI<F> {
             EVENT_USER_TASK_UPDATE
         };
 
-        Event::new(format!("{mode}/{author}/{name}"), content)
+        Event::new(vec![mode.as_str(), author.as_str(), name], content)
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -191,21 +200,21 @@ impl<F: API> UI<F> {
                     input = self.console.prompt(prompt_input).await?;
                 }
                 Command::Act => {
-                    self.handle_mode_change(Mode::Act).await?;
+                    self.handle_mode_change(Mode::act()).await?;
 
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Plan => {
-                    self.handle_mode_change(Mode::Plan).await?;
+                    self.handle_mode_change(Mode::plan()).await?;
 
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Help => {
-                    self.handle_mode_change(Mode::Help).await?;
+                    self.handle_mode_change(Mode::help()).await?;
 
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
@@ -228,6 +237,17 @@ impl<F: API> UI<F> {
                     input = self.console.prompt(None).await?;
                 }
                 Command::Custom(event) => {
+                    // Check if this is a mode command
+                    if event.name == "mode" {
+                        // Handle custom mode switching
+                        self.handle_mode_change(Mode::new(event.value.clone()))
+                            .await?;
+
+                        let prompt_input = Some((&self.state).into());
+                        input = self.console.prompt(prompt_input).await?;
+                        continue;
+                    }
+
                     if let Err(e) = self.chat(event.into()).await {
                         CONSOLE.writeln(
                             TitleFormat::failed("Failed to execute the command.")
@@ -339,7 +359,7 @@ impl<F: API> UI<F> {
                 }
             }
             ChatResponse::Event(event) => {
-                if event.name == EVENT_TITLE {
+                if event.name.to_string() == EVENT_TITLE {
                     self.state.current_title = Some(event.value.to_string());
                 }
             }

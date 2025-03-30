@@ -80,6 +80,14 @@ impl ForgeCommandManager {
         let mut guard = self.commands.lock().unwrap();
         let mut commands = Self::default_commands();
 
+        // Add mode commands from workflow configuration
+        for mode in &workflow.modes {
+            let command_name = mode.command.clone();
+            let description = format!("Enable {} mode - {}", mode.name, mode.description);
+
+            commands.push(ForgeCommand { name: command_name, description, value: None });
+        }
+
         commands.sort_by(|a, b| a.name.cmp(&b.name));
 
         commands.extend(workflow.commands.clone().into_iter().map(|cmd| {
@@ -164,6 +172,7 @@ impl ForgeCommandManager {
             "/exit" => Ok(Command::Exit),
             "/models" => Ok(Command::Models),
             "/dump" => Ok(Command::Dump),
+            // Built-in mode commands for backwards compatibility
             "/act" => Ok(Command::Act),
             "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
@@ -173,6 +182,14 @@ impl ForgeCommandManager {
                 if let Some(command) = parts.first() {
                     if let Some(command) = self.find(command) {
                         let value = self.extract_command_value(&command, &parts[1..]);
+
+                        // Check if this is a mode command from the configuration
+                        if let Some(mode_name) = command.name.strip_prefix('/') {
+                            // Try to create a custom mode command
+                            if let Ok(mode_cmd) = Command::mode_from_str(mode_name) {
+                                return Ok(mode_cmd);
+                            }
+                        }
 
                         Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
@@ -253,6 +270,22 @@ impl Command {
     /// Returns the usage description for the command.
     pub fn usage(&self) -> &str {
         self.get_str("usage").unwrap()
+    }
+
+    /// Creates a mode command from a string
+    pub fn mode_from_str(mode_name: &str) -> anyhow::Result<Self> {
+        // Check built-in modes first (for backwards compatibility)
+        let mode_upper = mode_name.to_uppercase();
+        match mode_upper.as_str() {
+            "ACT" => Ok(Command::Act),
+            "PLAN" => Ok(Command::Plan),
+            "HELP" => Ok(Command::Help),
+            _ => {
+                // For custom modes, create a Custom command with the mode name
+                // This will be handled specially in the UI
+                Ok(Command::Custom(PartialEvent::new("mode", mode_name)))
+            }
+        }
     }
 }
 

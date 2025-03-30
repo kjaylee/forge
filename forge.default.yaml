@@ -7,6 +7,19 @@ commands:
 variables:
   mode: ACT
 
+# Mode configuration - defines available modes
+modes:
+  - name: ACT
+    description: "Executes commands and makes file changes"
+    command: "/act"
+  - name: PLAN
+    description: "Plans actions without making changes"
+    command: "/plan"
+  - name: HELP
+    description: "Answers questions"
+    command: "/help"
+  # Custom modes can be added here
+
 # Define model anchors with simpler, purpose-based names
 models:
   # Role-based model definitions - easy to swap implementation
