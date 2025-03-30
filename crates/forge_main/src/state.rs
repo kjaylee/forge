@@ -10,6 +10,7 @@ impl Mode {
         Self(value.to_string().to_uppercase())
     }
 
+    #[cfg(test)]
     pub fn as_str(&self) -> &str {
         &self.0
     }
