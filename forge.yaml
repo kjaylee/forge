@@ -52,3 +52,6 @@ agents:
         ```
         cargo +nightly fmt --all; cargo +nightly clippy --fix --allow-staged --allow-dirty --workspace;
         ```
+
+      Refactors:
+      - Don't use `deprecated` attribute in Rust code unless explicitly asked for.
