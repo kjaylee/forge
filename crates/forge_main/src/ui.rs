@@ -378,6 +378,18 @@ impl<F: API> UI<F> {
             ChatResponse::Usage(u) => {
                 self.state.usage = u;
             }
+            ChatResponse::Retry { error, attempt, max_attempts } => {
+                let mut title = TitleFormat::failed("Retry")
+                    .sub_title(format!("Attempt: {}/{}", attempt, max_attempts));
+
+                // Add error kind information if available
+                if let Some(kind) = &error.kind {
+                    title = title.sub_title(format!("Type: {:?}", kind));
+                    title = title.sub_title(format!("Error: {}", error.message));
+                }
+
+                CONSOLE.writeln(title.format())?;
+            }
         }
         Ok(())
     }

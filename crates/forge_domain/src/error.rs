@@ -43,6 +43,58 @@ pub enum Error {
     MissingModel(AgentId),
 }
 
+/// Serializable error type for use in retry events
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct RetryError {
+    /// Error message
+    pub message: String,
+    /// Error kind/type - only set for known retriable errors
+    pub kind: Option<RetryErrorKind>,
+}
+
+/// Kinds of errors that can be retried
+#[derive(Debug, Clone, serde::Serialize)]
+pub enum RetryErrorKind {
+    /// Missing tool name
+    ToolCallMissingName,
+    /// Invalid tool call arguments
+    ToolCallArgument,
+    /// Invalid tool call XML
+    ToolCallParse,
+}
+
+impl RetryError {
+    /// Create a new retry error from an anyhow error
+    pub fn from_error(err: &anyhow::Error) -> Self {
+        if let Some(domain_err) = err.downcast_ref::<Error>() {
+            // Only set kind for specific retriable errors
+            let kind = match domain_err {
+                Error::ToolCallMissingName => Some(RetryErrorKind::ToolCallMissingName),
+                Error::ToolCallArgument(_) => Some(RetryErrorKind::ToolCallArgument),
+                Error::ToolCallParse(_) => Some(RetryErrorKind::ToolCallParse),
+                _ => None,
+            };
+
+            Self { message: format!("{}", err), kind }
+        } else {
+            // For non-domain errors, don't specify a kind
+            Self { message: format!("{}", err), kind: None }
+        }
+    }
+
+    /// Check if an error is retriable
+    pub fn is_retriable(err: &anyhow::Error) -> bool {
+        if let Some(domain_err) = err.downcast_ref::<Error>() {
+            matches!(
+                domain_err,
+                Error::ToolCallParse(_) | Error::ToolCallArgument(_) | Error::ToolCallMissingName
+            )
+        } else {
+            false
+        }
+    }
+}
+
 pub type Result<A> = std::result::Result<A, Error>;
 pub type BoxStream<A, E> =
     Pin<Box<dyn tokio_stream::Stream<Item = std::result::Result<A, E>> + Send>>;
