@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use chrono::Local;
 use forge_domain::{
-    Agent, Event, EventContext, Query, SystemContext, Template, TemplateService, ToolService,
+    Agent, Compact, Context, Event, EventContext, Query, SystemContext, Template, TemplateService,
+    ToolService,
 };
 use forge_walker::Walker;
 use handlebars::Handlebars;
@@ -102,7 +103,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         // Only add suggestions if the agent has suggestions enabled
         if agent.suggestions.unwrap_or_default() {
             // Query the vector index directly for suggestions
-            let query = &event.value;
+            let query = &event.value.to_string();
             let embeddings = self.infra.embedding_service().embed(query).await?;
             let suggestions = self
                 .infra
@@ -128,5 +129,29 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         Ok(self
             .hb
             .render_template(prompt.template.as_str(), &event_context)?)
+    }
+
+    async fn render_summarization(
+        &self,
+        compaction: &Compact,
+        context: &Context,
+    ) -> anyhow::Result<String> {
+        let ctx = serde_json::json!({
+            "context": context.to_text(),
+            "summary_tag": compaction.summary_tag.as_ref()
+            .cloned()
+            .unwrap_or_default()
+            .as_str()
+        });
+
+        // Render the template with the context
+        let result = self.hb.render_template(
+            compaction
+                .prompt
+                .as_deref()
+                .unwrap_or("Summarize the following conversation:\n{{context}}"),
+            &ctx,
+        )?;
+        Ok(result)
     }
 }

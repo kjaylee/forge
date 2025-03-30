@@ -39,6 +39,8 @@ mod tests {
             })],
             tools: vec![],
             tool_choice: None,
+            max_tokens: None,
+            temperature: None,
         };
 
         let request =

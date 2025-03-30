@@ -52,7 +52,11 @@ impl OpenRouter {
                 HeaderValue::from_str(&format!("Bearer {}", api_key)).unwrap(),
             );
         }
-        headers.insert("X-Title", HeaderValue::from_static("code-forge"));
+        headers.insert("X-Title", HeaderValue::from_static("forge"));
+        headers.insert(
+            "HTTP-Referer",
+            HeaderValue::from_static("https://github.com/antinomyhq/forge"),
+        );
         headers
     }
 
@@ -102,6 +106,7 @@ impl OpenRouter {
                             match response.text().await {
                                 Ok(ref body) => {
                                     debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
+                                    return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)));
                                 }
                                 Err(error) => {
                                     debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
@@ -133,14 +138,8 @@ impl OpenRouter {
                 bail!(err)
             }
             Ok(response) => {
-                if self.provider.is_open_router() | self.provider.is_antinomy() {
-                    let data: Vec<OpenRouterModel> = serde_json::from_str(&response)?;
-                    Ok(data.into_iter().map(Into::into).collect())
-                } else {
-                    // TODO: This could fail for some providers
-                    let data: ListModelResponse = serde_json::from_str(&response)?;
-                    Ok(data.data.into_iter().map(Into::into).collect())
-                }
+                let data: ListModelResponse = serde_json::from_str(&response)?;
+                Ok(data.data.into_iter().map(Into::into).collect())
             }
         }
     }
