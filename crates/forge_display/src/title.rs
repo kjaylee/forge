@@ -111,7 +111,7 @@ impl TitleFormat {
             // Use a fixed timestamp for tests to ensure snapshot consistency
             "10:00:00.000"
         } else {
-            &chrono::Local::now().format("%H:%M:%S%.3f").to_string()
+            &chrono::Local::now().format("%H:%M:%S%.3f %z").to_string()
         };
         let mut result = format!("{} {} {} {}", timestamp.dimmed(), icon, label, message);
 

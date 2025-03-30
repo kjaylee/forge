@@ -77,7 +77,9 @@ pub struct EventContext {
 impl EventContext {
     pub fn new(event: Event) -> Self {
         // Get current date and time in format YYYY-MM-DD HH:MM:SS
-        let current_time = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let current_time = chrono::Local::now()
+            .format("%Y-%m-%d %H:%M:%S %z")
+            .to_string();
 
         Self {
             event,

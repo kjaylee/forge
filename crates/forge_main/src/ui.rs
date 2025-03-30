@@ -298,7 +298,7 @@ impl<F: API> UI<F> {
         if let Some(conversation_id) = self.state.conversation_id.clone() {
             let conversation = self.api.conversation(&conversation_id).await?;
             if let Some(conversation) = conversation {
-                let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
+                let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S_%z");
                 let path = self
                     .state
                     .current_title
