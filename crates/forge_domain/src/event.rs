@@ -116,15 +116,6 @@ impl Event {
 
         Self { id, name: name.into(), value: value.into(), timestamp }
     }
-
-    // Pattern matching for subscriptions
-    pub fn matches_pattern(&self, pattern: &str) -> bool {
-        let name_str = self.name.to_string();
-        match regex::Regex::new(pattern) {
-            Ok(re) => re.is_match(&name_str),
-            Err(_) => name_str == pattern,
-        }
-    }
 }
 
 // Add Display trait for easy string conversion
