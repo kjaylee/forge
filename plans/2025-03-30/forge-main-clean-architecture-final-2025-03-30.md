@@ -14,6 +14,8 @@ This final plan incorporates refined naming conventions that better reflect doma
 
 ## Implementation Plan
 
+Create a new crate: `forge_main_v2` with the following architecture:
+
 ### 1. Final Clean Architecture Structure
 
 ```
