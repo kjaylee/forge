@@ -37,29 +37,23 @@ impl SnapshotService {
         Ok(snapshot)
     }
 
-    /// Find the most recent snapshot for a given path based on latest modified
-    /// time
+    /// Find the most recent snapshot for a given path based on filename timestamp
     async fn find_recent_snapshot(snapshot_dir: &PathBuf) -> Result<Option<PathBuf>> {
-        let mut latest_entry = None;
-        let mut latest_modified = None;
+        let mut latest_path = None;
+        let mut latest_filename = None;
         let mut dir = fs::read_dir(&snapshot_dir).await?;
 
         while let Some(entry) = dir.next_entry().await? {
-            if entry.file_name().to_string_lossy().ends_with(".snap") {
-                let metadata = entry.metadata().await?;
-                let modified = metadata.modified()?;
-
-                if latest_modified
-                    .map(|latest_modified| latest_modified < modified)
-                    .unwrap_or(true)
-                {
-                    latest_entry = Some(entry);
-                    latest_modified = Some(modified);
+            let filename = entry.file_name().to_string_lossy().to_string();
+            if filename.ends_with(".snap") {
+                if latest_filename.is_none() || filename > latest_filename.clone().unwrap() {
+                    latest_filename = Some(filename);
+                    latest_path = Some(entry.path());
                 }
             }
         }
 
-        Ok(latest_entry.map(|entry| entry.path()))
+        Ok(latest_path)
     }
 
     pub async fn undo_snapshot(&self, path: PathBuf) -> Result<()> {
