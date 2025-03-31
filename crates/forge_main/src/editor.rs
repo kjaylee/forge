@@ -60,6 +60,13 @@ impl ForgeEditor {
             ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
         );
 
+        // on CTRL + Enter press inserts a newline (additional convenience binding)
+        keybindings.add_binding(
+            KeyModifiers::CONTROL,
+            KeyCode::Enter,
+            ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
+        );
+
         keybindings
     }
 
@@ -90,7 +97,8 @@ impl ForgeEditor {
             .with_edit_mode(edit_mode)
             .with_quick_completions(true)
             .with_partial_completions(true)
-            .with_ansi_colors(true);
+            .with_ansi_colors(true)
+            .use_bracketed_paste(true); // Enable bracketed paste for multiline support
         Self { editor }
     }
 
@@ -104,7 +112,8 @@ impl From<Signal> for ReadResult {
     fn from(signal: Signal) -> Self {
         match signal {
             Signal::Success(buffer) => {
-                let trimmed = buffer.trim();
+                // Only trim ends of lines to preserve intentional newlines in the middle of content
+                let trimmed = buffer.trim_end();
                 if trimmed.is_empty() {
                     ReadResult::Empty
                 } else {
