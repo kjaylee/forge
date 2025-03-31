@@ -28,11 +28,11 @@ impl<F: Infrastructure> ToolRegistry<F> {
             FSList::default().into(),
             FSSearch.into(),
             FSFileInfo.into(),
+            FsUndo::new(self.infra.clone()).into(),
             ApplyPatchJson::new(self.infra.clone()).into(),
             Shell::new(env.clone()).into(),
             Fetch::default().into(),
             ShowUser.into(),
-            FsUndo::new(self.infra.clone()).into(),
         ]
     }
 }
