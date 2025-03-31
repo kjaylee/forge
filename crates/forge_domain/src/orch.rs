@@ -95,8 +95,7 @@ impl<A: Services> Orchestrator<A> {
         if let Some(sender) = &self.sender {
             // Send message if it's a Custom type or if hide_content is false
             let show_text = !agent.hide_content.unwrap_or_default();
-            let can_send = !matches!(&message, ChatResponse::Text(_))
-                || (matches!(&message, ChatResponse::Text(_)) && show_text);
+            let can_send = !matches!(&message, ChatResponse::Text(_)) || show_text;
             if can_send {
                 sender
                     .send(Ok(AgentMessage { agent: agent.id.clone(), message }))
