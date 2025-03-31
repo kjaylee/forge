@@ -75,7 +75,7 @@ impl Snapshot {
     }
 
     /// Create a hash of a file path for storage
-    fn path_hash(&self) -> String {
+    pub fn path_hash(&self) -> String {
         let mut hasher = fnv_rs::Fnv64::default();
         hasher.write(self.path.as_bytes());
         format!("{:x}", hasher.finish())
