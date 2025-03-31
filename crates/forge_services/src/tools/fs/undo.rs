@@ -1,13 +1,14 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use forge_display::TitleFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::Infrastructure;
 use crate::infra::FsSnapshotService;
+use crate::Infrastructure;
 
 /// Use this tool to undo the most recent file operation (modify/delete) on a specific file.
 /// This tool should be used when:
@@ -43,18 +44,27 @@ impl<F: Infrastructure> ExecutableTool for Undo<F> {
     type Input = UndoInput;
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
-        self.0.file_snapshot_service().undo_snapshot(path).await?;
-        Ok(format!("Successfully undid last operation on path: {}", input.path))
+        self.0
+            .file_snapshot_service()
+            .undo_snapshot(path)
+            .await?;
+
+        // Display a message about the file being read
+        let message = TitleFormat::success("Undo").sub_title(path.display().to_string());
+        println!("{}", message.format());
+        Ok(format!(
+            "Successfully undid last operation on path: {}",
+            input.path
+        ))
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::tools::registry::tests::Stub;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use crate::tools::registry::tests::Stub;
-    use super::*;
 
     #[tokio::test]
     async fn test_successful_undo() {
@@ -63,17 +73,20 @@ mod tests {
         let test_path = temp_dir.path().join("success.txt");
         let infra = Arc::new(Stub::default());
         let undo = Undo::new(infra);
-        
+
         // Act
-        let result = undo.call(UndoInput {
-            path: test_path.to_string_lossy().to_string(),
-        }).await;
-        
+        let result = undo
+            .call(UndoInput { path: test_path.to_string_lossy().to_string() })
+            .await;
+
         // Assert
         assert!(result.is_ok(), "Expected successful undo operation");
         assert_eq!(
             result.unwrap(),
-            format!("Successfully undid last operation on path: {}", test_path.display()),
+            format!(
+                "Successfully undid last operation on path: {}",
+                test_path.display()
+            ),
             "Unexpected success message"
         );
     }
