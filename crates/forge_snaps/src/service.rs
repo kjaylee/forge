@@ -126,15 +126,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_snapshot() -> Result<()> {
-        // Setup
+        // Arrange
         let ctx = TestContext::new().await?;
         let test_content = "Hello, World!";
 
-        // Test steps
+        // Act
         ctx.write_content(test_content).await?;
         let snapshot = ctx.create_snapshot().await?;
 
-        // Verify
+        // Assert
         let snapshot_content = ForgeFS::read(&snapshot.path).await?;
         assert_eq!(String::from_utf8(snapshot_content)?, test_content);
 
@@ -143,18 +143,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_undo_snapshot() -> Result<()> {
-        // Setup
+        // Arrange
         let ctx = TestContext::new().await?;
         let initial_content = "Initial content";
         let modified_content = "Modified content";
 
-        // Test steps
+        // Act
         ctx.write_content(initial_content).await?;
         ctx.create_snapshot().await?;
         ctx.write_content(modified_content).await?;
         ctx.undo_snapshot().await?;
 
-        // Verify
+        // Assert
         assert_eq!(ctx.read_content().await?, initial_content);
 
         Ok(())
@@ -162,14 +162,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_undo_snapshot_no_snapshots() -> Result<()> {
-        // Setup
+        // Arrange
         let ctx = TestContext::new().await?;
 
-        // Test steps
+        // Act
         ctx.write_content("test content").await?;
         let result = ctx.undo_snapshot().await;
 
-        // Verify
+        // Assert
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -181,10 +181,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_snapshots() -> Result<()> {
-        // Setup
+        // Arrange
         let ctx = TestContext::new().await?;
 
-        // Test steps - create and modify file multiple times
+        // Act
         ctx.write_content("Initial content").await?;
         ctx.create_snapshot().await?;
 
@@ -194,7 +194,7 @@ mod tests {
         ctx.write_content("Final content").await?;
         ctx.undo_snapshot().await?;
 
-        // Verify - should restore to second version
+        // Assert
         assert_eq!(ctx.read_content().await?, "Second content");
 
         Ok(())
@@ -202,10 +202,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_multiple_snapshots_undo_twice() -> Result<()> {
-        // Setup
+        // Arrange
         let ctx = TestContext::new().await?;
 
-        // Test steps - create and modify file multiple times
+        // Act
         ctx.write_content("Initial content").await?;
         ctx.create_snapshot().await?;
 
@@ -216,7 +216,7 @@ mod tests {
         ctx.undo_snapshot().await?;
         ctx.undo_snapshot().await?;
 
-        // Verify - should restore to Initial version
+        // Assert
         assert_eq!(ctx.read_content().await?, "Initial content");
 
         Ok(())
