@@ -46,39 +46,33 @@ impl SnapshotService {
             return Err(anyhow::anyhow!("No snapshots found for {:?}", path));
         }
 
-        // List and find the latest snapshot
-        let mut entries = fs::read_dir(&hash_dir).await?;
-        let mut latest_snapshot = None;
-        let mut latest_time = None;
-
-        while let Some(entry) = entries.next_entry().await? {
-            let file_name = entry.file_name();
-            let file_name = file_name.to_string_lossy();
-            
-            // Parse the timestamp from the filename (format: YYYY-MM-DD_HH-MM-SS-mmm.snap)
-            if let Some(timestamp_str) = file_name.strip_suffix(".snap") {
-                if let Ok(timestamp) = chrono::DateTime::parse_from_str(
-                    &format!("{} +0000", timestamp_str.replace('_', " ")),
-                    "%Y-%m-%d %H-%M-%S-%3f %z",
-                ) {
-                    if latest_time.is_none() || timestamp > latest_time.unwrap() {
-                        latest_time = Some(timestamp);
-                        latest_snapshot = Some(entry.path());
-                    }
-                }
+        // Get all snapshot files and find the most recent one
+        let mut entries = Vec::new();
+        let mut dir = fs::read_dir(&hash_dir).await?;
+        
+        while let Some(entry) = dir.next_entry().await? {
+            if entry.file_name().to_string_lossy().ends_with(".snap") {
+                let metadata = entry.metadata().await?;
+                entries.push((entry, metadata.modified()?));
             }
         }
 
-        // Restore the latest snapshot
-        if let Some(snapshot_path) = latest_snapshot {
-            let content = ForgeFS::read(&snapshot_path).await?;
-            ForgeFS::write(&path, content).await?;
-            // Remove the snapshot after restoring it
-            ForgeFS::remove_file(&snapshot_path).await?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("No valid snapshots found for {:?}", path))
-        }
+        // Sort by modified time descending (newest first)
+        entries.sort_by(|a, b| b.1.cmp(&a.1));
+        
+        // Get the latest snapshot
+        let (latest, _) = entries.first()
+            .ok_or_else(|| anyhow::anyhow!("No valid snapshots found for {:?}", path))?;
+
+        // Restore the content
+        let snapshot_path = latest.path();
+        let content = ForgeFS::read(&snapshot_path).await?;
+        ForgeFS::write(&path, content).await?;
+        
+        // Remove the used snapshot
+        ForgeFS::remove_file(&snapshot_path).await?;
+
+        Ok(())
     }
 }
 
