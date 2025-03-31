@@ -32,7 +32,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Shell::new(env.clone()).into(),
             Fetch::default().into(),
             ShowUser.into(),
-            Undo::new(self.infra.clone()).into(),
+            FsUndo::new(self.infra.clone()).into(),
         ]
     }
 }

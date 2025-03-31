@@ -16,15 +16,15 @@ use crate::Infrastructure;
 /// - A file operation resulted in unintended changes
 /// - There's a need to recover from a mistaken file modification or deletion
 #[derive(Default, ToolDescription)]
-pub struct Undo<F>(Arc<F>);
+pub struct FsUndo<F>(Arc<F>);
 
-impl<F> Undo<F> {
+impl<F> FsUndo<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self(infra)
     }
 }
 
-impl<F> NamedTool for Undo<F> {
+impl<F> NamedTool for FsUndo<F> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_undo")
     }
@@ -40,7 +40,7 @@ pub struct UndoInput {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> ExecutableTool for Undo<F> {
+impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
     type Input = UndoInput;
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
@@ -71,7 +71,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let test_path = temp_dir.path().join("success.txt");
         let infra = Arc::new(Stub::default());
-        let undo = Undo::new(infra);
+        let undo = FsUndo::new(infra);
 
         // Act
         let result = undo
@@ -93,7 +93,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_name() {
         assert_eq!(
-            Undo::<Stub>::tool_name().as_str(),
+            FsUndo::<Stub>::tool_name().as_str(),
             "tool_forge_fs_undo",
             "Tool name should match expected value"
         );
