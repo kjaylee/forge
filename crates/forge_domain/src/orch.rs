@@ -19,6 +19,16 @@ type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatR
 // Maximum number of retry attempts for retryable operations
 const MAX_RETRY_ATTEMPTS: usize = 3;
 
+fn is_retriable(err: &anyhow::Error) -> bool {
+    if let Some(domain_err) = err.downcast_ref::<Error>() {
+        matches!(
+            domain_err,
+            Error::ToolCallParse(_) | Error::ToolCallArgument(_) | Error::ToolCallMissingName
+        )
+    } else {
+        false
+    }
+}
 // Helper function that checks if an error is retriable and sends a retry event
 // if needed
 async fn check_and_log_retry_condition(
@@ -28,13 +38,13 @@ async fn check_and_log_retry_condition(
     agent: Option<&Agent>,
     sender: Option<&ArcSender>,
 ) -> bool {
-    let is_retriable = RetryError::is_retriable(err) && attempt < max_attempts;
+    let is_retriable = is_retriable(err) && attempt < max_attempts;
     if let (true, Some(a), Some(s)) = (is_retriable, agent, sender) {
         let _ = s
             .send(Ok(AgentMessage {
                 agent: a.id.clone(),
                 message: ChatResponse::Retry {
-                    error: RetryError::from_error(err),
+                    reason: format!("{}", err),
                     attempt,
                     max_attempts,
                 },
@@ -441,7 +451,7 @@ impl<A: Services> Orchestrator<A> {
 
         let retry_condition = move |err: &anyhow::Error| {
             attempt += 1;
-            RetryError::is_retriable(err) && attempt < MAX_RETRY_ATTEMPTS
+            is_retriable(err) && attempt < MAX_RETRY_ATTEMPTS
         };
 
         // Execute the operation with retries
