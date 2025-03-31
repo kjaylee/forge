@@ -73,6 +73,8 @@ impl SnapshotService {
         if let Some(snapshot_path) = latest_snapshot {
             let content = ForgeFS::read(&snapshot_path).await?;
             ForgeFS::write(&path, content).await?;
+            // Remove the snapshot after restoring it
+            ForgeFS::remove_file(&snapshot_path).await?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("No valid snapshots found for {:?}", path))
@@ -195,6 +197,28 @@ mod tests {
         
         // Verify - should restore to second version
         assert_eq!(ctx.read_content().await?, "Second content");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_multiple_snapshots_undo_twice() -> Result<()> {
+        // Setup
+        let ctx = TestContext::new().await?;
+        
+        // Test steps - create and modify file multiple times
+        ctx.write_content("Initial content").await?;
+        ctx.create_snapshot().await?;
+        
+        ctx.write_content("Second content").await?;
+        ctx.create_snapshot().await?;
+        
+        ctx.write_content("Final content").await?;
+        ctx.undo_snapshot().await?;
+        ctx.undo_snapshot().await?;
+
+        // Verify - should restore to Initial version
+        assert_eq!(ctx.read_content().await?, "Initial content");
 
         Ok(())
     }
