@@ -37,38 +37,47 @@ impl SnapshotService {
         Ok(snapshot)
     }
 
-    pub async fn undo_snapshot(&self, path: PathBuf) -> Result<()> {
-        // Create a temporary snapshot to get the hash directory
-        let snapshot = Snapshot::create(path.clone()).await?;
-        let hash_dir = self.snapshots_directory.join(snapshot.path_hash());
-
-        // Check if snapshots exist
-        if !ForgeFS::exists(&hash_dir) {
-            return Err(anyhow::anyhow!("No snapshots found for {:?}", path));
-        }
-
-        // Find the most recent snapshot
+    /// Find the most recent snapshot for a given path based on latest modified time
+    async fn find_recent_snapshot(snapshot_dir: &PathBuf) -> Result<Option<PathBuf>> {
         let mut latest_entry = None;
         let mut latest_modified = None;
-        let mut dir = fs::read_dir(&hash_dir).await?;
+        let mut dir = fs::read_dir(&snapshot_dir).await?;
 
         while let Some(entry) = dir.next_entry().await? {
             if entry.file_name().to_string_lossy().ends_with(".snap") {
                 let metadata = entry.metadata().await?;
                 let modified = metadata.modified()?;
 
-                if latest_modified.is_none() || modified > latest_modified.unwrap() {
+                if latest_modified
+                    .map(|latest_modified| latest_modified < modified)
+                    .unwrap_or(true)
+                {
                     latest_entry = Some(entry);
                     latest_modified = Some(modified);
                 }
             }
         }
 
-        // Get the latest snapshot
-        let latest = latest_entry.context(format!("No valid snapshots found for {:?}", path))?;
+        Ok(latest_entry.map(|entry| entry.path()))
+    }
+
+    pub async fn undo_snapshot(&self, path: PathBuf) -> Result<()> {
+        let snapshot = Snapshot::create(path.clone()).await?;
+
+        // file path for snaps.
+        let snapshot_dir = self.snapshots_directory.join(snapshot.path_hash());
+
+        // Check if snapshots exist
+        if !ForgeFS::exists(&snapshot_dir) {
+            return Err(anyhow::anyhow!("No snapshots found for {:?}", path));
+        }
+
+        // Get the latest snapshot path
+        let snapshot_path = Self::find_recent_snapshot(&snapshot_dir)
+            .await?
+            .context(format!("No valid snapshots found for {:?}", path))?;
 
         // Restore the content
-        let snapshot_path = latest.path();
         let content = ForgeFS::read(&snapshot_path).await?;
         ForgeFS::write(&path, content).await?;
 
