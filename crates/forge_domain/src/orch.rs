@@ -400,7 +400,7 @@ impl<A: Services> Orchestrator<A> {
         let conversation = self.get_conversation().await?;
         let agent = conversation.workflow.get_agent(agent_id)?;
 
-        let agent_id_arc = Arc::new(agent_id.clone());
+        let agent_id = Arc::new(agent_id.clone());
         let event = Arc::new(event.clone());
         let self_ref = self;
 
@@ -408,7 +408,7 @@ impl<A: Services> Orchestrator<A> {
             agent,
             self.sender.as_ref(),
             retry_strategy,
-            || async { self_ref.init_agent(&agent_id_arc, &event).await },
+            || async { self_ref.init_agent(&agent_id, &event).await },
             MAX_RETRY_ATTEMPTS,
         )
         .await
