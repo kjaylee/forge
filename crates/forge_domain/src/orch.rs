@@ -397,18 +397,11 @@ impl<A: Services> Orchestrator<A> {
     where
         I: IntoIterator<Item = std::time::Duration> + Clone,
     {
-        let conversation = self.get_conversation().await?;
-        let agent = conversation.workflow.get_agent(agent_id)?;
-
-        let agent_id = Arc::new(agent_id.clone());
-        let event = Arc::new(event.clone());
-        let self_ref = self;
-
         crate::retry::execute_with_retry(
-            agent,
+            agent_id,
             self.sender.as_ref(),
             retry_strategy,
-            || async { self_ref.init_agent(&agent_id, &event).await },
+            || async { self.init_agent(agent_id, event).await },
             MAX_RETRY_ATTEMPTS,
         )
         .await

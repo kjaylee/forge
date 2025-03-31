@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tokio_retry::RetryIf;
 
-use crate::{Agent, AgentMessage, ChatResponse, Error};
+use crate::{AgentId, AgentMessage, ChatResponse, Error};
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
 
@@ -12,7 +12,7 @@ pub struct RetryCondition<'a> {
     pub err: &'a anyhow::Error,
     pub attempt: usize,
     pub max_attempts: usize,
-    pub agent: Option<&'a Agent>,
+    pub agent_id: Option<&'a AgentId>,
     pub sender: Option<&'a ArcSender>,
 }
 
@@ -22,10 +22,10 @@ impl<'a> RetryCondition<'a> {
         err: &'a anyhow::Error,
         attempt: usize,
         max_attempts: usize,
-        agent: Option<&'a Agent>,
+        agent_id: Option<&'a AgentId>,
         sender: Option<&'a ArcSender>,
     ) -> Self {
-        Self { err, attempt, max_attempts, agent, sender }
+        Self { err, attempt, max_attempts, agent_id, sender }
     }
 
     /// Checks if an error is retriable based on domain error types
@@ -43,10 +43,10 @@ impl<'a> RetryCondition<'a> {
     /// Checks if an error is retriable and sends a retry event if needed
     pub async fn check_and_log_retry_condition(&self) -> bool {
         let is_retriable = self.is_retriable();
-        if let (true, Some(a), Some(s)) = (is_retriable, self.agent, self.sender) {
+        if let (true, Some(a), Some(s)) = (is_retriable, self.agent_id, self.sender) {
             let _ = s
                 .send(Ok(AgentMessage {
-                    agent: a.id.clone(),
+                    agent: a.clone(),
                     message: ChatResponse::Retry {
                         reason: format!("{}", self.err),
                         attempt: self.attempt,
@@ -74,7 +74,7 @@ impl<'a> RetryCondition<'a> {
 ///
 /// The result of the operation, or an error if all retry attempts failed
 pub async fn execute_with_retry<T, F, Fut>(
-    agent: &Agent,
+    agent_id: &AgentId,
     sender: Option<&ArcSender>,
     retry_strategy: impl IntoIterator<Item = std::time::Duration> + Clone,
     operation: F,
@@ -94,7 +94,7 @@ where
 
     // Handle error notifications and logging
     if let Err(ref err) = result {
-        RetryCondition::new(err, attempt, max_attempts, Some(agent), sender)
+        RetryCondition::new(err, attempt, max_attempts, Some(agent_id), sender)
             .check_and_log_retry_condition()
             .await;
     }
