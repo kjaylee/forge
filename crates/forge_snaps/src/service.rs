@@ -37,7 +37,8 @@ impl SnapshotService {
         Ok(snapshot)
     }
 
-    /// Find the most recent snapshot for a given path based on latest modified time
+    /// Find the most recent snapshot for a given path based on latest modified
+    /// time
     async fn find_recent_snapshot(snapshot_dir: &PathBuf) -> Result<Option<PathBuf>> {
         let mut latest_entry = None;
         let mut latest_modified = None;
