@@ -15,7 +15,6 @@ use crate::Infrastructure;
 /// - The user wants to revert a recent file change
 /// - A file operation resulted in unintended changes
 /// - There's a need to recover from a mistaken file modification or deletion
-/// Note: Only the most recent operation on a specific file can be undone.
 #[derive(Default, ToolDescription)]
 pub struct Undo<F>(Arc<F>);
 
