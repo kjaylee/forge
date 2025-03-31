@@ -65,15 +65,15 @@ impl SnapshotService {
     pub async fn undo_snapshot(&self, path: PathBuf) -> Result<()> {
         let snapshot = Snapshot::create(path.clone()).await?;
 
-        // file path for snaps.
+        // All the snaps for `path` are stored in `snapshot.path_hash()` directory.
         let snapshot_dir = self.snapshots_directory.join(snapshot.path_hash());
 
-        // Check if snapshots exist
+        // Check if the `snapshot_dir` exists
         if !ForgeFS::exists(&snapshot_dir) {
             return Err(anyhow::anyhow!("No snapshots found for {:?}", path));
         }
 
-        // Get the latest snapshot path
+        // Retrieve the latest snapshot path
         let snapshot_path = Self::find_recent_snapshot(&snapshot_dir)
             .await?
             .context(format!("No valid snapshots found for {:?}", path))?;
