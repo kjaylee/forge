@@ -1,6 +1,7 @@
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 use forge_fs::ForgeFS;
-use std::path::PathBuf;
 use tokio::fs;
 
 use crate::snapshot::Snapshot;
@@ -80,8 +81,9 @@ impl SnapshotService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use tempfile::TempDir;
+
+    use super::*;
 
     // Test helpers
     struct TestContext {

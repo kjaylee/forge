@@ -10,8 +10,8 @@ use serde::Deserialize;
 use crate::infra::FsSnapshotService;
 use crate::Infrastructure;
 
-/// Use this tool to undo the most recent file operation (modify/delete) on a specific file.
-/// This tool should be used when:
+/// Use this tool to undo the most recent file operation (modify/delete) on a
+/// specific file. This tool should be used when:
 /// - The user wants to revert a recent file change
 /// - A file operation resulted in unintended changes
 /// - There's a need to recover from a mistaken file modification or deletion
@@ -32,9 +32,10 @@ impl<F> NamedTool for Undo<F> {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct UndoInput {
-    /// The path of the file to undo the last operation on (absolute path required).
-    /// This should be the exact path of the file that was previously modified,
-    /// created, or deleted through a Forge file operation.
+    /// The path of the file to undo the last operation on (absolute path
+    /// required). This should be the exact path of the file that was
+    /// previously modified, created, or deleted through a Forge file
+    /// operation.
     pub path: String,
 }
 
@@ -43,10 +44,7 @@ impl<F: Infrastructure> ExecutableTool for Undo<F> {
     type Input = UndoInput;
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
-        self.0
-            .file_snapshot_service()
-            .undo_snapshot(path)
-            .await?;
+        self.0.file_snapshot_service().undo_snapshot(path).await?;
 
         // Display a message about the file being read
         let message = TitleFormat::success("Undo").sub_title(path.display().to_string());
@@ -60,10 +58,12 @@ impl<F: Infrastructure> ExecutableTool for Undo<F> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use tempfile::TempDir;
+
     use super::*;
     use crate::tools::registry::tests::Stub;
-    use std::sync::Arc;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_successful_undo() {
