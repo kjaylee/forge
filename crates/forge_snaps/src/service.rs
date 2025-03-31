@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use forge_fs::ForgeFS;
+use std::path::PathBuf;
 use tokio::fs;
 
 use crate::snapshot::Snapshot;
@@ -46,29 +46,31 @@ impl SnapshotService {
             return Err(anyhow::anyhow!("No snapshots found for {:?}", path));
         }
 
-        // Get all snapshot files and find the most recent one
-        let mut entries = Vec::new();
+        // Find the most recent snapshot
+        let mut latest_entry = None;
+        let mut latest_modified = None;
         let mut dir = fs::read_dir(&hash_dir).await?;
-        
+
         while let Some(entry) = dir.next_entry().await? {
             if entry.file_name().to_string_lossy().ends_with(".snap") {
                 let metadata = entry.metadata().await?;
-                entries.push((entry, metadata.modified()?));
+                let modified = metadata.modified()?;
+
+                if latest_modified.is_none() || modified > latest_modified.unwrap() {
+                    latest_entry = Some(entry);
+                    latest_modified = Some(modified);
+                }
             }
         }
 
-        // Sort by modified time descending (newest first)
-        entries.sort_by(|a, b| b.1.cmp(&a.1));
-        
         // Get the latest snapshot
-        let (latest, _) = entries.first()
-            .ok_or_else(|| anyhow::anyhow!("No valid snapshots found for {:?}", path))?;
+        let latest = latest_entry.context(format!("No valid snapshots found for {:?}", path))?;
 
         // Restore the content
         let snapshot_path = latest.path();
         let content = ForgeFS::read(&snapshot_path).await?;
         ForgeFS::write(&path, content).await?;
-        
+
         // Remove the used snapshot
         ForgeFS::remove_file(&snapshot_path).await?;
 
@@ -127,11 +129,11 @@ mod tests {
         // Setup
         let ctx = TestContext::new().await?;
         let test_content = "Hello, World!";
-        
+
         // Test steps
         ctx.write_content(test_content).await?;
         let snapshot = ctx.create_snapshot().await?;
-        
+
         // Verify
         let snapshot_content = ForgeFS::read(&snapshot.path).await?;
         assert_eq!(String::from_utf8(snapshot_content)?, test_content);
@@ -145,13 +147,13 @@ mod tests {
         let ctx = TestContext::new().await?;
         let initial_content = "Initial content";
         let modified_content = "Modified content";
-        
+
         // Test steps
         ctx.write_content(initial_content).await?;
         ctx.create_snapshot().await?;
         ctx.write_content(modified_content).await?;
         ctx.undo_snapshot().await?;
-        
+
         // Verify
         assert_eq!(ctx.read_content().await?, initial_content);
 
@@ -162,14 +164,17 @@ mod tests {
     async fn test_undo_snapshot_no_snapshots() -> Result<()> {
         // Setup
         let ctx = TestContext::new().await?;
-        
+
         // Test steps
         ctx.write_content("test content").await?;
         let result = ctx.undo_snapshot().await;
-        
+
         // Verify
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No snapshots found"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No snapshots found"));
 
         Ok(())
     }
@@ -178,17 +183,17 @@ mod tests {
     async fn test_multiple_snapshots() -> Result<()> {
         // Setup
         let ctx = TestContext::new().await?;
-        
+
         // Test steps - create and modify file multiple times
         ctx.write_content("Initial content").await?;
         ctx.create_snapshot().await?;
-        
+
         ctx.write_content("Second content").await?;
         ctx.create_snapshot().await?;
-        
+
         ctx.write_content("Final content").await?;
         ctx.undo_snapshot().await?;
-        
+
         // Verify - should restore to second version
         assert_eq!(ctx.read_content().await?, "Second content");
 
@@ -199,14 +204,14 @@ mod tests {
     async fn test_multiple_snapshots_undo_twice() -> Result<()> {
         // Setup
         let ctx = TestContext::new().await?;
-        
+
         // Test steps - create and modify file multiple times
         ctx.write_content("Initial content").await?;
         ctx.create_snapshot().await?;
-        
+
         ctx.write_content("Second content").await?;
         ctx.create_snapshot().await?;
-        
+
         ctx.write_content("Final content").await?;
         ctx.undo_snapshot().await?;
         ctx.undo_snapshot().await?;
