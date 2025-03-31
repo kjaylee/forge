@@ -85,9 +85,9 @@ impl Snapshot {
     pub fn snapshot_path(&self, cwd: Option<PathBuf>) -> PathBuf {
         // Convert Duration to SystemTime then to a formatted string
         let datetime = UNIX_EPOCH + self.timestamp;
-        // Format: YYYY-MM-DD_HH-MM-SS-mmm (including milliseconds)
+        // Format: YYYY-MM-DD_HH-MM-SS-nnnnnnnnn (including nanoseconds)
         let formatted_time = chrono::DateTime::<chrono::Utc>::from(datetime)
-            .format("%Y-%m-%d_%H-%M-%S-%3f")
+            .format("%Y-%m-%d_%H-%M-%S-%9f")
             .to_string();
 
         let filename = format!("{}.snap", formatted_time);
