@@ -7,7 +7,6 @@ use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use tokio::sync::RwLock;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::RetryIf;
 use tracing::debug;
 
 use crate::compaction::ContextCompactor;
@@ -18,41 +17,6 @@ type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatR
 
 // Maximum number of retry attempts for retryable operations
 const MAX_RETRY_ATTEMPTS: usize = 3;
-
-fn is_retriable(err: &anyhow::Error) -> bool {
-    if let Some(domain_err) = err.downcast_ref::<Error>() {
-        matches!(
-            domain_err,
-            Error::ToolCallParse(_) | Error::ToolCallArgument(_) | Error::ToolCallMissingName
-        )
-    } else {
-        false
-    }
-}
-// Helper function that checks if an error is retriable and sends a retry event
-// if needed
-async fn check_and_log_retry_condition(
-    err: &anyhow::Error,
-    attempt: usize,
-    max_attempts: usize,
-    agent: Option<&Agent>,
-    sender: Option<&ArcSender>,
-) -> bool {
-    let is_retriable = is_retriable(err) && attempt < max_attempts;
-    if let (true, Some(a), Some(s)) = (is_retriable, agent, sender) {
-        let _ = s
-            .send(Ok(AgentMessage {
-                agent: a.id.clone(),
-                message: ChatResponse::Retry {
-                    reason: format!("{}", err),
-                    attempt,
-                    max_attempts,
-                },
-            }))
-            .await;
-    }
-    is_retriable
-}
 
 #[derive(Debug, Clone)]
 pub struct AgentMessage<T> {
@@ -435,40 +399,20 @@ impl<A: Services> Orchestrator<A> {
     {
         let conversation = self.get_conversation().await?;
         let agent = conversation.workflow.get_agent(agent_id)?;
-        let mut attempt = 0;
 
-        // Arc wrap the values to avoid cloning in retries
-        let agent_id = Arc::new(agent_id.clone());
+        let agent_id_arc = Arc::new(agent_id.clone());
         let event = Arc::new(event.clone());
         let self_ref = self;
-        let sender_ref = self.sender.as_ref();
 
-        // Define operation and condition for retry
-        let operation = || async {
-            let result = self_ref.init_agent(&agent_id, &event).await;
-            result
-        };
-
-        let retry_condition = move |err: &anyhow::Error| {
-            attempt += 1;
-            is_retriable(err) && attempt < MAX_RETRY_ATTEMPTS
-        };
-
-        // Execute the operation with retries
-        let result = RetryIf::spawn(retry_strategy, operation, retry_condition).await;
-
-        // Handle error notifications and logging
-        if let Err(ref err) = result {
-            check_and_log_retry_condition(
-                err,
-                attempt,
-                MAX_RETRY_ATTEMPTS,
-                Some(agent),
-                sender_ref,
-            )
-            .await;
-        }
-        result.with_context(|| format!("Failed to initialize agent {}", *agent_id))
+        crate::retry::execute_with_retry(
+            agent,
+            self.sender.as_ref(),
+            retry_strategy,
+            || async { self_ref.init_agent(&agent_id_arc, &event).await },
+            MAX_RETRY_ATTEMPTS,
+        )
+        .await
+        .with_context(|| format!("Failed to initialize agent {}", *agent_id))
     }
 
     async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
