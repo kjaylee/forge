@@ -372,18 +372,12 @@ impl<F: API> UI<F> {
             }
             ChatResponse::Event(event) => {
                 if event.name == EVENT_TITLE {
-                    self.state.current_title = Some(event.value.as_str().unwrap_or_default().to_string());
+                    self.state.current_title =
+                        Some(event.value.as_str().unwrap_or_default().to_string());
                 }
             }
             ChatResponse::Usage(u) => {
                 self.state.usage = u;
-            }
-            ChatResponse::Retry { reason, attempt, max_attempts } => {
-                let title = TitleFormat::failed("Retry")
-                    .sub_title(format!("Reason: {}", reason))
-                    .sub_title(format!("Attempt: {}/{}", attempt, max_attempts));
-
-                CONSOLE.writeln(title.format())?;
             }
         }
         Ok(())

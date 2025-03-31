@@ -12,13 +12,4 @@ pub enum ChatResponse {
     ToolCallEnd(ToolResult),
     Usage(Usage),
     Event(Event),
-    /// Represents a retry attempt due to a retriable error
-    Retry {
-        /// The error that caused the retry
-        reason: String,
-        /// The current attempt number (1-based)
-        attempt: usize,
-        /// The maximum number of attempts allowed
-        max_attempts: usize,
-    },
 }

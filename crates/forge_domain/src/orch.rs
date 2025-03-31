@@ -7,6 +7,7 @@ use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use tokio::sync::RwLock;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
+use tokio_retry::RetryIf;
 use tracing::debug;
 
 use crate::compaction::ContextCompactor;
@@ -387,41 +388,38 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    // Retry agent initialization with exponential backoff
-    async fn init_retriable_agent_with_event<I>(
-        &self,
-        agent_id: &AgentId,
-        event: &Event,
-        retry_strategy: I,
-    ) -> anyhow::Result<()>
-    where
-        I: IntoIterator<Item = std::time::Duration> + Clone,
-    {
-        crate::retry::execute_with_retry(
-            agent_id,
-            self.sender.as_ref(),
-            retry_strategy,
-            || async { self.init_agent(agent_id, event).await },
-            MAX_RETRY_ATTEMPTS,
-        )
-        .await
-        .with_context(|| format!("Failed to initialize agent {}", *agent_id))
-    }
-
     async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         while let Some(event) = {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
-            // Execute retriable operation
-            self.init_retriable_agent_with_event(
-                agent_id,
-                &event,
+            RetryIf::spawn(
                 self.retry_strategy.clone().map(jitter),
+                || self.init_agent(agent_id, &event),
+                is_parse_error,
             )
-            .await?;
+            .await
+            .with_context(|| format!("Failed to initialize agent {}", *agent_id))?;
         }
 
         Ok(())
     }
+}
+
+fn is_parse_error(error: &anyhow::Error) -> bool {
+    let check = error
+        .downcast_ref::<Error>()
+        .map(|error| {
+            matches!(
+                error,
+                Error::ToolCallParse(_) | Error::ToolCallArgument(_) | Error::ToolCallMissingName
+            )
+        })
+        .unwrap_or_default();
+
+    if check {
+        debug!(error = %error, "Retrying due to parse error");
+    }
+
+    check
 }
