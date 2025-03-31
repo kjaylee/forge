@@ -105,9 +105,7 @@ impl From<Signal> for ReadResult {
     fn from(signal: Signal) -> Self {
         match signal {
             Signal::Success(buffer) => {
-                // Only trim ends of lines to preserve intentional newlines in the middle of
-                // content
-                let trimmed = buffer.trim_end();
+                let trimmed = buffer.trim();
                 if trimmed.is_empty() {
                     ReadResult::Empty
                 } else {
