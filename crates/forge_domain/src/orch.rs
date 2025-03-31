@@ -353,7 +353,10 @@ impl<A: Services> Orchestrator<A> {
                 .add_tool_results(tool_results.clone());
 
             // Check if context requires compression
-            context = self.compactor.compact_context(agent, context, usage).await?;
+            context = self
+                .compactor
+                .compact_context(agent, context, usage)
+                .await?;
 
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
