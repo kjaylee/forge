@@ -37,7 +37,8 @@ impl SnapshotService {
         Ok(snapshot)
     }
 
-    /// Find the most recent snapshot for a given path based on filename timestamp
+    /// Find the most recent snapshot for a given path based on filename
+    /// timestamp
     async fn find_recent_snapshot(snapshot_dir: &PathBuf) -> Result<Option<PathBuf>> {
         let mut latest_path = None;
         let mut latest_filename = None;
@@ -45,11 +46,9 @@ impl SnapshotService {
 
         while let Some(entry) = dir.next_entry().await? {
             let filename = entry.file_name().to_string_lossy().to_string();
-            if filename.ends_with(".snap") {
-                if latest_filename.is_none() || filename > latest_filename.clone().unwrap() {
-                    latest_filename = Some(filename);
-                    latest_path = Some(entry.path());
-                }
+            if filename.ends_with(".snap") && (latest_filename.is_none() || filename > latest_filename.clone().unwrap()) {
+                latest_filename = Some(filename);
+                latest_path = Some(entry.path());
             }
         }
 
