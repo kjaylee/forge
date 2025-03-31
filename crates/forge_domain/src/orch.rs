@@ -93,10 +93,10 @@ impl<A: Services> Orchestrator<A> {
     async fn send(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             // Send message if it's a Custom type or if hide_content is false
-            if matches!(&message, ChatResponse::Event(_))
-                || matches!(&message, ChatResponse::Retry { .. })
-                || !agent.hide_content.unwrap_or_default()
-            {
+            let show_text = !agent.hide_content.unwrap_or_default();
+            let can_send = !matches!(&message, ChatResponse::Text(_))
+                || (matches!(&message, ChatResponse::Text(_)) && show_text);
+            if can_send {
                 sender
                     .send(Ok(AgentMessage { agent: agent.id.clone(), message }))
                     .await?
