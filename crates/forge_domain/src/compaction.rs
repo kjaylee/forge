@@ -9,7 +9,7 @@ use tracing::{debug, info};
 
 use crate::{
     extract_tag_content, Agent, ChatCompletionMessage, Compact, Context, ContextMessage,
-    ProviderService, Role, Services, TemplateService,
+    ProviderService, Role, Services, TemplateService, Usage,
 };
 
 /// Handles the compaction of conversation contexts to manage token usage
@@ -25,12 +25,12 @@ impl<S: Services> ContextCompactor<S> {
     }
 
     /// Check if compaction is needed and compact the context if so
-    pub async fn compact_context(&self, agent: &Agent, context: Context) -> Result<Context> {
+    pub async fn compact_context(&self, agent: &Agent, context: Context, usage: Option<Usage>) -> Result<Context> {
         // Early return if compaction not needed
 
         if let Some(ref compact) = agent.compact {
             // Ensure that compaction conditions are met
-            if !compact.should_compact(&context) {
+            if !compact.should_compact(&context, usage) {
                 return Ok(context);
             }
 
