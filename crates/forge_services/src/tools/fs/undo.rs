@@ -9,9 +9,12 @@ use serde::Deserialize;
 use crate::Infrastructure;
 use crate::infra::FsSnapshotService;
 
-/// Reverses the most recent file operation, providing a safety net for file
-/// operations like modify or delete. Only the most recent operation on a
-/// specific file can be undone. 
+/// Use this tool to undo the most recent file operation (modify/delete) on a specific file.
+/// This tool should be used when:
+/// - The user wants to revert a recent file change
+/// - A file operation resulted in unintended changes
+/// - There's a need to recover from a mistaken file modification or deletion
+/// Note: Only the most recent operation on a specific file can be undone.
 #[derive(Default, ToolDescription)]
 pub struct Undo<F>(Arc<F>);
 
