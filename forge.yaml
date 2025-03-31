@@ -48,7 +48,7 @@ agents:
       - Test should always be written in the same file as the source code.
 
       Verification:
-      - run the following command to format and validate if the code is working:
+      - Run the following command to format and validate if the code is working:
         ```
         cargo +nightly fmt --all; cargo +nightly clippy --fix --allow-staged --allow-dirty --workspace;
         ```

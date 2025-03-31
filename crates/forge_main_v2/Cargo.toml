@@ -1,0 +1,37 @@
+[package]
+name = "forge_main_v2"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap.workspace = true
+forge_api.workspace = true
+forge_walker.workspace = true
+forge_display.workspace = true
+forge_tracker.workspace = true
+forge_snaps.workspace = true
+forge_fs.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+colored.workspace = true
+async-trait.workspace = true
+anyhow.workspace = true
+derive_setters.workspace = true
+lazy_static.workspace = true
+crossterm.workspace = true
+parking_lot.workspace = true
+nu-ansi-term.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+base64.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+pretty_assertions.workspace = true
+mockall = "0.11.4"
