@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use forge_fs::ForgeFS;
-use tokio::fs;
 
 use crate::snapshot::Snapshot;
 
@@ -42,7 +41,7 @@ impl SnapshotService {
     async fn find_recent_snapshot(snapshot_dir: &PathBuf) -> Result<Option<PathBuf>> {
         let mut latest_path = None;
         let mut latest_filename = None;
-        let mut dir = fs::read_dir(&snapshot_dir).await?;
+        let mut dir = ForgeFS::read_dir(&snapshot_dir).await?;
 
         while let Some(entry) = dir.next_entry().await? {
             let filename = entry.file_name().to_string_lossy().to_string();
