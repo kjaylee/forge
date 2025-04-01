@@ -1,4 +1,4 @@
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
     self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Provider, ProviderService,
@@ -14,6 +14,7 @@ use super::model::{ListModelResponse, OpenRouterModel};
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use crate::open_router::transformers::{ProviderPipeline, Transformer};
+use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
 pub struct OpenRouter {
@@ -93,42 +94,46 @@ impl OpenRouter {
                                 debug!("Received completion from Upstream");
                                 None
                             }
-                            Event::Message(message) => Some(
+                            Event::Message(message) => {
+                                let ctx_msg = format_http_context(None, "POST", url_str);
+                                Some(
                                 serde_json::from_str::<OpenRouterResponse>(&message.data)
-                                    .context(format!("{} {}","POST", url_str))
+                                    .context(ctx_msg.clone())
                                     .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
                                     .and_then(|event| {
                                         ChatCompletionMessage::try_from(event.clone())
-                                            .context(format!("{} {}","POST", url_str))
+                                            .context(ctx_msg)
                                             .with_context(|| format!("Failed to create completion message: {}", message.data))
                                     }),
-                            ),
+                            )},
                         },
                         Err(error) => match error {
                             reqwest_eventsource::Error::StreamEnded => None,
                             reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
                                 let headers = response.headers().clone();
                                 let status = response.status();
+                                let ctx_msg = format_http_context(Some(response.status()), "POST", url_str);
                                 match response.text().await {
                                     Ok(ref body) => {
                                         debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
                                         return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)
-                                            .context(format!("{} {} {}",status.as_u16(), "POST", url_str))));
+                                            .context(ctx_msg)));
                                     }
                                     Err(error) => {
                                         debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
                                     }
                                 }
-                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status)).context(format!("{} {} {}",status.as_u16(), "POST", url_str)))
+                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status)).context(ctx_msg))
                             }
                             reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                                 debug!(response = ?response, "Invalid content type");
-                                let status = response.status();
-                                Some(Err(anyhow::anyhow!(error).context(format!("{} {} {}",status.as_u16(), "POST", url_str))))
+                                let ctx_msg = format_http_context(Some(response.status()), "POST", url_str);
+                                Some(Err(anyhow::anyhow!(error).context(ctx_msg)))
                             }
                             error => {
                                 debug!(error = %error, "Failed to receive chat completion event");
-                                Some(Err(anyhow::anyhow!(error).context(format!("{} {}", "POST", url_str))))
+                                let ctx_msg = format_http_context(None, "POST", url_str);
+                                Some(Err(anyhow::anyhow!(error).context(ctx_msg)))
                             }
                         },
                     }
@@ -141,29 +146,52 @@ impl OpenRouter {
     async fn inner_models(&self) -> Result<Vec<Model>> {
         let url = self.url("models")?;
         debug!(url = %url, "Fetching models");
-        match self.fetch_models(url).await {
+        match self.fetch_models(url.clone()).await {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
-                bail!(err)
+                anyhow::bail!(err)
             }
             Ok(response) => {
-                let data: ListModelResponse = serde_json::from_str(&response)?;
+                let ctx_msg = format_http_context(None, "GET", url);
+                let data: ListModelResponse = serde_json::from_str(&response)
+                    .context(ctx_msg)
+                    .context("Failed to deserialize models response")?;
                 Ok(data.data.into_iter().map(Into::into).collect())
             }
         }
     }
 
     async fn fetch_models(&self, url: Url) -> Result<String, anyhow::Error> {
-        Ok(self
+        match self
             .client
-            .get(url)
+            .get(url.clone())
             .headers(self.headers())
             .send()
-            .await?
-            .error_for_status()
-            .with_context(|| "Failed because of a non 200 status code".to_string())?
-            .text()
-            .await?)
+            .await
+        {
+            Ok(response) => match response.error_for_status() {
+                Ok(response) => {
+                    let ctx_msg = format_http_context(Some(response.status()), "GET", url);
+                    Ok(response
+                        .text()
+                        .await
+                        .context(ctx_msg)
+                        .context("Failed to decode response into text")?)
+                }
+                Err(err) => {
+                    let ctx_msg = format_http_context(err.status(), "GET", url);
+                    Err(anyhow::anyhow!(err)
+                        .context(ctx_msg)
+                        .context("Failed because of a non 200 status code"))
+                }
+            },
+            Err(err) => {
+                let ctx_msg = format_http_context(err.status(), "GET", url);
+                Err(anyhow::anyhow!(err)
+                    .context(ctx_msg)
+                    .context("Failed to fetch the models"))
+            }
+        }
     }
 }
 
