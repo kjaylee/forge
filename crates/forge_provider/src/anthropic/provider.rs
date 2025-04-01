@@ -93,9 +93,12 @@ impl ProviderService for Anthropic {
                             }
                             Event::Message(message) => Some(
                                 serde_json::from_str::<EventData>(&message.data)
+                                    .context(format!("{} {}","POST", url_str))
                                     .with_context(|| "Failed to parse Anthropic event")
                                     .and_then(|event| {
-                                        ChatCompletionMessage::try_from(event).with_context(|| {
+                                        ChatCompletionMessage::try_from(event)
+                                        .context(format!("{} {}","POST", url_str))
+                                        .with_context(|| {
                                             format!(
                                                 "Failed to create completion message: {}",
                                                 message.data
@@ -112,28 +115,30 @@ impl ProviderService for Anthropic {
                                  match response.text().await {
                                     Ok(ref body) => {
                                         debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                        Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body)))
+                                        Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body))
+                                            .context(format!("{} {} {}", status.as_u16(), "POST", url_str)))
                                     }
                                     Err(error) => {
                                         error!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
-                                        Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
+                                        Some(Err(anyhow::anyhow!("Invalid status code: {}", status))
+                                            .context(format!("{} {} {}", status.as_u16(), "POST", url_str)))
                                     }
                                 }
                             }
                             reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                                 debug!(response = ?response, "Invalid content type");
-                                Some(Err(error.into()))
+                                let status = response.status();
+                                Some(Err(anyhow::anyhow!(error))
+                                    .context(format!("{} {} {}", status.as_u16(), "POST", url_str)))
                             }
                             error => {
                                 debug!(error = %error, "Failed to receive chat completion event");
-                                Some(Err(error.into()))
+                                Some(Err(anyhow::anyhow!(error))
+                                    .context(format!("{} {}", "POST", url_str)))
                             }
                         },
-                    }.map(|response| {
-                        response.context(format!("{} {}", "POST", url_str))
-                    })
+                    }
                 }
-
             });
 
         Ok(Box::pin(stream.filter_map(|x| x)))
