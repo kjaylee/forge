@@ -142,7 +142,7 @@ agents:
   - tool_supported: true
     id: git-commit
     model: *advanced_model
-    hide_content: true    
+    hide_content: true
     ephemeral: true
     system_prompt: "{{> system-prompt-git-commit.hbs }}"
     user_prompt: "Go ahead and make the commit, {{event.value}}"
