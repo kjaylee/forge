@@ -95,9 +95,11 @@ impl OpenRouter {
                             }
                             Event::Message(message) => Some(
                                 serde_json::from_str::<OpenRouterResponse>(&message.data)
+                                    .context(format!("{} {}","POST", url_str))
                                     .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
                                     .and_then(|event| {
                                         ChatCompletionMessage::try_from(event.clone())
+                                            .context(format!("{} {}","POST", url_str))
                                             .with_context(|| format!("Failed to create completion message: {}", message.data))
                                     }),
                             ),
@@ -110,26 +112,26 @@ impl OpenRouter {
                                 match response.text().await {
                                     Ok(ref body) => {
                                         debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                        return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body).context(format!("{} {}", "POST", url_str))));
+                                        return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)
+                                            .context(format!("{} {} {}",status.as_u16(), "POST", url_str))));
                                     }
                                     Err(error) => {
                                         debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
                                     }
                                 }
-                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
+                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status)).context(format!("{} {} {}",status.as_u16(), "POST", url_str)))
                             }
                             reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                                 debug!(response = ?response, "Invalid content type");
-                                Some(Err(error.into()))
+                                let status = response.status();
+                                Some(Err(anyhow::anyhow!(error).context(format!("{} {} {}",status.as_u16(), "POST", url_str))))
                             }
                             error => {
                                 debug!(error = %error, "Failed to receive chat completion event");
-                                Some(Err(error.into()))
+                                Some(Err(anyhow::anyhow!(error).context(format!("{} {}", "POST", url_str))))
                             }
                         },
-                    }.map(|response| {
-                        response.context(format!("{} {}", "POST", url_str))
-                    })
+                    }
                 }
             });
 
