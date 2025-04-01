@@ -72,60 +72,68 @@ impl ProviderService for Anthropic {
         debug!(url = %url, model = %model, "Connecting Upstream");
         let es = self
             .client
-            .post(url)
+            .post(url.clone())
             .headers(self.headers())
             .json(&request)
-            .eventsource()?;
+            .eventsource()
+            .context(format!("request: {}", url.clone()))?;
 
+        let url_str = url.clone();
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
-            .then(|event| async {
-                match event {
-                    Ok(event) => match event {
-                        Event::Open => None,
-                        Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
-                            debug!("Received completion from Upstream");
-                            None
-                        }
-                        Event::Message(message) => Some(
-                            serde_json::from_str::<EventData>(&message.data)
-                                .with_context(|| "Failed to parse Anthropic event")
-                                .and_then(|event| {
-                                    ChatCompletionMessage::try_from(event).with_context(|| {
-                                        format!(
-                                            "Failed to create completion message: {}",
-                                            message.data
-                                        )
-                                    })
-                                }),
-                        ),
-                    },
-                    Err(error) => match error {
-                        reqwest_eventsource::Error::StreamEnded => None,
-                        reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                            let headers = response.headers().clone();
-                            let status = response.status();
-                             match response.text().await {
-                                Ok(ref body) => {
-                                    debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                    Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body)))
-                                }
-                                Err(error) => {
-                                    error!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
-                                    Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
+            .then(move |event| {
+                let url_str = url_str.clone();
+                async move {
+                    match event {
+                        Ok(event) => match event {
+                            Event::Open => None,
+                            Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
+                                debug!("Received completion from Upstream");
+                                None
+                            }
+                            Event::Message(message) => Some(
+                                serde_json::from_str::<EventData>(&message.data)
+                                    .with_context(|| "Failed to parse Anthropic event")
+                                    .and_then(|event| {
+                                        ChatCompletionMessage::try_from(event).with_context(|| {
+                                            format!(
+                                                "Failed to create completion message: {}",
+                                                message.data
+                                            )
+                                        })
+                                    }),
+                            ),
+                        },
+                        Err(error) => match error {
+                            reqwest_eventsource::Error::StreamEnded => None,
+                            reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
+                                let headers = response.headers().clone();
+                                let status = response.status();
+                                 match response.text().await {
+                                    Ok(ref body) => {
+                                        debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
+                                        Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body)))
+                                    }
+                                    Err(error) => {
+                                        error!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
+                                        Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
+                                    }
                                 }
                             }
-                        }
-                        reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
-                            debug!(response = ?response, "Invalid content type");
-                            Some(Err(error.into()))
-                        }
-                        error => {
-                            debug!(error = %error, "Failed to receive chat completion event");
-                            Some(Err(error.into()))
-                        }
-                    },
+                            reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
+                                debug!(response = ?response, "Invalid content type");
+                                Some(Err(error.into()))
+                            }
+                            error => {
+                                debug!(error = %error, "Failed to receive chat completion event");
+                                Some(Err(error.into()))
+                            }
+                        },
+                    }.map(|err| {
+                        err.context(format!("request: {}", url_str))
+                    })
                 }
+
             });
 
         Ok(Box::pin(stream.filter_map(|x| x)))
@@ -134,7 +142,12 @@ impl ProviderService for Anthropic {
         let url = self.url("models")?;
         debug!(url = %url, "Fetching models");
 
-        let result = self.client.get(url).headers(self.headers()).send().await;
+        let result = self
+            .client
+            .get(url.clone())
+            .headers(self.headers())
+            .send()
+            .await;
 
         match result {
             Err(err) => {
@@ -146,7 +159,8 @@ impl ProviderService for Anthropic {
                     .error_for_status()
                     .with_context(|| "Failed because of a non 200 status code".to_string())?
                     .text()
-                    .await?;
+                    .await
+                    .context(format!("request: {}", url))?;
                 let response: ListModelResponse = serde_json::from_str(&text)?;
                 Ok(response.data.into_iter().map(Into::into).collect())
             }

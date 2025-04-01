@@ -74,55 +74,62 @@ impl OpenRouter {
         debug!(url = %url, model = %model, "Connecting Upstream");
         let es = self
             .client
-            .post(url)
+            .post(url.clone())
             .headers(self.headers())
             .json(&request)
-            .eventsource()?;
+            .eventsource()
+            .context(format!("request: {}", url.clone()))?;
 
+        let url_str = url.to_string();
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
-            .then(|event| async {
-                match event {
-                    Ok(event) => match event {
-                        Event::Open => None,
-                        Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
-                            debug!("Received completion from Upstream");
-                            None
-                        }
-                        Event::Message(message) => Some(
-                            serde_json::from_str::<OpenRouterResponse>(&message.data)
-                                .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
-                                .and_then(|event| {
-                                    ChatCompletionMessage::try_from(event.clone())
-                                        .with_context(|| format!("Failed to create completion message: {}", message.data))
-                                }),
-                        ),
-                    },
-                    Err(error) => match error {
-                        reqwest_eventsource::Error::StreamEnded => None,
-                        reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                            let headers = response.headers().clone();
-                            let status = response.status();
-                            match response.text().await {
-                                Ok(ref body) => {
-                                    debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                    return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)));
-                                }
-                                Err(error) => {
-                                    debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
-                                }
+            .then(move |event| {
+                let url_str = url_str.clone();
+                async move {
+                    match event {
+                        Ok(event) => match event {
+                            Event::Open => None,
+                            Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
+                                debug!("Received completion from Upstream");
+                                None
                             }
-                            Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
-                        }
-                        reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
-                            debug!(response = ?response, "Invalid content type");
-                            Some(Err(error.into()))
-                        }
-                        error => {
-                            debug!(error = %error, "Failed to receive chat completion event");
-                            Some(Err(error.into()))
-                        }
-                    },
+                            Event::Message(message) => Some(
+                                serde_json::from_str::<OpenRouterResponse>(&message.data)
+                                    .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
+                                    .and_then(|event| {
+                                        ChatCompletionMessage::try_from(event.clone())
+                                            .with_context(|| format!("Failed to create completion message: {}", message.data))
+                                    }),
+                            ),
+                        },
+                        Err(error) => match error {
+                            reqwest_eventsource::Error::StreamEnded => None,
+                            reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
+                                let headers = response.headers().clone();
+                                let status = response.status();
+                                match response.text().await {
+                                    Ok(ref body) => {
+                                        debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
+                                        return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body).context(format!("request: {}", url_str))));
+                                    }
+                                    Err(error) => {
+                                        debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
+                                    }
+                                }
+                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status).context(format!("request: {}", url_str))))
+                            }
+                            reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
+                                debug!(response = ?response, "Invalid content type");
+                                Some(Err(error.into()))
+                            }
+                            error => {
+                                debug!(error = %error, "Failed to receive chat completion event");
+                                Some(Err(error.into()))
+                            }
+                        },
+                    }.map(|err| {
+                        err.context(format!("request: {}", url_str))
+                    })
                 }
             });
 
