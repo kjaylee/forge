@@ -168,21 +168,24 @@ impl ProviderService for Anthropic {
                     .context("Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
-                Ok(response) => match response.text().await {
-                    Ok(text) => {
-                        let ctx_msg = format_http_context(None, "GET", url);
-                        let response: ListModelResponse = serde_json::from_str(&text)
-                            .context(ctx_msg)
-                            .context("Failed to deserialize models response")?;
-                        Ok(response.data.into_iter().map(Into::into).collect())
+                Ok(response) => {
+                    let status = response.status();
+                    match response.text().await {
+                        Ok(text) => {
+                            let ctx_msg = format_http_context(Some(status), "GET", url);
+                            let response: ListModelResponse = serde_json::from_str(&text)
+                                .context(ctx_msg)
+                                .context("Failed to deserialize models response")?;
+                            Ok(response.data.into_iter().map(Into::into).collect())
+                        }
+                        Err(err) => {
+                            let ctx_msg = format_http_context(err.status(), "GET", url);
+                            Err(anyhow::anyhow!(err))
+                                .context(ctx_msg)
+                                .context("Failed to decode response into text")
+                        }
                     }
-                    Err(err) => {
-                        let ctx_msg = format_http_context(err.status(), "GET", url);
-                        Err(anyhow::anyhow!(err))
-                            .context(ctx_msg)
-                            .context("Failed to decode response into text")
-                    }
-                },
+                }
                 Err(err) => {
                     let ctx_msg = format_http_context(err.status(), "GET", url);
                     Err(anyhow::anyhow!(err))
