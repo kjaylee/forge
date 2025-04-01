@@ -10,11 +10,14 @@ use serde::Deserialize;
 use crate::infra::FsSnapshotService;
 use crate::Infrastructure;
 
-/// Use this tool to undo the most recent file operation (modify/delete) on a
-/// specific file. This tool should be used when:
-/// - The user wants to revert a recent file change
-/// - A file operation resulted in unintended changes
-/// - There's a need to recover from a mistaken file modification or deletion
+/// Reverts the most recent file operation (create/modify/delete) on a specific
+/// file. Use this tool when you need to recover from mistaken file changes or
+/// undesired modifications. It restores the file to its state before the last
+/// operation performed by another tool_forge_fs_* tool. The tool ONLY undoes
+/// changes made by Forge tools and can't revert changes made outside Forge or
+/// multiple operations at once. Each call undoes only the most recent change
+/// for the specified file. Returns a success message on completion or an error
+/// if no previous snapshot exists or if the path is invalid.
 #[derive(Default, ToolDescription)]
 pub struct FsUndo<F>(Arc<F>);
 
@@ -32,10 +35,11 @@ impl<F> NamedTool for FsUndo<F> {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct UndoInput {
-    /// The path of the file to undo the last operation on (absolute path
-    /// required). This should be the exact path of the file that was
-    /// previously modified, created, or deleted through a Forge file
-    /// operation.
+    /// The absolute path of the file to revert to its previous state. Must be
+    /// the exact path that was previously modified, created, or deleted by
+    /// a Forge file operation. If the file was deleted, provide the
+    /// original path it had before deletion. The system requires a prior
+    /// snapshot for this path.
     pub path: String,
 }
 
