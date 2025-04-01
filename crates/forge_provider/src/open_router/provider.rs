@@ -154,19 +154,36 @@ impl OpenRouter {
     }
 
     async fn fetch_models(&self, url: Url) -> Result<String, anyhow::Error> {
-        Ok(self
+        match self
             .client
             .get(url.clone())
             .headers(self.headers())
             .send()
             .await
-            .context(format!("{} {}", "GET", url))
-            .context("Failed to fetch the models")?
-            .error_for_status()
-            .context(format!("{} {}", "GET", url))
-            .context("Failed because of a non 200 status code")?
-            .text()
-            .await?)
+        {
+            Ok(response) => match response.error_for_status() {
+                Ok(response) => {
+                    let status = response.status();
+                    Ok(response
+                        .text()
+                        .await
+                        .context(format!("{} {} {}", status, "GET", url))
+                        .context("Failed to decode response into text")?)
+                }
+                Err(err) => {
+                    let status = err.status().unwrap_or_default().as_u16();
+                    Err(anyhow::anyhow!(err)
+                        .context(format!("{} {} {}", status, "GET", url))
+                        .context("Failed because of a non 200 status code"))
+                }
+            },
+            Err(err) => {
+                let status = err.status().unwrap_or_default().as_u16();
+                Err(anyhow::anyhow!(err)
+                    .context(format!("{} {} {}", status, "GET", url))
+                    .context("Failed to fetch the models"))
+            }
+        }
     }
 }
 

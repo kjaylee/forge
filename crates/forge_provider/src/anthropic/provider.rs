@@ -152,8 +152,9 @@ impl ProviderService for Anthropic {
         match result {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
+                let status = err.status().unwrap_or_default().as_u16();
                 Err(anyhow::anyhow!(err))
-                    .context(format!("{} {}", "GET", url))
+                    .context(format!("{} {} {}", status, "GET", url))
                     .context("Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
@@ -164,13 +165,19 @@ impl ProviderService for Anthropic {
                             .context("Failed to deserialize models response")?;
                         Ok(response.data.into_iter().map(Into::into).collect())
                     }
-                    Err(err) => Err(anyhow::anyhow!(err))
-                        .context(format!("{} {}", "GET", url))
-                        .context("Failed to decode response into text"),
+                    Err(err) => {
+                        let status = err.status().unwrap_or_default().as_u16();
+                        Err(anyhow::anyhow!(err))
+                            .context(format!("{} {} {}", status, "GET", url))
+                            .context("Failed to decode response into text")
+                    }
                 },
-                Err(err) => Err(anyhow::anyhow!(err))
-                    .context(format!("{} {}", "GET", url))
-                    .context("Failed because of a non 200 status code".to_string()),
+                Err(err) => {
+                    let status = err.status().unwrap_or_default().as_u16();
+                    Err(anyhow::anyhow!(err))
+                        .context(format!("{} {} {}", status, "GET", url))
+                        .context("Failed because of a non 200 status code".to_string())
+                }
             },
         }
     }
