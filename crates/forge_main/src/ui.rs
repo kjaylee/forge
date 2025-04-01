@@ -220,12 +220,8 @@ impl<F: API> UI<F> {
                                 self.models.as_ref().unwrap()
                             }
                             Err(err) => {
-                                CONSOLE.writeln(
-                                    TitleFormat::failed("Failed to fetch models")
-                                        .sub_title("Fetching Models")
-                                        .error(err.to_string())
-                                        .format(),
-                                )?;
+                                CONSOLE
+                                    .writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
                                 input = self.console.prompt(None).await?;
                                 continue;
                             }
