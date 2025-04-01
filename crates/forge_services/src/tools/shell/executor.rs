@@ -24,13 +24,23 @@ impl CommandExecutor {
 
     /// Enable colored output for the command. By default it's disabled.
     pub fn colored(mut self) -> Self {
-        // Force color output even through pipes or when not directly
-        // connected to a terminal (non-TTY environments)
+        // Core color settings for general commands
         self.command
             .env("CLICOLOR_FORCE", "1")
             .env("FORCE_COLOR", "true")
-            .env("SBT_OPTS", "-Dsbt.color=always")
             .env_remove("NO_COLOR");
+
+        // Language/program specific color settings
+        self.command
+            .env("SBT_OPTS", "-Dsbt.color=always")
+            .env("JAVA_OPTS", "-Dsbt.color=always");
+
+        // enabled Git colors
+        self.command
+            .env("GIT_CONFIG_PARAMETERS", "'color.ui=always'");
+
+        // Other common tools
+        self.command.env("GREP_OPTIONS", "--color=always"); // GNU grep
 
         self
     }
