@@ -22,9 +22,16 @@ impl CommandExecutor {
         Self { command }
     }
 
-    /// Enable colored output for the command. bydefault it's disabled.
+    /// Enable colored output for the command. By default it's disabled.
     pub fn colored(mut self) -> Self {
+        // Force color output even through pipes or when not directly
+        // connected to a terminal (non-TTY environments)
         self.command.env("CLICOLOR_FORCE", "1");
+
+        // Add Java-specific color options for SBT
+        self.command
+            .env("JAVA_OPTS", "-Dsbt.color=always -Dsbt.log.noformat=false");
+
         self
     }
 
