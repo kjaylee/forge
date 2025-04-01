@@ -127,8 +127,8 @@ impl OpenRouter {
                                 Some(Err(error.into()))
                             }
                         },
-                    }.map(|err| {
-                        err.context(format!("{} {}", "POST", url_str))
+                    }.map(|response| {
+                        response.context(format!("{} {}", "POST", url_str))
                     })
                 }
             });
