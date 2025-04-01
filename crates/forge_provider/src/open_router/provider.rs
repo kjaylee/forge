@@ -1,4 +1,4 @@
-use anyhow::{bail, Context as _, Result};
+use anyhow::{Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
     self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Provider, ProviderService,
@@ -139,13 +139,15 @@ impl OpenRouter {
     async fn inner_models(&self) -> Result<Vec<Model>> {
         let url = self.url("models")?;
         debug!(url = %url, "Fetching models");
-        match self.fetch_models(url).await {
+        match self.fetch_models(url.clone()).await {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
-                bail!(err)
+                anyhow::bail!(err)
             }
             Ok(response) => {
-                let data: ListModelResponse = serde_json::from_str(&response)?;
+                let data: ListModelResponse = serde_json::from_str(&response)
+                    .context(format!("Method: {}, Request: {}", "GET", url))
+                    .context("Failed to deserialize models response")?;
                 Ok(data.data.into_iter().map(Into::into).collect())
             }
         }
@@ -154,11 +156,14 @@ impl OpenRouter {
     async fn fetch_models(&self, url: Url) -> Result<String, anyhow::Error> {
         Ok(self
             .client
-            .get(url)
+            .get(url.clone())
             .headers(self.headers())
             .send()
-            .await?
+            .await
+            .context(format!("Method: {}, Request: {}", "GET", url))
+            .context("Failed to fetch the models")?
             .error_for_status()
+            .context(format!("Method: {}, Request: {}", "GET", url))
             .with_context(|| "Failed because of a non 200 status code".to_string())?
             .text()
             .await?)
