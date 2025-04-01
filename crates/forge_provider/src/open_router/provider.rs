@@ -164,7 +164,7 @@ impl OpenRouter {
             .context("Failed to fetch the models")?
             .error_for_status()
             .context(format!("Method: {}, Request: {}", "GET", url))
-            .with_context(|| "Failed because of a non 200 status code".to_string())?
+            .context("Failed because of a non 200 status code")?
             .text()
             .await?)
     }
