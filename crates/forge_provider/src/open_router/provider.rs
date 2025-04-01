@@ -78,7 +78,7 @@ impl OpenRouter {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format!("request: {}", url.clone()))?;
+            .context(format!("Method: {}, Request: {}", "POST", url.clone()))?;
 
         let url_str = url.to_string();
         let stream = es
@@ -110,7 +110,7 @@ impl OpenRouter {
                                 match response.text().await {
                                     Ok(ref body) => {
                                         debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                        return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body).context(format!("request: {}", url_str))));
+                                        return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body).context(format!("Method: {}, Request: {}", "POST", url_str))));
                                     }
                                     Err(error) => {
                                         debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
@@ -128,7 +128,7 @@ impl OpenRouter {
                             }
                         },
                     }.map(|err| {
-                        err.context(format!("request: {}", url_str))
+                        err.context(format!("Method: {}, Request: {}", "POST", url_str))
                     })
                 }
             });
