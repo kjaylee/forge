@@ -152,7 +152,9 @@ impl ProviderService for Anthropic {
         match result {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
-                Err(anyhow::anyhow!(err)).context(format!("Method: {}, Request: {}", "GET", url))
+                Err(anyhow::anyhow!(err))
+                    .context(format!("Method: {}, Request: {}", "GET", url))
+                    .context("Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
                 Ok(response) => match response.text().await {
@@ -163,11 +165,12 @@ impl ProviderService for Anthropic {
                         Ok(response.data.into_iter().map(Into::into).collect())
                     }
                     Err(err) => Err(anyhow::anyhow!(err))
-                        .context(format!("Method: {}, Request: {}", "GET", url)),
+                        .context(format!("Method: {}, Request: {}", "GET", url))
+                        .context("Failed to decode response into text"),
                 },
                 Err(err) => Err(anyhow::anyhow!(err))
                     .context(format!("Method: {}, Request: {}", "GET", url))
-                    .context("Failed because of a non 200 status code".to_string())?,
+                    .context("Failed because of a non 200 status code".to_string()),
             },
         }
     }
