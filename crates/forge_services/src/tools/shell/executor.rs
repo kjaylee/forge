@@ -29,8 +29,7 @@ impl CommandExecutor {
         self.command.env("CLICOLOR_FORCE", "1");
 
         // Add Java-specific color options for SBT
-        self.command
-            .env("JAVA_OPTS", "-Dsbt.color=always");
+        self.command.env("JAVA_OPTS", "-Dsbt.color=always");
 
         self
     }
