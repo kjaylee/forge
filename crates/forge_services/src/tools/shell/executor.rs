@@ -30,7 +30,7 @@ impl CommandExecutor {
 
         // Add Java-specific color options for SBT
         self.command
-            .env("JAVA_OPTS", "-Dsbt.color=always -Dsbt.log.noformat=false");
+            .env("JAVA_OPTS", "-Dsbt.color=always");
 
         self
     }
