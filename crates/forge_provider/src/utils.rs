@@ -1,6 +1,7 @@
 use reqwest::StatusCode;
 
-/// Helper function to format HTTP request/response context for logging and error reporting
+/// Helper function to format HTTP request/response context for logging and
+/// error reporting
 pub(crate) fn format_http_context<U: AsRef<str>>(
     status: Option<StatusCode>,
     method: &str,
