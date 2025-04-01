@@ -8,7 +8,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::infra::FsSnapshotService;
-use crate::Infrastructure;
+use crate::tools::utils::{assert_absolute_path, format_display_path};
+use crate::{EnvironmentService, Infrastructure};
 
 /// Reverts the most recent file operation (create/modify/delete) on a specific
 /// file. Use this tool when you need to recover from mistaken file changes or
@@ -24,6 +25,22 @@ pub struct FsUndo<F>(Arc<F>);
 impl<F> FsUndo<F> {
     pub fn new(infra: Arc<F>) -> Self {
         Self(infra)
+    }
+}
+
+impl<F: Infrastructure> FsUndo<F> {
+    /// Formats a path for display, converting absolute paths to relative when
+    /// possible
+    ///
+    /// If the path starts with the current working directory, returns a
+    /// relative path. Otherwise, returns the original absolute path.
+    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
+        // Get the current working directory
+        let env = self.0.environment_service().get_environment();
+        let cwd = env.cwd.as_path();
+
+        // Use the shared utility function
+        format_display_path(path, cwd)
     }
 }
 
@@ -48,14 +65,20 @@ impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
     type Input = UndoInput;
     async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
+
         self.0.file_snapshot_service().undo_snapshot(path).await?;
 
-        // Display a message about the file being read
-        let message = TitleFormat::success("Undo").sub_title(path.display().to_string());
+        // Format the path for display
+        let display_path = self.format_display_path(path)?;
+
+        // Display a message about the file being undone
+        let message = TitleFormat::success("Undo").sub_title(display_path.clone());
         println!("{}", message.format());
+
         Ok(format!(
             "Successfully undid last operation on path: {}",
-            input.path
+            display_path
         ))
     }
 }
@@ -67,6 +90,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::attachment::tests::MockInfrastructure;
     use crate::tools::registry::tests::Stub;
 
     #[tokio::test]
@@ -101,5 +125,23 @@ mod tests {
             "tool_forge_fs_undo",
             "Tool name should match expected value"
         );
+    }
+
+    #[tokio::test]
+    async fn test_format_display_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Create a mock infrastructure with controlled cwd
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_undo = FsUndo::new(infra);
+
+        // Test with a mock path
+        let display_path = fs_undo.format_display_path(Path::new(&file_path));
+
+        // Since MockInfrastructure has a fixed cwd of "/test",
+        // and our temp path won't start with that, we expect the full path
+        assert!(display_path.is_ok());
+        assert_eq!(display_path.unwrap(), file_path.display().to_string());
     }
 }
