@@ -14,6 +14,7 @@ use super::model::{ListModelResponse, OpenRouterModel};
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use crate::open_router::transformers::{ProviderPipeline, Transformer};
+use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
 pub struct OpenRouter {
@@ -94,7 +95,7 @@ impl OpenRouter {
                                 None
                             }
                             Event::Message(message) => {
-                                let ctx_msg = response_detail_ctx(None, "POST", url_str);
+                                let ctx_msg = format_http_context(None, "POST", url_str);
                                 Some(
                                 serde_json::from_str::<OpenRouterResponse>(&message.data)
                                     .context(ctx_msg.clone())
@@ -111,7 +112,7 @@ impl OpenRouter {
                             reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
                                 let headers = response.headers().clone();
                                 let status = response.status();
-                                let ctx_msg = response_detail_ctx(Some(response.status()), "POST", url_str);
+                                let ctx_msg = format_http_context(Some(response.status()), "POST", url_str);
                                 match response.text().await {
                                     Ok(ref body) => {
                                         debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
@@ -126,12 +127,12 @@ impl OpenRouter {
                             }
                             reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                                 debug!(response = ?response, "Invalid content type");
-                                let ctx_msg = response_detail_ctx(Some(response.status()), "POST", url_str);
+                                let ctx_msg = format_http_context(Some(response.status()), "POST", url_str);
                                 Some(Err(anyhow::anyhow!(error).context(ctx_msg)))
                             }
                             error => {
                                 debug!(error = %error, "Failed to receive chat completion event");
-                                let ctx_msg = response_detail_ctx(None, "POST", url_str);
+                                let ctx_msg = format_http_context(None, "POST", url_str);
                                 Some(Err(anyhow::anyhow!(error).context(ctx_msg)))
                             }
                         },
@@ -151,7 +152,7 @@ impl OpenRouter {
                 anyhow::bail!(err)
             }
             Ok(response) => {
-                let ctx_msg = response_detail_ctx(None, "GET", url);
+                let ctx_msg = format_http_context(None, "GET", url);
                 let data: ListModelResponse = serde_json::from_str(&response)
                     .context(ctx_msg)
                     .context("Failed to deserialize models response")?;
@@ -170,7 +171,7 @@ impl OpenRouter {
         {
             Ok(response) => match response.error_for_status() {
                 Ok(response) => {
-                    let ctx_msg = response_detail_ctx(Some(response.status()), "GET", url);
+                    let ctx_msg = format_http_context(Some(response.status()), "GET", url);
                     Ok(response
                         .text()
                         .await
@@ -178,32 +179,19 @@ impl OpenRouter {
                         .context("Failed to decode response into text")?)
                 }
                 Err(err) => {
-                    let ctx_msg = response_detail_ctx(err.status(), "GET", url);
+                    let ctx_msg = format_http_context(err.status(), "GET", url);
                     Err(anyhow::anyhow!(err)
                         .context(ctx_msg)
                         .context("Failed because of a non 200 status code"))
                 }
             },
             Err(err) => {
-                let ctx_msg = response_detail_ctx(err.status(), "GET", url);
+                let ctx_msg = format_http_context(err.status(), "GET", url);
                 Err(anyhow::anyhow!(err)
                     .context(ctx_msg)
                     .context("Failed to fetch the models"))
             }
         }
-    }
-}
-
-/// Helper function to format the response detail context
-fn response_detail_ctx<U: AsRef<str>>(
-    status: Option<reqwest::StatusCode>,
-    method: &str,
-    url: U,
-) -> String {
-    if let Some(status) = status {
-        format!("{} {} {}", status.as_u16(), method, url.as_ref())
-    } else {
-        format!("{} {}", method, url.as_ref())
     }
 }
 
