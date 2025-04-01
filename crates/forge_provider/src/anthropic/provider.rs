@@ -91,13 +91,15 @@ impl ProviderService for Anthropic {
                                 debug!("Received completion from Upstream");
                                 None
                             }
-                            Event::Message(message) => Some(
+                            Event::Message(message) => {
+                                let ctx_msg = response_detail_ctx(None, "POST", url_str);
+                                Some(
                                 serde_json::from_str::<EventData>(&message.data)
-                                    .context(format!("{} {}","POST", url_str))
+                                    .context(ctx_msg.clone())
                                     .with_context(|| "Failed to parse Anthropic event")
                                     .and_then(|event| {
                                         ChatCompletionMessage::try_from(event)
-                                        .context(format!("{} {}","POST", url_str))
+                                        .context(ctx_msg)
                                         .with_context(|| {
                                             format!(
                                                 "Failed to create completion message: {}",
@@ -105,36 +107,38 @@ impl ProviderService for Anthropic {
                                             )
                                         })
                                     }),
-                            ),
-                        },
+                            )
+                        }},
                         Err(error) => match error {
                             reqwest_eventsource::Error::StreamEnded => None,
                             reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
                                 let headers = response.headers().clone();
                                 let status = response.status();
+                                let ctx_msg = response_detail_ctx(Some(response.status()), "POST", url_str);
                                  match response.text().await {
                                     Ok(ref body) => {
                                         debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
                                         Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body))
-                                            .context(format!("{} {} {}", status.as_u16(), "POST", url_str)))
+                                            .context(ctx_msg))
                                     }
                                     Err(error) => {
                                         error!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
                                         Some(Err(anyhow::anyhow!("Invalid status code: {}", status))
-                                            .context(format!("{} {} {}", status.as_u16(), "POST", url_str)))
+                                            .context(ctx_msg))
                                     }
                                 }
                             }
                             reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                                 debug!(response = ?response, "Invalid content type");
-                                let status = response.status();
+                                let ctx_msg = response_detail_ctx(Some(response.status()), "POST", url_str);
                                 Some(Err(anyhow::anyhow!(error))
-                                    .context(format!("{} {} {}", status.as_u16(), "POST", url_str)))
+                                    .context(ctx_msg))
                             }
                             error => {
                                 debug!(error = %error, "Failed to receive chat completion event");
+                                let ctx_msg = response_detail_ctx(None, "POST", url_str);
                                 Some(Err(anyhow::anyhow!(error))
-                                    .context(format!("{} {}", "POST", url_str)))
+                                    .context(ctx_msg))
                             }
                         },
                     }
@@ -157,34 +161,48 @@ impl ProviderService for Anthropic {
         match result {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
-                let status = err.status().unwrap_or_default().as_u16();
+                let ctx_msg = response_detail_ctx(err.status(), "GET", url);
                 Err(anyhow::anyhow!(err))
-                    .context(format!("{} {} {}", status, "GET", url))
+                    .context(ctx_msg)
                     .context("Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
                 Ok(response) => match response.text().await {
                     Ok(text) => {
+                        let ctx_msg = response_detail_ctx(None, "GET", url);
                         let response: ListModelResponse = serde_json::from_str(&text)
-                            .context(format!("{} {}", "GET", url))
+                            .context(ctx_msg)
                             .context("Failed to deserialize models response")?;
                         Ok(response.data.into_iter().map(Into::into).collect())
                     }
                     Err(err) => {
-                        let status = err.status().unwrap_or_default().as_u16();
+                        let ctx_msg = response_detail_ctx(err.status(), "GET", url);
                         Err(anyhow::anyhow!(err))
-                            .context(format!("{} {} {}", status, "GET", url))
+                            .context(ctx_msg)
                             .context("Failed to decode response into text")
                     }
                 },
                 Err(err) => {
-                    let status = err.status().unwrap_or_default().as_u16();
+                    let ctx_msg = response_detail_ctx(err.status(), "GET", url);
                     Err(anyhow::anyhow!(err))
-                        .context(format!("{} {} {}", status, "GET", url))
+                        .context(ctx_msg)
                         .context("Failed because of a non 200 status code".to_string())
                 }
             },
         }
+    }
+}
+
+/// Helper function to format the response detail context
+fn response_detail_ctx<U: AsRef<str>>(
+    status: Option<reqwest::StatusCode>,
+    method: &str,
+    url: U,
+) -> String {
+    if let Some(status) = status {
+        format!("{} {} {}", status.as_u16(), method, url.as_ref())
+    } else {
+        format!("{} {}", method, url.as_ref())
     }
 }
 
