@@ -76,7 +76,7 @@ impl ProviderService for Anthropic {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format!("Method: {}, Request: {}", "POST", url.clone()))?;
+            .context(format!("{} {}", "POST", url.clone()))?;
 
         let url_str = url.clone();
         let stream = es
@@ -130,7 +130,7 @@ impl ProviderService for Anthropic {
                             }
                         },
                     }.map(|err| {
-                        err.context(format!("Method: {}, Request: {}", "POST", url_str))
+                        err.context(format!("{} {}", "POST", url_str))
                     })
                 }
 
