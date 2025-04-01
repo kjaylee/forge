@@ -76,7 +76,7 @@ impl ProviderService for Anthropic {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format!("Method: {}, Request: {}", "POST", url.clone()))?;
+            .context(format!("{} {}", "POST", url.clone()))?;
 
         let url_str = url.clone();
         let stream = es
@@ -130,7 +130,7 @@ impl ProviderService for Anthropic {
                             }
                         },
                     }.map(|err| {
-                        err.context(format!("Method: {}, Request: {}", "POST", url_str))
+                        err.context(format!("{} {}", "POST", url_str))
                     })
                 }
 
@@ -160,7 +160,7 @@ impl ProviderService for Anthropic {
                     .with_context(|| "Failed because of a non 200 status code".to_string())?
                     .text()
                     .await
-                    .context(format!("Method: {}, Request: {}", "GET", url))?;
+                    .context(format!("{} {}", "GET", url))?;
                 let response: ListModelResponse = serde_json::from_str(&text)?;
                 Ok(response.data.into_iter().map(Into::into).collect())
             }
