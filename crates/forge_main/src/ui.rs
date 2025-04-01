@@ -214,9 +214,22 @@ impl<F: API> UI<F> {
                     let models = if let Some(models) = self.models.as_ref() {
                         models
                     } else {
-                        let models = self.api.models().await?;
-                        self.models = Some(models);
-                        self.models.as_ref().unwrap()
+                        match self.api.models().await {
+                            Ok(models) => {
+                                self.models = Some(models);
+                                self.models.as_ref().unwrap()
+                            }
+                            Err(err) => {
+                                CONSOLE.writeln(
+                                    TitleFormat::failed("Failed to fetch models")
+                                        .sub_title("Fetching Models")
+                                        .error(err.to_string())
+                                        .format(),
+                                )?;
+                                input = self.console.prompt(None).await?;
+                                continue;
+                            }
+                        }
                     };
                     let info: Info = models.as_slice().into();
                     CONSOLE.writeln(info.to_string())?;
