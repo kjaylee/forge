@@ -116,7 +116,7 @@ impl OpenRouter {
                                         debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
                                     }
                                 }
-                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status).context(format!("request: {}", url_str))))
+                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
                             }
                             reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                                 debug!(response = ?response, "Invalid content type");
