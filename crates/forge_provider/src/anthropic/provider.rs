@@ -153,23 +153,23 @@ impl ProviderService for Anthropic {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
                 Err(anyhow::anyhow!(err))
-                    .context(format!("Method: {}, Request: {}", "GET", url))
+                    .context(format!("{} {}", "GET", url))
                     .context("Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
                 Ok(response) => match response.text().await {
                     Ok(text) => {
                         let response: ListModelResponse = serde_json::from_str(&text)
-                            .context(format!("Method: {}, Request: {}", "GET", url))
+                            .context(format!("{} {}", "GET", url))
                             .context("Failed to deserialize models response")?;
                         Ok(response.data.into_iter().map(Into::into).collect())
                     }
                     Err(err) => Err(anyhow::anyhow!(err))
-                        .context(format!("Method: {}, Request: {}", "GET", url))
+                        .context(format!("{} {}", "GET", url))
                         .context("Failed to decode response into text"),
                 },
                 Err(err) => Err(anyhow::anyhow!(err))
-                    .context(format!("Method: {}, Request: {}", "GET", url))
+                    .context(format!("{} {}", "GET", url))
                     .context("Failed because of a non 200 status code".to_string()),
             },
         }
