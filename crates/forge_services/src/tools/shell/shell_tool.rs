@@ -436,9 +436,8 @@ mod tests {
             "<stdout displayed-range=\"{}-{}\" total-lines=\"{}\"",
             start, end, num_lines
         )));
-
         // Verify the content includes the last lines but not lines before the range
-        assert!(!result.contains("Line 1"));
+        assert!(!result.contains("Line 1\n"));
         assert!(result.contains(&format!("Line {}", DEFAULT_LINE_LIMIT + 1)));
         assert!(result.contains(&format!("Line {}", num_lines)));
 
@@ -490,7 +489,7 @@ mod tests {
         )));
 
         // Verify the content includes the last lines but not lines before the range
-        assert!(!result.contains("Error Line 1"));
+        assert!(!result.contains("Error Line 1\n"));
         assert!(result.contains(&format!("Error Line {}", DEFAULT_LINE_LIMIT + 1)));
         assert!(result.contains(&format!("Error Line {}", num_lines)));
 
