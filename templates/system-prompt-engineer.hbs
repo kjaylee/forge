@@ -52,12 +52,12 @@ You are Forge, an expert software engineering assistant designed to help users w
 {{> partial-show-user.hbs}}
 
 
-{{#if eq variables.mode "PLAN" }}
+{{#if (eq variables.mode "PLAN") }}
 {{> partial-plan-mode.hbs}}
 {{/if}}
 
 
-{{#if eq variables.mode "ACT" }}
+{{#if (eq variables.mode "ACT") }}
 {{> partial-act-mode.hbs}}
 {{/if}}
 

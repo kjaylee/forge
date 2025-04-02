@@ -123,33 +123,38 @@ impl<A: Services> Orchestrator<A> {
             .collect::<Vec<_>>()
     }
 
-    async fn init_agent_context(
-        &self,
-        agent: &Agent,
-        variables: &HashMap<String, Value>,
-    ) -> anyhow::Result<Context> {
+    async fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
         let tool_defs = self.init_tool_definitions(agent);
 
         // Use the agent's tool_supported flag directly instead of querying the provider
         let tool_supported = agent.tool_supported.unwrap_or_default();
 
-        let mut context = Context::default();
-
-        if let Some(system_prompt) = &agent.system_prompt {
-            let system_message = self
-                .services
-                .template_service()
-                .render_system(agent, system_prompt, variables)
-                .await?;
-
-            context = context.set_first_system_message(system_message);
-        }
+        let context = Context::default();
 
         Ok(context.extend_tools(if tool_supported {
             tool_defs
         } else {
             Vec::new()
         }))
+    }
+
+    async fn set_system_prompt(
+        &self,
+        context: Context,
+        agent: &Agent,
+        variables: &HashMap<String, Value>,
+    ) -> anyhow::Result<Context> {
+        Ok(if let Some(system_prompt) = &agent.system_prompt {
+            let system_message = self
+                .services
+                .template_service()
+                .render_system(agent, system_prompt, variables)
+                .await?;
+
+            context.set_first_system_message(system_message)
+        } else {
+            context
+        })
     }
 
     async fn collect_messages(
@@ -296,34 +301,24 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.workflow.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            self.init_agent_context(agent, variables).await?
+            self.init_agent_context(agent).await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => self.init_agent_context(agent, variables).await?,
+                None => self.init_agent_context(agent).await?,
             }
         };
 
+        // Render the system prompts with the variables
+        context = self.set_system_prompt(context, agent, variables).await?;
+
+        // Render user prompts
+        context = self
+            .set_user_prompt(context, agent, variables, event)
+            .await?;
+
         if let Some(temperature) = agent.temperature {
             context = context.temperature(temperature);
-        }
-
-        let content = if let Some(user_prompt) = &agent.user_prompt {
-            // Get conversation variables from the conversation
-
-            // Use the consolidated render_event method which handles suggestions and
-            // variables
-            self.services
-                .template_service()
-                .render_event(agent, user_prompt, event, variables)
-                .await?
-        } else {
-            // Use the raw event value as content if no user_prompt is provided
-            event.value.to_string()
-        };
-
-        if !content.is_empty() {
-            context = context.add_message(ContextMessage::user(content));
         }
 
         // Process attachments
@@ -390,6 +385,33 @@ impl<A: Services> Orchestrator<A> {
         self.sync_conversation().await?;
 
         Ok(())
+    }
+
+    async fn set_user_prompt(
+        &self,
+        mut context: Context,
+
+        agent: &Agent,
+        variables: &HashMap<String, Value>,
+        event: &Event,
+    ) -> anyhow::Result<Context> {
+        let content = if let Some(user_prompt) = &agent.user_prompt {
+            // Use the consolidated render_event method which handles suggestions and
+            // variables
+            self.services
+                .template_service()
+                .render_event(agent, user_prompt, event, variables)
+                .await?
+        } else {
+            // Use the raw event value as content if no user_prompt is provided
+            event.value.to_string()
+        };
+
+        if !content.is_empty() {
+            context = context.add_message(ContextMessage::user(content));
+        }
+
+        Ok(context)
     }
 
     async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
