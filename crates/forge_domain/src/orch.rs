@@ -139,7 +139,7 @@ impl<A: Services> Orchestrator<A> {
             let system_message = self
                 .services
                 .template_service()
-                .render_system(agent, system_prompt, &variables)
+                .render_system(agent, system_prompt, variables)
                 .await?;
 
             context = context.set_first_system_message(system_message);
@@ -296,11 +296,11 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.workflow.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            self.init_agent_context(agent, &variables).await?
+            self.init_agent_context(agent, variables).await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => self.init_agent_context(agent, &variables).await?,
+                None => self.init_agent_context(agent, variables).await?,
             }
         };
 
