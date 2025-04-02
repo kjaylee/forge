@@ -3,10 +3,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use forge_display::DiffFormat;
-use forge_domain::{
-    count_lines, extract_line_range, ExecutableTool, NamedTool, ToolDescription, ToolName,
-    DEFAULT_LINE_LIMIT,
-};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -14,6 +11,7 @@ use strum_macros::AsRefStr;
 use thiserror::Error;
 use tokio::fs;
 
+use crate::range_handler::{count_lines, extract_line_range, DEFAULT_LINE_LIMIT};
 // No longer using dissimilar for fuzzy matching
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;

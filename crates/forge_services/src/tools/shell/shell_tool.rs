@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
-use forge_domain::{
-    count_lines, extract_line_range, write_to_temp_file, Environment, ExecutableTool, NamedTool,
-    ToolDescription, ToolName, DEFAULT_LINE_LIMIT,
-};
+use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
 use super::executor::Output;
+use crate::range_handler::{
+    count_lines, extract_line_range, write_to_temp_file, DEFAULT_LINE_LIMIT,
+};
 use crate::tools::shell::executor::CommandExecutor;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]

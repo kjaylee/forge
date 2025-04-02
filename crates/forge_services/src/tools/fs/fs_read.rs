@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_display::TitleFormat;
-use forge_domain::{
-    count_lines, determine_display_range, extract_line_range, ExecutableTool, NamedTool,
-    ToolDescription, ToolName, DEFAULT_LINE_LIMIT,
-};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::range_handler::{
+    count_lines, determine_display_range, extract_line_range, DEFAULT_LINE_LIMIT,
+};
 use crate::tools::utils::{assert_absolute_path, format_display_path};
 use crate::{EnvironmentService, FsReadService, Infrastructure};
 

@@ -4,16 +4,14 @@ use std::sync::Arc;
 use anyhow::bail;
 use dissimilar::Chunk;
 use forge_display::DiffFormat;
-use forge_domain::{
-    count_lines, extract_line_range, ExecutableTool, NamedTool, ToolDescription, ToolName,
-    DEFAULT_LINE_LIMIT,
-};
+use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use thiserror::Error;
 
 use super::marker::{DIVIDER, REPLACE, SEARCH};
 use super::parse::{self, PatchBlock};
+use crate::range_handler::{count_lines, extract_line_range, DEFAULT_LINE_LIMIT};
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
 use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
