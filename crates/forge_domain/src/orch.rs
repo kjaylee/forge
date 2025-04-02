@@ -1,10 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use serde_json::Value;
 use tokio::sync::RwLock;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::RetryIf;
@@ -122,7 +123,11 @@ impl<A: Services> Orchestrator<A> {
             .collect::<Vec<_>>()
     }
 
-    async fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
+    async fn init_agent_context(
+        &self,
+        agent: &Agent,
+        variables: &HashMap<String, Value>,
+    ) -> anyhow::Result<Context> {
         let tool_defs = self.init_tool_definitions(agent);
 
         // Use the agent's tool_supported flag directly instead of querying the provider
@@ -134,7 +139,7 @@ impl<A: Services> Orchestrator<A> {
             let system_message = self
                 .services
                 .template_service()
-                .render_system(agent, system_prompt)
+                .render_system(agent, system_prompt, &variables)
                 .await?;
 
             context = context.set_first_system_message(system_message);
@@ -281,6 +286,7 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
+        let variables = &conversation.variables;
         debug!(
             conversation_id = %conversation.id,
             agent = %agent_id,
@@ -290,11 +296,11 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.workflow.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            self.init_agent_context(agent).await?
+            self.init_agent_context(agent, &variables).await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => self.init_agent_context(agent).await?,
+                None => self.init_agent_context(agent, &variables).await?,
             }
         };
 
@@ -304,7 +310,6 @@ impl<A: Services> Orchestrator<A> {
 
         let content = if let Some(user_prompt) = &agent.user_prompt {
             // Get conversation variables from the conversation
-            let variables = &conversation.variables;
 
             // Use the consolidated render_event method which handles suggestions and
             // variables
