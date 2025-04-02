@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use forge_display::DiffFormat;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{
+    count_lines, extract_line_range, ExecutableTool, NamedTool, ToolDescription, ToolName,
+    DEFAULT_LINE_LIMIT,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -228,19 +231,34 @@ impl<F: Infrastructure> ApplyPatchJson<F> {
 }
 
 /// Format the modified content as XML with optional syntax warning
-fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
-    if let Some(w) = warning {
-        format!(
-            "<file_content\n  path=\"{}\"\n  syntax_checker_warning=\"{}\">\n{}</file_content>\n",
-            path, w, content
-        )
+fn format_output(path: &str, content: &str, warning: Option<&str>) -> anyhow::Result<String> {
+    let line_count = count_lines(content);
+
+    // Determine content to display and build base attributes
+    let (display_content, attrs) = if line_count <= DEFAULT_LINE_LIMIT {
+        (content.trim_end().to_string(), format!("path=\"{}\"", path))
     } else {
-        format!(
-            "<file_content path=\"{}\">\n{}\n</file_content>\n",
-            path,
-            content.trim_end()
+        (
+            extract_line_range(content, 1, DEFAULT_LINE_LIMIT)?,
+            format!(
+                "path=\"{}\" displayed-range=\"1-{}\" total-lines=\"{}\"",
+                path, DEFAULT_LINE_LIMIT, line_count
+            ),
         )
-    }
+    };
+
+    // Add warning attribute if present
+    let attributes = if let Some(w) = warning {
+        format!("{} syntax_checker_warning=\"{}\"", attrs, w)
+    } else {
+        attrs
+    };
+
+    // Format the final XML output
+    Ok(format!(
+        "<file_content {}>\n{}\n</file_content>",
+        attributes, display_content
+    ))
 }
 
 #[async_trait::async_trait]
@@ -269,7 +287,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
                 &patch.content,
             )?;
 
-            // Generate diff between old and new content
+            // Generate diff between old and new content for console display
             let diff =
                 DiffFormat::format("patch", path.to_path_buf(), &old_content, &current_content);
             println!("{}", diff);
@@ -289,7 +307,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
             path.to_string_lossy().as_ref(),
             &current_content,
             warning.as_deref(),
-        );
+        )?;
 
         // Return the final result
         Ok(result)

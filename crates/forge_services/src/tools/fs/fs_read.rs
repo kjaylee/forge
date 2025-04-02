@@ -3,7 +3,10 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_display::TitleFormat;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{
+    count_lines, determine_display_range, extract_line_range, ExecutableTool, NamedTool,
+    ToolDescription, ToolName, DEFAULT_LINE_LIMIT,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -15,6 +18,10 @@ use crate::{EnvironmentService, FsReadService, Infrastructure};
 pub struct FSReadInput {
     /// The path of the file to read, always provide absolute paths.
     pub path: String,
+    /// Start line for reading file content (optional)
+    pub range_start: Option<usize>,
+    /// End line for reading file content (optional)
+    pub range_end: Option<usize>,
 }
 
 /// Reads file contents at specified path. Use for analyzing code, config files,
@@ -58,7 +65,10 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        // Use the infrastructure to read the file
+        // First, check if a specific range was requested
+        let has_range = input.range_start.is_some() || input.range_end.is_some();
+
+        // Read the file content
         let bytes = self
             .0
             .file_read_service()
@@ -74,13 +84,62 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
             )
         })?;
 
+        // Count total lines
+        let total_lines = count_lines(&content);
+
+        // Format the display path (for output message)
+        let display_path = self.format_display_path(path)?;
+
+        // Determine the range and format the output
+        let (start, end, output_content) = if has_range {
+            // Use the requested range or default range calculation
+            let (start, end) =
+                determine_display_range(total_lines, input.range_start, input.range_end);
+
+            // Extract the content for that range
+            let range_content = extract_line_range(&content, start, end)?;
+
+            (start, end, range_content)
+        } else if total_lines > DEFAULT_LINE_LIMIT {
+            // For large files without specified range, always show first chunk
+            let start = 1;
+            let end = DEFAULT_LINE_LIMIT;
+            let range_content = extract_line_range(&content, start, end)?;
+
+            (start, end, range_content)
+        } else {
+            // For small files, show all content
+            (1, total_lines, content.clone())
+        };
+
+        // Prepare output with metadata
+        let output = if total_lines > DEFAULT_LINE_LIMIT || has_range {
+            // Add range metadata as XML tags for large files or when range specified
+            let file_metadata_xml = format!(
+                "<file displayed-range=\"{}-{}\" total-lines=\"{}\" path=\"{}\">",
+                start, end, total_lines, input.path
+            );
+            format!("{}\n{}\n</file>", file_metadata_xml, output_content)
+        } else {
+            // Simple output for small files with no range specified
+            output_content
+        };
+
         // Display a message about the file being read
         let title = "read";
-        let display_path = self.format_display_path(path)?;
-        let message = TitleFormat::success(title).sub_title(display_path);
-        println!("{}", message);
+        let message = if total_lines > DEFAULT_LINE_LIMIT {
+            format!(
+                "read range {}-{} of {} lines from {}",
+                start, end, total_lines, display_path
+            )
+        } else {
+            format!("read {} lines from {}", total_lines, display_path)
+        };
 
-        Ok(content)
+        let formatted_message = TitleFormat::success(title).sub_title(message);
+        println!("{}", formatted_message);
+
+        Ok(output)
     }
 }
 
@@ -99,7 +158,9 @@ mod test {
     async fn test_with_mock(path: &str) -> anyhow::Result<String> {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_read = FSRead::new(infra);
-        fs_read.call(FSReadInput { path: path.to_string() }).await
+        fs_read
+            .call(FSReadInput { path: path.to_string(), range_start: None, range_end: None })
+            .await
     }
 
     #[tokio::test]

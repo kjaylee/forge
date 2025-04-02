@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
-use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{
+    count_lines, extract_line_range, write_to_temp_file, Environment, ExecutableTool, NamedTool,
+    ToolDescription, ToolName, DEFAULT_LINE_LIMIT,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,6 +22,10 @@ pub struct ShellInput {
 }
 
 /// Formats command output by wrapping non-empty stdout/stderr in XML tags.
+/// Handles large outputs by truncating and adding metadata about displayed
+/// range. For large outputs, stores the complete output in a temporary file and
+/// includes the file path in the response. By default, displays the last part
+/// of stdout/stderr instead of the first part.
 /// stderr is commonly used for warnings and progress info, so success is
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
@@ -26,15 +33,72 @@ pub struct ShellInput {
 fn format_output(output: Output) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
 
+    // Process stdout if not empty
     if !output.stdout.trim().is_empty() {
-        formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
+        // Count total lines in stdout
+        let total_lines = count_lines(&output.stdout);
+
+        if total_lines > DEFAULT_LINE_LIMIT {
+            // Write full stdout to a temp file
+            let temp_file_info = write_to_temp_file(&output.stdout, "shell_stdout")?;
+
+            // For large output, show the last DEFAULT_LINE_LIMIT lines instead of first
+            let start = total_lines
+                .saturating_sub(DEFAULT_LINE_LIMIT)
+                .saturating_add(1);
+            let end = total_lines;
+
+            // Extract the content for that range
+            let range_content = extract_line_range(&output.stdout, start, end)?;
+
+            // Add metadata XML tag for truncated stdout with file path
+            formatted_output.push_str(&format!(
+                "<stdout displayed-range=\"{}-{}\" total-lines=\"{}\" complete-log-output=\"{}\">{}",
+                start, end, total_lines, temp_file_info.path, range_content
+            ));
+
+            // Close the tag
+            formatted_output.push_str("</stdout>");
+        } else {
+            // For small stdout, include all content
+            formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
+        }
     }
 
+    // Process stderr if not empty
     if !output.stderr.trim().is_empty() {
         if !formatted_output.is_empty() {
             formatted_output.push('\n');
         }
-        formatted_output.push_str(&format!("<stderr>{}</stderr>", output.stderr));
+
+        // Count total lines in stderr
+        let total_lines = count_lines(&output.stderr);
+
+        if total_lines > DEFAULT_LINE_LIMIT {
+            // Write full stderr to a temp file
+            let temp_file_info = write_to_temp_file(&output.stderr, "shell_stderr")?;
+
+            // For large output, show the last DEFAULT_LINE_LIMIT lines instead of first
+            let start = total_lines
+                .saturating_sub(DEFAULT_LINE_LIMIT)
+                .saturating_add(1);
+            let end = total_lines;
+
+            // Extract the content for that range
+            let range_content = extract_line_range(&output.stderr, start, end)?;
+
+            // Add metadata XML tag for truncated stderr with file path
+            formatted_output.push_str(&format!(
+                "<stderr displayed-range=\"{}-{}\" total-lines=\"{}\" complete-log-output=\"{}\">{}",
+                start, end, total_lines, temp_file_info.path, range_content
+            ));
+
+            // Close the tag
+            formatted_output.push_str("</stderr>");
+        } else {
+            // For small stderr, include all content
+            formatted_output.push_str(&format!("<stderr>{}</stderr>", output.stderr));
+        }
     }
 
     let result = if formatted_output.is_empty() {
@@ -339,6 +403,104 @@ mod tests {
 
         assert!(result.contains("executed successfully"));
         assert!(!result.contains("failed"));
+    }
+
+    #[tokio::test]
+    async fn test_shell_large_output() {
+        let shell = Shell::new(test_env());
+
+        // Generate significantly more lines than DEFAULT_LINE_LIMIT
+        let num_lines = DEFAULT_LINE_LIMIT * 2;
+        let command = if cfg!(target_os = "windows") {
+            // Windows command to generate a large output
+            format!("for /L %%i in (1,1,{}) do @echo Line %%i", num_lines)
+        } else {
+            // Unix command to generate a large output
+            format!("for i in $(seq 1 {}); do echo Line $i; done", num_lines)
+        };
+
+        let result = shell
+            .call(ShellInput { command, cwd: env::current_dir().unwrap() })
+            .await
+            .unwrap();
+
+        // The output should be truncated and include range metadata
+        assert!(result.contains("displayed-range"));
+        assert!(result.contains("total-lines"));
+        assert!(result.contains("complete-log-output"));
+
+        // Check that we're showing the LAST part of the output now
+        let start = num_lines - DEFAULT_LINE_LIMIT + 1;
+        let end = num_lines;
+        assert!(result.contains(&format!(
+            "<stdout displayed-range=\"{}-{}\" total-lines=\"{}\"",
+            start, end, num_lines
+        )));
+
+        // Verify the content includes the last lines but not lines before the range
+        assert!(!result.contains("Line 1"));
+        assert!(result.contains(&format!("Line {}", DEFAULT_LINE_LIMIT + 1)));
+        assert!(result.contains(&format!("Line {}", num_lines)));
+
+        // Verify the log file path is included and exists
+        let path_start =
+            result.find("complete-log-output=\"").unwrap() + "complete-log-output=\"".len();
+        let path_end = result[path_start..].find("\"").unwrap() + path_start;
+        let log_path = &result[path_start..path_end];
+
+        assert!(std::path::Path::new(log_path).exists());
+    }
+
+    #[tokio::test]
+    async fn test_shell_large_stderr_output() {
+        let shell = Shell::new(test_env());
+
+        // Generate significantly more lines than DEFAULT_LINE_LIMIT
+        let num_lines = DEFAULT_LINE_LIMIT * 2;
+        let command = if cfg!(target_os = "windows") {
+            // Windows command to generate large stderr output with successful exit code
+            format!(
+                "for /L %%i in (1,1,{}) do @echo Error Line %%i 1>&2 && exit /b 0",
+                num_lines
+            )
+        } else {
+            // Unix command to generate large stderr output with successful exit code
+            format!(
+                "for i in $(seq 1 {}); do echo \"Error Line $i\" >&2; done && exit 0",
+                num_lines
+            )
+        };
+
+        let result = shell
+            .call(ShellInput { command, cwd: env::current_dir().unwrap() })
+            .await
+            .unwrap();
+
+        // The stderr output should be truncated and include range metadata
+        assert!(result.contains("displayed-range"));
+        assert!(result.contains("total-lines"));
+        assert!(result.contains("complete-log-output"));
+
+        // Check that we're showing the LAST part of the output now
+        let start = num_lines - DEFAULT_LINE_LIMIT + 1;
+        let end = num_lines;
+        assert!(result.contains(&format!(
+            "<stderr displayed-range=\"{}-{}\" total-lines=\"{}\"",
+            start, end, num_lines
+        )));
+
+        // Verify the content includes the last lines but not lines before the range
+        assert!(!result.contains("Error Line 1"));
+        assert!(result.contains(&format!("Error Line {}", DEFAULT_LINE_LIMIT + 1)));
+        assert!(result.contains(&format!("Error Line {}", num_lines)));
+
+        // Verify the log file path is included and exists
+        let path_start =
+            result.find("complete-log-output=\"").unwrap() + "complete-log-output=\"".len();
+        let path_end = result[path_start..].find("\"").unwrap() + path_start;
+        let log_path = &result[path_start..path_end];
+
+        assert!(std::path::Path::new(log_path).exists());
     }
 
     #[tokio::test]

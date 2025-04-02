@@ -926,6 +926,7 @@ dependencies = [
  "merge",
  "nom 8.0.0",
  "pretty_assertions",
+ "rand 0.8.5",
  "schemars",
  "serde",
  "serde_json",
@@ -945,6 +946,8 @@ name = "forge_fs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
+ "rand 0.8.5",
  "tokio",
 ]
 
@@ -1021,6 +1024,7 @@ dependencies = [
  "dissimilar",
  "forge_display",
  "forge_domain",
+ "forge_fs",
  "forge_provider",
  "forge_snaps",
  "forge_tool_macros",
@@ -1034,6 +1038,7 @@ dependencies = [
  "moka2",
  "nom 8.0.0",
  "pretty_assertions",
+ "rand 0.8.5",
  "regex",
  "reqwest 0.12.12",
  "rust-embed",
