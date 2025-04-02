@@ -6,5 +6,3 @@ edition = "2021"
 [dependencies]
 tokio.workspace = true
 anyhow.workspace = true
-chrono = { version = "0.4", default-features = false, features = ["clock"] }
-rand.workspace = true
