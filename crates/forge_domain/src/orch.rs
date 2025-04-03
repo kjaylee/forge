@@ -30,7 +30,7 @@ pub struct Orchestrator<App> {
     services: Arc<App>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
-    compactor: ContextCompactor<App>,
+    compactor: Arc<ContextCompactor<App>>,
     retry_strategy: std::iter::Take<tokio_retry::strategy::ExponentialBackoff>,
 }
 
@@ -60,7 +60,7 @@ impl<A: Services> Orchestrator<A> {
             .unwrap_or(MAX_RETRY_ATTEMPTS);
 
         Self {
-            compactor: ContextCompactor::new(services.clone()),
+            compactor: Arc::new(ContextCompactor::new(services.clone())),
             services,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
