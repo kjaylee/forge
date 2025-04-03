@@ -9,6 +9,7 @@ use tracing::debug;
 
 use super::strategy::CompactionImpact;
 use super::CompactionStrategy;
+use crate::compaction::adjust_range::adjust_range_for_tool_calls;
 use crate::{Compact, Context, ContextMessage, Role};
 
 /// Compaction strategy that implements a sliding window approach with special
@@ -68,7 +69,7 @@ impl CompactionStrategy for SlidingWindowStrategy {
 
         // Adjust to avoid breaking tool call chains using the shared utility
         let (adjusted_start_idx, _) =
-            super::adjust_range_for_tool_calls(&context, start_idx, original_message_count - 1);
+            adjust_range_for_tool_calls(&context, start_idx, original_message_count - 1);
 
         debug!(
             strategy = self.id(),
@@ -81,8 +82,7 @@ impl CompactionStrategy for SlidingWindowStrategy {
         for i in adjusted_start_idx..original_message_count {
             // Avoid adding duplicate system messages
             let msg = &context.messages[i];
-            if !msg.has_role(Role::System)
-                || !new_messages.iter().any(|m| m.has_role(Role::System))
+            if !msg.has_role(Role::System) || !new_messages.iter().any(|m| m.has_role(Role::System))
             {
                 new_messages.push(msg.clone());
             }
