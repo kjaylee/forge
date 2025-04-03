@@ -9,9 +9,10 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use super::sliding_window::SlidingWindowStrategy;
-use super::strategy_type::StrategyType;
+use super::strategy::StrategyType;
 use super::summarization::SummarizationStrategy;
-use crate::{impact::calculate_compaction_improvement, Agent, Context, Services};
+use crate::impact::calculate_compaction_improvement;
+use crate::{Agent, Context, Services};
 
 /// Handles the compaction of conversation contexts to manage token usage
 /// using a strategy-based approach for flexibility and extensibility
