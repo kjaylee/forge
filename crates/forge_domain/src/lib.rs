@@ -29,6 +29,7 @@ mod tool_name;
 mod tool_result;
 mod tool_usage;
 mod workflow;
+mod retry_config;
 
 pub use agent::*;
 pub use attachment::*;
@@ -60,3 +61,4 @@ pub use tool_name::*;
 pub use tool_result::*;
 pub use tool_usage::*;
 pub use workflow::*;
+pub use retry_config::*;

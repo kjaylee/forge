@@ -1,0 +1,39 @@
+use derive_setters::Setters;
+use merge::Merge;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq)]
+#[setters(strip_option, into)]
+pub struct RetryConfig {
+    /// Initial backoff delay in milliseconds for retry operations
+    #[merge(strategy = crate::merge::option)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub initial_backoff_ms: Option<u64>,
+
+    /// Backoff multiplication factor for each retry attempt
+    #[merge(strategy = crate::merge::option)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub backoff_factor: Option<u64>,
+
+    /// Maximum number of retry attempts
+    #[merge(strategy = crate::merge::option)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_retry_attempts: Option<usize>,
+
+    /// HTTP status codes that should trigger retries (e.g., 429, 500, 502, 503,
+    /// 504)
+    #[merge(strategy = crate::merge::option)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry_status_codes: Option<Vec<u16>>,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            initial_backoff_ms: Some(1000),
+            backoff_factor: Some(2),
+            max_retry_attempts: Some(5),
+            retry_status_codes: Some(vec![429, 500, 502, 503, 504]),
+        }
+    }
+}
