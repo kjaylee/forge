@@ -10,7 +10,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tracing::debug;
 
-use super::strategy::{CompactionImpact, CompactionStrategy};
+use super::strategy::CompactionStrategy;
 use crate::compaction::adjust_range::adjust_range_for_tool_calls;
 use crate::{Compact, Context, ContextMessage, Role};
 
@@ -24,7 +24,7 @@ impl CompactionStrategy for SlidingWindowStrategy {
         "sliding_window"
     }
 
-    fn is_applicable(&self, _compact: &Compact, context: &Context) -> bool {
+    fn is_applicable(&self, _compact: &Compact, context: Context) -> bool {
         // Sliding window can always be applied as long as there's more than
         // one message and preservation parameters are set
         context.messages.len() > 1
@@ -35,19 +35,14 @@ impl CompactionStrategy for SlidingWindowStrategy {
     /// Preserves the most recent messages along with system messages and
     /// important context at the beginning. It also ensures that tool call
     /// chains are not broken.
-    async fn compact(
-        &self,
-        compact: &Compact,
-        context: Context,
-    ) -> Result<(Context, CompactionImpact)> {
+    async fn compact(&self, compact: &Compact, context: Context) -> Result<Context> {
         let preserve_last_n = compact.retention_window;
         let original_message_count = context.messages.len();
 
         // Handle case where we should preserve everything
         if preserve_last_n >= original_message_count {
-            let impact =
-                CompactionImpact::new(original_message_count, original_message_count, Some(0));
-            return Ok((context, impact));
+            // Return the original context with no changes
+            return Ok(context);
         }
 
         // Start with an empty context and preserve system messages
@@ -94,12 +89,6 @@ impl CompactionStrategy for SlidingWindowStrategy {
         let mut new_context = context.clone();
         new_context.messages = new_messages;
 
-        let impact = CompactionImpact::new(
-            original_message_count,
-            new_context.messages.len(),
-            None, // We don't have token counts available
-        );
-
-        Ok((new_context, impact))
+        Ok(new_context)
     }
 }

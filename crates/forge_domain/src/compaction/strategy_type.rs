@@ -6,7 +6,7 @@
 use anyhow::Result;
 
 use super::sliding_window::SlidingWindowStrategy;
-use super::strategy::{CompactionImpact, CompactionStrategy};
+use super::strategy::CompactionStrategy;
 use super::summarization::SummarizationStrategy;
 use crate::{Context, Services};
 
@@ -26,7 +26,7 @@ impl<S: Services> StrategyType<S> {
     }
 
     /// Check if this strategy is applicable to the given context
-    pub fn is_applicable(&self, compact: &crate::Compact, context: &Context) -> bool {
+    pub fn is_applicable(&self, compact: &crate::Compact, context: Context) -> bool {
         match self {
             StrategyType::Summarization(s) => s.is_applicable(compact, context),
             StrategyType::SlidingWindow(s) => s.is_applicable(compact, context),
@@ -34,11 +34,7 @@ impl<S: Services> StrategyType<S> {
     }
 
     /// Apply the compaction strategy
-    pub async fn compact(
-        &self,
-        compact: &crate::Compact,
-        context: Context,
-    ) -> Result<(Context, CompactionImpact)> {
+    pub async fn compact(&self, compact: &crate::Compact, context: Context) -> Result<Context> {
         match self {
             StrategyType::Summarization(s) => s.compact(compact, context).await,
             StrategyType::SlidingWindow(s) => s.compact(compact, context).await,

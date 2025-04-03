@@ -11,7 +11,7 @@ use tracing::{debug, info};
 use super::sliding_window::SlidingWindowStrategy;
 use super::strategy_type::StrategyType;
 use super::summarization::SummarizationStrategy;
-use crate::{Agent, Context, Services};
+use crate::{impact::calculate_compaction_improvement, Agent, Context, Services};
 
 /// Handles the compaction of conversation contexts to manage token usage
 /// using a strategy-based approach for flexibility and extensibility
@@ -44,25 +44,36 @@ impl<S: Services> ContextCompactor<S> {
 
             debug!(agent_id = %agent.id, "Context compaction triggered");
 
+            // Clone the original context for comparison later
+            let original_context = context.clone();
+
             // Try each strategy in order until one is applicable and provides significant
-            // impact
+            // improvement
             for strategy in &self.strategies {
-                if strategy.is_applicable(compact, &context) {
+                if strategy.is_applicable(compact, context.clone()) {
                     debug!(
                         agent_id = %agent.id,
                         strategy = strategy.id(),
                         "Attempting compaction strategy"
                     );
 
-                    let (compacted, impact) = strategy.compact(compact, context.clone()).await?;
+                    let compacted = strategy.compact(compact, context.clone()).await?;
 
-                    // If this strategy had significant impact, use its result
-                    if impact.is_significant() {
+                    // Check if this strategy had significant improvement
+                    let original_msg_count = original_context.messages.len();
+                    let new_msg_count = compacted.messages.len();
+
+                    let improvement =
+                        calculate_compaction_improvement(&original_context, &compacted);
+
+                    // If this strategy had significant improvement (> 20%), use its result
+                    if improvement > 20.0 {
                         info!(
                             agent_id = %agent.id,
                             strategy = strategy.id(),
-                            original_messages = impact.original_messages,
-                            new_messages = impact.new_messages,
+                            original_messages = original_msg_count,
+                            new_messages = new_msg_count,
+                            improvement = %format!("{:.2}%", improvement),
                             "Compaction strategy had significant impact"
                         );
                         return Ok(compacted);
@@ -72,6 +83,7 @@ impl<S: Services> ContextCompactor<S> {
                     debug!(
                         agent_id = %agent.id,
                         strategy = strategy.id(),
+                        improvement = %format!("{:.2}%", improvement),
                         "Compaction strategy had insufficient impact, trying next strategy"
                     );
                 }

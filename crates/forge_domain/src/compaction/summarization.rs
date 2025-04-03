@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use tracing::debug;
 
 use super::adjust_range::adjust_range_for_tool_calls;
-use super::strategy::{CompactionImpact, CompactionStrategy};
+use super::strategy::CompactionStrategy;
 use crate::services::{Services, TemplateService};
 use crate::{Compact, Context, ContextMessage, Role};
 
@@ -34,18 +34,13 @@ impl<S: Services> CompactionStrategy for SummarizationStrategy<S> {
         "summarization"
     }
 
-    fn is_applicable(&self, compact: &Compact, context: &Context) -> bool {
+    fn is_applicable(&self, compact: &Compact, context: Context) -> bool {
         let preserve_last_n = compact.retention_window;
-        find_sequence(context, preserve_last_n).is_some()
+        find_sequence(&context, preserve_last_n).is_some()
     }
 
-    async fn compact(
-        &self,
-        compact: &Compact,
-        context: Context,
-    ) -> Result<(Context, CompactionImpact)> {
+    async fn compact(&self, compact: &Compact, context: Context) -> Result<Context> {
         let preserve_last_n = compact.retention_window;
-        let original_message_count = context.messages.len();
 
         // Find a sequence of messages to summarize
         if let Some((start, end)) = find_sequence(&context, preserve_last_n) {
@@ -67,18 +62,10 @@ impl<S: Services> CompactionStrategy for SummarizationStrategy<S> {
             // Replace the sequence of messages with the summary
             new_context.messages.splice(start..=end, [summary_msg]);
 
-            let impact = CompactionImpact::new(
-                original_message_count,
-                new_context.messages.len(),
-                None, // We don't have token counts available
-            );
-
-            Ok((new_context, impact))
+            Ok(new_context)
         } else {
-            // No sequence found, return the context unchanged with zero impact
-            let impact =
-                CompactionImpact::new(original_message_count, original_message_count, Some(0));
-            Ok((context, impact))
+            // No sequence found, return the context unchanged
+            Ok(context)
         }
     }
 }

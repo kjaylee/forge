@@ -6,6 +6,7 @@
 
 mod adjust_range;
 mod context_compactor;
+pub mod impact;
 mod sliding_window;
 mod strategy;
 mod strategy_type;

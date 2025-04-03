@@ -50,27 +50,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::compaction::strategy::CompactionImpact;
-
-    #[test]
-    fn test_compaction_impact_significance() {
-        // A reduction of 20% or more is significant
-        let fixture = CompactionImpact::new(10, 8, Some(100));
-        let actual = fixture.is_significant();
-        let expected = false; // 20% reduction would be 8 messages, this is exactly 20%
-        assert_eq!(actual, expected);
-
-        let fixture = CompactionImpact::new(10, 7, Some(100));
-        let actual = fixture.is_significant();
-        let expected = true; // 30% reduction, which is significant
-        assert_eq!(actual, expected);
-
-        // Edge case - empty context
-        let fixture = CompactionImpact::new(0, 0, Some(0));
-        let actual = fixture.is_significant();
-        let expected = false;
-        assert_eq!(actual, expected);
-    }
 
     #[test]
     fn test_adjust_range_for_tool_calls() {
