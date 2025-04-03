@@ -3,6 +3,7 @@
 use anyhow::{Context as _, Result};
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
+    RetryConfig,
 };
 
 use crate::anthropic::Anthropic;
@@ -47,10 +48,11 @@ impl ProviderService for Client {
         &self,
         model: &ModelId,
         context: Context,
+        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         match self {
-            Client::OpenAICompat(provider) => provider.chat(model, context).await,
-            Client::Anthropic(provider) => provider.chat(model, context).await,
+            Client::OpenAICompat(provider) => provider.chat(model, context, retry_config).await,
+            Client::Anthropic(provider) => provider.chat(model, context, retry_config).await,
         }
     }
 

@@ -30,9 +30,9 @@ pub struct RetryConfig {
 impl Default for RetryConfig {
     fn default() -> Self {
         Self {
-            initial_backoff_ms: Some(1000),
+            initial_backoff_ms: Some(200),
             backoff_factor: Some(2),
-            max_retry_attempts: Some(5),
+            max_retry_attempts: Some(3),
             retry_status_codes: Some(vec![429, 500, 502, 503, 504]),
         }
     }

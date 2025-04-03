@@ -294,6 +294,8 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
+        let retry_config = conversation.workflow.retry.as_ref();
+        let retry_config = retry_config.cloned().unwrap_or_default().clone();
         let variables = &conversation.variables;
         debug!(
             conversation_id = %conversation.id,
@@ -349,22 +351,20 @@ impl<A: Services> Orchestrator<A> {
         self.set_context(&agent.id, context.clone()).await?;
 
         loop {
+            let retry_config = retry_config.clone();
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
+            let model = agent
+                .model
+                .as_ref()
+                .ok_or(Error::MissingModel(agent.id.clone()))?;
             let response = self
                 .services
                 .provider_service()
-                .chat(
-                    agent
-                        .model
-                        .as_ref()
-                        .ok_or(Error::MissingModel(agent.id.clone()))?,
-                    context.clone(),
-                )
+                .chat(model, context.clone(), retry_config.clone())
                 .await?;
             let ChatCompletionResult { tool_calls, content, usage } =
                 self.collect_messages(agent, response).await?;
-
             // Check if context requires compression
             // Only pass prompt_tokens for compaction decision
             context = self
@@ -373,6 +373,7 @@ impl<A: Services> Orchestrator<A> {
                     agent,
                     context,
                     usage.map(|usage| usage.prompt_tokens as usize),
+                    retry_config,
                 )
                 .await?;
 

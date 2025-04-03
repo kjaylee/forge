@@ -1,6 +1,10 @@
+use std::time::Duration;
+
 use anyhow::Context as _;
 use derive_builder::Builder;
-use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream};
+use forge_domain::{
+    ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream, RetryConfig,
+};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
@@ -9,6 +13,7 @@ use tracing::{debug, error};
 
 use super::request::Request;
 use super::response::{EventData, ListModelResponse};
+use crate::retry::StatusCodeRetryPolicy;
 
 #[derive(Clone, Builder)]
 pub struct Anthropic {
@@ -61,6 +66,7 @@ impl ProviderService for Anthropic {
         &self,
         model: &ModelId,
         context: Context,
+        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let max_tokens = context.max_tokens.unwrap_or(4000);
         let request = Request::try_from(context)?
@@ -70,13 +76,24 @@ impl ProviderService for Anthropic {
 
         let url = self.url("/messages")?;
         debug!(url = %url, model = %model, "Connecting Upstream");
-        let es = self
+        let mut es = self
             .client
             .post(url)
             .headers(self.headers())
             .json(&request)
             .eventsource()?;
+        let status_codes = retry_config
+            .retry_status_codes
+            .clone()
+            .unwrap_or_else(|| vec![429, 500, 502, 503, 504]);
 
+        es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
+            Duration::from_millis(retry_config.initial_backoff_ms.unwrap_or(200)),
+            retry_config.backoff_factor.unwrap_or(2) as f64,
+            None, // No maximum duration
+            retry_config.max_retry_attempts,
+            status_codes,
+        )));
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
             .then(|event| async {

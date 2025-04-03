@@ -32,9 +32,10 @@ impl ProviderService for ForgeProviderService {
         &self,
         model: &ModelId,
         request: ChatContext,
+        retry_config: forge_domain::RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         self.client
-            .chat(model, request)
+            .chat(model, request, retry_config)
             .await
             .with_context(|| format!("Failed to chat with model: {}", model))
     }

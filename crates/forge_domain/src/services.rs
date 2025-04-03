@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::{
-    Agent, Attachment, ChatCompletionMessage, Compact, Context, Conversation, ConversationId,
-    Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template, ToolCallFull,
-    ToolDefinition, ToolResult, Workflow,
+    retry_config, Agent, Attachment, ChatCompletionMessage, Compact, Context, Conversation,
+    ConversationId, Event, EventContext, Model, ModelId, ResultStream, SystemContext, Template,
+    ToolCallFull, ToolDefinition, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -14,6 +14,7 @@ pub trait ProviderService: Send + Sync + 'static {
         &self,
         id: &ModelId,
         context: Context,
+        retry_config: retry_config::RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
     async fn models(&self) -> anyhow::Result<Vec<Model>>;
 }

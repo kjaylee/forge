@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use anyhow::{bail, Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
     self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Provider, ProviderService,
-    ResultStream,
+    ResultStream, RetryConfig,
 };
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
@@ -14,6 +16,7 @@ use super::model::{ListModelResponse, OpenRouterModel};
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use crate::open_router::transformers::{ProviderPipeline, Transformer};
+use crate::retry::StatusCodeRetryPolicy;
 
 #[derive(Clone, Builder)]
 pub struct OpenRouter {
@@ -64,6 +67,7 @@ impl OpenRouter {
         &self,
         model: &ModelId,
         request: ChatContext,
+        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let mut request = OpenRouterRequest::from(request)
             .model(model.clone())
@@ -72,12 +76,24 @@ impl OpenRouter {
 
         let url = self.url("chat/completions")?;
         debug!(url = %url, model = %model, "Connecting Upstream");
-        let es = self
+        let mut es = self
             .client
             .post(url)
             .headers(self.headers())
             .json(&request)
             .eventsource()?;
+        let status_codes = retry_config
+            .retry_status_codes
+            .clone()
+            .unwrap_or_else(|| vec![429, 500, 502, 503, 504]);
+
+        es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
+            Duration::from_millis(retry_config.initial_backoff_ms.unwrap_or(200)),
+            retry_config.backoff_factor.unwrap_or(2) as f64,
+            None, // No maximum duration
+            retry_config.max_retry_attempts,
+            status_codes,
+        )));
 
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -164,8 +180,9 @@ impl ProviderService for OpenRouter {
         &self,
         model: &ModelId,
         context: ChatContext,
+        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.inner_chat(model, context).await
+        self.inner_chat(model, context, retry_config).await
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
