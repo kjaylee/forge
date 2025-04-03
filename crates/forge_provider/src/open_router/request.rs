@@ -330,6 +330,7 @@ mod tests {
             role: Role::User,
             content: "Hello".to_string(),
             tool_calls: None,
+            usage: None,
         });
         let router_message = OpenRouterMessage::from(user_message);
         assert_json_snapshot!(router_message);
@@ -351,6 +352,7 @@ mod tests {
             role: Role::User,
             content: xml_content.to_string(),
             tool_calls: None,
+            usage: None,
         });
         let router_message = OpenRouterMessage::from(message);
         assert_json_snapshot!(router_message);
@@ -368,6 +370,7 @@ mod tests {
             role: Role::Assistant,
             content: "Using tool".to_string(),
             tool_calls: Some(vec![tool_call]),
+            usage: None,
         });
         let router_message = OpenRouterMessage::from(assistant_message);
         assert_json_snapshot!(router_message);

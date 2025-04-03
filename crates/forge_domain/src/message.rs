@@ -5,7 +5,7 @@ use strum_macros::EnumString;
 
 use super::ToolCall;
 
-#[derive(Default, Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Usage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,

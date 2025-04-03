@@ -12,6 +12,7 @@ use tokio_retry::RetryIf;
 use tracing::debug;
 
 use crate::compaction::ContextCompactor;
+use crate::context::{ContentMessage, ContextMessage};
 use crate::services::Services;
 use crate::*;
 
@@ -33,12 +34,6 @@ pub struct Orchestrator<App> {
     conversation: Arc<RwLock<Conversation>>,
     compactor: ContextCompactor<App>,
     retry_strategy: std::iter::Take<tokio_retry::strategy::ExponentialBackoff>,
-}
-
-struct ChatCompletionResult {
-    pub content: String,
-    pub tool_calls: Vec<ToolCallFull>,
-    pub usage: Option<Usage>,
 }
 
 impl<A: Services> Orchestrator<A> {
@@ -163,9 +158,9 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
             + std::marker::Unpin,
-    ) -> anyhow::Result<ChatCompletionResult> {
+    ) -> anyhow::Result<ContentMessage> {
         let mut messages = Vec::new();
-        let mut request_usage: Option<Usage> = None;
+        let mut usage: Option<Usage> = None;
 
         while let Some(message) = response.next().await {
             let message = message?;
@@ -175,10 +170,10 @@ impl<A: Services> Orchestrator<A> {
                     .await?;
             }
 
-            if let Some(usage) = message.usage {
-                request_usage = Some(usage.clone());
+            if let Some(u) = message.usage {
+                usage = Some(u.clone());
                 debug!(usage = ?usage, "Usage");
-                self.send(agent, ChatResponse::Usage(usage)).await?;
+                self.send(agent, ChatResponse::Usage(u)).await?;
             }
         }
 
@@ -212,7 +207,12 @@ impl<A: Services> Orchestrator<A> {
         // From XML
         tool_calls.extend(ToolCallFull::try_from_xml(&content)?);
 
-        Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
+        let mut context = ContentMessage::assistant(content).tool_calls(tool_calls);
+        if let Some(usage) = usage {
+            context = context.usage(usage);
+        }
+
+        Ok(context)
     }
 
     pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
@@ -362,8 +362,7 @@ impl<A: Services> Orchestrator<A> {
                     context.clone(),
                 )
                 .await?;
-            let ChatCompletionResult { tool_calls, content, usage } =
-                self.collect_messages(agent, response).await?;
+            let content_message = self.collect_messages(agent, response).await?;
 
             // Check if context requires compression
             // Only pass prompt_tokens for compaction decision
@@ -372,15 +371,26 @@ impl<A: Services> Orchestrator<A> {
                 .compact_context(
                     agent,
                     context,
-                    usage.map(|usage| usage.prompt_tokens as usize),
+                    content_message
+                        .usage
+                        .as_ref()
+                        .map(|usage| usage.prompt_tokens as usize),
                 )
                 .await?;
 
             // Get all tool results using the helper function
+            let tool_calls = content_message
+                .tool_calls
+                .as_ref()
+                .map_or(Vec::new(), |calls| calls.clone());
             let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
 
             context = context
-                .add_message(ContextMessage::assistant(content, Some(tool_calls)))
+                .add_message(ContextMessage::assistant(
+                    content_message.content,
+                    content_message.tool_calls.clone(),
+                    content_message.usage,
+                ))
                 .add_tool_results(tool_results.clone());
 
             self.set_context(&agent.id, context.clone()).await?;

@@ -90,7 +90,7 @@ impl<S: Services> ContextCompactor<S> {
         // This removes the sequence and inserts the summary message in-place
         context.messages.splice(
             start..=end,
-            std::iter::once(ContextMessage::assistant(summary, None)),
+            std::iter::once(ContextMessage::assistant(summary, None, None)),
         );
 
         Ok(context)
@@ -247,11 +247,11 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message 1"))
-            .add_message(ContextMessage::assistant("Assistant message 1", None))
-            .add_message(ContextMessage::assistant("Assistant message 2", None))
-            .add_message(ContextMessage::assistant("Assistant message 3", None))
+            .add_message(ContextMessage::assistant("Assistant message 1", None, None))
+            .add_message(ContextMessage::assistant("Assistant message 2", None, None))
+            .add_message(ContextMessage::assistant("Assistant message 3", None, None))
             .add_message(ContextMessage::user("User message 2"))
-            .add_message(ContextMessage::assistant("Assistant message 4", None));
+            .add_message(ContextMessage::assistant("Assistant message 4", None, None));
 
         // The first sequence is from index 2 to 4 (assistant messages 1, 2, and 3)
         let sequence = find_sequence(&context, 0);
@@ -268,11 +268,11 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message 1"))
-            .add_message(ContextMessage::assistant("Assistant message 1", None))
+            .add_message(ContextMessage::assistant("Assistant message 1", None, None))
             .add_message(ContextMessage::user("User message 2"))
-            .add_message(ContextMessage::assistant("Assistant message 2", None))
+            .add_message(ContextMessage::assistant("Assistant message 2", None, None))
             .add_message(ContextMessage::user("User message 3"))
-            .add_message(ContextMessage::assistant("Assistant message 3", None));
+            .add_message(ContextMessage::assistant("Assistant message 3", None, None));
 
         // There are no sequences of multiple assistant messages
         let sequence = find_sequence(&context, 0);
@@ -285,10 +285,10 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message")) // 0
             .add_message(ContextMessage::user("User message 1")) // 1
-            .add_message(ContextMessage::assistant("Assistant message 1", None)) // 2
+            .add_message(ContextMessage::assistant("Assistant message 1", None, None)) // 2
             .add_message(ContextMessage::user("User message 2")) // 3
-            .add_message(ContextMessage::assistant("Assistant message 2", None)) // 4
-            .add_message(ContextMessage::assistant("Assistant message 3", None)); // 5
+            .add_message(ContextMessage::assistant("Assistant message 2", None, None)) // 4
+            .add_message(ContextMessage::assistant("Assistant message 3", None, None)); // 5
 
         // The sequence is at the end (indices 4-5)
         let sequence = find_sequence(&context, 0);
@@ -314,10 +314,12 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call.clone()]),
+                None,
             ))
             .add_message(ContextMessage::assistant(
                 "Assistant message with another tool call",
                 Some(vec![tool_call.clone()]),
+                None,
             ))
             .add_message(ContextMessage::user("User message 2"));
 
@@ -349,13 +351,15 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call]),
+                None,
             ))
             .add_message(ContextMessage::tool_result(tool_result))
             .add_message(ContextMessage::assistant(
                 "Assistant follow-up message",
                 None,
+                None,
             ))
-            .add_message(ContextMessage::assistant("Another assistant message", None))
+            .add_message(ContextMessage::assistant("Another assistant message", None, None))
             .add_message(ContextMessage::user("User message 2"));
 
         // Now tool results are considered compressible
@@ -398,12 +402,14 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call1]),
+                None,
             ))
             .add_message(ContextMessage::tool_result(tool_result1))
             .add_message(ContextMessage::user("User follow-up question"))
             .add_message(ContextMessage::assistant(
                 "Assistant with another tool call",
                 Some(vec![tool_call2]),
+                None,
             ))
             .add_message(ContextMessage::tool_result(tool_result2))
             .add_message(ContextMessage::user("User message 2"));
@@ -448,12 +454,14 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call1.clone()]),
+                None,
             ))
             .add_message(ContextMessage::assistant(
                 "Another assistant message",
                 Some(vec![tool_call2.clone()]),
+                None,
             ))
-            .add_message(ContextMessage::assistant("Third assistant message", None))
+            .add_message(ContextMessage::assistant("Third assistant message", None, None))
             .add_message(ContextMessage::tool_result(tool_result1))
             .add_message(ContextMessage::tool_result(tool_result2))
             .add_message(ContextMessage::user("User message 2"));
@@ -513,6 +521,7 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call]),
+                None,
             )) // 1
             .add_message(ContextMessage::user("User intermediate message")) // 2
             .add_message(ContextMessage::tool_result(tool_result)) // 3
@@ -529,12 +538,12 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message 1"))
-            .add_message(ContextMessage::assistant("Assistant message 1", None)) // 2
-            .add_message(ContextMessage::assistant("Assistant message 2", None)) // 3
-            .add_message(ContextMessage::assistant("Assistant message 3", None)) // 4
+            .add_message(ContextMessage::assistant("Assistant message 1", None, None)) // 2
+            .add_message(ContextMessage::assistant("Assistant message 2", None, None)) // 3
+            .add_message(ContextMessage::assistant("Assistant message 3", None, None)) // 4
             .add_message(ContextMessage::user("User message 2")) // 5
-            .add_message(ContextMessage::assistant("Assistant message 4", None)) // 6
-            .add_message(ContextMessage::assistant("Assistant message 5", None)); // 7
+            .add_message(ContextMessage::assistant("Assistant message 4", None, None)) // 6
+            .add_message(ContextMessage::assistant("Assistant message 5", None, None)); // 7
 
         // Without preservation, we'd compress messages 2-4
         let sequence = find_sequence(&context, 0);
@@ -568,11 +577,11 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message")) // 0
             .add_message(ContextMessage::user("User message 1")) // 1
-            .add_message(ContextMessage::assistant("Assistant message 1", None)) // 2
+            .add_message(ContextMessage::assistant("Assistant message 1", None, None)) // 2
             .add_message(ContextMessage::user("User message 2")) // 3
-            .add_message(ContextMessage::assistant("Assistant message 2", None)) // 4
-            .add_message(ContextMessage::assistant("Assistant message 3", None)) // 5
-            .add_message(ContextMessage::assistant("Assistant message 4", None)); // 6
+            .add_message(ContextMessage::assistant("Assistant message 2", None, None)) // 4
+            .add_message(ContextMessage::assistant("Assistant message 3", None, None)) // 5
+            .add_message(ContextMessage::assistant("Assistant message 4", None, None)); // 6
 
         // Without preservation, we'd compress the sequence at indices 4-6
         let sequence = find_sequence(&context, 0);
@@ -615,21 +624,25 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant Message 1",
                 tool_calls.clone(),
+                None,
             )) // 2
             .add_tool_results(tool_results.clone()) // 3
             .add_message(ContextMessage::assistant(
                 "Assistant Message 2",
                 tool_calls.clone(),
+                None,
             )) // 4
             .add_tool_results(tool_results.clone()) // 5
             .add_message(ContextMessage::assistant(
                 "Assistant Message 3",
                 tool_calls.clone(),
+                None,
             )) // 6
             .add_tool_results(tool_results.clone()) // 7
             .add_message(ContextMessage::assistant(
                 "Assistant Message 4",
                 tool_calls.clone(),
+                None,
             )) // 8
             .add_tool_results(tool_results.clone()); // 9
 
@@ -667,7 +680,7 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::user("User message"))
-            .add_message(ContextMessage::assistant("Assistant message", None));
+            .add_message(ContextMessage::assistant("Assistant message", None, None));
 
         // Context has 3 messages, preserve_last_n = 3
         let result = find_sequence(&context, 3);
@@ -689,6 +702,7 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call]),
+                None,
             ));
 
         // With preserve_last_n = 0, max_len = 2, but after tool call adjustment it
@@ -730,6 +744,7 @@ mod tests {
             .add_message(ContextMessage::assistant(
                 "Assistant message with tool call",
                 Some(vec![tool_call]),
+                None,
             ));
 
         // With preserve_last_n = 1, max_len = 2-1 = 1,
@@ -741,7 +756,7 @@ mod tests {
         // Case 2: Context with exactly 2 messages (user, assistant)
         let context = Context::default()
             .add_message(ContextMessage::user("User message"))
-            .add_message(ContextMessage::assistant("Assistant message", None));
+            .add_message(ContextMessage::assistant("Assistant message", None, None));
 
         // With preserve_last_n = 0, max_len = 2, but we need at least 3 messages for
         // compression

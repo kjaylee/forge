@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
-use super::{ToolCallFull, ToolResult};
+use super::{ToolCallFull, ToolResult, Usage};
 use crate::{ToolChoice, ToolDefinition};
 
 /// Represents a message being sent to the LLM provider
@@ -23,6 +23,7 @@ impl ContextMessage {
             role: Role::User,
             content: content.to_string(),
             tool_calls: None,
+            usage: None,
         }
         .into()
     }
@@ -32,17 +33,23 @@ impl ContextMessage {
             role: Role::System,
             content: content.to_string(),
             tool_calls: None,
+            usage: None,
         }
         .into()
     }
 
-    pub fn assistant(content: impl ToString, tool_calls: Option<Vec<ToolCallFull>>) -> Self {
+    pub fn assistant(
+        content: impl ToString,
+        tool_calls: Option<Vec<ToolCallFull>>,
+        usage: Option<Usage>,
+    ) -> Self {
         let tool_calls =
             tool_calls.and_then(|calls| if calls.is_empty() { None } else { Some(calls) });
         ContentMessage {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls,
+            usage,
         }
         .into()
     }
@@ -75,6 +82,8 @@ pub struct ContentMessage {
     pub role: Role,
     pub content: String,
     pub tool_calls: Option<Vec<ToolCallFull>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
 }
 
 impl ContentMessage {
@@ -83,6 +92,7 @@ impl ContentMessage {
             role: Role::Assistant,
             content: content.to_string(),
             tool_calls: None,
+            usage: None,
         }
     }
 }

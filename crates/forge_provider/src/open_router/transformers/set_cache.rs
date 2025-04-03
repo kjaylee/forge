@@ -36,6 +36,7 @@ mod tests {
                 role: Role::User,
                 content: "test message".to_string(),
                 tool_calls: None,
+                usage: None,
             })],
             tools: vec![],
             tool_choice: None,
