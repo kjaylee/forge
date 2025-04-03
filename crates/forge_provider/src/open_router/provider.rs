@@ -79,64 +79,59 @@ impl OpenRouter {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format!("{} {}", "POST", url.clone()))?;
+            .context(format_http_context(None, "POST", url.clone()))?;
 
-        let url_str = url.to_string();
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
-            .then(move |event| {
-                let url_str = url_str.clone();
-                async move {
-                    match event {
-                        Ok(event) => match event {
-                            Event::Open => None,
-                            Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
-                                debug!("Received completion from Upstream");
-                                None
-                            }
-                            Event::Message(message) => {
-                                let ctx_msg = format_http_context(None, "POST", url_str);
-                                Some(
-                                serde_json::from_str::<OpenRouterResponse>(&message.data)
-                                    .context(ctx_msg.clone())
-                                    .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
-                                    .and_then(|event| {
-                                        ChatCompletionMessage::try_from(event.clone())
-                                            .context(ctx_msg)
-                                            .with_context(|| format!("Failed to create completion message: {}", message.data))
-                                    }),
-                            )},
-                        },
-                        Err(error) => match error {
-                            reqwest_eventsource::Error::StreamEnded => None,
-                            reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                                let headers = response.headers().clone();
-                                let status = response.status();
-                                let ctx_msg = format_http_context(Some(response.status()), "POST", url_str);
-                                match response.text().await {
-                                    Ok(ref body) => {
-                                        debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                        return Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)
-                                            .context(ctx_msg)));
-                                    }
-                                    Err(error) => {
-                                        debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
-                                    }
+            .then(|event| async {
+                match event {
+                    Ok(event) => match event {
+                        Event::Open => None,
+                        Event::Message(event) if ["[DONE]", ""].contains(&event.data.as_str()) => {
+                            debug!("Received completion from Upstream");
+                            None
+                        }
+                        Event::Message(message) => Some(
+                            serde_json::from_str::<OpenRouterResponse>(&message.data)
+                                .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
+                                .and_then(|event| {
+                                    ChatCompletionMessage::try_from(event.clone())
+                                        .with_context(|| format!("Failed to create completion message: {}", message.data))
+                                }),
+                        ),
+                    },
+                    Err(error) => match error {
+                        reqwest_eventsource::Error::StreamEnded => None,
+                        reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
+                            let headers = response.headers().clone();
+                            let status = response.status();
+                            match response.text().await {
+                                Ok(ref body) => {
+                                    debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
+                                    Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)))
                                 }
-                                Some(Err(anyhow::anyhow!("Invalid status code: {}", status)).context(ctx_msg))
+                                Err(error) => {
+                                    debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
+                                    Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
+                                }
                             }
-                            reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
-                                debug!(response = ?response, "Invalid content type");
-                                let ctx_msg = format_http_context(Some(response.status()), "POST", url_str);
-                                Some(Err(anyhow::anyhow!(error).context(ctx_msg)))
-                            }
-                            error => {
-                                debug!(error = %error, "Failed to receive chat completion event");
-                                let ctx_msg = format_http_context(None, "POST", url_str);
-                                Some(Err(anyhow::anyhow!(error).context(ctx_msg)))
-                            }
-                        },
-                    }
+                        }
+                        reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
+                            let status_code = response.status();
+                            debug!(response = ?response, "Invalid content type");
+                            Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {}", status_code))))
+
+                        }
+                        error => {
+                            debug!(error = %error, "Failed to receive chat completion event");
+                            Some(Err(error.into()))
+                        }
+                    },
+                }
+            }).map(move |response| {
+                match response {
+                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", url.clone())))),
+                    _ => response,
                 }
             });
 
@@ -152,9 +147,8 @@ impl OpenRouter {
                 anyhow::bail!(err)
             }
             Ok(response) => {
-                let ctx_msg = format_http_context(None, "GET", url);
                 let data: ListModelResponse = serde_json::from_str(&response)
-                    .context(ctx_msg)
+                    .context(format_http_context(None, "GET", url))
                     .context("Failed to deserialize models response")?;
                 Ok(data.data.into_iter().map(Into::into).collect())
             }
@@ -169,22 +163,19 @@ impl OpenRouter {
             .send()
             .await
         {
-            Ok(response) => match response.error_for_status() {
-                Ok(response) => {
-                    let ctx_msg = format_http_context(Some(response.status()), "GET", url);
-                    Ok(response
+            Ok(response) => {
+                let ctx_message = format_http_context(Some(response.status()), "GET", url);
+                match response.error_for_status() {
+                    Ok(response) => Ok(response
                         .text()
                         .await
-                        .context(ctx_msg)
-                        .context("Failed to decode response into text")?)
+                        .context(ctx_message)
+                        .context("Failed to decode response into text")?),
+                    Err(err) => Err(anyhow::anyhow!(err)
+                        .context(ctx_message)
+                        .context("Failed because of a non 200 status code")),
                 }
-                Err(err) => {
-                    let ctx_msg = format_http_context(err.status(), "GET", url);
-                    Err(anyhow::anyhow!(err)
-                        .context(ctx_msg)
-                        .context("Failed because of a non 200 status code"))
-                }
-            },
+            }
             Err(err) => {
                 let ctx_msg = format_http_context(err.status(), "GET", url);
                 Err(anyhow::anyhow!(err)
