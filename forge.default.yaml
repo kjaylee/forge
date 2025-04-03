@@ -7,6 +7,15 @@ commands:
 variables:
   mode: ACT
 
+# Retry configuration for backoff strategy
+retry:
+  # Initial backoff delay in milliseconds
+  initial_backoff_ms: 200
+  # Backoff multiplication factor for each retry attempt
+  backoff_factor: 2
+  # Maximum number of retry attempts
+  max_retry_attempts: 3
+
 # Define model anchors with simpler, purpose-based names
 models:
   # Role-based model definitions - easy to swap implementation
@@ -37,12 +46,18 @@ agents:
       - user_help_query
 
   - id: software-engineer
+    compact:
+      max_tokens: 2000
+      token_threshold: 80000
+      model: *advanced_model
+      retention_window: 6
+      prompt: "{{> system-prompt-context-summarizer.hbs }}"
     tool_supported: true
     model: *advanced_model
     system_prompt: "{{> system-prompt-engineer.hbs }}"
     user_prompt: |-
       <task>{{event.value}}</task>
-      <mode>{{variables.mode}}</mode>
+      <current_time>{{current_time}}</current_time>
     ephemeral: false
     tools:
       - tool_forge_fs_read
@@ -53,6 +68,7 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
       - tool_forge_display_show_user
+      - tool_forge_fs_undo
     subscribe:
       - user_task_init
       - user_task_update
@@ -65,7 +81,7 @@ agents:
     user_prompt: |-
       <event>{{event.name}}</event>
       <value>{{event.value}}</value>
-      <mode>PLAN</mode>
+      <current_time>{{current_time}}</current_time>
     ephemeral: false
     tools:
       - tool_forge_fs_read
@@ -76,6 +92,7 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
       - tool_forge_event_dispatch
+      - tool_forge_fs_undo
     subscribe:
       - fix_issue
     max_walker_depth: 4
@@ -87,7 +104,7 @@ agents:
     user_prompt: |-
       <event>{{event.name}}</event>
       <value>{{event.value}}</value>
-      <mode>ACT</mode>
+      <current_time>{{current_time}}</current_time>
     ephemeral: false
     tools:
       - tool_forge_fs_read
@@ -98,6 +115,7 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
       - tool_forge_event_dispatch
+      - tool_forge_fs_undo
     subscribe:
       - update_pr
     max_walker_depth: 4
@@ -109,7 +127,7 @@ agents:
     user_prompt: |-
       <event>{{event.name}}</event>
       <value>{{event.value}}</value>
-      <mode>ACT</mode>
+      <current_time>{{current_time}}</current_time>
     ephemeral: false
     tools:
       - tool_forge_fs_read
@@ -120,6 +138,7 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
       - tool_forge_event_dispatch
+      - tool_forge_fs_undo
     subscribe:
       - fix-review-comment
     max_walker_depth: 4
@@ -127,10 +146,10 @@ agents:
   - tool_supported: true
     id: git-commit
     model: *advanced_model
-    hide_content: true    
+    hide_content: true
     ephemeral: true
     system_prompt: "{{> system-prompt-git-commit.hbs }}"
-    user_prompt: "Go ahead and make the commit, {{event.value}}"
+    user_prompt: "Go ahead and make the commit, {{event.value}} <current_time>{{current_time}}</current_time>"
     tools:
       - tool_forge_process_shell
     subscribe:
@@ -143,7 +162,7 @@ agents:
     user_prompt: |-
       <event>{{event.name}}</event>
       <value>{{event.value}}</value>
-      <mode>PLAN</mode>
+      <current_time>{{current_time}}</current_time>
     ephemeral: false
     tools:
       - tool_forge_fs_read
@@ -154,6 +173,7 @@ agents:
       - tool_forge_net_fetch
       - tool_forge_fs_search
       - tool_forge_event_dispatch
+      - tool_forge_fs_undo
     subscribe:
       - revise_plan
     max_walker_depth: 4
@@ -164,7 +184,7 @@ agents:
     model: *advanced_model
     ephemeral: true
     system_prompt: "{{> system-prompt-github-pull-request.hbs }}"
-    user_prompt: "Go ahead and create a PR"
+    user_prompt: "Go ahead and create a PR <current_time>{{current_time}}</current_time>"
     tools:
       - tool_forge_process_shell
     subscribe:

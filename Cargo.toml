@@ -43,7 +43,6 @@ nu-ansi-term = "0.50.1"
 posthog-rs = { git = "https://github.com/PostHog/posthog-rs.git", rev = "a006a81419031e4889d9c3882d7458d2efa588a8" }
 pretty_assertions = "1.4.1"
 proc-macro2 = "1.0"
-qdrant-client = "1.13.0"
 quote = "1.0"
 reedline = "0.38.0"
 regex = "1.11.1"
@@ -79,6 +78,7 @@ tree-sitter-go = "0.23"
 tree-sitter-cpp = "0.23"
 tree-sitter-ruby = "0.23"
 url = { version = "2.5.4", features = ["serde"] }
+tokio-retry = "0.3.0"
 uuid = { version = "1.11.0", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
 whoami = "1.5.2"
 fnv_rs = "0.4.3"
