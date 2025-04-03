@@ -359,7 +359,11 @@ mod tests {
                 None,
                 None,
             ))
-            .add_message(ContextMessage::assistant("Another assistant message", None, None))
+            .add_message(ContextMessage::assistant(
+                "Another assistant message",
+                None,
+                None,
+            ))
             .add_message(ContextMessage::user("User message 2"));
 
         // Now tool results are considered compressible
@@ -461,7 +465,11 @@ mod tests {
                 Some(vec![tool_call2.clone()]),
                 None,
             ))
-            .add_message(ContextMessage::assistant("Third assistant message", None, None))
+            .add_message(ContextMessage::assistant(
+                "Third assistant message",
+                None,
+                None,
+            ))
             .add_message(ContextMessage::tool_result(tool_result1))
             .add_message(ContextMessage::tool_result(tool_result2))
             .add_message(ContextMessage::user("User message 2"));
