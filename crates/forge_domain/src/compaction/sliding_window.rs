@@ -9,7 +9,7 @@ use tracing::debug;
 
 use super::strategy::CompactionImpact;
 use super::CompactionStrategy;
-use crate::{Compact, Context, ContextMessage, Role, Services};
+use crate::{Compact, Context, ContextMessage, Role};
 
 /// Compaction strategy that implements a sliding window approach with special
 /// handling for system messages and tool call chains.
@@ -25,19 +25,16 @@ impl CompactionStrategy for SlidingWindowStrategy {
         // one message and preservation parameters are set
         context.messages.len() > 1
     }
-}
 
-impl SlidingWindowStrategy {
     /// Compacts the context using a sliding window approach
     ///
     /// Preserves the most recent messages along with system messages and
     /// important context at the beginning. It also ensures that tool call
     /// chains are not broken.
-    pub async fn compact<S: Services>(
+    async fn compact(
         &self,
         compact: &Compact,
         context: Context,
-        _services: &S,
     ) -> Result<(Context, CompactionImpact)> {
         let preserve_last_n = compact.retention_window;
         let original_message_count = context.messages.len();
@@ -84,7 +81,8 @@ impl SlidingWindowStrategy {
         for i in adjusted_start_idx..original_message_count {
             // Avoid adding duplicate system messages
             let msg = &context.messages[i];
-            if !msg.has_role(Role::System) || !new_messages.iter().any(|m| m.has_role(Role::System))
+            if !msg.has_role(Role::System)
+                || !new_messages.iter().any(|m| m.has_role(Role::System))
             {
                 new_messages.push(msg.clone());
             }

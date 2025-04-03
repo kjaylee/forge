@@ -20,12 +20,12 @@ use tracing::{debug, info};
 use crate::{Agent, Context, Role, Services};
 
 /// The available compaction strategies
-pub enum StrategyType {
-    Summarization(SummarizationStrategy),
+pub enum StrategyType<S> {
+    Summarization(SummarizationStrategy<S>),
     SlidingWindow(SlidingWindowStrategy),
 }
 
-impl StrategyType {
+impl<S: Services> StrategyType<S> {
     /// Get the ID of the strategy
     pub fn id(&self) -> &'static str {
         match self {
@@ -43,15 +43,14 @@ impl StrategyType {
     }
 
     /// Apply the compaction strategy
-    pub async fn compact<S: Services>(
+    pub async fn compact(
         &self,
         compact: &crate::Compact,
         context: Context,
-        services: &S,
     ) -> Result<(Context, CompactionImpact)> {
         match self {
-            StrategyType::Summarization(s) => s.compact(compact, context, services).await,
-            StrategyType::SlidingWindow(s) => s.compact(compact, context, services).await,
+            StrategyType::Summarization(s) => s.compact(compact, context).await,
+            StrategyType::SlidingWindow(s) => s.compact(compact, context).await,
         }
     }
 }
@@ -59,24 +58,25 @@ impl StrategyType {
 /// Handles the compaction of conversation contexts to manage token usage
 /// using a strategy-based approach for flexibility and extensibility
 pub struct ContextCompactor<S> {
-    services: Arc<S>,
-    strategies: Vec<StrategyType>,
+    strategies: Vec<StrategyType<S>>,
 }
 
 impl<S: Services> ContextCompactor<S> {
     /// Creates a new ContextCompactor instance with default strategies
     pub fn new(services: Arc<S>) -> Self {
-        let mut compactor = Self { services, strategies: Vec::new() };
+        let mut compactor = Self { strategies: Vec::new() };
 
         // Register default strategies in order of preference
-        compactor.register_strategy(StrategyType::Summarization(SummarizationStrategy));
+        compactor.register_strategy(StrategyType::Summarization(SummarizationStrategy::new(
+            Arc::clone(&services),
+        )));
         compactor.register_strategy(StrategyType::SlidingWindow(SlidingWindowStrategy));
 
         compactor
     }
 
     /// Registers a custom compaction strategy
-    pub fn register_strategy(&mut self, strategy: StrategyType) {
+    pub fn register_strategy(&mut self, strategy: StrategyType<S>) {
         self.strategies.push(strategy);
     }
 
@@ -92,7 +92,6 @@ impl<S: Services> ContextCompactor<S> {
 
             // Try each strategy in order until one is applicable and provides significant
             // impact
-            let services_ref = self.services.as_ref();
             for strategy in &self.strategies {
                 if strategy.is_applicable(compact, &context) {
                     debug!(
@@ -101,9 +100,7 @@ impl<S: Services> ContextCompactor<S> {
                         "Attempting compaction strategy"
                     );
 
-                    let (compacted, impact) = strategy
-                        .compact(compact, context.clone(), services_ref)
-                        .await?;
+                    let (compacted, impact) = strategy.compact(compact, context.clone()).await?;
 
                     // If this strategy had significant impact, use its result
                     if impact.is_significant() {

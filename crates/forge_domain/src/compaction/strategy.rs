@@ -51,4 +51,12 @@ pub trait CompactionStrategy: Send + Sync {
     /// Check if this strategy is applicable to the given context
     /// Strategies should be selective about when they can be applied
     fn is_applicable(&self, compact: &crate::Compact, context: &crate::Context) -> bool;
+
+    /// Apply the compaction strategy to the given context
+    /// Returns the compacted context and impact measurements
+    fn compact(
+        &self,
+        compact: &crate::Compact,
+        context: crate::Context,
+    ) -> impl std::future::Future<Output = anyhow::Result<(crate::Context, CompactionImpact)>> + Send;
 }
