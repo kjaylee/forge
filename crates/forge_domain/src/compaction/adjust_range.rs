@@ -50,7 +50,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::CompactionImpact;
+    use crate::compaction::strategy::CompactionImpact;
 
     #[test]
     fn test_compaction_impact_significance() {

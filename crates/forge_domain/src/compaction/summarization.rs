@@ -7,11 +7,11 @@ use std::cmp::min;
 use std::sync::Arc;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use tracing::debug;
 
 use super::adjust_range::adjust_range_for_tool_calls;
-use super::strategy::CompactionImpact;
-use super::CompactionStrategy;
+use super::strategy::{CompactionImpact, CompactionStrategy};
 use crate::services::{Services, TemplateService};
 use crate::{Compact, Context, ContextMessage, Role};
 
@@ -28,6 +28,7 @@ impl<S: Services> SummarizationStrategy<S> {
     }
 }
 
+#[async_trait]
 impl<S: Services> CompactionStrategy for SummarizationStrategy<S> {
     fn id(&self) -> &'static str {
         "summarization"

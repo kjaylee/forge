@@ -12,7 +12,3 @@ mod strategy_type;
 mod summarization;
 
 pub use context_compactor::ContextCompactor;
-pub use sliding_window::SlidingWindowStrategy;
-pub use strategy::{CompactionImpact, CompactionStrategy};
-pub use strategy_type::StrategyType;
-pub use summarization::SummarizationStrategy;

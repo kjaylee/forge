@@ -7,10 +7,10 @@ use std::cmp::max;
 /// conversation like system messages and initial setup. It also preserves tool
 /// call chains to maintain coherence in multi-step tool interactions.
 use anyhow::Result;
+use async_trait::async_trait;
 use tracing::debug;
 
-use super::strategy::CompactionImpact;
-use super::CompactionStrategy;
+use super::strategy::{CompactionImpact, CompactionStrategy};
 use crate::compaction::adjust_range::adjust_range_for_tool_calls;
 use crate::{Compact, Context, ContextMessage, Role};
 
@@ -18,6 +18,7 @@ use crate::{Compact, Context, ContextMessage, Role};
 /// handling for system messages and tool call chains.
 pub struct SlidingWindowStrategy;
 
+#[async_trait]
 impl CompactionStrategy for SlidingWindowStrategy {
     fn id(&self) -> &'static str {
         "sliding_window"
