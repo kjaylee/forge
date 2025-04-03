@@ -9,7 +9,8 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::range_handler::{
-    count_lines, determine_display_range, extract_line_range, DEFAULT_LINE_LIMIT,
+    count_lines, determine_display_range, format_content_with_range, RangePreference,
+    DEFAULT_LINE_LIMIT,
 };
 use crate::tools::utils::{assert_absolute_path, format_display_path};
 use crate::{EnvironmentService, FsReadService, Infrastructure};
@@ -90,44 +91,31 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         // Format the display path (for output message)
         let display_path = self.format_display_path(path)?;
 
-        // Determine the range and format the output
-        let (start, end, output_content) = if has_range {
-            // Use the requested range or default range calculation
-            let (start, end) =
-                determine_display_range(total_lines, input.range_start, input.range_end);
-
-            // Extract the content for that range
-            let range_content = extract_line_range(&content, start, end)?;
-
-            (start, end, range_content)
-        } else if total_lines > DEFAULT_LINE_LIMIT {
-            // For large files without specified range, always show first chunk
-            let start = 1;
-            let end = DEFAULT_LINE_LIMIT;
-            let range_content = extract_line_range(&content, start, end)?;
-
-            (start, end, range_content)
-        } else {
-            // For small files, show all content
-            (1, total_lines, content.clone())
-        };
-
-        // Prepare output with metadata
-        let output = if total_lines > DEFAULT_LINE_LIMIT || has_range {
-            // Add range metadata as XML tags for large files or when range specified
-            let file_metadata_xml = format!(
-                "<file displayed-range=\"{}-{}\" total-lines=\"{}\" path=\"{}\">",
-                start, end, total_lines, input.path
-            );
-            format!("{}\n{}\n</file>", file_metadata_xml, output_content)
+        // Prepare output with metadata and standardized format
+        let output = if has_range || total_lines > DEFAULT_LINE_LIMIT {
+            // Use the new common formatter with appropriate options
+            format_content_with_range(
+                &content,
+                Some(&input.path),
+                "file",
+                RangePreference::First, // fs_read always shows the first part of file
+                None,
+                false, // Don't store file content in temp file since it's already on disk
+            )?
         } else {
             // Simple output for small files with no range specified
-            output_content
+            content
         };
 
         // Display a message about the file being read
         let title = "read";
         let message = if total_lines > DEFAULT_LINE_LIMIT {
+            let (start, end) = if has_range {
+                determine_display_range(total_lines, input.range_start, input.range_end)
+            } else {
+                (1, DEFAULT_LINE_LIMIT) // Default for fs_read is to show first
+                                        // part
+            };
             format!(
                 "read range {}-{} of {} lines from {}",
                 start, end, total_lines, display_path

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +25,15 @@ pub struct RangeMetadata {
     pub displayed_range_end: usize,
     pub total_lines: usize,
     pub temp_file_path: Option<String>,
+}
+
+/// Preference for which part of large content to display
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RangePreference {
+    /// Show the first N lines (default for fs_read)
+    First,
+    /// Show the last N lines (default for shell output)
+    Last,
 }
 
 /// Constants for range handling
@@ -116,6 +127,92 @@ pub fn determine_display_range(
     }
 }
 
+/// Format content with range metadata, with customizable options
+pub fn format_content_with_range(
+    content: &str,
+    path: Option<&str>,
+    tag_name: &str,
+    range_preference: RangePreference,
+    attributes: Option<BTreeMap<String, String>>,
+    store_in_temp_file: bool,
+) -> anyhow::Result<String> {
+    let line_count = count_lines(content);
+
+    // Determine range to display based on preference
+    let (start, end) = if line_count <= DEFAULT_LINE_LIMIT {
+        (1, line_count)
+    } else {
+        match range_preference {
+            RangePreference::First => (1, DEFAULT_LINE_LIMIT),
+            RangePreference::Last => (
+                line_count
+                    .saturating_sub(DEFAULT_LINE_LIMIT)
+                    .saturating_add(1),
+                line_count,
+            )
+        }
+    };
+
+    // Extract content within the range
+    let display_content = if start <= end {
+        extract_line_range(content, start, end)?
+    } else {
+        "".to_string()
+    };
+
+    // Create a temp file for large content if requested
+    let temp_file_info = if store_in_temp_file && line_count > DEFAULT_LINE_LIMIT {
+        Some(write_to_temp_file(content, "std_log_output")?)
+    } else {
+        None
+    };
+
+    // Gather all attributes
+    let mut all_attributes = BTreeMap::new();
+    if let Some(path) = path {
+        all_attributes.insert("path".to_string(), path.to_string());
+    }
+    if line_count > DEFAULT_LINE_LIMIT {
+        all_attributes.insert("displayed-range".to_string(), format!("{}-{}", start, end));
+        all_attributes.insert("total-lines".to_string(), line_count.to_string());
+
+        if let Some(temp_info) = &temp_file_info {
+            all_attributes.insert("complete-log-output".to_string(), temp_info.path.clone());
+        }
+    }
+
+    // Add any additional attributes
+    if let Some(extra_attrs) = attributes {
+        for (k, v) in extra_attrs {
+            all_attributes.insert(k, v);
+        }
+    }
+
+    // Format the attributes string
+    let attrs_str = all_attributes
+        .iter()
+        .map(|(k, v)| format!("{k}=\"{v}\""))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if attrs_str.is_empty() {
+        Ok(format!(
+            "<{tag_name}>\n{display_content}\n</{tag_name}>",
+            tag_name = tag_name,
+            display_content = display_content
+        ))
+    } else {
+        Ok(format!(
+            "<{tag_name} {attrs_str}>\n{display_content}\n</{tag_name}>",
+            tag_name = tag_name,
+            attrs_str = attrs_str,
+            display_content = display_content
+        ))
+    }
+
+    // Format the final XML output
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -191,5 +288,95 @@ mod tests {
         // Large file with only end specified
         let (start, end) = determine_display_range(5000, None, Some(4500));
         assert_eq!((start, end), (3501, 4500));
+    }
+    #[test]
+    fn test_format_content_with_range() {
+        // Test with small content
+        let small_content = "Line 1\nLine 2\nLine 3";
+
+        // Test with First preference
+        let result = format_content_with_range(
+            small_content,
+            Some("/path/to/file.txt"),
+            "file",
+            RangePreference::First,
+            None,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(
+            result,
+            "<file path=\"/path/to/file.txt\">\nLine 1\nLine 2\nLine 3\n</file>"
+        );
+
+        // Test with large content and First preference
+        let large_content = (1..=2000)
+            .map(|i| format!("Line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let result = format_content_with_range(
+            &large_content,
+            Some("/path/to/large.txt"),
+            "file",
+            RangePreference::First,
+            None,
+            false,
+        )
+        .unwrap();
+        assert!(result.contains(
+            "<file displayed-range=\"1-1000\" path=\"/path/to/large.txt\" total-lines=\"2000\">"
+        ));
+        assert!(result.contains("Line 1"));
+        assert!(result.contains("Line 1000"));
+        assert!(!result.contains("Line 1001"));
+
+        // Test with large content and Last preference
+        let result = format_content_with_range(
+            &large_content,
+            Some("/path/to/large.txt"),
+            "stdout",
+            RangePreference::Last,
+            None,
+            false,
+        )
+        .unwrap();
+        assert!(result.contains("<stdout displayed-range=\"1001-2000\" path=\"/path/to/large.txt\" total-lines=\"2000\">"));
+        assert!(result.contains("Line 1001"));
+        assert!(result.contains("Line 2000"));
+        assert!(!result.contains("Line 1000"));
+
+        // Test with additional attributes
+        let mut attrs = BTreeMap::new();
+        attrs.insert(
+            "syntax_checker_warning".to_string(),
+            "warning message".to_string(),
+        );
+
+        let result = format_content_with_range(
+            small_content,
+            Some("/path/to/file.txt"),
+            "file",
+            RangePreference::First,
+            Some(attrs),
+            false,
+        )
+        .unwrap();
+
+        assert!(result.contains("syntax_checker_warning=\"warning message\""));
+
+        // Test with temp file creation
+        let result = format_content_with_range(
+            &large_content,
+            Some("/path/to/large.txt"),
+            "stdout",
+            RangePreference::First,
+            None,
+            true,
+        )
+        .unwrap();
+
+        assert!(result.contains("complete-log-output=\""));
     }
 }

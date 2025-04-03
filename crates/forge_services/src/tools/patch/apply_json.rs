@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -11,7 +12,7 @@ use strum_macros::AsRefStr;
 use thiserror::Error;
 use tokio::fs;
 
-use crate::range_handler::{count_lines, extract_line_range, DEFAULT_LINE_LIMIT};
+use crate::range_handler::{format_content_with_range, RangePreference};
 // No longer using dissimilar for fuzzy matching
 use crate::tools::syn;
 use crate::tools::utils::assert_absolute_path;
@@ -230,33 +231,24 @@ impl<F: Infrastructure> ApplyPatchJson<F> {
 
 /// Format the modified content as XML with optional syntax warning
 fn format_output(path: &str, content: &str, warning: Option<&str>) -> anyhow::Result<String> {
-    let line_count = count_lines(content);
-
-    // Determine content to display and build base attributes
-    let (display_content, attrs) = if line_count <= DEFAULT_LINE_LIMIT {
-        (content.trim_end().to_string(), format!("path=\"{}\"", path))
-    } else {
-        (
-            extract_line_range(content, 1, DEFAULT_LINE_LIMIT)?,
-            format!(
-                "path=\"{}\" displayed-range=\"1-{}\" total-lines=\"{}\"",
-                path, DEFAULT_LINE_LIMIT, line_count
-            ),
-        )
-    };
+    let mut attrs = None;
 
     // Add warning attribute if present
-    let attributes = if let Some(w) = warning {
-        format!("{} syntax_checker_warning=\"{}\"", attrs, w)
-    } else {
-        attrs
-    };
+    if let Some(w) = warning {
+        let mut attrs_map = BTreeMap::new();
+        attrs_map.insert("syntax_checker_warning".to_string(), w.to_string());
+        attrs = Some(attrs_map);
+    }
 
-    // Format the final XML output
-    Ok(format!(
-        "<file_content {}>\n{}\n</file_content>",
-        attributes, display_content
-    ))
+    // Use the common formatter with First preference (show the beginning of file)
+    format_content_with_range(
+        content,
+        Some(path),
+        "file_content",
+        RangePreference::First,
+        attrs,
+        false, // No need to store in temp file since it's already on disk
+    )
 }
 
 #[async_trait::async_trait]

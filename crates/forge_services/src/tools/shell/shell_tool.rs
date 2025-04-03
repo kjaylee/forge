@@ -7,11 +7,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 
-use super::executor::Output;
-use crate::range_handler::{
-    count_lines, extract_line_range, write_to_temp_file, DEFAULT_LINE_LIMIT,
-};
-use crate::tools::shell::executor::CommandExecutor;
+use super::executor::{CommandExecutor, Output};
+use crate::range_handler::{format_content_with_range, RangePreference};
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -35,34 +32,16 @@ fn format_output(output: Output) -> anyhow::Result<String> {
 
     // Process stdout if not empty
     if !output.stdout.trim().is_empty() {
-        // Count total lines in stdout
-        let total_lines = count_lines(&output.stdout);
-
-        if total_lines > DEFAULT_LINE_LIMIT {
-            // Write full stdout to a temp file
-            let temp_file_info = write_to_temp_file(&output.stdout, "shell_stdout")?;
-
-            // For large output, show the last DEFAULT_LINE_LIMIT lines instead of first
-            let start = total_lines
-                .saturating_sub(DEFAULT_LINE_LIMIT)
-                .saturating_add(1);
-            let end = total_lines;
-
-            // Extract the content for that range
-            let range_content = extract_line_range(&output.stdout, start, end)?;
-
-            // Add metadata XML tag for truncated stdout with file path
-            formatted_output.push_str(&format!(
-                "<stdout displayed-range=\"{}-{}\" total-lines=\"{}\" complete-log-output=\"{}\">{}",
-                start, end, total_lines, temp_file_info.path, range_content
-            ));
-
-            // Close the tag
-            formatted_output.push_str("</stdout>");
-        } else {
-            // For small stdout, include all content
-            formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
-        }
+        // Use the common formatter with Last preference (show the end of output)
+        let stdout_formatted = format_content_with_range(
+            &output.stdout,
+            None,
+            "stdout",
+            RangePreference::Last, // Shell tool shows the last part of output
+            None,
+            true, // Store in temp file for shell output
+        )?;
+        formatted_output.push_str(&stdout_formatted);
     }
 
     // Process stderr if not empty
@@ -71,34 +50,16 @@ fn format_output(output: Output) -> anyhow::Result<String> {
             formatted_output.push('\n');
         }
 
-        // Count total lines in stderr
-        let total_lines = count_lines(&output.stderr);
-
-        if total_lines > DEFAULT_LINE_LIMIT {
-            // Write full stderr to a temp file
-            let temp_file_info = write_to_temp_file(&output.stderr, "shell_stderr")?;
-
-            // For large output, show the last DEFAULT_LINE_LIMIT lines instead of first
-            let start = total_lines
-                .saturating_sub(DEFAULT_LINE_LIMIT)
-                .saturating_add(1);
-            let end = total_lines;
-
-            // Extract the content for that range
-            let range_content = extract_line_range(&output.stderr, start, end)?;
-
-            // Add metadata XML tag for truncated stderr with file path
-            formatted_output.push_str(&format!(
-                "<stderr displayed-range=\"{}-{}\" total-lines=\"{}\" complete-log-output=\"{}\">{}",
-                start, end, total_lines, temp_file_info.path, range_content
-            ));
-
-            // Close the tag
-            formatted_output.push_str("</stderr>");
-        } else {
-            // For small stderr, include all content
-            formatted_output.push_str(&format!("<stderr>{}</stderr>", output.stderr));
-        }
+        // Use the common formatter with Last preference (show the end of output)
+        let stderr_formatted = format_content_with_range(
+            &output.stderr,
+            None,
+            "stderr",
+            RangePreference::Last, // Shell tool shows the last part of output
+            None,
+            true, // Store in temp file for shell output
+        )?;
+        formatted_output.push_str(&stderr_formatted);
     }
 
     let result = if formatted_output.is_empty() {
@@ -194,6 +155,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::range_handler::DEFAULT_LINE_LIMIT;
 
     /// Create a default test environment
     fn test_env() -> Environment {
@@ -236,7 +198,7 @@ mod tests {
             })
             .await
             .unwrap();
-        assert!(result.contains("<stdout>Hello, World!\n</stdout>"));
+        assert!(result.contains("<stdout>\nHello, World!\n</stdout>"));
     }
 
     #[tokio::test]
@@ -257,7 +219,7 @@ mod tests {
 
         assert_eq!(
             result,
-            "<stdout>to stdout\n</stdout>\n<stderr>to stderr\n</stderr>"
+            "<stdout>\nto stdout\n</stdout>\n<stderr>\nto stderr\n</stderr>"
         );
     }
 
@@ -274,7 +236,7 @@ mod tests {
 
         assert_eq!(
             result,
-            "<stdout>to stdout\n</stdout>\n<stderr>to stderr\n</stderr>"
+            "<stdout>\nto stdout\n</stdout>\n<stderr>\nto stderr\n</stderr>"
         );
     }
 
@@ -294,7 +256,7 @@ mod tests {
             })
             .await
             .unwrap();
-        assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
+        assert_eq!(result, format!("<stdout>\n{}\n</stdout>", temp_dir.display()));
     }
 
     #[tokio::test]
@@ -355,10 +317,9 @@ mod tests {
             })
             .await
             .unwrap();
-
         assert_eq!(
             result,
-            format!("<stdout>{}\n</stdout>", current_dir.display())
+            format!("<stdout>\n{}\n</stdout>", current_dir.display())
         );
     }
 
@@ -372,7 +333,7 @@ mod tests {
             })
             .await
             .unwrap();
-        assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
+        assert_eq!(result, format!("<stdout>\nfirst\nsecond\n</stdout>"));
     }
 
     #[tokio::test]
@@ -433,7 +394,7 @@ mod tests {
         let start = num_lines - DEFAULT_LINE_LIMIT + 1;
         let end = num_lines;
         assert!(result.contains(&format!(
-            "<stdout displayed-range=\"{}-{}\" total-lines=\"{}\"",
+            "displayed-range=\"{}-{}\" total-lines=\"{}\"",
             start, end, num_lines
         )));
         // Verify the content includes the last lines but not lines before the range
@@ -442,6 +403,7 @@ mod tests {
         assert!(result.contains(&format!("Line {}", num_lines)));
 
         // Verify the log file path is included and exists
+        assert!(result.contains("complete-log-output=\""));
         let path_start =
             result.find("complete-log-output=\"").unwrap() + "complete-log-output=\"".len();
         let path_end = result[path_start..].find("\"").unwrap() + path_start;
@@ -484,7 +446,7 @@ mod tests {
         let start = num_lines - DEFAULT_LINE_LIMIT + 1;
         let end = num_lines;
         assert!(result.contains(&format!(
-            "<stderr displayed-range=\"{}-{}\" total-lines=\"{}\"",
+            "displayed-range=\"{}-{}\" total-lines=\"{}\"",
             start, end, num_lines
         )));
 
