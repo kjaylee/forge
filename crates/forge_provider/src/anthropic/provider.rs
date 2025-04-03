@@ -77,7 +77,7 @@ impl ProviderService for Anthropic {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format_http_context(None, "POST", url.clone()))?;
+            .context(format_http_context(None, "POST", &url))?;
 
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -131,7 +131,7 @@ impl ProviderService for Anthropic {
                 }
             }).map(move |response| {
                 match response {
-                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", url.clone())))),
+                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", &url)))),
                     _ => response,
                 }
             });
@@ -152,14 +152,14 @@ impl ProviderService for Anthropic {
         match result {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
-                let ctx_msg = format_http_context(err.status(), "GET", url);
+                let ctx_msg = format_http_context(err.status(), "GET", &url);
                 Err(anyhow::anyhow!(err))
                     .context(ctx_msg)
                     .context("Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
                 Ok(response) => {
-                    let ctx_msg = format_http_context(Some(response.status()), "GET", url);
+                    let ctx_msg = format_http_context(Some(response.status()), "GET", &url);
                     match response.text().await {
                         Ok(text) => {
                             let response: ListModelResponse = serde_json::from_str(&text)
@@ -173,7 +173,7 @@ impl ProviderService for Anthropic {
                     }
                 }
                 Err(err) => {
-                    let ctx_msg = format_http_context(err.status(), "GET", url);
+                    let ctx_msg = format_http_context(err.status(), "GET", &url);
                     Err(anyhow::anyhow!(err))
                         .context(ctx_msg)
                         .context("Failed because of a non 200 status code".to_string())

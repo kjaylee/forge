@@ -79,7 +79,7 @@ impl OpenRouter {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format_http_context(None, "POST", url.clone()))?;
+            .context(format_http_context(None, "POST", &url))?;
 
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -130,7 +130,7 @@ impl OpenRouter {
                 }
             }).map(move |response| {
                 match response {
-                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", url.clone())))),
+                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", &url)))),
                     _ => response,
                 }
             });
@@ -148,7 +148,7 @@ impl OpenRouter {
             }
             Ok(response) => {
                 let data: ListModelResponse = serde_json::from_str(&response)
-                    .context(format_http_context(None, "GET", url))
+                    .context(format_http_context(None, "GET", &url))
                     .context("Failed to deserialize models response")?;
                 Ok(data.data.into_iter().map(Into::into).collect())
             }
@@ -164,7 +164,7 @@ impl OpenRouter {
             .await
         {
             Ok(response) => {
-                let ctx_message = format_http_context(Some(response.status()), "GET", url);
+                let ctx_message = format_http_context(Some(response.status()), "GET", &url);
                 match response.error_for_status() {
                     Ok(response) => Ok(response
                         .text()
@@ -177,7 +177,7 @@ impl OpenRouter {
                 }
             }
             Err(err) => {
-                let ctx_msg = format_http_context(err.status(), "GET", url);
+                let ctx_msg = format_http_context(err.status(), "GET", &url);
                 Err(anyhow::anyhow!(err)
                     .context(ctx_msg)
                     .context("Failed to fetch the models"))
