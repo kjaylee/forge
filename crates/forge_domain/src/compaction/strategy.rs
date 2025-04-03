@@ -26,7 +26,6 @@ pub trait CompactionStrategy: Send + Sync {
     ) -> anyhow::Result<crate::Context>;
 }
 
-
 /// The available compaction strategies
 pub enum StrategyType<S> {
     Summarization(SummarizationStrategy<S>),
