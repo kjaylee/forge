@@ -22,22 +22,13 @@ pub struct ContextCompactor<S> {
 impl<S: Services> ContextCompactor<S> {
     /// Creates a new ContextCompactor instance with default strategies
     pub fn new(services: Arc<S>) -> Self {
-        let mut compactor = Self { strategies: Vec::new() };
-
-        // Register default strategies in order of preference
-        compactor.register_strategy(StrategyType::Summarization(SummarizationStrategy::new(
-            Arc::clone(&services),
-        )));
-        compactor.register_strategy(StrategyType::SlidingWindow(SlidingWindowStrategy));
-
-        compactor
+        Self {
+            strategies: vec![
+                StrategyType::Summarization(SummarizationStrategy::new(Arc::clone(&services))),
+                StrategyType::SlidingWindow(SlidingWindowStrategy),
+            ],
+        }
     }
-
-    /// Registers a custom compaction strategy
-    pub fn register_strategy(&mut self, strategy: StrategyType<S>) {
-        self.strategies.push(strategy);
-    }
-
     /// Main compaction method that checks if compaction is needed
     /// and applies the most effective strategy
     pub async fn compact_context(&self, agent: &Agent, context: Context) -> Result<Context> {
