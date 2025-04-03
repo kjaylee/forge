@@ -7,7 +7,6 @@ use crate::merge::Key;
 use crate::template::Template;
 use crate::{
     Context, Error, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition, ToolName,
-    Usage,
 };
 
 // Unique identifier for an agent
@@ -110,13 +109,13 @@ impl Compact {
 
     /// Determines if compaction should be triggered based on the current
     /// context
-    pub fn should_compact(&self, context: &Context, usage: Option<Usage>) -> bool {
+    pub fn should_compact(&self, context: &Context, prompt_tokens: Option<usize>) -> bool {
         // Check if any of the thresholds have been exceeded
         if let Some(token_threshold) = self.token_threshold {
-            // use usage if available, otherwise estimate token count
-            let token_count = usage
-                .map(|usage| usage.prompt_tokens)
-                .unwrap_or(estimate_token_count(&context.to_text()));
+            // use provided prompt_tokens if available, otherwise estimate token count
+            let token_count = prompt_tokens
+                .map(|tokens| tokens as u64)
+                .unwrap_or_else(|| estimate_token_count(&context.to_text()));
             if token_count >= token_threshold {
                 return true;
             }

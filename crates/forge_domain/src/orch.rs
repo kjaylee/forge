@@ -366,9 +366,14 @@ impl<A: Services> Orchestrator<A> {
                 self.collect_messages(agent, response).await?;
 
             // Check if context requires compression
+            // Only pass prompt_tokens for compaction decision
             context = self
                 .compactor
-                .compact_context(agent, context, usage)
+                .compact_context(
+                    agent,
+                    context,
+                    usage.map(|usage| usage.prompt_tokens as usize),
+                )
                 .await?;
 
             // Get all tool results using the helper function
