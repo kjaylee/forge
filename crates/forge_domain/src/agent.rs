@@ -115,7 +115,7 @@ impl Compact {
         if let Some(token_threshold) = self.token_threshold {
             // use usage if available, otherwise estimate token count
             let token_count = usage
-                .map(|usage| usage.total_tokens)
+                .map(|usage| usage.prompt_tokens)
                 .unwrap_or(estimate_token_count(&context.to_text()));
             if token_count >= token_threshold {
                 return true;

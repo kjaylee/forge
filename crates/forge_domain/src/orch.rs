@@ -365,18 +365,18 @@ impl<A: Services> Orchestrator<A> {
             let ChatCompletionResult { tool_calls, content, usage } =
                 self.collect_messages(agent, response).await?;
 
+            // Check if context requires compression
+            context = self
+                .compactor
+                .compact_context(agent, context, usage)
+                .await?;
+
             // Get all tool results using the helper function
             let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
 
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results.clone());
-
-            // Check if context requires compression
-            context = self
-                .compactor
-                .compact_context(agent, context, usage)
-                .await?;
 
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
