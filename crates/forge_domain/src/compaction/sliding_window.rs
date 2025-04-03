@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 /// Sliding window strategy for context compaction
 ///
 /// This strategy implements a sliding window approach that keeps the most
@@ -98,14 +100,5 @@ impl CompactionStrategy for SlidingWindowStrategy {
         );
 
         Ok((new_context, impact))
-    }
-}
-
-// Helper function
-fn max(a: usize, b: usize) -> usize {
-    if a > b {
-        a
-    } else {
-        b
     }
 }
