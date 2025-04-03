@@ -149,7 +149,7 @@ pub fn format_content_with_range(
                     .saturating_sub(DEFAULT_LINE_LIMIT)
                     .saturating_add(1),
                 line_count,
-            )
+            ),
         }
     };
 

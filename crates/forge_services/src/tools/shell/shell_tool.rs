@@ -256,7 +256,10 @@ mod tests {
             })
             .await
             .unwrap();
-        assert_eq!(result, format!("<stdout>\n{}\n</stdout>", temp_dir.display()));
+        assert_eq!(
+            result,
+            format!("<stdout>\n{}\n</stdout>", temp_dir.display())
+        );
     }
 
     #[tokio::test]
