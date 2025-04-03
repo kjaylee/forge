@@ -31,9 +31,14 @@ impl<S: Services> ContextCompactor<S> {
     }
     /// Main compaction method that checks if compaction is needed
     /// and applies the most effective strategy
-    pub async fn compact_context(&self, agent: &Agent, context: Context) -> Result<Context> {
+    pub async fn compact_context(
+        &self,
+        agent: &Agent,
+        context: Context,
+        usage: Option<usize>,
+    ) -> Result<Context> {
         if let Some(ref compact) = agent.compact {
-            if !compact.should_compact(&context) {
+            if !compact.should_compact(&context, usage) {
                 return Ok(context);
             }
 
