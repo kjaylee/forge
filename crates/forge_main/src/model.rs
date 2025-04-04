@@ -176,7 +176,7 @@ impl ForgeCommandManager {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
                 if let Some(command) = parts.first() {
-                     if let Some(command) = self.find(command) {
+                    if let Some(command) = self.find(command) {
                         let value = self.extract_command_value(&command, &parts[1..]);
 
                         Ok(Command::Custom(PartialEvent::new(

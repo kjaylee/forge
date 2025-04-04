@@ -111,8 +111,9 @@ fn configure_provider(config: &mut ForgeConfig) -> Result<()> {
 
     // Show current provider if set
     if !current_provider.is_empty() {
-        CONSOLE
-            .write(TitleFormat::success(format!("Current provider: {}", current_provider)).format())?;
+        CONSOLE.write(
+            TitleFormat::success(format!("Current provider: {}", current_provider)).format(),
+        )?;
     }
 
     // Display provider selection
@@ -134,8 +135,9 @@ fn configure_provider(config: &mut ForgeConfig) -> Result<()> {
     if let Some(key) = current_key {
         let masked_key = mask_api_key(&key);
 
-        CONSOLE
-            .write(TitleFormat::success(format!("Found existing API key: {}", masked_key)).format())?;
+        CONSOLE.write(
+            TitleFormat::success(format!("Found existing API key: {}", masked_key)).format(),
+        )?;
 
         let keep_existing = Confirm::new("Keep existing API key?")
             .with_default(true)
@@ -210,10 +212,13 @@ async fn configure_model(
             Err(e) if current_attempt < MAX_ATTEMPTS => {
                 // Attempt failed but we can retry
                 current_attempt += 1;
-                CONSOLE.write(TitleFormat::failed(format!(
-                    "Configuration failed: {}. Retrying... (Attempt {}/{})",
-                    e, current_attempt, MAX_ATTEMPTS
-                )).format())?;
+                CONSOLE.write(
+                    TitleFormat::failed(format!(
+                        "Configuration failed: {}. Retrying... (Attempt {}/{})",
+                        e, current_attempt, MAX_ATTEMPTS
+                    ))
+                    .format(),
+                )?;
                 // Continue loop for retry
             }
             Err(e) => return Err(e), // Max attempts reached, return error

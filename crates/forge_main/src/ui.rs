@@ -10,14 +10,13 @@ use serde_json::Value;
 use tokio_stream::StreamExt;
 use tracing::error;
 
-use crate::banner;
-use crate::commands;
 use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::state::{Mode, UIState};
+use crate::{banner, commands};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
