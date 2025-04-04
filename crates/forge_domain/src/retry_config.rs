@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 // Maximum number of retry attempts for retryable operations
 pub const MAX_RETRY_ATTEMPTS: usize = 3;
 
+pub const RETRY_STATUS_CODES: &[u16] = &[429, 500, 502, 503, 504];
+
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq)]
 #[setters(strip_option, into)]
 pub struct RetryConfig {
@@ -36,7 +38,7 @@ impl Default for RetryConfig {
             initial_backoff_ms: Some(200),
             backoff_factor: Some(2),
             max_retry_attempts: Some(MAX_RETRY_ATTEMPTS),
-            retry_status_codes: Some(vec![429, 500, 502, 503, 504]),
+            retry_status_codes: Some(RETRY_STATUS_CODES.to_vec()),
         }
     }
 }

@@ -4,6 +4,7 @@ use anyhow::Context as _;
 use derive_builder::Builder;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream, RetryConfig,
+    RETRY_STATUS_CODES,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
@@ -85,7 +86,7 @@ impl ProviderService for Anthropic {
         let status_codes = retry_config
             .retry_status_codes
             .clone()
-            .unwrap_or_else(|| vec![429, 500, 502, 503, 504]);
+            .unwrap_or_else(|| RETRY_STATUS_CODES.to_vec());
 
         es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
             Duration::from_millis(retry_config.initial_backoff_ms.unwrap_or(200)),
