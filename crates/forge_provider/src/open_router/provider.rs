@@ -22,6 +22,8 @@ use crate::retry::StatusCodeRetryPolicy;
 pub struct OpenRouter {
     client: Client,
     provider: Provider,
+    #[builder(default = "RetryConfig::default()")]
+    retry_config: RetryConfig,
 }
 
 impl OpenRouter {
@@ -67,7 +69,6 @@ impl OpenRouter {
         &self,
         model: &ModelId,
         request: ChatContext,
-        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let mut request = OpenRouterRequest::from(request)
             .model(model.clone())
@@ -82,16 +83,17 @@ impl OpenRouter {
             .headers(self.headers())
             .json(&request)
             .eventsource()?;
-        let status_codes = retry_config
+        let status_codes = self
+            .retry_config
             .retry_status_codes
             .clone()
             .unwrap_or_else(|| RETRY_STATUS_CODES.to_vec());
 
         es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
-            Duration::from_millis(retry_config.initial_backoff_ms.unwrap_or(200)),
-            retry_config.backoff_factor.unwrap_or(2) as f64,
+            Duration::from_millis(self.retry_config.initial_backoff_ms.unwrap_or(200)),
+            self.retry_config.backoff_factor.unwrap_or(2) as f64,
             None, // No maximum duration
-            retry_config.max_retry_attempts,
+            self.retry_config.max_retry_attempts,
             status_codes,
         )));
 
@@ -180,9 +182,8 @@ impl ProviderService for OpenRouter {
         &self,
         model: &ModelId,
         context: ChatContext,
-        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.inner_chat(model, context, retry_config).await
+        self.inner_chat(model, context).await
     }
 
     async fn models(&self) -> Result<Vec<Model>> {

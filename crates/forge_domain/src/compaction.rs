@@ -9,7 +9,7 @@ use tracing::{debug, info};
 
 use crate::{
     extract_tag_content, Agent, ChatCompletionMessage, Compact, Context, ContextMessage,
-    ProviderService, RetryConfig, Role, Services, TemplateService,
+    ProviderService, Role, Services, TemplateService,
 };
 
 /// Handles the compaction of conversation contexts to manage token usage
@@ -30,7 +30,6 @@ impl<S: Services> ContextCompactor<S> {
         agent: &Agent,
         context: Context,
         prompt_tokens: Option<usize>,
-        retry_config: RetryConfig,
     ) -> Result<Context> {
         // Early return if compaction not needed
 
@@ -49,7 +48,7 @@ impl<S: Services> ContextCompactor<S> {
                 .next()
             {
                 Some(sequence) => {
-                    self.compress_single_sequence(compact, context, sequence, retry_config)
+                    self.compress_single_sequence(compact, context, sequence)
                         .await
                 }
                 None => {
@@ -68,7 +67,6 @@ impl<S: Services> ContextCompactor<S> {
         compact: &Compact,
         mut context: Context,
         sequence: (usize, usize),
-        retry_config: RetryConfig,
     ) -> Result<Context> {
         let (start, end) = sequence;
 
@@ -77,7 +75,7 @@ impl<S: Services> ContextCompactor<S> {
 
         // Generate summary for this sequence
         let summary = self
-            .generate_summary_for_sequence(compact, sequence_messages, retry_config)
+            .generate_summary_for_sequence(compact, sequence_messages)
             .await?;
 
         // Log the summary for debugging
@@ -103,7 +101,6 @@ impl<S: Services> ContextCompactor<S> {
         &self,
         compact: &Compact,
         messages: &[ContextMessage],
-        retry_config: RetryConfig,
     ) -> Result<String> {
         // Create a temporary context with just the sequence for summarization
         let sequence_context = messages
@@ -129,7 +126,7 @@ impl<S: Services> ContextCompactor<S> {
         let response = self
             .services
             .provider_service()
-            .chat(&compact.model, context, retry_config)
+            .chat(&compact.model, context)
             .await?;
 
         self.collect_completion_stream_content(compact, response)

@@ -15,7 +15,7 @@ pub enum Client {
 }
 
 impl Client {
-    pub fn new(provider: Provider) -> Result<Self> {
+    pub fn new(provider: Provider, retry_config: RetryConfig) -> Result<Self> {
         let client = reqwest::Client::builder().build()?;
 
         match &provider {
@@ -23,6 +23,7 @@ impl Client {
                 OpenRouter::builder()
                     .client(client)
                     .provider(provider.clone())
+                    .retry_config(retry_config.clone())
                     .build()
                     .with_context(|| format!("Failed to initialize: {}", url))?,
             )),
@@ -33,6 +34,7 @@ impl Client {
                     .api_key(key.to_string())
                     .base_url(url.clone())
                     .anthropic_version("2023-06-01".to_string())
+                    .retry_config(retry_config.clone())
                     .build()
                     .with_context(|| {
                         format!("Failed to initialize Anthropic client with URL: {}", url)
@@ -48,11 +50,10 @@ impl ProviderService for Client {
         &self,
         model: &ModelId,
         context: Context,
-        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         match self {
-            Client::OpenAICompat(provider) => provider.chat(model, context, retry_config).await,
-            Client::Anthropic(provider) => provider.chat(model, context, retry_config).await,
+            Client::OpenAICompat(provider) => provider.chat(model, context).await,
+            Client::Anthropic(provider) => provider.chat(model, context).await,
         }
     }
 

@@ -348,7 +348,6 @@ impl<A: Services> Orchestrator<A> {
         self.set_context(&agent.id, context.clone()).await?;
 
         loop {
-            let retry_config = retry_config.clone();
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
             let model = agent
@@ -358,7 +357,7 @@ impl<A: Services> Orchestrator<A> {
             let response = self
                 .services
                 .provider_service()
-                .chat(model, context.clone(), retry_config.clone())
+                .chat(model, context.clone())
                 .await?;
             let ChatCompletionResult { tool_calls, content, usage } =
                 self.collect_messages(agent, response).await?;
@@ -370,7 +369,6 @@ impl<A: Services> Orchestrator<A> {
                     agent,
                     context,
                     usage.map(|usage| usage.prompt_tokens as usize),
-                    retry_config,
                 )
                 .await?;
 

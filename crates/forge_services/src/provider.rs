@@ -22,7 +22,10 @@ impl ForgeProviderService {
             .get_environment()
             .provider
             .clone();
-        Self { client: Arc::new(Client::new(provider).unwrap()) }
+        let retry_config = infra.default_retry_config();
+        Self {
+            client: Arc::new(Client::new(provider, retry_config).unwrap()),
+        }
     }
 }
 
@@ -32,10 +35,9 @@ impl ProviderService for ForgeProviderService {
         &self,
         model: &ModelId,
         request: ChatContext,
-        retry_config: forge_domain::RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         self.client
-            .chat(model, request, retry_config)
+            .chat(model, request)
             .await
             .with_context(|| format!("Failed to chat with model: {}", model))
     }

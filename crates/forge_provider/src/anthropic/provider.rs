@@ -22,6 +22,8 @@ pub struct Anthropic {
     api_key: String,
     base_url: Url,
     anthropic_version: String,
+    #[builder(default = "RetryConfig::default()")]
+    retry_config: RetryConfig,
 }
 
 impl Anthropic {
@@ -67,7 +69,6 @@ impl ProviderService for Anthropic {
         &self,
         model: &ModelId,
         context: Context,
-        retry_config: RetryConfig,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let max_tokens = context.max_tokens.unwrap_or(4000);
         let request = Request::try_from(context)?
@@ -83,16 +84,17 @@ impl ProviderService for Anthropic {
             .headers(self.headers())
             .json(&request)
             .eventsource()?;
-        let status_codes = retry_config
+        let status_codes = self
+            .retry_config
             .retry_status_codes
             .clone()
             .unwrap_or_else(|| RETRY_STATUS_CODES.to_vec());
 
         es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
-            Duration::from_millis(retry_config.initial_backoff_ms.unwrap_or(200)),
-            retry_config.backoff_factor.unwrap_or(2) as f64,
+            Duration::from_millis(self.retry_config.initial_backoff_ms.unwrap_or(200)),
+            self.retry_config.backoff_factor.unwrap_or(2) as f64,
             None, // No maximum duration
-            retry_config.max_retry_attempts,
+            self.retry_config.max_retry_attempts,
             status_codes,
         )));
         let stream = es
@@ -187,6 +189,7 @@ mod tests {
             .base_url(Url::parse("https://api.anthropic.com/v1/").unwrap())
             .anthropic_version("v1".to_string())
             .api_key("sk-some-key".to_string())
+            .retry_config(RetryConfig::default())
             .build()
             .unwrap();
         assert_eq!(
