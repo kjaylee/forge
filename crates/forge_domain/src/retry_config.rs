@@ -2,6 +2,9 @@ use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 
+// Maximum number of retry attempts for retryable operations
+pub const MAX_RETRY_ATTEMPTS: usize = 3;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq)]
 #[setters(strip_option, into)]
 pub struct RetryConfig {
@@ -32,7 +35,7 @@ impl Default for RetryConfig {
         Self {
             initial_backoff_ms: Some(200),
             backoff_factor: Some(2),
-            max_retry_attempts: Some(3),
+            max_retry_attempts: Some(MAX_RETRY_ATTEMPTS),
             retry_status_codes: Some(vec![429, 500, 502, 503, 504]),
         }
     }
