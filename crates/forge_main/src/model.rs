@@ -6,7 +6,6 @@ use forge_api::{Model, Workflow};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
-use crate::commands;
 use crate::info::Info;
 use crate::ui::PartialEvent;
 
@@ -65,7 +64,7 @@ impl Default for ForgeCommandManager {
 
 impl ForgeCommandManager {
     fn default_commands() -> Vec<ForgeCommand> {
-        let mut commands = Command::iter()
+        let commands = Command::iter()
             .filter(|command| !matches!(command, Command::Message(_)))
             .filter(|command| !matches!(command, Command::Custom(_)))
             .map(|command| ForgeCommand {
@@ -75,22 +74,7 @@ impl ForgeCommandManager {
             })
             .collect::<Vec<_>>();
 
-        // Add new model configuration commands
-        commands.push(ForgeCommand {
-            name: "/set-coding-model".to_string(),
-            description: "Set the model used for coding tasks".to_string(),
-            value: None,
-        });
-        commands.push(ForgeCommand {
-            name: "/set-summarization-model".to_string(),
-            description: "Set the model used for summarization tasks".to_string(),
-            value: None,
-        });
-        commands.push(ForgeCommand {
-            name: "/set-default-model".to_string(),
-            description: "Set the default model".to_string(),
-            value: None,
-        });
+        // Model configuration commands have been removed
 
         commands
     }
@@ -187,35 +171,12 @@ impl ForgeCommandManager {
             "/act" => Ok(Command::Act),
             "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
+            "/configure" => Ok(Command::Configure),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
                 if let Some(command) = parts.first() {
-                    if command == &"/set-coding-model" {
-                        if parts.len() < 2 {
-                            return Err(anyhow::anyhow!("Model name is required"));
-                        }
-                        let model = parts[1..].join(" ");
-                        commands::handle_set_coding_model(&model)?;
-                        Ok(Command::ApplyConfig) // Return new command to reload
-                                                 // config
-                    } else if command == &"/set-summarization-model" {
-                        if parts.len() < 2 {
-                            return Err(anyhow::anyhow!("Model name is required"));
-                        }
-                        let model = parts[1..].join(" ");
-                        commands::handle_set_summarization_model(&model)?;
-                        return Ok(Command::ApplyConfig); // Return new command
-                                                         // to reload config
-                    } else if command == &"/set-default-model" {
-                        if parts.len() < 2 {
-                            return Err(anyhow::anyhow!("Model name is required"));
-                        }
-                        let model = parts[1..].join(" ");
-                        commands::handle_set_default_model(&model)?;
-                        return Ok(Command::ApplyConfig); // Return new command
-                                                         // to reload config
-                    } else if let Some(command) = self.find(command) {
+                     if let Some(command) = self.find(command) {
                         let value = self.extract_command_value(&command, &parts[1..]);
 
                         Ok(Command::Custom(PartialEvent::new(
@@ -278,6 +239,11 @@ pub enum Command {
     /// new conversation
     #[strum(props(usage = "Apply configuration changes"))]
     ApplyConfig,
+
+    /// Configure provider, API keys, and model settings through interactive
+    /// menu
+    #[strum(props(usage = "Configure provider and model settings"))]
+    Configure,
     /// Handles custom command defined in workflow file.
     Custom(PartialEvent),
 }
@@ -295,6 +261,7 @@ impl Command {
             Command::Help => "/help",
             Command::Dump => "/dump",
             Command::ApplyConfig => "/apply-config",
+            Command::Configure => "/configure",
             Command::Custom(event) => &event.name,
         }
     }

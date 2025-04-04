@@ -11,6 +11,7 @@ use tokio_stream::StreamExt;
 use tracing::error;
 
 use crate::banner;
+use crate::commands;
 use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::Info;
@@ -234,6 +235,26 @@ impl<F: API> UI<F> {
                     // Prompt for next command
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
+                Command::Configure => {
+                    if let Err(err) = commands::handle_configure(self.api.as_ref()).await {
+                        CONSOLE.writeln(
+                            TitleFormat::failed("Failed to configure settings.")
+                                .sub_title("Configuration")
+                                .error(err.to_string())
+                                .format(),
+                        )?;
+                    }
+
+                    // Configure modifies config, so we should reload
+                    // Reset conversation ID to force reloading
+                    self.state.conversation_id = None;
+
+                    // Initialize new conversation with updated config
+                    let _new_id = self.init_conversation().await?;
+
+                    input = self.console.prompt(None).await?;
                     continue;
                 }
                 Command::Custom(event) => {

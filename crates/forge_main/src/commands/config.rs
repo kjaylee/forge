@@ -1,8 +1,6 @@
-use std::collections::HashMap;
 use std::fs;
 
 use anyhow::Result;
-use forge_display::TitleFormat;
 use forge_domain::ForgeConfig;
 
 use crate::console::CONSOLE;
@@ -94,60 +92,4 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-
-    #[test]
-    fn test_forge_file_creation() {
-        // Create temp dir for test
-        let temp_dir = TempDir::new().unwrap();
-        let prev_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
-        // Test file creation
-        let model_name = "anthropic/claude-3.5-haiku";
-        handle_set_coding_model(model_name).unwrap(); // Mocking the output since we can't redirect CONSOLE in tests
-        println!("coding model set to: {}", model_name);
-
-        // Verify file was created with correct content
-        let abs_path = std::env::current_dir().unwrap().join(".forge");
-        assert!(abs_path.exists());
-        let content = fs::read_to_string(abs_path).unwrap();
-        let config: ForgeConfig = serde_yaml::from_str(&content).unwrap();
-
-        assert!(config.models.is_some());
-        let models = config.models.unwrap();
-        assert_eq!(models.get("coding").unwrap(), model_name);
-
-        // Clean up
-        std::env::set_current_dir(prev_dir).unwrap();
-    }
-
-    #[test]
-    fn test_forge_file_update() {
-        // Create temp dir for test
-        let temp_dir = TempDir::new().unwrap();
-        let prev_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp_dir.path()).unwrap();
-
-        // Set initial model
-        let initial_model = "anthropic/claude-3.5-haiku";
-        handle_set_coding_model(initial_model).unwrap();
-        println!("coding model set to: {}", initial_model);
-
-        // Update model
-        let updated_model = "anthropic/claude-3.7-sonnet";
-        handle_set_coding_model(updated_model).unwrap();
-        println!("coding model set to: {}", updated_model);
-
-        // Verify update was applied
-        let abs_path = std::env::current_dir().unwrap().join(".forge");
-        let content = fs::read_to_string(abs_path).unwrap();
-        let config: ForgeConfig = serde_yaml::from_str(&content).unwrap();
-
-        assert!(config.models.is_some());
-        let models = config.models.unwrap();
-        assert_eq!(models.get("coding").unwrap(), updated_model);
-
-        // Clean up
-        std::env::set_current_dir(prev_dir).unwrap();
-    }
 }
