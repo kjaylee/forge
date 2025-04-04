@@ -28,6 +28,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             FSList::default().into(),
             FSSearch.into(),
             FSFileInfo.into(),
+            FsUndo::new(self.infra.clone()).into(),
             ApplyPatchJson::new(self.infra.clone()).into(),
             Shell::new(env.clone()).into(),
             Fetch::default().into(),
@@ -37,17 +38,17 @@ impl<F: Infrastructure> ToolRegistry<F> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{Environment, Point, Provider, Query, Suggestion};
+    use forge_domain::{Environment, Provider};
     use forge_snaps::Snapshot;
 
     use super::*;
     use crate::{
-        EmbeddingService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-        FsSnapshotService, FsWriteService, VectorIndex,
+        FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
+        FsWriteService,
     };
 
     /// Create a default test environment
@@ -63,25 +64,21 @@ mod tests {
                     "/bin/sh".to_string()
                 },
                 base_path: PathBuf::new(),
-                qdrant_key: Default::default(),
-                qdrant_cluster: Default::default(),
                 pid: std::process::id(),
-                openai_key: Default::default(),
                 provider: Provider::anthropic("test-key"),
             },
         }
     }
 
-    #[derive(Clone)]
-    struct Stub {
-        env: Environment,
+    impl Default for Stub {
+        fn default() -> Self {
+            stub()
+        }
     }
 
-    #[async_trait::async_trait]
-    impl EmbeddingService for Stub {
-        async fn embed(&self, _text: &str) -> anyhow::Result<Vec<f32>> {
-            unimplemented!()
-        }
+    #[derive(Clone)]
+    pub struct Stub {
+        env: Environment,
     }
 
     #[async_trait::async_trait]
@@ -90,6 +87,7 @@ mod tests {
             self.env.clone()
         }
     }
+
     #[async_trait::async_trait]
     impl FsReadService for Stub {
         async fn read(&self, _path: &Path) -> anyhow::Result<Bytes> {
@@ -103,21 +101,15 @@ mod tests {
             unimplemented!()
         }
     }
-    #[async_trait::async_trait]
-    impl VectorIndex<Suggestion> for Stub {
-        async fn store(&self, _information: Point<Suggestion>) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-
-        async fn search(&self, _query: Query) -> anyhow::Result<Vec<Point<Suggestion>>> {
-            unimplemented!()
-        }
-    }
 
     #[async_trait::async_trait]
     impl FsSnapshotService for Stub {
         async fn create_snapshot(&self, _: &Path) -> anyhow::Result<Snapshot> {
             unimplemented!()
+        }
+
+        async fn undo_snapshot(&self, _: &Path) -> anyhow::Result<()> {
+            Ok(())
         }
     }
 
@@ -152,8 +144,6 @@ mod tests {
         type FsReadService = Stub;
         type FsWriteService = Stub;
         type FsRemoveService = Stub;
-        type VectorIndex = Stub;
-        type EmbeddingService = Stub;
         type FsMetaService = Stub;
         type FsSnapshotService = Stub;
         type FsCreateDirsService = Stub;
@@ -170,14 +160,6 @@ mod tests {
             self
         }
 
-        fn vector_index(&self) -> &Self::VectorIndex {
-            self
-        }
-
-        fn embedding_service(&self) -> &Self::EmbeddingService {
-            self
-        }
-
         fn file_meta_service(&self) -> &Self::FsMetaService {
             self
         }
@@ -185,6 +167,7 @@ mod tests {
         fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
             self
         }
+
         fn file_remove_service(&self) -> &Self::FsRemoveService {
             self
         }

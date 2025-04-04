@@ -1,10 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use serde_json::Value;
 use tokio::sync::RwLock;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::RetryIf;
@@ -37,6 +38,7 @@ pub struct Orchestrator<App> {
 struct ChatCompletionResult {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
+    pub usage: Option<Usage>,
 }
 
 impl<A: Services> Orchestrator<A> {
@@ -128,23 +130,32 @@ impl<A: Services> Orchestrator<A> {
         // Use the agent's tool_supported flag directly instead of querying the provider
         let tool_supported = agent.tool_supported.unwrap_or_default();
 
-        let mut context = Context::default();
-
-        if let Some(system_prompt) = &agent.system_prompt {
-            let system_message = self
-                .services
-                .template_service()
-                .render_system(agent, system_prompt)
-                .await?;
-
-            context = context.set_first_system_message(system_message);
-        }
+        let context = Context::default();
 
         Ok(context.extend_tools(if tool_supported {
             tool_defs
         } else {
             Vec::new()
         }))
+    }
+
+    async fn set_system_prompt(
+        &self,
+        context: Context,
+        agent: &Agent,
+        variables: &HashMap<String, Value>,
+    ) -> anyhow::Result<Context> {
+        Ok(if let Some(system_prompt) = &agent.system_prompt {
+            let system_message = self
+                .services
+                .template_service()
+                .render_system(agent, system_prompt, variables)
+                .await?;
+
+            context.set_first_system_message(system_message)
+        } else {
+            context
+        })
     }
 
     async fn collect_messages(
@@ -154,6 +165,7 @@ impl<A: Services> Orchestrator<A> {
             + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
+        let mut request_usage: Option<Usage> = None;
 
         while let Some(message) = response.next().await {
             let message = message?;
@@ -164,6 +176,7 @@ impl<A: Services> Orchestrator<A> {
             }
 
             if let Some(usage) = message.usage {
+                request_usage = Some(usage.clone());
                 debug!(usage = ?usage, "Usage");
                 self.send(agent, ChatResponse::Usage(usage)).await?;
             }
@@ -199,7 +212,7 @@ impl<A: Services> Orchestrator<A> {
         // From XML
         tool_calls.extend(ToolCallFull::try_from_xml(&content)?);
 
-        Ok(ChatCompletionResult { content, tool_calls })
+        Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
     }
 
     pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
@@ -281,6 +294,7 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
+        let variables = &conversation.variables;
         debug!(
             conversation_id = %conversation.id,
             agent = %agent_id,
@@ -298,27 +312,16 @@ impl<A: Services> Orchestrator<A> {
             }
         };
 
+        // Render the system prompts with the variables
+        context = self.set_system_prompt(context, agent, variables).await?;
+
+        // Render user prompts
+        context = self
+            .set_user_prompt(context, agent, variables, event)
+            .await?;
+
         if let Some(temperature) = agent.temperature {
             context = context.temperature(temperature);
-        }
-
-        let content = if let Some(user_prompt) = &agent.user_prompt {
-            // Get conversation variables from the conversation
-            let variables = &conversation.variables;
-
-            // Use the consolidated render_event method which handles suggestions and
-            // variables
-            self.services
-                .template_service()
-                .render_event(agent, user_prompt, event, variables)
-                .await?
-        } else {
-            // Use the raw event value as content if no user_prompt is provided
-            event.value.to_string()
-        };
-
-        if !content.is_empty() {
-            context = context.add_message(ContextMessage::user(content));
         }
 
         // Process attachments
@@ -359,8 +362,19 @@ impl<A: Services> Orchestrator<A> {
                     context.clone(),
                 )
                 .await?;
-            let ChatCompletionResult { tool_calls, content } =
+            let ChatCompletionResult { tool_calls, content, usage } =
                 self.collect_messages(agent, response).await?;
+
+            // Check if context requires compression
+            // Only pass prompt_tokens for compaction decision
+            context = self
+                .compactor
+                .compact_context(
+                    agent,
+                    context,
+                    usage.map(|usage| usage.prompt_tokens as usize),
+                )
+                .await?;
 
             // Get all tool results using the helper function
             let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
@@ -368,9 +382,6 @@ impl<A: Services> Orchestrator<A> {
             context = context
                 .add_message(ContextMessage::assistant(content, Some(tool_calls)))
                 .add_tool_results(tool_results.clone());
-
-            // Check if context requires compression
-            context = self.compactor.compact_context(agent, context).await?;
 
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
@@ -385,6 +396,33 @@ impl<A: Services> Orchestrator<A> {
         self.sync_conversation().await?;
 
         Ok(())
+    }
+
+    async fn set_user_prompt(
+        &self,
+        mut context: Context,
+
+        agent: &Agent,
+        variables: &HashMap<String, Value>,
+        event: &Event,
+    ) -> anyhow::Result<Context> {
+        let content = if let Some(user_prompt) = &agent.user_prompt {
+            // Use the consolidated render_event method which handles suggestions and
+            // variables
+            self.services
+                .template_service()
+                .render_event(agent, user_prompt, event, variables)
+                .await?
+        } else {
+            // Use the raw event value as content if no user_prompt is provided
+            event.value.to_string()
+        };
+
+        if !content.is_empty() {
+            context = context.add_message(ContextMessage::user(content));
+        }
+
+        Ok(context)
     }
 
     async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {

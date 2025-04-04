@@ -109,11 +109,13 @@ impl Compact {
 
     /// Determines if compaction should be triggered based on the current
     /// context
-    pub fn should_compact(&self, context: &Context) -> bool {
+    pub fn should_compact(&self, context: &Context, prompt_tokens: Option<usize>) -> bool {
         // Check if any of the thresholds have been exceeded
         if let Some(token_threshold) = self.token_threshold {
-            // Use the context's text representation to estimate token count
-            let token_count = estimate_token_count(&context.to_text());
+            // use provided prompt_tokens if available, otherwise estimate token count
+            let token_count = prompt_tokens
+                .map(|tokens| tokens as u64)
+                .unwrap_or_else(|| estimate_token_count(&context.to_text()));
             if token_count >= token_threshold {
                 return true;
             }
@@ -188,12 +190,6 @@ pub struct Agent {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub user_prompt: Option<Template<EventContext>>,
-
-    /// When set to true all user events will also contain a suggestions field
-    /// that is prefilled with the matching information from vector store.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub suggestions: Option<bool>,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
     /// the program.    
@@ -293,7 +289,6 @@ impl Agent {
             description: None,
             system_prompt: None,
             user_prompt: None,
-            suggestions: None,
             ephemeral: None,
             tools: None,
             // transforms field removed
@@ -332,7 +327,7 @@ impl Key for Agent {
 fn estimate_token_count(text: &str) -> u64 {
     // A very rough estimation that assumes ~4 characters per token on average
     // In a real implementation, this should use a proper LLM-specific tokenizer
-    text.len() as u64 / 4
+    text.len() as u64 / 5
 }
 
 // The Transform enum has been removed
@@ -412,19 +407,7 @@ mod tests {
     }
 
     #[test]
-    fn test_merge_bool_flags() {
-        // With the option strategy, the first value is preserved
-        let mut base = Agent::new("Base").suggestions(true);
-        let other = Agent::new("Other").suggestions(false);
-        base.merge(other);
-        assert_eq!(base.suggestions, Some(false));
-
-        // Now test with no initial value
-        let mut base = Agent::new("Base"); // no suggestions set
-        let other = Agent::new("Other").suggestions(false);
-        base.merge(other);
-        assert_eq!(base.suggestions, Some(false));
-
+    fn test_merge_ephemeral_flag() {
         // Test ephemeral flag with option strategy
         let mut base = Agent::new("Base").ephemeral(true);
         let other = Agent::new("Other").ephemeral(false);
