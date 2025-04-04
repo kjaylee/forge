@@ -118,7 +118,6 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
 
         // Apply model settings if present
         if let Some(models) = &forge_config.models {
-
             // Update variables in the workflow
             let variables = workflow.variables.get_or_insert_with(HashMap::new);
 

@@ -231,7 +231,6 @@ impl<F: API> UI<F> {
                     // Initialize new conversation with updated config
                     let _new_id = self.init_conversation().await?;
 
-
                     // Prompt for next command
                     let prompt_input = Some((&self.state).into());
                     input = self.console.prompt(prompt_input).await?;

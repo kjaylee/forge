@@ -24,7 +24,6 @@ pub fn handle_set_default_model(model_name: &str) -> Result<()> {
 
 /// Helper function to update a model in the .forge file
 fn update_forge_file_model(model_type: &str, model_name: &str) -> Result<()> {
-
     // Load existing .forge file or create new one
     let mut config = load_forge_config()?;
 
@@ -46,8 +45,7 @@ fn update_forge_file_model(model_type: &str, model_name: &str) -> Result<()> {
 
     // Use the global CONSOLE instance for output
     CONSOLE.write(
-        TitleFormat::success(format!("{} has been set for {}", model_name, model_type))
-        .format()
+        TitleFormat::success(format!("{} has been set for {}", model_name, model_type)).format(),
     )?;
     Ok(())
 }
