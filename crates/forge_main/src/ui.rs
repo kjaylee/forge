@@ -223,6 +223,20 @@ impl<F: API> UI<F> {
 
                     input = self.console.prompt(None).await?;
                 }
+                Command::ApplyConfig => {
+                    // Load a fresh workflow with updated configuration
+                    // Reset conversation ID to force reloading
+                    self.state.conversation_id = None;
+
+                    // Initialize new conversation with updated config
+                    let _new_id = self.init_conversation().await?;
+
+
+                    // Prompt for next command
+                    let prompt_input = Some((&self.state).into());
+                    input = self.console.prompt(prompt_input).await?;
+                    continue;
+                }
                 Command::Custom(event) => {
                     if let Err(e) = self.dispatch_event(event.into()).await {
                         CONSOLE.writeln(

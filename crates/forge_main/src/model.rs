@@ -6,6 +6,7 @@ use forge_api::{Model, Workflow};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
+use crate::commands;
 use crate::info::Info;
 use crate::ui::PartialEvent;
 
@@ -64,7 +65,7 @@ impl Default for ForgeCommandManager {
 
 impl ForgeCommandManager {
     fn default_commands() -> Vec<ForgeCommand> {
-        Command::iter()
+        let mut commands = Command::iter()
             .filter(|command| !matches!(command, Command::Message(_)))
             .filter(|command| !matches!(command, Command::Custom(_)))
             .map(|command| ForgeCommand {
@@ -72,7 +73,26 @@ impl ForgeCommandManager {
                 description: command.usage().to_string(),
                 value: None,
             })
-            .collect::<Vec<_>>()
+            .collect::<Vec<_>>();
+
+        // Add new model configuration commands
+        commands.push(ForgeCommand {
+            name: "/set-coding-model".to_string(),
+            description: "Set the model used for coding tasks".to_string(),
+            value: None,
+        });
+        commands.push(ForgeCommand {
+            name: "/set-summarization-model".to_string(),
+            description: "Set the model used for summarization tasks".to_string(),
+            value: None,
+        });
+        commands.push(ForgeCommand {
+            name: "/set-default-model".to_string(),
+            description: "Set the default model".to_string(),
+            value: None,
+        });
+
+        commands
     }
 
     /// Registers multiple commands to the manager.
@@ -171,7 +191,31 @@ impl ForgeCommandManager {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
                 if let Some(command) = parts.first() {
-                    if let Some(command) = self.find(command) {
+                    if command == &"/set-coding-model" {
+                        if parts.len() < 2 {
+                            return Err(anyhow::anyhow!("Model name is required"));
+                        }
+                        let model = parts[1..].join(" ");
+                        commands::handle_set_coding_model(&model)?;
+                        Ok(Command::ApplyConfig) // Return new command to reload
+                                                 // config
+                    } else if command == &"/set-summarization-model" {
+                        if parts.len() < 2 {
+                            return Err(anyhow::anyhow!("Model name is required"));
+                        }
+                        let model = parts[1..].join(" ");
+                        commands::handle_set_summarization_model(&model)?;
+                        return Ok(Command::ApplyConfig); // Return new command
+                                                         // to reload config
+                    } else if command == &"/set-default-model" {
+                        if parts.len() < 2 {
+                            return Err(anyhow::anyhow!("Model name is required"));
+                        }
+                        let model = parts[1..].join(" ");
+                        commands::handle_set_default_model(&model)?;
+                        return Ok(Command::ApplyConfig); // Return new command
+                                                         // to reload config
+                    } else if let Some(command) = self.find(command) {
                         let value = self.extract_command_value(&command, &parts[1..]);
 
                         Ok(Command::Custom(PartialEvent::new(
@@ -230,6 +274,10 @@ pub enum Command {
     /// Dumps the current conversation into a json file
     #[strum(props(usage = "Save conversation as JSON"))]
     Dump,
+    /// Apply configuration changes (reload model settings) without starting a
+    /// new conversation
+    #[strum(props(usage = "Apply configuration changes"))]
+    ApplyConfig,
     /// Handles custom command defined in workflow file.
     Custom(PartialEvent),
 }
@@ -246,6 +294,7 @@ impl Command {
             Command::Plan => "/plan",
             Command::Help => "/help",
             Command::Dump => "/dump",
+            Command::ApplyConfig => "/apply-config",
             Command::Custom(event) => &event.name,
         }
     }
