@@ -57,9 +57,7 @@ impl FSFindInput {
         Ok(path
             .file_name()
             .and_then(|name| name.to_str())
-            .is_some_and(|name| {
-                !name.is_empty() && pattern.unwrap().matches(name)
-            }))
+            .is_some_and(|name| !name.is_empty() && pattern.unwrap().matches(name)))
     }
 }
 
