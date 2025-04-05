@@ -166,7 +166,15 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               }
               
               // Add to tool calls
-              setToolCalls(prev => [...prev, newToolCall]);
+              setToolCalls(prev => {
+                // Check if we already have this tool call with the same ID
+                if (prev.some(tool => tool.id === newToolCall.id)) {
+                  // Skip duplicate tool call
+                  if (debugMode) console.log('Skipping duplicate tool call:', newToolCall.id);
+                  return prev;
+                }
+                return [...prev, newToolCall];
+              });
             }
             
             // Process tool call ends

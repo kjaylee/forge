@@ -8,13 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 
 // Helper function to determine if a message appears to be a thinking message
 const isThinkingMessage = (content: string): boolean => {
-  // Check if the content is enclosed in <thinking> tags or appears to be a thought process
-  return content.startsWith('<thinking>') || 
-         content.includes('thinking...') ||
-         content.includes('Let me think about this') ||
-         content.includes('Let\'s analyze') ||
-         content.includes('analyzing') ||
-         content.includes('Thinking through');
+  // Check if the content has any thinking-related tags
+  return content.includes('<thinking>') || 
+         content.includes('<analysis>') || 
+         content.includes('<execution>') || 
+         content.includes('<verification>') || 
+         content.includes('<action_plan>');
 };
 
 type MessageType = 'user' | 'system' | 'thinking';
