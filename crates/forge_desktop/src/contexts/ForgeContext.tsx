@@ -92,9 +92,20 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               if (message.text && message.text.trim()) {
                 // Add text message
                 setMessages(prev => {
+                  const content = message.text.trim();
+                  // Check if this message is a duplicate (has exactly the same content as the last message)
+                  if (prev.length > 0) {
+                    const lastMessage = prev[prev.length - 1];
+                    if (lastMessage.content === content && lastMessage.sender === 'system') {
+                      // Skip duplicate messages
+                      if (debugMode) console.log('Skipping duplicate message:', content);
+                      return prev;
+                    }
+                  }
+                  
                   const newMessages = [...prev, {
                     id: `system-${Date.now()}`,
-                    content: message.text,
+                    content: content,
                     sender: 'system' as 'user' | 'system',
                     timestamp: new Date(),
                   }];
@@ -121,12 +132,25 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                   const content = toolCall.arguments.content;
                   
                   // Add directly to messages
-                  setMessages(prev => [...prev, {
-                    id: `system-${Date.now()}`,
-                    content: content,
-                    sender: 'system' as 'user' | 'system',
-                    timestamp: new Date(),
-                  }]);
+                  setMessages(prev => {
+                    const trimmedContent = content.trim();
+                    // Check if this message is a duplicate (has exactly the same content as the last message)
+                    if (prev.length > 0) {
+                      const lastMessage = prev[prev.length - 1];
+                      if (lastMessage.content === trimmedContent && lastMessage.sender === 'system') {
+                        // Skip duplicate messages
+                        if (debugMode) console.log('Skipping duplicate show_user message');
+                        return prev;
+                      }
+                    }
+                    
+                    return [...prev, {
+                      id: `system-show-user-${Date.now()}`,
+                      content: trimmedContent,
+                      sender: 'system' as 'user' | 'system',
+                      timestamp: new Date(),
+                    }];
+                  });
                 }
                 
                 // Don't add show_user tool to tool calls
