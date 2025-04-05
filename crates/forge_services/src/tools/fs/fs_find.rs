@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::Context;
-use forge_display::{GrepFormat, Kind, TitleFormat};
+use forge_display::{GrepFormat, TitleFormat};
 use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
@@ -10,54 +11,74 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::tools::utils::assert_absolute_path;
+use crate::tools::utils::{assert_absolute_path, format_display_path};
+use crate::{EnvironmentService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
-pub struct FSSearchInput {
+pub struct FSFindInput {
     /// The path of the directory to search in (absolute path required). This
     /// directory will be recursively searched.
     pub path: String,
-    /// The regular expression pattern to search for. Uses Rust regex syntax.
-    pub regex: String,
+
+    /// The regular expression pattern to search for in file contents.
+    /// Uses Rust regex syntax. If not provided, only file name matching will be
+    /// performed.
+    pub regex: Option<String>,
+
     /// Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not
     /// provided, it will search all files (*).
     pub file_pattern: Option<String>,
 }
 
-/// Searches text patterns across files using regex and returns context-rich
-/// results. Recursively examines files in specified directory and
-/// subdirectories, showing matches with surrounding context lines. Use for
-/// exploring codebases, finding implementations, locating settings, or
-/// identifying patterns across projects. Uses Rust regex syntax. Filters by
-/// file type when specified. Avoids binary files and skips common excluded
-/// directories.
+/// Recursively searches directories for files by content (regex) and/or name
+/// (glob pattern). Provides context-rich results with line numbers for content
+/// matches. Two modes: content search (when regex provided) or file finder
+/// (when regex omitted). Uses case-insensitive Rust regex syntax. Requires
+/// absolute paths. Avoids binary files and excluded directories. Best for code
+/// exploration, API usage discovery, configuration settings, or finding
+/// patterns across projects.
 #[derive(ToolDescription)]
-pub struct FSSearch;
+pub struct FSFind<F>(Arc<F>);
 
-impl From<&FSSearchInput> for TitleFormat {
-    fn from(input: &FSSearchInput) -> Self {
-        let title = match &input.file_pattern {
-            Some(pattern) => format!("search '{}' '{}'", input.regex, pattern),
-            None => format!("search '{}'", input.regex),
+impl<F: Infrastructure> FSFind<F> {
+    pub fn new(f: Arc<F>) -> Self {
+        Self(f)
+    }
+
+    /// Formats a path for display, converting absolute paths to relative when
+    /// possible
+    ///
+    /// If the path starts with the current working directory, returns a
+    /// relative path. Otherwise, returns the original absolute path.
+    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
+        // Get the current working directory
+        let env = self.0.environment_service().get_environment();
+        let cwd = env.cwd.as_path();
+
+        // Use the shared utility function
+        format_display_path(path, cwd)
+    }
+
+    fn create_title(&self, input: &FSFindInput) -> anyhow::Result<TitleFormat> {
+        // Format the title with relative path if possible
+        let formatted_dir = self.format_display_path(input.path.as_ref())?;
+
+        let sub_title = match (&input.regex, &input.file_pattern) {
+            (Some(regex), Some(pattern)) => {
+                format!(
+                    "for '{}' in '{}' files at {}",
+                    regex, pattern, formatted_dir
+                )
+            }
+            (Some(regex), None) => format!("for '{}' at {}", regex, formatted_dir),
+            (None, Some(pattern)) => format!("for '{}' at {}", pattern, formatted_dir),
+            (None, None) => format!("at {}", formatted_dir),
         };
 
-        let sub_title = Some(input.path.clone());
-
-        TitleFormat { kind: Kind::Execute, title, sub_title, error: None }
+        Ok(TitleFormat::execute("search").sub_title(sub_title))
     }
-}
 
-impl NamedTool for FSSearch {
-    fn tool_name() -> ToolName {
-        ToolName::new("tool_forge_fs_search")
-    }
-}
-
-#[async_trait::async_trait]
-impl ExecutableTool for FSSearch {
-    type Input = FSSearchInput;
-
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, input: FSFindInput) -> anyhow::Result<String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
@@ -65,14 +86,18 @@ impl ExecutableTool for FSSearch {
             return Err(anyhow::anyhow!("Directory '{}' does not exist", input.path));
         }
 
-        // Create regex pattern - case-insensitive by default
-        let pattern = format!("(?i){}", input.regex);
-        let regex = Regex::new(&pattern)
-            .with_context(|| format!("Invalid regex pattern: {}", input.regex))?;
+        // Create content regex pattern if provided
+        let content_regex = match &input.regex {
+            Some(regex) => {
+                let pattern = format!("(?i){}", regex); // Case-insensitive by default
+                Some(
+                    Regex::new(&pattern)
+                        .with_context(|| format!("Invalid regex pattern: {}", regex))?,
+                )
+            }
+            None => None,
+        };
 
-        // TODO: Current implementation is extremely slow and inefficient.
-        // It should ideally be taking in a stream of files and processing them
-        // concurrently.
         let walker = Walker::max_all().cwd(dir.to_path_buf());
 
         let files = walker
@@ -83,6 +108,15 @@ impl ExecutableTool for FSSearch {
         let mut matches = Vec::new();
         let mut seen_paths = HashSet::new();
 
+        // Create file pattern if provided
+        let glob_pattern = match &input.file_pattern {
+            Some(pattern) => Some(
+                glob::Pattern::new(pattern)
+                    .with_context(|| format!("Invalid glob pattern: {}", pattern))?,
+            ),
+            None => None,
+        };
+
         for file in files {
             if file.is_dir() {
                 continue;
@@ -91,56 +125,101 @@ impl ExecutableTool for FSSearch {
             let path = Path::new(&file.path);
             let full_path = dir.join(path);
 
-            // Apply file pattern filter if provided
-            if let Some(ref pattern) = input.file_pattern {
-                let glob = glob::Pattern::new(pattern).with_context(|| {
-                    format!(
-                        "Invalid glob pattern '{}' for file '{}'",
-                        pattern,
-                        full_path.display(),
-                    )
-                })?;
-                if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
-                    if !glob.matches(filename) {
-                        continue;
-                    }
-                }
-            }
-
             // Skip if we've already processed this file
             if !seen_paths.insert(full_path.clone()) {
                 continue;
             }
 
-            // Try to read the file content
+            // Apply file pattern filter if provided
+            if let Some(ref pattern) = glob_pattern {
+                if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
+                    if !pattern.matches(filename) {
+                        continue;
+                    }
+                } else {
+                    continue; // Skip files with invalid UTF-8 names
+                }
+            }
+
+            // File name only search mode
+            if content_regex.is_none() {
+                matches.push((self.format_display_path(&full_path)?).to_string());
+                continue;
+            }
+
+            // Content matching mode - read and search file contents
             let content = match tokio::fs::read_to_string(&full_path).await {
                 Ok(content) => content,
                 Err(e) => {
                     // Skip binary or unreadable files silently
                     if e.kind() != std::io::ErrorKind::InvalidData {
-                        matches.push(format!("Error reading {:?}: {}", full_path.display(), e));
+                        matches.push(format!(
+                            "Error reading {}: {}",
+                            self.format_display_path(&full_path)?,
+                            e
+                        ));
                     }
                     continue;
                 }
             };
 
-            // Process the file line by line
+            // Process the file line by line to find content matches
+            let content_regex = content_regex.as_ref().unwrap(); // Safe because we checked above
+            let mut found_match = false;
+
             for (line_num, line) in content.lines().enumerate() {
-                if regex.is_match(line) {
+                if content_regex.is_match(line) {
+                    found_match = true;
                     // Format match in ripgrep style: filepath:line_num:content
-                    matches.push(format!("{}:{}:{}", full_path.display(), line_num + 1, line));
+                    matches.push(format!(
+                        "{}:{}:{}",
+                        self.format_display_path(&full_path)?,
+                        line_num + 1,
+                        line
+                    ));
                 }
+            }
+
+            // If no matches found in content but we're looking for content,
+            // don't add this file to matches
+            if !found_match && input.regex.is_some() {
+                continue;
             }
         }
 
-        // Print title
-        println!("{}", TitleFormat::from(&input).format());
+        let title_format = self.create_title(&input)?;
 
-        // Print results using GrepFormat for all cases
-        let formatted_output = GrepFormat::new(matches.clone()).format(&regex);
-        println!("{}", formatted_output);
+        println!("{}", title_format.format());
 
+        // Format and return results
+        if matches.is_empty() {
+            return Ok("No matches found.".to_string());
+        }
+
+        let mut formatted_output = GrepFormat::new(matches.clone());
+
+        // Use GrepFormat for content search, simple list for filename search
+        if let Some(regex) = content_regex {
+            formatted_output = formatted_output.regex(regex);
+        }
+
+        println!("{}", formatted_output.format());
         Ok(matches.join("\n"))
+    }
+}
+
+impl<F> NamedTool for FSFind<F> {
+    fn tool_name() -> ToolName {
+        ToolName::new("tool_forge_fs_search")
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: Infrastructure> ExecutableTool for FSFind<F> {
+    type Input = FSFindInput;
+
+    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        self.call(input).await
     }
 }
 
@@ -150,6 +229,7 @@ mod test {
     use tokio::fs;
 
     use super::*;
+    use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
 
     #[tokio::test]
@@ -166,11 +246,12 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
+                regex: Some("test".to_string()),
                 file_pattern: None,
             })
             .await
@@ -193,11 +274,12 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
+                regex: Some("test".to_string()),
                 file_pattern: Some("*.rs".to_string()),
             })
             .await
@@ -209,6 +291,38 @@ mod test {
     }
 
     #[tokio::test]
+    async fn test_fs_search_filenames_only() {
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("test1.txt"), "Hello world")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("test2.txt"), "Another case")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("other.txt"), "No match here")
+            .await
+            .unwrap();
+
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
+        let result = fs_search
+            .call(FSFindInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                regex: None,
+                file_pattern: Some("test*.txt".to_string()),
+            })
+            .await
+            .unwrap();
+
+        let lines: Vec<_> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(result.contains("test1.txt"));
+        assert!(result.contains("test2.txt"));
+        assert!(!result.contains("other.txt"));
+    }
+
+    #[tokio::test]
     async fn test_fs_search_with_context() {
         let temp_dir = TempDir::new().unwrap();
         let content = "line 1\nline 2\ntest line\nline 4\nline 5";
@@ -217,11 +331,12 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
+                regex: Some("test".to_string()),
                 file_pattern: None,
             })
             .await
@@ -249,11 +364,12 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
+                regex: Some("test".to_string()),
                 file_pattern: None,
             })
             .await
@@ -277,11 +393,12 @@ mod test {
         .await
         .unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "test".to_string(),
+                regex: Some("test".to_string()),
                 file_pattern: None,
             })
             .await
@@ -301,28 +418,58 @@ mod test {
             .await
             .unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "nonexistent".to_string(),
+                regex: Some("nonexistent".to_string()),
                 file_pattern: None,
             })
             .await
             .unwrap();
 
-        assert!(result.is_empty());
+        assert!(result.contains("No matches found."));
+    }
+
+    #[tokio::test]
+    async fn test_fs_search_list_all_files() {
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("file1.txt"), "content1")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("file2.rs"), "content2")
+            .await
+            .unwrap();
+
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
+        let result = fs_search
+            .call(FSFindInput {
+                path: temp_dir.path().to_string_lossy().to_string(),
+                regex: None,
+                file_pattern: None,
+            })
+            .await
+            .unwrap();
+
+        let lines: Vec<_> = result.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(result.contains("file1.txt"));
+        assert!(result.contains("file2.rs"));
     }
 
     #[tokio::test]
     async fn test_fs_search_invalid_regex() {
         let temp_dir = TempDir::new().unwrap();
 
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: temp_dir.path().to_string_lossy().to_string(),
-                regex: "[invalid".to_string(),
+                regex: Some("[invalid".to_string()),
                 file_pattern: None,
             })
             .await;
@@ -336,11 +483,12 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_relative_path() {
-        let fs_search = FSSearch;
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSSearchInput {
+            .call(FSFindInput {
                 path: "relative/path".to_string(),
-                regex: "test".to_string(),
+                regex: Some("test".to_string()),
                 file_pattern: None,
             })
             .await;
@@ -350,5 +498,22 @@ mod test {
             .unwrap_err()
             .to_string()
             .contains("Path must be absolute"));
+    }
+    #[tokio::test]
+    async fn test_format_display_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Create a mock infrastructure with controlled cwd
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
+
+        // Test with a mock path
+        let display_path = fs_search.format_display_path(Path::new(&file_path));
+
+        // Since MockInfrastructure has a fixed cwd of "/test",
+        // and our temp path won't start with that, we expect the full path
+        assert!(display_path.is_ok());
+        assert_eq!(display_path.unwrap(), file_path.display().to_string());
     }
 }
