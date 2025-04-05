@@ -17,6 +17,7 @@ interface Message {
   content: string;
   sender: 'user' | 'system';
   timestamp: Date;
+  isShowUserMessage?: boolean; // Flag to identify messages from show_user tool
 }
 
 interface ToolCall {
@@ -72,6 +73,7 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   });
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   const [debugMode] = useState<boolean>(false); // Set to true only when debugging is needed
+  const [currentSystemMessageId, setCurrentSystemMessageId] = useState<string | null>(null); // Track current system message for aggregation
 
   // Set up event listeners for agent messages
   useEffect(() => {
@@ -90,27 +92,52 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (message.text !== undefined) {
               // Only process non-empty text messages
               if (message.text && message.text.trim()) {
-                // Add text message
-                setMessages(prev => {
-                  const content = message.text.trim();
-                  // Check if this message is a duplicate (has exactly the same content as the last message)
-                  if (prev.length > 0) {
-                    const lastMessage = prev[prev.length - 1];
-                    if (lastMessage.content === content && lastMessage.sender === 'system') {
-                      // Skip duplicate messages
-                      if (debugMode) console.log('Skipping duplicate message:', content);
-                      return prev;
-                    }
-                  }
-                  
-                  const newMessages = [...prev, {
-                    id: `system-${Date.now()}`,
-                    content: content,
-                    sender: 'system' as 'user' | 'system',
+                const content = message.text.trim();
+                
+                // Reset the current system message ID when a tool call happens or on first message
+                if (toolCalls.length > 0 && currentSystemMessageId === null) {
+                  // Create a new system message after tool calls
+                  const newId = `system-${Date.now()}`;
+                  setCurrentSystemMessageId(newId);
+                  setMessages(prev => [...prev, {
+                    id: newId,
+                    content,
+                    sender: 'system',
                     timestamp: new Date(),
-                  }];
-                  return newMessages;
-                });
+                    isShowUserMessage: false,
+                  }]);
+                  
+                  if (debugMode) console.log('New message created after tool call');
+                } else if (currentSystemMessageId) {
+                  // Append to the existing message (aggregation)
+                  setMessages(prev => {
+                    return prev.map(msg => {
+                      if (msg.id === currentSystemMessageId) {
+                        // Append the new content to the existing message
+                        return {
+                          ...msg,
+                          content: msg.content + (msg.content.endsWith('\n') ? '' : ' ') + content
+                        };
+                      }
+                      return msg;
+                    });
+                  });
+                  
+                  if (debugMode) console.log('Aggregated content to existing message');
+                } else {
+                  // Create a new system message (first message or after user message)
+                  const newId = `system-${Date.now()}`;
+                  setCurrentSystemMessageId(newId);
+                  setMessages(prev => [...prev, {
+                    id: newId,
+                    content,
+                    sender: 'system',
+                    timestamp: new Date(),
+                    isShowUserMessage: false,
+                  }]);
+                  
+                  if (debugMode) console.log('New message created');
+                }
               }
             }
             
@@ -144,11 +171,15 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                       }
                     }
                     
+                    // Reset the current system message ID since we're creating a show_user message
+                    setCurrentSystemMessageId(null);
+                    
                     return [...prev, {
                       id: `system-show-user-${Date.now()}`,
                       content: trimmedContent,
                       sender: 'system' as 'user' | 'system',
                       timestamp: new Date(),
+                      isShowUserMessage: true, // Mark this as a show_user tool message
                     }];
                   });
                 }
@@ -239,7 +270,7 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return () => {
       unlistenFns.forEach(fn => fn());
     };
-  }, []);
+  }, [toolCalls, currentSystemMessageId, debugMode]);
 
   // Initialize a new conversation
   const newConversation = useCallback(async () => {
@@ -250,6 +281,7 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setError(null);
       setConversationTitle(null);
       setIsFirstMessage(true);
+      setCurrentSystemMessageId(null); // Reset the current system message ID
       
       // Load the workflow and initialize a new conversation
       await invoke('load_workflow', { path: null });
@@ -301,6 +333,9 @@ export const ForgeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         sender: 'user',
         timestamp: new Date(),
       }]);
+      
+      // Reset the current system message ID when user sends a message
+      setCurrentSystemMessageId(null);
       
       if (debugMode) console.log('Sending message:', content, 'is_first:', isFirstMessage);
       

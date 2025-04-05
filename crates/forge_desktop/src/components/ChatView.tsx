@@ -18,6 +18,11 @@ const isThinkingMessage = (content: string): boolean => {
 
 type MessageType = 'user' | 'system' | 'thinking';
 
+// Helper function to determine if a message should be dimmed
+const shouldDimMessage = (message: { sender: string; isShowUserMessage?: boolean }): boolean => {
+  return message.sender === 'system' && !message.isShowUserMessage;
+};
+
 const ChatView: React.FC = () => {
   const { messages, toolCalls, isLoading } = useForge();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -84,9 +89,11 @@ const ChatView: React.FC = () => {
                 <Card className={`shadow-sm border-0 ${isUser ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
                   <CardContent className={`p-3 ${!isUser && 'prose prose-sm dark:prose-invert max-w-none'}`}>
                     {message.sender === 'system' ? (
-                      <ReactMarkdown>
-                        {message.content}
-                      </ReactMarkdown>
+                      <div className={shouldDimMessage(message) ? 'text-muted-foreground' : ''}>
+                        <ReactMarkdown>
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
                     ) : (
                       <div className="whitespace-pre-wrap">{message.content}</div>
                     )}
