@@ -82,6 +82,9 @@ impl<F: Infrastructure> FSFind<F> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
+        let title_format = self.create_title(&input)?;
+        println!("{}", title_format.format());
+
         if !dir.exists() {
             return Err(anyhow::anyhow!("Directory '{}' does not exist", input.path));
         }
@@ -186,10 +189,6 @@ impl<F: Infrastructure> FSFind<F> {
                 continue;
             }
         }
-
-        let title_format = self.create_title(&input)?;
-
-        println!("{}", title_format.format());
 
         // Format and return results
         if matches.is_empty() {
