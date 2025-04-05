@@ -315,8 +315,8 @@ mod tests {
         assert!(without_output.contains("This is a line with pattern"));
 
         // Since we're stripping ANSI escapes, the plain text output should be the same
-        // for both cases after stripping. The actual display to the user would be different
-        // with the regex version having highlighting.
+        // for both cases after stripping. The actual display to the user would be
+        // different with the regex version having highlighting.
         assert_eq!(with_output, without_output);
     }
 }
