@@ -1,50 +1,32 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { ForgeProvider } from "@/contexts/ForgeContext";
+import ConversationHeader from "@/components/ConversationHeader";
+import ModeSwitcher from "@/components/ModeSwitcher";
+import ChatView from "@/components/ChatView";
+import MessageInput from "@/components/MessageInput";
+import StatusBar from "@/components/StatusBar";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
-
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
-
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <ForgeProvider>
+      <TooltipProvider>
+        <div className="flex flex-col h-screen w-full overflow-hidden bg-background font-sans text-foreground antialiased">
+          <div className="sticky top-0 z-10">
+            <ConversationHeader />
+          </div>
+          <div className="flex-1 flex flex-col overflow-hidden border-x border-border/40 mx-auto w-full max-w-6xl shadow-sm">
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50">
+              <ModeSwitcher />
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <ChatView />
+            </div>
+            <MessageInput />
+          </div>
+          <StatusBar />
+        </div>
+      </TooltipProvider>
+    </ForgeProvider>
   );
 }
 

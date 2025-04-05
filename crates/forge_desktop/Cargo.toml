@@ -16,7 +16,8 @@ publish = false
 forge_desktop_impl = { path = "src-tauri" }
 
 # Workspace dependencies
-forge_api = { workspace = true }
+forge_api.workspace=true
+tokio.workspace =true
 
 [features]
 default = []

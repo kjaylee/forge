@@ -1481,18 +1481,24 @@ version = "0.1.0"
 dependencies = [
  "forge_api",
  "forge_desktop_impl",
+ "tokio",
 ]
 
 [[package]]
 name = "forge_desktop_impl"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "chrono",
  "forge_api",
+ "futures-util",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

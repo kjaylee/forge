@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "forge_desktop",
   "version": "0.1.0",
-  "identifier": "com.forge_desktop.app",
+  "identifier": "com.forge-desktop.app",
   "build": {
     "beforeDevCommand": "yarn dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "forge_desktop",
-        "width": 800,
-        "height": 600
+        "title": "Forge Desktop",
+        "width": 900,
+        "height": 700,
+        "minWidth": 600,
+        "minHeight": 400
       }
     ],
     "security": {
@@ -31,5 +33,10 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
   }
 }
