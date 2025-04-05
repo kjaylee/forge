@@ -30,6 +30,39 @@ pub struct FSFindInput {
     pub file_pattern: Option<String>,
 }
 
+impl FSFindInput {
+    fn get_file_pattern(&self) -> anyhow::Result<Option<glob::Pattern>> {
+        Ok(match &self.file_pattern {
+            Some(pattern) => Some(
+                glob::Pattern::new(pattern)
+                    .with_context(|| format!("Invalid glob pattern: {}", pattern))?,
+            ),
+            None => None,
+        })
+    }
+
+    fn match_file_path(&self, path: &Path) -> anyhow::Result<bool> {
+        // Don't process directories
+        if path.is_dir() {
+            return Ok(false);
+        }
+
+        // If no pattern is specified, match all files
+        let pattern = self.get_file_pattern()?;
+        if pattern.is_none() {
+            return Ok(true);
+        }
+
+        // Otherwise, check if the file matches the pattern
+        Ok(path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map_or(false, |name| {
+                !name.is_empty() && pattern.unwrap().matches(name)
+            }))
+    }
+}
+
 /// Recursively searches directories for files by content (regex) and/or name
 /// (glob pattern). Provides context-rich results with line numbers for content
 /// matches. Two modes: content search (when regex provided) or file finder
@@ -90,7 +123,7 @@ impl<F: Infrastructure> FSFind<F> {
         }
 
         // Create content regex pattern if provided
-        let content_regex = match &input.regex {
+        let regex = match &input.regex {
             Some(regex) => {
                 let pattern = format!("(?i){}", regex); // Case-insensitive by default
                 Some(
@@ -101,69 +134,30 @@ impl<F: Infrastructure> FSFind<F> {
             None => None,
         };
 
-        let walker = Walker::max_all().cwd(dir.to_path_buf());
-
-        let files = walker
-            .get()
-            .await
-            .with_context(|| format!("Failed to walk directory '{}'", dir.display()))?;
+        let paths = retrieve_file_paths(dir).await?;
 
         let mut matches = Vec::new();
-        let mut seen_paths = HashSet::new();
 
-        // Create file pattern if provided
-        let glob_pattern = match &input.file_pattern {
-            Some(pattern) => Some(
-                glob::Pattern::new(pattern)
-                    .with_context(|| format!("Invalid glob pattern: {}", pattern))?,
-            ),
-            None => None,
-        };
-
-        for file in files {
-            if file.is_dir() {
+        for path in paths {
+            if !input.match_file_path(path.as_path())? {
                 continue;
-            }
-
-            let path = Path::new(&file.path);
-            let full_path = dir.join(path);
-
-            // Skip if we've already processed this file
-            if !seen_paths.insert(full_path.clone()) {
-                continue;
-            }
-
-            // Apply file pattern filter if provided
-            if let Some(ref pattern) = glob_pattern {
-                let file_name = path.file_name();
-                if let Some(os_str) = file_name {
-                    if let Some(filename) = os_str.to_str() {
-                        if !pattern.matches(filename) {
-                            continue;
-                        }
-                    } else {
-                        continue; // Skip files with invalid UTF-8 names
-                    }
-                } else {
-                    continue; // Skip files with no filename
-                }
             }
 
             // File name only search mode
-            if content_regex.is_none() {
-                matches.push((self.format_display_path(&full_path)?).to_string());
+            if regex.is_none() {
+                matches.push((self.format_display_path(&path)?).to_string());
                 continue;
             }
 
             // Content matching mode - read and search file contents
-            let content = match tokio::fs::read_to_string(&full_path).await {
+            let content = match tokio::fs::read_to_string(&path).await {
                 Ok(content) => content,
                 Err(e) => {
                     // Skip binary or unreadable files silently
                     if e.kind() != std::io::ErrorKind::InvalidData {
                         matches.push(format!(
                             "Error reading {}: {}",
-                            self.format_display_path(&full_path)?,
+                            self.format_display_path(&path)?,
                             e
                         ));
                     }
@@ -172,7 +166,7 @@ impl<F: Infrastructure> FSFind<F> {
             };
 
             // Process the file line by line to find content matches
-            if let Some(regex) = &content_regex {
+            if let Some(regex) = &regex {
                 let mut found_match = false;
 
                 for (line_num, line) in content.lines().enumerate() {
@@ -181,7 +175,7 @@ impl<F: Infrastructure> FSFind<F> {
                         // Format match in ripgrep style: filepath:line_num:content
                         matches.push(format!(
                             "{}:{}:{}",
-                            self.format_display_path(&full_path)?,
+                            self.format_display_path(&path)?,
                             line_num + 1,
                             line
                         ));
@@ -204,13 +198,24 @@ impl<F: Infrastructure> FSFind<F> {
         let mut formatted_output = GrepFormat::new(matches.clone());
 
         // Use GrepFormat for content search, simple list for filename search
-        if let Some(regex) = content_regex {
+        if let Some(regex) = regex {
             formatted_output = formatted_output.regex(regex);
         }
 
         println!("{}", formatted_output.format());
         Ok(matches.join("\n"))
     }
+}
+
+async fn retrieve_file_paths(dir: &Path) -> anyhow::Result<HashSet<std::path::PathBuf>> {
+    Ok(Walker::max_all()
+        .cwd(dir.to_path_buf())
+        .get()
+        .await
+        .with_context(|| format!("Failed to walk directory '{}'", dir.display()))?
+        .into_iter()
+        .map(|file| dir.join(file.path))
+        .collect::<HashSet<_>>())
 }
 
 impl<F> NamedTool for FSFind<F> {
