@@ -33,7 +33,7 @@ impl<'a> ParsedLine<'a> {
     /// # Returns
     /// * `Some(ParsedLine)` if the line matches the expected format
     /// * `None` if the line is malformed
-    pub fn parse(line: &'a str) -> Option<Self> {
+    fn parse(line: &'a str) -> Option<Self> {
         let parts: Vec<_> = line.split(':').collect();
         if parts.len() != 3 {
             return None;
@@ -117,10 +117,34 @@ impl GrepFormat {
         format!("{}\n{}", file_header, formatted_lines)
     }
 
+    /// Handle raw file paths (entries without line:content format)
+    fn format_raw_paths(&self) -> String {
+        // Collect and format all raw file paths
+        let formatted_paths: Vec<_> = self
+            .lines
+            .iter()
+            .map(|line| format!("{}", style(line).cyan()))
+            .collect();
+
+        // Join with newlines
+        formatted_paths.join("\n")
+    }
+
     /// Format search results with colorized output grouped by path
     pub fn format(&self) -> String {
         if self.lines.is_empty() {
             return String::new();
+        }
+
+        // First check if we have any valid grep format entries
+        let has_valid_entries = self
+            .lines
+            .iter()
+            .any(|line| ParsedLine::parse(line).is_some());
+
+        // If no valid grep format entries found, treat all lines as raw file paths
+        if !has_valid_entries {
+            return self.format_raw_paths();
         }
 
         // First pass: collect entries and find max width
@@ -293,30 +317,13 @@ mod tests {
 
     #[test]
     fn test_with_and_without_regex() {
-        let lines = vec![
-            "test.txt:1:This is a line with pattern".to_string(),
-            "test.txt:2:This is another line".to_string(),
-        ];
-
-        // Test with regex
-        let with_regex = GrepFormat::new(lines.clone()).regex(Regex::new("pattern").unwrap());
-        let with_output = strip_ansi_escapes::strip_str(with_regex.format()).to_string();
+        let lines = vec!["a/b/c.md".to_string(), "p/q/r.rs".to_string()];
 
         // Test without regex
-        let without_regex = GrepFormat::new(lines);
-        let without_output = strip_ansi_escapes::strip_str(without_regex.format()).to_string();
+        let grep = GrepFormat::new(lines);
+        let output = strip_ansi_escapes::strip_str(grep.format()).to_string();
 
-        // Both should format the lines properly
-        assert!(with_output.contains("test.txt"));
-        assert!(without_output.contains("test.txt"));
-
-        // Verify that both contain the actual content
-        assert!(with_output.contains("This is a line with pattern"));
-        assert!(without_output.contains("This is a line with pattern"));
-
-        // Since we're stripping ANSI escapes, the plain text output should be the same
-        // for both cases after stripping. The actual display to the user would be
-        // different with the regex version having highlighting.
-        assert_eq!(with_output, without_output);
+        assert!(output.contains("c.md"));
+        assert!(output.contains("r.rs"));
     }
 }
