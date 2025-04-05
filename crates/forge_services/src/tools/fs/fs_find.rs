@@ -135,12 +135,17 @@ impl<F: Infrastructure> FSFind<F> {
 
             // Apply file pattern filter if provided
             if let Some(ref pattern) = glob_pattern {
-                if let Some(filename) = path.file_name().unwrap_or(path.as_os_str()).to_str() {
-                    if !pattern.matches(filename) {
-                        continue;
+                let file_name = path.file_name();
+                if let Some(os_str) = file_name {
+                    if let Some(filename) = os_str.to_str() {
+                        if !pattern.matches(filename) {
+                            continue;
+                        }
+                    } else {
+                        continue; // Skip files with invalid UTF-8 names
                     }
                 } else {
-                    continue; // Skip files with invalid UTF-8 names
+                    continue; // Skip files with no filename
                 }
             }
 
@@ -167,26 +172,27 @@ impl<F: Infrastructure> FSFind<F> {
             };
 
             // Process the file line by line to find content matches
-            let content_regex = content_regex.as_ref().unwrap(); // Safe because we checked above
-            let mut found_match = false;
+            if let Some(regex) = &content_regex {
+                let mut found_match = false;
 
-            for (line_num, line) in content.lines().enumerate() {
-                if content_regex.is_match(line) {
-                    found_match = true;
-                    // Format match in ripgrep style: filepath:line_num:content
-                    matches.push(format!(
-                        "{}:{}:{}",
-                        self.format_display_path(&full_path)?,
-                        line_num + 1,
-                        line
-                    ));
+                for (line_num, line) in content.lines().enumerate() {
+                    if regex.is_match(line) {
+                        found_match = true;
+                        // Format match in ripgrep style: filepath:line_num:content
+                        matches.push(format!(
+                            "{}:{}:{}",
+                            self.format_display_path(&full_path)?,
+                            line_num + 1,
+                            line
+                        ));
+                    }
                 }
-            }
 
-            // If no matches found in content but we're looking for content,
-            // don't add this file to matches
-            if !found_match && input.regex.is_some() {
-                continue;
+                // If no matches found in content but we're looking for content,
+                // don't add this file to matches
+                if !found_match && input.regex.is_some() {
+                    continue;
+                }
             }
         }
 
