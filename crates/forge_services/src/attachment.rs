@@ -84,7 +84,7 @@ pub mod tests {
         fn set_cwd(&self, _cwd: std::path::PathBuf) -> anyhow::Result<()> {
             Ok(())
         }
-        
+
         fn get_environment(&self) -> Environment {
             Environment {
                 os: "test".to_string(),
