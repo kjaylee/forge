@@ -41,14 +41,15 @@ impl Completer for InputCompleter {
                     if let Some(file_name) = file.file_name.as_ref() {
                         let file_name_lower = file_name.to_lowercase();
                         let query_lower = query.term.to_lowercase();
-                        if file_name_lower.contains(&query_lower) {
+                        if file_name_lower.starts_with(&query_lower) {
+                            let path_md_fmt = format!("[{}]", file.path);
                             Some(Suggestion {
-                                value: file.path,
                                 description: None,
+                                value: path_md_fmt,
                                 style: None,
                                 extra: None,
                                 span: query.span,
-                                append_whitespace: true,
+                                append_whitespace: false,
                             })
                         } else {
                             None
