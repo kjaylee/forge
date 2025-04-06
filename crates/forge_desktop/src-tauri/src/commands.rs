@@ -212,21 +212,22 @@ pub async fn send_message(
     let stream_handle = tokio::spawn(async move {
         // Track message IDs to prevent duplicates
         let mut processed_msgs = std::collections::HashSet::new();
-        
+
         while let Some(message_result) = stream.next().await {
             match message_result {
                 Ok(agent_message) => {
                     // Generate a unique ID for the message to detect duplicates
                     // Use a combination of agent ID and timestamp or sequence number if available
                     let msg_id = format!("{:?}-{:?}", agent_message.agent, agent_message.message);
-                    
+
                     // Only process if we haven't seen this message before
                     if processed_msgs.insert(msg_id) {
                         // Emit the agent message to the frontend
                         let _ = app_handle_clone.emit("agent-message", &agent_message);
 
                         // If this is a title event, update the conversation title
-                        if let AgentMessage { message: ChatResponse::Event(event), .. } = &agent_message
+                        if let AgentMessage { message: ChatResponse::Event(event), .. } =
+                            &agent_message
                         {
                             if event.name == EVENT_TITLE {
                                 if let Some(title) = event.value.as_str() {
@@ -255,7 +256,7 @@ pub async fn send_message(
         // Signal that the stream is complete
         let _ = app_handle_clone.emit("agent-stream-complete", ());
     });
-    
+
     // Store the stream handle for potential cancellation
     {
         let mut current_stream = state.current_stream_handle.lock().await;
@@ -603,7 +604,7 @@ pub async fn select_project(
 
     // Load the workflow from the project directory
     let _ = load_workflow(Some(path.clone()), app_handle.clone()).await;
-    
+
     // Update the environment's cwd to match the project path
     let _ = update_cwd(path.clone(), app_handle.clone()).await?;
 
@@ -685,14 +686,14 @@ pub async fn switch_project(path: String, app_handle: AppHandle) -> Result<Proje
 #[tauri::command]
 pub async fn update_cwd(cwd: String, app_handle: AppHandle) -> Result<bool, String> {
     let (api, _) = get_api_and_state(&app_handle).await;
-    
+
     let cwd_path = PathBuf::from(&cwd);
-    
+
     // Validate the path
     if !cwd_path.is_dir() {
         return Err(format!("Path is not a valid directory: {}", cwd));
     }
-    
+
     // Update the environment's cwd
     api.update_cwd(cwd_path)
         .map_err(|e| format!("Failed to update working directory: {}", e))
@@ -728,34 +729,35 @@ pub async fn create_new_project(
 
     // Select the newly created project
     select_project(path, name, app_handle).await
-}/// Cancel the current stream if one is active
+}
+/// Cancel the current stream if one is active
 #[tauri::command]
 pub async fn cancel_stream(app_handle: AppHandle) -> Result<bool, String> {
     let (_, state) = get_api_and_state(&app_handle).await;
-    
+
     // Get the current stream handle
     let stream_handle = {
         let mut current_stream = state.current_stream_handle.lock().await;
         current_stream.take()
     };
-    
+
     // If there's an active stream, abort it
     if let Some(handle) = stream_handle {
         // Abort the task
         handle.abort();
-        
+
         // Wait for the task to complete (it will be cancelled)
         match handle.await {
             Ok(_) => {
                 // Task completed normally (unlikely after abort)
                 let _ = app_handle.emit("agent-stream-complete", ());
-            },
+            }
             Err(_) => {
                 // Task was cancelled as expected
                 let _ = app_handle.emit("agent-stream-complete", ());
             }
         }
-        
+
         Ok(true)
     } else {
         // No active stream to cancel
