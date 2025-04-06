@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { useProjectStore } from '@/stores/ProjectStore';
+import { useProjectStore, ProjectInfo } from '@/stores/ProjectStore';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { FolderOpen, FolderPlus, ChevronDown, ArrowLeft, Clock, CheckCircle2 } from "lucide-react";
-import { format, parseISO, isValid } from 'date-fns';
+import { FolderOpen, FolderPlus, ChevronDown, ArrowLeft, CheckCircle2 } from "lucide-react";
 
 // Component for a new project dialog
 const NewProjectDialog: React.FC<{
@@ -107,16 +106,6 @@ const NewProjectDialog: React.FC<{
 const ProjectSwitcher: React.FC = () => {
   const { currentProject, recentProjects, switchProject, closeProject, createNewProject, isLoading } = useProjectStore();
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
-  
-  // Format the last accessed time
-  const formatDate = (dateString: string) => {
-    try {
-      const date = parseISO(dateString);
-      return isValid(date) ? format(date, 'MMM d, yyyy h:mm a') : 'Unknown';
-    } catch (e) {
-      return 'Unknown date';
-    }
-  };
   
   const handleSwitchProject = async (project: ProjectInfo) => {
     if (isLoading) return;

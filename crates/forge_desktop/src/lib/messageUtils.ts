@@ -73,20 +73,26 @@ export function groupMessagesIntoSections(messages: Message[], toolCalls: ToolCa
   let toolIndex = 0;
   for (let i = 0; i < sections.length; i++) {
     // For each section, assign all tool calls that happened before the next section's user message
-    const nextUserTimestamp = i < sections.length - 1 && sections[i+1].userMessage 
-      ? sections[i+1].userMessage.timestamp 
+    const nextUserTimestamp = i < sections.length - 1 && sections[i+1]?.userMessage 
+      ? sections[i+1].userMessage?.timestamp 
       : new Date(Date.now() + 1000000); // Far future date if no next message
       
     // Start from the current tool index
     while (toolIndex < toolCalls.length) {
+      // Extract timestamp safely from tool call ID
+      const toolIdParts = toolCalls[toolIndex].id.split('-');
+      const timestampStr = toolIdParts.length > 1 ? toolIdParts[1] : null;
+      const timestamp = timestampStr ? parseInt(timestampStr) : 0;
+      const toolDate = timestamp ? new Date(timestamp) : new Date(0);
+      
       const shouldAssignToCurrentSection = (
         // We assign each tool call to a section if:
         // 1. We're in the first section and have a user message
-        (i === 0 && sections[i].userMessage) ||
+        (i === 0 && sections[i]?.userMessage !== null) ||
         // 2. We're in a section with no next section
         (i === sections.length - 1) ||
         // 3. The tool's creation time is before the next user message
-        new Date(parseInt(toolCalls[toolIndex].id.split('-')[1])) < nextUserTimestamp
+        toolDate < (nextUserTimestamp || new Date(Date.now() + 1000000))
       );
         
       if (shouldAssignToCurrentSection) {
@@ -100,7 +106,7 @@ export function groupMessagesIntoSections(messages: Message[], toolCalls: ToolCa
   }
   
   // Handle any remaining tool calls by adding them to the last section
-  if (toolIndex < toolCalls.length && sections.length > 0) {
+  if (toolCalls.length > 0 && toolIndex < toolCalls.length && sections.length > 0) {
     const lastSection = sections[sections.length - 1];
     for (let i = toolIndex; i < toolCalls.length; i++) {
       lastSection.toolCalls.push(toolCalls[i]);

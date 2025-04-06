@@ -63,7 +63,7 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
     
     // Extract and remove special blocks
     tagPatterns.forEach(({ tag, pattern }) => {
-      content = content.replace(pattern, (match, p1) => {
+      content = content.replace(pattern, (_, p1) => {
         blocks.push({ type: tag, content: p1.trim() });
         return ''; // Remove the tag content from the main text
       });

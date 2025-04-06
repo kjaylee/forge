@@ -2,15 +2,7 @@ import React from 'react';
 import { useForgeStore } from '@/stores/ForgeStore';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Card, CardContent } from "@/components/ui/card";
-import { 
-  CheckCircle, 
-  XCircle, 
-  ChevronDown, 
-  ChevronUp, 
-  ClipboardCopy,
-  Clock
-} from 'lucide-react';
+import { CheckCircle, XCircle, ChevronDown, ChevronUp, ClipboardCopy, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -64,8 +56,10 @@ const ToolCallItem: React.FC<{ toolCall: EnhancedToolCall }> = ({ toolCall }) =>
   const relativeTime = formatDistanceToNow(toolCall.timestamp, { addSuffix: true });
   
   // Copy content to clipboard
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = (text: string | undefined) => {
+    if (text) {
+      navigator.clipboard.writeText(text);
+    }
   };
   
   return (
@@ -90,7 +84,7 @@ const ToolCallItem: React.FC<{ toolCall: EnhancedToolCall }> = ({ toolCall }) =>
           
           {toolCall.filePath && (
             <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-              {toolCall.filePath.split('/').pop()}
+              {typeof toolCall.filePath === 'string' ? toolCall.filePath.split('/').pop() : ''}
             </span>
           )}
         </div>
@@ -168,12 +162,19 @@ const ToolConsoleView: React.FC = () => {
   const toolConsoleRef = React.useRef<HTMLDivElement>(null);
   
   // Enhanced tool calls with timestamps and extracted file paths
-  const enhancedToolCalls: EnhancedToolCall[] = toolCalls.map(tool => ({
-    ...tool,
-    displayName: formatToolName(tool.name),
-    timestamp: new Date(parseInt(tool.id.split('-')[1]) || Date.now()),
-    filePath: extractFilePath(tool.content)
-  }));
+  const enhancedToolCalls: EnhancedToolCall[] = toolCalls.map(tool => {
+    // Extract timestamp safely from the ID or use current time
+    const idParts = tool.id.split('-');
+    const timestampString = idParts.length > 1 ? idParts[1] : null;
+    const timestamp = timestampString ? parseInt(timestampString) : Date.now();
+    
+    return {
+      ...tool,
+      displayName: formatToolName(tool.name),
+      timestamp: new Date(timestamp),
+      filePath: extractFilePath(tool.content)
+    };
+  });
   
   // Sort tool calls by timestamp (newest first)
   const sortedToolCalls = [...enhancedToolCalls].sort(

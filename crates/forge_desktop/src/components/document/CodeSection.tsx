@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
+import React from 'react';
 import { CodeBlock } from "./CodeBlock";
 import { extractCodeBlocks, extractFilePath } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';

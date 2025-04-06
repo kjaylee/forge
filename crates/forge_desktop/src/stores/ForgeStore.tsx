@@ -205,7 +205,7 @@ export const useForgeStore = create<ForgeState>()(
             }
             // Process text messages
             else if (message.text !== undefined) {
-              const { hasShowUserRef, debugMode, currentSystemMessageId } = get();
+              const { debugMode, currentSystemMessageId } = get();
               
               // Only process non-empty text messages
               if (message.text && message.text.trim()) {

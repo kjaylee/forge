@@ -1,14 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useProjectStore, ProjectInfo } from '@/stores/ProjectStore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { FolderOpen, FolderPlus, Clock, PlusCircle, ExternalLink } from "lucide-react";
+import { FolderOpen, FolderPlus, Clock } from "lucide-react";
 import { format, parseISO } from 'date-fns';
-import { useState } from 'react';
 
 const ProjectCard: React.FC<{
   project: ProjectInfo;
