@@ -3,11 +3,11 @@ import { useForgeStore } from '@/stores/ForgeStore';
 import { Card, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, X } from "lucide-react";
 
 const MessageInput: React.FC = () => {
   const [message, setMessage] = useState('');
-  const { sendMessage, isLoading } = useForgeStore();
+  const { sendMessage, cancelStream, isLoading } = useForgeStore();
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -54,14 +54,26 @@ const MessageInput: React.FC = () => {
             disabled={isLoading}
             className="min-h-[60px] max-h-[200px] resize-none flex-1 rounded-lg focus-visible:ring-primary"
           />
-          <Button 
-            type="submit" 
-            disabled={!message.trim() || isLoading}
-            size="icon"
-            className="h-[60px] w-[60px] rounded-full shadow-sm"
-          >
-            <Send className="h-5 w-5" />
-          </Button>
+          {isLoading ? (
+            <Button 
+              type="button" 
+              onClick={() => cancelStream()}
+              size="icon"
+              variant="destructive"
+              className="h-[60px] w-[60px] rounded-full shadow-sm animate-pulse"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button 
+              type="submit" 
+              disabled={!message.trim()}
+              size="icon"
+              className="h-[60px] w-[60px] rounded-full shadow-sm"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          )}
         </form>
       </CardFooter>
     </Card>

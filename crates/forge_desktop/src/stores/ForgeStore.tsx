@@ -73,6 +73,7 @@ interface ForgeState {
   
   // API operations
   sendMessage: (content: string) => Promise<void>;
+  cancelStream: () => Promise<void>;
   changeMode: (mode: 'Act' | 'Plan' | 'Help') => Promise<void>;
   newConversation: () => Promise<void>;
   exportConversation: (options?: { path?: string; title?: string }) => Promise<string>;
@@ -440,6 +441,33 @@ export const useForgeStore = create<ForgeState>()(
           state.isLoading = false;
         });
         if (get().debugMode) console.error('Error sending message:', err);
+      }
+    },
+    
+    cancelStream: async () => {
+      try {
+        // Call the backend to cancel the stream
+        await invoke('cancel_stream');
+        
+        // The isLoading state will be updated via the agent-stream-complete event
+        // We don't need to manually set it here
+        if (get().debugMode) console.log('Stream cancellation requested');
+        
+        // Add a system message indicating cancellation
+        set(state => {
+          state.messages.push({
+            id: `system-cancel-${Date.now()}`,
+            content: "*Conversation cancelled by user*",
+            sender: 'system',
+            timestamp: new Date(),
+            isShowUserMessage: true,
+          });
+        });
+      } catch (err) {
+        set(state => {
+          state.error = err instanceof Error ? err.message : String(err);
+        });
+        if (get().debugMode) console.error('Error canceling stream:', err);
       }
     },
     

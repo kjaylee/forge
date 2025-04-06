@@ -59,6 +59,7 @@ pub struct ForgeState {
     current_conversation_id: Mutex<Option<ConversationId>>,
     current_mode: Mutex<String>,
     is_first_message: Mutex<bool>,
+    current_stream_handle: Mutex<Option<tokio::task::JoinHandle<()>>>,
 
     // Project management state
     current_project: Mutex<Option<ProjectInfo>>,
@@ -76,6 +77,7 @@ impl ForgeState {
             current_conversation_id: Mutex::new(None),
             current_mode: Mutex::new("Act".to_string()),
             is_first_message: Mutex::new(true),
+            current_stream_handle: Mutex::new(None),
         }
     }
 }
@@ -206,7 +208,8 @@ pub async fn send_message(
 
     // Process the stream in a separate task
     let app_handle_clone = app_handle.clone();
-    tokio::spawn(async move {
+    let state_clone = state.clone(); // Clone the state for use in the task
+    let stream_handle = tokio::spawn(async move {
         // Track message IDs to prevent duplicates
         let mut processed_msgs = std::collections::HashSet::new();
         
@@ -228,7 +231,7 @@ pub async fn send_message(
                             if event.name == EVENT_TITLE {
                                 if let Some(title) = event.value.as_str() {
                                     if let Some(conv_id) =
-                                        state.current_conversation_id.lock().await.as_ref()
+                                        state_clone.current_conversation_id.lock().await.as_ref()
                                     {
                                         let _ = api
                                             .set_variable(
@@ -252,6 +255,12 @@ pub async fn send_message(
         // Signal that the stream is complete
         let _ = app_handle_clone.emit("agent-stream-complete", ());
     });
+    
+    // Store the stream handle for potential cancellation
+    {
+        let mut current_stream = state.current_stream_handle.lock().await;
+        *current_stream = Some(stream_handle);
+    }
 
     Ok(true)
 }
@@ -719,4 +728,37 @@ pub async fn create_new_project(
 
     // Select the newly created project
     select_project(path, name, app_handle).await
+}/// Cancel the current stream if one is active
+#[tauri::command]
+pub async fn cancel_stream(app_handle: AppHandle) -> Result<bool, String> {
+    let (_, state) = get_api_and_state(&app_handle).await;
+    
+    // Get the current stream handle
+    let stream_handle = {
+        let mut current_stream = state.current_stream_handle.lock().await;
+        current_stream.take()
+    };
+    
+    // If there's an active stream, abort it
+    if let Some(handle) = stream_handle {
+        // Abort the task
+        handle.abort();
+        
+        // Wait for the task to complete (it will be cancelled)
+        match handle.await {
+            Ok(_) => {
+                // Task completed normally (unlikely after abort)
+                let _ = app_handle.emit("agent-stream-complete", ());
+            },
+            Err(_) => {
+                // Task was cancelled as expected
+                let _ = app_handle.emit("agent-stream-complete", ());
+            }
+        }
+        
+        Ok(true)
+    } else {
+        // No active stream to cancel
+        Ok(false)
+    }
 }
