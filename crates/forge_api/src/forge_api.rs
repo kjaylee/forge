@@ -68,6 +68,10 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         self.app.environment_service().get_environment().clone()
     }
 
+    fn update_cwd(&self, cwd: std::path::PathBuf) -> anyhow::Result<()> {
+        self.app.environment_service().set_cwd(cwd)
+    }
+
     async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         self.loader.load(path).await
     }

@@ -26,7 +26,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             FSWrite::new(self.infra.clone()).into(),
             FSRemove::new(self.infra.clone()).into(),
             FSList::default().into(),
-            FSSearch.into(),
+            FSFind::new(self.infra.clone()).into(),
             FSFileInfo.into(),
             FsUndo::new(self.infra.clone()).into(),
             ApplyPatchJson::new(self.infra.clone()).into(),
@@ -83,6 +83,10 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl EnvironmentService for Stub {
+        fn set_cwd(&self, _cwd: std::path::PathBuf) -> anyhow::Result<()> {
+            Ok(())
+        }
+
         fn get_environment(&self) -> Environment {
             self.env.clone()
         }

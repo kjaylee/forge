@@ -1,10 +1,13 @@
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 use forge_domain::{Environment, Provider};
 use forge_services::EnvironmentService;
 
 pub struct ForgeEnvironmentService {
     restricted: bool,
+    // Track the current working directory with interior mutability
+    current_cwd: Mutex<Option<PathBuf>>,
 }
 
 type ProviderSearch = (&'static str, Box<dyn FnOnce(&str) -> Provider>);
@@ -16,7 +19,7 @@ impl ForgeEnvironmentService {
     /// * `unrestricted` - If true, use unrestricted shell mode (sh/bash) If
     ///   false, use restricted shell mode (rbash)
     pub fn new(restricted: bool) -> Self {
-        Self { restricted }
+        Self { restricted, current_cwd: Mutex::new(None) }
     }
 
     /// Get path to appropriate shell based on platform and mode
@@ -72,7 +75,16 @@ impl ForgeEnvironmentService {
 
     fn get(&self) -> Environment {
         dotenv::dotenv().ok();
-        let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
+
+        // Use the custom cwd if set, otherwise use the current directory
+        let cwd = {
+            let custom_cwd = self.current_cwd.lock().unwrap();
+            match &*custom_cwd {
+                Some(path) => path.clone(),
+                None => std::env::current_dir().unwrap_or(PathBuf::from(".")),
+            }
+        };
+
         let provider = self.resolve_provider();
 
         Environment {
@@ -90,6 +102,22 @@ impl ForgeEnvironmentService {
 }
 
 impl EnvironmentService for ForgeEnvironmentService {
+    fn set_cwd(&self, cwd: PathBuf) -> anyhow::Result<()> {
+        // Validate that the directory exists and is accessible
+        if !cwd.is_dir() {
+            return Err(anyhow::anyhow!(
+                "Path is not a directory: {}",
+                cwd.display()
+            ));
+        }
+
+        // Update the custom cwd
+        let mut custom_cwd = self.current_cwd.lock().unwrap();
+        *custom_cwd = Some(cwd);
+
+        Ok(())
+    }
+
     fn get_environment(&self) -> Environment {
         self.get()
     }
