@@ -343,14 +343,16 @@ impl<A: Services> Orchestrator<A> {
         loop {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
-            let model = agent
-                .model
-                .as_ref()
-                .ok_or(Error::MissingModel(agent.id.clone()))?;
             let response = self
                 .services
                 .provider_service()
-                .chat(model, context.clone())
+                .chat(
+                    agent
+                        .model
+                        .as_ref()
+                        .ok_or(Error::MissingModel(agent.id.clone()))?,
+                    context.clone(),
+                )
                 .await?;
             let ChatCompletionResult { tool_calls, content, usage } =
                 self.collect_messages(agent, response).await?;
