@@ -50,19 +50,17 @@ impl<A: Services> Orchestrator<A> {
             state.queue.clear();
         });
 
-        // FIXME: Inline the variables
-        let initial_backoff_ms = conversation.workflow.retry.initial_backoff_ms;
-        let backoff_factor = conversation.workflow.retry.backoff_factor;
-        let max_retry_attempts = conversation.workflow.retry.max_retry_attempts;
+        let retry_strategy =
+            ExponentialBackoff::from_millis(conversation.workflow.retry.initial_backoff_ms)
+                .factor(conversation.workflow.retry.backoff_factor)
+                .take(conversation.workflow.retry.max_retry_attempts);
 
         Self {
             compactor: ContextCompactor::new(services.clone()),
             services,
             sender,
+            retry_strategy,
             conversation: Arc::new(RwLock::new(conversation)),
-            retry_strategy: ExponentialBackoff::from_millis(initial_backoff_ms)
-                .factor(backoff_factor)
-                .take(max_retry_attempts),
         }
     }
 
