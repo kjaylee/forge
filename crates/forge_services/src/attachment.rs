@@ -67,13 +67,13 @@ pub mod tests {
 
     use base64::Engine;
     use bytes::Bytes;
-    use forge_domain::{AttachmentService, ContentType, Environment, Provider};
+    use forge_domain::{AttachmentService, ContentType, Environment, EnvironmentService, Provider};
     use forge_snaps::Snapshot;
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        EnvironmentService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-        FsSnapshotService, FsWriteService, Infrastructure,
+        FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
+        FsWriteService, Infrastructure,
     };
 
     #[derive(Debug)]
@@ -90,6 +90,7 @@ pub mod tests {
                 shell: "bash".to_string(),
                 base_path: PathBuf::from("/base"),
                 provider: Provider::open_router("test-key"),
+                retry_config: Default::default(),
             }
         }
     }
@@ -203,12 +204,7 @@ pub mod tests {
     #[async_trait::async_trait]
     impl crate::WorkflowRepository for MockWorkflowRepository {
         fn get(&self) -> forge_domain::Workflow {
-            forge_domain::Workflow {
-                agents: Vec::new(),
-                variables: None,
-                commands: Vec::new(),
-                retry: Default::default(),
-            }
+            forge_domain::Workflow { agents: Vec::new(), variables: None, commands: Vec::new() }
         }
 
         async fn register(&self, _path: &Path) -> anyhow::Result<()> {

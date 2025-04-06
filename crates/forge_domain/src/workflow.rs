@@ -5,7 +5,7 @@ use merge::Merge;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Agent, AgentId, RetryConfig};
+use crate::{Agent, AgentId};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option)]
@@ -19,10 +19,6 @@ pub struct Workflow {
     #[merge(strategy = crate::merge::vec::append)]
     #[serde(default)]
     pub commands: Vec<Command>,
-
-    /// Configuration for the retry mechanism
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub retry: RetryConfig,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]

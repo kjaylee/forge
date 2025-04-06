@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use forge_domain::Tool;
+use forge_domain::{EnvironmentService, Tool};
 
 use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
 use super::show_user::ShowUser;
-use crate::{EnvironmentService, Infrastructure};
+use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
     infra: Arc<F>,
@@ -66,6 +66,7 @@ pub mod tests {
                 base_path: PathBuf::new(),
                 pid: std::process::id(),
                 provider: Provider::anthropic("test-key"),
+                retry_config: Default::default(),
             },
         }
     }
@@ -141,12 +142,7 @@ pub mod tests {
     #[async_trait::async_trait]
     impl crate::WorkflowRepository for Stub {
         fn get(&self) -> forge_domain::Workflow {
-            forge_domain::Workflow {
-                agents: Vec::new(),
-                variables: None,
-                commands: Vec::new(),
-                retry: Default::default(),
-            }
+            forge_domain::Workflow { agents: Vec::new(), variables: None, commands: Vec::new() }
         }
 
         async fn register(&self, _: &Path) -> anyhow::Result<()> {

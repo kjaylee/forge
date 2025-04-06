@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context as ChatContext, Model, ModelId, ProviderService, ResultStream,
+    ChatCompletionMessage, Context as ChatContext, EnvironmentService, Model, ModelId,
+    ProviderService, ResultStream,
 };
 use forge_provider::Client;
 
-use crate::{EnvironmentService, Infrastructure, WorkflowRepository};
+use crate::Infrastructure;
 
 #[derive(Clone)]
 pub struct ForgeProviderService {
@@ -17,12 +18,9 @@ pub struct ForgeProviderService {
 impl ForgeProviderService {
     pub fn new<F: Infrastructure>(infra: Arc<F>) -> Self {
         let infra = infra.clone();
-        let provider = infra
-            .environment_service()
-            .get_environment()
-            .provider
-            .clone();
-        let retry_config = infra.workflow_repository().get().retry;
+        let env = infra.environment_service().get_environment();
+        let provider = env.provider.clone();
+        let retry_config = env.retry_config;
         Self {
             client: Arc::new(Client::new(provider, retry_config).unwrap()),
         }

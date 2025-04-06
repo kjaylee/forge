@@ -50,10 +50,10 @@ impl<A: Services> Orchestrator<A> {
             state.queue.clear();
         });
 
-        let retry_strategy =
-            ExponentialBackoff::from_millis(conversation.workflow.retry.initial_backoff_ms)
-                .factor(conversation.workflow.retry.backoff_factor)
-                .take(conversation.workflow.retry.max_retry_attempts);
+        let env = services.environment_service().get_environment();
+        let retry_strategy = ExponentialBackoff::from_millis(env.retry_config.initial_backoff_ms)
+            .factor(env.retry_config.backoff_factor)
+            .take(env.retry_config.max_retry_attempts);
 
         Self {
             compactor: ContextCompactor::new(services.clone()),
@@ -286,7 +286,6 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
-        let _retry_config = &conversation.workflow.retry;
         let variables = &conversation.variables;
         debug!(
             conversation_id = %conversation.id,

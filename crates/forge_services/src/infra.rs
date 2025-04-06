@@ -2,19 +2,11 @@ use std::path::Path;
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::Workflow;
+use forge_domain::{EnvironmentService, Workflow};
 use forge_snaps::Snapshot;
 
 /// Repository for accessing system environment information
-#[async_trait::async_trait]
-pub trait EnvironmentService {
-    /// Get the current environment information including:
-    /// - Operating system
-    /// - Current working directory
-    /// - Home directory
-    /// - Default shell
-    fn get_environment(&self) -> forge_domain::Environment;
-}
+/// This uses the EnvironmentService trait from forge_domain
 
 /// A service for reading files from the filesystem.
 ///
