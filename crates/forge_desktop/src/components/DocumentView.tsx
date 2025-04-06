@@ -5,20 +5,20 @@ import ConversationSection from './document/ConversationSection';
 import { groupMessagesIntoSections } from '@/lib/messageUtils';
 
 const DocumentView: React.FC = () => {
-  const { messages, toolCalls, isLoading } = useForgeStore();
+  const { messages, isLoading } = useForgeStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   
-  // Group messages into conversation sections
-  const conversationSections = groupMessagesIntoSections(messages, toolCalls);
+  // Group messages into conversation sections without including tool calls
+  const conversationSections = groupMessagesIntoSections(messages, []);
   
   // Handle scrolling behavior
   useEffect(() => {
     if (autoScroll && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, toolCalls, isLoading, autoScroll]);
+  }, [messages, isLoading, autoScroll]);
 
   // Detect when user manually scrolls up to disable auto-scrolling
   useEffect(() => {
@@ -47,7 +47,6 @@ const DocumentView: React.FC = () => {
             key={`section-${index}`}
             userMessage={section.userMessage}
             responseMessages={section.responseMessages}
-            relatedToolCalls={section.toolCalls}
             isLatest={index === conversationSections.length - 1}
           />
         ))}

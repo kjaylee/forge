@@ -1,6 +1,5 @@
 import React, { useRef, useMemo } from 'react';
 import { SpecialContent } from './SpecialContent';
-import { ToolResultDisplay } from './ToolResultDisplay';
 import { CodeSection } from './CodeSection';
 import { Separator } from "@/components/ui/separator";
 
@@ -16,20 +15,12 @@ interface ConversationSectionProps {
     timestamp: Date;
     isShowUserMessage?: boolean;
   }[];
-  relatedToolCalls: {
-    id: string;
-    name: string;
-    content: string;
-    isError: boolean;
-    result?: string;
-  }[];
   isLatest: boolean;
 }
 
 const ConversationSection: React.FC<ConversationSectionProps> = ({ 
   userMessage, 
   responseMessages, 
-  relatedToolCalls,
   isLatest
 }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -121,15 +112,6 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
               content={block.content} 
             />
           ))}
-          
-          {/* Tool calls related to this section */}
-          {relatedToolCalls.length > 0 && (
-            <div className="tool-calls-section mt-4 space-y-2">
-              {relatedToolCalls.map(tool => (
-                <ToolResultDisplay key={tool.id} toolCall={tool} />
-              ))}
-            </div>
-          )}
         </div>
       )}
       
