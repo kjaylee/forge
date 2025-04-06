@@ -28,4 +28,5 @@ anyhow = { workspace = true }
 tokio-stream = { workspace = true }
 futures-util = "0.3.28"
 chrono = "0.4"
+tauri-plugin-dialog = "2"
 

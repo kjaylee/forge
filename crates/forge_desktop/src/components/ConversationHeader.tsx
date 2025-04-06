@@ -1,5 +1,6 @@
 import React from 'react';
 import { useForge } from '@/contexts/ForgeContext';
+import ProjectSwitcher from '@/components/ProjectSwitcher';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PlusCircle, Download, Settings2 } from "lucide-react";
@@ -34,7 +35,9 @@ const ConversationHeader: React.FC = () => {
             </CardDescription>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <ProjectSwitcher />
+            
             <Button 
               variant="outline" 
               onClick={handleNewConversation}

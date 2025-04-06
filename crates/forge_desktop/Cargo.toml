@@ -18,6 +18,7 @@ forge_desktop_impl = { path = "src-tauri" }
 # Workspace dependencies
 forge_api.workspace=true
 tokio.workspace =true
+tauri-plugin-dialog = "2.2.1"
 
 [features]
 default = []
