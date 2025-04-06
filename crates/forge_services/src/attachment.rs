@@ -198,19 +198,6 @@ pub mod tests {
         }
     }
 
-    #[derive(Debug, Clone)]
-    pub struct MockWorkflowRepository;
-
-    #[async_trait::async_trait]
-    impl crate::WorkflowRepository for MockWorkflowRepository {
-        fn get(&self) -> forge_domain::Workflow {
-            forge_domain::Workflow { agents: Vec::new(), variables: None, commands: Vec::new() }
-        }
-
-        async fn register(&self, _path: &Path) -> anyhow::Result<()> {
-            Ok(())
-        }
-    }
     #[derive(Debug)]
     pub struct MockSnapService;
 
@@ -250,7 +237,6 @@ pub mod tests {
         type FsMetaService = MockFileService;
         type FsCreateDirsService = MockFileService;
         type FsSnapshotService = MockSnapService;
-        type WorkflowRepository = MockWorkflowRepository;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -278,12 +264,6 @@ pub mod tests {
 
         fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
             &self.file_service
-        }
-        fn workflow_repository(&self) -> &Self::WorkflowRepository {
-            // We don't need to hold a reference to a MockWorkflowRepository in the struct
-            // because it's a zero-sized type with no state
-            static INSTANCE: MockWorkflowRepository = MockWorkflowRepository;
-            &INSTANCE
         }
     }
 

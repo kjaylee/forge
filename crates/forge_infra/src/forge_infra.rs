@@ -10,7 +10,6 @@ use crate::fs_read::ForgeFileReadService;
 use crate::fs_remove::ForgeFileRemoveService;
 use crate::fs_snap::ForgeFileSnapshotService;
 use crate::fs_write::ForgeFileWriteService;
-use crate::workflow::ForgeWorkflowRepository;
 
 #[derive(Clone)]
 pub struct ForgeInfra {
@@ -21,7 +20,6 @@ pub struct ForgeInfra {
     file_meta_service: Arc<ForgeFileMetaService>,
     file_remove_service: Arc<ForgeFileRemoveService<ForgeFileSnapshotService>>,
     create_dirs_service: Arc<ForgeCreateDirsService>,
-    workflow_repository: Arc<ForgeWorkflowRepository>,
 }
 
 impl ForgeInfra {
@@ -39,7 +37,6 @@ impl ForgeInfra {
             environment_service,
             file_snapshot_service,
             create_dirs_service: Arc::new(ForgeCreateDirsService),
-            workflow_repository: Arc::new(ForgeWorkflowRepository::new()),
         }
     }
 }
@@ -52,7 +49,6 @@ impl Infrastructure for ForgeInfra {
     type FsSnapshotService = ForgeFileSnapshotService;
     type FsRemoveService = ForgeFileRemoveService<ForgeFileSnapshotService>;
     type FsCreateDirsService = ForgeCreateDirsService;
-    type WorkflowRepository = ForgeWorkflowRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -80,9 +76,5 @@ impl Infrastructure for ForgeInfra {
 
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
         &self.create_dirs_service
-    }
-
-    fn workflow_repository(&self) -> &Self::WorkflowRepository {
-        &self.workflow_repository
     }
 }
