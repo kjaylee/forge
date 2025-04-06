@@ -66,10 +66,14 @@ export const useProjectStore = create<ProjectState>()(
         set(state => { state.isLoading = true; state.error = null; });
         
         // Get current project
+        console.log('Getting current project information');
         const project = await invoke<ProjectInfo | null>('get_current_project');
+        console.log('Current project from backend:', project);
         
         // Get recent projects
+        console.log('Getting recent projects list');
         const projects = await invoke<ProjectInfo[]>('get_recent_projects');
+        console.log('Received recent projects:', projects.length);
         
         set(state => {
           state.currentProject = project;
@@ -77,6 +81,7 @@ export const useProjectStore = create<ProjectState>()(
           state.isLoading = false;
         });
       } catch (err) {
+        console.error('Error refreshing projects:', err);
         set(state => {
           state.error = err instanceof Error ? err.message : String(err);
           state.isLoading = false;
@@ -93,18 +98,22 @@ export const useProjectStore = create<ProjectState>()(
         
         if (!directoryPath) {
           set(state => { state.isLoading = false; });
+          console.log('Project selection cancelled by user');
           return; // User cancelled
         }
         
+        console.log('Selecting project at path:', directoryPath);
         // Select the project
         const projectInfo = await invoke<ProjectInfo>('select_project', {
           path: directoryPath,
           name: undefined, // Let backend determine name from path
         });
+        console.log('Project selected successfully:', projectInfo);
         
         set(state => { state.currentProject = projectInfo; });
         await get().refreshProjects(); // Refresh recent projects list
       } catch (err) {
+        console.error('Error selecting project:', err);
         set(state => {
           state.error = err instanceof Error ? err.message : String(err);
           state.isLoading = false;
@@ -116,15 +125,18 @@ export const useProjectStore = create<ProjectState>()(
     switchProject: async (projectInfo) => {
       try {
         set(state => { state.isLoading = true; state.error = null; });
+        console.log('Switching to project:', projectInfo.name, 'at path:', projectInfo.path);
         
         // Switch to the project
         const updatedProject = await invoke<ProjectInfo>('switch_project', {
           path: projectInfo.path,
         });
+        console.log('Project switched successfully, updated info:', updatedProject);
         
         set(state => { state.currentProject = updatedProject; });
         await get().refreshProjects(); // Refresh recent projects list
       } catch (err) {
+        console.error('Error switching project:', err);
         set(state => {
           state.error = err instanceof Error ? err.message : String(err);
           state.isLoading = false;
@@ -195,9 +207,28 @@ export const useProjectStore = create<ProjectState>()(
     initialize: async () => {
       try {
         set(state => { state.isLoading = true; });
+        console.log('Loading projects state...');
         await invoke('load_projects_state');
+        console.log('Refreshing projects...');
         await get().refreshProjects();
+        
+        // Get the current project after loading state
+        const currentProject = get().currentProject;
+        console.log('Current project after refresh:', currentProject);
+        
+        // If a project is loaded, ensure its working directory is set
+        if (currentProject) {
+          console.log('Updating working directory to:', currentProject.path);
+          // Update the cwd in the backend
+          await invoke('update_cwd', { cwd: currentProject.path });
+          console.log('Working directory updated successfully');
+        } else {
+          console.log('No project currently selected');
+        }
+        
+        set(state => { state.isLoading = false; });
       } catch (err) {
+        console.error('Error initializing project store:', err);
         set(state => {
           state.error = err instanceof Error ? err.message : String(err);
           state.isLoading = false;
