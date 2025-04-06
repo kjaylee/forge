@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::RetryConfig;
+use forge_domain::Workflow;
 use forge_snaps::Snapshot;
 
 /// Repository for accessing system environment information
@@ -59,6 +59,14 @@ pub trait FsSnapshotService: Send + Sync {
     async fn undo_snapshot(&self, file_path: &Path) -> Result<()>;
 }
 
+#[async_trait::async_trait]
+pub trait WorkflowRepository: Send + Sync {
+    /// Get the retry configuration for the workflow
+    fn get(&self) -> Workflow;
+
+    async fn register(&self, path: &Path) -> Result<()>;
+}
+
 pub trait Infrastructure: Send + Sync + Clone + 'static {
     type EnvironmentService: EnvironmentService;
     type FsMetaService: FsMetaService;
@@ -67,6 +75,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     type FsSnapshotService: FsSnapshotService;
     type FsWriteService: FsWriteService;
     type FsCreateDirsService: FsCreateDirsService;
+    type WorkflowRepository: WorkflowRepository;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FsMetaService;
@@ -75,9 +84,5 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn file_snapshot_service(&self) -> &Self::FsSnapshotService;
     fn file_write_service(&self) -> &Self::FsWriteService;
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
-
-    /// Get the default retry configuration for providers
-    fn retry_config(&self) -> RetryConfig {
-        RetryConfig::default()
-    }
+    fn workflow_repository(&self) -> &Self::WorkflowRepository;
 }

@@ -6,7 +6,7 @@ use forge_domain::{
 };
 use forge_provider::Client;
 
-use crate::{EnvironmentService, Infrastructure};
+use crate::{EnvironmentService, Infrastructure, WorkflowRepository};
 
 #[derive(Clone)]
 pub struct ForgeProviderService {
@@ -22,7 +22,7 @@ impl ForgeProviderService {
             .get_environment()
             .provider
             .clone();
-        let retry_config = infra.retry_config();
+        let retry_config = infra.workflow_repository().get().retry;
         Self {
             client: Arc::new(Client::new(provider, retry_config).unwrap()),
         }

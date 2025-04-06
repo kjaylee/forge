@@ -139,6 +139,22 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl crate::WorkflowRepository for Stub {
+        fn get(&self) -> forge_domain::Workflow {
+            forge_domain::Workflow {
+                agents: Vec::new(),
+                variables: None,
+                commands: Vec::new(),
+                retry: Default::default(),
+            }
+        }
+
+        async fn register(&self, _: &Path) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FsReadService = Stub;
@@ -147,6 +163,7 @@ pub mod tests {
         type FsMetaService = Stub;
         type FsSnapshotService = Stub;
         type FsCreateDirsService = Stub;
+        type WorkflowRepository = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -173,6 +190,9 @@ pub mod tests {
         }
 
         fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+            self
+        }
+        fn workflow_repository(&self) -> &Self::WorkflowRepository {
             self
         }
     }
