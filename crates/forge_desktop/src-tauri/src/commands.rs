@@ -583,7 +583,10 @@ pub async fn select_project(
     save_projects_state(app_handle.clone()).await?;
 
     // Load the workflow from the project directory
-    let _ = load_workflow(Some(path), app_handle.clone()).await;
+    let _ = load_workflow(Some(path.clone()), app_handle.clone()).await;
+    
+    // Update the environment's cwd to match the project path
+    let _ = update_cwd(path.clone(), app_handle.clone()).await?;
 
     // Initialize a new conversation for this project
     let _ = init_conversation(app_handle).await?;
@@ -657,6 +660,24 @@ pub async fn switch_project(path: String, app_handle: AppHandle) -> Result<Proje
 
     // If not found, try to select it as a new project
     select_project(path, None, app_handle).await
+}
+
+/// Update the environment's current working directory
+#[tauri::command]
+pub async fn update_cwd(cwd: String, app_handle: AppHandle) -> Result<bool, String> {
+    let (api, _) = get_api_and_state(&app_handle).await;
+    
+    let cwd_path = PathBuf::from(&cwd);
+    
+    // Validate the path
+    if !cwd_path.is_dir() {
+        return Err(format!("Path is not a valid directory: {}", cwd));
+    }
+    
+    // Update the environment's cwd
+    api.update_cwd(cwd_path)
+        .map_err(|e| format!("Failed to update working directory: {}", e))
+        .map(|_| true)
 }
 
 /// Create a new project
