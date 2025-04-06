@@ -21,9 +21,8 @@ pub struct Workflow {
     pub commands: Vec<Command>,
 
     /// Configuration for the retry mechanism
-    #[merge(strategy = crate::merge::option)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry: Option<RetryConfig>,
+    #[merge(strategy = crate::merge::std::overwrite)]
+    pub retry: RetryConfig,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]

@@ -79,8 +79,8 @@ impl Infrastructure for ForgeInfra {
     }
 
     // Default implementation for RetryConfig
-    /// Returns a default RetryConfig for use in the application
-    fn default_retry_config(&self) -> RetryConfig {
+    /// Returns the RetryConfig for use in the application
+    fn retry_config(&self) -> RetryConfig {
         RetryConfig::default()
     }
 }

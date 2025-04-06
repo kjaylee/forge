@@ -5,4 +5,3 @@ mod retry;
 
 // Re-export from builder.rs
 pub use builder::Client;
-pub use retry::StatusCodeRetryPolicy;

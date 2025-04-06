@@ -4,7 +4,6 @@ use anyhow::Context as _;
 use derive_builder::Builder;
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream, RetryConfig,
-    RETRY_STATUS_CODES,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
@@ -84,18 +83,14 @@ impl ProviderService for Anthropic {
             .headers(self.headers())
             .json(&request)
             .eventsource()?;
-        let status_codes = self
-            .retry_config
-            .retry_status_codes
-            .clone()
-            .unwrap_or_else(|| RETRY_STATUS_CODES.to_vec());
+        let status_codes = self.retry_config.retry_status_codes.clone();
 
         es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
-            Duration::from_millis(self.retry_config.initial_backoff_ms.unwrap_or(200)),
-            self.retry_config.backoff_factor.unwrap_or(2) as f64,
+            Duration::from_millis(self.retry_config.initial_backoff_ms),
+            self.retry_config.backoff_factor as f64,
             None, // No maximum duration
-            self.retry_config.max_retry_attempts,
-            status_codes,
+            Some(self.retry_config.max_retry_attempts),
+            status_codes.clone(),
         )));
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))

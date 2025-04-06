@@ -77,7 +77,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
 
     /// Get the default retry configuration for providers
-    fn default_retry_config(&self) -> RetryConfig {
+    fn retry_config(&self) -> RetryConfig {
         RetryConfig::default()
     }
 }

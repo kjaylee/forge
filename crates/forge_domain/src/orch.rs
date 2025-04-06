@@ -11,6 +11,7 @@ use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::RetryIf;
 use tracing::debug;
 
+// Use retry_config default values directly in this file
 use crate::compaction::ContextCompactor;
 use crate::services::Services;
 use crate::*;
@@ -49,14 +50,10 @@ impl<A: Services> Orchestrator<A> {
             state.queue.clear();
         });
 
-        let retry_config = conversation.workflow.retry.as_ref();
-        let initial_backoff_ms = retry_config
-            .and_then(|rc| rc.initial_backoff_ms)
-            .unwrap_or(200);
-        let backoff_factor = retry_config.and_then(|rc| rc.backoff_factor).unwrap_or(2);
-        let max_retry_attempts = retry_config
-            .and_then(|rc| rc.max_retry_attempts)
-            .unwrap_or(MAX_RETRY_ATTEMPTS);
+        // FIXME: Inline the variables
+        let initial_backoff_ms = conversation.workflow.retry.initial_backoff_ms;
+        let backoff_factor = conversation.workflow.retry.backoff_factor;
+        let max_retry_attempts = conversation.workflow.retry.max_retry_attempts;
 
         Self {
             compactor: ContextCompactor::new(services.clone()),
@@ -291,8 +288,7 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
-        let retry_config = conversation.workflow.retry.as_ref();
-        let retry_config = retry_config.cloned().unwrap_or_default().clone();
+        let _retry_config = &conversation.workflow.retry;
         let variables = &conversation.variables;
         debug!(
             conversation_id = %conversation.id,
