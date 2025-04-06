@@ -9,11 +9,11 @@ use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, File, ModelId, ToolDefinition,
     API,
 };
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
-use tokio_stream::StreamExt;
 
 // Event type constants, matching those in the CLI UI
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -145,7 +145,76 @@ pub async fn load_workflow(path: Option<String>, app_handle: AppHandle) -> Resul
         .map_err(|e| format!("Failed to load workflow: {}", e))
 }
 
-/// Send a message to the current conversation
+/// Helper to handle a single chat response message
+async fn handle_chat_response(message: AgentMessage<ChatResponse>, app_handle: &AppHandle, state: &Arc<ForgeState>, api: &Arc<dyn API>) -> Result<(), String> {
+    // Simply emit the message to the frontend without any transformations
+    let _ = app_handle.emit("agent-message", &message);
+    
+    // Special handling for title events - this is business logic, not transformation
+    if let AgentMessage { message: ChatResponse::Event(event), .. } = &message {
+        if event.name == EVENT_TITLE {
+            if let Some(title) = event.value.as_str() {
+                if let Some(conv_id) = state.current_conversation_id.lock().await.as_ref() {
+                    let _ = api
+                        .set_variable(
+                            conv_id,
+                            "title".to_string(),
+                            Value::from(title),
+                        )
+                        .await;
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Process an agent message stream, handling each message appropriately
+async fn handle_chat_stream(
+    stream: impl futures_util::StreamExt<Item = Result<AgentMessage<ChatResponse>, anyhow::Error>> + Unpin,
+    app_handle: AppHandle,
+    state: Arc<ForgeState>,
+    api: Arc<dyn API>
+) -> Result<(), String> {
+    // Create a shared HashSet for tracking processed messages
+    let processed_msgs = Arc::new(Mutex::new(std::collections::HashSet::new()));
+    
+    tokio::pin!(stream);
+    
+    // Process the stream directly without complex transformations
+    while let Some(message_result) = stream.next().await {
+        match message_result {
+            Ok(agent_message) => {
+                // Generate a unique ID for the message to detect duplicates
+                let msg_id = format!("{:?}-{:?}", agent_message.agent, agent_message.message);
+                
+                // Only process if we haven't seen this message before
+                let should_process = {
+                    let mut processed = processed_msgs.lock().await;
+                    processed.insert(msg_id)
+                };
+                
+                if should_process {
+                    // Call the response handler
+                    if let Err(err) = handle_chat_response(agent_message, &app_handle, &state, &api).await {
+                        eprintln!("Error processing message: {}", err);
+                    }
+                }
+            }
+            Err(err) => {
+                // Emit error to the frontend
+                let _ = app_handle.emit("agent-error", err.to_string());
+                eprintln!("Stream error: {}", err);
+            }
+        }
+    }
+    
+    // Signal that the stream is complete
+    let _ = app_handle.emit("agent-stream-complete", ());
+    
+    Ok(())
+}/// Send a message to the current conversation
 #[tauri::command]
 pub async fn send_message(
     options: SendMessageOptions,
@@ -154,7 +223,7 @@ pub async fn send_message(
     let (api, state) = get_api_and_state(&app_handle).await;
 
     // Get the current conversation ID
-    let conversation_id = {
+    let conversation_id = {        
         let current_id = state.current_conversation_id.lock().await;
         match &*current_id {
             Some(id) => id.clone(),
@@ -201,62 +270,23 @@ pub async fn send_message(
     let chat = ChatRequest::new(event, conversation_id);
 
     // Stream the response
-    let mut stream = api
+    let stream = api
         .chat(chat)
         .await
         .map_err(|e| format!("Failed to send message: {}", e))?;
-
-    // Process the stream in a separate task
+    
+    // Setup a cancellable task to process the stream
     let app_handle_clone = app_handle.clone();
-    let state_clone = state.clone(); // Clone the state for use in the task
+    let api_clone = api.clone();
+    let state_clone = state.clone();
+    
     let stream_handle = tokio::spawn(async move {
-        // Track message IDs to prevent duplicates
-        let mut processed_msgs = std::collections::HashSet::new();
-
-        while let Some(message_result) = stream.next().await {
-            match message_result {
-                Ok(agent_message) => {
-                    // Generate a unique ID for the message to detect duplicates
-                    // Use a combination of agent ID and timestamp or sequence number if available
-                    let msg_id = format!("{:?}-{:?}", agent_message.agent, agent_message.message);
-
-                    // Only process if we haven't seen this message before
-                    if processed_msgs.insert(msg_id) {
-                        // Emit the agent message to the frontend
-                        let _ = app_handle_clone.emit("agent-message", &agent_message);
-
-                        // If this is a title event, update the conversation title
-                        if let AgentMessage { message: ChatResponse::Event(event), .. } =
-                            &agent_message
-                        {
-                            if event.name == EVENT_TITLE {
-                                if let Some(title) = event.value.as_str() {
-                                    if let Some(conv_id) =
-                                        state_clone.current_conversation_id.lock().await.as_ref()
-                                    {
-                                        let _ = api
-                                            .set_variable(
-                                                conv_id,
-                                                "title".to_string(),
-                                                Value::from(title),
-                                            )
-                                            .await;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Err(err) => {
-                    // Emit error to the frontend
-                    let _ = app_handle_clone.emit("agent-error", err.to_string());
-                }
-            }
+        // Handle the stream in a simpler way, similar to ui.rs
+        if let Err(e) = handle_chat_stream(stream, app_handle_clone, state_clone, api_clone).await {
+            eprintln!("Error handling chat stream: {}", e);
         }
-        // Signal that the stream is complete
-        let _ = app_handle_clone.emit("agent-stream-complete", ());
     });
-
+    
     // Store the stream handle for potential cancellation
     {
         let mut current_stream = state.current_stream_handle.lock().await;
