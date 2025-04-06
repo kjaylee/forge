@@ -207,27 +207,37 @@ pub async fn send_message(
     // Process the stream in a separate task
     let app_handle_clone = app_handle.clone();
     tokio::spawn(async move {
+        // Track message IDs to prevent duplicates
+        let mut processed_msgs = std::collections::HashSet::new();
+        
         while let Some(message_result) = stream.next().await {
             match message_result {
                 Ok(agent_message) => {
-                    // Emit the agent message to the frontend
-                    let _ = app_handle_clone.emit("agent-message", &agent_message);
+                    // Generate a unique ID for the message to detect duplicates
+                    // Use a combination of agent ID and timestamp or sequence number if available
+                    let msg_id = format!("{:?}-{:?}", agent_message.agent, agent_message.message);
+                    
+                    // Only process if we haven't seen this message before
+                    if processed_msgs.insert(msg_id) {
+                        // Emit the agent message to the frontend
+                        let _ = app_handle_clone.emit("agent-message", &agent_message);
 
-                    // If this is a title event, update the conversation title
-                    if let AgentMessage { message: ChatResponse::Event(event), .. } = &agent_message
-                    {
-                        if event.name == EVENT_TITLE {
-                            if let Some(title) = event.value.as_str() {
-                                if let Some(conv_id) =
-                                    state.current_conversation_id.lock().await.as_ref()
-                                {
-                                    let _ = api
-                                        .set_variable(
-                                            conv_id,
-                                            "title".to_string(),
-                                            Value::from(title),
-                                        )
-                                        .await;
+                        // If this is a title event, update the conversation title
+                        if let AgentMessage { message: ChatResponse::Event(event), .. } = &agent_message
+                        {
+                            if event.name == EVENT_TITLE {
+                                if let Some(title) = event.value.as_str() {
+                                    if let Some(conv_id) =
+                                        state.current_conversation_id.lock().await.as_ref()
+                                    {
+                                        let _ = api
+                                            .set_variable(
+                                                conv_id,
+                                                "title".to_string(),
+                                                Value::from(title),
+                                            )
+                                            .await;
+                                    }
                                 }
                             }
                         }

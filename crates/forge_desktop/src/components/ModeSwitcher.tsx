@@ -1,11 +1,11 @@
 import React from 'react';
-import { useForge } from '@/contexts/ForgeContext';
+import { useForgeStore } from '@/stores/ForgeStore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 const ModeSwitcher: React.FC = () => {
-  const { mode, changeMode } = useForge();
+  const { mode, changeMode } = useForgeStore();
 
   const handleModeChange = (newMode: 'Act' | 'Plan' | 'Help') => {
     changeMode(newMode);

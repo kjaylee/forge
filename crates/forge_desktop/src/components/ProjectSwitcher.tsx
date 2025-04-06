@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProject, ProjectInfo } from '@/contexts/ProjectContext';
+import { useProjectStore } from '@/stores/ProjectStore';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ const NewProjectDialog: React.FC<{
   onOpenChange: (open: boolean) => void;
   onCreateProject: (path: string, name?: string) => void;
 }> = ({ open, onOpenChange, onCreateProject }) => {
-  const { openDirectoryDialog } = useProject();
+  const { openDirectoryDialog } = useProjectStore();
   const [projectPath, setProjectPath] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
   
@@ -105,7 +105,7 @@ const NewProjectDialog: React.FC<{
 
 // Main project switcher component
 const ProjectSwitcher: React.FC = () => {
-  const { currentProject, recentProjects, switchProject, closeProject, createNewProject, isLoading } = useProject();
+  const { currentProject, recentProjects, switchProject, closeProject, createNewProject, isLoading } = useProjectStore();
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   
   // Format the last accessed time

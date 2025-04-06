@@ -1,10 +1,10 @@
 import React from 'react';
-import { useForge } from '@/contexts/ForgeContext';
+import { useForgeStore } from '@/stores/ForgeStore';
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 const StatusBar: React.FC = () => {
-  const { conversationId, error, isLoading } = useForge();
+  const { conversationId, error, isLoading } = useForgeStore();
 
   return (
     <Card className="rounded-none shadow-none border-t border-border h-8 px-4 flex items-center justify-between bg-muted/40">

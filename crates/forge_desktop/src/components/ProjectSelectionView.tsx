@@ -1,5 +1,5 @@
 import React from 'react';
-import { useProject, ProjectInfo } from '@/contexts/ProjectContext';
+import { useProjectStore, ProjectInfo } from '@/stores/ProjectStore';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -45,7 +45,7 @@ const NewProjectDialog: React.FC<{
   onOpenChange: (open: boolean) => void;
   onCreateProject: (path: string, name?: string) => void;
 }> = ({ open, onOpenChange, onCreateProject }) => {
-  const { openDirectoryDialog } = useProject();
+  const { openDirectoryDialog } = useProjectStore();
   const [projectPath, setProjectPath] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
   
@@ -136,7 +136,7 @@ const NewProjectDialog: React.FC<{
 };
 
 const ProjectSelectionView: React.FC = () => {
-  const { recentProjects, selectProject, createNewProject, isLoading, error } = useProject();
+  const { recentProjects, selectProject, createNewProject, isLoading, error } = useProjectStore();
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   
   const handleSelectProject = async (project: ProjectInfo) => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useForge } from '@/contexts/ForgeContext';
+import { useForgeStore } from '@/stores/ForgeStore';
 import ProjectSwitcher from '@/components/ProjectSwitcher';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { PlusCircle, Download, Settings2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 const ConversationHeader: React.FC = () => {
-  const { conversationTitle, newConversation, exportConversation } = useForge();
+  const { conversationTitle, newConversation, exportConversation } = useForgeStore();
 
   const handleNewConversation = () => {
     newConversation();

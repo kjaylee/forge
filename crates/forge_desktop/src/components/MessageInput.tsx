@@ -1,5 +1,5 @@
 import React, { useState, FormEvent, KeyboardEvent } from 'react';
-import { useForge } from '@/contexts/ForgeContext';
+import { useForgeStore } from '@/stores/ForgeStore';
 import { Card, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Send } from "lucide-react";
 
 const MessageInput: React.FC = () => {
   const [message, setMessage] = useState('');
-  const { sendMessage, isLoading } = useForge();
+  const { sendMessage, isLoading } = useForgeStore();
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = async (e: FormEvent) => {

@@ -1,13 +1,14 @@
-import { ForgeProvider } from "@/contexts/ForgeContext";
-import { ProjectProvider, useProject } from "@/contexts/ProjectContext";
+import { useForgeStore } from "@/stores/ForgeStore";
+import { useProjectStore } from "@/stores/ProjectStore";
 import ProjectSelectionView from "@/components/ProjectSelectionView";
 import ConversationHeader from "@/components/ConversationHeader";
 import ModeSwitcher from "@/components/ModeSwitcher";
-import ChatView from "@/components/ChatView";
+import DocumentView from "@/components/DocumentView";
 import MessageInput from "@/components/MessageInput";
 import StatusBar from "@/components/StatusBar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 // Component for the loading screen
 const LoadingScreen: React.FC = () => (
@@ -19,6 +20,15 @@ const LoadingScreen: React.FC = () => (
 
 // Component for the chat interface
 const ChatInterface: React.FC = () => {
+  // Initialize forge store listeners when chat interface is mounted
+  useEffect(() => {
+    // Setup is done automatically in store initialization, this is just for clarity
+    const forgeStore = useForgeStore.getState();
+    if (!forgeStore.listenersInitialized) {
+      forgeStore.setupListeners();
+    }
+  }, []);
+
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-background font-sans text-foreground antialiased">
       <div className="sticky top-0 z-10">
@@ -29,7 +39,7 @@ const ChatInterface: React.FC = () => {
           <ModeSwitcher />
         </div>
         <div className="flex-1 overflow-hidden relative">
-          <ChatView />
+          <DocumentView />
         </div>
         <MessageInput />
       </div>
@@ -40,7 +50,8 @@ const ChatInterface: React.FC = () => {
 
 // Main app wrapper with conditional rendering
 const AppContent: React.FC = () => {
-  const { currentProject, isLoading } = useProject();
+  // Use the project store directly
+  const { currentProject, isLoading } = useProjectStore();
   
   // Show loading screen during initial load or project switching
   if (isLoading) {
@@ -58,13 +69,9 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <ProjectProvider>
-      <ForgeProvider>
-        <TooltipProvider>
-          <AppContent />
-        </TooltipProvider>
-      </ForgeProvider>
-    </ProjectProvider>
+    <TooltipProvider>
+      <AppContent />
+    </TooltipProvider>
   );
 }
 

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useForge } from '@/contexts/ForgeContext';
+import { useForgeStore } from '@/stores/ForgeStore';
 import ToolCallView from './ToolCallView';
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,7 +24,7 @@ const shouldDimMessage = (message: { sender: string; isShowUserMessage?: boolean
 };
 
 const ChatView: React.FC = () => {
-  const { messages, toolCalls, isLoading } = useForge();
+  const { messages, toolCalls, isLoading } = useForgeStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
