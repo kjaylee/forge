@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useDirectoryStore } from './DirectoryStore';
 
 // Type definitions for projects
 export interface ProjectInfo {
@@ -241,3 +242,21 @@ export const useProjectStore = create<ProjectState>()(
 // Initialize the store when this module is imported
 // This will be executed once when the module is first loaded
 useProjectStore.getState().initialize();
+
+// Setup a listener to load directory structure when project changes
+const setupDirectoryUpdates = () => {
+  // Get the directoryStore
+  const directoryStore = useDirectoryStore.getState();
+  
+  // Listen for changes to currentProject in ProjectStore
+  useProjectStore.subscribe((state) => {
+    // If a project is selected, load its directory structure
+    if (state.currentProject && state.currentProject.path) {
+      console.log('Project changed, loading directory structure:', state.currentProject.path);
+      directoryStore.loadDirectoryStructure(state.currentProject.path);
+    }
+  });
+};
+
+// Call setup function
+setupDirectoryUpdates();

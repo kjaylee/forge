@@ -1528,6 +1528,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "forge_api",
+ "forge_walker",
  "futures-util",
  "serde",
  "serde_json",
