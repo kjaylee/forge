@@ -811,7 +811,7 @@ pub struct FileSystemEntry {
 pub async fn get_directory_structure(
     path: String,
     depth: Option<u32>,
-    app_handle: AppHandle,
+    _app_handle: AppHandle,
 ) -> Result<FileSystemEntry, String> {
     let path_buf = PathBuf::from(&path);
     
