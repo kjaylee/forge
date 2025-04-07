@@ -155,8 +155,8 @@ export const useForgeStore = create<ForgeState>()(
             // Process text messages
             else if (message.text !== undefined) {
               // Only process non-empty text messages
-              if (message.text && message.text.trim()) {
-                const content = message.text.trim();
+              if (message.text && message.text) {
+                const content = message.text;
                 
                 // Simply add the text message directly
                 set(state => {

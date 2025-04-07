@@ -38,8 +38,7 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
     // Combine all relevant messages
     const combinedContent = messagesToUse
       .map(msg => msg.content)
-      .join('')
-      .trim();
+      .join('');
       
     return combinedContent;
   }, [responseMessages]);
@@ -64,13 +63,13 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
     // Extract and remove special blocks
     tagPatterns.forEach(({ tag, pattern }) => {
       content = content.replace(pattern, (_, p1) => {
-        blocks.push({ type: tag, content: p1.trim() });
+        blocks.push({ type: tag, content: p1 });
         return ''; // Remove the tag content from the main text
       });
     });
     
     // Clean up extra newlines
-    content = content.replace(/\n{3,}/g, '\n\n').trim();
+    content = content.replace(/\n{3,}/g, '\n\n');
     
     return {
       mainContent: content,
