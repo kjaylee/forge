@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
-use std::path::Path;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -10,11 +9,11 @@ use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, ConversationId, Event, File, ModelId, ToolDefinition,
     API,
 };
+use forge_walker::Walker;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
-use forge_walker::Walker;
 use tokio::sync::Mutex;
 
 // Event type constants, matching those in the CLI UI
@@ -148,58 +147,63 @@ pub async fn load_workflow(path: Option<String>, app_handle: AppHandle) -> Resul
 }
 
 /// Helper to handle a single chat response message
-async fn handle_chat_response(message: AgentMessage<ChatResponse>, app_handle: &AppHandle, state: &Arc<ForgeState>, api: &Arc<dyn API>) -> Result<(), String> {
+async fn handle_chat_response(
+    message: AgentMessage<ChatResponse>,
+    app_handle: &AppHandle,
+    state: &Arc<ForgeState>,
+    api: &Arc<dyn API>,
+) -> Result<(), String> {
     // Simply emit the message to the frontend without any transformations
     let _ = app_handle.emit("agent-message", &message);
-    
-    // Special handling for title events - this is business logic, not transformation
+
+    // Special handling for title events - this is business logic, not
+    // transformation
     if let AgentMessage { message: ChatResponse::Event(event), .. } = &message {
         if event.name == EVENT_TITLE {
             if let Some(title) = event.value.as_str() {
                 if let Some(conv_id) = state.current_conversation_id.lock().await.as_ref() {
                     let _ = api
-                        .set_variable(
-                            conv_id,
-                            "title".to_string(),
-                            Value::from(title),
-                        )
+                        .set_variable(conv_id, "title".to_string(), Value::from(title))
                         .await;
                 }
             }
         }
     }
-    
+
     Ok(())
 }
 
 /// Process an agent message stream, handling each message appropriately
 async fn handle_chat_stream(
-    stream: impl futures_util::StreamExt<Item = Result<AgentMessage<ChatResponse>, anyhow::Error>> + Unpin,
+    stream: impl futures_util::StreamExt<Item = Result<AgentMessage<ChatResponse>, anyhow::Error>>
+        + Unpin,
     app_handle: AppHandle,
     state: Arc<ForgeState>,
-    api: Arc<dyn API>
+    api: Arc<dyn API>,
 ) -> Result<(), String> {
     // Create a shared HashSet for tracking processed messages
     let processed_msgs = Arc::new(Mutex::new(std::collections::HashSet::new()));
-    
+
     tokio::pin!(stream);
-    
+
     // Process the stream directly without complex transformations
     while let Some(message_result) = stream.next().await {
         match message_result {
             Ok(agent_message) => {
                 // Generate a unique ID for the message to detect duplicates
                 let msg_id = format!("{:?}-{:?}", agent_message.agent, agent_message.message);
-                
+
                 // Only process if we haven't seen this message before
                 let should_process = {
                     let mut processed = processed_msgs.lock().await;
                     processed.insert(msg_id)
                 };
-                
+
                 if should_process {
                     // Call the response handler
-                    if let Err(err) = handle_chat_response(agent_message, &app_handle, &state, &api).await {
+                    if let Err(err) =
+                        handle_chat_response(agent_message, &app_handle, &state, &api).await
+                    {
                         eprintln!("Error processing message: {}", err);
                     }
                 }
@@ -211,12 +215,13 @@ async fn handle_chat_stream(
             }
         }
     }
-    
+
     // Signal that the stream is complete
     let _ = app_handle.emit("agent-stream-complete", ());
-    
+
     Ok(())
-}/// Send a message to the current conversation
+}
+/// Send a message to the current conversation
 #[tauri::command]
 pub async fn send_message(
     options: SendMessageOptions,
@@ -225,7 +230,7 @@ pub async fn send_message(
     let (api, state) = get_api_and_state(&app_handle).await;
 
     // Get the current conversation ID
-    let conversation_id = {        
+    let conversation_id = {
         let current_id = state.current_conversation_id.lock().await;
         match &*current_id {
             Some(id) => id.clone(),
@@ -276,19 +281,19 @@ pub async fn send_message(
         .chat(chat)
         .await
         .map_err(|e| format!("Failed to send message: {}", e))?;
-    
+
     // Setup a cancellable task to process the stream
     let app_handle_clone = app_handle.clone();
     let api_clone = api.clone();
     let state_clone = state.clone();
-    
+
     let stream_handle = tokio::spawn(async move {
         // Handle the stream in a simpler way, similar to ui.rs
         if let Err(e) = handle_chat_stream(stream, app_handle_clone, state_clone, api_clone).await {
             eprintln!("Error handling chat stream: {}", e);
         }
     });
-    
+
     // Store the stream handle for potential cancellation
     {
         let mut current_stream = state.current_stream_handle.lock().await;
@@ -814,29 +819,31 @@ pub async fn get_directory_structure(
     _app_handle: AppHandle,
 ) -> Result<FileSystemEntry, String> {
     let path_buf = PathBuf::from(&path);
-    
+
     // Validate the path
     if !path_buf.is_dir() {
         return Err(format!("Path is not a valid directory: {}", path));
     }
-    
+
     // Create wrapper for root directory
     let root_name = path_buf
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Project")
         .to_string();
-    
+
     // Using forge_walker to get files with gitignore respect
     let walker = Walker::min_all()
         .cwd(path_buf.clone())
         .max_depth(depth.unwrap_or(5) as usize) // Default depth 5
         .max_breadth(1000) // Allow up to 1000 files per directory
         .skip_binary(false); // We want to show all files in the directory view
-    
-    let files = walker.get().await
+
+    let files = walker
+        .get()
+        .await
         .map_err(|e| format!("Failed to traverse directory: {}", e))?;
-    
+
     // Root directory entry
     let mut root = FileSystemEntry {
         name: root_name,
@@ -844,56 +851,64 @@ pub async fn get_directory_structure(
         is_directory: true,
         children: Some(Vec::new()),
     };
-    
-    let mut dir_entries: std::collections::HashMap<String, Vec<FileSystemEntry>> = std::collections::HashMap::new();
-    
+
+    let mut dir_entries: std::collections::HashMap<String, Vec<FileSystemEntry>> =
+        std::collections::HashMap::new();
+
     // Process files and build the directory structure
     for file in files {
         let rel_path = file.path.trim_end_matches('/');
-        
+
         // Skip the root directory itself
         if rel_path.is_empty() {
             continue;
         }
-        
+
         let is_dir = file.is_dir();
         let components: Vec<&str> = rel_path.split('/').collect();
-        
+
         // Create FileSystemEntry for this file/directory
         let entry = FileSystemEntry {
-            name: file.file_name.unwrap_or_else(|| components.last().unwrap_or(&"").to_string()),
-            path: Path::new(&path_buf).join(rel_path).to_string_lossy().to_string(),
+            name: file
+                .file_name
+                .unwrap_or_else(|| components.last().unwrap_or(&"").to_string()),
+            path: Path::new(&path_buf)
+                .join(rel_path)
+                .to_string_lossy()
+                .to_string(),
             is_directory: is_dir,
             children: if is_dir { Some(Vec::new()) } else { None },
         };
-        
+
         // Determine the parent path
         let parent_path = if components.len() > 1 {
             components[..components.len() - 1].join("/")
         } else {
             "".to_string() // Root level
         };
-        
+
         // Add to the appropriate directory's children
         dir_entries.entry(parent_path).or_default().push(entry);
     }
-    
+
     // Build the tree structure recursively
-    fn build_tree(entry: &mut FileSystemEntry, dir_entries: &std::collections::HashMap<String, Vec<FileSystemEntry>>, path: &str) {
+    fn build_tree(
+        entry: &mut FileSystemEntry,
+        dir_entries: &std::collections::HashMap<String, Vec<FileSystemEntry>>,
+        path: &str,
+    ) {
         if let Some(children) = &mut entry.children {
             if let Some(entries) = dir_entries.get(path) {
                 // Sort: directories first, then alphabetical
                 let mut sorted_entries = entries.clone();
-                sorted_entries.sort_by(|a, b| {
-                    match (a.is_directory, b.is_directory) {
-                        (true, false) => std::cmp::Ordering::Less,
-                        (false, true) => std::cmp::Ordering::Greater,
-                        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-                    }
+                sorted_entries.sort_by(|a, b| match (a.is_directory, b.is_directory) {
+                    (true, false) => std::cmp::Ordering::Less,
+                    (false, true) => std::cmp::Ordering::Greater,
+                    _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
                 });
-                
+
                 *children = sorted_entries.clone();
-                
+
                 // Recursively process subdirectories
                 for child in children.iter_mut().filter(|c| c.is_directory) {
                     let child_path = if path.is_empty() {
@@ -901,15 +916,15 @@ pub async fn get_directory_structure(
                     } else {
                         format!("{}/{}", path, child.name)
                     };
-                    
+
                     build_tree(child, dir_entries, &child_path);
                 }
             }
         }
     }
-    
+
     // Build the tree starting from root
     build_tree(&mut root, &dir_entries, "");
-    
+
     Ok(root)
 }
