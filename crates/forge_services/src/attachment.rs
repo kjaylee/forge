@@ -3,9 +3,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use base64::Engine;
-use forge_domain::{Attachment, AttachmentService, ContentType};
+use forge_domain::{Attachment, AttachmentService, ContentType, EnvironmentService};
 
-use crate::{EnvironmentService, FsReadService, Infrastructure};
+use crate::{FsReadService, Infrastructure};
 // TODO: bring pdf support, pdf is just a collection of images.
 
 #[derive(Clone)]
