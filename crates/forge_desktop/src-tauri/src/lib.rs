@@ -30,6 +30,7 @@ pub fn run() {
             commands::create_new_project,
             commands::update_cwd,
             commands::cancel_stream,
+            commands::get_directory_structure,
         ])
         .setup(|app| {
             // Initialize the ForgeAPI directly, similar to the CLI application

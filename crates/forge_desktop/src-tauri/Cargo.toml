@@ -30,5 +30,6 @@ futures-util = "0.3.28"
 chrono = "0.4"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = { version = "2" }
+forge_walker = { workspace = true }
 
 

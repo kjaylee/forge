@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::path::Path;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -13,6 +14,7 @@ use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
+use forge_walker::Walker;
 use tokio::sync::Mutex;
 
 // Event type constants, matching those in the CLI UI
@@ -793,4 +795,121 @@ pub async fn cancel_stream(app_handle: AppHandle) -> Result<bool, String> {
         // No active stream to cancel
         Ok(false)
     }
+}
+
+/// Represents a file or directory in the file system
+#[derive(Clone, Serialize)]
+pub struct FileSystemEntry {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    pub children: Option<Vec<FileSystemEntry>>,
+}
+
+/// Get the directory structure of a project
+#[tauri::command]
+pub async fn get_directory_structure(
+    path: String,
+    depth: Option<u32>,
+    app_handle: AppHandle,
+) -> Result<FileSystemEntry, String> {
+    let path_buf = PathBuf::from(&path);
+    
+    // Validate the path
+    if !path_buf.is_dir() {
+        return Err(format!("Path is not a valid directory: {}", path));
+    }
+    
+    // Create wrapper for root directory
+    let root_name = path_buf
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("Project")
+        .to_string();
+    
+    // Using forge_walker to get files with gitignore respect
+    let walker = Walker::min_all()
+        .cwd(path_buf.clone())
+        .max_depth(depth.unwrap_or(5) as usize) // Default depth 5
+        .max_breadth(1000) // Allow up to 1000 files per directory
+        .skip_binary(false); // We want to show all files in the directory view
+    
+    let files = walker.get().await
+        .map_err(|e| format!("Failed to traverse directory: {}", e))?;
+    
+    // Root directory entry
+    let mut root = FileSystemEntry {
+        name: root_name,
+        path: path_buf.to_string_lossy().to_string(),
+        is_directory: true,
+        children: Some(Vec::new()),
+    };
+    
+    let mut dir_entries: std::collections::HashMap<String, Vec<FileSystemEntry>> = std::collections::HashMap::new();
+    
+    // Process files and build the directory structure
+    for file in files {
+        let rel_path = file.path.trim_end_matches('/');
+        
+        // Skip the root directory itself
+        if rel_path.is_empty() {
+            continue;
+        }
+        
+        let is_dir = file.is_dir();
+        let components: Vec<&str> = rel_path.split('/').collect();
+        
+        // Create FileSystemEntry for this file/directory
+        let entry = FileSystemEntry {
+            name: file.file_name.unwrap_or_else(|| components.last().unwrap_or(&"").to_string()),
+            path: Path::new(&path_buf).join(rel_path).to_string_lossy().to_string(),
+            is_directory: is_dir,
+            children: if is_dir { Some(Vec::new()) } else { None },
+        };
+        
+        // Determine the parent path
+        let parent_path = if components.len() > 1 {
+            components[..components.len() - 1].join("/")
+        } else {
+            "".to_string() // Root level
+        };
+        
+        // Add to the appropriate directory's children
+        dir_entries.entry(parent_path).or_default().push(entry);
+    }
+    
+    // Build the tree structure recursively
+    fn build_tree(entry: &mut FileSystemEntry, dir_entries: &std::collections::HashMap<String, Vec<FileSystemEntry>>, path: &str) {
+        if let Some(children) = &mut entry.children {
+            if let Some(entries) = dir_entries.get(path) {
+                // Sort: directories first, then alphabetical
+                let mut sorted_entries = entries.clone();
+                sorted_entries.sort_by(|a, b| {
+                    match (a.is_directory, b.is_directory) {
+                        (true, false) => std::cmp::Ordering::Less,
+                        (false, true) => std::cmp::Ordering::Greater,
+                        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+                    }
+                });
+                
+                *children = sorted_entries.clone();
+                
+                // Recursively process subdirectories
+                for child in children.iter_mut().filter(|c| c.is_directory) {
+                    let child_path = if path.is_empty() {
+                        child.name.clone()
+                    } else {
+                        format!("{}/{}", path, child.name)
+                    };
+                    
+                    build_tree(child, dir_entries, &child_path);
+                }
+            }
+        }
+    }
+    
+    // Build the tree starting from root
+    build_tree(&mut root, &dir_entries, "");
+    
+    Ok(root)
 }
