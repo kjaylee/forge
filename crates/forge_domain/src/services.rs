@@ -88,9 +88,6 @@ pub trait EnvironmentService: Send + Sync {
     /// Set the current working directory
     fn set_cwd(&self, cwd: std::path::PathBuf) -> anyhow::Result<()>;
     fn get_environment(&self) -> Environment;
-    /// Set the current working directory
-    fn set_cwd(&self, cwd: std::path::PathBuf) -> anyhow::Result<()>;
-
 }
 
 /// Core app trait providing access to services and repositories.
