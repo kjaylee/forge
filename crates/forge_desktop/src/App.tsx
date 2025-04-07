@@ -56,7 +56,7 @@ const ChatInterface: React.FC = () => {
   }, [toolConsoleSize]);
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-background font-sans text-foreground antialiased">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-background text-foreground antialiased">
       <div className="sticky top-0 z-10">
         <ConversationHeader />
       </div>

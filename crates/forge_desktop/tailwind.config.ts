@@ -1,29 +1,18 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-    darkMode: ["class"],
-    content: [
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  darkMode: ["class"],
+  content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
   	extend: {
   		fontFamily: {
-  			sans: [
-  				'Inter',
-  				'Avenir',
-  				'Helvetica',
-  				'Arial',
-  				'sans-serif'
-  			],
-  			mono: [
-  				'JetBrains Mono',
-  				'source-code-pro',
-  				'Menlo',
-  				'Monaco',
-  				'Consolas',
-  				'Courier New',
-  				'monospace'
-  			]
+  			"space-grotesk": ["Space Grotesk", "sans-serif"],
+  			"space-mono": ["Space Mono", "monospace"],
+        sans: ["Space Grotesk", "sans-serif"],
+        mono: ["Space Mono", "monospace"]
   		},
   		colors: {
   			primary: {
@@ -146,12 +135,14 @@ module.exports = {
   },
   plugins: [
     require('@tailwindcss/typography'),
-      require("tailwindcss-animate")
-],
+    require("tailwindcss-animate")
+  ],
   safelist: [
     'animate-dot-bounce',
     'animate-fade-in',
     'prose',
     'prose-sm',
   ],
-}
+};
+
+export default config;
