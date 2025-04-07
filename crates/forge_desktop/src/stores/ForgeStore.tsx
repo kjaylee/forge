@@ -8,7 +8,6 @@ import { listen, UnlistenFn } from '@tauri-apps/api/event';
 const EVENT_TITLE = 'title';
 // Constants for tool names that should not be displayed in UI
 const TOOL_EVENT_DISPATCH = 'tool_forge_event_dispatch';
-const TOOL_SHOW_USER = 'tool_forge_display_show_user';
 
 // Type definitions
 export interface Message {
@@ -49,8 +48,6 @@ interface ForgeState {
   mode: ModeInfo;
   isFirstMessage: boolean;
   debugMode: boolean;
-  currentSystemMessageId: string | null;
-  hasShowUserRef: { current: boolean };
   listenersInitialized: boolean;
   
   // Actions
@@ -65,7 +62,6 @@ interface ForgeState {
   setConversationTitle: (title: string | null) => void;
   setMode: (mode: ModeInfo) => void;
   setIsFirstMessage: (isFirst: boolean) => void;
-  setCurrentSystemMessageId: (id: string | null) => void;
   resetState: () => void;
   
   // Event handling
@@ -92,8 +88,6 @@ export const useForgeStore = create<ForgeState>()(
     mode: { mode: 'Act', description: 'mode - executes commands and makes file changes' },
     isFirstMessage: true,
     debugMode: false,
-    currentSystemMessageId: null,
-    hasShowUserRef: { current: false },
     listenersInitialized: false,
     
     // Event handling
@@ -103,12 +97,12 @@ export const useForgeStore = create<ForgeState>()(
         return () => {}; // Return no-op cleanup if already initialized
       }
       
-      const unlistenFns: UnlistenFn[] = [];
+      const unlistenFunctions: UnlistenFn[] = [];
       
       // Listen for agent messages
-      const unlisten1 = await listen<any>('agent-message', (event) => {
+      const messageListener = await listen<any>('agent-message', (event) => {
         try {
-          const { hasShowUserRef, debugMode } = get();
+          const { debugMode } = get();
           const agentMessage = event.payload;
           
           if (agentMessage?.agent && agentMessage?.message) {
@@ -117,44 +111,6 @@ export const useForgeStore = create<ForgeState>()(
             // Process tool call starts
             if (message.toolCallStart) {
               const toolCall = message.toolCallStart;
-              
-              // Special handling for show_user tool
-              if (toolCall.name === TOOL_SHOW_USER) {
-                // Mark that show_user has been used in this interaction
-                set(state => {
-                  state.hasShowUserRef.current = true;
-                });
-                
-                if (toolCall.arguments && toolCall.arguments.content) {
-                  const content = toolCall.arguments.content.trim();
-                  
-                  // Check for duplicate messages
-                  const { messages } = get();
-                  if (messages.length > 0) {
-                    const lastMessage = messages[messages.length - 1];
-                    if (lastMessage.content === content && lastMessage.sender === 'system') {
-                      // Skip duplicate messages
-                      if (debugMode) console.log('Skipping duplicate show_user message');
-                      return;
-                    }
-                  }
-                  
-                  // Add message
-                  set(state => {
-                    state.messages.push({
-                      id: `system-show-user-${Date.now()}`,
-                      content,
-                      sender: 'system',
-                      timestamp: new Date(),
-                      isShowUserMessage: true,
-                    });
-                    state.currentSystemMessageId = null;
-                  });
-                }
-                
-                // Don't add show_user tool to tool calls
-                return;
-              }
               
               // Skip event dispatch tool from UI
               if (toolCall.name === TOOL_EVENT_DISPATCH) {
@@ -169,13 +125,6 @@ export const useForgeStore = create<ForgeState>()(
                 isError: false,
               };
               
-              // Check for duplicate tool calls
-              const { toolCalls } = get();
-              if (toolCalls.some(tool => tool.id === newToolCall.id)) {
-                if (debugMode) console.log('Skipping duplicate tool call:', newToolCall.id);
-                return;
-              }
-              
               // Add to tool calls
               set(state => {
                 state.toolCalls.push(newToolCall);
@@ -185,8 +134,8 @@ export const useForgeStore = create<ForgeState>()(
             else if (message.toolCallEnd) {
               const toolEnd = message.toolCallEnd;
               
-              // Skip hidden tool results from UI
-              if (toolEnd.name === TOOL_EVENT_DISPATCH || toolEnd.name === TOOL_SHOW_USER) {
+              // Skip event dispatch tool from UI
+              if (toolEnd.name === TOOL_EVENT_DISPATCH) {
                 // Remove from tool calls
                 set(state => {
                   state.toolCalls = state.toolCalls.filter(tool => tool.id !== toolEnd.call_id);
@@ -205,78 +154,22 @@ export const useForgeStore = create<ForgeState>()(
             }
             // Process text messages
             else if (message.text !== undefined) {
-              const { debugMode, currentSystemMessageId } = get();
-              
               // Only process non-empty text messages
               if (message.text && message.text.trim()) {
                 const content = message.text.trim();
                 
-                // If show_user tool has been used in this interaction, skip displaying raw text
-                if (hasShowUserRef.current) {
-                  if (debugMode) console.log('Skipping raw text because show_user was used');
-                  return;
-                }
+                // Simply add the text message directly
+                set(state => {
+                  state.messages.push({
+                    id: `system-${Date.now()}`,
+                    content,
+                    sender: 'system',
+                    timestamp: new Date()
+                  });
+                });
                 
-                const { toolCalls } = get();
-                
-                // Reset currentSystemMessageId when a tool call happens or on first message
-                if (toolCalls.length > 0 && currentSystemMessageId === null) {
-                  // Create a new system message after tool calls
-                  const newId = `system-${Date.now()}`;
-                  
-                  set(state => {
-                    state.currentSystemMessageId = newId;
-                    state.messages.push({
-                      id: newId,
-                      content,
-                      sender: 'system',
-                      timestamp: new Date(),
-                      isShowUserMessage: false,
-                    });
-                  });
-                  
-                  if (debugMode) console.log('New message created after tool call');
-                } else if (currentSystemMessageId) {
-                  // Append to the existing message (aggregation)
-                  if (debugMode) console.log('Aggregating content to existing message');
-                  
-                  set(state => {
-                    state.messages = state.messages.map(msg => {
-                      if (msg.id === currentSystemMessageId) {
-                        // Append the new content to the existing message
-                        return {
-                          ...msg,
-                          content: msg.content + (msg.content.endsWith('\n') ? '' : ' ') + content
-                        };
-                      }
-                      return msg;
-                    });
-                  });
-                } else {
-                  // Create a new system message (first message or after user message)
-                  const newId = `system-${Date.now()}`;
-                  
-                  set(state => {
-                    state.currentSystemMessageId = newId;
-                    state.messages.push({
-                      id: newId,
-                      content,
-                      sender: 'system',
-                      timestamp: new Date(),
-                      isShowUserMessage: false,
-                    });
-                  });
-                  
-                  if (debugMode) console.log('New message created');
-                }
+                if (debugMode) console.log('New message added');
               }
-            }
-            // Process usage info
-            else if (message.usage) {
-              // Reset the show_user flag when we receive usage info
-              set(state => {
-                state.hasShowUserRef.current = false;
-              });
             }
             // Process event messages
             else if (message.event) {
@@ -297,24 +190,24 @@ export const useForgeStore = create<ForgeState>()(
       });
       
       // Listen for agent errors
-      const unlisten2 = await listen('agent-error', (event) => {
-        const errorMessage = event.payload as string;
+      const errorListener = await listen<string>('agent-error', (event) => {
+        const errorMessage = event.payload;
         set(state => { 
           state.error = errorMessage;
           state.isLoading = false;
-          state.hasShowUserRef.current = false;
         });
       });
       
       // Listen for stream completion
-      const unlisten3 = await listen('agent-stream-complete', () => {
+      const completeListener = await listen('agent-stream-complete', () => {
         set(state => { 
           state.isLoading = false;
-          state.hasShowUserRef.current = false;
         });
       });
       
-      unlistenFns.push(unlisten1, unlisten2, unlisten3);
+      unlistenFunctions.push(messageListener);
+      unlistenFunctions.push(errorListener);
+      unlistenFunctions.push(completeListener);
       
       // Mark listeners as initialized
       set(state => {
@@ -323,7 +216,7 @@ export const useForgeStore = create<ForgeState>()(
       
       // Return cleanup function
       return () => {
-        unlistenFns.forEach(fn => fn());
+        unlistenFunctions.forEach(fn => fn());
         set(state => {
           state.listenersInitialized = false;
         });
@@ -377,18 +270,12 @@ export const useForgeStore = create<ForgeState>()(
       state.isFirstMessage = isFirst;
     }),
     
-    setCurrentSystemMessageId: (id) => set(state => {
-      state.currentSystemMessageId = id;
-    }),
-    
     resetState: () => set(state => {
       state.messages = [];
       state.toolCalls = [];
       state.error = null;
       state.conversationTitle = null;
       state.isFirstMessage = true;
-      state.currentSystemMessageId = null;
-      state.hasShowUserRef.current = false;
     }),
     
     // API operations
@@ -416,7 +303,6 @@ export const useForgeStore = create<ForgeState>()(
             sender: 'user',
             timestamp: new Date(),
           });
-          state.currentSystemMessageId = null;
         });
         
         if (debugMode) console.log('Sending message:', content, 'is_first:', isFirstMessage);
@@ -450,7 +336,6 @@ export const useForgeStore = create<ForgeState>()(
         await invoke('cancel_stream');
         
         // The isLoading state will be updated via the agent-stream-complete event
-        // We don't need to manually set it here
         if (get().debugMode) console.log('Stream cancellation requested');
         
         // Add a system message indicating cancellation
@@ -460,7 +345,6 @@ export const useForgeStore = create<ForgeState>()(
             content: "*Conversation cancelled by user*",
             sender: 'system',
             timestamp: new Date(),
-            isShowUserMessage: true,
           });
         });
       } catch (err) {
