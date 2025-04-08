@@ -76,7 +76,7 @@ impl ForgeState {
             max_recent_projects: 10,
 
             current_conversation_id: Mutex::new(None),
-            current_mode: Mutex::new("Act".to_string()),
+            current_mode: Mutex::new("ACT".to_string()),
             is_first_message: Mutex::new(true),
             current_stream_handle: Mutex::new(None),
         }
@@ -263,7 +263,7 @@ pub async fn send_message(
     // Create the appropriate event based on the mode and whether this is the first
     // message
     let event = match mode.as_str() {
-        "Help" => Event::new(EVENT_USER_HELP_QUERY, options.content),
+        "HELP" => Event::new(EVENT_USER_HELP_QUERY, options.content),
         _ => {
             if is_first {
                 Event::new(EVENT_USER_TASK_INIT, options.content)
@@ -308,25 +308,31 @@ pub async fn send_message(
 pub async fn change_mode(mode: String, app_handle: AppHandle) -> Result<ModeInfo, String> {
     let (api, state) = get_api_and_state(&app_handle).await;
 
+    // Convert display mode (Act, Plan, Help) to variable mode (ACT, PLAN, HELP)
+    let api_mode = mode.to_uppercase();
+    
+    // Display mode matches what the UI expects
+    let display_mode = mode.clone();
+    
     let mode_info = ModeInfo {
-        mode: mode.clone(),
-        description: match mode.as_str() {
+        mode: display_mode.clone(),
+        description: match display_mode.as_str() {
             "Act" => "mode - executes commands and makes file changes".to_string(),
             "Plan" => "mode - plans actions without making changes".to_string(),
             "Help" => "mode - answers questions (type /act or /plan to switch back)".to_string(),
-            _ => format!("Unknown mode: {}", mode),
+            _ => format!("Unknown mode: {}", display_mode),
         },
     };
 
-    // Update the mode
+    // Update the mode (store uppercase for API)
     {
         let mut current_mode = state.current_mode.lock().await;
-        *current_mode = mode.clone();
+        *current_mode = api_mode.clone();
     }
 
-    // Set the mode in the conversation if one exists
+    // Set the mode in the conversation if one exists (use uppercase for API)
     if let Some(conversation_id) = state.current_conversation_id.lock().await.as_ref() {
-        api.set_variable(conversation_id, "mode".to_string(), Value::from(mode))
+        api.set_variable(conversation_id, "mode".to_string(), Value::from(api_mode))
             .await
             .map_err(|e| format!("Failed to set mode in conversation: {}", e))?;
     }
@@ -339,14 +345,23 @@ pub async fn change_mode(mode: String, app_handle: AppHandle) -> Result<ModeInfo
 pub async fn get_mode(app_handle: AppHandle) -> ModeInfo {
     let (_, state) = get_api_and_state(&app_handle).await;
 
-    let mode = state.current_mode.lock().await.clone();
+    let api_mode = state.current_mode.lock().await.clone();
+    
+    // Convert API mode (uppercase) to display mode (title case) for UI
+    let display_mode = match api_mode.as_str() {
+        "ACT" => "Act",
+        "PLAN" => "Plan",
+        "HELP" => "Help",
+        _ => &api_mode, // Fallback to original if unknown
+    }.to_string();
+    
     ModeInfo {
-        mode: mode.clone(),
-        description: match mode.as_str() {
+        mode: display_mode.clone(),
+        description: match display_mode.as_str() {
             "Act" => "mode - executes commands and makes file changes".to_string(),
             "Plan" => "mode - plans actions without making changes".to_string(),
             "Help" => "mode - answers questions (type /act or /plan to switch back)".to_string(),
-            _ => format!("Unknown mode: {}", mode),
+            _ => format!("Unknown mode: {}", display_mode),
         },
     }
 }
