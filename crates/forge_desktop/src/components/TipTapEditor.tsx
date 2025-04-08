@@ -18,6 +18,7 @@ interface TipTapEditorProps {
   isDragging: boolean;
   placeholder?: string;
   className?: string;
+  setTaggedFiles?: (files: string[]) => void;
 }
 
 // Create SubmitExtension to handle Enter for submission
@@ -119,7 +120,8 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
   disabled = false,
   isDragging,
   placeholder = 'Type a message or drop files here...',
-  className
+  className,
+  setTaggedFiles
 }) => {
   const editor = useEditor({
     extensions: [
@@ -130,7 +132,23 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         blockquote: false,
         codeBlock: false,
       }),
-      FileTagNode,
+      FileTagNode.configure({
+        onRemove: (filePath) => {
+          // When a file tag is removed from the editor,
+          // we need to update the store state
+          if (setTaggedFiles && editor) {
+            // Get all remaining tags from the editor
+            const remainingTags: string[] = [];
+            editor.state.doc.descendants((node) => {
+              if (node.type.name === 'fileTag' && node.attrs.filePath) {
+                remainingTags.push(node.attrs.filePath);
+              }
+            });
+            // Update the store with the current tags in the editor
+            setTaggedFiles(remainingTags);
+          }
+        }
+      }),
       SubmitExtension.configure({ 
         onSubmit,
         removeLastTag: () => {
@@ -155,41 +173,53 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
     }
   });
   
-  // Update the editor content when files change or a new file is added
+  // Helper function to compare arrays of strings
+  const arraysEqual = (a: string[], b: string[]): boolean => {
+    if (a.length !== b.length) return false;
+    return a.every((val, index) => val === b[index]);
+  };
+
+  // Update the editor when taggedFiles changes from external sources
   useEffect(() => {
     if (!editor) return;
     
-    // Keep track of the files we've already inserted
-    const insertedFiles = new Set<string>();
-    
-    // Check existing file tags in the document
-    editor.state.doc.descendants((node) => {
-      if (node.type.name === 'fileTag' && node.attrs.filePath) {
-        insertedFiles.add(node.attrs.filePath);
-      }
-    });
-    
-    // Check if there are any files that haven't been inserted yet
-    const filesToInsert = taggedFiles.filter(file => !insertedFiles.has(file));
-    
-    // Insert these files at the cursor position
-    if (filesToInsert.length > 0) {
-      // Get the current cursor position (or the start if none)
-      const { selection } = editor.state;
-      const pos = selection.empty ? selection.from : selection.from;
-      
-      // Insert each file as a node
-      filesToInsert.forEach(filePath => {
-        const node = Node.fromJSON(editor.schema, {
-          type: 'fileTag',
-          attrs: {
-            filePath,
-            id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-          } as FileTagAttrs
-        });
-        
-        editor.commands.insertContentAt(pos, node);
+    // Extract all file tags currently in the document
+    const extractTagsFromEditor = (): string[] => {
+      const currentTags: string[] = [];
+      editor.state.doc.descendants((node) => {
+        if (node.type.name === 'fileTag' && node.attrs.filePath) {
+          currentTags.push(node.attrs.filePath);
+        }
       });
+      return currentTags;
+    };
+    
+    // Compare current editor tags with the taggedFiles prop
+    const currentTags = extractTagsFromEditor();
+    
+    // If editor tags don't match the store's tags, sync them
+    if (!arraysEqual(currentTags, taggedFiles)) {
+      // Find new tags to add (in taggedFiles but not in editor)
+      const tagsToAdd = taggedFiles.filter(file => !currentTags.includes(file));
+      
+      if (tagsToAdd.length > 0) {
+        // Get the current cursor position
+        const { selection } = editor.state;
+        const pos = selection.empty ? selection.from : selection.from;
+        
+        // Insert each new tag at the cursor position
+        tagsToAdd.forEach(filePath => {
+          const node = Node.fromJSON(editor.schema, {
+            type: 'fileTag',
+            attrs: {
+              filePath,
+              id: `file-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+            } as FileTagAttrs
+          });
+          
+          editor.commands.insertContentAt(pos, node);
+        });
+      }
     }
   }, [taggedFiles, editor]);
   
@@ -205,7 +235,31 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         }
       });
     }
-  }, [editor, placeholder]);
+  }, [editor, placeholder]);  // Add a transaction handler to keep taggedFiles synced with editor state
+  useEffect(() => {
+    if (!editor || !setTaggedFiles) return;
+    
+    const updateTagsFromEditor = () => {
+      const currentTags: string[] = [];
+      editor.state.doc.descendants((node) => {
+        if (node.type.name === 'fileTag' && node.attrs.filePath) {
+          currentTags.push(node.attrs.filePath);
+        }
+      });
+      
+      // Only update if the tags have changed
+      if (!arraysEqual(currentTags, taggedFiles)) {
+        setTaggedFiles(currentTags);
+      }
+    };
+    
+    // Listen for transaction changes
+    editor.on('transaction', updateTagsFromEditor);
+    
+    return () => {
+      editor.off('transaction', updateTagsFromEditor);
+    };
+  }, [editor, taggedFiles, setTaggedFiles]);
   
   return (
     <div 

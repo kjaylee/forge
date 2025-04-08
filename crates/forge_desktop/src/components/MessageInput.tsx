@@ -3,13 +3,12 @@ import { useForgeStore } from '@/stores/ForgeStore';
 import { Card, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Send, X } from "lucide-react";
-import { cn } from '@/lib/utils';
 import TipTapEditor from './TipTapEditor';
 
 const MessageInput: React.FC = () => {
   const [message, setMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const { sendMessage, cancelStream, isLoading, taggedFiles, addTaggedFile, removeTaggedFile } = useForgeStore();
+  const { sendMessage, cancelStream, isLoading, taggedFiles, addTaggedFile, removeTaggedFile, setTaggedFiles } = useForgeStore();
   
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -72,6 +71,7 @@ const MessageInput: React.FC = () => {
               isDragging={isDragging}
               placeholder="Type a message or drop files here..."
               className="flex-1 min-h-[60px]"
+              setTaggedFiles={setTaggedFiles}
             />
             
             {isLoading ? (

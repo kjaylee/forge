@@ -57,6 +57,7 @@ interface ForgeState {
   // File tagging actions
   addTaggedFile: (filePath: string) => void;
   removeTaggedFile: (index: number) => void;
+  setTaggedFiles: (files: string[]) => void; // New action to set all tagged files
   clearTaggedFiles: () => void;
   
   
@@ -111,6 +112,10 @@ export const useForgeStore = create<ForgeState>()(
     
     removeTaggedFile: (index) => set(state => {
       state.taggedFiles = state.taggedFiles.filter((_, i) => i !== index);
+    }),
+    
+    setTaggedFiles: (files) => set(state => {
+      state.taggedFiles = files;
     }),
     
     clearTaggedFiles: () => set(state => {
