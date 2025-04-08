@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { FileSystemEntry, useDirectoryStore } from '@/stores/DirectoryStore';
 import { cn } from '@/lib/utils';
+import { useForgeStore } from '@/stores/ForgeStore';
 
 interface TreeItemProps {
   item: FileSystemEntry;
@@ -42,6 +43,7 @@ const getFileIcon = (filename: string) => {
 
 const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
   const { expandedPaths, toggleExpandPath } = useDirectoryStore();
+  const { addTaggedFile } = useForgeStore();
   
   const isExpanded = item.is_directory && expandedPaths.has(item.path);
   const hasChildren = item.children && item.children.length > 0;
@@ -54,7 +56,16 @@ const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
     if (item.is_directory) {
       toggleExpandPath(item.path);
     }
+  };  // Drag start handler for file items
+  const handleDragStart = (e: React.DragEvent) => {
+    console.log("drag start")
+    // Only set drag data for non-directory items
+    if (!item.is_directory) {
+      e.dataTransfer.setData('text/plain', item.path);
+      e.dataTransfer.effectAllowed = 'copy';
+    }
   };
+  
   
   return (
     <div>
@@ -63,9 +74,12 @@ const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
         className={cn(
           "flex items-center py-1 px-2 hover:bg-accent/50 rounded-md cursor-pointer",
           "transition-colors duration-100 text-sm",
+          !item.is_directory && "cursor-grab",
         )}
         onClick={handleToggle}
         style={{ paddingLeft: `${paddingLeft}px` }}
+        draggable={!item.is_directory}
+        onDragStart={handleDragStart}
       >
         {/* Expand/collapse indicator */}
         <div className="w-5 flex items-center justify-center mr-1">

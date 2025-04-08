@@ -1,8 +1,12 @@
-// ForgeStore.tsx - Zustand implementation for Forge API state management
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+
+// State related to file tagging
+export interface TaggedFile {
+  path: string;
+}
 
 // Event type constants, matching those in Rust commands.rs
 const EVENT_TITLE = 'title';
@@ -48,7 +52,14 @@ interface ForgeState {
   mode: ModeInfo;
   isFirstMessage: boolean;
   debugMode: boolean;
-  listenersInitialized: boolean;
+  listenersInitialized: boolean;  taggedFiles: string[]; // New state for file tagging
+  
+  // File tagging actions
+  addTaggedFile: (filePath: string) => void;
+  removeTaggedFile: (index: number) => void;
+  setTaggedFiles: (files: string[]) => void; // New action to set all tagged files
+  clearTaggedFiles: () => void;
+  
   
   // Actions
   setMessages: (messages: Message[]) => void;
@@ -88,7 +99,28 @@ export const useForgeStore = create<ForgeState>()(
     mode: { mode: 'Act', description: 'mode - executes commands and makes file changes' },
     isFirstMessage: true,
     debugMode: false,
-    listenersInitialized: false,
+    listenersInitialized: false,    // Initial state for file tagging
+    taggedFiles: [],
+    
+    // File tagging actions
+    addTaggedFile: (filePath) => set(state => {
+      // Check if the file is already tagged
+      if (!state.taggedFiles.includes(filePath)) {
+        state.taggedFiles.push(filePath);
+      }
+    }),
+    
+    removeTaggedFile: (index) => set(state => {
+      state.taggedFiles = state.taggedFiles.filter((_, i) => i !== index);
+    }),
+    
+    setTaggedFiles: (files) => set(state => {
+      state.taggedFiles = files;
+    }),
+    
+    clearTaggedFiles: () => set(state => {
+      state.taggedFiles = [];
+    }),
     
     // Event handling
     setupListeners: async () => {
@@ -283,11 +315,20 @@ export const useForgeStore = create<ForgeState>()(
       try {
         if (!content.trim()) return;
         
-        const { conversationId, isFirstMessage, debugMode } = get();
+        const { conversationId, isFirstMessage, debugMode, taggedFiles } = get();
         
         // If no conversation exists, create one first
         if (!conversationId) {
           await get().newConversation();
+        }
+        
+        // Format message with file tags if there are any
+        let formattedContent = content.trim();
+        if (taggedFiles.length > 0) {
+          const fileTags = taggedFiles.map(file => `@[${file}]`).join(' ');
+          formattedContent = formattedContent 
+            ? `${formattedContent} ${fileTags}`.trim() 
+            : fileTags;
         }
         
         set(state => {
@@ -299,7 +340,7 @@ export const useForgeStore = create<ForgeState>()(
         set(state => {
           state.messages.push({
             id: `user-${Date.now()}`,
-            content,
+            content: formattedContent,
             sender: 'user',
             timestamp: new Date(),
           });
@@ -307,13 +348,17 @@ export const useForgeStore = create<ForgeState>()(
         
         if (debugMode) console.log('Sending message:', content, 'is_first:', isFirstMessage);
         
-        // Send the message to the backend
+        // Send formatted content that includes file tags
         await invoke('send_message', {
           options: {
-            content,
+            content: formattedContent, // Use formatted content with file tags
             is_first: isFirstMessage,
           }
         });
+        
+        // Clear tagged files after successfully sending the message
+        get().clearTaggedFiles();
+        
         
         // Update first message flag
         if (isFirstMessage) {
