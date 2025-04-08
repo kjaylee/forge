@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -60,18 +60,21 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         Ok(self.executor_service.chat(chat).await?)
     }
 
-    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
-        self.app.conversation_service().create(workflow).await
+    async fn init(&self, path: PathBuf) -> anyhow::Result<ConversationId> {
+        // Create a loader service to load the workflow from the path
+        let loader_service = forge_services::ForgeLoaderService::new(self.app.clone());
+
+        // Load the workflow from the given path
+        let workflow = loader_service.load(Some(path.as_path())).await?;
+
+        // Create a new conversation with the workflow and the path as CWD
+        self.app.conversation_service().create(workflow, path).await
     }
 
     fn environment(&self) -> Environment {
         Services::environment_service(self.app.as_ref())
             .get_environment()
             .clone()
-    }
-
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.loader.load(path).await
     }
 
     async fn conversation(

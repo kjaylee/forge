@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 pub use forge_domain::*;
 use forge_stream::MpscStream;
@@ -26,13 +26,10 @@ pub trait API: Sync + Send {
     /// Returns the current environment
     fn environment(&self) -> Environment;
 
-    /// Creates a new conversation with the given workflow
-    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
-
-    /// Loads a workflow configuration from the given path, current directory's
-    /// forge.yaml, or embedded default configuration in that order of
-    /// precedence
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
+    /// Creates a new conversation with the given path
+    /// The path will be used as the working directory for the conversation
+    /// and to load workflow configuration if available
+    async fn init(&self, path: PathBuf) -> anyhow::Result<ConversationId>;
 
     /// Returns the conversation with the given ID
     async fn conversation(
