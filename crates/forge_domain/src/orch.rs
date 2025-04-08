@@ -246,7 +246,12 @@ impl<A: Services> Orchestrator<A> {
             self.dispatch_spawned(event).await?;
             Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
         } else {
-            Ok(self.services.tool_service().call(tool_call.clone()).await)
+            let conversation = self.conversation.read().await.clone();
+            Ok(self
+                .services
+                .tool_service()
+                .call(tool_call.clone(), &conversation)
+                .await)
         }
     }
 

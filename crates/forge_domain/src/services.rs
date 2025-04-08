@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use serde_json::Value;
 
@@ -21,7 +22,7 @@ pub trait ProviderService: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference
-    async fn call(&self, call: ToolCallFull) -> ToolResult;
+    async fn call(&self, call: ToolCallFull, conversation: &Conversation) -> ToolResult;
     fn list(&self) -> Vec<ToolDefinition>;
     fn usage_prompt(&self) -> String;
 }
@@ -32,7 +33,7 @@ pub trait ConversationService: Send + Sync {
 
     async fn upsert(&self, conversation: Conversation) -> anyhow::Result<()>;
 
-    async fn create(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
+    async fn create(&self, workflow: Workflow, cwd: PathBuf) -> anyhow::Result<ConversationId>;
 
     async fn get_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<Option<Value>>;
 

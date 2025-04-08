@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::{NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
+use crate::{Conversation, NamedTool, ToolName, UsageParameterPrompt, UsagePrompt};
 
 ///
 /// Refer to the specification over here:
@@ -125,5 +125,6 @@ pub trait ToolDescription {
 pub trait ExecutableTool {
     type Input: DeserializeOwned;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String>;
+    async fn call(&self, input: Self::Input, conversation: &Conversation)
+        -> anyhow::Result<String>;
 }

@@ -12,10 +12,6 @@ use crate::{Provider, RetryConfig};
 pub struct Environment {
     /// The operating system of the environment.
     pub os: String,
-    /// The process ID of the current process.
-    pub pid: u32,
-    /// The current working directory.
-    pub cwd: PathBuf,
     /// The home directory.
     pub home: Option<PathBuf>,
     /// The shell being used.

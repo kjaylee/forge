@@ -1,4 +1,5 @@
 use std::collections::{HashMap, VecDeque};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use derive_more::derive::Display;
@@ -30,6 +31,7 @@ impl ConversationId {
 }
 
 #[derive(Debug, Setters, Serialize, Deserialize, Clone)]
+#[setters(into, strip_option, prefix = "set_")]
 pub struct Conversation {
     pub id: ConversationId,
     pub archived: bool,
@@ -37,6 +39,8 @@ pub struct Conversation {
     pub workflow: Workflow,
     pub variables: HashMap<String, Value>,
     pub events: Vec<Event>,
+    /// The current working directory for this conversation
+    pub cwd: PathBuf,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -48,7 +52,7 @@ pub struct AgentState {
 }
 
 impl Conversation {
-    pub fn new(id: ConversationId, workflow: Workflow) -> Self {
+    pub fn new(id: ConversationId, workflow: Workflow, cwd: PathBuf) -> Self {
         Self {
             id,
             archived: false,
@@ -56,7 +60,13 @@ impl Conversation {
             variables: workflow.variables.clone().unwrap_or_default(),
             workflow,
             events: Default::default(),
+            cwd,
         }
+    }
+
+    /// Returns the current working directory path for this conversation
+    pub fn cwd(&self) -> &PathBuf {
+        &self.cwd
     }
 
     pub fn turn_count(&self, id: &AgentId) -> Option<u64> {
