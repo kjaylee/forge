@@ -33,9 +33,9 @@ impl<S: Services> ContextCompactor<S> {
     ) -> Result<Context> {
         // Early return if compaction not needed
         debug!(
-            agent_id = %agent.id, 
-            compact = ?agent.compact, 
-            tokens = ?prompt_tokens, 
+            agent_id = %agent.id,
+            compact = ?agent.compact,
+            tokens = ?prompt_tokens,
             "Checking for context compaction"
         );
         if let Some(ref compact) = agent.compact {
