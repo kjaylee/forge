@@ -272,7 +272,8 @@ impl<F: API> UI<F> {
             None => {
                 let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
                 self.command.register_all(&workflow);
-                let conversation_id = self.api.init(workflow).await?;
+                // Initialize with current directory path instead of workflow
+                let conversation_id = self.api.init(std::env::current_dir()?).await?;
                 self.state.conversation_id = Some(conversation_id.clone());
 
                 Ok(conversation_id)
