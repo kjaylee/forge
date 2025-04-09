@@ -8,12 +8,13 @@ import { useInviteCode } from "@/hooks/useInviteCode";
 import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { UserButton } from "@/components/UserButton";
+import { useEffect } from "react";
 
 export function InvitationPage() {
     const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
     const { user } = useUser();
     const { isLoading: isCheckingStatus, isWaitlisted, error } = useOnboarding();
-    const { value, onChange, onSubmit, error: inviteError, isLoading } = useInviteCode();
+    const { value, onChange, onSubmit, error: inviteError, isLoading, isRedeemed } = useInviteCode();
     const isDisabled = !value.trim() || isLoading;
 
     if (!isAuthLoaded || isCheckingStatus) {
@@ -40,7 +41,7 @@ export function InvitationPage() {
     }
 
     // Redirect to main app if user is not waitlisted
-    if (!isWaitlisted) {
+    if (!isWaitlisted || isRedeemed) {
         return <Navigate to="/" replace />;
     }
 

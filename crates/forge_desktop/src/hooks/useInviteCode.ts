@@ -5,6 +5,7 @@ export function useInviteCode() {
     const [inviteCode, setInviteCode] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isRedeemed, setIsRedeemed] = useState(false);
     const { getToken } = useAuth();
 
     const handleSubmit = async () => {
@@ -28,6 +29,7 @@ export function useInviteCode() {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.message || `Failed to redeem invite code: ${response.status}`);
             }
+            setIsRedeemed(response.status === 200);
         } catch (err) {
             setSubmitError(err instanceof Error ? err.message : 'Failed to verify invite code');
         } finally {
@@ -37,10 +39,14 @@ export function useInviteCode() {
 
     return {
         value: inviteCode,
-        onChange: (e: React.ChangeEvent<HTMLInputElement>) => setInviteCode(e.target.value),
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+            setInviteCode(e.target.value);
+            setSubmitError(null);
+            setIsRedeemed(false);
+        },
         onSubmit: handleSubmit,
         error: submitError,
         isLoading: isSubmitting,
-
+        isRedeemed,
     };
 }
