@@ -56,6 +56,7 @@
     "dialog": null,
     "fs": {
       "requireLiteralLeadingDot": false
-    }
+    },
+    "path": null
   }
 }

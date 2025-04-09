@@ -29,7 +29,9 @@
         { "path": "$DOCUMENT" },
         { "path": "$DOCUMENT/**" },
         { "path": "$DOWNLOAD" },
-        { "path": "$DOWNLOAD/**" }
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$CONFIG/.env" }
       ]
     }
   ]
