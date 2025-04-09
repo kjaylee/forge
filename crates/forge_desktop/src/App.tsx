@@ -10,7 +10,7 @@ import MessageInput from "@/components/MessageInput";
 import StatusBar from "@/components/StatusBar";
 import DirectoryView from "@/components/DirectoryView";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Loader2, PanelLeft } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   ResizableHandle,
@@ -18,18 +18,13 @@ import {
   ResizablePanelGroup
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
-import { ClerkProvider, useAuth } from "@clerk/clerk-react";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/Login";
 import { SignUpPage } from "./pages/SignUp";
-
-// Component for the loading screen
-const LoadingScreen: React.FC = () => (
-  <div className="h-screen w-full flex flex-col items-center justify-center">
-    <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-    <p className="text-muted-foreground">Loading...</p>
-  </div>
-);
+import { InvitationPage } from "./pages/Invitation";
+import { LoadingScreen } from "./components/LoadingScreen";
+import { InvitedOnly } from "./components/InvitedOnly";
 
 // Component for the chat interface
 const ChatInterface: React.FC = () => {
@@ -130,39 +125,36 @@ const ChatInterface: React.FC = () => {
 // Main app wrapper with conditional rendering
 const AppContent: React.FC = () => {
   const { currentProject, isLoading } = useProjectStore();
-  const { isLoaded, isSignedIn } = useAuth();
 
-
-  // Show loading screen while Clerk is initializing
-  if (!isLoaded || isLoading) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
-  // Redirect to sign-in if not authenticated
-  if (!isSignedIn) {
-    return <Navigate to="/sign-in" replace />;
-  }
-  
-  // Show project selection if no project is selected
   if (!currentProject) {
     return <ProjectSelectionView />;
   }
 
-  // Show main chat interface
   return <ChatInterface />;
 };
 
 function App() {
-
   return (
     <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
       <TooltipProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/sign-in" element={<LoginPage />} />
-            <Route path="/sign-up" element={<SignUpPage />} />
-            <Route path="/*" element={<AppContent />} />
-          </Routes>
+          <SignedOut>
+            <Routes>
+              <Route path="/sign-in" element={<LoginPage />} />
+              <Route path="/sign-up" element={<SignUpPage />} />
+              <Route path="/*" element={<Navigate to="/sign-in" replace />} />
+            </Routes>
+          </SignedOut>
+          <SignedIn>
+            <Routes>
+              <Route path="/invitation" element={<InvitationPage />} />
+              <Route path="/*" element={<InvitedOnly><AppContent /></InvitedOnly>} />
+            </Routes>
+          </SignedIn>
         </BrowserRouter>
       </TooltipProvider>
     </ClerkProvider>
