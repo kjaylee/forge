@@ -1,6 +1,7 @@
 use std::path::PathBuf;
+
 use tauri::plugin::{Builder, TauriPlugin};
-use tauri::{Runtime};
+use tauri::Runtime;
 
 #[tauri::command]
 async fn get_home_dir() -> Result<Option<String>, String> {

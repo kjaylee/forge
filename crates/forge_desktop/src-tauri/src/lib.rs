@@ -18,10 +18,8 @@ pub fn run() {
         ];
 
         for path in env_paths {
-            if path.exists() {
-                if let Ok(loaded) = dotenv::from_path(&path) {
-                    break;
-                }
+            if path.exists() && dotenv::from_path(&path).is_ok() {
+                break;
             }
         }
     }

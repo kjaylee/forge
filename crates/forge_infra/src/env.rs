@@ -37,7 +37,8 @@ impl ForgeEnvironmentService {
     /// Resolves the provider key and provider from environment variables
     ///
     /// Returns a tuple of (provider_key, provider)
-    /// Returns a default provider if no API key is found in the environment instead of panicking
+    /// Returns a default provider if no API key is found in the environment
+    /// instead of panicking
     fn resolve_provider(&self) -> Provider {
         let keys: [ProviderSearch; 4] = [
             ("FORGE_KEY", Box::new(Provider::antinomy)),
@@ -73,13 +74,15 @@ impl ForgeEnvironmentService {
                 // Instead of panicking, return a default provider
                 // In a desktop app context, we should show a UI for entering keys
                 // FIXME: Handle this more gracefully in the future
-                eprintln!("No API key found in environment variables. Expected one of: {}", env_variables);
+                eprintln!(
+                    "No API key found in environment variables. Expected one of: {}",
+                    env_variables
+                );
                 eprintln!("Using default OpenAI provider. Please set API keys in environment.");
-                
+
                 // Return a default provider with empty key - this will fail on API calls
                 // but won't crash the application startup
-                let default_provider = Provider::openai("");
-                default_provider
+                Provider::openai("")
             })
     }
 
@@ -125,7 +128,7 @@ impl ForgeEnvironmentService {
     fn get(&self) -> Environment {
         // Environment loading is now done at application startup
         // to avoid needing permissions to access the filesystem for dotenv
-        
+
         // Use the custom cwd if set, otherwise use the current directory
         let cwd = {
             let custom_cwd = self.current_cwd.lock().unwrap();
