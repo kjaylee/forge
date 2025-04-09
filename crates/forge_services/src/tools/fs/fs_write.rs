@@ -128,15 +128,29 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
 
         // Use the formatted path for display
         let formatted_path = self.format_display_path(path)?;
+        let path_buffer = PathBuf::from(formatted_path.clone());
+        
         let diff = DiffFormat::format(
             title,
-            PathBuf::from(formatted_path),
+            path_buffer.clone(),
             &old_content,
             &new_content,
         );
         println!("{}", diff);
 
-        Ok(result)
+        // Generate diff in JSON format for UI rendering
+        let json_diff = DiffFormat::format_json(
+            title,
+            path_buffer,
+            &old_content,
+            &new_content,
+        );
+        
+        // Return the formatted JSON as the result
+        return Ok(serde_json::to_string(&json_diff).unwrap_or_else(|_| {
+            // Fallback to regular output if JSON serialization fails
+            format!("Successfully wrote {} bytes to {}", input.content.len(), input.path)
+        }));
     }
 }
 

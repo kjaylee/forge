@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, AlertCircle, CheckCircle, ClipboardCopy } from "lucide-react";
+import { ChevronDown, ChevronUp, AlertCircle, CheckCircle, ClipboardCopy, Diff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { tryParseDiffJson, isDiffContent, DiffJsonData } from '@/lib/diffUtils';
+import { useChangesStore } from '@/stores/ChangesStore';
+import { SideBySideDiff } from './SideBySideDiff';
+import { DiffModalView } from '../DiffModalView';
 
 interface ToolResultDisplayProps {
   toolCall: {
@@ -15,6 +19,31 @@ interface ToolResultDisplayProps {
 
 export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({ toolCall }) => {
   const [expanded, setExpanded] = useState(false);
+  const [isDiff, setIsDiff] = useState(false);
+  const [diffData, setDiffData] = useState<DiffJsonData | null>(null);
+  const [showDiffModal, setShowDiffModal] = useState(false);
+  
+  const addChangeFromToolResult = useChangesStore(state => state.addChangeFromToolResult);
+  
+  // Check if the result is a diff when the component mounts or when the result changes
+  useEffect(() => {
+    if (toolCall.result) {
+      const jsonDiff = tryParseDiffJson(toolCall.result);
+      if (jsonDiff) {
+        setIsDiff(true);
+        setDiffData(jsonDiff);
+        addChangeFromToolResult(toolCall.name, toolCall.result);
+      } else if (isDiffContent(toolCall.result)) {
+        setIsDiff(true);
+      } else {
+        setIsDiff(false);
+        setDiffData(null);
+      }
+    } else {
+      setIsDiff(false);
+      setDiffData(null);
+    }
+  }, [toolCall.result, addChangeFromToolResult, toolCall.name]);
   
   // Format the tool name for display
   const displayName = toolCall.name
@@ -88,20 +117,53 @@ export const ToolResultDisplay: React.FC<ToolResultDisplayProps> = ({ toolCall }
           
           {toolCall.result && (
             <div className="mt-2">
-              <span className="text-xs font-medium">Result:</span>
-              <div className="relative mt-1">
-                <pre className="bg-muted rounded-md p-3 font-mono text-xs overflow-x-auto whitespace-pre">
-                  {toolCall.result}
-                </pre>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="absolute top-1 right-1 h-6 w-6 opacity-80 hover:opacity-100"
-                  onClick={() => handleCopy(toolCall.result || "")}
-                >
-                  <ClipboardCopy className="h-3 w-3" />
-                </Button>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium">Result:</span>
+                {isDiff && diffData && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="h-6 text-xs flex items-center gap-1"
+                    onClick={() => setShowDiffModal(true)}
+                  >
+                    <Diff className="h-3 w-3" />
+                    View Diff
+                  </Button>
+                )}
               </div>
+              
+              {isDiff && diffData && diffData.has_changes ? (
+                <div className="mt-2">
+                  <SideBySideDiff 
+                    diffData={diffData}
+                    compact={true}
+                    onExpandClick={() => setShowDiffModal(true)}
+                  />
+                </div>
+              ) : (
+                <div className="relative mt-1">
+                  <pre className="bg-muted rounded-md p-3 font-mono text-xs overflow-x-auto whitespace-pre">
+                    {toolCall.result}
+                  </pre>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="absolute top-1 right-1 h-6 w-6 opacity-80 hover:opacity-100"
+                    onClick={() => handleCopy(toolCall.result || "")}
+                  >
+                    <ClipboardCopy className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* Diff Modal */}
+              {diffData && (
+                <DiffModalView
+                  open={showDiffModal}
+                  onOpenChange={setShowDiffModal}
+                  diffData={diffData}
+                />
+              )}
             </div>
           )}
         </div>

@@ -1552,6 +1552,7 @@ dependencies = [
  "insta",
  "pretty_assertions",
  "regex",
+ "serde",
  "similar",
  "strip-ansi-escapes",
 ]
