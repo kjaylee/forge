@@ -20,9 +20,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { LoginPage } from "./pages/Login";
-import { SignUpPage } from "./pages/SignUp";
-import { InvitationPage } from "./pages/Invitation";
+import { LoginPage } from "./components/Login";
+import { SignUpPage } from "./components/SignUp";
+import { InvitationPage } from "./components/Invitation";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { InvitedOnly } from "./components/InvitedOnly";
 

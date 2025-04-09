@@ -1,5 +1,5 @@
 import { SignUp } from "@clerk/clerk-react";
-import { CardContent } from "../components/ui/card";
+import { CardContent } from "./ui/card";
 
 export function SignUpPage() {
     return (
