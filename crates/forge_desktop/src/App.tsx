@@ -157,8 +157,8 @@ function App() {
           </SignedOut>
           <SignedIn>
             <Routes>
-              <Route path="/invitation" element={<InvitationPage />} />
               <Route path="/*" element={<InvitedOnly><AppContent /></InvitedOnly>} />
+              <Route path="/invitation" element={<InvitationPage />} />
             </Routes>
           </SignedIn>
         </BrowserRouter>
