@@ -139,6 +139,22 @@ fn generate() {
                 .pull_requests(Level::Write),
         )
         .add_step(Step::uses("actions", "checkout", "v4"))
+        // Install GTK/GLib dependencies on Linux
+        .add_step(
+            Step::run(apt_get_install(&[
+                "libwebkit2gtk-4.0-dev",
+                "build-essential",
+                "curl",
+                "wget",
+                "file",
+                "libssl-dev",
+                "libgtk-3-dev",
+                "libayatana-appindicator3-dev",
+                "librsvg2-dev",
+            ]))
+            .if_condition(Expression::new("matrix.os == 'ubuntu-latest'"))
+            .name("Install Tauri dependencies"),
+        )
         // Install Rust with cross-compilation target
         .add_step(
             Step::uses("taiki-e", "setup-cross-toolchain-action", "v1")
@@ -290,6 +306,7 @@ fn generate() {
 
     workflow.generate().unwrap();
 }
+
 #[test]
 fn test_apt_get_install() {
     let packages = &["pkg1", "pkg2", "pkg3"];

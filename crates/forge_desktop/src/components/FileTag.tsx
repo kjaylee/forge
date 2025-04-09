@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface FileTagProps {
   filePath: string;
   onRemove: () => void;
+  inline?: boolean;
 }
 
 // Helper function to get basename from a path (replaces path.basename functionality)

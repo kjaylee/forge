@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, useRef, DragEvent } from 'react';
+import React, { useState, FormEvent, DragEvent } from 'react';
 import { useForgeStore } from '@/stores/ForgeStore';
 import { Card, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,8 @@ const MessageInput: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const { sendMessage, cancelStream, isLoading, taggedFiles, addTaggedFile, removeTaggedFile, setTaggedFiles } = useForgeStore();
   
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: FormEvent) => {
+    if (e) e.preventDefault();
     if ((message.trim() || taggedFiles.length > 0) && !isLoading) {
       await sendMessage(message);
       setMessage('');

@@ -1,6 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import React from 'react';
 import { X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -92,7 +91,7 @@ const FileTagNode = Node.create<{ onRemove?: (filePath: string) => void }>({
   },
   
   addNodeView() {
-    return ReactNodeViewRenderer((props) => {
+    return ReactNodeViewRenderer((props: any) => {
       return (
         <FileTagComponent
           node={props.node}

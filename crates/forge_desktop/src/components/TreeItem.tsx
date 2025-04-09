@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import { FileSystemEntry, useDirectoryStore } from '@/stores/DirectoryStore';
 import { cn } from '@/lib/utils';
-import { useForgeStore } from '@/stores/ForgeStore';
 
 interface TreeItemProps {
   item: FileSystemEntry;
@@ -43,7 +42,6 @@ const getFileIcon = (filename: string) => {
 
 const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
   const { expandedPaths, toggleExpandPath } = useDirectoryStore();
-  const { addTaggedFile } = useForgeStore();
   
   const isExpanded = item.is_directory && expandedPaths.has(item.path);
   const hasChildren = item.children && item.children.length > 0;
