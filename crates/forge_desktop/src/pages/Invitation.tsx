@@ -8,7 +8,6 @@ import { useInviteCode } from "@/hooks/useInviteCode";
 import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { UserButton } from "@/components/UserButton";
-import { useEffect } from "react";
 
 export function InvitationPage() {
     const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
