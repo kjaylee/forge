@@ -1,12 +1,36 @@
 mod commands;
+mod plugins;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Try to load environment variables before starting the app
+    if let Ok(loaded) = dotenv::dotenv() {
+        println!("Loaded environment from: {}", loaded.display());
+    }
+
+    // Try loading from home directory if default fails
+    if let Some(home_dir) = dirs::home_dir() {
+        let env_paths = vec![
+            home_dir.join(".env"),
+            home_dir.join(".forge").join(".env"),
+            home_dir.join(".config").join("forge").join(".env"),
+        ];
+
+        for path in env_paths {
+            if path.exists() {
+                if let Ok(loaded) = dotenv::from_path(&path) {
+                    break;
+                }
+            }
+        }
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(plugins::init_path())
         .invoke_handler(tauri::generate_handler![
             commands::init_conversation,
             commands::load_workflow,
