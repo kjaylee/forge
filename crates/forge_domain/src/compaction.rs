@@ -177,16 +177,9 @@ impl<S: Services> ContextCompactor<S> {
     }
 }
 
-/// Finds a sequence in the context for compaction, starting from the first assistant message
-/// and including all messages up to the last possible message (respecting preservation window)
-///
-/// NOTE: This is an updated version of the compaction logic. The previous compaction logic only
-/// considered sequences of assistant messages. The new logic finds a sequence that starts from the
-/// first assistant message and includes all messages (both user and assistant) up to the last
-/// possible message (respecting the preservation window).
-///
-/// Some older tests may fail with this new logic, as they were designed for the previous behavior.
-/// New tests have been added specifically for this updated logic (see test_conversation_compaction_from_first_assistant_to_last).
+/// Finds a sequence in the context for compaction, starting from the first
+/// assistant message and including all messages up to the last possible message
+/// (respecting preservation window)
 fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, usize)> {
     let messages = &context.messages;
     if messages.is_empty() {
@@ -209,7 +202,8 @@ fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, us
     }
 
     // Calculate the end index based on preservation window
-    // If we need to preserve all or more messages than we have, there's nothing to compact
+    // If we need to preserve all or more messages than we have, there's nothing to
+    // compact
     if preserve_last_n >= length {
         return None;
     }
@@ -250,12 +244,8 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::{tool_result, ToolCallFull, ToolCallId, ToolName, ToolResult};
+    use crate::{ToolCallFull, ToolCallId, ToolName, ToolResult};
 
-    trait LLMMessage {
-        fn has_role(&self, role: &Role) -> bool;
-    }
-    
     #[test]
     fn test_identify_first_compressible_sequence() {
         // Create a context with a sequence of assistant messages
@@ -333,7 +323,8 @@ mod tests {
             ))
             .add_message(ContextMessage::user("User message 2"));
 
-        // With the updated logic, the sequence is from index 2 to index 4 (all messages from first assistant)
+        // With the updated logic, the sequence is from index 2 to index 4 (all messages
+        // from first assistant)
         let sequence = find_sequence(&context, 0);
 
         let (start, end) = sequence.unwrap();
@@ -369,8 +360,8 @@ mod tests {
             .add_message(ContextMessage::assistant("Another assistant message", None))
             .add_message(ContextMessage::user("User message 2"));
 
-        // With the updated logic, we include all messages from the first assistant (index 2)
-        // through to the end (index 6)
+        // With the updated logic, we include all messages from the first assistant
+        // (index 2) through to the end (index 6)
         let sequence = find_sequence(&context, 0);
 
         let (start, end) = sequence.unwrap();
@@ -466,12 +457,14 @@ mod tests {
             .add_message(ContextMessage::tool_result(tool_result2))
             .add_message(ContextMessage::user("User message 2"));
 
-        // With the updated logic, we include all messages from first assistant through the end
+        // With the updated logic, we include all messages from first assistant through
+        // the end
         let sequence = find_sequence(&context, 0);
 
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 1); // First assistant message
-        assert_eq!(end, 6); // Last message in context excluding the preservation window
+        assert_eq!(end, 6); // Last message in context excluding the
+                            // preservation window
     }
 
     #[test]
@@ -491,15 +484,16 @@ mod tests {
             .add_message(ContextMessage::tool_result(tool_result2))
             .add_message(ContextMessage::user("User message 2"));
 
-        // With the updated logic, tool results by themselves are not valid for compaction
-        // since they don't start with an assistant message
+        // With the updated logic, tool results by themselves are not valid for
+        // compaction since they don't start with an assistant message
         let sequence = find_sequence(&context, 0);
         assert!(sequence.is_none());
     }
 
     #[test]
     fn test_mixed_assistant_and_single_tool() {
-        // Create a context with an assistant message and a tool result that are not directly connected
+        // Create a context with an assistant message and a tool result that are not
+        // directly connected
         let tool_call = ToolCallFull {
             name: ToolName::new("tool_forge_fs_read"),
             call_id: Some(ToolCallId::new("call_123")),
@@ -520,8 +514,9 @@ mod tests {
             .add_message(ContextMessage::tool_result(tool_result)) // 3
             .add_message(ContextMessage::user("User message 2")); // 4
 
-        // With the updated compaction logic, we need 2+ messages after the first assistant message
-        // This test has 4 messages after the first assistant message (indices 1-4)
+        // With the updated compaction logic, we need 2+ messages after the first
+        // assistant message This test has 4 messages after the first assistant
+        // message (indices 1-4)
         let sequence = find_sequence(&context, 0);
 
         let (start, end) = sequence.unwrap();
@@ -585,8 +580,8 @@ mod tests {
         assert_eq!(start, 2); // First assistant message
         assert_eq!(end, 6); // Last message
 
-        // With preserve_last_n = 2, we should preserve the last 2 messages (indices 5-6)
-        // So we would compact from first assistant (index 2) to index 4
+        // With preserve_last_n = 2, we should preserve the last 2 messages (indices
+        // 5-6) So we would compact from first assistant (index 2) to index 4
         let sequence = find_sequence(&context, 2);
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
@@ -651,7 +646,8 @@ mod tests {
 
     #[test]
     fn test_conversation_compaction_from_first_assistant_to_last() {
-        // Create a context with a mixed conversation including user and assistant messages
+        // Create a context with a mixed conversation including user and assistant
+        // messages
         let context = Context::default()
             .add_message(ContextMessage::system("System message")) // 0
             .add_message(ContextMessage::user("Initial user request")) // 1
@@ -663,22 +659,22 @@ mod tests {
             .add_message(ContextMessage::user("Final user question")) // 7
             .add_message(ContextMessage::assistant("Assistant response 4", None)); // 8
 
-        // With no preservation, we should compact from the first assistant message (index 2)
-        // to the last message (index 8)
+        // With no preservation, we should compact from the first assistant message
+        // (index 2) to the last message (index 8)
         let sequence = find_sequence(&context, 0);
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
         assert_eq!(end, 8);
 
-        // With preserve_last_n = 2, we should preserve the last 2 messages (indices 7-8)
-        // So we should compact from index 2 to index 6
+        // With preserve_last_n = 2, we should preserve the last 2 messages (indices
+        // 7-8) So we should compact from index 2 to index 6
         let sequence = find_sequence(&context, 2);
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
         assert_eq!(end, 6);
 
-        // With preserve_last_n = 6, we should preserve the last 6 messages (indices 3-8)
-        // So we would compact from first assistant (index 2) to index 2,
+        // With preserve_last_n = 6, we should preserve the last 6 messages (indices
+        // 3-8) So we would compact from first assistant (index 2) to index 2,
         // but since that's just one message, no effective sequence is found
         let sequence = find_sequence(&context, 6);
         // With the updated logic, we still get a valid compaction sequence
@@ -688,8 +684,8 @@ mod tests {
 
     #[test]
     fn test_conversation_with_mixed_message_types() {
-        // Create a context with a mixed conversation including user messages, assistant messages,
-        // tool calls, and tool results
+        // Create a context with a mixed conversation including user messages, assistant
+        // messages, tool calls, and tool results
         let tool_call = ToolCallFull {
             name: ToolName::new("tool_forge_fs_read"),
             call_id: Some(ToolCallId::new("call_123")),
@@ -717,15 +713,15 @@ mod tests {
             )) // 7
             .add_message(ContextMessage::tool_result(tool_result.clone())); // 8
 
-        // With no preservation, we should compact from the first assistant message (index 2)
-        // to the last message (index 8)
+        // With no preservation, we should compact from the first assistant message
+        // (index 2) to the last message (index 8)
         let sequence = find_sequence(&context, 0);
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
         assert_eq!(end, 8);
 
-        // With preserve_last_n = 3, we should preserve the last 3 messages (indices 6-8)
-        // So we should compact from index 2 to index 5
+        // With preserve_last_n = 3, we should preserve the last 3 messages (indices
+        // 6-8) So we should compact from index 2 to index 5
         let sequence = find_sequence(&context, 3);
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
@@ -734,7 +730,8 @@ mod tests {
 
     #[test]
     fn test_first_message_is_assistant() {
-        // Test case where the first message is from the assistant (after system message)
+        // Test case where the first message is from the assistant (after system
+        // message)
         let context = Context::default()
             .add_message(ContextMessage::system("System message")) // 0
             .add_message(ContextMessage::assistant("First assistant message", None)) // 1
@@ -767,8 +764,8 @@ mod tests {
                 Some(vec![tool_call.clone()]),
             )); // 4
 
-        // With no preservation, we should get a compaction range but exclude the tool call message
-        // since it wouldn't have a corresponding tool result
+        // With no preservation, we should get a compaction range but exclude the tool
+        // call message since it wouldn't have a corresponding tool result
         let sequence = find_sequence(&context, 0);
         let (start, end) = sequence.unwrap();
         assert_eq!(start, 2);
