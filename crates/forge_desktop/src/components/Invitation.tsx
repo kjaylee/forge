@@ -7,7 +7,7 @@ import { useOnboarding } from "@/hooks/useOnboarding";
 import { useInviteCode } from "@/hooks/useInviteCode";
 import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { UserButton } from "@/components/UserButton";
+import { UserButton } from "@clerk/clerk-react";
 
 export function InvitationPage() {
     const { user, isSignedIn, isLoaded: isAuthLoaded } = useUser();

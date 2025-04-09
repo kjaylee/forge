@@ -4,7 +4,7 @@ import ProjectSwitcher from '@/components/ProjectSwitcher';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PlusCircle, Download, Settings2 } from "lucide-react";
-import { UserButton } from './UserButton';
+import { UserButton } from '@clerk/clerk-react';
 
 const ConversationHeader: React.FC = () => {
   const { conversationTitle, newConversation, exportConversation } = useForgeStore();
