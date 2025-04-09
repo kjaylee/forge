@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, FormEvent } from 'react';
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Node } from '@tiptap/pm/model';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 interface TipTapEditorProps {
   content: string;
   onChange: (text: string) => void;
-  onSubmit: () => void;
+  onSubmit: (e?: FormEvent) => void | Promise<void>;
   taggedFiles: string[];
   onRemoveFile: (index: number) => void;
   onFileDrop: (path: string) => void;
@@ -27,6 +27,7 @@ const SubmitExtension = Extension.create({
   
   addProseMirrorPlugins() {
     const onSubmit = this.options.onSubmit;
+    const removeLastTag = this.options.removeLastTag;
     
     return [
       new Plugin({
@@ -41,7 +42,6 @@ const SubmitExtension = Extension.create({
             
             // Handle Backspace key to remove the last tag when at the beginning of an empty document
             if (event.key === 'Backspace' && view.state.doc.textContent === '' && view.state.doc.childCount === 1) {
-              const { removeLastTag } = this.options;
               if (removeLastTag) {
                 removeLastTag();
                 return true;
@@ -75,7 +75,7 @@ const FileDropExtension = Extension.create({
         key: new PluginKey('fileDrop'),
         props: {
           handleDOMEvents: {
-            dragover(view, event) {
+            dragover(_, event) {
               // Make sure we can handle this drop
               if (event.dataTransfer && event.dataTransfer.types.includes('text/plain')) {
                 event.preventDefault();
@@ -83,7 +83,7 @@ const FileDropExtension = Extension.create({
               }
               return false;
             },
-            drop(view, event) {
+            drop(_, event) {
               // Stop propagation to allow for our own handling
               event.stopPropagation();
               
@@ -133,7 +133,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         codeBlock: false,
       }),
       FileTagNode.configure({
-        onRemove: (filePath) => {
+        onRemove: () => {
           // When a file tag is removed from the editor,
           // we need to update the store state
           if (setTaggedFiles && editor) {
