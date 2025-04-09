@@ -10,7 +10,7 @@
     "opener:default",
     "dialog:default",
     "fs:default",
-    "core:path:default", 
+    "core:path:default",
     "fs:allow-read-file",
     "fs:allow-write-file",
     "fs:allow-read-dir",
@@ -29,7 +29,9 @@
         { "path": "$DOCUMENT" },
         { "path": "$DOCUMENT/**" },
         { "path": "$DOWNLOAD" },
-        { "path": "$DOWNLOAD/**" }
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$CONFIG/.env" }
       ]
     }
   ]
