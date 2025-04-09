@@ -8,8 +8,6 @@ export function SignUpPage() {
                 <SignUp
                     routing="path"
                     path="/sign-up"
-                    signInUrl="/sign-in"
-                    forceRedirectUrl="/"
                 />
             </CardContent>
         </div>

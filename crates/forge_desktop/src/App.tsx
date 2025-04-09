@@ -139,7 +139,13 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider
+      afterSignOutUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInUrl="/sign-in"
+      signInForceRedirectUrl="/"
+      signUpForceRedirectUrl="/"
+      publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
       <TooltipProvider>
         <BrowserRouter>
           <SignedOut>
