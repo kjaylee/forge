@@ -3,6 +3,19 @@ use gh_workflow_tailcall::*;
 use indexmap::indexmap;
 use serde_json::json;
 
+/// Tauri dependencies needed for Linux builds
+const TAURI_DEPENDENCIES: &[&str] = &[
+    "libwebkit2gtk-4.0-dev",
+    "build-essential",
+    "curl",
+    "wget",
+    "file",
+    "libssl-dev",
+    "libgtk-3-dev",
+    "libayatana-appindicator3-dev",
+    "librsvg2-dev",
+];
+
 /// Helper function to generate an apt-get install command for multiple packages
 ///
 /// # Examples
@@ -24,6 +37,9 @@ fn apt_get_install(packages: &[&str]) -> String {
 #[test]
 fn generate() {
     let mut workflow = StandardWorkflow::default()
+        .add_setup(
+            Step::run(apt_get_install(TAURI_DEPENDENCIES)).name("Install Tauri dependencies"),
+        )
         .auto_fix(true)
         .to_ci_workflow()
         .concurrency(Concurrency {
@@ -141,19 +157,9 @@ fn generate() {
         .add_step(Step::uses("actions", "checkout", "v4"))
         // Install GTK/GLib dependencies on Linux
         .add_step(
-            Step::run(apt_get_install(&[
-                "libwebkit2gtk-4.0-dev",
-                "build-essential",
-                "curl",
-                "wget",
-                "file",
-                "libssl-dev",
-                "libgtk-3-dev",
-                "libayatana-appindicator3-dev",
-                "librsvg2-dev",
-            ]))
-            .if_condition(Expression::new("matrix.os == 'ubuntu-latest'"))
-            .name("Install Tauri dependencies"),
+            Step::run(apt_get_install(TAURI_DEPENDENCIES))
+                .if_condition(Expression::new("matrix.os == 'ubuntu-latest'"))
+                .name("Install Tauri dependencies"),
         )
         // Install Rust with cross-compilation target
         .add_step(
