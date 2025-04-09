@@ -12,12 +12,16 @@ import DirectoryView from "@/components/DirectoryView";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2, PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { 
-  ResizableHandle, 
-  ResizablePanel, 
-  ResizablePanelGroup 
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
+import { ClerkProvider, useAuth } from "@clerk/clerk-react";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { LoginPage } from "./pages/Login";
+import { SignUpPage } from "./pages/SignUp";
 
 // Component for the loading screen
 const LoadingScreen: React.FC = () => (
@@ -35,7 +39,7 @@ const ChatInterface: React.FC = () => {
       forgeStore.setupListeners();
     }
   }, []);
-  
+
   // Initialize sizes from localStorage or use defaults
   const [directorySize, setDirectorySize] = useState(() => {
     return Number(localStorage.getItem('directorySize')) || 20;
@@ -43,7 +47,7 @@ const ChatInterface: React.FC = () => {
   const [toolConsoleSize, setToolConsoleSize] = useState(() => {
     return Number(localStorage.getItem('toolConsoleSize')) || 25;
   });
-  
+
   const { isVisible, toggleVisible } = useDirectoryStore();
 
   // Persist sizes to localStorage
@@ -60,7 +64,7 @@ const ChatInterface: React.FC = () => {
       <div className="sticky top-0 z-10">
         <ConversationHeader />
       </div>
-      
+
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         {/* Directory Panel - Only shown when visible */}
         {isVisible && (
@@ -77,7 +81,7 @@ const ChatInterface: React.FC = () => {
             <ResizableHandle withHandle />
           </>
         )}
-        
+
         {/* Main Content Panel - Flexes to fill remaining space */}
         <ResizablePanel
           defaultSize={isVisible ? 100 - directorySize - toolConsoleSize : 100 - toolConsoleSize}
@@ -103,9 +107,9 @@ const ChatInterface: React.FC = () => {
             <MessageInput />
           </div>
         </ResizablePanel>
-        
+
         <ResizableHandle withHandle />
-        
+
         {/* Tool Console Panel - Maintains fixed size */}
         <ResizablePanel
           defaultSize={toolConsoleSize}
@@ -117,7 +121,7 @@ const ChatInterface: React.FC = () => {
           <ToolConsoleView />
         </ResizablePanel>
       </ResizablePanelGroup>
-      
+
       <StatusBar />
     </div>
   );
@@ -126,23 +130,42 @@ const ChatInterface: React.FC = () => {
 // Main app wrapper with conditional rendering
 const AppContent: React.FC = () => {
   const { currentProject, isLoading } = useProjectStore();
-  
-  if (isLoading) {
+  const { isLoaded, isSignedIn } = useAuth();
+
+
+  // Show loading screen while Clerk is initializing
+  if (!isLoaded || isLoading) {
     return <LoadingScreen />;
   }
+
+  // Redirect to sign-in if not authenticated
+  if (!isSignedIn) {
+    return <Navigate to="/sign-in" replace />;
+  }
   
+  // Show project selection if no project is selected
   if (!currentProject) {
     return <ProjectSelectionView />;
   }
-  
+
+  // Show main chat interface
   return <ChatInterface />;
 };
 
 function App() {
+
   return (
-    <TooltipProvider>
-      <AppContent />
-    </TooltipProvider>
+    <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+      <TooltipProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/sign-in" element={<LoginPage />} />
+            <Route path="/sign-up" element={<SignUpPage />} />
+            <Route path="/*" element={<AppContent />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ClerkProvider>
   );
 }
 

@@ -4,6 +4,7 @@ import ProjectSwitcher from '@/components/ProjectSwitcher';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { PlusCircle, Download, Settings2 } from "lucide-react";
+import { UserButton } from './UserButton';
 
 const ConversationHeader: React.FC = () => {
   const { conversationTitle, newConversation, exportConversation } = useForgeStore();
@@ -62,6 +63,9 @@ const ConversationHeader: React.FC = () => {
             >
               <Settings2 className="h-4 w-4" />
             </Button>
+            <div className="ml-2 flex items-center">
+              <UserButton />
+            </div>
           </div>
         </div>
       </CardHeader>
