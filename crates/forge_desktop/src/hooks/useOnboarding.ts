@@ -48,6 +48,5 @@ export function useOnboarding() {
     isLoading,
     error,
     isWaitlisted: status === 'WAITLISTED',
-    isActive: status === 'ACTIVE',
   };
 } 

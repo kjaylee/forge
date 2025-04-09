@@ -1,4 +1,4 @@
-import { useAuth, useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,7 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 import { UserButton } from "@/components/UserButton";
 
 export function InvitationPage() {
-    const { isLoaded: isAuthLoaded, isSignedIn } = useAuth();
-    const { user } = useUser();
+    const { user, isSignedIn, isLoaded: isAuthLoaded } = useUser();
     const { isLoading: isCheckingStatus, isWaitlisted, error } = useOnboarding();
     const { value, onChange, onSubmit, error: inviteError, isLoading, isRedeemed } = useInviteCode();
     const isDisabled = !value.trim() || isLoading;
