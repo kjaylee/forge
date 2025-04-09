@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 interface TipTapEditorProps {
   content: string;
   onChange: (text: string) => void;
-  onSubmit: (e?: FormEvent) => Promise<void>;
+  onSubmit: (e?: FormEvent) => void | Promise<void>;
   taggedFiles: string[];
   onRemoveFile: (index: number) => void;
   onFileDrop: (path: string) => void;
@@ -27,6 +27,7 @@ const SubmitExtension = Extension.create({
   
   addProseMirrorPlugins() {
     const onSubmit = this.options.onSubmit;
+    const removeLastTag = this.options.removeLastTag;
     
     return [
       new Plugin({
@@ -66,7 +67,7 @@ const FileDropExtension = Extension.create({
         key: new PluginKey('fileDrop'),
         props: {
           handleDOMEvents: {
-            dragover(_view, event) {
+            dragover(_, event) {
               // Make sure we can handle this drop
               if (event.dataTransfer && event.dataTransfer.types.includes('text/plain')) {
                 event.preventDefault();
@@ -74,7 +75,7 @@ const FileDropExtension = Extension.create({
               }
               return false;
             },
-            drop(_view, event) {
+            drop(_, event) {
               // Stop propagation to allow for our own handling
               event.stopPropagation();
               
@@ -124,7 +125,7 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         codeBlock: false,
       }),
       FileTagNode.configure({
-        onRemove: (_filePath) => {
+        onRemove: () => {
           // When a file tag is removed from the editor,
           // we need to update the store state
           if (setTaggedFiles && editor) {

@@ -9,6 +9,7 @@
     "core:default",
     "opener:default",
     "dialog:default",
+    "fs:default",
     "core:path:default", 
     "fs:allow-read-file",
     "fs:allow-write-file",
@@ -20,7 +21,18 @@
     "fs:allow-rename",
     {
       "identifier": "fs:scope",
-      "allow": [{ "path": "$APPDATA" }, { "path": "$APPDATA/**" }]
+      "allow": [
+        { "path": "$APPDATA" }, 
+        { "path": "$APPDATA/**" },
+        { "path": "$HOME" },
+        { "path": "$HOME/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$CONFIG/**" },
+        { "path": "$CONFIG/.env" }
+      ]
     }
   ]
 }
