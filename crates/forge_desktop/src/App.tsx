@@ -153,7 +153,8 @@ const AppContent: React.FC = () => {
 
 // Wrap the Clerk provider with theme awareness
 const ThemedClerkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { theme } = useTheme();
+  const { theme, resolvedTheme, forcedTheme } = useTheme();
+  const currentTheme = theme || resolvedTheme || forcedTheme;
 
   return (
     <ClerkProvider
@@ -163,7 +164,7 @@ const ThemedClerkProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signInForceRedirectUrl="/"
       signUpForceRedirectUrl="/"
       appearance={{
-        baseTheme: theme === "dark" ? dark : undefined,
+        baseTheme: currentTheme === "dark" ? dark : undefined,
       }}
       publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
       {children}
