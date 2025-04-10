@@ -849,9 +849,9 @@ pub async fn get_directory_structure(
         .to_string();
 
     // Using forge_walker to get files with gitignore respect
-    let walker = Walker::min_all()
+    let walker = Walker::max_all()
         .cwd(path_buf.clone())
-        .max_depth(depth.unwrap_or(5) as usize) // Default depth 5
+        .max_depth(depth.unwrap_or(1024) as usize) // Default depth 5
         .max_breadth(1000) // Allow up to 1000 files per directory
         .skip_binary(false); // We want to show all files in the directory view
 
