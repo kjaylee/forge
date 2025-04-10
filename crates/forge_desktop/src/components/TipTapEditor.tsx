@@ -1,10 +1,10 @@
-import React, { useEffect, FormEvent } from 'react';
-import { useEditor, EditorContent, Extension } from '@tiptap/react';
+import { useEffect, FormEvent, useState, forwardRef, useImperativeHandle } from 'react';
+import { useEditor, EditorContent, Extension, Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Node } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { FileTagAttrs } from './FileTagNode';
-import FileTagNode from './FileTagNode';
+import FileTagNode, { FileTagPasteHandler } from './FileTagNode';
 import { cn } from '@/lib/utils';
 
 interface TipTapEditorProps {
@@ -21,13 +21,17 @@ interface TipTapEditorProps {
   setTaggedFiles?: (files: string[]) => void;
 }
 
+interface SubmitExtensionOptions {
+  onSubmit: () => void;
+  removeLastTag: () => void;
+}
+
 // Create SubmitExtension to handle Enter for submission
-const SubmitExtension = Extension.create({
+const SubmitExtension = Extension.create<SubmitExtensionOptions>({
   name: 'submitExtension',
   
   addProseMirrorPlugins() {
     const onSubmit = this.options.onSubmit;
-    const removeLastTag = this.options.removeLastTag;
     
     return [
       new Plugin({
@@ -36,10 +40,14 @@ const SubmitExtension = Extension.create({
           handleKeyDown(_view, event) {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
-              if (onSubmit) onSubmit();
+              if (onSubmit) {
+                // Use a timeout to ensure the event completes before submission
+                setTimeout(() => {
+                  onSubmit();
+                }, 10);
+              }
               return true;
             }
-            
             return false;
           }
         }
@@ -55,8 +63,12 @@ const SubmitExtension = Extension.create({
   }
 });
 
+interface FileDropExtensionOptions {
+  onFileDrop: (path: string) => void;
+}
+
 // Create extension to handle file dropping
-const FileDropExtension = Extension.create({
+const FileDropExtension = Extension.create<FileDropExtensionOptions>({
   name: 'fileDrop',
   
   addProseMirrorPlugins() {
@@ -67,7 +79,7 @@ const FileDropExtension = Extension.create({
         key: new PluginKey('fileDrop'),
         props: {
           handleDOMEvents: {
-            dragover(_, event) {
+            dragover(_view, event) {
               // Make sure we can handle this drop
               if (event.dataTransfer && event.dataTransfer.types.includes('text/plain')) {
                 event.preventDefault();
@@ -102,19 +114,93 @@ const FileDropExtension = Extension.create({
   }
 });
 
-const TipTapEditor: React.FC<TipTapEditorProps> = ({
-  content,
-  onChange,
-  onSubmit,
-  taggedFiles,
-  onRemoveFile,
-  onFileDrop,
-  disabled = false,
-  isDragging,
-  placeholder = 'Type a message or drop files here...',
-  className,
-  setTaggedFiles
-}) => {
+interface PasteHandlerExtensionOptions {
+  onPaste: () => void;
+}
+
+// Create extension specifically for handling paste events
+const PasteHandlerExtension = Extension.create<PasteHandlerExtensionOptions>({
+  name: 'pasteHandler',
+
+  addProseMirrorPlugins() {
+    const onPaste = this.options.onPaste;
+
+    return [
+      new Plugin({
+        key: new PluginKey('pasteHandler'),
+        props: {
+          // Use handleDOMEvents instead of handlePaste to avoid interfering with cursor positioning
+          handleDOMEvents: {
+            paste(_view, _event) {
+              if (onPaste) {
+                // Call the paste handler after a small delay to ensure content is updated
+                setTimeout(() => {
+                  onPaste();
+                }, 50);
+              }
+              return false; // Allow normal paste handling to continue
+            },
+          }
+        }
+      })
+    ];
+  },
+
+  addOptions() {
+    return {
+      onPaste: () => {}
+    };
+  }
+});
+
+const TipTapEditor = forwardRef<{ editor: Editor | null }, TipTapEditorProps>((
+  {
+    content,
+    onChange,
+    onSubmit,
+    taggedFiles,
+    onRemoveFile,
+    onFileDrop,
+    disabled = false,
+    isDragging,
+    placeholder = 'Type a message or drop files here...',
+    className,
+    setTaggedFiles
+  },
+  ref
+) => {
+  // State to track whether the editor has content
+  const [hasContent, setHasContent] = useState(false);
+
+  // Function to generate the message text that includes file tags in the right positions
+  const generateFormattedMessage = (editor: Editor | null): string => {
+    if (!editor) return '';
+    
+    let formattedMessage = '';
+    const extractedTags: string[] = [];
+    
+    // Process each node in the document to build the message with file tags in correct positions
+    editor.state.doc.descendants((node, _pos) => {
+      if (node.type.name === 'text') {
+        // For text nodes, add their content directly
+        formattedMessage += node.text;
+      } 
+      else if (node.type.name === 'fileTag' && node.attrs.filePath) {
+        // For file tag nodes, add them in the @[path] format
+        const filePath = node.attrs.filePath;
+        formattedMessage += ` @[${filePath}] `;
+        extractedTags.push(filePath);
+      }
+    });
+    
+    // Update the taggedFiles array for the store (for backward compatibility)
+    if (setTaggedFiles) {
+      setTaggedFiles(extractedTags);
+    }
+    
+    return formattedMessage;
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -124,20 +210,27 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         blockquote: false,
         codeBlock: false,
       }),
+      FileTagPasteHandler,
       FileTagNode.configure({
         onRemove: () => {
-          // When a file tag is removed from the editor,
-          // we need to update the store state
-          if (setTaggedFiles && editor) {
-            // Get all remaining tags from the editor
-            const remainingTags: string[] = [];
-            editor.state.doc.descendants((node) => {
-              if (node.type.name === 'fileTag' && node.attrs.filePath) {
-                remainingTags.push(node.attrs.filePath);
-              }
-            });
-            // Update the store with the current tags in the editor
-            setTaggedFiles(remainingTags);
+          if (editor) {
+            // When a tag is removed, update the formatted message and tag list
+            const message = generateFormattedMessage(editor);
+            onChange(message);
+          }
+        }
+      }),
+      PasteHandlerExtension.configure({
+        onPaste: () => {
+          if (editor) {
+            // Update hasContent state for the placeholder
+            setHasContent(!editor.isEmpty);
+            
+            // Generate formatted message that preserves file tag positions
+            const message = generateFormattedMessage(editor);
+            
+            // Update parent component with the formatted message
+            onChange(message);
           }
         }
       }),
@@ -155,8 +248,21 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
     ],
     content,
     editable: !disabled,
+    onCreate: ({ editor }) => {
+      // Initialize state and handle initial content
+      setHasContent(!editor.isEmpty);
+      const initialMessage = generateFormattedMessage(editor);
+      onChange(initialMessage);
+    },
     onUpdate: ({ editor }) => {
-      onChange(editor.getText());
+      // Update hasContent state for placeholder visibility
+      setHasContent(!editor.isEmpty);
+      
+      // Generate formatted message with file tags in the correct positions
+      const formattedMessage = generateFormattedMessage(editor);
+      
+      // Update the message state in parent component
+      onChange(formattedMessage);
     },
     editorProps: {
       attributes: {
@@ -165,6 +271,11 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
     }
   });
   
+  // Expose the editor instance via the ref
+  useImperativeHandle(ref, () => ({
+    editor
+  }));
+
   // Helper function to compare arrays of strings
   const arraysEqual = (a: string[], b: string[]): boolean => {
     if (a.length !== b.length) return false;
@@ -201,6 +312,9 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
         
         // Insert each new tag at the cursor position
         tagsToAdd.forEach(tagPath => {
+          // Skip if tagPath is null or undefined
+          if (!tagPath) return;
+          
           const node = Node.fromJSON(editor.schema, {
             type: 'fileTag',
             attrs: {
@@ -211,9 +325,13 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
           
           editor.commands.insertContentAt(pos, node);
         });
+        
+        // Update the message content after adding tags
+        const formattedMessage = generateFormattedMessage(editor);
+        onChange(formattedMessage);
       }
     }
-  }, [taggedFiles, editor]);
+  }, [taggedFiles, editor, onChange]);
   
   // Set placeholder based on state
   useEffect(() => {
@@ -229,32 +347,6 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
     });
   }, [editor, placeholder]);
   
-  // Add a transaction handler to keep taggedFiles synced with editor state
-  useEffect(() => {
-    if (!editor || !setTaggedFiles) return;
-    
-    const updateTagsFromEditor = () => {
-      const currentTags: string[] = [];
-      editor.state.doc.descendants((node) => {
-        if (node.type.name === 'fileTag' && node.attrs.filePath) {
-          currentTags.push(node.attrs.filePath);
-        }
-      });
-      
-      // Only update if the tags have changed
-      if (!arraysEqual(currentTags, taggedFiles)) {
-        setTaggedFiles(currentTags);
-      }
-    };
-    
-    // Listen for transaction changes
-    editor.on('transaction', updateTagsFromEditor);
-    
-    return () => {
-      editor.off('transaction', updateTagsFromEditor);
-    };
-  }, [editor, taggedFiles, setTaggedFiles]);
-  
   return (
     <div 
       className={cn(
@@ -267,13 +359,13 @@ const TipTapEditor: React.FC<TipTapEditorProps> = ({
       data-drag-active={isDragging}
     >
       <EditorContent editor={editor} />
-      {editor?.isEmpty && !taggedFiles.length && (
+      {!hasContent && !taggedFiles.length && (
         <div className="absolute top-[50%] left-[14px] transform -translate-y-[50%] pointer-events-none text-muted-foreground">
           {placeholder}
         </div>
       )}
     </div>
   );
-};
+});
 
 export default TipTapEditor;

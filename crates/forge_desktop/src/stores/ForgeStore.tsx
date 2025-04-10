@@ -315,20 +315,11 @@ export const useForgeStore = create<ForgeState>()(
       try {
         if (!content.trim()) return;
         
-        const { conversationId, isFirstMessage, debugMode, taggedFiles } = get();
+        const { conversationId, isFirstMessage, debugMode } = get();
         
         // If no conversation exists, create one first
         if (!conversationId) {
           await get().newConversation();
-        }
-        
-        // Format message with file tags if there are any
-        let formattedContent = content.trim();
-        if (taggedFiles.length > 0) {
-          const fileTags = taggedFiles.map(file => `@[${file}]`).join(' ');
-          formattedContent = formattedContent 
-            ? `${formattedContent} ${fileTags}`.trim() 
-            : fileTags;
         }
         
         set(state => {
@@ -340,7 +331,7 @@ export const useForgeStore = create<ForgeState>()(
         set(state => {
           state.messages.push({
             id: `user-${Date.now()}`,
-            content: formattedContent,
+            content,
             sender: 'user',
             timestamp: new Date(),
           });
@@ -348,10 +339,10 @@ export const useForgeStore = create<ForgeState>()(
         
         if (debugMode) console.log('Sending message:', content, 'is_first:', isFirstMessage);
         
-        // Send formatted content that includes file tags
+        // Send the message with file tags in their correct positions
         await invoke('send_message', {
           options: {
-            content: formattedContent, // Use formatted content with file tags
+            content, // Use the content as-is with file tags in place
             is_first: isFirstMessage,
           }
         });

@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { SpecialContent } from './SpecialContent';
 import { CodeSection } from './CodeSection';
 import { Separator } from "@/components/ui/separator";
+import FileTag from '../FileTag';
 
 interface ConversationSectionProps {
   userMessage: {
@@ -83,7 +84,54 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
     };
   }, [processedContent]);
   
-  if (!userMessage && responseMessages.length === 0) {
+// Function to render user content with file tags
+const renderUserContent = (content: string): React.ReactNode => {
+  // Regex to find file path tags
+  const fileTagRegex = /@\[(.*?)\]/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  
+  // Reset regex index
+  fileTagRegex.lastIndex = 0;
+  
+  // Find all file tags
+  while ((match = fileTagRegex.exec(content)) !== null) {
+    // Add text before the file tag
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`text-${lastIndex}`}>
+          {content.substring(lastIndex, match.index)}
+        </span>
+      );
+    }
+    
+    // Add the file tag component
+    parts.push(
+      <FileTag
+        key={`tag-${match.index}`}
+        filePath={match[1]}
+        onRemove={() => {}}
+        readOnly={true}
+        inline={true}
+        copyFormat="tag"
+      />
+    );
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add any remaining text
+  if (lastIndex < content.length) {
+    parts.push(
+      <span key={`text-end`}>
+        {content.substring(lastIndex)}
+      </span>
+    );
+  }
+  
+  return parts.length > 0 ? <>{parts}</> : content;
+};  if (!userMessage && responseMessages.length === 0) {
     return null;
   }
   
@@ -94,7 +142,7 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
         <div className="user-query mb-4">
           <h3 className="text-base font-semibold text-primary mb-1">User Query</h3>
           <div className="user-content pl-1 whitespace-pre-wrap">
-            {userMessage.content}
+            {renderUserContent(userMessage.content)}
           </div>
         </div>
       )}
