@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, AlertCircle, CheckCircle, ClipboardCopy, Diff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { tryParseDiffJson, isDiffContent, DiffJsonData } from '@/lib/diffUtils';
+import { tryParseDiffJson, isDiffContent, DiffJsonData } from '@/utils/diffUtils';
 import { useChangesStore } from '@/stores/ChangesStore';
 import { SideBySideDiff } from './SideBySideDiff';
 import { DiffModalView } from '../DiffModalView';

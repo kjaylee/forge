@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useForgeStore } from '@/stores/ForgeStore';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ConversationSection from './document/ConversationSection';
-import { groupMessagesIntoSections } from '@/lib/messageUtils';
+import { groupMessagesIntoSections } from '@/utils/messageUtils';
 
 const DocumentView: React.FC = () => {
   const { messages, toolCalls, isLoading } = useForgeStore();

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SideBySideDiff } from '@/components/document/SideBySideDiff';
-import { DiffJsonData } from '@/lib/diffUtils';
+import { DiffJsonData } from '@/utils/diffUtils';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

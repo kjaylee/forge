@@ -5,7 +5,7 @@ import { Node } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { FileTagAttrs } from './FileTagNode';
 import FileTagNode, { FileTagPasteHandler } from './FileTagNode';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/utils';
 
 interface TipTapEditorProps {
   content: string;

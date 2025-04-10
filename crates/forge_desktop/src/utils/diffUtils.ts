@@ -84,33 +84,6 @@ export function isDiffContent(content: string): boolean {
 }
 
 /**
- * Extract file path from diff content
- */
-export function extractFilePathFromDiff(content: string): string | null {
-  // Try JSON first
-  const jsonDiff = tryParseDiffJson(content);
-  if (jsonDiff) {
-    return jsonDiff.path;
-  }
-
-  // Try to extract from unified diff format
-  const lines = content.split('\n');
-  
-  // Look for the +++ or --- lines which often contain the file paths
-  for (const line of lines) {
-    if (line.startsWith('+++ ') || line.startsWith('--- ')) {
-      const path = line.substring(4).trim();
-      // Filter out timestamps or dates often in diff headers
-      if (path && !path.startsWith('timestamp') && !path.match(/^\d{4}-\d{2}-\d{2}/)) {
-        return path;
-      }
-    }
-  }
-  
-  return null;
-}
-
-/**
  * Calculate stats for a diff
  */
 export function calculateDiffStats(diff: DiffJsonData): { additions: number; deletions: number } {

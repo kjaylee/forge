@@ -3,7 +3,7 @@ import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { FileText, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useTheme } from 'next-themes';
-import { DiffJsonData } from '@/lib/diffUtils';
+import { DiffJsonData } from '@/utils/diffUtils';
 import { Badge } from '@/components/ui/badge';
 
 interface SideBySideDiffProps {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { DiffJsonData, FileChange, FileChangeType, tryParseDiffJson, calculateDiffStats } from '@/lib/diffUtils';
+import { DiffJsonData, FileChange, FileChangeType, tryParseDiffJson, calculateDiffStats } from '@/utils/diffUtils';
 
 interface ChangesState {
   changes: FileChange[];

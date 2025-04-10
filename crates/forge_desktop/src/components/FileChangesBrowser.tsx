@@ -4,9 +4,9 @@ import {
   Plus, Minus, FileIcon, FolderIcon
 } from 'lucide-react';
 import { useChangesStore } from '@/stores/ChangesStore';
-import { FileChange, FileChangeType, groupFileChangesByDirectory } from '@/lib/diffUtils';
+import { FileChange, FileChangeType, groupFileChangesByDirectory } from '@/utils/diffUtils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/utils';
 import { Badge } from '@/components/ui/badge';
 
 interface FileChangesBrowserProps {

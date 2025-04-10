@@ -1,6 +1,6 @@
 import React from 'react';
 import { CodeBlock } from "./CodeBlock";
-import { extractCodeBlocks, extractFilePath } from "@/lib/utils";
+import { extractCodeBlocks, extractFilePath } from "@/utils/utils";
 import { FilePathText } from '@/utils/filePathUtils';
 import ReactMarkdown from 'react-markdown';
 import FileTag from '../FileTag';

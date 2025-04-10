@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { FileSystemEntry, useDirectoryStore } from '@/stores/DirectoryStore';
 import { useFileViewerStore } from '@/stores/FileViewerStore';
-import { cn } from '@/lib/utils';
+import { cn } from '@/utils/utils';
 
 interface TreeItemProps {
   item: FileSystemEntry;
