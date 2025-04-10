@@ -14,7 +14,6 @@ pub struct Event {
     pub os_name: String,
     pub up_time: i64,
     pub path: Option<String>,
-    pub cwd: Option<String>,
     pub user: String,
     pub args: Vec<String>,
     pub version: String,

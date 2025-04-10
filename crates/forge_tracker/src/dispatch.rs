@@ -72,7 +72,6 @@ impl Tracker {
                 up_time: up_time(self.start_time),
                 args: args(),
                 path: path(),
-                cwd: cwd(),
                 user: user(),
                 version: version(),
                 email: self.email().await.clone(),
@@ -174,12 +173,6 @@ fn version() -> String {
 
 fn user() -> String {
     whoami::username()
-}
-
-fn cwd() -> Option<String> {
-    std::env::current_dir()
-        .ok()
-        .and_then(|path| path.to_str().map(|s| s.to_string()))
 }
 
 fn path() -> Option<String> {
