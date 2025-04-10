@@ -30,7 +30,6 @@ import { SignUpPage } from "./components/SignUp";
 import { InvitationPage } from "./components/Invitation";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { InvitedOnly } from "./components/InvitedOnly";
-import { WaitListed } from "./components/WaitListed";
 
 // Component for the chat interface
 const ChatInterface: React.FC = () => {
