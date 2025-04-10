@@ -10,6 +10,7 @@ import MessageInput from "@/components/MessageInput";
 import StatusBar from "@/components/StatusBar";
 import DirectoryView from "@/components/DirectoryView";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "next-themes";
 import { Loader2, PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { 
@@ -140,9 +141,11 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <TooltipProvider>
-      <AppContent />
-    </TooltipProvider>
+    <ThemeProvider attribute="class">
+      <TooltipProvider>
+        <AppContent />
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }
 

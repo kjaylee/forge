@@ -5,13 +5,13 @@ import ConversationSection from './document/ConversationSection';
 import { groupMessagesIntoSections } from '@/lib/messageUtils';
 
 const DocumentView: React.FC = () => {
-  const { messages, isLoading } = useForgeStore();
+  const { messages, toolCalls, isLoading } = useForgeStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   
-  // Group messages into conversation sections without including tool calls
-  const conversationSections = groupMessagesIntoSections(messages, []);
+  // Group messages into conversation sections with tool calls
+  const conversationSections = groupMessagesIntoSections(messages, toolCalls);
   
   // Handle scrolling behavior
   useEffect(() => {
@@ -40,31 +40,34 @@ const DocumentView: React.FC = () => {
   }, []);
   
   return (
-    <ScrollArea className="document-view h-full w-full px-6 py-4" ref={scrollAreaRef}>
-      <div className="document-content max-w-4xl mx-auto">
-        {conversationSections.map((section, index) => (
-          <ConversationSection 
-            key={`section-${index}`}
-            userMessage={section.userMessage}
-            responseMessages={section.responseMessages}
-            isLatest={index === conversationSections.length - 1}
-          />
-        ))}
-        
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="flex py-2 my-2">
-            <div className="flex gap-1 px-3 py-2">
-              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '-0.32s' }}></div>
-              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '-0.16s' }}></div>
-              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"></div>
+    <div className="h-full w-full">
+      <ScrollArea className="document-view h-full w-full px-6 py-4" ref={scrollAreaRef}>
+        <div className="document-content max-w-4xl mx-auto">
+          {conversationSections.map((section, index) => (
+            <ConversationSection 
+              key={`section-${index}`}
+              userMessage={section.userMessage}
+              responseMessages={section.responseMessages}
+              toolCalls={section.toolCalls}
+              isLatest={index === conversationSections.length - 1}
+            />
+          ))}
+          
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex py-2 my-2">
+              <div className="flex gap-1 px-3 py-2">
+                <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '-0.32s' }}></div>
+                <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" style={{ animationDelay: '-0.16s' }}></div>
+                <div className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce"></div>
+              </div>
             </div>
-          </div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
-    </ScrollArea>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
 

@@ -44,7 +44,7 @@ const ModeSwitcher: React.FC = () => {
         <Separator orientation="vertical" className="h-6" />
         
         <div className="flex-1 max-w-md">
-          <Card className="bg-background/60 border">
+          <Card className="bg-background/60 border w-full">
             <CardContent className="py-1.5 px-3 text-sm text-muted-foreground">
               <span className="line-clamp-1">
                 {mode.description}

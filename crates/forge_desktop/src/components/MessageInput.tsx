@@ -1,4 +1,4 @@
-import React, { useState, FormEvent, DragEvent } from 'react';
+import React, { useState, FormEvent, DragEvent, useRef } from 'react';
 import { useForgeStore } from '@/stores/ForgeStore';
 import { Card, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,15 +6,22 @@ import { Send, X } from "lucide-react";
 import TipTapEditor from './TipTapEditor';
 
 const MessageInput: React.FC = () => {
+  const editorRef = useRef<any>(null);
   const [message, setMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const { sendMessage, cancelStream, isLoading, taggedFiles, addTaggedFile, removeTaggedFile, setTaggedFiles } = useForgeStore();
   
   const handleSubmit = async (e?: FormEvent) => {
     if (e) e.preventDefault();
+    // Trim only when checking if content exists, not when sending
     if ((message.trim() || taggedFiles.length > 0) && !isLoading) {
-      await sendMessage(message);
-      setMessage('');
+      await sendMessage(message); // Send the original message without trimming
+      setMessage(''); // Clear the message
+      
+      // Reset the editor content if available
+      if (editorRef.current && editorRef.current.editor) {
+        editorRef.current.editor.commands.clearContent();
+      }
     }
   };
 
@@ -61,7 +68,7 @@ const MessageInput: React.FC = () => {
             onDrop={handleDrop}
           >
             <TipTapEditor
-              content={message}
+              ref={editorRef}              content={message}
               onChange={setMessage}
               onSubmit={handleSubmit}
               taggedFiles={taggedFiles}

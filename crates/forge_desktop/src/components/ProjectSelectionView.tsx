@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { FolderOpen, FolderPlus, Clock } from "lucide-react";
 import { format, parseISO } from 'date-fns';
+import StatusBar from './StatusBar';
 
 const ProjectCard: React.FC<{
   project: ProjectInfo;
@@ -166,75 +167,79 @@ const ProjectSelectionView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full p-6 bg-background">
-      <header className="text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Forge Desktop</h1>
-        <p className="text-muted-foreground">Select a project to begin</p>
-      </header>
-      
-      <main className="flex-1 max-w-3xl mx-auto w-full">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Recent Projects</h2>
-        </div>
+    <div className="flex flex-col h-screen w-full bg-background">
+      <div className="p-6 flex-1 overflow-auto">
+        <header className="text-center mb-8">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Forge Desktop</h1>
+          <p className="text-muted-foreground">Select a project to begin</p>
+        </header>
         
-        <div className="bg-card rounded-lg p-4 mb-8 shadow-sm">
-          {recentProjects.length > 0 ? (
-            <ScrollArea className="h-[300px] pr-4">
-              <div className="grid gap-4">
-                {recentProjects.map((project) => (
-                  <ProjectCard 
-                    key={project.path} 
-                    project={project} 
-                    onSelect={() => handleSelectProject(project)}
-                  />
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No recent projects</p>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex flex-col gap-4 mb-8">
-          <Button 
-            size="lg" 
-            className="w-full gap-2" 
-            onClick={handleOpenProject}
-            disabled={isLoading}
-          >
-            <FolderOpen className="h-5 w-5" />
-            Open Repository
-          </Button>
+        <main className="flex-1 max-w-3xl mx-auto w-full">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Recent Projects</h2>
+          </div>
           
-          <Button 
-            size="lg" 
-            className="w-full gap-2" 
-            variant="outline"
-            onClick={() => setIsNewProjectDialogOpen(true)}
-            disabled={isLoading}
-          >
-            <FolderPlus className="h-5 w-5" />
-            Create New Repository
-          </Button>
-        </div>
-        
-        {error && (
-          <Card className="bg-destructive/10 border-destructive/30 mb-8">
-            <CardContent className="pt-4">
-              <p className="text-destructive">Error: {error}</p>
-            </CardContent>
-          </Card>
-        )}
-        
-        <Separator className="my-8" />
-        
-        <footer className="text-center text-sm text-muted-foreground">
-          <p className="mb-2">Forge Desktop &copy; 2025</p>
-        </footer>
-      </main>
+          <div className="bg-card rounded-lg p-4 mb-8 shadow-sm">
+            {recentProjects.length > 0 ? (
+              <ScrollArea className="h-[300px] pr-4">
+                <div className="grid gap-4">
+                  {recentProjects.map((project) => (
+                    <ProjectCard 
+                      key={project.path} 
+                      project={project} 
+                      onSelect={() => handleSelectProject(project)}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No recent projects</p>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex flex-col gap-4 mb-8">
+            <Button 
+              size="lg" 
+              className="w-full gap-2" 
+              onClick={handleOpenProject}
+              disabled={isLoading}
+            >
+              <FolderOpen className="h-5 w-5" />
+              Open Repository
+            </Button>
+            
+            <Button 
+              size="lg" 
+              className="w-full gap-2" 
+              variant="outline"
+              onClick={() => setIsNewProjectDialogOpen(true)}
+              disabled={isLoading}
+            >
+              <FolderPlus className="h-5 w-5" />
+              Create New Repository
+            </Button>
+          </div>
+          
+          {error && (
+            <Card className="bg-destructive/10 border-destructive/30 mb-8">
+              <CardContent className="pt-4">
+                <p className="text-destructive">Error: {error}</p>
+              </CardContent>
+            </Card>
+          )}
+          
+          <Separator className="my-8" />
+          
+          <footer className="text-center text-sm text-muted-foreground">
+            <p className="mb-2">Forge Desktop &copy; 2025</p>
+          </footer>
+        </main>
+      </div>
+      
+      <StatusBar />
       
       <NewProjectDialog 
         open={isNewProjectDialogOpen}

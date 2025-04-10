@@ -7,14 +7,32 @@
   max-height: 8rem;
   overflow-y: auto;
   word-break: break-word;
+  color: hsl(var(--foreground));
+}
+
+.ProseMirror p {
+  color: hsl(var(--foreground));
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: #64748b;
+  color: hsl(var(--muted-foreground));
   float: left;
   pointer-events: none;
   height: 0;
+}
+
+/* Dark mode specific overrides */
+.dark .ProseMirror {
+  color: white;
+}
+
+.dark .ProseMirror p {
+  color: white;
+}
+
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Ensure proper spacing around file tags */
