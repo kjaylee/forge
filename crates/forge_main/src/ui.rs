@@ -3,7 +3,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, Workflow,
+    API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
@@ -289,9 +290,10 @@ impl<F: API> UI<F> {
                     self.api.upsert_conversation(conversation).await?;
                     Ok(conversation_id.clone())
                 } else {
-                    let config = self.api.load(self.cli.workflow.as_deref()).await?;
-                    self.command.register_all(&config.to_workflow());
-                    let conversation_id = self.api.init(config).await?;
+                    let workflow =
+                        Workflow::from(self.api.load(self.cli.workflow.as_deref()).await?);
+                    self.command.register_all(&workflow);
+                    let conversation_id = self.api.init(workflow).await?;
                     self.state.conversation_id = Some(conversation_id.clone());
 
                     Ok(conversation_id)

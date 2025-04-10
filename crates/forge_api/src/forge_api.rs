@@ -59,10 +59,15 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         Ok(self.executor_service.chat(chat).await?)
     }
 
-    async fn init(&self, config: WorkflowConfig) -> anyhow::Result<ConversationId> {
+    async fn init<W: Into<Workflow> + Send + Sync>(
+        &self,
+        workflow: W,
+    ) -> anyhow::Result<ConversationId> {
         // Convert WorkflowConfig to Workflow before passing to the conversation service
-        let workflow = config.to_workflow();
-        self.app.conversation_service().create(workflow).await
+        self.app
+            .conversation_service()
+            .create(workflow.into())
+            .await
     }
 
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {

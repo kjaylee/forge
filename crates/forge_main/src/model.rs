@@ -52,9 +52,10 @@ impl From<&Workflow> for ForgeCommandManager {
 
 impl From<&WorkflowConfig> for ForgeCommandManager {
     fn from(config: &WorkflowConfig) -> Self {
-        let mut cmd = ForgeCommandManager::default();
-        
-        // Access the commands directly from the config instead of converting to Workflow first
+        let cmd = ForgeCommandManager::default();
+
+        // Access the commands directly from the config instead of converting to
+        // Workflow first
         let mut commands = Self::default_commands();
 
         commands.sort_by(|a, b| a.name.cmp(&b.name));

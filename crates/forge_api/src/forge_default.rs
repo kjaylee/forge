@@ -52,26 +52,4 @@ mod tests {
             "Default workflow should have the software-engineer agent"
         );
     }
-
-    #[test]
-    fn test_default_workflow_config_loads_correctly() {
-        // This test ensures that the default YAML can be parsed into a WorkflowConfig
-        let config = create_default_workflow_config();
-
-        // Basic sanity checks
-        assert!(
-            !config.agents.is_empty(),
-            "Default workflow config should have agents"
-        );
-
-        // Check that we have the software-engineer agent
-        let has_engineer = config
-            .agents
-            .iter()
-            .any(|agent| agent.id.to_string() == "software-engineer");
-        assert!(
-            has_engineer,
-            "Default workflow config should have the software-engineer agent"
-        );
-    }
 }

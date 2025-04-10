@@ -40,15 +40,15 @@ impl Fixture {
     /// Get model response as text
     async fn get_model_response(&self) -> String {
         let api = self.api();
-        let mut config = test_workflow::create_test_workflow_config();
+        let mut workflow = test_workflow::create_test_workflow();
 
         // in config, replace all models with the model we want to test.
-        config.agents.iter_mut().for_each(|agent| {
+        workflow.agents.iter_mut().for_each(|agent| {
             agent.model = Some(self.model.clone());
         });
 
         // initialize the conversation by storing the workflow config.
-        let conversation_id = api.init(config).await.unwrap();
+        let conversation_id = api.init(workflow).await.unwrap();
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",

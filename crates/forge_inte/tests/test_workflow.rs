@@ -1,5 +1,6 @@
+use forge_api::Workflow;
 use forge_domain::{
-    Agent, AgentId, EventContext, ModelId, SystemContext, Template, ToolName, WorkflowConfig,
+    Agent, AgentId, EventContext, ModelId, SystemContext, Template, ToolName,
 };
 
 /// System prompt for the developer agent
@@ -21,7 +22,7 @@ Hints:
 
 /// Creates a test workflow config that mimics the configuration from
 /// test_workflow.yaml
-pub fn create_test_workflow_config() -> WorkflowConfig {
+pub fn create_test_workflow() -> Workflow {
     // Create the developer agent
     let developer = Agent::new(AgentId::new("developer"))
         .model(ModelId::new("anthropic/claude-3.5-sonnet"))
@@ -35,5 +36,5 @@ pub fn create_test_workflow_config() -> WorkflowConfig {
         .system_prompt(Template::<SystemContext>::new(SYSTEM_PROMPT.trim()))
         .user_prompt(Template::<EventContext>::new(USER_PROMPT.trim()));
 
-    WorkflowConfig::default().agents(vec![developer])
+    Workflow::default().agents(vec![developer])
 }
