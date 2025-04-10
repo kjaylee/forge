@@ -1,7 +1,8 @@
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use forge_domain::{
-    Context, ContextMessage, ModelId, Role, ToolCallFull, ToolCallId, ToolDefinition, ToolName,
+    Context, ContextMessage, ModelId, Role, ToolCallFull, ToolCallId, ToolDefinition,
+    ToolName,
 };
 use serde::{Deserialize, Serialize};
 
@@ -223,7 +224,7 @@ impl From<Context> for OpenRouterRequest {
             stop: Default::default(),
             stream: Default::default(),
             max_tokens: request.max_tokens.map(|t| t as u32),
-            temperature: request.temperature,
+            temperature: request.temperature.map(|t| t.value()),
             tool_choice: request.tool_choice.map(|tc| tc.into()),
             seed: Default::default(),
             top_p: Default::default(),

@@ -346,11 +346,9 @@ impl<A: Services> Orchestrator<A> {
 
             // Determine which model to use - prefer workflow model if available, fallback
             // to agent model
-            let model_id = conversation
-                .workflow
+            let model_id = agent
                 .model
                 .as_ref()
-                .or(agent.model.as_ref())
                 .ok_or(Error::MissingModel(agent.id.clone()))?;
 
             let response = self

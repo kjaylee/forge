@@ -3,8 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, Workflow,
-    API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
@@ -275,7 +274,8 @@ impl<F: API> UI<F> {
     }
 
     async fn init_conversation(&mut self) -> Result<ConversationId> {
-        match self.state.conversation_id {
+        let config = self.api.load(self.cli.workflow.as_deref()).await?;
+        let conversation_id = match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
                 if let Some(ref path) = self.cli.conversation {
@@ -286,20 +286,19 @@ impl<F: API> UI<F> {
 
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
-                    self.command.register_all(&conversation.workflow);
                     self.api.upsert_conversation(conversation).await?;
                     Ok(conversation_id.clone())
                 } else {
-                    let workflow =
-                        Workflow::from(self.api.load(self.cli.workflow.as_deref()).await?);
-                    self.command.register_all(&workflow);
-                    let conversation_id = self.api.init(workflow).await?;
+                    let conversation_id = self.api.init(config.clone()).await?;
                     self.state.conversation_id = Some(conversation_id.clone());
-
                     Ok(conversation_id)
                 }
             }
-        }
+        };
+
+        self.command.register_all(&config);
+
+        conversation_id
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use forge_api::{Model, Workflow, WorkflowConfig};
+use forge_api::{Model, WorkflowConfig};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
@@ -42,33 +42,10 @@ pub struct ForgeCommand {
     pub value: Option<String>,
 }
 
-impl From<&Workflow> for ForgeCommandManager {
-    fn from(value: &Workflow) -> Self {
+impl From<&WorkflowConfig> for ForgeCommandManager {
+    fn from(value: &WorkflowConfig) -> Self {
         let cmd = ForgeCommandManager::default();
         cmd.register_all(value);
-        cmd
-    }
-}
-
-impl From<&WorkflowConfig> for ForgeCommandManager {
-    fn from(config: &WorkflowConfig) -> Self {
-        let cmd = ForgeCommandManager::default();
-
-        // Access the commands directly from the config instead of converting to
-        // Workflow first
-        let mut commands = Self::default_commands();
-
-        commands.sort_by(|a, b| a.name.cmp(&b.name));
-
-        commands.extend(config.commands.clone().into_iter().map(|cmd_item| {
-            let name = format!("/{}", cmd_item.name);
-            let description = format!("⚙ {}", cmd_item.description);
-            let value = cmd_item.value.clone();
-
-            ForgeCommand { name, description, value }
-        }));
-
-        *cmd.commands.lock().unwrap() = commands;
         cmd
     }
 }
@@ -99,7 +76,7 @@ impl ForgeCommandManager {
     }
 
     /// Registers multiple commands to the manager.
-    pub fn register_all(&self, workflow: &Workflow) {
+    pub fn register_all(&self, workflow: &WorkflowConfig) {
         let mut guard = self.commands.lock().unwrap();
         let mut commands = Self::default_commands();
 
