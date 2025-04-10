@@ -34,12 +34,12 @@ const ConversationHeader: React.FC = () => {
               Forge Desktop
             </CardDescription>
           </div>
-          
+
           <div className="flex gap-2 items-center">
             <ProjectSwitcher />
-            
-            <Button 
-              variant="outline" 
+
+            <Button
+              variant="outline"
               onClick={handleNewConversation}
               size="sm"
               className="gap-1.5"
@@ -47,8 +47,8 @@ const ConversationHeader: React.FC = () => {
               <PlusCircle className="h-4 w-4" />
               New
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleExportConversation}
               size="sm"
               className="gap-1.5"
@@ -63,9 +63,7 @@ const ConversationHeader: React.FC = () => {
             >
               <Settings2 className="h-4 w-4" />
             </Button>
-            <div className="ml-2 flex items-center">
-              <CustomUserButton />
-            </div>
+            <CustomUserButton />
           </div>
         </div>
       </CardHeader>
