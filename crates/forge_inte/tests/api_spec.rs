@@ -47,7 +47,8 @@ impl Fixture {
         });
 
         // initialize the conversation by storing the workflow.
-        let conversation_id = api.init(workflow).await.unwrap();
+        // Initialize with current directory path instead of workflow
+        let conversation_id = api.init(std::env::current_dir().unwrap()).await.unwrap();
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",

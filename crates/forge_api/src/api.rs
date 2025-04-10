@@ -29,6 +29,7 @@ pub trait API: Sync + Send {
     /// Creates a new conversation with the given path
     /// The path will be used as the working directory for the conversation
     /// and to load workflow configuration if available
+    /// FIXME: should return the Conversation instead of ConversationId
     async fn init(&self, path: PathBuf) -> anyhow::Result<ConversationId>;
 
     /// Returns the conversation with the given ID
