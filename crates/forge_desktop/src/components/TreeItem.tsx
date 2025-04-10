@@ -10,6 +10,7 @@ import {
   Package
 } from 'lucide-react';
 import { FileSystemEntry, useDirectoryStore } from '@/stores/DirectoryStore';
+import { useFileViewerStore } from '@/stores/FileViewerStore';
 import { cn } from '@/lib/utils';
 
 interface TreeItemProps {
@@ -42,6 +43,7 @@ const getFileIcon = (filename: string) => {
 
 const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
   const { expandedPaths, toggleExpandPath } = useDirectoryStore();
+  const { openFile } = useFileViewerStore();
   
   const isExpanded = item.is_directory && expandedPaths.has(item.path);
   const hasChildren = item.children && item.children.length > 0;
@@ -49,12 +51,18 @@ const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
   // Calculate indentation padding
   const paddingLeft = level * 16; // 16px per level
   
-  const handleToggle = (e: React.MouseEvent) => {
+  // Handle file click - open in viewer for files, toggle expansion for directories
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (item.is_directory) {
       toggleExpandPath(item.path);
+    } else {
+      // Open file in the FileViewer modal
+      openFile(item.path);
     }
-  };  // Drag start handler for file items
+  };
+  
+  // Drag start handler for file items
   const handleDragStart = (e: React.DragEvent) => {
     console.log("drag start")
     // Only set drag data for non-directory items
@@ -74,7 +82,7 @@ const TreeItem: React.FC<TreeItemProps> = ({ item, level }) => {
           "transition-colors duration-100 text-sm",
           !item.is_directory && "cursor-grab",
         )}
-        onClick={handleToggle}
+        onClick={handleClick}
         style={{ paddingLeft: `${paddingLeft}px` }}
         draggable={!item.is_directory}
         onDragStart={handleDragStart}

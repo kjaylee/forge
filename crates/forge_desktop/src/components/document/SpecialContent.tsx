@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import { FilePathText } from '@/utils/filePathUtils';
+import { useProjectStore } from '@/stores/ProjectStore';
 
 interface SpecialContentProps {
   type: string;
@@ -36,6 +38,8 @@ const contentTypeStyles: Record<string, { title: string, bgColor: string, border
 };
 
 export const SpecialContent: React.FC<SpecialContentProps> = ({ type, content }) => {
+  const { currentProject } = useProjectStore();
+  const baseDir = currentProject?.path || '';
   const styling = contentTypeStyles[type] || {
     title: type.charAt(0).toUpperCase() + type.slice(1),
     bgColor: "bg-gray-50 dark:bg-gray-900",
@@ -48,7 +52,47 @@ export const SpecialContent: React.FC<SpecialContentProps> = ({ type, content })
         <h4 className="text-sm font-medium">{styling.title}</h4>
       </div>
       <div className="special-body p-4 prose prose-sm dark:prose-invert max-w-none">
-        <ReactMarkdown>
+        <ReactMarkdown components={{
+          // Custom renderer for paragraphs to inject file path detection
+          p: ({ children }) => {
+            if (typeof children === 'string') {
+              return (
+                <FilePathText 
+                  text={children as string}
+                  options={{ baseDir }}
+                />
+              );
+            }
+            return <p>{children}</p>;
+          },
+          // Also make file paths in code blocks and other elements clickable
+          code: ({ children }) => {
+            if (typeof children === 'string') {
+              return (
+                <code>
+                  <FilePathText 
+                    text={children as string}
+                    options={{ baseDir }}
+                  />
+                </code>
+              );
+            }
+            return <code>{children}</code>;
+          },
+          li: ({ children }) => {
+            if (typeof children === 'string') {
+              return (
+                <li>
+                  <FilePathText 
+                    text={children as string}
+                    options={{ baseDir }}
+                  />
+                </li>
+              );
+            }
+            return <li>{children}</li>;
+          }
+        }}>
           {content}
         </ReactMarkdown>
       </div>

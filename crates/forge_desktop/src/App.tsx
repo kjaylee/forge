@@ -9,6 +9,7 @@ import ToolConsoleView from "@/components/ToolConsoleView";
 import MessageInput from "@/components/MessageInput";
 import StatusBar from "@/components/StatusBar";
 import DirectoryView from "@/components/DirectoryView";
+import FileViewer from "@/components/FileViewerModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { Loader2, PanelLeft } from "lucide-react";
@@ -144,6 +145,7 @@ function App() {
     <ThemeProvider attribute="class">
       <TooltipProvider>
         <AppContent />
+        <FileViewer />
       </TooltipProvider>
     </ThemeProvider>
   );
