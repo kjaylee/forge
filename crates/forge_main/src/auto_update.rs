@@ -44,7 +44,7 @@ async fn send_update_failure_event(error_msg: &str) -> anyhow::Result<()> {
 
     // Use a static tracker instance to solve the lifetime issue
     static TRACKER: OnceLock<Tracker> = OnceLock::new();
-    let tracker = TRACKER.get_or_init(|| Tracker::default());
+    let tracker = TRACKER.get_or_init(Tracker::default);
 
     // Ignore the result since we are failing silently
     // This is safe because we're using a static tracker with 'static lifetime
