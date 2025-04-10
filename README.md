@@ -25,110 +25,98 @@ npx @antinomyhq/forge
 
 This method works on **Windows**, **macOS**, and **Linux**, providing a consistent installation experience across all platforms.
 
-## 🏁 Get Started
+## 🔌 Provider Configuration
 
-Forge supports multiple AI providers. Here's how to connect with each:
+Forge requires two configuration files in your project directory:
 
-### Open Router
+1. A `.env` file with your API credentials
+2. A `forge.yaml` file specifying additional settings
 
-1. Create a `.env` file in your home directory with your API credentials:
+Below are setup instructions for each supported provider:
 
-   ```bash
-   # .env file
-   OPENROUTER_API_KEY=<your_openrouter_api_key>
-   ```
+### OpenRouter (Recommended)
 
-2. Create a `forge.yaml` file and set the model field:
+```bash
+# .env
+OPENROUTER_API_KEY=<your_openrouter_api_key>
+```
 
-   ```yaml
-   # forge.yaml
-   model: anthropic/claude-3.7-sonnet # Recommended model
-   ```
+_No changes in `forge.yaml` is required_
 
 ### OpenAI
 
-1. Create a `.env` file in your home directory with your API credentials:
+```bash
+# .env
+OPENAI_API_KEY=<your_openai_api_key>
+```
 
-   ```bash
-   # .env file
-   OPENAI_API_KEY=<your_openai_api_key>
-   ```
-
-2. Create a `forge.yaml` file and set the model field:
-
-   ```yaml
-   # forge.yaml
-   model: o3-mini-high # Recommended model
-   ```
-
-### OpenAI Compatible Provider
-
-1. Create a `.env` file in your home directory with your API credentials:
-
-   ```bash
-   # .env file
-   OPENAI_API_KEY=<your_provider_api_key>
-   OPENAI_URL=<your_provider_url>
-   ```
-
-2. Create a `forge.yaml` file and set the model field:
-
-   ```yaml
-   # forge.yaml
-   model: <sonnet series preferred model>
-   ```
-
-### Google Vertex AI
-
-1. Create a `.env` file in your home directory with your API credentials:
-
-   ```bash
-   # .env file
-   PROJECT_ID=<your_project_id>
-   LOCATION=<your_location>
-   OPENAI_API_KEY=<vertex_ai_key>
-   OPENAI_URL=https://${LOCATION}-aiplatform.googleapis.com/v1beta1/projects/${PROJECT_ID}/locations/${LOCATION}/endpoints/openapi
-   ```
-
-2. Create a `forge.yaml` file and set the model field:
-
-   ```yaml
-   # forge.yaml
-   model: google/claude-sonnet-3.7 # Recommended model
-   ```
+```yaml
+# forge.yaml
+model: o3-mini-high
+```
 
 ### Anthropic
 
-1. Create a `.env` file in your home directory with your API credentials:
+```bash
+# .env
+ANTHROPIC_API_KEY=<your_anthropic_api_key>
+```
 
-   ```bash
-   # .env file
-   ANTHROPIC_API_KEY=<your_anthropic_api_key>
-   ```
+```yaml
+# forge.yaml
+model: claude-3.7-sonnet
+```
 
-2. Create a `forge.yaml` file and set the model field:
+### Google Vertex AI
 
-   ```yaml
-   # forge.yaml
-   model: claude-3-opus # Recommended model
-   ```
+```bash
+# .env
+PROJECT_ID=<your_project_id>
+LOCATION=<your_location>
+OPENAI_API_KEY=<vertex_ai_key>
+OPENAI_URL=https://${LOCATION}-aiplatform.googleapis.com/v1beta1/projects/${PROJECT_ID}/locations/${LOCATION}/endpoints/openapi
+```
+
+```yaml
+# forge.yaml
+model: publishers/anthropic/models/claude-3-7-sonnet
+```
+
+### OpenAI-Compatible Providers
+
+```bash
+# .env
+OPENAI_API_KEY=<your_provider_api_key>
+OPENAI_URL=<your_provider_url>
+```
+
+```yaml
+# forge.yaml
+model: <provider-specific-model>
+```
 
 ### Amazon Bedrock
 
-1. Create a `.env` file in your home directory with your API credentials:
+To use Amazon Bedrock models with Forge, you'll need to first set up the [Bedrock Access Gateway](https://github.com/aws-samples/bedrock-access-gateway):
+
+1. **Set up Bedrock Access Gateway**:
+
+   - Follow the deployment steps in the [Bedrock Access Gateway repo](https://github.com/aws-samples/bedrock-access-gateway)
+   - Create your own API key in Secrets Manager
+   - Deploy the CloudFormation stack
+   - Note your API Base URL from the CloudFormation outputs
+
+2. **Create these files in your project directory**:
 
    ```bash
-   # .env file
-   AWS_ACCESS_KEY_ID=<your_aws_access_key>
-   AWS_SECRET_ACCESS_KEY=<your_aws_secret_key>
-   AWS_REGION=<your_aws_region>  # e.g., us-west-2
+   # .env
+   OPENAI_API_KEY=<your_bedrock_gateway_api_key>
+   OPENAI_URL=<your_bedrock_gateway_base_url>
    ```
-
-2. Create a `forge.yaml` file and set the model field:
 
    ```yaml
    # forge.yaml
-   model: anthropic.claude-3-opus # Recommended model
+   model: anthropic.claude-3-opus
    ```
 
 ## 📚 Documentation
