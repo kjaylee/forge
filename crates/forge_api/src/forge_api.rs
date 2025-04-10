@@ -9,7 +9,6 @@ use forge_stream::MpscStream;
 use serde_json::Value;
 
 use crate::executor::ForgeExecutorService;
-use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
 use crate::API;
 
@@ -17,7 +16,6 @@ pub struct ForgeAPI<F> {
     app: Arc<F>,
     executor_service: ForgeExecutorService<F>,
     suggestion_service: ForgeSuggestionService<F>,
-    loader: ForgeLoaderService<F>,
 }
 
 impl<F: Services + Infrastructure> ForgeAPI<F> {
@@ -26,7 +24,6 @@ impl<F: Services + Infrastructure> ForgeAPI<F> {
             app: app.clone(),
             executor_service: ForgeExecutorService::new(app.clone()),
             suggestion_service: ForgeSuggestionService::new(app.clone()),
-            loader: ForgeLoaderService::new(app.clone()),
         }
     }
 }
@@ -41,8 +38,10 @@ impl ForgeAPI<ForgeServices<ForgeInfra>> {
 
 #[async_trait::async_trait]
 impl<F: Services + Infrastructure> API for ForgeAPI<F> {
+    //FIXME: need to pass the directory path for suggestions
     async fn suggestions(&self) -> Result<Vec<File>> {
-        self.suggestion_service.suggestions().await
+        // Call the suggestion service with no specific conversation ID
+        self.suggestion_service.suggestions(None).await
     }
 
     async fn tools(&self) -> Vec<ToolDefinition> {
@@ -56,7 +55,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     async fn chat(
         &self,
         chat: ChatRequest,
-    ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
+    ) -> anyhow::Result<MpscStream<anyhow::Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
         Ok(self.executor_service.chat(chat).await?)
     }
 
