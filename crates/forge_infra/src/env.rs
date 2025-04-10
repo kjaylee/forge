@@ -9,7 +9,7 @@ pub struct ForgeEnvironmentService {
 type ProviderSearch = (&'static str, Box<dyn FnOnce(&str) -> Provider>);
 
 impl ForgeEnvironmentService {
-    /// Creates a new EnvironmentFactory with current working directory
+    /// Creates a new EnvironmentFactory with base path
     ///
     /// # Arguments
     /// * `unrestricted` - If true, use unrestricted shell mode (sh/bash) If
@@ -110,18 +110,16 @@ impl ForgeEnvironmentService {
 
     fn get(&self) -> Environment {
         dotenv::dotenv().ok();
-        let cwd = std::env::current_dir().unwrap_or(PathBuf::from("."));
         let provider = self.resolve_provider();
         let retry_config = self.resolve_retry_config();
+        let base_path = dirs::config_dir()
+            .map(|a| a.join("forge"))
+            .unwrap_or(PathBuf::from(".").join(".forge"));
 
         Environment {
             os: std::env::consts::OS.to_string(),
-            pid: std::process::id(),
-            cwd,
             shell: self.get_shell_path(),
-            base_path: dirs::config_dir()
-                .map(|a| a.join("forge"))
-                .unwrap_or(PathBuf::from(".").join(".forge")),
+            base_path,
             home: dirs::home_dir(),
             provider,
             retry_config,
