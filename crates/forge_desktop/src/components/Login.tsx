@@ -3,7 +3,7 @@ import { CardContent } from "./ui/card";
 
 export function LoginPage() {
   return (
-    <div className="w-full flex items-center justify-center bg-background">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background">
       <CardContent>
         <SignIn
           routing="path"
