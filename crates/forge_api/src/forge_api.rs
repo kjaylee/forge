@@ -80,7 +80,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .clone()
     }
 
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<WorkflowConfig> {
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Config> {
         // Load the workflow and convert it to a WorkflowConfig
         let workflow = self.loader.load(path).await?;
         Ok(workflow)

@@ -12,7 +12,7 @@ use crate::{Command, ModelId};
 /// required to initialize a workflow.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option)]
-pub struct WorkflowConfig {
+pub struct Config {
     /// Variables that can be used in templates
     #[merge(strategy = crate::merge::option)]
     pub variables: Option<HashMap<String, Value>>,
@@ -71,7 +71,7 @@ mod tests {
                 "temperature": temp
             });
 
-            let config: std::result::Result<WorkflowConfig, serde_json::Error> =
+            let config: std::result::Result<Config, serde_json::Error> =
                 serde_json::from_value(json);
             assert!(
                 config.is_ok(),
@@ -88,7 +88,7 @@ mod tests {
                 "temperature": temp
             });
 
-            let config: std::result::Result<WorkflowConfig, serde_json::Error> =
+            let config: std::result::Result<Config, serde_json::Error> =
                 serde_json::from_value(json);
             assert!(
                 config.is_err(),

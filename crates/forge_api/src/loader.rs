@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::WorkflowConfig;
+use forge_domain::Config;
 use forge_services::{FsReadService, Infrastructure};
 use merge::Merge;
 
@@ -39,7 +39,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     ///
     /// When merging, the project's forge.yaml values take precedence over
     /// defaults.
-    pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<WorkflowConfig> {
+    pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Config> {
         // Determine the workflow source
         let source = match path {
             Some(path) => WorkflowSource::ExplicitPath(path),
@@ -60,16 +60,16 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     }
 
     /// Loads a workflow config from a specific file path
-    async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<WorkflowConfig> {
+    async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<Config> {
         let content = String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?;
-        let workflow_config: WorkflowConfig = serde_yaml::from_str(&content)
+        let workflow_config: Config = serde_yaml::from_str(&content)
             .with_context(|| format!("Failed to parse workflow config from {}", path.display()))?;
         Ok(workflow_config)
     }
 
     /// Loads workflow config by merging project config with default workflow
     /// config
-    async fn load_with_project_config(&self) -> anyhow::Result<WorkflowConfig> {
+    async fn load_with_project_config(&self) -> anyhow::Result<Config> {
         let project_path = Path::new("forge.yaml").canonicalize()?;
 
         let project_content = String::from_utf8(
@@ -80,13 +80,12 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
                 .to_vec(),
         )?;
 
-        let project_config: WorkflowConfig =
-            serde_yaml::from_str(&project_content).with_context(|| {
-                format!(
-                    "Failed to parse project workflow config: {}",
-                    project_path.display()
-                )
-            })?;
+        let project_config: Config = serde_yaml::from_str(&project_content).with_context(|| {
+            format!(
+                "Failed to parse project workflow config: {}",
+                project_path.display()
+            )
+        })?;
 
         // Merge workflow configs with project taking precedence
         let mut merged_config = create_default_workflow_config();

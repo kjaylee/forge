@@ -2,7 +2,7 @@ use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 
-use crate::workflow_config::WorkflowConfig;
+use crate::config::Config;
 use crate::{Agent, AgentId};
 
 // Include the default yaml configuration file as a string
@@ -25,8 +25,8 @@ impl Default for Workflow {
     }
 }
 
-impl From<WorkflowConfig> for Workflow {
-    fn from(config: WorkflowConfig) -> Self {
+impl From<Config> for Workflow {
+    fn from(config: Config) -> Self {
         let mut workflow = Workflow::default();
         // Set models for all the agents
         if let Some(model) = config.model {
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_workflow_config_to_workflow() {
         // Create a agent-specific values by directly using WorkflowConfig
-        let config = WorkflowConfig {
+        let config = Config {
             model: Some(ModelId::new("test-model")),
             max_walker_depth: Some(10),
             custom_rules: Some("Global Rules".to_string()),

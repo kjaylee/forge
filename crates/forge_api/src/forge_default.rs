@@ -3,7 +3,7 @@
 //! This module contains the default configuration that is used when no
 //! custom configuration is provided.
 
-use forge_domain::{Workflow, WorkflowConfig};
+use forge_domain::{Config, Workflow};
 
 // Include the default yaml configuration file as a string
 const DEFAULT_YAML: &str = include_str!("../../../forge.default.yaml");
@@ -19,9 +19,9 @@ pub fn create_default_workflow() -> Workflow {
 
 /// Creates the default workflow config by parsing the embedded YAML
 /// configuration
-pub fn create_default_workflow_config() -> WorkflowConfig {
+pub fn create_default_workflow_config() -> Config {
     // Parse the YAML string into a WorkflowConfig struct
-    let config: WorkflowConfig = serde_yaml::from_str(DEFAULT_YAML)
+    let config: Config = serde_yaml::from_str(DEFAULT_YAML)
         .expect("Failed to parse default forge.yaml configuration");
 
     config

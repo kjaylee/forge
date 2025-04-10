@@ -39,7 +39,7 @@ pub trait API: Sync + Send {
     /// Loads a workflow configuration from the given path, current directory's
     /// forge.yaml, or embedded default configuration in that order of
     /// precedence
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<WorkflowConfig>;
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Config>;
 
     /// Returns the conversation with the given ID
     async fn conversation(

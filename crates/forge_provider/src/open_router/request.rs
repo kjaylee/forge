@@ -1,8 +1,7 @@
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use forge_domain::{
-    Context, ContextMessage, ModelId, Role, ToolCallFull, ToolCallId, ToolDefinition,
-    ToolName,
+    Context, ContextMessage, ModelId, Role, ToolCallFull, ToolCallId, ToolDefinition, ToolName,
 };
 use serde::{Deserialize, Serialize};
 
