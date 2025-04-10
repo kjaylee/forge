@@ -66,6 +66,7 @@ impl ForgeEnvironmentService {
                     provider
                 })
             })
+            // FIXME: can not panic if no API key is found
             .unwrap_or_else(|| panic!("No API key found. Please set one of: {}", env_variables))
     }
 
