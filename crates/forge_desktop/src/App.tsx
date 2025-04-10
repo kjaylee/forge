@@ -11,7 +11,7 @@ import StatusBar from "@/components/StatusBar";
 import DirectoryView from "@/components/DirectoryView";
 import FileViewer from "@/components/FileViewerModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider, useTheme } from "next-themes";
 import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
+import { dark } from "@clerk/themes";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster } from 'sonner';
 
@@ -150,16 +151,30 @@ const AppContent: React.FC = () => {
   return <ChatInterface />;
 };
 
+// Wrap the Clerk provider with theme awareness
+const ThemedClerkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { theme } = useTheme();
+  
+  return (
+    <ClerkProvider
+      afterSignOutUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInUrl="/sign-in"
+      signInForceRedirectUrl="/"
+      signUpForceRedirectUrl="/"
+      appearance={{
+        baseTheme: theme === "dark" ? dark : undefined,
+      }}
+      publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+      {children}
+    </ClerkProvider>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider attribute="class">
-      <ClerkProvider
-        afterSignOutUrl="/sign-in"
-        signUpUrl="/sign-up"
-        signInUrl="/sign-in"
-        signInForceRedirectUrl="/"
-        signUpForceRedirectUrl="/"
-        publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+      <ThemedClerkProvider>
         <TooltipProvider>
           <BrowserRouter>
             <SignedOut>
@@ -184,7 +199,7 @@ function App() {
           </BrowserRouter>
         </TooltipProvider>
         <Toaster richColors position="top-right" />
-      </ClerkProvider>
+      </ThemedClerkProvider>
     </ThemeProvider>
   );
 }
