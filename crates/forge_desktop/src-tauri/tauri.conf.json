@@ -37,10 +37,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "../../../forge.yaml",
-      "../../../forge.default.yaml"
-    ],
+    "resources": ["../../../forge.yaml", "../../../forge.default.yaml"],
     "macOS": {
       "entitlements": null,
       "exceptionDomain": "",
@@ -56,6 +53,7 @@
     "dialog": null,
     "fs": {
       "requireLiteralLeadingDot": false
-    }
+    },
+    "path": null
   }
 }

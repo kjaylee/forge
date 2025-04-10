@@ -31,5 +31,5 @@ chrono = "0.4"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = { version = "2" }
 forge_walker = { workspace = true }
-
-
+dirs = "6.0.0"
+dotenv = "0.14.1"

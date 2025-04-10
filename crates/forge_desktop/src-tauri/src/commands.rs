@@ -310,10 +310,10 @@ pub async fn change_mode(mode: String, app_handle: AppHandle) -> Result<ModeInfo
 
     // Convert display mode (Act, Plan, Help) to variable mode (ACT, PLAN, HELP)
     let api_mode = mode.to_uppercase();
-    
+
     // Display mode matches what the UI expects
     let display_mode = mode.clone();
-    
+
     let mode_info = ModeInfo {
         mode: display_mode.clone(),
         description: match display_mode.as_str() {
@@ -346,15 +346,16 @@ pub async fn get_mode(app_handle: AppHandle) -> ModeInfo {
     let (_, state) = get_api_and_state(&app_handle).await;
 
     let api_mode = state.current_mode.lock().await.clone();
-    
+
     // Convert API mode (uppercase) to display mode (title case) for UI
     let display_mode = match api_mode.as_str() {
         "ACT" => "Act",
         "PLAN" => "Plan",
         "HELP" => "Help",
         _ => &api_mode, // Fallback to original if unknown
-    }.to_string();
-    
+    }
+    .to_string();
+
     ModeInfo {
         mode: display_mode.clone(),
         description: match display_mode.as_str() {

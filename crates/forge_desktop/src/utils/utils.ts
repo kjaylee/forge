@@ -1,33 +1,35 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 /**
  * Formats a timestamp into a readable time string
  */
 export function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 /**
- * Detects code blocks in a markdown string and returns an array of 
+ * Detects code blocks in a markdown string and returns an array of
  * { language, code } objects
  */
-export function extractCodeBlocks(markdown: string): { language: string, code: string }[] {
+export function extractCodeBlocks(
+  markdown: string,
+): { language: string; code: string }[] {
   const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-  const codeBlocks: { language: string, code: string }[] = [];
-  
+  const codeBlocks: { language: string; code: string }[] = [];
+
   let match;
   while ((match = codeBlockRegex.exec(markdown)) !== null) {
     codeBlocks.push({
-      language: match[1] || 'text',
-      code: match[2].trim()
+      language: match[1] || "text",
+      code: match[2].trim(),
     });
   }
-  
+
   return codeBlocks;
 }
 
@@ -46,5 +48,5 @@ export function extractFilePath(header: string): string | null {
  */
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '...';
+  return text.slice(0, maxLength) + "...";
 }

@@ -9,13 +9,15 @@ import ToolConsoleView from "@/components/ToolConsoleView";
 import MessageInput from "@/components/MessageInput";
 import StatusBar from "@/components/StatusBar";
 import DirectoryView from "@/components/DirectoryView";
+import FileViewer from "@/components/FileViewerModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "next-themes";
 import { PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
-  ResizablePanelGroup
+  ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
@@ -40,21 +42,21 @@ const ChatInterface: React.FC = () => {
 
   // Initialize sizes from localStorage or use defaults
   const [directorySize, setDirectorySize] = useState(() => {
-    return Number(localStorage.getItem('directorySize')) || 20;
+    return Number(localStorage.getItem("directorySize")) || 20;
   });
   const [toolConsoleSize, setToolConsoleSize] = useState(() => {
-    return Number(localStorage.getItem('toolConsoleSize')) || 25;
+    return Number(localStorage.getItem("toolConsoleSize")) || 25;
   });
 
   const { isVisible, toggleVisible } = useDirectoryStore();
 
   // Persist sizes to localStorage
   useEffect(() => {
-    localStorage.setItem('directorySize', directorySize.toString());
+    localStorage.setItem("directorySize", directorySize.toString());
   }, [directorySize]);
 
   useEffect(() => {
-    localStorage.setItem('toolConsoleSize', toolConsoleSize.toString());
+    localStorage.setItem("toolConsoleSize", toolConsoleSize.toString());
   }, [toolConsoleSize]);
 
   return (
@@ -82,7 +84,11 @@ const ChatInterface: React.FC = () => {
 
         {/* Main Content Panel - Flexes to fill remaining space */}
         <ResizablePanel
-          defaultSize={isVisible ? 100 - directorySize - toolConsoleSize : 100 - toolConsoleSize}
+          defaultSize={
+            isVisible
+              ? 100 - directorySize - toolConsoleSize
+              : 100 - toolConsoleSize
+          }
           minSize={35}
           className="flex-1"
         >
@@ -93,9 +99,13 @@ const ChatInterface: React.FC = () => {
                 size="icon"
                 className="p-2 mr-1 hover:bg-accent/50 rounded-md"
                 onClick={toggleVisible}
-                title={isVisible ? "Hide directory panel" : "Show directory panel"}
+                title={
+                  isVisible ? "Hide directory panel" : "Show directory panel"
+                }
               >
-                <PanelLeft className={`h-5 w-5 ${isVisible ? 'text-primary' : 'text-muted-foreground'}`} />
+                <PanelLeft
+                  className={`h-5 w-5 ${isVisible ? "text-primary" : "text-muted-foreground"}`}
+                />
               </Button>
               <ModeSwitcher />
             </div>
@@ -142,38 +152,40 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <ClerkProvider
-      afterSignOutUrl="/sign-in"
-      signUpUrl="/sign-up"
-      signInUrl="/sign-in"
-      signInForceRedirectUrl="/"
-      signUpForceRedirectUrl="/"
-      publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
-      <TooltipProvider>
-        <BrowserRouter>
-          <SignedOut>
-            <Routes>
-              <Route path="/sign-in" element={<LoginPage />} />
-              <Route path="/sign-up" element={<SignUpPage />} />
-              <Route path="/*" element={<Navigate to="/sign-in" replace />} />
-            </Routes>
-          </SignedOut>
-          <SignedIn>
-            <InvitedOnly>
+    <ThemeProvider attribute="class">
+      <ClerkProvider
+        afterSignOutUrl="/sign-in"
+        signUpUrl="/sign-up"
+        signInUrl="/sign-in"
+        signInForceRedirectUrl="/"
+        signUpForceRedirectUrl="/"
+        publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+        <TooltipProvider>
+          <BrowserRouter>
+            <SignedOut>
               <Routes>
-                <Route path="/*" element={<AppContent />} />
+                <Route path="/sign-in" element={<LoginPage />} />
+                <Route path="/sign-up" element={<SignUpPage />} />
+                <Route path="/*" element={<Navigate to="/sign-in" replace />} />
               </Routes>
-            </InvitedOnly>
-            <WaitListed>
-              <Routes>
-                <Route path="/*" element={<InvitationPage />} />
-              </Routes>
-            </WaitListed>
-          </SignedIn>
-        </BrowserRouter>
-      </TooltipProvider>
-      <Toaster richColors position="top-right" />
-    </ClerkProvider>
+            </SignedOut>
+            <SignedIn>
+              <InvitedOnly>
+                <Routes>
+                  <Route path="/*" element={<><FileViewer /><AppContent /></>} />
+                </Routes>
+              </InvitedOnly>
+              <WaitListed>
+                <Routes>
+                  <Route path="/*" element={<InvitationPage />} />
+                </Routes>
+              </WaitListed>
+            </SignedIn>
+          </BrowserRouter>
+        </TooltipProvider>
+        <Toaster richColors position="top-right" />
+      </ClerkProvider>
+    </ThemeProvider>
   );
 }
 
