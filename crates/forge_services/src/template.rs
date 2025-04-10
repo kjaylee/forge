@@ -59,7 +59,8 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         walker = walker.max_depth(_agent.max_walker_depth.unwrap_or(1));
 
         let mut files = walker
-            .cwd(env.cwd.clone())
+            // Use base_path instead of cwd since Environment no longer has cwd
+            .cwd(env.base_path.clone())
             .get()
             .await?
             .iter()

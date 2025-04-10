@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_display::TitleFormat;
-use forge_domain::{EnvironmentService, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Conversation, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -34,10 +34,13 @@ impl<F: Infrastructure> FSRead<F> {
     ///
     /// If the path starts with the current working directory, returns a
     /// relative path. Otherwise, returns the original absolute path.
-    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
-        // Get the current working directory
-        let env = self.0.environment_service().get_environment();
-        let cwd = env.cwd.as_path();
+    fn format_display_path(
+        &self,
+        path: &Path,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
+        // Use the conversation's working directory
+        let cwd = conversation.cwd.as_path();
 
         // Use the shared utility function
         format_display_path(path, cwd)
@@ -54,7 +57,11 @@ impl<F> NamedTool for FSRead<F> {
 impl<F: Infrastructure> ExecutableTool for FSRead<F> {
     type Input = FSReadInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -76,7 +83,7 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
 
         // Display a message about the file being read
         let title = "read";
-        let display_path = self.format_display_path(path)?;
+        let display_path = self.format_display_path(path, conversation)?;
         let message = TitleFormat::success(title).sub_title(display_path);
         println!("{}", message);
 
@@ -86,8 +93,10 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
     use std::sync::Arc;
 
+    use forge_domain::{Conversation, ConversationId, Workflow};
     use pretty_assertions::assert_eq;
     use tokio::fs;
 
@@ -95,11 +104,22 @@ mod test {
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
 
+    // Helper function to create a test conversation with a specific working
+    // directory
+    fn create_test_conversation(cwd: PathBuf) -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        Conversation::new(id, workflow, cwd)
+    }
+
     // Helper function to test relative paths
     async fn test_with_mock(path: &str) -> anyhow::Result<String> {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_read = FSRead::new(infra);
-        fs_read.call(FSReadInput { path: path.to_string() }).await
+        let conversation = create_test_conversation(PathBuf::from("/tmp/test"));
+        fs_read
+            .call(FSReadInput { path: path.to_string() }, &conversation)
+            .await
     }
 
     #[tokio::test]
@@ -110,6 +130,9 @@ mod test {
         let test_content = "Hello, World!";
         fs::write(&file_path, test_content).await.unwrap();
 
+        // Create a test conversation
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
+
         // For the test, we'll switch to using tokio::fs directly rather than going
         // through the infrastructure (which would require more complex mocking)
         let path = Path::new(&file_path);
@@ -118,9 +141,14 @@ mod test {
         // Read the file directly
         let content = tokio::fs::read_to_string(path).await.unwrap();
 
+        // Create a display path using the conversation's cwd
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_read = FSRead::new(infra);
+        let display_path = fs_read.format_display_path(path, &conversation).unwrap();
+
         // Display a message - just for testing
         let title = "read";
-        let message = TitleFormat::success(title).sub_title(path.display().to_string());
+        let message = TitleFormat::success(title).sub_title(display_path);
         println!("{}", message);
 
         // Assert the content matches
@@ -162,21 +190,24 @@ mod test {
             .to_string()
             .contains("Path must be absolute"));
     }
+
     #[tokio::test]
     async fn test_format_display_path() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
 
-        // Create a mock infrastructure with controlled cwd
+        // Create a test conversation with the temp dir as its CWD
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
+
+        // Create a mock infrastructure
         let infra = Arc::new(MockInfrastructure::new());
         let fs_read = FSRead::new(infra);
 
-        // Test with a mock path
-        let display_path = fs_read.format_display_path(Path::new(&file_path));
+        // Test with our conversation instance
+        let display_path = fs_read.format_display_path(Path::new(&file_path), &conversation);
 
-        // Since MockInfrastructure has a fixed cwd of "/test",
-        // and our temp path won't start with that, we expect the full path
+        // The file should now be relative to the conversation's CWD
         assert!(display_path.is_ok());
-        assert_eq!(display_path.unwrap(), file_path.display().to_string());
+        assert_eq!(display_path.unwrap(), "test.txt");
     }
 }

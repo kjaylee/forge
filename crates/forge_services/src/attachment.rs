@@ -34,13 +34,15 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
     }
 
     async fn populate_attachments(&self, mut path: PathBuf) -> anyhow::Result<Attachment> {
+        // FIXME: need to use conversation to get path
         let extension = path.extension().map(|v| v.to_string_lossy().to_string());
         if !path.is_absolute() {
+            // Convert to absolute path using base_path instead of cwd
             path = self
                 .infra
                 .environment_service()
                 .get_environment()
-                .cwd
+                .base_path
                 .join(path)
         }
         let read = self.infra.file_read_service().read(path.as_path()).await?;
@@ -91,10 +93,9 @@ pub mod tests {
     #[async_trait::async_trait]
     impl EnvironmentService for MockEnvironmentService {
         fn get_environment(&self) -> Environment {
+            // Remove pid field in mock since environment no longer has it
             Environment {
                 os: "test".to_string(),
-                pid: 12345,
-                cwd: PathBuf::from("/test"),
                 home: Some(PathBuf::from("/home/test")),
                 shell: "bash".to_string(),
                 base_path: PathBuf::from("/base"),

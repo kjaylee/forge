@@ -56,7 +56,6 @@ pub mod tests {
         Stub {
             env: Environment {
                 os: std::env::consts::OS.to_string(),
-                cwd: std::env::current_dir().unwrap_or_default(),
                 home: Some("/".into()),
                 shell: if cfg!(windows) {
                     "cmd.exe".to_string()
@@ -64,7 +63,6 @@ pub mod tests {
                     "/bin/sh".to_string()
                 },
                 base_path: PathBuf::new(),
-                pid: std::process::id(),
                 provider: Provider::anthropic("test-key"),
                 retry_config: Default::default(),
             },

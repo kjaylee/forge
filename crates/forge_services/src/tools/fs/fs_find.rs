@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use forge_display::{GrepFormat, TitleFormat};
-use forge_domain::{EnvironmentService, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Conversation, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use regex::Regex;
@@ -69,7 +69,7 @@ impl FSFindInput {
 /// exploration, API usage discovery, configuration settings, or finding
 /// patterns across projects.
 #[derive(ToolDescription)]
-pub struct FSFind<F>(Arc<F>);
+pub struct FSFind<F>(#[allow(dead_code)] Arc<F>);
 
 impl<F: Infrastructure> FSFind<F> {
     pub fn new(f: Arc<F>) -> Self {
@@ -81,18 +81,25 @@ impl<F: Infrastructure> FSFind<F> {
     ///
     /// If the path starts with the current working directory, returns a
     /// relative path. Otherwise, returns the original absolute path.
-    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
-        // Get the current working directory
-        let env = self.0.environment_service().get_environment();
-        let cwd = env.cwd.as_path();
+    fn format_display_path(
+        &self,
+        path: &Path,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
+        // Get the conversation's working directory
+        let cwd = conversation.cwd.as_path();
 
         // Use the shared utility function
         format_display_path(path, cwd)
     }
 
-    fn create_title(&self, input: &FSFindInput) -> anyhow::Result<TitleFormat> {
+    fn create_title(
+        &self,
+        input: &FSFindInput,
+        conversation: &Conversation,
+    ) -> anyhow::Result<TitleFormat> {
         // Format the title with relative path if possible
-        let formatted_dir = self.format_display_path(input.path.as_ref())?;
+        let formatted_dir = self.format_display_path(input.path.as_ref(), conversation)?;
 
         let sub_title = match (&input.regex, &input.file_pattern) {
             (Some(regex), Some(pattern)) => {
@@ -109,11 +116,15 @@ impl<F: Infrastructure> FSFind<F> {
         Ok(TitleFormat::execute("search").sub_title(sub_title))
     }
 
-    async fn call(&self, input: FSFindInput) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: FSFindInput,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
-        let title_format = self.create_title(&input)?;
+        let title_format = self.create_title(&input, conversation)?;
         println!("{}", title_format.format());
 
         if !dir.exists() {
@@ -143,7 +154,7 @@ impl<F: Infrastructure> FSFind<F> {
 
             // File name only search mode
             if regex.is_none() {
-                matches.push((self.format_display_path(&path)?).to_string());
+                matches.push((self.format_display_path(&path, conversation)?).to_string());
                 continue;
             }
 
@@ -155,7 +166,7 @@ impl<F: Infrastructure> FSFind<F> {
                     if e.kind() != std::io::ErrorKind::InvalidData {
                         matches.push(format!(
                             "Error reading {}: {}",
-                            self.format_display_path(&path)?,
+                            self.format_display_path(&path, conversation)?,
                             e
                         ));
                     }
@@ -173,7 +184,7 @@ impl<F: Infrastructure> FSFind<F> {
                         // Format match in ripgrep style: filepath:line_num:content
                         matches.push(format!(
                             "{}:{}:{}",
-                            self.format_display_path(&path)?,
+                            self.format_display_path(&path, conversation)?,
                             line_num + 1,
                             line
                         ));
@@ -226,13 +237,20 @@ impl<F> NamedTool for FSFind<F> {
 impl<F: Infrastructure> ExecutableTool for FSFind<F> {
     type Input = FSFindInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
-        self.call(input).await
+    async fn call(
+        &self,
+        input: Self::Input,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
+        self.call(input, conversation).await
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
+    use forge_domain::{ConversationId, Workflow};
     use pretty_assertions::assert_eq;
     use tokio::fs;
 
@@ -240,9 +258,18 @@ mod test {
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
 
+    // Helper function to create a test conversation with a specific working
+    // directory
+    fn create_test_conversation(cwd: PathBuf) -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        Conversation::new(id, workflow, cwd)
+    }
+
     #[tokio::test]
     async fn test_fs_search_content() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
             .await
@@ -257,11 +284,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("test".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -274,6 +304,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_with_pattern() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
             .await
@@ -285,11 +316,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("test".to_string()),
-                file_pattern: Some("*.rs".to_string()),
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: Some("*.rs".to_string()),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -301,6 +335,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_filenames_only() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         fs::write(temp_dir.path().join("test1.txt"), "Hello world")
             .await
@@ -315,11 +350,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: None,
-                file_pattern: Some("test*.txt".to_string()),
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: None,
+                    file_pattern: Some("test*.txt".to_string()),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -333,6 +371,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_with_context() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
         let content = "line 1\nline 2\ntest line\nline 4\nline 5";
 
         fs::write(temp_dir.path().join("test.txt"), content)
@@ -342,11 +381,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("test".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -358,6 +400,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_recursive() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let sub_dir = temp_dir.path().join("subdir");
         fs::create_dir(&sub_dir).await.unwrap();
@@ -375,11 +418,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("test".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -393,6 +439,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_case_insensitive() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         fs::write(
             temp_dir.path().join("test.txt"),
@@ -404,11 +451,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("test".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -421,6 +471,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_no_matches() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         fs::write(temp_dir.path().join("test.txt"), "content")
             .await
@@ -429,11 +480,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("nonexistent".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("nonexistent".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -443,6 +497,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_list_all_files() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         fs::write(temp_dir.path().join("file1.txt"), "content1")
             .await
@@ -454,11 +509,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: None,
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: None,
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -471,15 +529,19 @@ mod test {
     #[tokio::test]
     async fn test_fs_search_invalid_regex() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                regex: Some("[invalid".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("[invalid".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());
@@ -491,14 +553,20 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_relative_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
+
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
         let result = fs_search
-            .call(FSFindInput {
-                path: "relative/path".to_string(),
-                regex: Some("test".to_string()),
-                file_pattern: None,
-            })
+            .call(
+                FSFindInput {
+                    path: "relative/path".to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: None,
+                },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());
@@ -507,21 +575,21 @@ mod test {
             .to_string()
             .contains("Path must be absolute"));
     }
+
     #[tokio::test]
     async fn test_format_display_path() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         // Create a mock infrastructure with controlled cwd
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
 
-        // Test with a mock path
-        let display_path = fs_search.format_display_path(Path::new(&file_path));
+        // Test with the conversation's cwd as the temp directory
+        let display_path = fs_search.format_display_path(Path::new(&file_path), &conversation);
 
-        // Since MockInfrastructure has a fixed cwd of "/test",
-        // and our temp path won't start with that, we expect the full path
         assert!(display_path.is_ok());
-        assert_eq!(display_path.unwrap(), file_path.display().to_string());
+        assert_eq!(display_path.unwrap(), "test.txt");
     }
 }

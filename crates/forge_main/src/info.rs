@@ -61,8 +61,6 @@ impl From<&Environment> for Info {
             .add_title("Environment")
             .add_key_value("Version", VERSION)
             .add_key_value("OS", &env.os)
-            .add_key_value("PID", env.pid)
-            .add_key_value("Working Directory", env.cwd.display())
             .add_key_value("Shell", &env.shell)
             .add_title("Paths")
             .add_key_value("Config", env.base_path.display())

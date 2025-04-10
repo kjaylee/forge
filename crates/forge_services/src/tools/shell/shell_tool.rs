@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
-use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{
+    Conversation, Environment, ExecutableTool, NamedTool, ToolDescription, ToolName,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -83,7 +85,11 @@ impl NamedTool for Shell {
 impl ExecutableTool for Shell {
     type Input = ShellInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _conversation: &Conversation,
+    ) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());
@@ -125,7 +131,7 @@ impl ExecutableTool for Shell {
 mod tests {
     use std::{env, fs};
 
-    use forge_domain::Provider;
+    use forge_domain::{ConversationId, Provider, Workflow};
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -134,7 +140,6 @@ mod tests {
     fn test_env() -> Environment {
         Environment {
             os: std::env::consts::OS.to_string(),
-            cwd: std::env::current_dir().unwrap_or_default(),
             home: Some("/home/user".into()),
             shell: if cfg!(windows) {
                 "cmd.exe".to_string()
@@ -142,10 +147,14 @@ mod tests {
                 "/bin/sh".to_string()
             },
             base_path: PathBuf::new(),
-            pid: std::process::id(),
             provider: Provider::anthropic("test-key"),
             retry_config: Default::default(),
         }
+    }
+
+    /// Create a test conversation with a specific working directory
+    fn test_conversation(cwd: PathBuf) -> Conversation {
+        Conversation::new(ConversationId::generate(), Workflow::default(), cwd)
     }
 
     /// Platform-specific error message patterns for command not found errors
@@ -165,11 +174,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_echo() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "echo 'Hello, World!'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "echo 'Hello, World!'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
         assert!(result.contains("<stdout>Hello, World!\n</stdout>"));
@@ -178,16 +193,22 @@ mod tests {
     #[tokio::test]
     async fn test_shell_stderr_with_success() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         // Use a command that writes to both stdout and stderr
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
-                } else {
-                    "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+            .call(
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
+                    } else {
+                        "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+                    },
+                    cwd: env::current_dir().unwrap(),
                 },
-                cwd: env::current_dir().unwrap(),
-            })
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -200,11 +221,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_both_streams() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -218,16 +245,43 @@ mod tests {
     async fn test_shell_with_working_directory() {
         let shell = Shell::new(test_env());
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
+        let conversation = test_conversation(env::current_dir().unwrap());
 
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "cd".to_string()
-                } else {
-                    "pwd".to_string()
+            .call(
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: temp_dir.clone(),
                 },
-                cwd: temp_dir.clone(),
-            })
+                &conversation,
+            )
+            .await
+            .unwrap();
+        assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
+    }
+
+    #[tokio::test]
+    async fn test_shell_with_conversation_cwd() {
+        let shell = Shell::new(test_env());
+        let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
+        let conversation = test_conversation(temp_dir.clone());
+
+        let result = shell
+            .call(
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: env::current_dir().unwrap(), // Use conversation's CWD
+                },
+                &conversation,
+            )
             .await
             .unwrap();
         assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
@@ -236,11 +290,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_invalid_command() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "non_existent_command".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "non_existent_command".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());
@@ -261,8 +321,14 @@ mod tests {
     #[tokio::test]
     async fn test_shell_empty_command() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
+            .call(
+                ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() },
+                &conversation,
+            )
             .await;
         assert!(result.is_err());
         assert_eq!(
@@ -280,15 +346,20 @@ mod tests {
     async fn test_shell_pwd() {
         let shell = Shell::new(test_env());
         let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "cd".to_string()
-                } else {
-                    "pwd".to_string()
+            .call(
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: env::current_dir().unwrap(),
                 },
-                cwd: current_dir.clone(),
-            })
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -301,11 +372,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_multiple_commands() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "echo 'first' && echo 'second'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "echo 'first' && echo 'second'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
         assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
@@ -314,11 +391,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_empty_output() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "true".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "true".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -329,11 +412,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_whitespace_only_output() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "echo ''".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "echo ''".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -344,11 +433,17 @@ mod tests {
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         let result = shell
-            .call(ShellInput {
-                command: "echo $PATH".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ShellInput {
+                    command: "echo $PATH".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -359,6 +454,9 @@ mod tests {
     #[tokio::test]
     async fn test_shell_full_path_command() {
         let shell = Shell::new(test_env());
+        let current_dir = env::current_dir().unwrap();
+        let conversation = test_conversation(current_dir.clone());
+
         // Using a full path command which would be restricted in rbash
         let cmd = if cfg!(target_os = "windows") {
             r"C:\Windows\System32\whoami.exe"
@@ -367,7 +465,10 @@ mod tests {
         };
 
         let result = shell
-            .call(ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() })
+            .call(
+                ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() },
+                &conversation,
+            )
             .await;
 
         // In rbash, this would fail with a permission error

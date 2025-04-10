@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use forge_display::DiffFormat;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Conversation, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -247,7 +247,11 @@ fn format_output(path: &str, content: &str, warning: Option<&str>) -> String {
 impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
     type Input = Input;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _conversation: &Conversation,
+    ) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -298,7 +302,6 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
 
 #[cfg(test)]
 mod test {
-
     use super::*;
 
     // Enhanced test helper for running multiple operations

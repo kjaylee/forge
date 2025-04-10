@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Conversation, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -22,6 +22,7 @@ pub struct FSFileInfoInput {
 #[derive(ToolDescription)]
 pub struct FSFileInfo;
 
+//FIXME: This tool isn't being used and can be deleted.
 impl NamedTool for FSFileInfo {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_fs_info")
@@ -32,23 +33,46 @@ impl NamedTool for FSFileInfo {
 impl ExecutableTool for FSFileInfo {
     type Input = FSFileInfoInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        let meta = tokio::fs::metadata(&input.path)
+        // If the path is valid but doesn't exist, we could check if a relative path
+        // from the conversation's CWD would exist
+        let file_path = if !path.exists() && !path.is_absolute() {
+            // Try to resolve relative to conversation's CWD
+            conversation.cwd().join(&input.path)
+        } else {
+            path.to_path_buf()
+        };
+
+        let meta = tokio::fs::metadata(&file_path)
             .await
-            .with_context(|| format!("Failed to get metadata for '{}'", input.path))?;
+            .with_context(|| format!("Failed to get metadata for '{}'", file_path.display()))?;
         Ok(format!("{:?}", meta))
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
+    use forge_domain::{ConversationId, Workflow};
     use tokio::fs;
 
     use super::*;
     use crate::tools::utils::TempDir;
+
+    fn create_test_conversation() -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/tmp"));
+        Conversation::new(id, workflow, cwd)
+    }
 
     #[tokio::test]
     async fn test_fs_file_info_on_file() {
@@ -57,8 +81,13 @@ mod test {
         fs::write(&file_path, "test content").await.unwrap();
 
         let fs_info = FSFileInfo;
+        let conversation = create_test_conversation();
+
         let result = fs_info
-            .call(FSFileInfoInput { path: file_path.to_string_lossy().to_string() })
+            .call(
+                FSFileInfoInput { path: file_path.to_string_lossy().to_string() },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -74,8 +103,13 @@ mod test {
         fs::create_dir(&dir_path).await.unwrap();
 
         let fs_info = FSFileInfo;
+        let conversation = create_test_conversation();
+
         let result = fs_info
-            .call(FSFileInfoInput { path: dir_path.to_string_lossy().to_string() })
+            .call(
+                FSFileInfoInput { path: dir_path.to_string_lossy().to_string() },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -90,8 +124,13 @@ mod test {
         let nonexistent_path = temp_dir.path().join("nonexistent");
 
         let fs_info = FSFileInfo;
+        let conversation = create_test_conversation();
+
         let result = fs_info
-            .call(FSFileInfoInput { path: nonexistent_path.to_string_lossy().to_string() })
+            .call(
+                FSFileInfoInput { path: nonexistent_path.to_string_lossy().to_string() },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());
@@ -100,8 +139,13 @@ mod test {
     #[tokio::test]
     async fn test_fs_file_info_relative_path() {
         let fs_info = FSFileInfo;
+        let conversation = create_test_conversation();
+
         let result = fs_info
-            .call(FSFileInfoInput { path: "relative/path.txt".to_string() })
+            .call(
+                FSFileInfoInput { path: "relative/path.txt".to_string() },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());

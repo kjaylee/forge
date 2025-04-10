@@ -110,7 +110,7 @@ impl<F: API> UI<F> {
         Ok(Self {
             state: Default::default(),
             api,
-            console: Console::new(env.clone(), command.clone()),
+            console: Console::new(command.clone()),
             cli,
             command,
             models: None,
@@ -270,12 +270,15 @@ impl<F: API> UI<F> {
         match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
-                let workflow = self.api.load(self.cli.workflow.as_deref()).await?;
-                self.command.register_all(&workflow);
-                // Initialize with current directory path instead of workflow
+                // Initialize with current directory path
                 let conversation_id = self.api.init(std::env::current_dir()?).await?;
-                self.state.conversation_id = Some(conversation_id.clone());
 
+                // Get the conversation to access its workflow for registering commands
+                if let Ok(Some(conversation)) = self.api.conversation(&conversation_id).await {
+                    self.command.register_all(&conversation.workflow);
+                }
+
+                self.state.conversation_id = Some(conversation_id.clone());
                 Ok(conversation_id)
             }
         }

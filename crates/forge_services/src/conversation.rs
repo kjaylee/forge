@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context as AnyhowContext, Result};
@@ -46,9 +47,9 @@ impl ConversationService for ForgeConversationService {
         Ok(())
     }
 
-    async fn create(&self, workflow: Workflow) -> Result<ConversationId> {
+    async fn create(&self, workflow: Workflow, cwd: PathBuf) -> Result<ConversationId> {
         let id = ConversationId::generate();
-        let conversation = Conversation::new(id.clone(), workflow);
+        let conversation = Conversation::new(id.clone(), workflow, cwd);
         self.workflows.lock().await.insert(id.clone(), conversation);
         Ok(id)
     }

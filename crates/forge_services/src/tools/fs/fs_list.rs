@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Conversation, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use schemars::JsonSchema;
@@ -39,26 +39,42 @@ impl NamedTool for FSList {
 impl ExecutableTool for FSList {
     type Input = FSListInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
-        let dir = Path::new(&input.path);
-        assert_absolute_path(dir)?;
+    async fn call(
+        &self,
+        input: Self::Input,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
+        let dir_path = Path::new(&input.path);
+        assert_absolute_path(dir_path)?;
+
+        // If the path is not found, try to resolve it relative to the conversation CWD
+        let dir = if !dir_path.exists() && !dir_path.is_absolute() {
+            let resolved_path = conversation.cwd().join(&input.path);
+            if resolved_path.exists() {
+                resolved_path
+            } else {
+                dir_path.to_path_buf()
+            }
+        } else {
+            dir_path.to_path_buf()
+        };
 
         if !dir.exists() {
-            return Err(anyhow::anyhow!("Directory '{}' does not exist", input.path));
+            return Err(anyhow::anyhow!(
+                "Directory '{}' does not exist",
+                dir.display()
+            ));
         }
 
         let mut paths = Vec::new();
         let recursive = input.recursive.unwrap_or(false);
         let max_depth = if recursive { usize::MAX } else { 1 };
 
-        let walker = Walker::max_all()
-            .cwd(dir.to_path_buf())
-            .max_depth(max_depth);
+        let walker = Walker::max_all().cwd(dir.clone()).max_depth(max_depth);
 
-        let mut files = walker
-            .get()
-            .await
-            .with_context(|| format!("Failed to read directory contents from '{}'", input.path))?;
+        let mut files = walker.get().await.with_context(|| {
+            format!("Failed to read directory contents from '{}'", dir.display())
+        })?;
 
         // Sort the files for consistent snapshots
         if self.sorted {
@@ -82,7 +98,7 @@ impl ExecutableTool for FSList {
 
         Ok(format!(
             "<file_list path=\"{}\">\n{}\n</file_list>",
-            input.path,
+            dir.display(),
             paths.join("\n")
         ))
     }
@@ -90,6 +106,9 @@ impl ExecutableTool for FSList {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
+    use forge_domain::{ConversationId, Workflow};
     use insta::assert_snapshot;
     use tokio::fs;
 
@@ -102,16 +121,27 @@ mod test {
         }
     }
 
+    fn create_test_conversation() -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/tmp"));
+        Conversation::new(id, workflow, cwd)
+    }
+
     #[tokio::test]
     async fn test_fs_list_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation();
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            })
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -121,6 +151,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_with_files_and_dirs() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation();
 
         fs::write(temp_dir.path().join("file1.txt"), "content1")
             .await
@@ -133,10 +164,13 @@ mod test {
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            })
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -146,14 +180,18 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_nonexistent_directory() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation();
         let nonexistent_dir = temp_dir.path().join("nonexistent");
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: nonexistent_dir.to_string_lossy().to_string(),
-                recursive: None,
-            })
+            .call(
+                FSListInput {
+                    path: nonexistent_dir.to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());
@@ -162,6 +200,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_with_hidden_files() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation();
 
         fs::write(temp_dir.path().join("regular.txt"), "content")
             .await
@@ -175,10 +214,13 @@ mod test {
 
         let fs_list = FSList::new(true);
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: None,
-            })
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: None,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -190,6 +232,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_recursive() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation();
 
         // Create nested directory structure
         fs::create_dir(temp_dir.path().join("dir1")).await.unwrap();
@@ -210,10 +253,13 @@ mod test {
 
         // Test recursive listing
         let result = fs_list
-            .call(FSListInput {
-                path: temp_dir.path().to_string_lossy().to_string(),
-                recursive: Some(true),
-            })
+            .call(
+                FSListInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    recursive: Some(true),
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -223,8 +269,13 @@ mod test {
     #[tokio::test]
     async fn test_fs_list_relative_path() {
         let fs_list = FSList::new(true);
+        let conversation = create_test_conversation();
+
         let result = fs_list
-            .call(FSListInput { path: "relative/path".to_string(), recursive: None })
+            .call(
+                FSListInput { path: "relative/path".to_string(), recursive: None },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());

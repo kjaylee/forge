@@ -188,7 +188,6 @@ To ensure consistent and correct CWD usage throughout the codebase, follow these
     Priority: High
     Complexity: Medium
     Dependencies: Step 13
-    
 16. Update all test implementations to handle the Conversation parameter
     16.1. Create proper test fixtures that initialize a Conversation with a specific CWD
     16.2. Update mock implementations of the `ExecutableTool` trait

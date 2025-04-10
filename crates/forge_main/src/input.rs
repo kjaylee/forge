@@ -2,8 +2,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use forge_api::{Environment, Usage};
+use forge_api::Usage;
 use forge_display::TitleFormat;
+use forge_domain::{Conversation, ConversationId, Workflow};
 use tokio::fs;
 
 use crate::console::CONSOLE;
@@ -15,14 +16,22 @@ use crate::state::Mode;
 /// Console implementation for handling user input via command line.
 #[derive(Debug)]
 pub struct Console {
-    env: Environment,
     command: Arc<ForgeCommandManager>,
 }
 
 impl Console {
     /// Creates a new instance of `Console`.
-    pub fn new(env: Environment, command: Arc<ForgeCommandManager>) -> Self {
-        Self { env, command }
+    pub fn new(command: Arc<ForgeCommandManager>) -> Self {
+        Self { command }
+    }
+
+    /// Create a test conversation for the editor
+    fn create_temp_conversation(&self) -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        // Use current directory for the conversation
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/tmp"));
+        Conversation::new(id, workflow, cwd)
     }
 }
 
@@ -40,7 +49,10 @@ impl UserInput for Console {
     async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
 
-        let mut engine = ForgeEditor::new(self.env.clone(), self.command.clone());
+        // Create a temporary conversation for the editor
+        let temp_conversation = self.create_temp_conversation();
+
+        let mut engine = ForgeEditor::new(&temp_conversation, self.command.clone());
         let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
 
         loop {

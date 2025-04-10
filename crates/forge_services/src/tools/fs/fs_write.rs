@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Context;
 use bytes::Bytes;
 use forge_display::DiffFormat;
-use forge_domain::{EnvironmentService, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{Conversation, ExecutableTool, NamedTool, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -47,10 +47,13 @@ impl<F: Infrastructure> FSWrite<F> {
     ///
     /// If the path starts with the current working directory, returns a
     /// relative path. Otherwise, returns the original absolute path.
-    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
-        // Get the current working directory
-        let env = self.0.environment_service().get_environment();
-        let cwd = env.cwd.as_path();
+    fn format_display_path(
+        &self,
+        path: &Path,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
+        // Get the conversation's working directory
+        let cwd = conversation.cwd.as_path();
 
         // Use the shared utility function
         format_display_path(path, cwd)
@@ -67,7 +70,11 @@ impl<F> NamedTool for FSWrite<F> {
 impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        conversation: &Conversation,
+    ) -> anyhow::Result<String> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -127,7 +134,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         let title = if file_exists { "overwrite" } else { "create" };
 
         // Use the formatted path for display
-        let formatted_path = self.format_display_path(path)?;
+        let formatted_path = self.format_display_path(path, conversation)?;
         let diff = DiffFormat::format(
             title,
             PathBuf::from(formatted_path),
@@ -142,15 +149,24 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
+    use forge_domain::{ConversationId, Workflow};
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
     use crate::{FsMetaService, FsReadService};
+
+    // Helper function to create a test conversation with a specific working
+    // directory
+    fn create_test_conversation(cwd: PathBuf) -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        Conversation::new(id, workflow, cwd)
+    }
 
     async fn assert_path_exists(path: impl AsRef<Path>, infra: &MockInfrastructure) {
         assert!(
@@ -169,15 +185,19 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
         let content = "Hello, World!";
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let output = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: content.to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -202,15 +222,19 @@ mod test {
     async fn test_fs_write_invalid_rust() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: "fn main() { let x = ".to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: "fn main() { let x = ".to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await;
 
         let output = result.unwrap();
@@ -221,16 +245,20 @@ mod test {
     async fn test_fs_write_valid_rust() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let content = "fn main() { let x = 42; }";
         let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: content.to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await;
 
         let output = result.unwrap();
@@ -257,15 +285,19 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let nested_path = temp_dir.path().join("new_dir").join("test.txt");
         let content = "Hello from nested file!";
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: nested_path.to_string_lossy().to_string(),
-                content: content.to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: nested_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -297,15 +329,19 @@ mod test {
             .join("level3")
             .join("deep.txt");
         let content = "Deep in the directory structure";
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: deep_path.to_string_lossy().to_string(),
-                content: content.to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: deep_path.to_string_lossy().to_string(),
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -335,6 +371,7 @@ mod test {
     #[tokio::test]
     async fn test_fs_write_with_different_separators() {
         let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         // Use forward slashes regardless of platform
         let path_str = format!("{}/dir_a/dir_b/file.txt", temp_dir.path().to_string_lossy());
@@ -343,11 +380,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: path_str,
-                content: content.to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: path_str,
+                    content: content.to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await
             .unwrap();
 
@@ -376,14 +416,20 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_write_relative_path() {
+        let temp_dir = TempDir::new().unwrap();
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
+
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: "relative/path/file.txt".to_string(),
-                content: "test content".to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: "relative/path/file.txt".to_string(),
+                    content: "test content".to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await;
 
         assert!(result.is_err());
@@ -398,6 +444,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test_overwrite.txt");
         let original_content = "Original content";
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         // First, create the file
@@ -410,11 +457,14 @@ mod test {
         // Now attempt to write without overwrite flag
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: "New content".to_string(),
-                overwrite: false,
-            })
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: "New content".to_string(),
+                    overwrite: false,
+                },
+                &conversation,
+            )
             .await;
 
         // Should result in an error
@@ -444,18 +494,18 @@ mod test {
     async fn test_format_display_path() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
-        // Create a mock infrastructure with controlled cwd
+        // Create a mock infrastructure
         let infra = Arc::new(MockInfrastructure::new());
         let fs_write = FSWrite::new(infra);
 
-        // Test with a mock path
-        let display_path = fs_write.format_display_path(Path::new(&file_path));
+        // Test with our conversation instance
+        let display_path = fs_write.format_display_path(Path::new(&file_path), &conversation);
 
-        // Since MockInfrastructure has a fixed cwd of "/test",
-        // and our temp path won't start with that, we expect the full path
+        // The file should now be relative to the conversation's CWD (temp_dir)
         assert!(display_path.is_ok());
-        assert_eq!(display_path.unwrap(), file_path.display().to_string());
+        assert_eq!(display_path.unwrap(), "test.txt");
     }
 
     #[tokio::test]
@@ -464,6 +514,7 @@ mod test {
         let file_path = temp_dir.path().join("test_overwrite.txt");
         let original_content = "Original content";
         let new_content = "New content";
+        let conversation = create_test_conversation(temp_dir.path().to_path_buf());
 
         let infra = Arc::new(MockInfrastructure::new());
         // First, create the file
@@ -476,11 +527,14 @@ mod test {
         // Now attempt to write with overwrite flag
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
-            .call(FSWriteInput {
-                path: file_path.to_string_lossy().to_string(),
-                content: new_content.to_string(),
-                overwrite: true,
-            })
+            .call(
+                FSWriteInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    content: new_content.to_string(),
+                    overwrite: true,
+                },
+                &conversation,
+            )
             .await;
 
         // Should be successful

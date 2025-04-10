@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use forge_domain::{Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService};
+use forge_domain::{
+    Conversation, Tool, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+};
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
@@ -36,7 +38,7 @@ impl FromIterator<Tool> for ForgeToolService {
 
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
-    async fn call(&self, call: ToolCallFull) -> ToolResult {
+    async fn call(&self, call: ToolCallFull, conversation: &Conversation) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
@@ -50,7 +52,7 @@ impl ToolService for ForgeToolService {
         let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Wrap tool call with timeout
-                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input)).await {
+                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(input, conversation)).await {
                     Ok(result) => result,
                     Err(_) => Err(anyhow::anyhow!(
                         "Tool '{}' timed out after {} minutes",
@@ -110,12 +112,22 @@ impl ToolService for ForgeToolService {
 
 #[cfg(test)]
 mod test {
+    use std::path::PathBuf;
+
     use anyhow::bail;
-    use forge_domain::{Tool, ToolCallId, ToolDefinition};
+    use forge_domain::{ConversationId, Tool, ToolCallId, ToolDefinition, Workflow};
     use serde_json::{json, Value};
     use tokio::time;
 
     use super::*;
+
+    // Helper function to create a test conversation
+    fn create_test_conversation() -> Conversation {
+        let id = ConversationId::generate();
+        let workflow = Workflow::default();
+        let cwd = PathBuf::from("/tmp/test"); // Use a fixed test directory
+        Conversation::new(id, workflow, cwd)
+    }
 
     // Mock tool that always succeeds
     struct SuccessTool;
@@ -123,7 +135,11 @@ mod test {
     impl forge_domain::ExecutableTool for SuccessTool {
         type Input = Value;
 
-        async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+        async fn call(
+            &self,
+            input: Self::Input,
+            _conversation: &Conversation,
+        ) -> anyhow::Result<String> {
             Ok(format!("Success with input: {}", input))
         }
     }
@@ -134,7 +150,11 @@ mod test {
     impl forge_domain::ExecutableTool for FailureTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> anyhow::Result<String> {
+        async fn call(
+            &self,
+            _input: Self::Input,
+            _conversation: &Conversation,
+        ) -> anyhow::Result<String> {
             bail!("Tool call failed with simulated failure".to_string())
         }
     }
@@ -171,8 +191,9 @@ mod test {
             arguments: json!("test input"),
             call_id: Some(ToolCallId::new("test")),
         };
+        let conversation = create_test_conversation();
 
-        let result = service.call(call).await;
+        let result = service.call(call, &conversation).await;
         insta::assert_snapshot!(result);
     }
 
@@ -184,8 +205,9 @@ mod test {
             arguments: json!("test input"),
             call_id: Some(ToolCallId::new("test")),
         };
+        let conversation = create_test_conversation();
 
-        let result = service.call(call).await;
+        let result = service.call(call, &conversation).await;
         insta::assert_snapshot!(result);
     }
 
@@ -197,8 +219,9 @@ mod test {
             arguments: json!("test input"),
             call_id: Some(ToolCallId::new("test")),
         };
+        let conversation = create_test_conversation();
 
-        let result = service.call(call).await;
+        let result = service.call(call, &conversation).await;
         insta::assert_snapshot!(result);
     }
 
@@ -208,7 +231,11 @@ mod test {
     impl forge_domain::ExecutableTool for SlowTool {
         type Input = Value;
 
-        async fn call(&self, _input: Self::Input) -> anyhow::Result<String> {
+        async fn call(
+            &self,
+            _input: Self::Input,
+            _conversation: &Conversation,
+        ) -> anyhow::Result<String> {
             // Simulate a long-running task that exceeds the timeout
             tokio::time::sleep(Duration::from_secs(400)).await;
             Ok("Slow tool completed".to_string())
@@ -235,11 +262,12 @@ mod test {
             arguments: json!("test input"),
             call_id: Some(ToolCallId::new("test")),
         };
+        let conversation = create_test_conversation();
 
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(call).await;
+        let result = service.call(call, &conversation).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;

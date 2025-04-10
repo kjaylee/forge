@@ -33,7 +33,11 @@ impl NamedTool for ShowUser {
 #[async_trait::async_trait]
 impl ExecutableTool for ShowUser {
     type Input = ShowUserInput;
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        input: Self::Input,
+        _conversation: &forge_domain::Conversation,
+    ) -> anyhow::Result<String> {
         // Use termimad to display the markdown to the terminal
 
         let skin = termimad::get_default_skin();
@@ -51,13 +55,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_show_user() {
+        use std::path::PathBuf;
+
+        use forge_domain::{Conversation, ConversationId, Workflow};
+
         let show_user = ShowUser;
         let input = ShowUserInput {
             content: "# Test Heading\nThis is a test with **bold** and *italic* text.".to_string(),
         };
 
+        // Create a mock conversation for testing
+        let conversation = Conversation::new(
+            ConversationId::generate(),
+            Workflow::default(),
+            PathBuf::from("/test"),
+        );
+
         // The function should execute without error and return a success message
-        let result = show_user.call(input).await;
+        let result = show_user.call(input, &conversation).await;
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),

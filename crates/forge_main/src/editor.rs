@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use forge_api::Environment;
+use forge_domain::{Conversation, EnvironmentService};
+use forge_infra::ForgeInfra;
+use forge_services::Infrastructure;
 use nu_ansi_term::{Color, Style};
 use reedline::{
     default_emacs_keybindings, ColumnarMenu, DefaultHinter, EditCommand, Emacs, FileBackedHistory,
@@ -63,7 +65,11 @@ impl ForgeEditor {
         keybindings
     }
 
-    pub fn new(env: Environment, manager: Arc<ForgeCommandManager>) -> Self {
+    pub fn new(conversation: &Conversation, manager: Arc<ForgeCommandManager>) -> Self {
+        // Get the environment service from ForgeInfra
+        let infra = ForgeInfra::new(false);
+        let env = infra.environment_service().get_environment();
+
         // Store file history in system config directory
         let history_file = env.history_path();
 
@@ -81,7 +87,10 @@ impl ForgeEditor {
         let edit_mode = Box::new(Emacs::new(Self::init()));
 
         let editor = Reedline::create()
-            .with_completer(Box::new(InputCompleter::new(env.cwd, manager)))
+            .with_completer(Box::new(InputCompleter::new(
+                conversation.cwd.clone(), // Access the cwd field directly
+                manager,
+            )))
             .with_history(history)
             .with_hinter(Box::new(
                 DefaultHinter::default().with_style(Style::new().fg(Color::DarkGray)),
