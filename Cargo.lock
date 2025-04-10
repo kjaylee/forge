@@ -921,6 +921,7 @@ dependencies = [
  "chrono",
  "derive_more 2.0.1",
  "derive_setters",
+ "forge_stream",
  "futures",
  "insta",
  "merge",

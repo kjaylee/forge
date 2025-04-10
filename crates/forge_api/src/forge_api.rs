@@ -60,7 +60,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn init(&self, config: WorkflowConfig) -> anyhow::Result<ConversationId> {
-        // Convert WorkflowConfig to Workflow and pass it to the conversation service
+        // Convert WorkflowConfig to Workflow before passing to the conversation service
         let workflow = config.to_workflow();
         self.app.conversation_service().create(workflow).await
     }

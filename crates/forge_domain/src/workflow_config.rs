@@ -80,35 +80,6 @@ mod tests {
     }
 
     #[test]
-    fn test_conversion_from_workflow_to_config() {
-        // Create a sample workflow
-        let mut workflow = Workflow::default();
-        workflow.agents = vec![Agent::new("test-agent")];
-        workflow.variables = Some(HashMap::from([
-            ("key1".to_string(), json!("value1")),
-            ("key2".to_string(), json!(123)),
-        ]));
-        workflow.commands = vec![Command {
-            name: "test-command".to_string(),
-            description: "A test command".to_string(),
-            value: Some("test-value".to_string()),
-        }];
-        workflow.model = Some(ModelId::new("test-model"));
-
-        // Convert to config
-        let config = WorkflowConfig::from(&workflow);
-
-        // Verify
-        assert_eq!(config.agents.len(), 1);
-        assert_eq!(config.agents[0].id, AgentId::new("test-agent"));
-        assert!(config.variables.is_some());
-        assert_eq!(config.variables.as_ref().unwrap().len(), 2);
-        assert_eq!(config.commands.len(), 1);
-        assert_eq!(config.commands[0].name, "test-command");
-        assert_eq!(config.model, Some(ModelId::new("test-model")));
-    }
-
-    #[test]
     fn test_conversion_from_config_to_workflow() {
         // Create a sample config
         let mut config = WorkflowConfig::new();

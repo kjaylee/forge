@@ -52,8 +52,22 @@ impl From<&Workflow> for ForgeCommandManager {
 
 impl From<&WorkflowConfig> for ForgeCommandManager {
     fn from(config: &WorkflowConfig) -> Self {
-        let cmd = ForgeCommandManager::default();
-        cmd.register_all(&config.to_workflow());
+        let mut cmd = ForgeCommandManager::default();
+        
+        // Access the commands directly from the config instead of converting to Workflow first
+        let mut commands = Self::default_commands();
+
+        commands.sort_by(|a, b| a.name.cmp(&b.name));
+
+        commands.extend(config.commands.clone().into_iter().map(|cmd_item| {
+            let name = format!("/{}", cmd_item.name);
+            let description = format!("⚙ {}", cmd_item.description);
+            let value = cmd_item.value.clone();
+
+            ForgeCommand { name, description, value }
+        }));
+
+        *cmd.commands.lock().unwrap() = commands;
         cmd
     }
 }
