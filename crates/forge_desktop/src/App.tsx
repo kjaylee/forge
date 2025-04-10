@@ -27,6 +27,7 @@ import { SignUpPage } from "./components/SignUp";
 import { InvitationPage } from "./components/Invitation";
 import { LoadingScreen } from "./components/LoadingScreen";
 import { InvitedOnly } from "./components/InvitedOnly";
+import { WaitListed } from "./components/WaitListed";
 
 // Component for the chat interface
 const ChatInterface: React.FC = () => {
@@ -158,10 +159,16 @@ function App() {
             </Routes>
           </SignedOut>
           <SignedIn>
-            <Routes>
-              <Route path="/*" element={<InvitedOnly><AppContent /></InvitedOnly>} />
-              <Route path="/invitation" element={<InvitationPage />} />
-            </Routes>
+            <InvitedOnly>
+              <Routes>
+                <Route path="/*" element={<AppContent />} />
+              </Routes>
+            </InvitedOnly>
+            <WaitListed>
+              <Routes>
+                <Route path="/*" element={<InvitationPage />} />
+              </Routes>
+            </WaitListed>
           </SignedIn>
         </BrowserRouter>
       </TooltipProvider>
