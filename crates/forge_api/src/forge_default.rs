@@ -3,7 +3,7 @@
 //! This module contains the default configuration that is used when no
 //! custom configuration is provided.
 
-use forge_domain::Workflow;
+use forge_domain::{Workflow, WorkflowConfig};
 
 // Include the default yaml configuration file as a string
 const DEFAULT_YAML: &str = include_str!("../../../forge.default.yaml");
@@ -15,6 +15,16 @@ pub fn create_default_workflow() -> Workflow {
         .expect("Failed to parse default forge.yaml configuration");
 
     workflow
+}
+
+/// Creates the default workflow config by parsing the embedded YAML
+/// configuration
+pub fn create_default_workflow_config() -> WorkflowConfig {
+    // Parse the YAML string into a WorkflowConfig struct
+    let config: WorkflowConfig = serde_yaml::from_str(DEFAULT_YAML)
+        .expect("Failed to parse default forge.yaml configuration");
+
+    config
 }
 
 #[cfg(test)]
@@ -40,6 +50,28 @@ mod tests {
         assert!(
             has_engineer,
             "Default workflow should have the software-engineer agent"
+        );
+    }
+
+    #[test]
+    fn test_default_workflow_config_loads_correctly() {
+        // This test ensures that the default YAML can be parsed into a WorkflowConfig
+        let config = create_default_workflow_config();
+
+        // Basic sanity checks
+        assert!(
+            !config.agents.is_empty(),
+            "Default workflow config should have agents"
+        );
+
+        // Check that we have the software-engineer agent
+        let has_engineer = config
+            .agents
+            .iter()
+            .any(|agent| agent.id.to_string() == "software-engineer");
+        assert!(
+            has_engineer,
+            "Default workflow config should have the software-engineer agent"
         );
     }
 }

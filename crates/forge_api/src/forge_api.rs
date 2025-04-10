@@ -11,7 +11,6 @@ use serde_json::Value;
 use crate::executor::ForgeExecutorService;
 use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::API;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
@@ -60,7 +59,9 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         Ok(self.executor_service.chat(chat).await?)
     }
 
-    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
+    async fn init(&self, config: WorkflowConfig) -> anyhow::Result<ConversationId> {
+        // Convert WorkflowConfig to Workflow and pass it to the conversation service
+        let workflow = config.to_workflow();
         self.app.conversation_service().create(workflow).await
     }
 
@@ -74,8 +75,10 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .clone()
     }
 
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.loader.load(path).await
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<WorkflowConfig> {
+        // Load the workflow and convert it to a WorkflowConfig
+        let workflow = self.loader.load(path).await?;
+        Ok(workflow)
     }
 
     async fn conversation(
