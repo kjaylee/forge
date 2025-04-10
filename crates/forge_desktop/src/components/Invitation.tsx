@@ -4,15 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { useInviteCode } from "@/hooks/useInviteCode";
+import { useRedeemInviteCode } from "@/hooks/useRedeemInviteCode";
 import { Input } from "@/components/ui/input";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { UserButton } from "@clerk/clerk-react";
+import CustomUserButton from "./CustomUserButton";
 
 export function InvitationPage() {
     const { user, isSignedIn, isLoaded: isAuthLoaded } = useUser();
     const { isLoading: isCheckingStatus, isWaitlisted, error } = useOnboarding();
-    const { value, onChange, onSubmit, error: inviteError, isLoading, isRedeemed } = useInviteCode();
+    const { value, onChange, onSubmit, error: inviteError, isLoading, isRedeemed } = useRedeemInviteCode();
     const isDisabled = !value.trim() || isLoading;
 
     if (!isAuthLoaded || isCheckingStatus) {
@@ -46,7 +46,7 @@ export function InvitationPage() {
     return (
         <div className="min-h-screen w-full flex flex-col bg-gradient-to-b from-background to-background/80">
             <div className="flex justify-end p-4 border-b border-border/50 bg-card/50 backdrop-blur-sm">
-                <UserButton />
+                <CustomUserButton />
             </div>
             <div className="flex-1 flex items-center justify-center p-4">
                 <div className="w-full max-w-md">

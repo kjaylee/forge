@@ -1,52 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 
+interface InviteCodeResponse {
+    code: string;
+    userId: string;
+    usedBy: string | null;
+}
+
+interface ErrorResponse {
+    message: string;
+}
+
 export function useInviteCode() {
-    const [inviteCode, setInviteCode] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitError, setSubmitError] = useState<string | null>(null);
-    const [isRedeemed, setIsRedeemed] = useState(false);
+    const [inviteCode, setInviteCode] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const { getToken } = useAuth();
 
-    const handleSubmit = async () => {
-        if (!inviteCode.trim()) return;
+    useEffect(() => {
+        const fetchInviteCode = async () => {
+            try {
+                const token = await getToken();
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/v1/invite`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
 
-        setIsSubmitting(true);
-        setSubmitError(null);
+                if (!response.ok) {
+                    const errorData: ErrorResponse = await response.json().catch(() => ({ 
+                        message: `HTTP error! status: ${response.status}` 
+                    }));
+                    throw new Error(errorData.message);
+                }
 
-        try {
-            const token = await getToken();
-            const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/v1/invite/redeem`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ inviteCode }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `Failed to redeem invite code: ${response.status}`);
+                const data: InviteCodeResponse = await response.json();
+                setInviteCode(data.code);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to fetch invite code');
+                setInviteCode(null);
+            } finally {
+                setIsLoading(false);
             }
-            setIsRedeemed(response.status === 200);
-        } catch (err) {
-            setSubmitError(err instanceof Error ? err.message : 'Failed to verify invite code');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+        };
+
+        fetchInviteCode();
+    }, [getToken]);
 
     return {
-        value: inviteCode,
-        onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-            setInviteCode(e.target.value);
-            setSubmitError(null);
-            setIsRedeemed(false);
-        },
-        onSubmit: handleSubmit,
-        error: submitError,
-        isLoading: isSubmitting,
-        isRedeemed,
+        inviteCode,
+        isLoading,
+        error
     };
 }

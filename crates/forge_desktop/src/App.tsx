@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from 'sonner';
 
 import { LoginPage } from "./components/Login";
 import { SignUpPage } from "./components/SignUp";
@@ -164,6 +165,7 @@ function App() {
           </SignedIn>
         </BrowserRouter>
       </TooltipProvider>
+      <Toaster richColors position="top-right" />
     </ClerkProvider>
   );
 }
