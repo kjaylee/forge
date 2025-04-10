@@ -3,7 +3,8 @@ use std::env;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, Event, ForgeAPI, ModelId, API};
+use forge_api::ForgeAPI;
+use forge_domain::{AgentMessage, ChatRequest, ChatResponse, Event, ModelId, API};
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
@@ -39,15 +40,15 @@ impl Fixture {
     /// Get model response as text
     async fn get_model_response(&self) -> String {
         let api = self.api();
-        let mut workflow = test_workflow::create_test_workflow();
+        let mut config = test_workflow::create_test_workflow_config();
 
-        // in workflow, replace all models with the model we want to test.
-        workflow.agents.iter_mut().for_each(|agent| {
+        // in config, replace all models with the model we want to test.
+        config.agents.iter_mut().for_each(|agent| {
             agent.model = Some(self.model.clone());
         });
 
-        // initialize the conversation by storing the workflow.
-        let conversation_id = api.init(workflow).await.unwrap();
+        // initialize the conversation by storing the workflow config.
+        let conversation_id = api.init(config).await.unwrap();
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",

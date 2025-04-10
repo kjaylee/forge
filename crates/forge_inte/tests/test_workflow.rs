@@ -1,5 +1,5 @@
 use forge_domain::{
-    Agent, AgentId, EventContext, ModelId, SystemContext, Template, ToolName, Workflow,
+    Agent, AgentId, EventContext, ModelId, SystemContext, Template, ToolName, WorkflowConfig,
 };
 
 /// System prompt for the developer agent
@@ -19,9 +19,9 @@ Hints:
 - There is a .md file that contains the name of the cat.
 "#;
 
-/// Creates a test workflow that mimics the configuration from
+/// Creates a test workflow config that mimics the configuration from
 /// test_workflow.yaml
-pub fn create_test_workflow() -> Workflow {
+pub fn create_test_workflow_config() -> WorkflowConfig {
     // Create the developer agent
     let developer = Agent::new(AgentId::new("developer"))
         .model(ModelId::new("anthropic/claude-3.5-sonnet"))
@@ -35,5 +35,5 @@ pub fn create_test_workflow() -> Workflow {
         .system_prompt(Template::<SystemContext>::new(SYSTEM_PROMPT.trim()))
         .user_prompt(Template::<EventContext>::new(USER_PROMPT.trim()));
 
-    Workflow::default().agents(vec![developer])
+    WorkflowConfig::default().agents(vec![developer])
 }

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use forge_api::{Model, Workflow};
+use forge_api::{Model, Workflow, WorkflowConfig};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
@@ -46,6 +46,14 @@ impl From<&Workflow> for ForgeCommandManager {
     fn from(value: &Workflow) -> Self {
         let cmd = ForgeCommandManager::default();
         cmd.register_all(value);
+        cmd
+    }
+}
+
+impl From<&WorkflowConfig> for ForgeCommandManager {
+    fn from(config: &WorkflowConfig) -> Self {
+        let cmd = ForgeCommandManager::default();
+        cmd.register_all(&config.to_workflow());
         cmd
     }
 }

@@ -9,6 +9,7 @@ async-trait.workspace = true
 chrono.workspace = true
 derive_more.workspace = true
 derive_setters.workspace = true
+forge_stream.workspace = true
 futures.workspace = true
 nom.workspace = true
 schemars.workspace = true
