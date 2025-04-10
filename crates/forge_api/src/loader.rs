@@ -4,10 +4,6 @@ use std::sync::Arc;
 use anyhow::Context;
 use forge_domain::Config;
 use forge_services::{FsReadService, Infrastructure};
-use merge::Merge;
-
-// Import the default configuration
-use crate::forge_default::create_default_workflow_config;
 
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
@@ -50,11 +46,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         // Load the workflow based on its source
         match source {
             WorkflowSource::ExplicitPath(path) => self.load_from_explicit_path(path).await,
-            WorkflowSource::Default => {
-                // Use the programmatically created workflow config
-                // This is the preferred method as it's type-safe
-                Ok(create_default_workflow_config())
-            }
+            WorkflowSource::Default => Ok(Config::default()),
             WorkflowSource::ProjectConfig => self.load_with_project_config().await,
         }
     }
@@ -87,10 +79,6 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
             )
         })?;
 
-        // Merge workflow configs with project taking precedence
-        let mut merged_config = create_default_workflow_config();
-        merged_config.merge(project_config);
-
-        Ok(merged_config)
+        Ok(project_config)
     }
 }
