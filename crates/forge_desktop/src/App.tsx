@@ -173,7 +173,7 @@ const ThemedClerkProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 function App() {
   return (
-    <ThemeProvider attribute="class">
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true} storageKey="ui-theme">
       <ThemedClerkProvider>
         <TooltipProvider>
           <BrowserRouter>
