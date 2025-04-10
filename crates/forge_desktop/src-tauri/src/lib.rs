@@ -1,4 +1,5 @@
 mod commands;
+mod file_commands;
 mod plugins;
 use tauri::Manager;
 
@@ -53,6 +54,10 @@ pub fn run() {
             commands::update_cwd,
             commands::cancel_stream,
             commands::get_directory_structure,
+            // File viewer commands
+            file_commands::read_file_content,
+            file_commands::get_file_info,
+            file_commands::file_exists,
         ])
         .setup(|app| {
             // Initialize the ForgeAPI directly, similar to the CLI application

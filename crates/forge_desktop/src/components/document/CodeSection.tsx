@@ -1,8 +1,10 @@
 import React from 'react';
 import { CodeBlock } from "./CodeBlock";
 import { extractCodeBlocks, extractFilePath } from "@/lib/utils";
+import { FilePathText } from '@/utils/filePathUtils';
 import ReactMarkdown from 'react-markdown';
 import FileTag from '../FileTag';
+import { useProjectStore } from '@/stores/ProjectStore';
 
 interface CodeSectionProps {
   content: string;
@@ -11,8 +13,11 @@ interface CodeSectionProps {
 // Regex to match file tags (e.g., @[/path/to/file.txt])
 const FILE_TAG_REGEX = /@\[(.*?)\]/g;
 
-// Standalone function to render content with file tags properly handled
-const renderContentWithFileTags = (text: string): React.ReactNode => {
+// Function to render content with both file tags and clickable file paths
+const renderContentWithFileTagsAndPaths = (text: string): React.ReactNode => {
+  const { currentProject } = useProjectStore.getState();
+  const baseDir = currentProject?.path || '';
+  
   // Use the same regex for file tags
   const fileTagRegex = FILE_TAG_REGEX;
   const parts: React.ReactNode[] = [];
@@ -24,11 +29,30 @@ const renderContentWithFileTags = (text: string): React.ReactNode => {
   
   // Find all file tags in the content
   while ((match = fileTagRegex.exec(text)) !== null) {
-    // Add any text before this tag as ReactMarkdown
+    // Add any text before this tag as ReactMarkdown with clickable file paths
     if (match.index > lastIndex) {
       const textBefore = text.substring(lastIndex, match.index);
       if (textBefore.trim()) {
-        parts.push(<ReactMarkdown key={`text-${lastIndex}`}>{textBefore}</ReactMarkdown>);
+        parts.push(
+          <div key={`text-${lastIndex}`} className="prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown components={{
+              // Custom renderer for paragraphs to inject file path detection
+              p: ({ children }) => {
+                if (typeof children === 'string') {
+                  return (
+                    <FilePathText 
+                      text={children as string}
+                      options={{ baseDir }}
+                    />
+                  );
+                }
+                return <p>{children}</p>;
+              }
+            }}>
+              {textBefore}
+            </ReactMarkdown>
+          </div>
+        );
       }
     }
     
@@ -52,13 +76,51 @@ const renderContentWithFileTags = (text: string): React.ReactNode => {
   if (lastIndex < text.length) {
     const textAfter = text.substring(lastIndex);
     if (textAfter.trim()) {
-      parts.push(<ReactMarkdown key="text-end">{textAfter}</ReactMarkdown>);
+      parts.push(
+        <div key="text-end" className="prose prose-sm dark:prose-invert max-w-none">
+          <ReactMarkdown components={{
+            // Custom renderer for paragraphs to inject file path detection
+            p: ({ children }) => {
+              if (typeof children === 'string') {
+                return (
+                  <FilePathText 
+                    text={children as string}
+                    options={{ baseDir }}
+                  />
+                );
+              }
+              return <p>{children}</p>;
+            }
+          }}>
+            {textAfter}
+          </ReactMarkdown>
+        </div>
+      );
     }
   }
   
-  // If no file tags were found, just render the whole text as markdown
+  // If no file tags were found, render the whole text as markdown with clickable file paths
   if (parts.length === 0) {
-    return <ReactMarkdown>{text}</ReactMarkdown>;
+    return (
+      <div className="prose prose-sm dark:prose-invert max-w-none">
+        <ReactMarkdown components={{
+          // Custom renderer for paragraphs to inject file path detection
+          p: ({ children }) => {
+            if (typeof children === 'string') {
+              return (
+                <FilePathText 
+                  text={children as string}
+                  options={{ baseDir }}
+                />
+              );
+            }
+            return <p>{children}</p>;
+          }
+        }}>
+          {text}
+        </ReactMarkdown>
+      </div>
+    );
   }
   
   return <>{parts}</>;
@@ -69,10 +131,10 @@ export const CodeSection: React.FC<CodeSectionProps> = ({ content }) => {
   const codeBlocks = extractCodeBlocks(content);
   
   if (codeBlocks.length === 0) {
-    // If no code blocks found, render content as markdown with file tag handling
+    // If no code blocks found, render content as markdown with file tag handling and clickable file paths
     return (
       <div className="prose prose-sm dark:prose-invert max-w-none">
-        {renderContentWithFileTags(content)}
+        {renderContentWithFileTagsAndPaths(content)}
       </div>
     );
   }
@@ -122,10 +184,10 @@ export const CodeSection: React.FC<CodeSectionProps> = ({ content }) => {
         const index = parseInt(placeholderMatch[1], 10);
         return placeholders[index].component;
       }
-      // Otherwise, render as markdown with file tag handling
+      // Otherwise, render as markdown with file tag handling and clickable file paths
       return part ? (
         <div key={i} className="prose prose-sm dark:prose-invert max-w-none">
-          {renderContentWithFileTags(part)}
+          {renderContentWithFileTagsAndPaths(part)}
         </div>
       ) : null;
     });
