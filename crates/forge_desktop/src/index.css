@@ -148,4 +148,14 @@
   .prose :where(th) {
     @apply bg-muted;
   }
+  
+  /* Prose dark mode enhancements */
+  .dark .prose {
+    @apply text-foreground;
+  }
+  
+  /* Ensure ProseMirror editors work in dark mode */
+  .dark .ProseMirror {
+    @apply text-foreground;
+  }
 }

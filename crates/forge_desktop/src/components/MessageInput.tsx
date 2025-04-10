@@ -6,7 +6,8 @@ import { Send, X } from "lucide-react";
 import TipTapEditor from './TipTapEditor';
 
 const MessageInput: React.FC = () => {
-  const editorRef = useRef<any>(null);  const [message, setMessage] = useState('');
+  const editorRef = useRef<any>(null);
+  const [message, setMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const { sendMessage, cancelStream, isLoading, taggedFiles, addTaggedFile, removeTaggedFile, setTaggedFiles } = useForgeStore();
   

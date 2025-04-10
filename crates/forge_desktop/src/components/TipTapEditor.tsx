@@ -350,7 +350,7 @@ const TipTapEditor = forwardRef<{ editor: Editor | null }, TipTapEditorProps>((
   return (
     <div 
       className={cn(
-        "min-h-[60px] max-h-[200px] overflow-auto p-3 rounded-md border focus-within:ring-2 focus-within:ring-ring focus-within:ring-primary relative",
+        "min-h-[60px] max-h-[200px] overflow-auto p-3 rounded-md border focus-within:ring-2 focus-within:ring-ring focus-within:ring-primary relative text-foreground",
         isDragging && "border-2 border-dashed border-primary bg-primary/10",
         disabled && "cursor-not-allowed opacity-50",
         "prose prose-sm max-w-none",
