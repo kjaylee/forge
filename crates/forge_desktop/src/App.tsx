@@ -154,7 +154,7 @@ const AppContent: React.FC = () => {
 // Wrap the Clerk provider with theme awareness
 const ThemedClerkProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { theme } = useTheme();
-  
+
   return (
     <ClerkProvider
       afterSignOutUrl="/sign-in"
@@ -185,16 +185,10 @@ function App() {
               </Routes>
             </SignedOut>
             <SignedIn>
-              <InvitedOnly>
-                <Routes>
-                  <Route path="/*" element={<><FileViewer /><AppContent /></>} />
-                </Routes>
-              </InvitedOnly>
-              <WaitListed>
-                <Routes>
-                  <Route path="/*" element={<InvitationPage />} />
-                </Routes>
-              </WaitListed>
+              <Routes>
+                <Route path="/*" element={<InvitedOnly><FileViewer /><AppContent /></InvitedOnly>} />
+                <Route path="/invitation" element={<InvitationPage />} />
+              </Routes>
             </SignedIn>
           </BrowserRouter>
         </TooltipProvider>
