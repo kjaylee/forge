@@ -4,7 +4,7 @@
 
 // Types that mirror the Rust DiffJson structure
 export interface DiffChange {
-  tag: 'delete' | 'insert' | 'equal';
+  tag: "delete" | "insert" | "equal";
   old_index: number | null;
   new_index: number | null;
   content: string;
@@ -28,7 +28,7 @@ export interface DiffJsonData {
 }
 
 // File change states
-export type FileChangeType = 'modified' | 'added' | 'deleted' | 'renamed';
+export type FileChangeType = "modified" | "added" | "deleted" | "renamed";
 
 export interface FileChange {
   path: string;
@@ -49,13 +49,13 @@ export function tryParseDiffJson(content: string): DiffJsonData | null {
     // Check if the parsed object has the expected properties
     if (
       parsed &&
-      typeof parsed === 'object' &&
-      'op_name' in parsed &&
-      'path' in parsed &&
-      'unified_diff' in parsed &&
-      'hunks' in parsed &&
-      'has_changes' in parsed &&
-      'file_type' in parsed
+      typeof parsed === "object" &&
+      "op_name" in parsed &&
+      "path" in parsed &&
+      "unified_diff" in parsed &&
+      "hunks" in parsed &&
+      "has_changes" in parsed &&
+      "file_type" in parsed
     ) {
       return parsed as DiffJsonData;
     }
@@ -75,10 +75,16 @@ export function isDiffContent(content: string): boolean {
   }
 
   // Simple heuristics for unified diff format
-  const lines = content.split('\n');
-  const hasAdditions = lines.some(line => line.startsWith('+') && !line.startsWith('+++'));
-  const hasDeletions = lines.some(line => line.startsWith('-') && !line.startsWith('---'));
-  const hasHunks = lines.some(line => line.match(/^@@\s[-+]?\d+,\d+\s[-+]?\d+,\d+\s@@/));
+  const lines = content.split("\n");
+  const hasAdditions = lines.some(
+    (line) => line.startsWith("+") && !line.startsWith("+++"),
+  );
+  const hasDeletions = lines.some(
+    (line) => line.startsWith("-") && !line.startsWith("---"),
+  );
+  const hasHunks = lines.some((line) =>
+    line.match(/^@@\s[-+]?\d+,\d+\s[-+]?\d+,\d+\s@@/),
+  );
 
   return (hasAdditions || hasDeletions) && hasHunks;
 }
@@ -86,15 +92,18 @@ export function isDiffContent(content: string): boolean {
 /**
  * Calculate stats for a diff
  */
-export function calculateDiffStats(diff: DiffJsonData): { additions: number; deletions: number } {
+export function calculateDiffStats(diff: DiffJsonData): {
+  additions: number;
+  deletions: number;
+} {
   let additions = 0;
   let deletions = 0;
 
   for (const hunk of diff.hunks) {
     for (const change of hunk.changes) {
-      if (change.tag === 'insert') {
+      if (change.tag === "insert") {
         additions++;
-      } else if (change.tag === 'delete') {
+      } else if (change.tag === "delete") {
         deletions++;
       }
     }
@@ -107,25 +116,25 @@ export function calculateDiffStats(diff: DiffJsonData): { additions: number; del
  * Group a list of file changes by directory
  */
 export function groupFileChangesByDirectory(
-  changes: FileChange[]
+  changes: FileChange[],
 ): Record<string, FileChange[]> {
   const grouped: Record<string, FileChange[]> = {};
 
   for (const change of changes) {
     const path = change.path;
-    const lastSlashIndex = path.lastIndexOf('/');
-    
-    let directory = '/';
+    const lastSlashIndex = path.lastIndexOf("/");
+
+    let directory = "/";
     if (lastSlashIndex > 0) {
       directory = path.substring(0, lastSlashIndex);
     }
-    
+
     if (!grouped[directory]) {
       grouped[directory] = [];
     }
-    
+
     grouped[directory].push(change);
   }
-  
+
   return grouped;
 }

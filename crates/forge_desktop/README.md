@@ -22,6 +22,7 @@ yarn tauri dev
 ```
 
 This will:
+
 1. Install all required Node.js dependencies
 2. Start the Vite development server for the frontend
 3. Launch the Tauri application with hot-reloading enabled

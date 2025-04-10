@@ -35,37 +35,41 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
-  
+
   // Configure build options for better chunking
   build: {
     // Increase the warning limit to minimize noise during development
     chunkSizeWarningLimit: 500,
-    
+
     rollupOptions: {
       output: {
         manualChunks: {
           // UI framework and common components
-          'react-vendor': ['react', 'react-dom', 'react-markdown'],
-          
+          "react-vendor": ["react", "react-dom", "react-markdown"],
+
           // UI component libraries
-          'ui-components': [
-            '@radix-ui/react-avatar',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-tooltip'
+          "ui-components": [
+            "@radix-ui/react-avatar",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-label",
+            "@radix-ui/react-scroll-area",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-tooltip",
           ],
-          
+
           // Tauri API
-          'tauri': ['@tauri-apps/api', '@tauri-apps/plugin-dialog', '@tauri-apps/plugin-opener'],
-          
+          tauri: [
+            "@tauri-apps/api",
+            "@tauri-apps/plugin-dialog",
+            "@tauri-apps/plugin-opener",
+          ],
+
           // Utilities
-          'utils': ['date-fns', 'clsx', 'immer', 'zustand', 'tailwind-merge']
-        }
-      }
-    }
-  }
+          utils: ["date-fns", "clsx", "immer", "zustand", "tailwind-merge"],
+        },
+      },
+    },
+  },
 }));

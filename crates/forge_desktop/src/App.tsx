@@ -14,10 +14,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "next-themes";
 import { Loader2, PanelLeft } from "lucide-react";
 import { useEffect, useState } from "react";
-import { 
-  ResizableHandle, 
-  ResizablePanel, 
-  ResizablePanelGroup 
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 
@@ -37,24 +37,24 @@ const ChatInterface: React.FC = () => {
       forgeStore.setupListeners();
     }
   }, []);
-  
+
   // Initialize sizes from localStorage or use defaults
   const [directorySize, setDirectorySize] = useState(() => {
-    return Number(localStorage.getItem('directorySize')) || 20;
+    return Number(localStorage.getItem("directorySize")) || 20;
   });
   const [toolConsoleSize, setToolConsoleSize] = useState(() => {
-    return Number(localStorage.getItem('toolConsoleSize')) || 25;
+    return Number(localStorage.getItem("toolConsoleSize")) || 25;
   });
-  
+
   const { isVisible, toggleVisible } = useDirectoryStore();
 
   // Persist sizes to localStorage
   useEffect(() => {
-    localStorage.setItem('directorySize', directorySize.toString());
+    localStorage.setItem("directorySize", directorySize.toString());
   }, [directorySize]);
 
   useEffect(() => {
-    localStorage.setItem('toolConsoleSize', toolConsoleSize.toString());
+    localStorage.setItem("toolConsoleSize", toolConsoleSize.toString());
   }, [toolConsoleSize]);
 
   return (
@@ -62,7 +62,7 @@ const ChatInterface: React.FC = () => {
       <div className="sticky top-0 z-10">
         <ConversationHeader />
       </div>
-      
+
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         {/* Directory Panel - Only shown when visible */}
         {isVisible && (
@@ -79,10 +79,14 @@ const ChatInterface: React.FC = () => {
             <ResizableHandle withHandle />
           </>
         )}
-        
+
         {/* Main Content Panel - Flexes to fill remaining space */}
         <ResizablePanel
-          defaultSize={isVisible ? 100 - directorySize - toolConsoleSize : 100 - toolConsoleSize}
+          defaultSize={
+            isVisible
+              ? 100 - directorySize - toolConsoleSize
+              : 100 - toolConsoleSize
+          }
           minSize={35}
           className="flex-1"
         >
@@ -93,9 +97,13 @@ const ChatInterface: React.FC = () => {
                 size="icon"
                 className="p-2 mr-1 hover:bg-accent/50 rounded-md"
                 onClick={toggleVisible}
-                title={isVisible ? "Hide directory panel" : "Show directory panel"}
+                title={
+                  isVisible ? "Hide directory panel" : "Show directory panel"
+                }
               >
-                <PanelLeft className={`h-5 w-5 ${isVisible ? 'text-primary' : 'text-muted-foreground'}`} />
+                <PanelLeft
+                  className={`h-5 w-5 ${isVisible ? "text-primary" : "text-muted-foreground"}`}
+                />
               </Button>
               <ModeSwitcher />
             </div>
@@ -105,9 +113,9 @@ const ChatInterface: React.FC = () => {
             <MessageInput />
           </div>
         </ResizablePanel>
-        
+
         <ResizableHandle withHandle />
-        
+
         {/* Tool Console Panel - Maintains fixed size */}
         <ResizablePanel
           defaultSize={toolConsoleSize}
@@ -119,7 +127,7 @@ const ChatInterface: React.FC = () => {
           <ToolConsoleView />
         </ResizablePanel>
       </ResizablePanelGroup>
-      
+
       <StatusBar />
     </div>
   );
@@ -128,15 +136,15 @@ const ChatInterface: React.FC = () => {
 // Main app wrapper with conditional rendering
 const AppContent: React.FC = () => {
   const { currentProject, isLoading } = useProjectStore();
-  
+
   if (isLoading) {
     return <LoadingScreen />;
   }
-  
+
   if (!currentProject) {
     return <ProjectSelectionView />;
   }
-  
+
   return <ChatInterface />;
 };
 

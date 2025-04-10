@@ -1,33 +1,34 @@
-import React, { useEffect, useState } from 'react';
-import { 
+import React, { useEffect, useState } from "react";
+import {
   FolderOpen,
   RefreshCw,
   AlertCircle,
   Loader2,
   Files,
-  GitBranch
-} from 'lucide-react';
-import { useDirectoryStore } from '@/stores/DirectoryStore';
-import { useProjectStore } from '@/stores/ProjectStore';
-import { useChangesStore } from '@/stores/ChangesStore';
-import TreeItem from './TreeItem';
-import { FileChangesBrowser } from './FileChangesBrowser';
-import { ScrollArea } from './ui/scroll-area';
-import { Button } from './ui/button';
+  GitBranch,
+} from "lucide-react";
+import { useDirectoryStore } from "@/stores/DirectoryStore";
+import { useProjectStore } from "@/stores/ProjectStore";
+import { useChangesStore } from "@/stores/ChangesStore";
+import TreeItem from "./TreeItem";
+import { FileChangesBrowser } from "./FileChangesBrowser";
+import { ScrollArea } from "./ui/scroll-area";
+import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { DiffModalView } from "./DiffModalView";
-import { Badge } from './ui/badge';
+import { Badge } from "./ui/badge";
 
 const DirectoryView: React.FC = () => {
-  const { directoryTree, isLoading, error, loadDirectoryStructure } = useDirectoryStore();
+  const { directoryTree, isLoading, error, loadDirectoryStructure } =
+    useDirectoryStore();
   const { currentProject } = useProjectStore();
   const { changes } = useChangesStore();
-  
+
   const [selectedTab, setSelectedTab] = useState<string>("files");
   const [selectedChange, setSelectedChange] = useState<string | null>(null);
   const [showDiffModal, setShowDiffModal] = useState(false);
-  
-  const selectedDiffData = useChangesStore(state => {
+
+  const selectedDiffData = useChangesStore((state) => {
     if (!selectedChange) return null;
     const change = state.getChangeByPath(selectedChange);
     return change?.diffData || null;
@@ -39,14 +40,14 @@ const DirectoryView: React.FC = () => {
       loadDirectoryStructure(currentProject.path);
     }
   }, [currentProject?.path, loadDirectoryStructure]);
-  
+
   // Switch to changes tab when changes are detected
   useEffect(() => {
     if (changes.length > 0) {
       setSelectedTab("changes");
     }
   }, [changes.length === 1]); // Only switch automatically on first change
-  
+
   // Auto-switching logic could be further refined based on UX requirements
 
   // Function to handle refresh button click
@@ -100,9 +101,9 @@ const DirectoryView: React.FC = () => {
           </Button>
         )}
       </div>
-      
-      <Tabs 
-        value={selectedTab} 
+
+      <Tabs
+        value={selectedTab}
         onValueChange={setSelectedTab}
         className="flex-1 flex flex-col"
       >
@@ -115,11 +116,13 @@ const DirectoryView: React.FC = () => {
             <GitBranch className="h-4 w-4" />
             <span>Changes</span>
             {changes.length > 0 && (
-              <Badge variant="secondary" className="ml-1 px-1.5 h-5">{changes.length}</Badge>
+              <Badge variant="secondary" className="ml-1 px-1.5 h-5">
+                {changes.length}
+              </Badge>
             )}
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="files" className="flex-1 p-0 m-0">
           {error ? (
             <div className="flex-1 flex items-center justify-center text-destructive text-sm p-4">
@@ -144,7 +147,7 @@ const DirectoryView: React.FC = () => {
             </ScrollArea>
           )}
         </TabsContent>
-        
+
         <TabsContent value="changes" className="flex-1 p-0 m-0">
           {changes.length === 0 ? (
             <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm p-4">
@@ -166,7 +169,7 @@ const DirectoryView: React.FC = () => {
           )}
         </TabsContent>
       </Tabs>
-      
+
       {/* Diff Modal */}
       {selectedDiffData && (
         <DiffModalView

@@ -1,8 +1,8 @@
-import React from 'react';
-import { useForgeStore } from '@/stores/ForgeStore';
+import React from "react";
+import { useForgeStore } from "@/stores/ForgeStore";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import ThemeSwitcher from './ThemeSwitcher';
+import ThemeSwitcher from "./ThemeSwitcher";
 
 const StatusBar: React.FC = () => {
   const { conversationId, error, isLoading } = useForgeStore();
