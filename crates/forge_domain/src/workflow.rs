@@ -76,7 +76,7 @@ pub struct Command {
     pub description: String,
 
     #[merge(strategy = crate::merge::option)]
-    pub value: Option<String>,
+    pub prompt: Option<String>,
 }
 
 impl Workflow {

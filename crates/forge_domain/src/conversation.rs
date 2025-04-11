@@ -390,12 +390,12 @@ mod tests {
             Command {
                 name: "cmd1".to_string(),
                 description: "Command 1".to_string(),
-                value: None,
+                prompt: None,
             },
             Command {
                 name: "cmd2".to_string(),
                 description: "Command 2".to_string(),
-                value: None,
+                prompt: None,
             },
         ];
 
@@ -462,12 +462,12 @@ mod tests {
             Command {
                 name: "cmd1".to_string(),
                 description: "Command 1".to_string(),
-                value: None,
+                prompt: None,
             },
             Command {
                 name: "cmd2".to_string(),
                 description: "Command 2".to_string(),
-                value: None,
+                prompt: None,
             },
         ];
 
