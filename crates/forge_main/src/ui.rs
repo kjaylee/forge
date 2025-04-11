@@ -271,21 +271,22 @@ impl<F: API> UI<F> {
     }
 
     async fn init_conversation(&mut self) -> Result<ConversationId> {
-        let config = self.api.load(self.cli.workflow.as_deref()).await?;
-
-        // Get the mode from the config
-        let mode = config
-            .variables
-            .get("mode")
-            .cloned()
-            .and_then(|value| serde_json::from_value(value).ok())
-            .unwrap_or(Mode::Act);
-
-
-        let conversation_id = match self.state.conversation_id {
+        match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
+                let config = self.api.load(self.cli.workflow.as_deref()).await?;
+
+                // Get the mode from the config
+                let mode = config
+                    .variables
+                    .get("mode")
+                    .cloned()
+                    .and_then(|value| serde_json::from_value(value).ok())
+                    .unwrap_or(Mode::Act);
+
                 self.state = UIState::new(mode);
+                self.command.register_all(&config);
+
                 if let Some(ref path) = self.cli.conversation {
                     let conversation: Conversation = serde_json::from_str(
                         ForgeFS::read_to_string(path.as_os_str()).await?.as_str(),
@@ -302,11 +303,7 @@ impl<F: API> UI<F> {
                     Ok(conversation_id)
                 }
             }
-        };
-
-        self.command.register_all(&config);
-
-        conversation_id
+        }
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {
