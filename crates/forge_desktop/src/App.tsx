@@ -62,49 +62,8 @@ const ChatInterface: React.FC = () => {
       <div className="sticky top-0 z-10">
         <ConversationHeader />
       </div>
-
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
-        {/* Directory Panel - Only shown when visible */}
-        {isVisible && (
-          <>
-            <ResizablePanel
-              defaultSize={directorySize}
-              minSize={15}
-              maxSize={40}
-              onResize={(size) => setDirectorySize(Math.round(size))}
-              className="border-r border-border/40"
-            >
-              <DirectoryView />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-          </>
-        )}
-
-        {/* Main Content Panel - Flexes to fill remaining space */}
-        <ResizablePanel
-          defaultSize={
-            isVisible
-              ? 100 - directorySize - toolConsoleSize
-              : 100 - toolConsoleSize
-          }
-          minSize={35}
-          className="flex-1"
-        >
           <div className="flex flex-col h-full">
             <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 flex items-center">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="p-2 mr-1 hover:bg-accent/50 rounded-md"
-                onClick={toggleVisible}
-                title={
-                  isVisible ? "Hide directory panel" : "Show directory panel"
-                }
-              >
-                <PanelLeft
-                  className={`h-5 w-5 ${isVisible ? "text-primary" : "text-muted-foreground"}`}
-                />
-              </Button>
               <ModeSwitcher />
             </div>
             <div className="flex-1 overflow-hidden relative">
@@ -112,21 +71,6 @@ const ChatInterface: React.FC = () => {
             </div>
             <MessageInput />
           </div>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle />
-
-        {/* Tool Console Panel - Maintains fixed size */}
-        <ResizablePanel
-          defaultSize={toolConsoleSize}
-          minSize={20}
-          maxSize={50}
-          onResize={(size) => setToolConsoleSize(Math.round(size))}
-          className="border-l border-border/40"
-        >
-          <ToolConsoleView />
-        </ResizablePanel>
-      </ResizablePanelGroup>
 
       <StatusBar />
     </div>
