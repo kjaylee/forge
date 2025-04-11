@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::Config;
+use forge_domain::Workflow;
 use forge_services::{FsReadService, Infrastructure};
 
 /// Represents the possible sources of a workflow configuration
@@ -35,7 +35,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     ///
     /// When merging, the project's forge.yaml values take precedence over
     /// defaults.
-    pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Config> {
+    pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         // Determine the workflow source
         let source = match path {
             Some(path) => WorkflowSource::ExplicitPath(path),
@@ -46,22 +46,22 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         // Load the workflow based on its source
         match source {
             WorkflowSource::ExplicitPath(path) => self.load_from_explicit_path(path).await,
-            WorkflowSource::Default => Ok(Config::default()),
+            WorkflowSource::Default => Ok(Workflow::default()),
             WorkflowSource::ProjectConfig => self.load_with_project_config().await,
         }
     }
 
     /// Loads a workflow config from a specific file path
-    async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<Config> {
+    async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<Workflow> {
         let content = String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?;
-        let workflow_config: Config = serde_yaml::from_str(&content)
+        let workflow_config: Workflow = serde_yaml::from_str(&content)
             .with_context(|| format!("Failed to parse workflow config from {}", path.display()))?;
         Ok(workflow_config)
     }
 
     /// Loads workflow config by merging project config with default workflow
     /// config
-    async fn load_with_project_config(&self) -> anyhow::Result<Config> {
+    async fn load_with_project_config(&self) -> anyhow::Result<Workflow> {
         let project_path = Path::new("forge.yaml").canonicalize()?;
 
         let project_content = String::from_utf8(
@@ -72,7 +72,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
                 .to_vec(),
         )?;
 
-        let project_config: Config = serde_yaml::from_str(&project_content).with_context(|| {
+        let project_config: Workflow = serde_yaml::from_str(&project_content).with_context(|| {
             format!(
                 "Failed to parse project workflow config: {}",
                 project_path.display()

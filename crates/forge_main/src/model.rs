@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use forge_api::{Config, Model};
+use forge_api::{Workflow, Model};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
@@ -42,8 +42,8 @@ pub struct ForgeCommand {
     pub value: Option<String>,
 }
 
-impl From<&Config> for ForgeCommandManager {
-    fn from(value: &Config) -> Self {
+impl From<&Workflow> for ForgeCommandManager {
+    fn from(value: &Workflow) -> Self {
         let cmd = ForgeCommandManager::default();
         cmd.register_all(value);
         cmd
@@ -76,7 +76,7 @@ impl ForgeCommandManager {
     }
 
     /// Registers multiple commands to the manager.
-    pub fn register_all(&self, workflow: &Config) {
+    pub fn register_all(&self, workflow: &Workflow) {
         let mut guard = self.commands.lock().unwrap();
         let mut commands = Self::default_commands();
 

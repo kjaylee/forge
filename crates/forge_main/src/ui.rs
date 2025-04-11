@@ -278,8 +278,8 @@ impl<F: API> UI<F> {
         // Get the mode from the config
         let mode = config
             .variables
-            .as_ref()
-            .and_then(|variables| variables.get("mode").cloned())
+            .get("mode")
+            .cloned()
             .and_then(|value| serde_json::from_value(value).ok())
             .unwrap_or(Mode::Act);
 
