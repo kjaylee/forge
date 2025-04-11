@@ -86,7 +86,7 @@ impl<F: API> UI<F> {
         };
 
         CONSOLE.write(
-            TitleFormat::success(&mode.to_string())
+            TitleFormat::success(mode.to_string())
                 .sub_title(mode_message)
                 .format(),
         )?;
