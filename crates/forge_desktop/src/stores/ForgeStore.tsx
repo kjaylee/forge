@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { File } from "@/types";
 
 // State related to file tagging
 export interface TaggedFile {
@@ -53,13 +54,17 @@ interface ForgeState {
   isFirstMessage: boolean;
   debugMode: boolean;
   listenersInitialized: boolean;
-  taggedFiles: string[]; // New state for file tagging
+  taggedFiles: string[]; // State for file tagging
+  fileSuggestions: File[]; // New state for file suggestions
 
   // File tagging actions
   addTaggedFile: (filePath: string) => void;
   removeTaggedFile: (index: number) => void;
-  setTaggedFiles: (files: string[]) => void; // New action to set all tagged files
+  setTaggedFiles: (files: string[]) => void;
   clearTaggedFiles: () => void;
+
+  // File suggestion actions
+  fetchFileSuggestions: () => Promise<File[]>;
 
   // Actions
   setMessages: (messages: Message[]) => void;
@@ -105,8 +110,9 @@ export const useForgeStore = create<ForgeState>()(
     },
     isFirstMessage: true,
     debugMode: false,
-    listenersInitialized: false, // Initial state for file tagging
+    listenersInitialized: false,
     taggedFiles: [],
+    fileSuggestions: [], // Initialize file suggestions as empty array
 
     // File tagging actions
     addTaggedFile: (filePath) =>
@@ -131,6 +137,35 @@ export const useForgeStore = create<ForgeState>()(
       set((state) => {
         state.taggedFiles = [];
       }),
+
+    // File suggestion actions
+    fetchFileSuggestions: async () => {
+      try {
+        const { fileSuggestions } = get();
+
+        // Return cached suggestions if available
+        if (fileSuggestions.length > 0) {
+          return fileSuggestions;
+        }
+
+        // Fetch suggestions from the API
+        const suggestions = await invoke<File[]>("get_suggestions");
+
+        // Store in state
+        set((state) => {
+          state.fileSuggestions = suggestions;
+        });
+
+        return suggestions;
+      } catch (err) {
+        set((state) => {
+          state.error = err instanceof Error ? err.message : String(err);
+        });
+        if (get().debugMode)
+          console.error("Error fetching file suggestions:", err);
+        return [];
+      }
+    },
 
     // Event handling
     setupListeners: async () => {

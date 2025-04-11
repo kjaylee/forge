@@ -12,6 +12,11 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { FileTagAttrs } from "./FileTagNode";
 import FileTagNode, { FileTagPasteHandler } from "./FileTagNode";
 import { cn } from "@/utils/utils";
+import { useForgeStore } from "@/stores/ForgeStore";
+import FileSuggestionExtension from "./FileSuggestionExtension";
+
+// REMOVE THIS TODO COMMENT IN PRODUCTION
+// TODO: Implement file suggestions feature using @tiptap/suggestion after fixing compatibility issues
 
 interface TipTapEditorProps {
   content: string;
@@ -256,6 +261,10 @@ const TipTapEditor = forwardRef<{ editor: Editor | null }, TipTapEditorProps>(
         }),
         FileDropExtension.configure({
           onFileDrop,
+        }),
+        FileSuggestionExtension.configure({
+          onChange,
+          fetchFileSuggestions: useForgeStore.getState().fetchFileSuggestions,
         }),
       ],
       content,
