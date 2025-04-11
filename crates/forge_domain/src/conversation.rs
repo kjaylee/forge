@@ -1,13 +1,12 @@
 use std::collections::{HashMap, VecDeque};
 
-use anyhow::Result;
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Error, Event, Workflow};
+use crate::{Agent, AgentId, Context, Error, Event, Result, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -22,7 +21,7 @@ impl ConversationId {
         self.0.to_string()
     }
 
-    pub fn parse(value: impl ToString) -> Result<Self, Error> {
+    pub fn parse(value: impl ToString) -> Result<Self> {
         Ok(Self(
             Uuid::parse_str(&value.to_string()).map_err(Error::ConversationId)?,
         ))
@@ -34,8 +33,8 @@ pub struct Conversation {
     pub id: ConversationId,
     pub archived: bool,
     pub state: HashMap<AgentId, AgentState>,
-    pub workflow: Workflow,
     pub variables: HashMap<String, Value>,
+    pub agents: Vec<Agent>,
     pub events: Vec<Event>,
 }
 
@@ -54,7 +53,7 @@ impl Conversation {
             archived: false,
             state: Default::default(),
             variables: workflow.variables.clone(),
-            workflow,
+            agents: workflow.agents.clone(),
             events: Default::default(),
         }
     }
@@ -65,8 +64,7 @@ impl Conversation {
 
     /// Returns all the agents that are subscribed to the given event.
     pub fn subscriptions(&self, event_name: &str) -> Vec<Agent> {
-        self.workflow
-            .agents
+        self.agents
             .iter()
             .filter(|a| {
                 // Filter out disabled agents
@@ -82,6 +80,13 @@ impl Conversation {
             })
             .cloned()
             .collect::<Vec<_>>()
+    }
+
+    pub fn get_agent(&self, id: &AgentId) -> Result<&Agent> {
+        self.agents
+            .iter()
+            .find(|a| a.id == *id)
+            .ok_or(Error::AgentUndefined(id.clone()))
     }
 
     pub fn context(&self, id: &AgentId) -> Option<&Context> {

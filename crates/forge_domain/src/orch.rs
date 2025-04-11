@@ -293,7 +293,7 @@ impl<A: Services> Orchestrator<A> {
             event = ?event,
             "Initializing agent"
         );
-        let agent = conversation.workflow.get_agent(agent_id)?;
+        let agent = conversation.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
             self.init_agent_context(agent).await?

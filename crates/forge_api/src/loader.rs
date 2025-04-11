@@ -72,12 +72,13 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
                 .to_vec(),
         )?;
 
-        let project_config: Workflow = serde_yaml::from_str(&project_content).with_context(|| {
-            format!(
-                "Failed to parse project workflow config: {}",
-                project_path.display()
-            )
-        })?;
+        let project_config: Workflow =
+            serde_yaml::from_str(&project_content).with_context(|| {
+                format!(
+                    "Failed to parse project workflow config: {}",
+                    project_path.display()
+                )
+            })?;
 
         Ok(project_config)
     }
