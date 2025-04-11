@@ -82,6 +82,7 @@ impl Conversation {
             .collect::<Vec<_>>()
     }
 
+    /// Returns the agent with the given id or an error if it doesn't exist
     pub fn get_agent(&self, id: &AgentId) -> Result<&Agent> {
         self.agents
             .iter()

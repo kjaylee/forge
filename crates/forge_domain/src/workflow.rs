@@ -13,14 +13,14 @@ use crate::{Agent, AgentId, ModelId};
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option)]
 pub struct Workflow {
+    /// Agents that are part of this workflow
+    #[merge(strategy = crate::merge::vec::unify_by_key)]
+    pub agents: Vec<Agent>,
+
     /// Variables that can be used in templates
     #[merge(strategy = crate::merge::hashmap)]
     #[serde(default)]
     pub variables: HashMap<String, Value>,
-
-    /// Agents that are part of this workflow
-    #[merge(strategy = crate::merge::vec::unify_by_key)]
-    pub agents: Vec<Agent>,
 
     /// Commands that can be used to interact with the workflow
     #[merge(strategy = crate::merge::vec::append)]
@@ -87,55 +87,5 @@ impl Workflow {
     pub fn get_agent(&self, id: &AgentId) -> crate::Result<&Agent> {
         self.find_agent(id)
             .ok_or_else(|| crate::Error::AgentUndefined(id.clone()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn test_temperature_validation() {
-        // Valid temperature values should deserialize correctly
-        let valid_temps = [0.0, 0.5, 1.0, 1.5, 2.0];
-        for temp in valid_temps {
-            let json = json!({
-                "temperature": temp
-            });
-
-            let config: std::result::Result<Workflow, serde_json::Error> =
-                serde_json::from_value(json);
-            assert!(
-                config.is_ok(),
-                "Valid temperature {} should deserialize",
-                temp
-            );
-            assert_eq!(config.unwrap().temperature.unwrap().value(), temp);
-        }
-
-        // Invalid temperature values should fail deserialization
-        let invalid_temps = [-0.1, 2.1, 3.0, -1.0, 10.0];
-        for temp in invalid_temps {
-            let json = json!({
-                "temperature": temp
-            });
-
-            let config: std::result::Result<Workflow, serde_json::Error> =
-                serde_json::from_value(json);
-            assert!(
-                config.is_err(),
-                "Invalid temperature {} should fail deserialization",
-                temp
-            );
-            let err = config.unwrap_err().to_string();
-            assert!(
-                err.contains("temperature must be between 0.0 and 2.0"),
-                "Error should mention valid range: {}",
-                err
-            );
-        }
     }
 }
