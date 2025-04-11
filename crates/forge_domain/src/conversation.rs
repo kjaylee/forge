@@ -47,13 +47,49 @@ pub struct AgentState {
 }
 
 impl Conversation {
+    pub const MAIN_AGENT_NAME: &str = "software-engineer";
     pub fn new(id: ConversationId, workflow: Workflow) -> Self {
+        let mut agents = Vec::new();
+
+        for mut agent in workflow.agents.into_iter() {
+            if let Some(custom_rules) = workflow.custom_rules.clone() {
+                agent.custom_rules = Some(custom_rules);
+            }
+
+            if let Some(max_walker_depth) = workflow.max_walker_depth {
+                agent.max_walker_depth = Some(max_walker_depth);
+            }
+
+            if let Some(temperature) = workflow.temperature {
+                agent.temperature = Some(temperature);
+            }
+
+            if let Some(model) = workflow.model.clone() {
+                agent.model = Some(model);
+            }
+
+            if agent.id.as_str() == Conversation::MAIN_AGENT_NAME {
+                let commands = workflow
+                    .commands
+                    .iter()
+                    .map(|c| c.name.clone())
+                    .collect::<Vec<_>>();
+                if let Some(ref mut subscriptions) = agent.subscribe {
+                    subscriptions.extend(commands);
+                } else {
+                    agent.subscribe = Some(commands);
+                }
+            }
+
+            agents.push(agent);
+        }
+
         Self {
             id,
             archived: false,
             state: Default::default(),
             variables: workflow.variables.clone(),
-            agents: workflow.agents.clone(),
+            agents,
             events: Default::default(),
         }
     }
