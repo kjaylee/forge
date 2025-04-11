@@ -18,7 +18,7 @@ Hints:
 - There is a .md file that contains the name of the cat.
 "#;
 
-/// Creates a test workflow config that mimics the configuration from
+/// Creates a test workflow that mimics the configuration from
 /// test_workflow.yaml
 pub fn create_test_workflow() -> Workflow {
     // Create the developer agent

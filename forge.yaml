@@ -1,3 +1,7 @@
+
+# Add the variables to forge.yaml to ensure templates work correctly
+variables:
+  mode: PLAN
 model: x-ai/grok-3-beta
 commands:
   - name: fixme

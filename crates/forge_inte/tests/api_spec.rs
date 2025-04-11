@@ -42,12 +42,12 @@ impl Fixture {
         let api = self.api();
         let mut workflow = test_workflow::create_test_workflow();
 
-        // in config, replace all models with the model we want to test.
+        // in workflow, replace all models with the model we want to test.
         workflow.agents.iter_mut().for_each(|agent| {
             agent.model = Some(self.model.clone());
         });
 
-        // initialize the conversation by storing the workflow config.
+        // initialize the conversation by storing the workflow.
         let conversation_id = api.init(workflow).await.unwrap();
         let request = ChatRequest::new(
             Event::new(

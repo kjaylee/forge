@@ -1,6 +1,8 @@
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::config::Config;
 use crate::{Agent, AgentId};
@@ -13,6 +15,9 @@ const DEFAULT_YAML: &str = include_str!("../../../forge.default.yaml");
 pub struct Workflow {
     #[merge(strategy = crate::merge::vec::unify_by_key)]
     pub agents: Vec<Agent>,
+
+    #[merge(strategy = crate::merge::hashmap)]
+    pub variables: HashMap<String, Value>,
 }
 
 impl Default for Workflow {
@@ -66,6 +71,11 @@ impl From<Config> for Workflow {
         }
 
         // Subscribe software-engineer agent to all commands defined in config
+        // Create variables HashMap if it doesn't exist in the Config
+        if let Some(vars) = config.variables {
+            workflow.variables = vars;
+        }
+
         if !config.commands.is_empty() {
             // Find the software-engineer agent
             if let Some(software_engineer) = workflow
