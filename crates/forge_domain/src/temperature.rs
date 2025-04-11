@@ -135,12 +135,16 @@ mod tests {
     fn test_temperature_serialization() {
         let temp = Temperature::new(0.7).unwrap();
         let json = serde_json::to_value(temp).unwrap();
-        
+
         // When serializing floating point numbers, precision issues might occur
         // So we'll check if the serialized value is approximately equal to 0.7
         if let serde_json::Value::Number(num) = &json {
             let float_val = num.as_f64().unwrap();
-            assert!((float_val - 0.7).abs() < 0.001, "Expected approximately 0.7, got {}", float_val);
+            assert!(
+                (float_val - 0.7).abs() < 0.001,
+                "Expected approximately 0.7, got {}",
+                float_val
+            );
         } else {
             panic!("Expected a number, got {:?}", json);
         }

@@ -232,7 +232,9 @@ impl Conversation {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
     use serde_json::json;
+
     use crate::{Agent, Command, ModelId, Temperature, Workflow};
 
     #[test]
@@ -309,7 +311,7 @@ mod tests {
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
-        
+
         // Check that workflow settings were applied to all agents
         for agent in &conversation.agents {
             assert_eq!(agent.model, Some(ModelId::new("test-model")));
@@ -323,14 +325,14 @@ mod tests {
     fn test_conversation_new_preserves_agent_specific_settings() {
         // Arrange
         let id = super::ConversationId::generate();
-        
+
         // Agent with specific settings
         let mut agent1 = Agent::new("agent1");
         agent1.model = Some(ModelId::new("agent1-model"));
         agent1.max_walker_depth = Some(10);
         agent1.custom_rules = Some("Agent1 specific rules".to_string());
         agent1.temperature = Some(Temperature::new(0.3).unwrap());
-        
+
         // Agent without specific settings
         let agent2 = Agent::new("agent2");
 
@@ -349,16 +351,24 @@ mod tests {
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
-        
+
         // Check that agent1's settings were overridden by workflow settings
-        let agent1 = conversation.agents.iter().find(|a| a.id.as_str() == "agent1").unwrap();
+        let agent1 = conversation
+            .agents
+            .iter()
+            .find(|a| a.id.as_str() == "agent1")
+            .unwrap();
         assert_eq!(agent1.model, Some(ModelId::new("default-model")));
         assert_eq!(agent1.max_walker_depth, Some(5));
         assert_eq!(agent1.custom_rules, Some("Default rules".to_string()));
         assert_eq!(agent1.temperature, Some(Temperature::new(0.7).unwrap()));
-        
+
         // Check that agent2 got the workflow defaults
-        let agent2 = conversation.agents.iter().find(|a| a.id.as_str() == "agent2").unwrap();
+        let agent2 = conversation
+            .agents
+            .iter()
+            .find(|a| a.id.as_str() == "agent2")
+            .unwrap();
         assert_eq!(agent2.model, Some(ModelId::new("default-model")));
         assert_eq!(agent2.max_walker_depth, Some(5));
         assert_eq!(agent2.custom_rules, Some("Default rules".to_string()));
@@ -369,12 +379,12 @@ mod tests {
     fn test_conversation_new_adds_commands_to_main_agent_subscriptions() {
         // Arrange
         let id = super::ConversationId::generate();
-        
+
         // Create the main software-engineer agent
         let main_agent = Agent::new(super::Conversation::MAIN_AGENT_NAME);
         // Create a regular agent
         let other_agent = Agent::new("other-agent");
-        
+
         // Create some commands
         let commands = vec![
             Command {
@@ -404,29 +414,37 @@ mod tests {
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
-        
+
         // Check that main agent received command subscriptions
         let main_agent = conversation
             .agents
             .iter()
             .find(|a| a.id.as_str() == super::Conversation::MAIN_AGENT_NAME)
             .unwrap();
-        
+
         assert!(main_agent.subscribe.is_some());
         let subscriptions = main_agent.subscribe.as_ref().unwrap();
         assert!(subscriptions.contains(&"cmd1".to_string()));
         assert!(subscriptions.contains(&"cmd2".to_string()));
-        
+
         // Check that other agent didn't receive command subscriptions
         let other_agent = conversation
             .agents
             .iter()
             .find(|a| a.id.as_str() == "other-agent")
             .unwrap();
-        
+
         if other_agent.subscribe.is_some() {
-            assert!(!other_agent.subscribe.as_ref().unwrap().contains(&"cmd1".to_string()));
-            assert!(!other_agent.subscribe.as_ref().unwrap().contains(&"cmd2".to_string()));
+            assert!(!other_agent
+                .subscribe
+                .as_ref()
+                .unwrap()
+                .contains(&"cmd1".to_string()));
+            assert!(!other_agent
+                .subscribe
+                .as_ref()
+                .unwrap()
+                .contains(&"cmd2".to_string()));
         }
     }
 
@@ -434,11 +452,11 @@ mod tests {
     fn test_conversation_new_merges_commands_with_existing_subscriptions() {
         // Arrange
         let id = super::ConversationId::generate();
-        
+
         // Create the main software-engineer agent with existing subscriptions
         let mut main_agent = Agent::new(super::Conversation::MAIN_AGENT_NAME);
         main_agent.subscribe = Some(vec!["existing-event".to_string()]);
-        
+
         // Create some commands
         let commands = vec![
             Command {
@@ -472,10 +490,10 @@ mod tests {
             .iter()
             .find(|a| a.id.as_str() == super::Conversation::MAIN_AGENT_NAME)
             .unwrap();
-        
+
         assert!(main_agent.subscribe.is_some());
         let subscriptions = main_agent.subscribe.as_ref().unwrap();
-        
+
         // Should contain both the existing subscription and the new commands
         assert!(subscriptions.contains(&"existing-event".to_string()));
         assert!(subscriptions.contains(&"cmd1".to_string()));
