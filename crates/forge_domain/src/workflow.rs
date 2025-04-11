@@ -10,7 +10,7 @@ use crate::{Agent, AgentId, ModelId};
 
 /// Configuration for a workflow that contains all settings
 /// required to initialize a workflow.
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
+#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option)]
 pub struct Workflow {
     /// Variables that can be used in templates
@@ -58,6 +58,12 @@ pub struct Workflow {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub temperature: Option<Temperature>,
+}
+
+impl Default for Workflow {
+    fn default() -> Self {
+        serde_yaml::from_str(include_str!("../../../forge.default.yaml")).unwrap()
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters)]
