@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 
 use crate::config::Config;
 use crate::{Agent, AgentId};
