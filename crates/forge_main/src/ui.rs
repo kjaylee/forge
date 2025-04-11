@@ -145,19 +145,18 @@ impl<F: API> UI<F> {
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
             Some(path) => self.console.upload(path).await?,
-            None => self.console.prompt(None).await?,
+            None => self.console.prompt(Some(self.state.clone().into())).await?,
         };
 
         loop {
             match input {
                 Command::Dump => {
                     self.handle_dump().await?;
-                    let prompt_input = Some((&self.state).into());
+                    let prompt_input = Some(self.state.clone().into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::New => {
-                    self.state = Default::default();
                     self.init_conversation().await?;
                     banner::display(self.command.command_names())?;
                     input = self.console.prompt(None).await?;
@@ -170,7 +169,7 @@ impl<F: API> UI<F> {
 
                     CONSOLE.writeln(info.to_string())?;
 
-                    let prompt_input = Some((&self.state).into());
+                    let prompt_input = Some(self.state.clone().into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
@@ -190,27 +189,27 @@ impl<F: API> UI<F> {
 
                         CONSOLE.writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
                     }
-                    let prompt_input = Some((&self.state).into());
+                    let prompt_input = Some(self.state.clone().into());
                     input = self.console.prompt(prompt_input).await?;
                 }
                 Command::Act => {
                     self.handle_mode_change(Mode::Act).await?;
 
-                    let prompt_input = Some((&self.state).into());
+                    let prompt_input = Some(self.state.clone().into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Plan => {
                     self.handle_mode_change(Mode::Plan).await?;
 
-                    let prompt_input = Some((&self.state).into());
+                    let prompt_input = Some(self.state.clone().into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
                 Command::Help => {
                     self.handle_mode_change(Mode::Help).await?;
 
-                    let prompt_input = Some((&self.state).into());
+                    let prompt_input = Some(self.state.clone().into());
                     input = self.console.prompt(prompt_input).await?;
                     continue;
                 }
@@ -275,6 +274,16 @@ impl<F: API> UI<F> {
 
     async fn init_conversation(&mut self) -> Result<ConversationId> {
         let config = self.api.load(self.cli.workflow.as_deref()).await?;
+
+        // Get the mode from the config
+        let mode = config
+            .variables
+            .as_ref()
+            .and_then(|variables| variables.get("mode").cloned())
+            .and_then(|value| serde_json::from_value(value).ok())
+            .unwrap_or(Mode::Act);
+
+        self.state = UIState::new(mode);
         let conversation_id = match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
