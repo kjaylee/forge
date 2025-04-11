@@ -281,10 +281,11 @@ impl<F: API> UI<F> {
             .and_then(|value| serde_json::from_value(value).ok())
             .unwrap_or(Mode::Act);
 
-        self.state = UIState::new(mode);
+
         let conversation_id = match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
+                self.state = UIState::new(mode);
                 if let Some(ref path) = self.cli.conversation {
                     let conversation: Conversation = serde_json::from_str(
                         ForgeFS::read_to_string(path.as_os_str()).await?.as_str(),
