@@ -64,19 +64,17 @@ pub struct UI<F> {
 impl<F: API> UI<F> {
     // Set the current mode and update conversation variable
     async fn handle_mode_change(&mut self, mode: Mode) -> Result<()> {
-        // Update the mode in state
-        self.state.mode = mode;
-
-        // Show message that mode changed
-        let mode_str = self.state.mode.to_string();
-
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
+
+        // Override the mode that was reset by the conversation
+        self.state.mode = mode.clone();
+
         self.api
             .set_variable(
                 &conversation_id,
                 "mode".to_string(),
-                Value::from(mode_str.as_str()),
+                Value::from(mode.to_string()),
             )
             .await?;
 
@@ -88,7 +86,7 @@ impl<F: API> UI<F> {
         };
 
         CONSOLE.write(
-            TitleFormat::success(&mode_str)
+            TitleFormat::success(&mode.to_string())
                 .sub_title(mode_message)
                 .format(),
         )?;
