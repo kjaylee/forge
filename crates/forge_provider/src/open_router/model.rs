@@ -25,8 +25,10 @@ pub struct Architecture {
 pub struct Pricing {
     pub prompt: String,
     pub completion: String,
-    pub image: String,
-    pub request: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
