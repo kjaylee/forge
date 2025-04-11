@@ -350,12 +350,12 @@ mod tests {
         // Assert
         assert_eq!(conversation.agents.len(), 2);
         
-        // Check that agent1's specific settings were preserved
+        // Check that agent1's settings were overridden by workflow settings
         let agent1 = conversation.agents.iter().find(|a| a.id.as_str() == "agent1").unwrap();
-        assert_eq!(agent1.model, Some(ModelId::new("agent1-model")));
-        assert_eq!(agent1.max_walker_depth, Some(10));
-        assert_eq!(agent1.custom_rules, Some("Agent1 specific rules".to_string()));
-        assert_eq!(agent1.temperature, Some(Temperature::new(0.3).unwrap()));
+        assert_eq!(agent1.model, Some(ModelId::new("default-model")));
+        assert_eq!(agent1.max_walker_depth, Some(5));
+        assert_eq!(agent1.custom_rules, Some("Default rules".to_string()));
+        assert_eq!(agent1.temperature, Some(Temperature::new(0.7).unwrap()));
         
         // Check that agent2 got the workflow defaults
         let agent2 = conversation.agents.iter().find(|a| a.id.as_str() == "agent2").unwrap();
