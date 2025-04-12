@@ -1,6 +1,6 @@
 mod config;
 mod error;
-mod handler;
+mod handlers;
 mod routes;
 mod server;
 

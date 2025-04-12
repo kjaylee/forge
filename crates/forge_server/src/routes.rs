@@ -5,7 +5,7 @@ use axum::Router;
 use forge_domain::Services;
 use forge_services::Infrastructure;
 
-use crate::handler::*;
+use crate::handlers::*;
 
 /// Create the application router
 pub fn create_router<F: Services + Infrastructure + Send + Sync + 'static>(

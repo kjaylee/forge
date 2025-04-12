@@ -11,7 +11,7 @@ use tracing::info;
 
 use crate::config::{get_socket_addr, ServerConfig};
 use crate::error::Result;
-use crate::handler::AppState;
+use crate::handlers::AppState;
 use crate::routes::create_router;
 
 /// Forge HTTP Server
