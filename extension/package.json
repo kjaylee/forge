@@ -12,30 +12,59 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "forge.helloWorld",
-        "title": "Hello World"
-      }
-    ]
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "forge-sidebar",
+          "title": "Forge",
+          "icon": "media/forge-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "forge-sidebar": [
+        {
+          "id": "forgeMessages",
+          "name": "Messages",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "npm run compile:extension && npm run compile:webview",
+    "compile:extension": "tsc -p ./",
+    "compile:webview": "webpack --mode production",
+    "watch": "concurrently \"npm run watch:extension\" \"npm run watch:webview\"",
+    "watch:extension": "tsc -watch -p ./",
+    "watch:webview": "webpack --watch --mode development",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.99.0",
+    "@tailwindcss/postcss": "^4.1.3",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
+    "@types/vscode": "^1.99.0",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
-    "eslint": "^9.23.0",
-    "typescript": "^5.8.2",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@vscode/test-electron": "^2.4.1",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
+    "css-loader": "^7.1.2",
+    "eslint": "^9.23.0",
+    "mini-css-extract-plugin": "^2.9.2",
+    "postcss": "^8.5.3",
+    "postcss-loader": "^8.1.1",
+    "preact": "^10.18.1",
+    "style-loader": "^4.0.0",
+    "tailwindcss": "^4.1.3",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.8.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
   }
 }
