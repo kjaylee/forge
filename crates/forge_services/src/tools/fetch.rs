@@ -232,10 +232,7 @@ mod tests {
             raw: Some(false),
         };
 
-        let result = fetch
-            .call(ToolCallContext::default(), input)
-            .await
-            .unwrap();
+        let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
         insta::assert_snapshot!(normalized_result);
     }
@@ -266,10 +263,7 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = fetch
-            .call(ToolCallContext::default(), input)
-            .await
-            .unwrap();
+        let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
         insta::assert_snapshot!(normalized_result);
     }
@@ -338,10 +332,7 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = fetch
-            .call(ToolCallContext::default(), input)
-            .await
-            .unwrap();
+        let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
         assert!(normalized_result.contains("A".repeat(5000).as_str()));
         assert!(normalized_result.contains("start_index of 5000"));
@@ -354,10 +345,7 @@ mod tests {
             raw: Some(true),
         };
 
-        let result = fetch
-            .call(ToolCallContext::default(), input)
-            .await
-            .unwrap();
+        let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
         assert!(normalized_result.contains("B".repeat(5000).as_str()));
     }
