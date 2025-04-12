@@ -182,7 +182,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::new(), call).await;
+        let result = service.call(ToolCallContext::default(), call).await;
         insta::assert_snapshot!(result);
     }
 
@@ -195,7 +195,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::new(), call).await;
+        let result = service.call(ToolCallContext::default(), call).await;
         insta::assert_snapshot!(result);
     }
 
@@ -208,7 +208,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(ToolCallContext::new(), call).await;
+        let result = service.call(ToolCallContext::default(), call).await;
         insta::assert_snapshot!(result);
     }
 
@@ -253,7 +253,7 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(ToolCallContext::new(), call).await;
+        let result = service.call(ToolCallContext::default(), call).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;

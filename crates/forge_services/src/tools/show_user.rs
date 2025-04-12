@@ -29,12 +29,12 @@ impl NamedTool for ShowUser {
 #[async_trait::async_trait]
 impl ExecutableTool for ShowUser {
     type Input = ShowUserInput;
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Use termimad to display the markdown to the terminal
 
         let skin = termimad::get_default_skin();
         let content = skin.term_text(&input.content);
-        println!("{}", content);
+        context.send_text(content.to_string()).await?;
 
         // Return a simple success message
         Ok("Markdown content displayed to user".to_string())

@@ -69,7 +69,7 @@ impl<F> NamedTool for FSWrite<F> {
 impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -136,7 +136,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
             &old_content,
             &new_content,
         );
-        println!("{}", diff);
+        context.send_text(diff).await?;
 
         Ok(result)
     }

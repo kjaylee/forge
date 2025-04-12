@@ -65,7 +65,7 @@ pub struct UndoInput {
 #[async_trait::async_trait]
 impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
     type Input = UndoInput;
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -76,7 +76,7 @@ impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
 
         // Display a message about the file being undone
         let message = TitleFormat::success("undo").sub_title(display_path.clone());
-        println!("{}", message.format());
+        context.send_text(message.format()).await?;
 
         Ok(format!(
             "Successfully undid last operation on path: {}",

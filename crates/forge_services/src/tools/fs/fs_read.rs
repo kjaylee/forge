@@ -56,7 +56,7 @@ impl<F> NamedTool for FSRead<F> {
 impl<F: Infrastructure> ExecutableTool for FSRead<F> {
     type Input = FSReadInput;
 
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -80,7 +80,7 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         let title = "read";
         let display_path = self.format_display_path(path)?;
         let message = TitleFormat::success(title).sub_title(display_path);
-        println!("{}", message);
+        context.send_text(message.format()).await?;
 
         Ok(content)
     }

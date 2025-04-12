@@ -152,7 +152,7 @@ async fn apply_patches(content: String, blocks: Vec<PatchBlock>) -> Result<Strin
 impl<T: Infrastructure> ExecutableTool for ApplyPatch<T> {
     type Input = ApplyPatchInput;
 
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -213,7 +213,7 @@ impl<T: Infrastructure> ExecutableTool for ApplyPatch<T> {
 
         // Generate diff between old and new content
         let diff = DiffFormat::format("patch", path.to_path_buf(), &old_content, &new_content);
-        println!("{}", diff);
+        context.send_text(diff.clone()).await?;
 
         Ok(result)
     }

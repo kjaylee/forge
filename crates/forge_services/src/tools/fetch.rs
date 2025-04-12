@@ -90,7 +90,12 @@ impl Fetch {
         Ok(())
     }
 
-    async fn fetch_url(&self, url: &Url, force_raw: bool) -> Result<(String, String)> {
+    async fn fetch_url(
+        &self,
+        url: &Url,
+        context: &ToolCallContext,
+        force_raw: bool,
+    ) -> Result<(String, String)> {
         self.check_robots_txt(url).await?;
 
         let response = self
@@ -100,13 +105,9 @@ impl Fetch {
             .await
             .map_err(|e| anyhow!("Failed to fetch URL {}: {}", url, e))?;
 
-        println!(
-            "{}",
-            TitleFormat::execute(format!("GET {}", response.status()))
-                .sub_title(url.as_str())
-                .to_string()
-                .as_str()
-        );
+        let title_format =
+            TitleFormat::execute(format!("GET {}", response.status())).sub_title(url.as_str());
+        context.send_text(title_format.format()).await?;
 
         if !response.status().is_success() {
             return Err(anyhow!(
@@ -151,11 +152,13 @@ impl Fetch {
 impl ExecutableTool for Fetch {
     type Input = FetchInput;
 
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         let url = Url::parse(&input.url)
             .with_context(|| format!("Failed to parse URL: {}", input.url))?;
 
-        let (content, prefix) = self.fetch_url(&url, input.raw.unwrap_or(false)).await?;
+        let (content, prefix) = self
+            .fetch_url(&url, &context, input.raw.unwrap_or(false))
+            .await?;
 
         let original_length = content.len();
         let start_index = input.start_index.unwrap_or(0);

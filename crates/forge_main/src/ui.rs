@@ -386,7 +386,13 @@ impl<F: API> UI<F> {
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
-            ChatResponse::Text(text) => CONSOLE.write(text.dimmed().to_string())?,
+            ChatResponse::Text { text: content, is_complete } => {
+                if is_complete {
+                    CONSOLE.writeln(&content)?;
+                } else {
+                    CONSOLE.write(content.dimmed().to_string())?;
+                }
+            }
             ChatResponse::ToolCallStart(_) => {
                 CONSOLE.newline()?;
                 CONSOLE.newline()?;

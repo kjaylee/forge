@@ -111,12 +111,13 @@ impl<F: Infrastructure> FSFind<F> {
         Ok(TitleFormat::execute("search").sub_title(sub_title))
     }
 
-    async fn call(&self, _context: ToolCallContext, input: FSFindInput) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: FSFindInput) -> anyhow::Result<String> {
         let dir = Path::new(&input.path);
         assert_absolute_path(dir)?;
 
         let title_format = self.create_title(&input)?;
-        println!("{}", title_format.format());
+
+        context.send_text(title_format.format()).await?;
 
         if !dir.exists() {
             return Err(anyhow::anyhow!("Directory '{}' does not exist", input.path));
@@ -202,7 +203,7 @@ impl<F: Infrastructure> FSFind<F> {
             formatted_output = formatted_output.regex(regex);
         }
 
-        println!("{}", formatted_output.format());
+        context.send_text(formatted_output.format()).await?;
         Ok(matches.join("\n"))
     }
 }
@@ -228,8 +229,8 @@ impl<F> NamedTool for FSFind<F> {
 impl<F: Infrastructure> ExecutableTool for FSFind<F> {
     type Input = FSFindInput;
 
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
-        self.call(_context, input).await
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+        self.call(context, input).await
     }
 }
 

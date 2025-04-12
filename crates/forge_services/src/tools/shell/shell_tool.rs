@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
+use forge_display::TitleFormat;
 use forge_domain::{
     Environment, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
 };
@@ -85,7 +86,7 @@ impl NamedTool for Shell {
 impl ExecutableTool for Shell {
     type Input = ShellInput;
 
-    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());
@@ -97,18 +98,10 @@ impl ExecutableTool for Shell {
             "-c"
         };
 
-        #[cfg(not(test))]
-        {
-            use forge_display::TitleFormat;
+        let title_format = TitleFormat::execute(&input.command)
+            .sub_title(format!("(using {})", self.env.shell.as_str()));
 
-            println!(
-                "\n{}",
-                // parameter, &input.command
-                TitleFormat::execute(&input.command)
-                    .sub_title(format!("(using {})", self.env.shell.as_str()))
-                    .format()
-            );
-        }
+        context.send_text(title_format.format()).await?;
 
         let mut command = Command::new(&self.env.shell);
 
