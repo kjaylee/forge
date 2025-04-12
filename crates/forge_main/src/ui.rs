@@ -17,7 +17,7 @@ use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
-use crate::model::{Command, ForgeCommandManager, UserInput};
+use crate::model::{Command, ForgeCommandManager};
 use crate::state::{Mode, UIState};
 use crate::{banner, TRACKER};
 

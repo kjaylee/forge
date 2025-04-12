@@ -1,14 +1,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use forge_api::Environment;
 use forge_display::TitleFormat;
 use tokio::fs;
 
 use crate::console::CONSOLE;
 use crate::editor::{ForgeEditor, ReadResult};
-use crate::model::{Command, ForgeCommandManager, UserInput};
+use crate::model::{Command, ForgeCommandManager};
 use crate::prompt::ForgePrompt;
 use crate::TRACKER;
 
@@ -26,10 +25,8 @@ impl Console {
     }
 }
 
-#[async_trait]
-impl UserInput for Console {
-    type PromptInput = ForgePrompt;
-    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
+impl Console {
+    pub async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
         let path = path.into();
         let content = fs::read_to_string(&path).await?.trim().to_string();
 
@@ -37,7 +34,7 @@ impl UserInput for Console {
         Ok(Command::Message(content))
     }
 
-    async fn prompt(&self, prompt: Option<Self::PromptInput>) -> anyhow::Result<Command> {
+    pub async fn prompt(&self, prompt: Option<ForgePrompt>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
 
         let mut engine = ForgeEditor::new(self.env.clone(), self.command.clone());
