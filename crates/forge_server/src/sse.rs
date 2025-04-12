@@ -14,7 +14,7 @@ pub fn message_stream_to_sse(
             Ok(agent_message) => {
                 // Determine message type based on ChatResponse variant
                 let message_type = match &agent_message.message {
-                    ChatResponse::Text(_) => MessageType::Text,
+                    ChatResponse::Text { .. } => MessageType::Text,
                     ChatResponse::ToolCallStart(_) => MessageType::ToolCallStart,
                     ChatResponse::ToolCallEnd(_) => MessageType::ToolCallEnd,
                     ChatResponse::Usage(_) => MessageType::Usage,
