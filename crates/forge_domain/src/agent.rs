@@ -13,7 +13,6 @@ use crate::{
     Context, Error, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition, ToolName,
 };
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentMessage<T> {
     pub agent: AgentId,
