@@ -68,9 +68,12 @@ pub async fn environment<F: Services + Infrastructure>(
 /// Handler for initializing a conversation
 pub async fn init<F: Services + Infrastructure>(
     State(state): State<Arc<AppState<F>>>,
-    Json(workflow): Json<Workflow>,
+    workflow: Option<Json<Workflow>>,
 ) -> Result<Json<ConversationId>> {
-    let conversation_id = state.api.init(workflow).await?;
+    let conversation_id = match workflow {
+        Some(Json(workflow)) => state.api.init(workflow).await?,
+        None => state.api.init(Workflow::default()).await?,
+    };
     Ok(Json(conversation_id))
 }
 
@@ -85,7 +88,7 @@ pub async fn load<F: Services + Infrastructure>(
     State(state): State<Arc<AppState<F>>>,
     Query(params): Query<LoadParams>,
 ) -> Result<Json<Workflow>> {
-    let path_ref = params.path.as_ref().map(|p| Path::new(p));
+    let path_ref = params.path.as_ref().map(Path::new);
     let workflow = state.api.load(path_ref).await?;
     Ok(Json(workflow))
 }
