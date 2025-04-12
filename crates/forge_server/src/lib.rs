@@ -3,7 +3,6 @@ mod error;
 mod handler;
 mod routes;
 mod server;
-mod sse;
 
 pub use config::ServerConfig;
 pub use error::{Error, Result};

@@ -2,18 +2,18 @@ use std::path::Path;
 use std::sync::Arc;
 
 use axum::extract::{Path as AxumPath, Query, State};
-use axum::response::{IntoResponse, Response, Sse};
+use axum::response::{sse::Event, IntoResponse, Response, Sse};
 use axum::Json;
 use forge_api::ForgeAPI;
 use forge_domain::*;
 use forge_services::Infrastructure;
-use futures::stream::Stream;
+use futures::stream::{Stream, StreamExt};
 use http::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::error::{Error, ErrorResponse};
-use crate::sse::message_stream_to_sse;
+
 use crate::Result;
 
 /// State shared between handlers
@@ -37,6 +37,14 @@ pub async fn tools<F: Services + Infrastructure>(
     Json(tools)
 }
 
+/// Helper function to convert a single agent message to an SSE Event
+///
+/// Serializes the message to JSON and wraps it in an SSE Event ready for delivery
+fn into_event(message: anyhow::Result<AgentMessage<ChatResponse>>) -> Result<Event> {
+    let message = serde_json::to_string(&message?)?;
+    Ok(Event::default().data(message))
+}
+
 /// Handler for models
 pub async fn models<F: Services + Infrastructure>(
     State(state): State<Arc<AppState<F>>>,
@@ -51,7 +59,7 @@ pub async fn chat<F: Services + Infrastructure>(
     Json(chat_request): Json<ChatRequest>,
 ) -> Result<Sse<impl Stream<Item = Result<axum::response::sse::Event>>>> {
     let stream = state.api.chat(chat_request).await?;
-    Ok(Sse::new(message_stream_to_sse(stream)))
+    Ok(Sse::new(stream.map(into_event)))
 }
 
 /// Handler for environment
