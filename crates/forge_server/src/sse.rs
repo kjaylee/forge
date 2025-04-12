@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use axum::response::sse::Event;
-use forge_domain::{AgentMessage, ChatResponse};
+use forge_domain::{AgentMessage, ChatResponse, MessageType, SseError, SseEventType, SseMessage};
 use forge_stream::MpscStream;
 use futures::stream::{Stream, StreamExt};
 
@@ -12,30 +12,42 @@ pub fn message_stream_to_sse(
     stream.map(|result| {
         let event = match result {
             Ok(agent_message) => {
-                // Manually create a JSON representation since AgentMessage might not implement
-                // Serialize
+                // Determine message type based on ChatResponse variant
                 let message_type = match &agent_message.message {
-                    ChatResponse::Text(_) => "text",
-                    ChatResponse::ToolCallStart(_) => "toolCallStart",
-                    ChatResponse::ToolCallEnd(_) => "toolCallEnd",
-                    ChatResponse::Usage(_) => "usage",
-                    ChatResponse::Event(_) => "event",
+                    ChatResponse::Text(_) => MessageType::Text,
+                    ChatResponse::ToolCallStart(_) => MessageType::ToolCallStart,
+                    ChatResponse::ToolCallEnd(_) => MessageType::ToolCallEnd,
+                    ChatResponse::Usage(_) => MessageType::Usage,
+                    ChatResponse::Event(_) => MessageType::Event,
                 };
 
-                // Create a simplified JSON representation
-                let json = format!(
-                    r#"{{"agent":"{}", "type":"{}", "data":{}}}"#,
-                    agent_message.agent,
+                // Create a structured message
+                let sse_message = SseMessage {
+                    agent: agent_message.agent.as_str().to_string(),
                     message_type,
-                    serde_json::to_string(&agent_message.message)
-                        .unwrap_or_else(|_| "null".to_string())
-                );
+                    data: serde_json::to_value(&agent_message.message)
+                        .unwrap_or(serde_json::Value::Null),
+                };
 
-                Event::default().data(json).event("message")
+                // Serialize the structured message
+                let json = serde_json::to_string(&sse_message)
+                    .unwrap_or_else(|_| r#"{"error":"Failed to serialize message"}"#.to_string());
+
+                Event::default()
+                    .data(json)
+                    .event(SseEventType::Message.to_string())
             }
             Err(error) => {
-                let error_json = format!(r#"{{ "error": "{}" }}"#, error);
-                Event::default().data(error_json).event("error")
+                // Create a structured error
+                let sse_error = SseError { error: error.to_string() };
+
+                // Serialize the structured error
+                let error_json = serde_json::to_string(&sse_error)
+                    .unwrap_or_else(|_| r#"{"error":"Failed to serialize error"}"#.to_string());
+
+                Event::default()
+                    .data(error_json)
+                    .event(SseEventType::Error.to_string())
             }
         };
 
