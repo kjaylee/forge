@@ -7,30 +7,25 @@ use forge_api::{
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
-use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
 use tracing::error;
 
 use crate::auto_update::update_forge;
-use crate::banner;
 use crate::cli::Cli;
 use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::state::{Mode, UIState};
+use crate::{banner, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
 pub const EVENT_USER_TASK_UPDATE: &str = "user_task_update";
 pub const EVENT_USER_HELP_QUERY: &str = "user_help_query";
 pub const EVENT_TITLE: &str = "title";
-
-lazy_static! {
-    pub static ref TRACKER: forge_tracker::Tracker = forge_tracker::Tracker::default();
-}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Default)]
 pub struct PartialEvent {

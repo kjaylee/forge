@@ -10,6 +10,7 @@ use crate::console::CONSOLE;
 use crate::editor::{ForgeEditor, ReadResult};
 use crate::model::{Command, ForgeCommandManager, UserInput};
 use crate::prompt::ForgePrompt;
+use crate::TRACKER;
 
 /// Console implementation for handling user input via command line.
 #[derive(Debug)]
@@ -49,9 +50,7 @@ impl UserInput for Console {
                 ReadResult::Exit => return Ok(Command::Exit),
                 ReadResult::Empty => continue,
                 ReadResult::Success(text) => {
-                    tokio::spawn(
-                        crate::ui::TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())),
-                    );
+                    tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())));
                     match self.command.parse(&text) {
                         Ok(command) => return Ok(command),
                         Err(e) => {
