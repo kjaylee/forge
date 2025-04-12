@@ -10,7 +10,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Parameters for variable operations
 #[derive(Deserialize)]

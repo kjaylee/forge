@@ -7,7 +7,7 @@ use forge_domain::{File, Services};
 use forge_services::Infrastructure;
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Handler for suggestions
 pub async fn suggestions<F: Services + Infrastructure>(

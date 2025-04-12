@@ -9,7 +9,7 @@ use forge_services::Infrastructure;
 use serde::Deserialize;
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Parameters for load handler
 #[derive(Deserialize)]

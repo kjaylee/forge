@@ -7,8 +7,7 @@ use forge_domain::{Conversation, ConversationId, Services};
 use forge_services::Infrastructure;
 
 use super::app_state::AppState;
-use crate::error::Error;
-use crate::Result;
+use crate::error::{Error, Result};
 
 /// Handler for getting a conversation
 pub async fn conversation<F: Services + Infrastructure>(

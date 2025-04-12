@@ -7,7 +7,7 @@ use forge_domain::{ConversationId, Services, Workflow};
 use forge_services::Infrastructure;
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Handler for initializing a conversation
 pub async fn init<F: Services + Infrastructure>(

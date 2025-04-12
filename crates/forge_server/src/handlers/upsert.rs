@@ -8,7 +8,7 @@ use forge_services::Infrastructure;
 use http::StatusCode;
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Handler for upserting a conversation
 pub async fn upsert_conversation<F: Services + Infrastructure>(

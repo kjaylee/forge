@@ -7,7 +7,7 @@ use forge_domain::{Model, Services};
 use forge_services::Infrastructure;
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Handler for models
 pub async fn models<F: Services + Infrastructure>(

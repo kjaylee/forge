@@ -10,7 +10,7 @@ use forge_services::Infrastructure;
 use futures::stream::{Stream, StreamExt};
 
 use super::app_state::AppState;
-use crate::Result;
+use crate::error::Result;
 
 /// Helper function to convert a single agent message to an SSE Event
 ///
