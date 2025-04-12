@@ -38,7 +38,7 @@ impl FromIterator<Tool> for ForgeToolService {
 
 #[async_trait::async_trait]
 impl ToolService for ForgeToolService {
-    async fn call(&self, call: ToolCallFull) -> ToolResult {
+    async fn call(&self, context: ToolCallContext, call: ToolCallFull) -> ToolResult {
         let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
@@ -51,9 +51,6 @@ impl ToolService for ForgeToolService {
         available_tools.sort();
         let output = match self.tools.get(&name) {
             Some(tool) => {
-                // Create a tool call context
-                let context = ToolCallContext::new();
-
                 // Wrap tool call with timeout
                 match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(context, input)).await {
                     Ok(result) => result,
@@ -185,7 +182,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(ToolCallContext::new(), call).await;
         insta::assert_snapshot!(result);
     }
 
@@ -198,7 +195,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(ToolCallContext::new(), call).await;
         insta::assert_snapshot!(result);
     }
 
@@ -211,7 +208,7 @@ mod test {
             call_id: Some(ToolCallId::new("test")),
         };
 
-        let result = service.call(call).await;
+        let result = service.call(ToolCallContext::new(), call).await;
         insta::assert_snapshot!(result);
     }
 
@@ -256,7 +253,7 @@ mod test {
         // Advance time to trigger timeout
         test::time::advance(Duration::from_secs(305)).await;
 
-        let result = service.call(call).await;
+        let result = service.call(ToolCallContext::new(), call).await;
 
         // Assert that the result contains a timeout error message
         let content_str = &result.content;
