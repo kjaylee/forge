@@ -1,4 +1,4 @@
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ impl NamedTool for ShowUser {
 #[async_trait::async_trait]
 impl ExecutableTool for ShowUser {
     type Input = ShowUserInput;
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Use termimad to display the markdown to the terminal
 
         let skin = termimad::get_default_skin();
@@ -52,8 +52,11 @@ mod tests {
             content: "# Test Heading\nThis is a test with **bold** and *italic* text.".to_string(),
         };
 
+        // Create a test context
+        let context = ToolCallContext::default();
+
         // The function should execute without error and return a success message
-        let result = show_user.call(input).await;
+        let result = show_user.call(context, input).await;
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),

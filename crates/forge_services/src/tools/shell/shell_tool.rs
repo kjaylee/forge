@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use anyhow::bail;
-use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{
+    Environment, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -83,7 +85,7 @@ impl NamedTool for Shell {
 impl ExecutableTool for Shell {
     type Input = ShellInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, _context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());
@@ -166,10 +168,13 @@ mod tests {
     async fn test_shell_echo() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "echo 'Hello, World!'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo 'Hello, World!'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
         assert!(result.contains("<stdout>Hello, World!\n</stdout>"));
@@ -180,14 +185,17 @@ mod tests {
         let shell = Shell::new(test_env());
         // Use a command that writes to both stdout and stderr
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
-                } else {
-                    "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
+                    } else {
+                        "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+                    },
+                    cwd: env::current_dir().unwrap(),
                 },
-                cwd: env::current_dir().unwrap(),
-            })
+            )
             .await
             .unwrap();
 
@@ -201,10 +209,13 @@ mod tests {
     async fn test_shell_both_streams() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -220,14 +231,17 @@ mod tests {
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "cd".to_string()
-                } else {
-                    "pwd".to_string()
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: temp_dir.clone(),
                 },
-                cwd: temp_dir.clone(),
-            })
+            )
             .await
             .unwrap();
         assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
@@ -237,10 +251,13 @@ mod tests {
     async fn test_shell_invalid_command() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "non_existent_command".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "non_existent_command".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -262,7 +279,10 @@ mod tests {
     async fn test_shell_empty_command() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
+            .call(
+                ToolCallContext::default(),
+                ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() },
+            )
             .await;
         assert!(result.is_err());
         assert_eq!(
@@ -281,14 +301,17 @@ mod tests {
         let shell = Shell::new(test_env());
         let current_dir = env::current_dir().unwrap();
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "cd".to_string()
-                } else {
-                    "pwd".to_string()
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: current_dir.clone(),
                 },
-                cwd: current_dir.clone(),
-            })
+            )
             .await
             .unwrap();
 
@@ -302,10 +325,13 @@ mod tests {
     async fn test_shell_multiple_commands() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "echo 'first' && echo 'second'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo 'first' && echo 'second'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
         assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
@@ -315,10 +341,13 @@ mod tests {
     async fn test_shell_empty_output() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "true".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "true".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -330,10 +359,13 @@ mod tests {
     async fn test_shell_whitespace_only_output() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "echo ''".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo ''".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -345,10 +377,13 @@ mod tests {
     async fn test_shell_with_environment_variables() {
         let shell = Shell::new(test_env());
         let result = shell
-            .call(ShellInput {
-                command: "echo $PATH".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo $PATH".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -367,7 +402,10 @@ mod tests {
         };
 
         let result = shell
-            .call(ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() })
+            .call(
+                ToolCallContext::default(),
+                ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() },
+            )
             .await;
 
         // In rbash, this would fail with a permission error
