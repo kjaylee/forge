@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -13,8 +12,9 @@ use http::StatusCode;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::error::{Error, ErrorResponse, Result};
+use crate::error::{Error, ErrorResponse};
 use crate::sse::message_stream_to_sse;
+use crate::Result;
 
 /// State shared between handlers
 pub struct AppState<F> {
@@ -49,10 +49,7 @@ pub async fn models<F: Services + Infrastructure>(
 pub async fn chat<F: Services + Infrastructure>(
     State(state): State<Arc<AppState<F>>>,
     Json(chat_request): Json<ChatRequest>,
-) -> std::result::Result<
-    Sse<impl Stream<Item = std::result::Result<axum::response::sse::Event, Infallible>>>,
-    Error,
-> {
+) -> Result<Sse<impl Stream<Item = Result<axum::response::sse::Event>>>> {
     let stream = state.api.chat(chat_request).await?;
     Ok(Sse::new(message_stream_to_sse(stream)))
 }
