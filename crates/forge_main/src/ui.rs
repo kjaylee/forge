@@ -121,9 +121,6 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        // Trigger auto-update in the background
-        let join = tokio::spawn(update_forge());
-
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
             return self.handle_dispatch(dispatch_json).await;
@@ -207,6 +204,14 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Exit => {
+                    CONSOLE.writeln(
+                        TitleFormat::execute("exit")
+                            .sub_title("initializing graceful shutdown... thank you!")
+                            .format(),
+                    )?;
+
+                    update_forge().await;
+
                     break;
                 }
                 Command::Models => {
@@ -246,7 +251,6 @@ impl<F: API> UI<F> {
             }
         }
 
-        join.await.expect("Failed to upgrade forge. Please update manually using `npm update -g @antinomyhq/forge`");
         Ok(())
     }
 
