@@ -1,2 +1,2 @@
-mod app;
-pub use app::App;
+mod widgets;
+pub use widgets::App;

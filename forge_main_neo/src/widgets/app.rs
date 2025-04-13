@@ -9,6 +9,8 @@ use ratatui::widgets::{Block, BorderType, Widget};
 use ratatui::{DefaultTerminal, Frame};
 use tui_textarea::TextArea;
 
+use super::shortcuts::KBShortcutsLine;
+
 #[derive(Debug)]
 pub struct App {
     state: State,
@@ -55,6 +57,7 @@ impl App {
                 self.state.handle_key_event(key)
             }
         }
+
         Ok(())
     }
 
@@ -63,32 +66,12 @@ impl App {
     }
 }
 
-struct KBShortcutsLine;
-
-impl<'a> From<KBShortcutsLine> for Line<'a> {
-    fn from(_val: KBShortcutsLine) -> Self {
-        Line::from(vec![
-            Span::from(" EXIT "),
-            Span::from("<CTRL+D>").bg(Color::Grey),
-            Span::from(" STOP "),
-            Span::from("<CTRL+C>").bg(Color::Grey),
-            Span::from(" RUN "),
-            Span::from("<CTRL+R>").bg(Color::Grey),
-            Span::from(" MODE "),
-            Span::from("<CTRL+M>").bg(Color::Grey),
-            Span::from(" "),
-        ])
-        .centered()
-        .bold()
-    }
-}
-
 impl Widget for &App {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer)
     where
         Self: Sized,
     {
-        let block = Block::new()
+        let block = Block::bordered()
             .title_style(Style::default().dark_gray())
             .title_bottom(KBShortcutsLine);
 
