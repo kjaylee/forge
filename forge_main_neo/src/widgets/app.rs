@@ -30,13 +30,8 @@ impl App {
         while !self.state.exit {
             terminal.draw(|frame| self.draw(frame))?;
             if let Event::Key(key) = ratatui::crossterm::event::read()? {
-                // Skip the CTLR+M key event
-                if !(key.code == KeyCode::Char('m') && key.modifiers == KeyModifiers::CONTROL)
-                    && !(key.code == KeyCode::Enter)
-                {
-                    self.text_area.input(key);
-                }
-                self.state.handle_key_event(key)
+                self.text_area.input(key);
+                self.state.key_event(key)
             }
         }
 

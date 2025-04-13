@@ -31,13 +31,13 @@ impl Mode {
 }
 
 impl State {
-    pub fn handle_key_event(&mut self, key_event: KeyEvent) {
+    pub fn key_event(&mut self, key_event: KeyEvent) {
         let (code, modifier) = (key_event.code, key_event.modifiers);
 
         match (code, modifier) {
             (KeyCode::Char('d'), KeyModifiers::CONTROL) => self.exit = true,
             (KeyCode::Char('c'), KeyModifiers::CONTROL) => self.suspend = true,
-            (KeyCode::Char('m'), KeyModifiers::ALT) => {
+            (KeyCode::Char('t'), KeyModifiers::CONTROL) => {
                 if self.mode.as_ref() == "PLAN" {
                     self.mode = Mode::new("ACT");
                 } else {
