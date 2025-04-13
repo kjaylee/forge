@@ -1,16 +1,18 @@
-use color_eyre::owo_colors::OwoColorize;
-use crossterm::event::{KeyCode, KeyModifiers};
+// Remove unused import and use ratatui's crossterm consistently
 use forge_api::ModelId;
+use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::crossterm::style::Color;
-use ratatui::layout::{Alignment, Constraint, Flex, Layout, Rect};
+use ratatui::layout::Alignment;
 use ratatui::style::{Style, Stylize};
-use ratatui::text::Line;
-use ratatui::widgets::{Block, Paragraph, Widget};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, BorderType, Widget};
 use ratatui::{DefaultTerminal, Frame};
+use tui_textarea::TextArea;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     state: State,
+    text_area: TextArea<'static>,
 }
 
 #[derive(Debug, Default)]
@@ -20,30 +22,64 @@ pub struct State {
     suspend: bool,
 }
 
+impl State {
+    fn handle_key_event(&mut self, key_event: KeyEvent) {
+        if let KeyEvent {
+            code: _code @ KeyCode::Char(char),
+            modifiers: KeyModifiers::CONTROL,
+            ..
+        } = key_event
+        {
+            if char == 'd' {
+                self.exit = true;
+            }
+
+            if char == 'c' {
+                self.suspend = true;
+            }
+        }
+    }
+}
+
 impl App {
+    pub fn new() -> Self {
+        let mut text_area = TextArea::default();
+        text_area.set_style(Style::default());
+        Self { state: State::default(), text_area }
+    }
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
         while !self.state.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            if let crossterm::event::Event::Key(key_event) = crossterm::event::read()? {
-                self.handle_key_event(key_event)
+            if let Event::Key(key) = ratatui::crossterm::event::read()? {
+                self.text_area.input(key);
+                self.state.handle_key_event(key)
             }
         }
         Ok(())
     }
 
-    fn handle_key_event(&mut self, key_event: crossterm::event::KeyEvent) {
-        if let crossterm::event::KeyEvent {
-            code: KeyCode::Char('d'),
-            modifiers: KeyModifiers::CONTROL,
-            ..
-        } = key_event
-        {
-            self.state.exit = true
-        }
-    }
-
     fn draw(&self, frame: &mut Frame) {
         frame.render_widget(self, frame.area());
+    }
+}
+
+struct KBShortcutsLine;
+
+impl<'a> From<KBShortcutsLine> for Line<'a> {
+    fn from(_val: KBShortcutsLine) -> Self {
+        Line::from(vec![
+            Span::from(" EXIT "),
+            Span::from("<CTRL+D>").bg(Color::Grey),
+            Span::from(" STOP "),
+            Span::from("<CTRL+C>").bg(Color::Grey),
+            Span::from(" RUN "),
+            Span::from("<CTRL+R>").bg(Color::Grey),
+            Span::from(" MODE "),
+            Span::from("<CTRL+M>").bg(Color::Grey),
+            Span::from(" "),
+        ])
+        .centered()
+        .bold()
     }
 }
 
@@ -52,21 +88,12 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let instructions = Line::from(vec![" Exit ".into(), "<CTRL+D> ".into()])
-            .bg(Color::DarkGrey)
-            .fg(Color::Black)
-            .bold();
-
-        let block = Block::bordered()
+        let block = Block::new()
             .title_style(Style::default().dark_gray())
-            .title_bottom(instructions)
-            .title_alignment(Alignment::Center);
+            .title_bottom(KBShortcutsLine);
 
-        let area = block.inner(area);
-
-        Paragraph::new("Hello Peeps")
-            .block(block)
-            .centered()
-            .render(area, buf);
+        let inner_area = block.inner(area);
+        self.text_area.render(inner_area, buf);
+        block.render(area, buf);
     }
 }
