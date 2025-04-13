@@ -17,7 +17,7 @@ impl<'a> From<StatusBar> for Line<'a> {
         let space = Span::from(" ");
         Line::from(vec![
             space.clone(),
-            Span::from(format!(" {} ", value.mode.to_uppercase())).bg(Color::Yellow),
+            Span::from(format!(" {} ", value.mode.to_uppercase())).bg(Color::White),
             space.clone(),
             Span::from("code-forge").fg(Color::LightCyan),
             space.clone(),

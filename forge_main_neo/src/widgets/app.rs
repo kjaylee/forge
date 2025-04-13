@@ -1,7 +1,8 @@
 // Remove unused import and use ratatui's crossterm consistently
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent};
-use ratatui::layout::{Constraint, Layout};
+use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Style, Stylize};
+use ratatui::text::Line;
 use ratatui::widgets::{Block, Padding, Paragraph, Widget};
 use ratatui::{DefaultTerminal, Frame};
 
@@ -63,20 +64,43 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let layout = Layout::vertical([Constraint::Percentage(100), Constraint::Min(4)]);
+        let layout = Layout::vertical([Constraint::Percentage(100), Constraint::Min(5)]);
         let [top_area, bottom_area] = layout.areas(area);
+        let mut content_block = Block::bordered()
+            .title(" Welcome to Forge ")
+            .title_alignment(Alignment::Center)
+            .border_style(Style::default().dark_gray())
+            .title_style(Style::default().dark_gray());
 
-        let paragraph = Paragraph::new(self.state.messages.join("\n"));
-        paragraph.render(top_area, buf);
+        let content = if self.state.messages.is_empty() {
+            content_block = content_block.padding(Padding::new(0, 0, 4, 0));
 
-        let block = Block::bordered()
+            Paragraph::new(vec![
+                "Use <CTRL+D> to exit".into(),
+                "Use <CTRL+T> to toggle between PLAN & ACT mode".into(),
+            ])
+            .style(Style::default().dark_gray())
+            .centered()
+        } else {
+            Paragraph::new(
+                self.state
+                    .messages
+                    .iter()
+                    .map(|msg| Line::from(msg.to_string()))
+                    .collect::<Vec<_>>(),
+            )
+        };
+
+        content.block(content_block).render(top_area, buf);
+
+        let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
             .title_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(self.state.mode.as_ref().to_string()));
 
-        let area = block.inner(bottom_area);
+        let area = user_block.inner(bottom_area);
 
         self.text_area.render(area, buf);
-        block.render(bottom_area, buf);
+        user_block.render(bottom_area, buf);
     }
 }

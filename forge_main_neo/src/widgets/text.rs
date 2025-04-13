@@ -26,7 +26,8 @@ impl Widget for &ForgeInput<'_> {
 impl<'a> ForgeInput<'a> {
     fn new_inner() -> TextArea<'a> {
         let mut input = TextArea::default();
-        input.set_placeholder_text("Enter prompt here...");
+        input.set_placeholder_text("Type your prompt here and hit enter to send");
+
         input.set_placeholder_style(Style::default().fg(Color::DarkGray));
         input
     }
