@@ -1,5 +1,5 @@
 // Remove unused import and use ratatui's crossterm consistently
-use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
+use ratatui::crossterm::event::Event;
 use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Block, Widget};
 use ratatui::{DefaultTerminal, Frame};
