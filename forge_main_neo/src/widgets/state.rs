@@ -3,10 +3,12 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[derive(Debug, Default)]
 pub struct State {
+    #[allow(dead_code)]
     pub model_id: Option<ModelId>,
     pub exit: bool,
     pub suspend: bool,
     pub mode: Mode,
+    pub messages: Vec<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -1,3 +1,4 @@
+use ratatui::layout::Alignment;
 use ratatui::style::{Color, Stylize};
 use ratatui::text::{Line, Span};
 
@@ -23,7 +24,7 @@ impl<'a> From<StatusBar> for Line<'a> {
             Span::from("ratatui-integration-apr-12").fg(Color::LightYellow),
             space.clone(),
         ])
-        .centered()
+        .alignment(Alignment::Left)
         .bold()
     }
 }
