@@ -1,7 +1,5 @@
-use ratatui::{
-    style::{Color, Stylize},
-    text::{Line, Span},
-};
+use ratatui::style::{Color, Stylize};
+use ratatui::text::{Line, Span};
 
 pub struct KBShortcutsLine;
 

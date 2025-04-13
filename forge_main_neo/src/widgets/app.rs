@@ -1,20 +1,17 @@
 // Remove unused import and use ratatui's crossterm consistently
 use forge_api::ModelId;
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use ratatui::crossterm::style::Color;
-use ratatui::layout::Alignment;
 use ratatui::style::{Style, Stylize};
-use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, BorderType, Widget};
+use ratatui::widgets::{Block, Widget};
 use ratatui::{DefaultTerminal, Frame};
-use tui_textarea::TextArea;
 
 use super::shortcuts::KBShortcutsLine;
+use super::text::ForgeTextArea;
 
 #[derive(Debug)]
 pub struct App {
     state: State,
-    text_area: TextArea<'static>,
+    text_area: ForgeTextArea<'static>,
 }
 
 #[derive(Debug, Default)]
@@ -43,12 +40,18 @@ impl State {
     }
 }
 
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl App {
     pub fn new() -> Self {
-        let mut text_area = TextArea::default();
-        text_area.set_style(Style::default());
+        let text_area = ForgeTextArea::default();
         Self { state: State::default(), text_area }
     }
+
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
         while !self.state.exit {
             terminal.draw(|frame| self.draw(frame))?;
