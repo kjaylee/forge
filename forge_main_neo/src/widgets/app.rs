@@ -44,7 +44,7 @@ impl App {
                 self.state
                     .messages
                     .extend(self.text_area.text().iter().cloned());
-                self.text_area.clear();
+                self.text_area.reset();
             }
             _ => {
                 self.text_area.input(key);
