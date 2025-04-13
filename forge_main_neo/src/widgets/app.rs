@@ -1,43 +1,17 @@
 // Remove unused import and use ratatui's crossterm consistently
-use forge_api::ModelId;
-use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use ratatui::crossterm::event::{Event, KeyCode, KeyModifiers};
 use ratatui::style::{Style, Stylize};
 use ratatui::widgets::{Block, Widget};
 use ratatui::{DefaultTerminal, Frame};
 
-use super::shortcuts::KBShortcutsLine;
+use super::state::State;
+use super::status::StatusBar;
 use super::text::ForgeTextArea;
 
 #[derive(Debug)]
 pub struct App {
     state: State,
     text_area: ForgeTextArea<'static>,
-}
-
-#[derive(Debug, Default)]
-pub struct State {
-    model_id: Option<ModelId>,
-    exit: bool,
-    suspend: bool,
-}
-
-impl State {
-    fn handle_key_event(&mut self, key_event: KeyEvent) {
-        if let KeyEvent {
-            code: _code @ KeyCode::Char(char),
-            modifiers: KeyModifiers::CONTROL,
-            ..
-        } = key_event
-        {
-            if char == 'd' {
-                self.exit = true;
-            }
-
-            if char == 'c' {
-                self.suspend = true;
-            }
-        }
-    }
 }
 
 impl Default for App {
@@ -56,7 +30,12 @@ impl App {
         while !self.state.exit {
             terminal.draw(|frame| self.draw(frame))?;
             if let Event::Key(key) = ratatui::crossterm::event::read()? {
-                self.text_area.input(key);
+                // Skip the CTLR+M key event
+                if !(key.code == KeyCode::Char('m') && key.modifiers == KeyModifiers::CONTROL)
+                    && !(key.code == KeyCode::Enter)
+                {
+                    self.text_area.input(key);
+                }
                 self.state.handle_key_event(key)
             }
         }
@@ -76,7 +55,7 @@ impl Widget for &App {
     {
         let block = Block::bordered()
             .title_style(Style::default().dark_gray())
-            .title_bottom(KBShortcutsLine);
+            .title_bottom(StatusBar::new(self.state.mode.as_ref().to_string()));
 
         let inner_area = block.inner(area);
         self.text_area.render(inner_area, buf);
