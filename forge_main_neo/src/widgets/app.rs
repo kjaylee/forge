@@ -96,6 +96,7 @@ impl Widget for &App {
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
             .title_style(Style::default().dark_gray())
+            .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(self.state.mode.as_ref().to_string()));
 
         let area = user_block.inner(bottom_area);
