@@ -2,8 +2,10 @@
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent};
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Style, Stylize};
+use ratatui::symbols::border::{PLAIN, Set};
+use ratatui::symbols::line::NORMAL;
 use ratatui::text::Line;
-use ratatui::widgets::{Block, Padding, Paragraph, Widget};
+use ratatui::widgets::{Block, Borders, Padding, Paragraph, Widget};
 use ratatui::{DefaultTerminal, Frame};
 
 use super::state::State;
@@ -64,11 +66,16 @@ impl Widget for &App {
     where
         Self: Sized,
     {
-        let layout = Layout::vertical([Constraint::Percentage(100), Constraint::Min(5)]);
+        let layout = Layout::vertical([Constraint::Fill(1), Constraint::Max(5)]);
         let [top_area, bottom_area] = layout.areas(area);
         let mut content_block = Block::bordered()
             .title(" Welcome to Forge ")
             .title_alignment(Alignment::Center)
+            .border_set(Set {
+                bottom_right: NORMAL.vertical_left,
+                bottom_left: NORMAL.vertical_right,
+                ..PLAIN
+            })
             .border_style(Style::default().dark_gray())
             .title_style(Style::default().dark_gray());
 
@@ -95,6 +102,12 @@ impl Widget for &App {
 
         let user_block = Block::bordered()
             .padding(Padding::new(0, 0, 0, 1))
+            .border_set(Set {
+                top_left: NORMAL.vertical_right,
+                top_right: NORMAL.vertical_left,
+                ..PLAIN
+            })
+            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
             .title_style(Style::default().dark_gray())
             .border_style(Style::default().dark_gray())
             .title_bottom(StatusBar::new(self.state.mode.as_ref().to_string()));
