@@ -1,6 +1,8 @@
 use forge_api::ModelId;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use super::Mode;
+
 #[derive(Debug, Default)]
 pub struct State {
     #[allow(dead_code)]
@@ -9,27 +11,6 @@ pub struct State {
     pub suspend: bool,
     pub mode: Mode,
     pub messages: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Mode(String);
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self("ACT".to_string())
-    }
-}
-
-impl AsRef<str> for Mode {
-    fn as_ref(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl Mode {
-    pub fn new<T: AsRef<str>>(value: T) -> Self {
-        Self(value.as_ref().to_string())
-    }
 }
 
 impl State {

@@ -1,3 +1,4 @@
-mod state;
+mod domain;
 mod widgets;
-pub use widgets::*;
+pub use domain::*;
+pub use widgets::App;

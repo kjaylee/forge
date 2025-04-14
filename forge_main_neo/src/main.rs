@@ -1,10 +1,9 @@
-use tokio::sync::mpsc;
+use std::{sync::mpsc, thread};
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use forge_main_neo::{App, Message};
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
     let mut terminal = ratatui::init();
 
     ratatui::crossterm::execute!(
@@ -12,12 +11,15 @@ async fn main() -> anyhow::Result<()> {
         ratatui::crossterm::event::EnableMouseCapture
     )?;
 
-    let (tx, rx) = tokio::sync::mpsc::channel(100);
-    let mut app = App::new(rx);
-    let join = tokio::spawn(poll_crossterm_event(tx));
-    let app_result = app.run(&mut terminal).await.context("app loop failed");
+    // Set up a channel for chat messages
+    let (tx, rx) = mpsc::channel::<Message>();
 
-    join.abort();
+    let mut app = App::new();
+
+    thread::spawn(move || poll_crossterm_event(tx).unwrap());
+
+    let app_result = app.run(&mut terminal, rx).context("app loop failed");
+
     ratatui::crossterm::execute!(
         std::io::stdout(),
         ratatui::crossterm::event::DisableMouseCapture
@@ -28,9 +30,9 @@ async fn main() -> anyhow::Result<()> {
     app_result
 }
 
-async fn poll_crossterm_event(tx: mpsc::Sender<Message>) -> anyhow::Result<()> {
+fn poll_crossterm_event(tx: mpsc::Sender<Message>) -> Result<()> {
     loop {
         let event = ratatui::crossterm::event::read()?;
-        tx.send(event.into()).await.context("send event failed")?;
+        tx.send(event.into())?;
     }
 }
