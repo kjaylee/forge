@@ -102,7 +102,7 @@ impl ForgeServer {
         // Create shutdown mechanisms
         let shutdown_flag = Arc::new(AtomicBool::new(false));
         let shutdown_flag_clone = shutdown_flag.clone();
-        
+
         // Clone the stream manager for the thread
         let stream_manager = self.stream_manager.clone();
 
@@ -147,25 +147,29 @@ impl ForgeServer {
                     let notification_task = tokio::task::spawn(async move {
                         info!("Notification forwarder started");
                         while let Some(notification) = rx.recv().await {
-                            info!("Forwarding notification [{}]: {}", notification.method, 
-                                 serde_json::to_string(&notification).unwrap_or_else(|_| "[serialization error]".to_string()));
-                            
-                        // Convert to serialized JSON and write to stdout
-                        match serde_json::to_string(&notification) {
-                            Ok(json) => {
-                                // Log the raw output to help with debugging
-                                eprintln!("[DEBUG] Sending notification: {}", json);
-                                
-                                // Write to stdout and flush immediately
-                                println!("{}", json);
-                                std::io::stdout().flush().unwrap_or_else(|e| {
-                                    error!("Failed to flush stdout: {}", e);
-                                });
+                            info!(
+                                "Forwarding notification [{}]: {}",
+                                notification.method,
+                                serde_json::to_string(&notification)
+                                    .unwrap_or_else(|_| "[serialization error]".to_string())
+                            );
+
+                            // Convert to serialized JSON and write to stdout
+                            match serde_json::to_string(&notification) {
+                                Ok(json) => {
+                                    // Log the raw output to help with debugging
+                                    eprintln!("[DEBUG] Sending notification: {}", json);
+
+                                    // Write to stdout and flush immediately
+                                    println!("{}", json);
+                                    std::io::stdout().flush().unwrap_or_else(|e| {
+                                        error!("Failed to flush stdout: {}", e);
+                                    });
+                                }
+                                Err(e) => {
+                                    error!("Failed to serialize notification: {}", e);
+                                }
                             }
-                            Err(e) => {
-                                error!("Failed to serialize notification: {}", e);
-                            }
-                        }
                         }
                         info!("Notification forwarder stopped");
                     });
