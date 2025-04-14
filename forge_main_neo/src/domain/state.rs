@@ -1,4 +1,4 @@
-use forge_api::ModelId;
+use forge_api::{ConversationId, ModelId};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::Mode;
@@ -10,7 +10,9 @@ pub struct State {
     pub exit: bool,
     pub suspend: bool,
     pub mode: Mode,
-    pub messages: Vec<String>,
+    pub messages: String,
+    pub conversation_id: Option<ConversationId>,
+    pub is_first: bool,
 }
 
 impl State {

@@ -1076,6 +1076,7 @@ dependencies = [
  "forge_tracker",
  "futures",
  "ratatui",
+ "termimad",
  "tokio",
  "tracing",
  "tui-textarea",

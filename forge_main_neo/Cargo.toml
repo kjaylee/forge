@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow.workspace = true
 color-eyre = "0.6.3"
-crossterm = { version = "0.28.1" , features = ["event-stream"]}
+crossterm = { version = "0.28.1", features = ["event-stream"] }
 forge_api.workspace = true
 ratatui = "0.29.0"
 tokio.workspace = true
@@ -16,3 +16,4 @@ forge_tracker.workspace = true
 tracing.workspace = true
 futures.workspace = true
 async-trait.workspace = true
+termimad.workspace = true

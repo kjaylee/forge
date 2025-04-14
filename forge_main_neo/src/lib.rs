@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 pub use widgets::*;
 
 #[async_trait::async_trait]
-pub trait CommandExecutor {
+pub trait CommandExecutor: Send + Sync + 'static {
     fn is_exit(&self, command: &Command) -> bool;
     async fn execute(&self, command: Command, tx: mpsc::Sender<Message>) -> anyhow::Result<()>;
 }

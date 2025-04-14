@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::{Context, Result};
 use futures::StreamExt;
@@ -29,23 +29,34 @@ impl<C: CommandExecutor> Runtime<C> {
             }
         });
 
-        let mut exit = false;
-        while !exit {
+        let exit = Arc::new(RwLock::new(false));
+
+        while !exit.read().unwrap().clone() {
+            let exit = exit.clone();
             terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
             if let Some(message) = self.rx.recv().await {
                 let mut commands = CommandList::default();
                 app.run(&mut commands, message).context("app loop failed")?;
 
-                for command in commands.into_inner() {
-                    if self.executor.is_exit(&command) {
-                        exit = true;
-                        break;
-                    } else {
-                        self.executor.execute(command, self.tx.clone()).await?;
+                let executor = self.executor.clone();
+                let executor_tx = self.tx.clone();
+                tokio::spawn(async move {
+                    for command in commands.into_inner() {
+                        if executor.is_exit(&command) {
+                            let mut guard = exit.write().unwrap();
+                            *guard = true;
+                            break;
+                        } else {
+                            executor
+                                .execute(command, executor_tx.clone())
+                                .await
+                                .unwrap();
+                        }
                     }
-                }
+                });
             } else {
-                exit = true;
+                let mut guard = exit.write().unwrap();
+                *guard = true;
             }
         }
 

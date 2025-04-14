@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use forge_api::ForgeAPI;
 use forge_main_neo::{App, ForgeCommandExecutor, Runtime};
 use tracing::debug;
 
@@ -38,7 +39,8 @@ async fn bootstrap(
     terminal: ratatui::Terminal<ratatui::prelude::CrosstermBackend<std::io::Stdout>>,
 ) -> std::result::Result<(), anyhow::Error> {
     let app = App::new();
-    let executor = Arc::new(ForgeCommandExecutor::new());
+    let api = Arc::new(ForgeAPI::init(false));
+    let executor = Arc::new(ForgeCommandExecutor::new(api));
     let mut runtime = Runtime::new(executor);
     runtime
         .run(terminal, app)

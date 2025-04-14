@@ -1,5 +1,6 @@
 // use anyhow::Context;
 
+use forge_api::{ChatRequest, ChatResponse};
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Style, Stylize};
@@ -9,13 +10,13 @@ use ratatui::symbols::{scrollbar, shade};
 use ratatui::text::Line;
 use ratatui::widgets::{
     Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-    StatefulWidget, Widget,
+    StatefulWidget, Widget, Wrap,
 };
 
 use super::input::ForgeInput;
 use super::status::StatusBar;
-use crate::CommandList;
 use crate::domain::{Message, State};
+use crate::{Command, CommandList};
 
 #[derive(Debug)]
 pub struct App {
@@ -45,11 +46,27 @@ impl App {
         match message {
             Message::KeyBoard(Event::Key(key)) => self.key_event(commands, key),
             Message::KeyBoard(Event::Mouse(mouse)) => self.mouse_event(mouse),
+            Message::ConversationId(conversation_id) => {
+                self.state.conversation_id = Some(conversation_id);
+                self.state.is_first = true;
+                self.attempt_conversation(commands);
+            }
+            Message::Chat(message) => match message.message {
+                ChatResponse::Text { text, is_complete } => {
+                    if !is_complete {
+                        self.state.messages.push_str(text.as_str());
+                    }
+                }
+                ChatResponse::ToolCallStart(tool_call_full) => {}
+                ChatResponse::ToolCallEnd(tool_result) => {}
+                ChatResponse::Usage(usage) => {}
+                ChatResponse::Event(event) => {}
+            },
             _ => {}
         }
 
         if self.state.exit {
-            commands.dispatch_exit();
+            commands.insert(Command::Exit);
         }
 
         Ok(())
@@ -75,18 +92,39 @@ impl App {
     fn key_event(&mut self, commands: &mut CommandList, key: KeyEvent) {
         match (key.code, key.modifiers) {
             (KeyCode::Enter, _) => {
-                let lines = self.user_text_area.text().join("\n");
-                if !lines.is_empty() {
-                    commands.dispatch_user_message(lines.clone());
-                    self.state.messages.push(lines);
-                    self.user_text_area.reset();
-                }
+                self.attempt_conversation(commands);
             }
             _ => {
                 self.user_text_area.input(key);
             }
         }
         self.state.key_event(key)
+    }
+
+    fn attempt_conversation(&mut self, commands: &mut CommandList) {
+        let mut lines = self.user_text_area.text().join("\n");
+        lines.push('\n');
+        if !lines.is_empty() {
+            if let Some(ref conversation_id) = self.state.conversation_id {
+                let name = if self.state.is_first {
+                    "user_task_init"
+                } else {
+                    "user_task_update"
+                };
+
+                let request = ChatRequest {
+                    event: forge_api::Event::new(name, lines.clone()),
+                    conversation_id: conversation_id.clone(),
+                };
+
+                commands.insert(Command::UserMessage(request));
+
+                self.state.messages.push_str(lines.as_str());
+                self.user_text_area.reset();
+            } else {
+                commands.insert(Command::InitConversation);
+            }
+        }
     }
 }
 
@@ -121,14 +159,10 @@ impl Widget for &mut App {
         } else {
             // Chat Started Section
 
-            Paragraph::new(
-                self.state
-                    .messages
-                    .iter()
-                    .map(|msg| Line::from(msg.to_string()))
-                    .collect::<Vec<_>>(),
-            )
-            .scroll((self.content_position as u16, 0))
+            let md = self.state.messages.as_str();
+            Paragraph::new(md)
+                .wrap(Wrap { trim: true })
+                .scroll((self.content_position as u16, 0))
         };
 
         content.block(content_block).render(top_area, buf);

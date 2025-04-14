@@ -1,24 +1,40 @@
-use tokio::sync::mpsc;
+use std::sync::Arc;
 
 use crate::{Command, CommandExecutor, Message};
+use forge_api::API;
+use futures::StreamExt;
+use tokio::sync::mpsc;
 
-pub struct ForgeCommandExecutor {}
-
-impl Default for ForgeCommandExecutor {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct ForgeCommandExecutor<A> {
+    api: Arc<A>,
 }
 
-impl ForgeCommandExecutor {
-    pub fn new() -> Self {
-        Self {}
+impl<A: API> ForgeCommandExecutor<A> {
+    pub fn new(api: Arc<A>) -> Self {
+        Self { api }
     }
 }
 
 #[async_trait::async_trait]
-impl CommandExecutor for ForgeCommandExecutor {
+impl<A: API + Send + Sync + 'static> CommandExecutor for ForgeCommandExecutor<A> {
     async fn execute(&self, command: Command, tx: mpsc::Sender<Message>) -> anyhow::Result<()> {
+        match command {
+            Command::Suspend => todo!(),
+            Command::ToggleMode(_) => todo!(),
+            Command::UserMessage(request) => {
+                let mut stream = self.api.chat(request).await?;
+                while let Some(response) = stream.next().await {
+                    tx.send(response?.into()).await?
+                }
+            }
+            Command::InitConversation => {
+                let workflow = self.api.load(None).await?;
+                let conversation_id = self.api.init(workflow).await?;
+                tx.send(Message::ConversationId(conversation_id)).await?
+            }
+            Command::Exit => {}
+        }
+
         Ok(())
     }
 
