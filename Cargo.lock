@@ -1068,6 +1068,7 @@ name = "forge_main_neo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "color-eyre",
  "crossterm",
  "derive_more 2.0.1",

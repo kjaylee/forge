@@ -1,27 +1,23 @@
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use futures::StreamExt;
 use ratatui::DefaultTerminal;
 use tokio::sync::mpsc;
-use tracing::debug;
 
-use crate::{App, Command, CommandList, Message};
+use crate::{App, CommandExecutor, CommandList, Message};
 
-pub struct Runtime {
+pub struct Runtime<CommandExecutor> {
     tx: mpsc::Sender<Message>,
     rx: mpsc::Receiver<Message>,
+    executor: Arc<CommandExecutor>,
 }
 
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Runtime {
-    pub fn new() -> Self {
+impl<C: CommandExecutor> Runtime<C> {
+    pub fn new(executor: Arc<C>) -> Self {
         // Set up a channel for chat messages with a buffer of 1000 messages
         let (tx, rx) = mpsc::channel::<Message>(1000);
-        Self { tx, rx }
+        Self { tx, rx, executor }
     }
 
     pub async fn run(&mut self, mut terminal: DefaultTerminal, mut app: App) -> Result<()> {
@@ -40,28 +36,20 @@ impl Runtime {
                 let mut commands = CommandList::default();
                 app.run(&mut commands, message).context("app loop failed")?;
 
-                self.execute_command(&mut exit, commands);
+                for command in commands.into_inner() {
+                    if self.executor.is_exit(&command) {
+                        exit = true;
+                        break;
+                    } else {
+                        self.executor.execute(command, self.tx.clone()).await?;
+                    }
+                }
             } else {
                 exit = true;
             }
         }
 
         Ok(())
-    }
-
-    fn execute_command(&self, exit: &mut bool, commands: CommandList) {
-        for command in commands.into_inner() {
-            debug!(command = ?command, "Dispatching command");
-            match command {
-                Command::Suspend => {}
-                Command::ToggleMode(_) => {}
-                Command::UserMessage(_) => {}
-                Command::Exit => {
-                    *exit = true;
-                }
-                Command::Empty => {}
-            }
-        }
     }
 
     pub fn sender(&self) -> mpsc::Sender<Message> {

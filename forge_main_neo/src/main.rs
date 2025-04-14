@@ -1,7 +1,8 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use forge_main_neo::{App, Runtime};
+use forge_main_neo::{App, ForgeCommandExecutor, Runtime};
 use tracing::debug;
 
 fn main() -> Result<()> {
@@ -18,14 +19,7 @@ fn main() -> Result<()> {
         .enable_all()
         .build()
         .context("failed to build runtime")?
-        .block_on(async {
-            let app = App::new();
-            let mut runtime = Runtime::new();
-            runtime
-                .run(terminal, app)
-                .await
-                .context("failed to run runtime")
-        });
+        .block_on(async { bootstrap(terminal).await });
 
     debug!(app = ?app_result, "App finished");
 
@@ -38,4 +32,16 @@ fn main() -> Result<()> {
     ratatui::restore();
 
     app_result
+}
+
+async fn bootstrap(
+    terminal: ratatui::Terminal<ratatui::prelude::CrosstermBackend<std::io::Stdout>>,
+) -> std::result::Result<(), anyhow::Error> {
+    let app = App::new();
+    let executor = Arc::new(ForgeCommandExecutor::new());
+    let mut runtime = Runtime::new(executor);
+    runtime
+        .run(terminal, app)
+        .await
+        .context("failed to run runtime")
 }
