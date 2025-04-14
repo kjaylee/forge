@@ -7,7 +7,6 @@ use ratatui::style::{Style, Stylize};
 use ratatui::symbols::border::{self};
 use ratatui::symbols::line::{self};
 use ratatui::symbols::{scrollbar, shade};
-use ratatui::text::Line;
 use ratatui::widgets::{
     Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
     StatefulWidget, Widget, Wrap,

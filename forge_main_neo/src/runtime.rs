@@ -31,7 +31,7 @@ impl<C: CommandExecutor> Runtime<C> {
 
         let exit = Arc::new(RwLock::new(false));
 
-        while !exit.read().unwrap().clone() {
+        while !*exit.read().unwrap() {
             let exit = exit.clone();
             terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
             match self.rx.try_recv() {
