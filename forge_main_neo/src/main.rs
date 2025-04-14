@@ -1,7 +1,8 @@
-use std::{sync::mpsc, thread};
+use std::sync::mpsc;
+use std::thread;
 
 use anyhow::{Context, Result};
-use forge_main_neo::{App, Message};
+use forge_main_neo::{App, Command, CommandList, Message};
 
 fn main() -> Result<()> {
     let mut terminal = ratatui::init();
@@ -18,7 +19,22 @@ fn main() -> Result<()> {
 
     thread::spawn(move || poll_crossterm_event(tx).unwrap());
 
-    let app_result = app.run(&mut terminal, rx).context("app loop failed");
+    let mut message = Message::Initialize;
+    while !app.state.exit {
+        terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
+        message = rx.recv()?;
+        let mut commands = CommandList::default();
+        app.run(&mut commands, message).context("app loop failed")?;
+
+        for command in commands.into_inner() {
+            match command {
+                Command::Suspend => {}
+                Command::ToggleMode(_) => {}
+                Command::UserMessage(_) => {}
+                Command::Empty => {}
+            }
+        }
+    }
 
     ratatui::crossterm::execute!(
         std::io::stdout(),
@@ -27,7 +43,7 @@ fn main() -> Result<()> {
 
     ratatui::restore();
 
-    app_result
+    Ok(())
 }
 
 fn poll_crossterm_event(tx: mpsc::Sender<Message>) -> Result<()> {

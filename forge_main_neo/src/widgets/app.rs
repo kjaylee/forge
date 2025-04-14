@@ -1,5 +1,4 @@
 // use anyhow::Context;
-use std::sync::mpsc;
 
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::{Alignment, Constraint, Layout};
@@ -12,18 +11,24 @@ use ratatui::widgets::{
     Block, Borders, Padding, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
     StatefulWidget, Widget,
 };
-use ratatui::{DefaultTerminal, Frame};
 
 use super::input::ForgeInput;
 use super::status::StatusBar;
 use crate::domain::{Message, State};
+use crate::CommandList;
 
 #[derive(Debug)]
 pub struct App {
-    state: State,
+    pub state: State,
     user_text_area: ForgeInput<'static>,
     scroll_state: ScrollbarState,
     content_position: usize,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl App {
@@ -36,19 +41,11 @@ impl App {
         }
     }
 
-    pub fn run(
-        &mut self,
-        terminal: &mut DefaultTerminal,
-        rx: mpsc::Receiver<Message>,
-    ) -> anyhow::Result<()> {
-        while !self.state.exit {
-            terminal.draw(|frame| self.draw(frame))?;
-            let event = rx.recv()?;
-            match event {
-                Message::KeyBoard(Event::Key(key)) => self.key_event(key),
-                Message::KeyBoard(Event::Mouse(mouse)) => self.mouse_event(mouse),
-                _ => {}
-            }
+    pub fn run(&mut self, commands: &mut CommandList, message: Message) -> anyhow::Result<()> {
+        match message {
+            Message::KeyBoard(Event::Key(key)) => self.key_event(commands, key),
+            Message::KeyBoard(Event::Mouse(mouse)) => self.mouse_event(mouse),
+            _ => {}
         }
 
         Ok(())
@@ -71,17 +68,13 @@ impl App {
         }
     }
 
-    fn key_event(&mut self, key: KeyEvent) {
+    fn key_event(&mut self, commands: &mut CommandList, key: KeyEvent) {
         match (key.code, key.modifiers) {
             (KeyCode::Enter, _) => {
-                let lines = self.user_text_area.text();
-                if lines.iter().any(|line| !line.is_empty()) {
-                    self.state.messages.extend(
-                        lines
-                            .iter()
-                            .map(|line| line.trim().to_string())
-                            .filter(|line| !line.is_empty()),
-                    );
+                let lines = self.user_text_area.text().join("\n");
+                if !lines.is_empty() {
+                    commands.dispatch_user_message(lines.clone());
+                    self.state.messages.push(lines);
                     self.user_text_area.reset();
                 }
             }
@@ -90,10 +83,6 @@ impl App {
             }
         }
         self.state.key_event(key)
-    }
-
-    fn draw(&mut self, frame: &mut Frame) {
-        frame.render_widget(self, frame.area());
     }
 }
 
