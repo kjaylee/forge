@@ -2,11 +2,14 @@ use anyhow::{Context, Result};
 use futures::StreamExt;
 use ratatui::DefaultTerminal;
 use tokio::sync::mpsc;
-use tracing::{debug, field::debug};
+use tracing::debug;
 
 use crate::{App, Command, CommandList, Message};
 
-pub struct Runtime;
+pub struct Runtime {
+    tx: mpsc::Sender<Message>,
+    rx: mpsc::Receiver<Message>,
+}
 
 impl Default for Runtime {
     fn default() -> Self {
@@ -16,24 +19,28 @@ impl Default for Runtime {
 
 impl Runtime {
     pub fn new() -> Self {
-        Self {}
+        // Set up a channel for chat messages with a buffer of 1000 messages
+        let (tx, rx) = mpsc::channel::<Message>(1000);
+        Self { tx, rx }
     }
 
-    pub async fn run(&self, mut terminal: DefaultTerminal, mut app: App) -> Result<()> {
-        // Set up a channel for chat messages
-        let (tx, mut rx) = mpsc::channel::<Message>(1000);
-
+    pub async fn run(&mut self, mut terminal: DefaultTerminal, mut app: App) -> Result<()> {
         // Start polling for crossterm events
-        tokio::spawn(poll_crossterm_event(tx));
+        let crossterm_tx = self.tx.clone();
+        tokio::spawn(async {
+            if let Err(e) = poll_crossterm_event(crossterm_tx).await {
+                tracing::error!("Error polling crossterm events: {:?}", e);
+            }
+        });
 
         let mut exit = false;
         while !exit {
             terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
-            if let Some(message) = rx.recv().await {
+            if let Some(message) = self.rx.recv().await {
                 let mut commands = CommandList::default();
                 app.run(&mut commands, message).context("app loop failed")?;
 
-                execute_command(&mut exit, commands);
+                self.execute_command(&mut exit, commands);
             } else {
                 exit = true;
             }
@@ -41,20 +48,24 @@ impl Runtime {
 
         Ok(())
     }
-}
 
-fn execute_command(exit: &mut bool, commands: CommandList) {
-    for command in commands.into_inner() {
-        debug!(command = ?command, "Dispatching command");
-        match command {
-            Command::Suspend => {}
-            Command::ToggleMode(_) => {}
-            Command::UserMessage(_) => {}
-            Command::Exit => {
-                *exit = true;
+    fn execute_command(&self, exit: &mut bool, commands: CommandList) {
+        for command in commands.into_inner() {
+            debug!(command = ?command, "Dispatching command");
+            match command {
+                Command::Suspend => {}
+                Command::ToggleMode(_) => {}
+                Command::UserMessage(_) => {}
+                Command::Exit => {
+                    *exit = true;
+                }
+                Command::Empty => {}
             }
-            Command::Empty => {}
         }
+    }
+
+    pub fn sender(&self) -> mpsc::Sender<Message> {
+        self.tx.clone()
     }
 }
 

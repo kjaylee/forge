@@ -20,7 +20,7 @@ fn main() -> Result<()> {
         .context("failed to build runtime")?
         .block_on(async {
             let app = App::new();
-            let runtime = Runtime::new();
+            let mut runtime = Runtime::new();
             runtime
                 .run(terminal, app)
                 .await
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
         });
 
     debug!(app = ?app_result, "App finished");
-    
+
     ratatui::crossterm::execute!(
         std::io::stdout(),
         ratatui::crossterm::event::DisableMouseCapture
