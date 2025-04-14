@@ -11,9 +11,10 @@ use ratatui::widgets::{
 };
 use ratatui::{DefaultTerminal, Frame};
 
-use super::state::State;
-use super::status::StatusBar;
+use crate::state::State;
+
 use super::input::ForgeInput;
+use super::status::StatusBar;
 
 #[derive(Default, Debug)]
 pub struct App {
@@ -98,7 +99,7 @@ impl Widget for &mut App {
             })
             .border_style(Style::default().dark_gray())
             .title_style(Style::default().dark_gray());
-        
+
         let content = if self.state.messages.is_empty() {
             content_block = content_block.padding(Padding::new(0, 0, 4, 0));
 
