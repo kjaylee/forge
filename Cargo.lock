@@ -1096,6 +1096,7 @@ dependencies = [
  "anyhow",
  "color-eyre",
  "crossterm 0.29.0",
+ "derive_more 2.0.1",
  "forge_api",
  "ratatui",
  "tokio",

@@ -1,3 +1,3 @@
 mod state;
 mod widgets;
-pub use widgets::App;
+pub use widgets::*;

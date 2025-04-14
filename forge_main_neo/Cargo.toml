@@ -11,3 +11,4 @@ forge_api.workspace = true
 ratatui = "0.29.0"
 tokio.workspace = true
 tui-textarea = "0.7.0"
+derive_more.workspace = true

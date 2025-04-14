@@ -1,3 +1,6 @@
+use anyhow::Context;
+use derive_more::From;
+use forge_api::{ChatCompletionMessage, ChatResponse};
 use ratatui::crossterm::event::{Event, KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use ratatui::layout::{Alignment, Constraint, Layout};
 use ratatui::style::{Style, Stylize};
@@ -10,29 +13,51 @@ use ratatui::widgets::{
     StatefulWidget, Widget,
 };
 use ratatui::{DefaultTerminal, Frame};
+use tokio::sync::mpsc;
 
 use crate::state::State;
 
 use super::input::ForgeInput;
 use super::status::StatusBar;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct App {
     state: State,
     user_text_area: ForgeInput<'static>,
     scroll_state: ScrollbarState,
     content_position: usize,
+    receiver: mpsc::Receiver<Message>,
+}
+
+#[derive(From)]
+pub enum Message {
+    Chat(ChatResponse),
+    KeyBoard(Event),
 }
 
 impl App {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
+    pub fn new(rx: mpsc::Receiver<Message>) -> Self {
+        Self {
+            state: State::default(),
+            user_text_area: ForgeInput::default(),
+            scroll_state: ScrollbarState::default(),
+            content_position: 0,
+            receiver: rx,
+        }
+    }
+
+    pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
         while !self.state.exit {
             terminal.draw(|frame| self.draw(frame))?;
-            let event = ratatui::crossterm::event::read()?;
-            match event {
-                Event::Key(key) => self.key_event(key),
-                Event::Mouse(mouse) => self.mouse_event(mouse),
-                _ => {}
+            let event = self.receiver.recv().await;
+            if let Some(event) = event {
+                match event {
+                    Message::KeyBoard(Event::Key(key)) => self.key_event(key),
+                    Message::KeyBoard(Event::Mouse(mouse)) => self.mouse_event(mouse),
+                    _ => {}
+                }
+            } else {
+                self.state.exit = true;
             }
         }
 
@@ -101,6 +126,7 @@ impl Widget for &mut App {
             .title_style(Style::default().dark_gray());
 
         let content = if self.state.messages.is_empty() {
+            // Getting Started Section
             content_block = content_block.padding(Padding::new(0, 0, 4, 0));
 
             Paragraph::new(vec![
@@ -110,6 +136,8 @@ impl Widget for &mut App {
             .style(Style::default().dark_gray())
             .centered()
         } else {
+            // Chat Started Section
+
             Paragraph::new(
                 self.state
                     .messages
