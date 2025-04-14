@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use crate::{Command, CommandExecutor, Message};
 use forge_api::API;
 use futures::StreamExt;
 use tokio::sync::mpsc;
+
+use crate::{Command, CommandExecutor, Message};
 
 pub struct ForgeCommandExecutor<A> {
     api: Arc<A>,

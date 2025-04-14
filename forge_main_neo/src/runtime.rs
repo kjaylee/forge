@@ -34,29 +34,39 @@ impl<C: CommandExecutor> Runtime<C> {
         while !exit.read().unwrap().clone() {
             let exit = exit.clone();
             terminal.draw(|frame| frame.render_widget(&mut app, frame.area()))?;
-            if let Some(message) = self.rx.recv().await {
-                let mut commands = CommandList::default();
-                app.run(&mut commands, message).context("app loop failed")?;
+            match self.rx.try_recv() {
+                Ok(message) => {
+                    let mut commands = CommandList::default();
+                    app.run(&mut commands, message).context("app loop failed")?;
 
-                let executor = self.executor.clone();
-                let executor_tx = self.tx.clone();
-                tokio::spawn(async move {
-                    for command in commands.into_inner() {
-                        if executor.is_exit(&command) {
-                            let mut guard = exit.write().unwrap();
-                            *guard = true;
-                            break;
-                        } else {
-                            executor
-                                .execute(command, executor_tx.clone())
-                                .await
-                                .unwrap();
+                    let executor = self.executor.clone();
+                    let executor_tx = self.tx.clone();
+                    let exit = exit.clone();
+                    tokio::spawn(async move {
+                        for command in commands.into_inner() {
+                            if executor.is_exit(&command) {
+                                let mut guard = exit.write().unwrap();
+                                *guard = true;
+                                break;
+                            } else {
+                                executor
+                                    .execute(command, executor_tx.clone())
+                                    .await
+                                    .unwrap();
+                            }
                         }
-                    }
-                });
-            } else {
-                let mut guard = exit.write().unwrap();
-                *guard = true;
+                    });
+                }
+                Err(mpsc::error::TryRecvError::Empty) => {
+                    // No message available, continue looping
+                    continue;
+                }
+                Err(mpsc::error::TryRecvError::Disconnected) => {
+                    // Channel closed, exit
+                    let mut guard = exit.write().unwrap();
+                    *guard = true;
+                    break;
+                }
             }
         }
 
