@@ -15,11 +15,17 @@ impl CommandList {
     pub fn dispatch_user_message(&mut self, message: String) {
         self.insert(Command::UserMessage(message));
     }
+
+    pub fn dispatch_exit(&mut self) {
+        self.insert(Command::Exit);
+    }
 }
 
+#[derive(Debug)]
 pub enum Command {
     Suspend,
     ToggleMode(String),
     UserMessage(String),
+    Exit,
     Empty,
 }

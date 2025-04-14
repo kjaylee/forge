@@ -14,8 +14,8 @@ use ratatui::widgets::{
 
 use super::input::ForgeInput;
 use super::status::StatusBar;
-use crate::domain::{Message, State};
 use crate::CommandList;
+use crate::domain::{Message, State};
 
 #[derive(Debug)]
 pub struct App {
@@ -46,6 +46,10 @@ impl App {
             Message::KeyBoard(Event::Key(key)) => self.key_event(commands, key),
             Message::KeyBoard(Event::Mouse(mouse)) => self.mouse_event(mouse),
             _ => {}
+        }
+
+        if self.state.exit {
+            commands.dispatch_exit();
         }
 
         Ok(())
