@@ -2,6 +2,6 @@ mod app;
 mod shortcuts;
 mod state;
 mod status;
-mod text;
+mod input;
 
 pub use app::*;

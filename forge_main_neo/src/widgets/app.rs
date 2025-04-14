@@ -13,7 +13,7 @@ use ratatui::{DefaultTerminal, Frame};
 
 use super::state::State;
 use super::status::StatusBar;
-use super::text::ForgeInput;
+use super::input::ForgeInput;
 
 #[derive(Default, Debug)]
 pub struct App {
