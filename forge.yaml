@@ -3,6 +3,12 @@ commands:
     description: Looks for all the fixme comments in the code and attempts to fix them
     prompt: |-
       Find all the FIXME comments in source-code files and attempt to fix them.
+  - name: pr-description
+    description: Updates the description of the PR
+    prompt: |-
+      - Understand the current PR deeply using the GH CLI and update the PR title and description
+      - Make sure the title follows conventional commits standard
+      - Top-level summary should contain 2-3 lines about the core functionality improvements
 max_walker_depth: 1024
 custom_rules: |-
   Handling Errors:
