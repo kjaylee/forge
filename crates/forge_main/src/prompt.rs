@@ -4,7 +4,7 @@ use std::fmt::Write;
 use std::process::Command;
 
 use derive_setters::Setters;
-use forge_api::Usage;
+use forge_api::{ModelId, Usage};
 use forge_tracker::VERSION;
 use nu_ansi_term::{Color, Style};
 use reedline::{Prompt, PromptHistorySearchStatus};
@@ -22,7 +22,7 @@ pub struct ForgePrompt {
     pub title: Option<String>,
     pub usage: Option<Usage>,
     pub mode: Mode,
-    pub model: Option<String>,
+    pub model: Option<ModelId>,
 }
 
 impl Prompt for ForgePrompt {
@@ -305,7 +305,7 @@ mod tests {
         let usage = Usage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
         let mut prompt = ForgePrompt::default();
         prompt.usage(usage);
-        prompt.model("gpt-4-turbo".to_string());
+        prompt.model(ModelId::new("gpt-4-turbo"));
 
         let actual = prompt.render_prompt_right();
         assert!(actual.contains("gpt-4-turbo"));
@@ -319,7 +319,7 @@ mod tests {
         let mut prompt = ForgePrompt::default();
         prompt.usage(usage);
         prompt.title("test-title".to_string());
-        prompt.model("gpt-4-turbo".to_string());
+        prompt.model(ModelId::new("gpt-4-turbo"));
 
         let actual = prompt.render_prompt_right();
         assert!(actual.contains("test-title"));

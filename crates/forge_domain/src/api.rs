@@ -31,7 +31,7 @@ pub trait API: Sync + Send {
     async fn init<W: Into<Workflow> + Send + Sync>(
         &self,
         config: W,
-    ) -> anyhow::Result<ConversationId>;
+    ) -> anyhow::Result<Conversation>;
 
     /// Adds a new conversation to the conversation store
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()>;

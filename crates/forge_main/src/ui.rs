@@ -244,16 +244,19 @@ impl<F: API> UI<F> {
         let models = self.api.models().await?;
 
         // Create list of model IDs for selection
-        let model_ids: Vec<String> = models.iter().map(|m| m.id.as_str().to_string()).collect();
+        let model_ids: Vec<ModelId> = models.into_iter().map(|m| m.id).collect();
 
         // Create a custom render config with the specified icons
-        let mut render_config = RenderConfig::default();
-        render_config.scroll_up_prefix = Styled::new("⇡");
-        render_config.scroll_down_prefix = Styled::new("⇣");
-        render_config.highlighted_option_prefix = Styled::new("➤");
+        let render_config = RenderConfig::default()
+            .with_scroll_up_prefix(Styled::new("⇡"))
+            .with_scroll_down_prefix(Styled::new("⇣"))
+            .with_highlighted_option_prefix(Styled::new("➤"));
 
         // Find the index of the current model
-        let starting_cursor = self.state.model.as_deref()
+        let starting_cursor = self
+            .state
+            .model
+            .as_ref()
             .and_then(|current| model_ids.iter().position(|id| id == current))
             .unwrap_or(0);
 
@@ -264,14 +267,12 @@ impl<F: API> UI<F> {
             .with_starting_cursor(starting_cursor)
             .prompt()?;
 
-        let model_id = ModelId::new(model.clone());
-
         // Get the conversation to update
         let conversation_id = self.init_conversation().await?;
 
-        if let Ok(Some(mut conversation)) = self.api.conversation(&conversation_id).await {
+        if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
             // Update the model in the conversation
-            conversation.set_main_model(model_id.clone())?;
+            conversation.set_main_model(model.clone())?;
 
             // Upsert the updated conversation
             self.api.upsert_conversation(conversation).await?;
@@ -329,31 +330,23 @@ impl<F: API> UI<F> {
                 self.command.register_all(&config);
 
                 // We need to try and get the conversation ID first before fetching the model
-                let conversation_id = if let Some(ref path) = self.cli.conversation {
+                if let Some(ref path) = self.cli.conversation {
                     let conversation: Conversation = serde_json::from_str(
                         ForgeFS::read_to_string(path.as_os_str()).await?.as_str(),
                     )
                     .context("Failed to parse Conversation")?;
 
                     let conversation_id = conversation.id.clone();
+                    self.state.model = Some(conversation.main_model()?);
                     self.state.conversation_id = Some(conversation_id.clone());
                     self.api.upsert_conversation(conversation).await?;
-                    conversation_id
+                    Ok(conversation_id)
                 } else {
-                    let conversation_id = self.api.init(config.clone()).await?;
-                    self.state.conversation_id = Some(conversation_id.clone());
-                    conversation_id
-                };
-
-                //FIXME: Shouldn't be required
-                // Now try to get the model for the main agent
-                if let Ok(Some(conversation)) = self.api.conversation(&conversation_id).await {
-                    if let Ok(model_id) = conversation.main_model() {
-                        self.state.model = Some(model_id.as_str().to_string());
-                    }
+                    let conversation = self.api.init(config.clone()).await?;
+                    self.state.model = Some(conversation.main_model()?);
+                    self.state.conversation_id = Some(conversation.id.clone());
+                    Ok(conversation.id)
                 }
-
-                Ok(conversation_id)
             }
         }
     }
