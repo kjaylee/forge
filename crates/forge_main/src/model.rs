@@ -160,11 +160,11 @@ impl ForgeCommandManager {
             "/new" => Ok(Command::New),
             "/info" => Ok(Command::Info),
             "/exit" => Ok(Command::Exit),
-            "/models" => Ok(Command::Models),
             "/dump" => Ok(Command::Dump),
             "/act" => Ok(Command::Act),
             "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
+            "/model" => Ok(Command::Model),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -210,9 +210,6 @@ pub enum Command {
     /// Exit the application without any further action.
     #[strum(props(usage = "Exit the application"))]
     Exit,
-    /// Lists the models available for use.
-    #[strum(props(usage = "List available models"))]
-    Models,
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
     #[strum(props(usage = "Enable implementation mode with code changes"))]
@@ -243,7 +240,6 @@ impl Command {
             Command::Message(_) => "/message",
             Command::Info => "/info",
             Command::Exit => "/exit",
-            Command::Models => "/models",
             Command::Act => "/act",
             Command::Plan => "/plan",
             Command::Help => "/help",

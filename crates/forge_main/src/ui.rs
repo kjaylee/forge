@@ -1,12 +1,15 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, ModelId,
+    Workflow, API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
+use inquire::Select;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
@@ -51,7 +54,6 @@ pub struct UI<F> {
     console: Console,
     command: Arc<ForgeCommandManager>,
     cli: Cli,
-    models: Option<Vec<Model>>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
 }
@@ -110,7 +112,6 @@ impl<F: API> UI<F> {
             console: Console::new(env.clone(), command.clone()),
             cli,
             command,
-            models: None,
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
     }
@@ -214,28 +215,7 @@ impl<F: API> UI<F> {
 
                     break;
                 }
-                Command::Models => {
-                    let models = if let Some(models) = self.models.as_ref() {
-                        models
-                    } else {
-                        match self.api.models().await {
-                            Ok(models) => {
-                                self.models = Some(models);
-                                self.models.as_ref().unwrap()
-                            }
-                            Err(err) => {
-                                CONSOLE
-                                    .writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
-                                input = self.prompt().await?;
-                                continue;
-                            }
-                        }
-                    };
-                    let info: Info = models.as_slice().into();
-                    CONSOLE.writeln(info.to_string())?;
 
-                    input = self.prompt().await?;
-                }
                 Command::Custom(event) => {
                     if let Err(e) = self.dispatch_event(event.into()).await {
                         CONSOLE.writeln(
@@ -249,14 +229,45 @@ impl<F: API> UI<F> {
                     input = self.prompt().await?;
                 }
                 Command::Model => {
-                    // Not implemented yet
-                    CONSOLE.writeln("Model selection is not implemented yet.")?;
+                    self.handle_model_selection().await?;
                     input = self.prompt().await?;
                     continue;
                 }
             }
         }
 
+        Ok(())
+    }
+
+    // Helper method to handle model selection and update the forge.yaml file
+    async fn handle_model_selection(&mut self) -> Result<()> {
+        // Fetch available models
+
+        let models = self.api.models().await?;
+
+        // Create list of model IDs for selection
+        let model_ids: Vec<String> = models.iter().map(|m| m.id.as_str().to_string()).collect();
+
+        // Use inquire to select a model
+        let model = Select::new("Select a model:", model_ids)
+            .with_help_message("Use arrow keys to navigate and Enter to select")
+            .prompt()?;
+
+        // Update forge.yaml file with the selected model
+        let forge_yaml_path = Path::new("forge.yaml");
+
+        // Read existing forge.yaml content
+        let mut workflow: Workflow =
+            serde_yml::from_str(&ForgeFS::read_to_string(forge_yaml_path).await?)?;
+        workflow = workflow.model(ModelId::new(model.clone()));
+
+        ForgeFS::write(forge_yaml_path, serde_yml::to_string(&workflow)?).await?;
+
+        CONSOLE.writeln(
+            TitleFormat::success("model")
+                .sub_title(format!("switched to: {}", model))
+                .format(),
+        )?;
         Ok(())
     }
 

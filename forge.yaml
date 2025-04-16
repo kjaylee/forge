@@ -1,10 +1,10 @@
 commands:
   - name: fixme
     description: Looks for all the fixme comments in the code and attempts to fix them
-    value: |
+    prompt: |-
       Find all the FIXME comments in source-code files and attempt to fix them.
 max_walker_depth: 1024
-custom_rules: |
+custom_rules: |-
   Handling Errors:
 
   - Use `anyhow::Result` for error handling in services and repositories.
