@@ -249,22 +249,22 @@ impl<F: API> UI<F> {
         let model = Select::new("Select a model:", model_ids)
             .with_help_message("Use arrow keys to navigate and Enter to select")
             .prompt()?;
-        
+
         let model_id = ModelId::new(model.clone());
-        
+
         // Get the conversation to update
         let conversation_id = self.init_conversation().await?;
-        
+
         if let Ok(Some(mut conversation)) = self.api.conversation(&conversation_id).await {
             // Update the model in the conversation
             conversation.set_main_model(model_id.clone())?;
-            
+
             // Upsert the updated conversation
             self.api.upsert_conversation(conversation).await?;
-            
+
             // Update the UI state with the new model
             self.state.model = Some(model.clone());
-            
+
             CONSOLE.writeln(
                 TitleFormat::success("model")
                     .sub_title(format!("switched to: {}", model))
@@ -277,7 +277,7 @@ impl<F: API> UI<F> {
                     .format(),
             )?;
         }
-        
+
         Ok(())
     }
 

@@ -77,12 +77,12 @@ impl Prompt for ForgePrompt {
 
         // Start with bracket and version
         let _ = write!(result, "[{}", VERSION);
-        
+
         // Append model if available
         if let Some(model) = self.model.as_ref() {
             let _ = write!(result, "/{}", model);
         }
-        
+
         // Append usage info
         let usage = self
             .usage
