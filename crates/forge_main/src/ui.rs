@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId, API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
@@ -234,6 +234,81 @@ impl<F: API> UI<F> {
                     let info: Info = models.as_slice().into();
                     CONSOLE.writeln(info.to_string())?;
 
+                    input = self.prompt().await?;
+                }
+                Command::Model(model_id) => {
+                    // Fetch models if not already loaded
+                    let models = if let Some(models) = self.models.as_ref() {
+                        models
+                    } else {
+                        match self.api.models().await {
+                            Ok(models) => {
+                                self.models = Some(models);
+                                self.models.as_ref().unwrap()
+                            }
+                            Err(err) => {
+                                CONSOLE
+                                    .writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
+                                input = self.prompt().await?;
+                                continue;
+                            }
+                        }
+                    };
+                    
+                    // Check if the model exists
+                    let model_exists = models.iter().any(|m| m.id.to_string() == model_id);
+                    
+                    if !model_exists {
+                        CONSOLE.writeln(
+                            TitleFormat::failed("Invalid model ID")
+                                .sub_title(format!("Model '{}' not found. Use /models to see available models.", model_id))
+                                .format(),
+                        )?;
+                        input = self.prompt().await?;
+                        continue;
+                    }
+                    
+                    // Get the conversation ID
+                    let conversation_id = self.init_conversation().await?;
+                    
+                    // Set the model for all agents in the conversation
+                    match self.api.conversation(&conversation_id).await {
+                        Ok(Some(mut conversation)) => {
+                            // Update each agent's model
+                            for agent in &mut conversation.agents {
+                                agent.model = Some(ModelId::new(model_id.clone()));
+                            }
+                            
+                            // Save the updated conversation
+                            if let Err(err) = self.api.upsert_conversation(conversation).await {
+                                CONSOLE.writeln(
+                                    TitleFormat::failed("Failed to update model")
+                                        .error(err.to_string())
+                                        .format(),
+                                )?;
+                            } else {
+                                CONSOLE.writeln(
+                                    TitleFormat::success("Model updated")
+                                        .sub_title(format!("Now using model: {}", model_id))
+                                        .format(),
+                                )?;
+                            }
+                        }
+                        Ok(None) => {
+                            CONSOLE.writeln(
+                                TitleFormat::failed("Conversation not found")
+                                    .format(),
+                            )?;
+                        }
+                        Err(err) => {
+                            CONSOLE.writeln(
+                                TitleFormat::failed("Failed to get conversation")
+                                    .error(err.to_string())
+                                    .format(),
+                            )?;
+                        }
+                    }
+                    
                     input = self.prompt().await?;
                 }
                 Command::Custom(event) => {

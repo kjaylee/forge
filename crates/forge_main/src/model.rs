@@ -156,7 +156,12 @@ impl ForgeCommandManager {
             return Ok(Command::Message(trimmed.to_string()));
         }
 
-        match trimmed {
+        // Split the input into command and arguments
+        let parts = trimmed.split_ascii_whitespace().collect::<Vec<&str>>();
+        let command = parts.first().unwrap_or(&"");
+        let args = if parts.len() > 1 { &parts[1..] } else { &[] };
+
+        match *command {
             "/new" => Ok(Command::New),
             "/info" => Ok(Command::Info),
             "/exit" => Ok(Command::Exit),
@@ -165,22 +170,24 @@ impl ForgeCommandManager {
             "/act" => Ok(Command::Act),
             "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
-            text => {
-                let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
-
-                if let Some(command) = parts.first() {
-                    if let Some(command) = self.find(command) {
-                        let value = self.extract_command_value(&command, &parts[1..]);
-
-                        Ok(Command::Custom(PartialEvent::new(
-                            command.name.clone().strip_prefix('/').unwrap().to_string(),
-                            value.unwrap_or_default(),
-                        )))
-                    } else {
-                        Err(anyhow::anyhow!("{} is not valid", command))
-                    }
+            "/model" => {
+                let model_id = args.join(" ");
+                if model_id.is_empty() {
+                    Err(anyhow::anyhow!("Model ID is required. Use /models to see available models."))
                 } else {
-                    Err(anyhow::anyhow!("Invalid Command Format."))
+                    Ok(Command::Model(model_id))
+                }
+            },
+            _ => {
+                if let Some(command) = self.find(command) {
+                    let value = self.extract_command_value(&command, args);
+
+                    Ok(Command::Custom(PartialEvent::new(
+                        command.name.clone().strip_prefix('/').unwrap().to_string(),
+                        value.unwrap_or_default(),
+                    )))
+                } else {
+                    Err(anyhow::anyhow!("{} is not valid", command))
                 }
             }
         }
@@ -213,6 +220,10 @@ pub enum Command {
     /// Lists the models available for use.
     #[strum(props(usage = "List available models"))]
     Models,
+    /// Switch to a different model.
+    /// This can be triggered with the '/model' command.
+    #[strum(props(usage = "Switch to a different model"))]
+    Model(String),
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
     #[strum(props(usage = "Enable implementation mode with code changes"))]
@@ -240,6 +251,7 @@ impl Command {
             Command::Info => "/info",
             Command::Exit => "/exit",
             Command::Models => "/models",
+            Command::Model(_) => "/model",
             Command::Act => "/act",
             Command::Plan => "/plan",
             Command::Help => "/help",

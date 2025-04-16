@@ -178,6 +178,32 @@ temperature: 0.7 # Balanced creativity and focus
 
 For comprehensive documentation on all features and capabilities, please visit the [documentation site](https://github.com/antinomyhq/forge/tree/main/docs).
 
+### Built-in Commands
+
+Forge provides several built-in commands to enhance your workflow:
+
+| Command | Description |
+|---------|-------------|
+| `/new` | Start a new conversation while preserving history |
+| `/info` | Display system information |
+| `/models` | List all available AI models |
+| `/model <model_id>` | Switch to a different AI model |
+| `/act` | Enable implementation mode with code changes |
+| `/plan` | Enable planning mode without code changes |
+| `/help` | Enable help mode for tool questions |
+| `/dump` | Save conversation as JSON |
+| `/exit` | Exit the application |
+
+#### Switching Models
+
+The `/model` command allows you to interactively switch between different AI models during a conversation:
+
+```
+/model claude-3-opus
+```
+
+This will update all agents in the current conversation to use the specified model. Use the `/models` command to see a list of available models.
+
 ## 🤝 Community
 
 Join our vibrant Discord community to connect with other Code-Forge users and contributors, get help with your projects, share ideas, and provide feedback! 🌟
