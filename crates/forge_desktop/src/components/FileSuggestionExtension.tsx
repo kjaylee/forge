@@ -126,6 +126,30 @@ const FileSuggestionExtension =
 
             console.log("FileSuggestion view initialized");
 
+            // Determine the best placement based on available space
+            const calculateBestPlacement = (coords: { top: number; bottom: number }, suggestionsCount: number) => {
+              // Get viewport dimensions
+              const viewportHeight = window.innerHeight;
+              // const viewportWidth = window.innerWidth;
+              
+              // Estimated height of the suggestion popup (can be refined)
+              const popupHeight = Math.min(300, suggestionsCount * 28);
+              // const popupWidth = 384; // w-96 = 24rem = 384px
+              
+              // Space above and below the cursor
+              const spaceAbove = coords.top;
+              const spaceBelow = viewportHeight - coords.bottom;
+              
+              // Log available space for debugging
+              console.log(`Space available - Above: ${spaceAbove}px, Below: ${spaceBelow}px, Popup height: ${popupHeight}px`);
+              
+              // Determine the best placement based on available space
+              if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
+                return "bottom";
+              } else {
+                return "top";
+              }
+            };
             // Load suggestions function
             const loadSuggestions = async (query: string): Promise<File[]> => {
               console.log("Loading suggestions for query:", query);
@@ -257,6 +281,10 @@ const FileSuggestionExtension =
                       const element = document.createElement("div");
                       element.className = "suggestion-container";
 
+                      // Determine optimal placement
+                      const bestPlacement = calculateBestPlacement(coords, suggestions.length);
+                      console.log("Calculated best placement:", bestPlacement);
+
                       // Create tippy instance with proper typing
                       popup = tippy(document.body, {
                         getReferenceClientRect: () => ({
@@ -275,7 +303,25 @@ const FileSuggestionExtension =
                         showOnCreate: true,
                         interactive: true,
                         trigger: "manual",
-                        placement: "bottom-start",
+                        placement: `${bestPlacement}-start`,  // Dynamic placement based on our calculation
+                        popperOptions: {
+                          modifiers: [
+                            // Keep flip to handle horizontal constraints
+                            {
+                              name: "flip",
+                              options: {
+                                fallbackPlacements: [`${bestPlacement}-end`, bestPlacement === "top" ? "bottom-start" : "top-start"],
+                              },
+                            },
+                            {
+                              name: "preventOverflow",
+                              options: {
+                                boundary: 'viewport',
+                                padding: 8,
+                              },
+                            },
+                          ],
+                        },
                         zIndex: 9999,
                       });
 
