@@ -404,7 +404,7 @@ impl<F: API> UI<F> {
         match message.message {
             ChatResponse::Text { text: content, is_complete } => {
                 if is_complete {
-                    CONSOLE.writeln(&content)?;
+                    CONSOLE.writeln(&content.trim())?;
                 } else {
                     CONSOLE.write(content.dimmed().to_string())?;
                 }
