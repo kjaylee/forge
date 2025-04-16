@@ -3,7 +3,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId, API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
+    API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
@@ -254,23 +255,26 @@ impl<F: API> UI<F> {
                             }
                         }
                     };
-                    
+
                     // Check if the model exists
                     let model_exists = models.iter().any(|m| m.id.to_string() == model_id);
-                    
+
                     if !model_exists {
                         CONSOLE.writeln(
                             TitleFormat::failed("Invalid model ID")
-                                .sub_title(format!("Model '{}' not found. Use /models to see available models.", model_id))
+                                .sub_title(format!(
+                                    "Model '{}' not found. Use /models to see available models.",
+                                    model_id
+                                ))
                                 .format(),
                         )?;
                         input = self.prompt().await?;
                         continue;
                     }
-                    
+
                     // Get the conversation ID
                     let conversation_id = self.init_conversation().await?;
-                    
+
                     // Set the model for all agents in the conversation
                     match self.api.conversation(&conversation_id).await {
                         Ok(Some(mut conversation)) => {
@@ -278,7 +282,7 @@ impl<F: API> UI<F> {
                             for agent in &mut conversation.agents {
                                 agent.model = Some(ModelId::new(model_id.clone()));
                             }
-                            
+
                             // Save the updated conversation
                             if let Err(err) = self.api.upsert_conversation(conversation).await {
                                 CONSOLE.writeln(
@@ -295,10 +299,8 @@ impl<F: API> UI<F> {
                             }
                         }
                         Ok(None) => {
-                            CONSOLE.writeln(
-                                TitleFormat::failed("Conversation not found")
-                                    .format(),
-                            )?;
+                            CONSOLE
+                                .writeln(TitleFormat::failed("Conversation not found").format())?;
                         }
                         Err(err) => {
                             CONSOLE.writeln(
@@ -308,7 +310,7 @@ impl<F: API> UI<F> {
                             )?;
                         }
                     }
-                    
+
                     input = self.prompt().await?;
                 }
                 Command::Custom(event) => {

@@ -173,11 +173,13 @@ impl ForgeCommandManager {
             "/model" => {
                 let model_id = args.join(" ");
                 if model_id.is_empty() {
-                    Err(anyhow::anyhow!("Model ID is required. Use /models to see available models."))
+                    Err(anyhow::anyhow!(
+                        "Model ID is required. Use /models to see available models."
+                    ))
                 } else {
                     Ok(Command::Model(model_id))
                 }
-            },
+            }
             _ => {
                 if let Some(command) = self.find(command) {
                     let value = self.extract_command_value(&command, args);
