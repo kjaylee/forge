@@ -1,11 +1,9 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, ModelId,
-    Workflow, API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, ModelId, API,
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
@@ -239,10 +237,9 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    // Helper method to handle model selection and update the forge.yaml file
+    // Helper method to handle model selection and update the conversation
     async fn handle_model_selection(&mut self) -> Result<()> {
         // Fetch available models
-
         let models = self.api.models().await?;
 
         // Create list of model IDs for selection
@@ -252,22 +249,35 @@ impl<F: API> UI<F> {
         let model = Select::new("Select a model:", model_ids)
             .with_help_message("Use arrow keys to navigate and Enter to select")
             .prompt()?;
-
-        // Update forge.yaml file with the selected model
-        let forge_yaml_path = Path::new("forge.yaml");
-
-        // Read existing forge.yaml content
-        let mut workflow: Workflow =
-            serde_yml::from_str(&ForgeFS::read_to_string(forge_yaml_path).await?)?;
-        workflow = workflow.model(ModelId::new(model.clone()));
-
-        ForgeFS::write(forge_yaml_path, serde_yml::to_string(&workflow)?).await?;
-
-        CONSOLE.writeln(
-            TitleFormat::success("model")
-                .sub_title(format!("switched to: {}", model))
-                .format(),
-        )?;
+        
+        let model_id = ModelId::new(model.clone());
+        
+        // Get the conversation to update
+        let conversation_id = self.init_conversation().await?;
+        
+        if let Ok(Some(mut conversation)) = self.api.conversation(&conversation_id).await {
+            // Update the model in the conversation
+            conversation.set_main_model(model_id.clone())?;
+            
+            // Upsert the updated conversation
+            self.api.upsert_conversation(conversation).await?;
+            
+            // Update the UI state with the new model
+            self.state.model = Some(model.clone());
+            
+            CONSOLE.writeln(
+                TitleFormat::success("model")
+                    .sub_title(format!("switched to: {}", model))
+                    .format(),
+            )?;
+        } else {
+            CONSOLE.writeln(
+                TitleFormat::failed("model")
+                    .error("Failed to update model: conversation not found")
+                    .format(),
+            )?;
+        }
+        
         Ok(())
     }
 
@@ -304,7 +314,8 @@ impl<F: API> UI<F> {
                 self.state = UIState::new(mode);
                 self.command.register_all(&config);
 
-                if let Some(ref path) = self.cli.conversation {
+                // We need to try and get the conversation ID first before fetching the model
+                let conversation_id = if let Some(ref path) = self.cli.conversation {
                     let conversation: Conversation = serde_json::from_str(
                         ForgeFS::read_to_string(path.as_os_str()).await?.as_str(),
                     )
@@ -313,12 +324,22 @@ impl<F: API> UI<F> {
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
                     self.api.upsert_conversation(conversation).await?;
-                    Ok(conversation_id.clone())
+                    conversation_id
                 } else {
                     let conversation_id = self.api.init(config.clone()).await?;
                     self.state.conversation_id = Some(conversation_id.clone());
-                    Ok(conversation_id)
+                    conversation_id
+                };
+
+                //FIXME: Shouldn't be required
+                // Now try to get the model for the main agent
+                if let Ok(Some(conversation)) = self.api.conversation(&conversation_id).await {
+                    if let Ok(model_id) = conversation.main_model() {
+                        self.state.model = Some(model_id.as_str().to_string());
+                    }
                 }
+
+                Ok(conversation_id)
             }
         }
     }
@@ -404,7 +425,7 @@ impl<F: API> UI<F> {
         match message.message {
             ChatResponse::Text { text: content, is_complete } => {
                 if is_complete {
-                    CONSOLE.writeln(&content.trim())?;
+                    CONSOLE.writeln(content.trim())?;
                 } else {
                     CONSOLE.write(content.dimmed().to_string())?;
                 }

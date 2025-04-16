@@ -31,6 +31,7 @@ pub struct UIState {
     pub usage: Usage,
     pub mode: Mode,
     pub is_first: bool,
+    pub model: Option<String>,
 }
 
 impl UIState {
@@ -41,6 +42,7 @@ impl UIState {
             usage: Default::default(),
             mode,
             is_first: true,
+            model: Default::default(),
         }
     }
 }
@@ -51,6 +53,7 @@ impl From<UIState> for ForgePrompt {
             title: state.current_title,
             usage: Some(state.usage),
             mode: state.mode,
+            model: state.model,
         }
     }
 }
