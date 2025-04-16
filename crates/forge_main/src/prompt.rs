@@ -43,18 +43,23 @@ impl Prompt for ForgePrompt {
 
         // Get git branch (only if we're in a git repo)
         let branch_opt = get_git_branch();
-        
+
         // Use a string buffer to reduce allocations
         let mut result = String::with_capacity(64); // Pre-allocate a reasonable size
-        
+
         // Build the string step-by-step
-        let _ = write!(result, "{} {}", white_bold.paint(self.mode.to_string()), cyan.paint(&current_dir));
-        
+        let _ = write!(
+            result,
+            "{} {}",
+            white_bold.paint(self.mode.to_string()),
+            cyan.paint(&current_dir)
+        );
+
         // Only append branch info if present
         if let Some(branch) = branch_opt {
             let _ = write!(result, " {} ", yellow.paint(branch));
         }
-        
+
         let _ = write!(result, "\n{} ", yellow.paint(RIGHT_CHEVRON));
 
         Cow::Owned(result)
@@ -69,22 +74,22 @@ impl Prompt for ForgePrompt {
 
         // Use a string buffer with pre-allocation to reduce allocations
         let mut result = String::with_capacity(32);
-        
+
         // Append title if present
         if let Some(title) = self.title.as_ref() {
             let _ = write!(result, "{} ", title);
         }
-        
+
         // Append usage info
         let _ = write!(result, "[{}/{}]", VERSION, usage);
-        
+
         // Apply styling once at the end
         Cow::Owned(
             Style::new()
                 .bold()
                 .fg(Color::DarkGray)
                 .paint(&result)
-                .to_string()
+                .to_string(),
         )
     }
 
@@ -104,16 +109,20 @@ impl Prompt for ForgePrompt {
             PromptHistorySearchStatus::Passing => "",
             PromptHistorySearchStatus::Failing => "failing ",
         };
-        
+
         let mut result = String::with_capacity(32);
-        
+
         // Handle empty search term more elegantly
         if history_search.term.is_empty() {
             let _ = write!(result, "({}reverse-search) ", prefix);
         } else {
-            let _ = write!(result, "({}reverse-search: {}) ", prefix, history_search.term);
+            let _ = write!(
+                result,
+                "({}reverse-search: {}) ",
+                prefix, history_search.term
+            );
         }
-        
+
         Cow::Owned(Style::new().fg(Color::White).paint(&result).to_string())
     }
 }
