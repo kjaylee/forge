@@ -1,3 +1,4 @@
+import { path } from "@tauri-apps/api";
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -16,6 +17,9 @@ export interface FileViewerState {
 
   // File size handling
   maxFileSize: number; // in bytes, 0 means no limit
+
+  // Path resolution
+  resolveFilePath: (filePath: string) => Promise<string>;
 
   // Actions
   openFile: (filePath: string) => Promise<void>;
@@ -100,6 +104,30 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
   maxFileSize: 5 * 1024 * 1024, // 5MB default limit
 
   // Actions
+  resolveFilePath: async (filePath) => {
+    // If this path already contains the project path twice, fix it
+    const projectPath = "/Users/amit/code-forge";
+    if (filePath.includes(projectPath) && filePath.indexOf(projectPath) !== filePath.lastIndexOf(projectPath)) {
+      // Fix duplicated project path
+      return filePath.replace(`${projectPath}${projectPath}`, projectPath);
+    }
+    
+    // If the path is absolute, return it as is
+    if (filePath.startsWith('/') || /^[A-Za-z]:\\/.test(filePath)) {
+      return filePath;
+    }
+
+    try {
+      // Get the app directory to use as base for relative paths
+      const appDirPath = await path.appDir();
+      // Join the app dir with the relative path
+      return await path.join(appDirPath, '../../../', filePath);
+    } catch (error) {
+      console.error("Error resolving path:", error);
+      return filePath; // Fallback to original path
+    }
+  },
+
   openFile: async (filePath) => {
     try {
       // Check if the path contains a line number reference
@@ -124,17 +152,31 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
         language: null,
       });
 
+      // Resolve the path (convert relative to absolute if needed)
+      const resolvedPath = await get().resolveFilePath(cleanPath);
+
       // First check if the file exists
-      const exists = await invoke("file_exists", { path: cleanPath });
+      const exists = await invoke("file_exists", { path: resolvedPath });
 
       if (!exists) {
-        throw new Error(`File does not exist: ${cleanPath}`);
+        // Try the original path as a fallback
+        const originalExists = await invoke("file_exists", { path: cleanPath });
+        if (!originalExists) {
+          throw new Error(`File does not exist: ${cleanPath}`);
+        } else {
+          // Use the original path if it exists
+          set({ filePath: cleanPath });
+        }
+      } else {
+        // Update the file path to the resolved path
+        set({ filePath: resolvedPath });
       }
 
       // Get file info to determine language
+      const pathToUse = get().filePath || cleanPath;
       const fileInfo = await invoke<{ extension: string; size: number }>(
         "get_file_info",
-        { path: cleanPath },
+        { path: pathToUse },
       );
 
       // Check file size against limit
@@ -148,7 +190,7 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
 
       // Read file content using our Rust command
       const content = await invoke<string>("read_file_content", {
-        path: cleanPath,
+        path: pathToUse,
       });
 
       set({

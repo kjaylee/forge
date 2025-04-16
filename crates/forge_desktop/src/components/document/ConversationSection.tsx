@@ -52,39 +52,14 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
   }, [responseMessages]);
 
   // Extract and process special tags
-  const { mainContent, specialBlocks } = useMemo(() => {
-    const blocks: { type: string; content: string }[] = [];
+  const { mainContent } = useMemo(() => {
     let content = processedContent;
-
-    // Extract special tag content
-    const tagPatterns = [
-      { tag: "analysis", pattern: /<analysis>([\s\S]*?)<\/analysis>/g },
-      { tag: "thinking", pattern: /<thinking>([\s\S]*?)<\/thinking>/g },
-      {
-        tag: "action_plan",
-        pattern: /<action_plan>([\s\S]*?)<\/action_plan>/g,
-      },
-      { tag: "execution", pattern: /<execution>([\s\S]*?)<\/execution>/g },
-      {
-        tag: "verification",
-        pattern: /<verification>([\s\S]*?)<\/verification>/g,
-      },
-    ];
-
-    // Extract and remove special blocks
-    tagPatterns.forEach(({ tag, pattern }) => {
-      content = content.replace(pattern, (_, p1) => {
-        blocks.push({ type: tag, content: p1 });
-        return ""; // Remove the tag content from the main text
-      });
-    });
 
     // Clean up extra newlines
     content = content.replace(/\n{3,}/g, "\n\n");
 
     return {
       mainContent: content,
-      specialBlocks: blocks,
     };
   }, [processedContent]);
 
@@ -164,15 +139,6 @@ const ConversationSection: React.FC<ConversationSectionProps> = ({
           <div className="response-content pl-1">
             <CodeSection content={mainContent} />
           </div>
-
-          {/* Special content blocks */}
-          {specialBlocks.map((block, idx) => (
-            <SpecialContent
-              key={`${block.type}-${idx}`}
-              type={block.type}
-              content={block.content}
-            />
-          ))}
         </div>
       )}
 

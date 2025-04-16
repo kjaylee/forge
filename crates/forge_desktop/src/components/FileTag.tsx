@@ -34,7 +34,8 @@ const FileTag: React.FC<FileTagProps> = ({
   readOnly = false,
   copyFormat = "tag",
 }) => {
-  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+    const [copied, setCopied] = useState(false);
   const { openFile } = useFileViewerStore();
 
   // Get the value to use when copying the tag
@@ -52,11 +53,17 @@ const FileTag: React.FC<FileTagProps> = ({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleViewFile = (e: React.MouseEvent) => {
+  const handleViewFile = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    // Open the file in the viewer
-    openFile(filePath);
+    
+    setLoading(true);
+    try {
+      // Open the file in the viewer
+      await openFile(filePath);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Extract just the filename from the path using our custom function
@@ -71,9 +78,10 @@ const FileTag: React.FC<FileTagProps> = ({
           >
             {/* File icon that opens the file when clicked */}
             <button
-              className="mr-1 text-blue-600 hover:text-blue-800 transition-colors"
+              className={`mr-1 text-blue-600 hover:text-blue-800 transition-colors ${loading ? 'animate-pulse' : ''}`}
               onClick={handleViewFile}
               title="View file"
+              disabled={loading}
             >
               <FileText className="h-3 w-3" />
             </button>
