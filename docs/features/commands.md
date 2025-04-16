@@ -11,7 +11,6 @@ Forge offers several built-in commands to enhance your interaction:
 
 - `/new` - Start a new task when you've completed your current one
 - `/info` - View environment summary, logs folder location, and command history
-- `/models` - List all available AI models with capabilities and context limits
 - `/model` - Select and set a specific model in your forge.yaml configuration
 - `/dump` - Save the current conversation in JSON format to a file for reference
 - `/act` - Switch to ACT mode (default), allowing Forge to execute commands and implement changes

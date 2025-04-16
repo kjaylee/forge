@@ -7,6 +7,7 @@ use forge_api::{
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
+use inquire::ui::RenderConfig;
 use inquire::Select;
 use serde::Deserialize;
 use serde_json::Value;
@@ -245,9 +246,18 @@ impl<F: API> UI<F> {
         // Create list of model IDs for selection
         let model_ids: Vec<String> = models.iter().map(|m| m.id.as_str().to_string()).collect();
 
-        // Use inquire to select a model
+        // Find the index of the current model
+        let current_model = self.state.model.as_deref();
+        let starting_cursor = if let Some(current) = current_model {
+            model_ids.iter().position(|id| id == current).unwrap_or(0)
+        } else {
+            0
+        };
+
+        // Use inquire to select a model, with the current model pre-selected
         let model = Select::new("Select a model:", model_ids)
             .with_help_message("Use arrow keys to navigate and Enter to select")
+            .with_starting_cursor(starting_cursor)
             .prompt()?;
 
         let model_id = ModelId::new(model.clone());

@@ -23,6 +23,7 @@ impl std::fmt::Display for Mode {
     }
 }
 
+//TODO: UIState and ForgePrompt seem like the same thing and can be merged
 /// State information for the UI
 #[derive(Default, Clone)]
 pub struct UIState {
