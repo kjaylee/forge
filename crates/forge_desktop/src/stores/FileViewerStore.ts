@@ -107,13 +107,16 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
   resolveFilePath: async (filePath) => {
     // If this path already contains the project path twice, fix it
     const projectPath = "/Users/amit/code-forge";
-    if (filePath.includes(projectPath) && filePath.indexOf(projectPath) !== filePath.lastIndexOf(projectPath)) {
+    if (
+      filePath.includes(projectPath) &&
+      filePath.indexOf(projectPath) !== filePath.lastIndexOf(projectPath)
+    ) {
       // Fix duplicated project path
       return filePath.replace(`${projectPath}${projectPath}`, projectPath);
     }
-    
+
     // If the path is absolute, return it as is
-    if (filePath.startsWith('/') || /^[A-Za-z]:\\/.test(filePath)) {
+    if (filePath.startsWith("/") || /^[A-Za-z]:\\/.test(filePath)) {
       return filePath;
     }
 
@@ -121,7 +124,7 @@ export const useFileViewerStore = create<FileViewerState>((set, get) => ({
       // Get the app directory to use as base for relative paths
       const appDirPath = await path.appDir();
       // Join the app dir with the relative path
-      return await path.join(appDirPath, '../../../', filePath);
+      return await path.join(appDirPath, "../../../", filePath);
     } catch (error) {
       console.error("Error resolving path:", error);
       return filePath; // Fallback to original path

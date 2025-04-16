@@ -127,22 +127,27 @@ const FileSuggestionExtension =
             console.log("FileSuggestion view initialized");
 
             // Determine the best placement based on available space
-            const calculateBestPlacement = (coords: { top: number; bottom: number }, suggestionsCount: number) => {
+            const calculateBestPlacement = (
+              coords: { top: number; bottom: number },
+              suggestionsCount: number,
+            ) => {
               // Get viewport dimensions
               const viewportHeight = window.innerHeight;
               // const viewportWidth = window.innerWidth;
-              
+
               // Estimated height of the suggestion popup (can be refined)
               const popupHeight = Math.min(300, suggestionsCount * 28);
               // const popupWidth = 384; // w-96 = 24rem = 384px
-              
+
               // Space above and below the cursor
               const spaceAbove = coords.top;
               const spaceBelow = viewportHeight - coords.bottom;
-              
+
               // Log available space for debugging
-              console.log(`Space available - Above: ${spaceAbove}px, Below: ${spaceBelow}px, Popup height: ${popupHeight}px`);
-              
+              console.log(
+                `Space available - Above: ${spaceAbove}px, Below: ${spaceBelow}px, Popup height: ${popupHeight}px`,
+              );
+
               // Determine the best placement based on available space
               if (spaceBelow >= popupHeight || spaceBelow >= spaceAbove) {
                 return "bottom";
@@ -282,7 +287,10 @@ const FileSuggestionExtension =
                       element.className = "suggestion-container";
 
                       // Determine optimal placement
-                      const bestPlacement = calculateBestPlacement(coords, suggestions.length);
+                      const bestPlacement = calculateBestPlacement(
+                        coords,
+                        suggestions.length,
+                      );
                       console.log("Calculated best placement:", bestPlacement);
 
                       // Create tippy instance with proper typing
@@ -303,20 +311,25 @@ const FileSuggestionExtension =
                         showOnCreate: true,
                         interactive: true,
                         trigger: "manual",
-                        placement: `${bestPlacement}-start`,  // Dynamic placement based on our calculation
+                        placement: `${bestPlacement}-start`, // Dynamic placement based on our calculation
                         popperOptions: {
                           modifiers: [
                             // Keep flip to handle horizontal constraints
                             {
                               name: "flip",
                               options: {
-                                fallbackPlacements: [`${bestPlacement}-end`, bestPlacement === "top" ? "bottom-start" : "top-start"],
+                                fallbackPlacements: [
+                                  `${bestPlacement}-end`,
+                                  bestPlacement === "top"
+                                    ? "bottom-start"
+                                    : "top-start",
+                                ],
                               },
                             },
                             {
                               name: "preventOverflow",
                               options: {
-                                boundary: 'viewport',
+                                boundary: "viewport",
                                 padding: 8,
                               },
                             },

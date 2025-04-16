@@ -29,20 +29,18 @@ const ChatInterface: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-background text-foreground antialiased">
-      <div className="sticky top-0 z-10">
-        <ConversationHeader />
-      </div>
-      <div className="flex flex-col h-full">
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/50 flex items-center">
-          <ModeSwitcher />
-        </div>
-        <div className="flex-1 overflow-hidden relative">
-          <DocumentView />
-        </div>
-        <MessageInput />
+    <div className="flex flex-col h-screen w-full bg-background text-foreground antialiased">
+      <ConversationHeader />
+
+      <div className="bg-background/95 backdrop-blur-sm border-b border-border/50">
+        <ModeSwitcher />
       </div>
 
+      <div className="flex-1 overflow-auto">
+        <DocumentView />
+      </div>
+
+      <MessageInput />
       <StatusBar />
     </div>
   );

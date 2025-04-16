@@ -23,7 +23,9 @@ function getHighlightedParts(text: string, query: string): React.ReactNode {
   return (
     <>
       {pre}
-      <span className="bg-accent/50 text-accent-foreground font-semibold rounded-sm px-0.5">{match}</span>
+      <span className="bg-accent/50 text-accent-foreground font-semibold rounded-sm px-0.5">
+        {match}
+      </span>
       {post}
     </>
   );
@@ -47,19 +49,23 @@ const FileSuggestion: React.FC<FileSuggestionProps> = ({
   };
 
   // Only consider actual files (not directories)
-  const fileOnly = suggestions.filter(f => !f.is_dir);
+  const fileOnly = suggestions.filter((f) => !f.is_dir);
 
   // Exact match (very rare except for full, but more relevant)
-  const exactMatches = fileOnly.filter(f => getBaseName(f.path).toLowerCase() === queryLower);
+  const exactMatches = fileOnly.filter(
+    (f) => getBaseName(f.path).toLowerCase() === queryLower,
+  );
   // Prefix matches for the filename
   const prefixMatches = fileOnly.filter(
-    f => getBaseName(f.path).toLowerCase().startsWith(queryLower) &&
-         getBaseName(f.path).toLowerCase() !== queryLower
+    (f) =>
+      getBaseName(f.path).toLowerCase().startsWith(queryLower) &&
+      getBaseName(f.path).toLowerCase() !== queryLower,
   );
   // Substring (non-prefix, non-exact) matches in basename
   const substringMatches = fileOnly.filter(
-    f => getBaseName(f.path).toLowerCase().includes(queryLower) &&
-         !getBaseName(f.path).toLowerCase().startsWith(queryLower)
+    (f) =>
+      getBaseName(f.path).toLowerCase().includes(queryLower) &&
+      !getBaseName(f.path).toLowerCase().startsWith(queryLower),
   );
 
   // Combine and alphabetize each group by relative path
@@ -137,7 +143,9 @@ const FileSuggestion: React.FC<FileSuggestionProps> = ({
                 <FileIcon className="h-4 w-4" />
               </span>
               <span className="truncate">{highlightPart}</span>
-              <span className="truncate text-xs text-muted-foreground ml-2">{file.path}</span>
+              <span className="truncate text-xs text-muted-foreground ml-2">
+                {file.path}
+              </span>
             </div>
           );
         })}

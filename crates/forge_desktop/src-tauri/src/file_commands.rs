@@ -1,14 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::{env, fs};
-use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::command;
-use tauri::AppHandle;
-use tauri::Manager;
+use tauri::{command, AppHandle};
 use tokio::runtime::Runtime;
 
-use crate::commands::{ForgeState, get_current_project};
+use crate::commands::get_current_project;
 
 #[derive(Serialize, Deserialize)]
 pub struct FileInfo {
@@ -29,9 +26,9 @@ fn normalize_path(path: &str, app_handle: Option<&AppHandle>) -> String {
         // Use the get_current_project command to get the project info
         let rt = Runtime::new().ok();
         if let Some(runtime) = rt {
-            if let Some(project_info) = runtime.block_on(async {
-                get_current_project(handle.clone()).await
-            }) {
+            if let Some(project_info) =
+                runtime.block_on(async { get_current_project(handle.clone()).await })
+            {
                 project_info.path
             } else {
                 // No project selected, just return the original path
@@ -48,7 +45,7 @@ fn normalize_path(path: &str, app_handle: Option<&AppHandle>) -> String {
 
     // Check if path contains duplication of the base path
     let path_str = path.to_string();
-    
+
     // First check for exact duplication like "base_path/base_path/..."
     let dup_path = format!("{}/{}", base_path, base_path.trim_start_matches('/'));
     let clean_path = path_str.replace(&dup_path, &base_path);
