@@ -228,6 +228,10 @@ pub enum Command {
     /// Dumps the current conversation into a json file
     #[strum(props(usage = "Save conversation as JSON"))]
     Dump,
+    /// Switch or select the active model
+    /// This can be triggered with the '/model' command.
+    #[strum(props(usage = "Switch to a different model"))]
+    Model,
     /// Handles custom command defined in workflow file.
     Custom(PartialEvent),
 }
@@ -244,6 +248,7 @@ impl Command {
             Command::Plan => "/plan",
             Command::Help => "/help",
             Command::Dump => "/dump",
+            Command::Model => "/model",
             Command::Custom(event) => &event.name,
         }
     }

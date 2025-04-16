@@ -248,6 +248,12 @@ impl<F: API> UI<F> {
 
                     input = self.prompt().await?;
                 }
+                Command::Model => {
+                    // Not implemented yet
+                    CONSOLE.writeln("Model selection is not implemented yet.")?;
+                    input = self.prompt().await?;
+                    continue;
+                }
             }
         }
 
