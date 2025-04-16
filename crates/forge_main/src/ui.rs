@@ -7,7 +7,7 @@ use forge_api::{
 };
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
-use inquire::ui::RenderConfig;
+use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
 use serde::Deserialize;
 use serde_json::Value;
@@ -246,17 +246,21 @@ impl<F: API> UI<F> {
         // Create list of model IDs for selection
         let model_ids: Vec<String> = models.iter().map(|m| m.id.as_str().to_string()).collect();
 
+        // Create a custom render config with the specified icons
+        let mut render_config = RenderConfig::default();
+        render_config.scroll_up_prefix = Styled::new("⇡");
+        render_config.scroll_down_prefix = Styled::new("⇣");
+        render_config.highlighted_option_prefix = Styled::new("➤");
+
         // Find the index of the current model
-        let current_model = self.state.model.as_deref();
-        let starting_cursor = if let Some(current) = current_model {
-            model_ids.iter().position(|id| id == current).unwrap_or(0)
-        } else {
-            0
-        };
+        let starting_cursor = self.state.model.as_deref()
+            .and_then(|current| model_ids.iter().position(|id| id == current))
+            .unwrap_or(0);
 
         // Use inquire to select a model, with the current model pre-selected
         let model = Select::new("Select a model:", model_ids)
             .with_help_message("Use arrow keys to navigate and Enter to select")
+            .with_render_config(render_config)
             .with_starting_cursor(starting_cursor)
             .prompt()?;
 
