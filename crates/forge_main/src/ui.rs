@@ -122,7 +122,7 @@ impl<F: API> UI<F> {
         self.stop_spinner();
 
         // Create and start a new spinner
-        let spinner = Spinner::new(Spinners::Dots8, message.green().bold().to_string());
+        let spinner = Spinner::with_timer(Spinners::Dots8, message.green().bold().to_string());
         self.spinner = Some(spinner);
 
         Ok(())
@@ -133,8 +133,7 @@ impl<F: API> UI<F> {
         // Use mut if we modify the spinner
         if let Some(mut spinner) = self.spinner.take() {
             // Clear the spinner
-            spinner.stop();
-            print!("\r{}\r", " ".repeat(100)); // Clear the line
+            spinner.stop_with_message("".to_string());
         }
     }
 
