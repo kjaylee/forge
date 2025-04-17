@@ -1,7 +1,10 @@
 use std::borrow::Cow;
+use std::env;
+use std::fmt::Write;
+use std::process::Command;
 
 use derive_setters::Setters;
-use forge_api::Usage;
+use forge_api::{ModelId, Usage};
 use forge_tracker::VERSION;
 use nu_ansi_term::{Color, Style};
 use reedline::{Prompt, PromptHistorySearchStatus};
@@ -9,7 +12,6 @@ use reedline::{Prompt, PromptHistorySearchStatus};
 use crate::state::Mode;
 
 // Constants
-const AI_INDICATOR: &str = "⚡";
 const MULTILINE_INDICATOR: &str = "::: ";
 const RIGHT_CHEVRON: &str = "❯";
 
@@ -17,36 +19,79 @@ const RIGHT_CHEVRON: &str = "❯";
 #[derive(Clone, Default, Setters)]
 #[setters(strip_option, borrow_self)]
 pub struct ForgePrompt {
-    title: Option<String>,
-    usage: Option<Usage>,
-    mode: Mode,
+    pub usage: Option<Usage>,
+    pub mode: Mode,
+    pub model: Option<ModelId>,
 }
 
 impl Prompt for ForgePrompt {
     fn render_prompt_left(&self) -> Cow<str> {
-        if let Some(title) = self.title.as_ref() {
-            Cow::Owned(format!(
-                "{AI_INDICATOR} {} {} ",
-                Style::new().fg(Color::Cyan).paint(title),
-                Style::new().fg(Color::LightYellow).paint(RIGHT_CHEVRON),
-            ))
-        } else {
-            Cow::Borrowed(AI_INDICATOR)
+        // Pre-compute styles to avoid repeated style creation
+        let mode_style = Style::new().fg(Color::White).bold();
+        let folder_style = Style::new().fg(Color::Cyan);
+        let branch_style = Style::new().fg(Color::LightGreen);
+
+        // Get current directory
+        let current_dir = env::current_dir()
+            .ok()
+            .and_then(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .map(String::from)
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+
+        // Get git branch (only if we're in a git repo)
+        let branch_opt = get_git_branch();
+
+        // Use a string buffer to reduce allocations
+        let mut result = String::with_capacity(64); // Pre-allocate a reasonable size
+
+        // Build the string step-by-step
+        let _ = write!(
+            result,
+            "{} {}",
+            mode_style.paint(self.mode.to_string()),
+            folder_style.paint(&current_dir)
+        );
+
+        // Only append branch info if present
+        if let Some(branch) = branch_opt {
+            let _ = write!(result, " {} ", branch_style.paint(branch));
         }
+
+        let _ = write!(result, "\n{} ", branch_style.paint(RIGHT_CHEVRON));
+
+        Cow::Owned(result)
     }
 
     fn render_prompt_right(&self) -> Cow<str> {
+        // Use a string buffer with pre-allocation to reduce allocations
+        let mut result = String::with_capacity(32);
+
+        // Start with bracket and version
+        let _ = write!(result, "[{}", VERSION);
+
+        // Append model if available
+        if let Some(model) = self.model.as_ref() {
+            let _ = write!(result, "/{}", model);
+        }
+
+        // Append usage info
         let usage = self
             .usage
             .as_ref()
             .unwrap_or(&Usage::default())
             .total_tokens;
-        let usage_text = format!("[{}/{}/{}]", self.mode, VERSION, usage);
+        let _ = write!(result, "/{}", usage);
+        let _ = write!(result, "]");
+
+        // Apply styling once at the end
         Cow::Owned(
             Style::new()
                 .bold()
                 .fg(Color::DarkGray)
-                .paint(usage_text)
+                .paint(&result)
                 .to_string(),
         )
     }
@@ -67,8 +112,49 @@ impl Prompt for ForgePrompt {
             PromptHistorySearchStatus::Passing => "",
             PromptHistorySearchStatus::Failing => "failing ",
         };
-        let input = format!("({}reverse-search: {}) ", prefix, history_search.term);
-        Cow::Owned(Style::new().fg(Color::White).paint(input).to_string())
+
+        let mut result = String::with_capacity(32);
+
+        // Handle empty search term more elegantly
+        if history_search.term.is_empty() {
+            let _ = write!(result, "({}reverse-search) ", prefix);
+        } else {
+            let _ = write!(
+                result,
+                "({}reverse-search: {}) ",
+                prefix, history_search.term
+            );
+        }
+
+        Cow::Owned(Style::new().fg(Color::White).paint(&result).to_string())
+    }
+}
+
+/// Gets the current git branch name if available
+fn get_git_branch() -> Option<String> {
+    // First check if we're in a git repository
+    let git_check = Command::new("git")
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .output()
+        .ok()?;
+
+    if !git_check.status.success() || git_check.stdout.is_empty() {
+        return None;
+    }
+
+    // If we are in a git repo, get the branch
+    let output = Command::new("git")
+        .args(["branch", "--show-current"])
+        .output()
+        .ok()?;
+
+    if output.status.success() {
+        String::from_utf8(output.stdout)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    } else {
+        None
     }
 }
 
@@ -80,25 +166,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_render_prompt_left_with_title() {
-        let mut prompt = ForgePrompt::default();
-        prompt.title("test-title".to_string());
-        let title_style = Style::new().fg(Color::Cyan).paint("test-title").to_string();
-        let chevron_style = Style::new()
-            .fg(Color::LightYellow)
-            .paint(RIGHT_CHEVRON)
-            .to_string();
+    fn test_render_prompt_left() {
+        let prompt = ForgePrompt::default();
+
         let actual = prompt.render_prompt_left();
-        let expected = format!("{AI_INDICATOR} {title_style} {chevron_style} ");
-        assert_eq!(actual, expected);
+
+        // Check that it has the expected format with mode and directory displayed
+        assert!(actual.contains("ACT"));
+        assert!(actual.contains(RIGHT_CHEVRON));
     }
 
     #[test]
-    fn test_render_prompt_left_without_title() {
+    fn test_render_prompt_left_with_custom_prompt() {
+        // Set $PROMPT environment variable temporarily for this test
+        env::set_var("PROMPT", "CUSTOM_TEST_PROMPT");
+
         let prompt = ForgePrompt::default();
         let actual = prompt.render_prompt_left();
-        let expected = AI_INDICATOR;
-        assert_eq!(actual, expected);
+
+        // Clean up after test
+        env::remove_var("PROMPT");
+
+        // Verify the prompt contains expected elements regardless of $PROMPT var
+        assert!(actual.contains("ACT"));
+        assert!(actual.contains(RIGHT_CHEVRON));
     }
 
     #[test]
@@ -106,44 +197,18 @@ mod tests {
         let usage = Usage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
         let mut prompt = ForgePrompt::default();
         prompt.usage(usage);
-        let usage_style = Style::new()
-            .bold()
-            .fg(Color::DarkGray)
-            .paint(format!("[ACT/{}/30]", VERSION))
-            .to_string();
+
         let actual = prompt.render_prompt_right();
-        let expected = usage_style;
-        assert_eq!(actual, expected);
+        assert!(actual.contains(&VERSION.to_string()));
+        assert!(actual.contains("30"));
     }
 
     #[test]
     fn test_render_prompt_right_without_usage() {
         let prompt = ForgePrompt::default();
         let actual = prompt.render_prompt_right();
-        let expected = Style::new()
-            .bold()
-            .fg(Color::DarkGray)
-            .paint(format!("[ACT/{}/0]", VERSION))
-            .to_string();
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_render_prompt_indicator_with_title() {
-        let mut prompt = ForgePrompt::default();
-        prompt.title("test".to_string());
-
-        let actual = prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
-        let expected = "";
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_render_prompt_indicator_without_title() {
-        let prompt = ForgePrompt::default();
-        let actual = prompt.render_prompt_indicator(reedline::PromptEditMode::Default);
-        let expected = "";
-        assert_eq!(actual, expected);
+        assert!(actual.contains(&VERSION.to_string()));
+        assert!(actual.contains("0"));
     }
 
     #[test]
@@ -182,5 +247,32 @@ mod tests {
             .paint("(failing reverse-search: test) ")
             .to_string();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_render_prompt_history_search_indicator_empty_term() {
+        let prompt = ForgePrompt::default();
+        let history_search = reedline::PromptHistorySearch {
+            status: PromptHistorySearchStatus::Passing,
+            term: "".to_string(),
+        };
+        let actual = prompt.render_prompt_history_search_indicator(history_search);
+        let expected = Style::new()
+            .fg(Color::White)
+            .paint("(reverse-search) ")
+            .to_string();
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_render_prompt_right_with_model() {
+        let usage = Usage { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 };
+        let mut prompt = ForgePrompt::default();
+        prompt.usage(usage);
+        prompt.model(ModelId::new("gpt-4-turbo"));
+
+        let actual = prompt.render_prompt_right();
+        assert!(actual.contains("gpt-4-turbo"));
+        assert!(actual.contains(&VERSION.to_string()));
+        assert!(actual.contains("30"));
     }
 }

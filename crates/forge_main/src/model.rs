@@ -1,7 +1,5 @@
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use async_trait::async_trait;
 use forge_api::{Model, Workflow};
 use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
@@ -67,6 +65,7 @@ impl ForgeCommandManager {
         Command::iter()
             .filter(|command| !matches!(command, Command::Message(_)))
             .filter(|command| !matches!(command, Command::Custom(_)))
+            .filter(|command| !matches!(command, Command::Shell(_)))
             .map(|command| ForgeCommand {
                 name: command.name().to_string(),
                 description: command.usage().to_string(),
@@ -85,7 +84,7 @@ impl ForgeCommandManager {
         commands.extend(workflow.commands.clone().into_iter().map(|cmd| {
             let name = format!("/{}", cmd.name);
             let description = format!("⚙ {}", cmd.description);
-            let value = cmd.value.clone();
+            let value = cmd.prompt.clone();
 
             ForgeCommand { name, description, value }
         }));
@@ -153,6 +152,18 @@ impl ForgeCommandManager {
 
     pub fn parse(&self, input: &str) -> anyhow::Result<Command> {
         let trimmed = input.trim();
+
+        // Check if it's a shell command (starts with !)
+        if trimmed.starts_with("!") {
+            let command = trimmed
+                .strip_prefix("!")
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            return Ok(Command::Shell(command));
+        }
+
+        // Check if it's a system command (starts with /)
         let is_command = trimmed.starts_with("/");
         if !is_command {
             return Ok(Command::Message(trimmed.to_string()));
@@ -162,11 +173,11 @@ impl ForgeCommandManager {
             "/new" => Ok(Command::New),
             "/info" => Ok(Command::Info),
             "/exit" => Ok(Command::Exit),
-            "/models" => Ok(Command::Models),
             "/dump" => Ok(Command::Dump),
             "/act" => Ok(Command::Act),
             "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
+            "/model" => Ok(Command::Model),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -212,9 +223,6 @@ pub enum Command {
     /// Exit the application without any further action.
     #[strum(props(usage = "Exit the application"))]
     Exit,
-    /// Lists the models available for use.
-    #[strum(props(usage = "List available models"))]
-    Models,
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
     #[strum(props(usage = "Enable implementation mode with code changes"))]
@@ -230,8 +238,16 @@ pub enum Command {
     /// Dumps the current conversation into a json file
     #[strum(props(usage = "Save conversation as JSON"))]
     Dump,
+    /// Switch or select the active model
+    /// This can be triggered with the '/model' command.
+    #[strum(props(usage = "Switch to a different model"))]
+    Model,
     /// Handles custom command defined in workflow file.
     Custom(PartialEvent),
+    /// Executes a native shell command.
+    /// This can be triggered with commands starting with '!' character.
+    #[strum(props(usage = "Execute a native shell command"))]
+    Shell(String),
 }
 
 impl Command {
@@ -241,12 +257,13 @@ impl Command {
             Command::Message(_) => "/message",
             Command::Info => "/info",
             Command::Exit => "/exit",
-            Command::Models => "/models",
             Command::Act => "/act",
             Command::Plan => "/plan",
             Command::Help => "/help",
             Command::Dump => "/dump",
+            Command::Model => "/model",
             Command::Custom(event) => &event.name,
+            Command::Shell(_) => "!shell",
         }
     }
 
@@ -254,36 +271,6 @@ impl Command {
     pub fn usage(&self) -> &str {
         self.get_str("usage").unwrap()
     }
-}
-
-/// A trait for handling user input in the application.
-///
-/// This trait defines the core functionality needed for processing
-/// user input, whether it comes from a command line interface,
-/// GUI, or file system.
-#[async_trait]
-pub trait UserInput {
-    type PromptInput;
-    /// Read content from a file and convert it to the input type.
-    ///
-    /// # Arguments
-    /// * `path` - The path to the file to read
-    ///
-    /// # Returns
-    /// * `Ok(Input)` - Successfully read and parsed file content
-    /// * `Err` - Failed to read or parse file
-    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command>;
-
-    /// Prompts for user input with optional help text and initial value.
-    ///
-    /// # Arguments
-    /// * `help_text` - Optional help text to display with the prompt
-    /// * `initial_text` - Optional initial text to populate the input with
-    ///
-    /// # Returns
-    /// * `Ok(Input)` - Successfully processed input
-    /// * `Err` - An error occurred during input processing
-    async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command>;
 }
 
 #[cfg(test)]
@@ -426,5 +413,63 @@ mod tests {
 
         // Verify - provided value should override default
         assert_eq!(result, Some(String::from("provided_value")));
+    }
+    #[test]
+    fn test_parse_shell_command() {
+        // Setup
+        let cmd_manager = ForgeCommandManager::default();
+
+        // Execute
+        let result = cmd_manager.parse("!ls -la").unwrap();
+
+        // Verify
+        match result {
+            Command::Shell(cmd) => assert_eq!(cmd, "ls -la"),
+            _ => panic!("Expected Shell command, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_parse_shell_command_empty() {
+        // Setup
+        let cmd_manager = ForgeCommandManager::default();
+
+        // Execute
+        let result = cmd_manager.parse("!").unwrap();
+
+        // Verify
+        match result {
+            Command::Shell(cmd) => assert_eq!(cmd, ""),
+            _ => panic!("Expected Shell command, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_parse_shell_command_with_whitespace() {
+        // Setup
+        let cmd_manager = ForgeCommandManager::default();
+
+        // Execute
+        let result = cmd_manager.parse("!   echo 'test'   ").unwrap();
+
+        // Verify
+        match result {
+            Command::Shell(cmd) => assert_eq!(cmd, "echo 'test'"),
+            _ => panic!("Expected Shell command, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_shell_command_not_in_default_commands() {
+        // Setup
+        let manager = ForgeCommandManager::default();
+        let commands = manager.list();
+
+        // The shell command should not be included
+        let contains_shell = commands.iter().any(|cmd| cmd.name == "!shell");
+        assert!(
+            !contains_shell,
+            "Shell command should not be in default commands"
+        );
     }
 }

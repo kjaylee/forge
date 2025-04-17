@@ -1,17 +1,16 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::*;
 use forge_infra::ForgeInfra;
-use forge_services::{ForgeServices, Infrastructure};
+use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
 use serde_json::Value;
 
 use crate::executor::ForgeExecutorService;
 use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
-use crate::API;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
@@ -60,8 +59,14 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         Ok(self.executor_service.chat(chat).await?)
     }
 
-    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId> {
-        self.app.conversation_service().create(workflow).await
+    async fn init<W: Into<Workflow> + Send + Sync>(
+        &self,
+        workflow: W,
+    ) -> anyhow::Result<Conversation> {
+        self.app
+            .conversation_service()
+            .create(workflow.into())
+            .await
     }
 
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {
@@ -75,7 +80,8 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.loader.load(path).await
+        let workflow = self.loader.load(path).await?;
+        Ok(workflow)
     }
 
     async fn conversation(
@@ -105,6 +111,17 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         self.app
             .conversation_service()
             .set_variable(conversation_id, key, value)
+            .await
+    }
+
+    async fn execute_shell_command(
+        &self,
+        command: &str,
+        working_dir: PathBuf,
+    ) -> anyhow::Result<CommandOutput> {
+        self.app
+            .command_executor_service()
+            .execute_command(command.to_string(), working_dir)
             .await
     }
 }

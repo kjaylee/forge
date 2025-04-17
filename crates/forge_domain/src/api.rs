@@ -1,8 +1,9 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub use forge_domain::*;
 use forge_stream::MpscStream;
 use serde_json::Value;
+
+use crate::*;
 
 #[async_trait::async_trait]
 pub trait API: Sync + Send {
@@ -26,8 +27,11 @@ pub trait API: Sync + Send {
     /// Returns the current environment
     fn environment(&self) -> Environment;
 
-    /// Creates a new conversation with the given workflow
-    async fn init(&self, workflow: Workflow) -> anyhow::Result<ConversationId>;
+    /// Creates a new conversation with the given workflow configuration
+    async fn init<W: Into<Workflow> + Send + Sync>(
+        &self,
+        config: W,
+    ) -> anyhow::Result<Conversation>;
 
     /// Adds a new conversation to the conversation store
     async fn upsert_conversation(&self, conversation: Conversation) -> anyhow::Result<()>;
@@ -43,6 +47,7 @@ pub trait API: Sync + Send {
         conversation_id: &ConversationId,
     ) -> anyhow::Result<Option<Conversation>>;
 
+    // TODO: This function can be remove since we now have the upsert_conversation
     /// Gets a variable from the conversation
     async fn get_variable(
         &self,
@@ -50,6 +55,7 @@ pub trait API: Sync + Send {
         key: &str,
     ) -> anyhow::Result<Option<Value>>;
 
+    // TODO: This function can be remove since we now have the upsert_conversation
     /// Sets a variable in the conversation
     async fn set_variable(
         &self,
@@ -57,4 +63,11 @@ pub trait API: Sync + Send {
         key: String,
         value: Value,
     ) -> anyhow::Result<()>;
+
+    /// Executes a shell command using the shell tool infrastructure
+    async fn execute_shell_command(
+        &self,
+        command: &str,
+        working_dir: PathBuf,
+    ) -> anyhow::Result<CommandOutput>;
 }

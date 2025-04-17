@@ -6,9 +6,6 @@ use forge_domain::Workflow;
 use forge_services::{FsReadService, Infrastructure};
 use merge::Merge;
 
-// Import the default configuration
-use crate::forge_default::create_default_workflow;
-
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
     /// Explicitly provided path
@@ -50,11 +47,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         // Load the workflow based on its source
         match source {
             WorkflowSource::ExplicitPath(path) => self.load_from_explicit_path(path).await,
-            WorkflowSource::Default => {
-                // Use the programmatically created workflow
-                // This is the preferred method as it's type-safe
-                Ok(create_default_workflow())
-            }
+            WorkflowSource::Default => Ok(Workflow::default()),
             WorkflowSource::ProjectConfig => self.load_with_project_config().await,
         }
     }
@@ -62,7 +55,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     /// Loads a workflow from a specific file path
     async fn load_from_explicit_path(&self, path: &Path) -> anyhow::Result<Workflow> {
         let content = String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?;
-        let workflow: Workflow = serde_yaml::from_str(&content)
+        let workflow: Workflow = serde_yml::from_str(&content)
             .with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
         Ok(workflow)
     }
@@ -80,17 +73,15 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         )?;
 
         let project_workflow: Workflow =
-            serde_yaml::from_str(&project_content).with_context(|| {
+            serde_yml::from_str(&project_content).with_context(|| {
                 format!(
                     "Failed to parse project workflow: {}",
                     project_path.display()
                 )
             })?;
-
         // Merge workflows with project taking precedence
-        let mut merged_workflow = create_default_workflow();
+        let mut merged_workflow = Workflow::default();
         merged_workflow.merge(project_workflow);
-
         Ok(merged_workflow)
     }
 }

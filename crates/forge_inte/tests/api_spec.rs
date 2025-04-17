@@ -3,7 +3,8 @@ use std::env;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use forge_api::{AgentMessage, ChatRequest, ChatResponse, Event, ForgeAPI, ModelId, API};
+use forge_api::ForgeAPI;
+use forge_domain::{AgentMessage, ChatRequest, ChatResponse, Event, ModelId, API};
 use tokio_stream::StreamExt;
 
 const MAX_RETRIES: usize = 5;
@@ -47,7 +48,7 @@ impl Fixture {
         });
 
         // initialize the conversation by storing the workflow.
-        let conversation_id = api.init(workflow).await.unwrap();
+        let conversation_id = api.init(workflow).await.unwrap().id;
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",
@@ -61,7 +62,7 @@ impl Fixture {
             .with_context(|| "Failed to initialize chat")
             .unwrap()
             .filter_map(|message| match message.unwrap() {
-                AgentMessage { message: ChatResponse::Text(text), .. } => Some(text),
+                AgentMessage { message: ChatResponse::Text { text, .. }, .. } => Some(text),
                 _ => None,
             })
             .collect::<Vec<_>>()

@@ -1,14 +1,17 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::bail;
-use forge_domain::{Environment, ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_display::TitleFormat;
+use forge_domain::{
+    CommandOutput, Environment, EnvironmentService, ExecutableTool, NamedTool, ToolCallContext,
+    ToolDescription, ToolName,
+};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tokio::process::Command;
 
-use super::executor::Output;
-use crate::tools::shell::executor::CommandExecutor;
+use crate::{CommandExecutorService, Infrastructure};
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -23,7 +26,7 @@ pub struct ShellInput {
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
 /// empty.
-fn format_output(output: Output) -> anyhow::Result<String> {
+fn format_output(output: CommandOutput) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
 
     if !output.stdout.trim().is_empty() {
@@ -62,91 +65,58 @@ fn format_output(output: Output) -> anyhow::Result<String> {
 /// complete output including stdout, stderr, and exit code for diagnostic
 /// purposes.
 #[derive(ToolDescription)]
-pub struct Shell {
+pub struct Shell<I> {
     env: Environment,
+    infra: Arc<I>,
 }
 
-impl Shell {
+impl<I: Infrastructure> Shell<I> {
     /// Create a new Shell with environment configuration
-    pub fn new(env: Environment) -> Self {
-        Self { env }
+    pub fn new(infra: Arc<I>) -> Self {
+        let env = infra.environment_service().get_environment();
+        Self { env, infra }
     }
 }
 
-impl NamedTool for Shell {
+impl<I> NamedTool for Shell<I> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_process_shell")
     }
 }
 
 #[async_trait::async_trait]
-impl ExecutableTool for Shell {
+impl<I: Infrastructure> ExecutableTool for Shell<I> {
     type Input = ShellInput;
 
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());
         }
+        let title_format = TitleFormat::execute(&input.command)
+            .sub_title(format!("(using {})", self.env.shell.as_str()));
 
-        let parameter = if cfg!(target_os = "windows") {
-            "/C"
-        } else {
-            "-c"
-        };
+        context.send_text(title_format.format()).await?;
 
-        #[cfg(not(test))]
-        {
-            use forge_display::TitleFormat;
+        let output = self
+            .infra
+            .command_executor_service()
+            .execute_command(input.command, input.cwd)
+            .await?;
 
-            println!(
-                "\n{}",
-                // parameter, &input.command
-                TitleFormat::execute(&input.command)
-                    .sub_title(format!("(using {})", self.env.shell.as_str()))
-                    .format()
-            );
-        }
-
-        let mut command = Command::new(&self.env.shell);
-
-        command.args([parameter, &input.command]);
-
-        // Set the current working directory for the command
-        command.current_dir(input.cwd);
-        // Kill the command when the handler is dropped
-        command.kill_on_drop(true);
-
-        format_output(CommandExecutor::new(command).colored().execute().await?)
+        format_output(output)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::{env, fs};
 
-    use forge_domain::Provider;
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    /// Create a default test environment
-    fn test_env() -> Environment {
-        Environment {
-            os: std::env::consts::OS.to_string(),
-            cwd: std::env::current_dir().unwrap_or_default(),
-            home: Some("/home/user".into()),
-            shell: if cfg!(windows) {
-                "cmd.exe".to_string()
-            } else {
-                "/bin/sh".to_string()
-            },
-            base_path: PathBuf::new(),
-            pid: std::process::id(),
-            provider: Provider::anthropic("test-key"),
-            retry_config: Default::default(),
-        }
-    }
+    use crate::attachment::tests::MockInfrastructure;
 
     /// Platform-specific error message patterns for command not found errors
     #[cfg(target_os = "windows")]
@@ -164,30 +134,38 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let result = shell
-            .call(ShellInput {
-                command: "echo 'Hello, World!'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo 'Hello, World!'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
-        assert!(result.contains("<stdout>Hello, World!\n</stdout>"));
+        assert!(result.contains("Mock command executed successfully"));
     }
 
     #[tokio::test]
     async fn test_shell_stderr_with_success() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         // Use a command that writes to both stdout and stderr
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
-                } else {
-                    "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "echo 'to stderr' 1>&2 && echo 'to stdout'".to_string()
+                    } else {
+                        "echo 'to stderr' >&2; echo 'to stdout'".to_string()
+                    },
+                    cwd: env::current_dir().unwrap(),
                 },
-                cwd: env::current_dir().unwrap(),
-            })
+            )
             .await
             .unwrap();
 
@@ -199,12 +177,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_both_streams() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let result = shell
-            .call(ShellInput {
-                command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo 'to stdout' && echo 'to stderr' >&2".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -216,18 +198,22 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "cd".to_string()
-                } else {
-                    "pwd".to_string()
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: temp_dir.clone(),
                 },
-                cwd: temp_dir.clone(),
-            })
+            )
             .await
             .unwrap();
         assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
@@ -235,12 +221,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
-            .call(ShellInput {
-                command: "non_existent_command".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "non_existent_command".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await;
 
         assert!(result.is_err());
@@ -260,9 +249,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let result = shell
-            .call(ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() })
+            .call(
+                ToolCallContext::default(),
+                ShellInput { command: "".to_string(), cwd: env::current_dir().unwrap() },
+            )
             .await;
         assert!(result.is_err());
         assert_eq!(
@@ -273,22 +266,30 @@ mod tests {
 
     #[tokio::test]
     async fn test_description() {
-        assert!(Shell::new(test_env()).description().len() > 100)
+        assert!(
+            Shell::new(Arc::new(MockInfrastructure::new()))
+                .description()
+                .len()
+                > 100
+        )
     }
 
     #[tokio::test]
     async fn test_shell_pwd() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let current_dir = env::current_dir().unwrap();
         let result = shell
-            .call(ShellInput {
-                command: if cfg!(target_os = "windows") {
-                    "cd".to_string()
-                } else {
-                    "pwd".to_string()
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: if cfg!(target_os = "windows") {
+                        "cd".to_string()
+                    } else {
+                        "pwd".to_string()
+                    },
+                    cwd: current_dir.clone(),
                 },
-                cwd: current_dir.clone(),
-            })
+            )
             .await
             .unwrap();
 
@@ -300,12 +301,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_multiple_commands() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
-            .call(ShellInput {
-                command: "echo 'first' && echo 'second'".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo 'first' && echo 'second'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
         assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
@@ -313,12 +317,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_output() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
-            .call(ShellInput {
-                command: "true".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "true".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -328,12 +335,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_whitespace_only_output() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
-            .call(ShellInput {
-                command: "echo ''".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo ''".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -343,12 +353,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
-            .call(ShellInput {
-                command: "echo $PATH".to_string(),
-                cwd: env::current_dir().unwrap(),
-            })
+            .call(
+                ToolCallContext::default(),
+                ShellInput {
+                    command: "echo $PATH".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                },
+            )
             .await
             .unwrap();
 
@@ -358,7 +371,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_full_path_command() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         // Using a full path command which would be restricted in rbash
         let cmd = if cfg!(target_os = "windows") {
             r"C:\Windows\System32\whoami.exe"
@@ -367,7 +380,10 @@ mod tests {
         };
 
         let result = shell
-            .call(ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() })
+            .call(
+                ToolCallContext::default(),
+                ShellInput { command: cmd.to_string(), cwd: env::current_dir().unwrap() },
+            )
             .await;
 
         // In rbash, this would fail with a permission error

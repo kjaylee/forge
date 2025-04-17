@@ -1,16 +1,15 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use forge_api::{Environment, Usage};
+use forge_api::Environment;
 use forge_display::TitleFormat;
 use forge_fs::ForgeFS;
 
 use crate::console::CONSOLE;
 use crate::editor::{ForgeEditor, ReadResult};
-use crate::model::{Command, ForgeCommandManager, UserInput};
+use crate::model::{Command, ForgeCommandManager};
 use crate::prompt::ForgePrompt;
-use crate::state::Mode;
+use crate::TRACKER;
 
 /// Console implementation for handling user input via command line.
 #[derive(Debug)]
@@ -26,10 +25,8 @@ impl Console {
     }
 }
 
-#[async_trait]
-impl UserInput for Console {
-    type PromptInput = PromptInput;
-    async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
+impl Console {
+    pub async fn upload<P: Into<PathBuf> + Send>(&self, path: P) -> anyhow::Result<Command> {
         let path = path.into();
         let content = ForgeFS::read_to_string(&path).await?.trim().to_string();
 
@@ -37,11 +34,11 @@ impl UserInput for Console {
         Ok(Command::Message(content))
     }
 
-    async fn prompt(&self, input: Option<Self::PromptInput>) -> anyhow::Result<Command> {
+    pub async fn prompt(&self, prompt: Option<ForgePrompt>) -> anyhow::Result<Command> {
         CONSOLE.writeln("")?;
 
         let mut engine = ForgeEditor::new(self.env.clone(), self.command.clone());
-        let prompt: ForgePrompt = input.map(Into::into).unwrap_or_default();
+        let prompt: ForgePrompt = prompt.unwrap_or_default();
 
         loop {
             let result = engine.prompt(&prompt)?;
@@ -50,9 +47,7 @@ impl UserInput for Console {
                 ReadResult::Exit => return Ok(Command::Exit),
                 ReadResult::Empty => continue,
                 ReadResult::Success(text) => {
-                    tokio::spawn(
-                        crate::ui::TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())),
-                    );
+                    tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::Prompt(text.clone())));
                     match self.command.parse(&text) {
                         Ok(command) => return Ok(command),
                         Err(e) => {
@@ -64,32 +59,6 @@ impl UserInput for Console {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-pub enum PromptInput {
-    Update {
-        title: Option<String>,
-        usage: Option<Usage>,
-        mode: Mode,
-    },
-}
-
-impl From<PromptInput> for ForgePrompt {
-    fn from(input: PromptInput) -> Self {
-        match input {
-            PromptInput::Update { title, usage, mode } => {
-                let mut prompt = ForgePrompt::default();
-                prompt.mode(mode);
-                if let Some(title) = title {
-                    prompt.title(title);
-                }
-                if let Some(usage) = usage {
-                    prompt.usage(usage);
-                }
-                prompt
             }
         }
     }

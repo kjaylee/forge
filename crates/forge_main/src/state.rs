@@ -1,8 +1,11 @@
-use forge_api::{ConversationId, Usage};
+use forge_api::{ConversationId, Model, ModelId, Usage};
+use serde::Deserialize;
 
-use crate::input::PromptInput;
+use crate::prompt::ForgePrompt;
 
-#[derive(Clone, Default)]
+// TODO: convert to a new type
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Mode {
     Plan,
     Help,
@@ -20,33 +23,37 @@ impl std::fmt::Display for Mode {
     }
 }
 
+//TODO: UIState and ForgePrompt seem like the same thing and can be merged
 /// State information for the UI
+#[derive(Default, Clone)]
 pub struct UIState {
-    pub current_title: Option<String>,
     pub conversation_id: Option<ConversationId>,
     pub usage: Usage,
     pub mode: Mode,
     pub is_first: bool,
+    pub model: Option<ModelId>,
+    pub cached_models: Option<Vec<Model>>,
 }
 
-impl Default for UIState {
-    fn default() -> Self {
+impl UIState {
+    pub fn new(mode: Mode) -> Self {
         Self {
-            current_title: Default::default(),
             conversation_id: Default::default(),
             usage: Default::default(),
-            mode: Default::default(),
+            mode,
             is_first: true,
+            model: Default::default(),
+            cached_models: Default::default(),
         }
     }
 }
 
-impl From<&UIState> for PromptInput {
-    fn from(state: &UIState) -> Self {
-        PromptInput::Update {
-            title: state.current_title.clone(),
-            usage: Some(state.usage.clone()),
-            mode: state.mode.clone(),
+impl From<UIState> for ForgePrompt {
+    fn from(state: UIState) -> Self {
+        ForgePrompt {
+            usage: Some(state.usage),
+            mode: state.mode,
+            model: state.model,
         }
     }
 }

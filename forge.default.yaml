@@ -14,16 +14,6 @@ models:
   - &standard_model anthropic/claude-3.5-haiku
 
 agents:
-  - id: title-generation
-    tool_supported: true
-    model: *standard_model
-    hide_content: true
-    system_prompt: "{{> system-prompt-title-generator.hbs }}"
-    user_prompt: <technical_content>{{event.value}}</technical_content>
-    tools:
-      - tool_forge_event_dispatch
-    subscribe:
-      - user_task_init
 
   - id: help_agent
     model: *advanced_model
@@ -42,6 +32,7 @@ agents:
       token_threshold: 80000
       model: *advanced_model
       retention_window: 6
+      message_threshold: 200
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     tool_supported: true
     model: *advanced_model

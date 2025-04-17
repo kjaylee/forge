@@ -1,17 +1,13 @@
-use forge_domain::{ExecutableTool, NamedTool, ToolDescription, ToolName};
+use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Sends a formatted markdown message to the user's terminal display.
 /// This tool allows the agent to communicate information to the user with
-/// proper text formatting. Use this when you need to display structured content
-/// such as headers, lists, tables, code blocks, or text with emphasis
-/// (bold/italic). The content parameter must contain valid markdown syntax. The
-/// tool will render this content in the terminal with appropriate formatting
-/// using the termimad library. Do NOT use this tool for collecting user input
-/// or for messages that don't benefit from formatting. Returns a simple
-/// confirmation string but does not capture user responses.
+/// proper text formatting. Use this when you need to show a message or ask for
+/// a clarification to the user. The content parameter must contain valid
+/// markdown syntax. Returns a simple confirmation string but does not capture
+/// user responses.
 #[derive(Clone, Default, ToolDescription)]
 pub struct ShowUser;
 
@@ -33,12 +29,12 @@ impl NamedTool for ShowUser {
 #[async_trait::async_trait]
 impl ExecutableTool for ShowUser {
     type Input = ShowUserInput;
-    async fn call(&self, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Use termimad to display the markdown to the terminal
 
         let skin = termimad::get_default_skin();
         let content = skin.term_text(&input.content);
-        println!("{}", content);
+        context.send_text(content.to_string()).await?;
 
         // Return a simple success message
         Ok("Markdown content displayed to user".to_string())
@@ -56,8 +52,11 @@ mod tests {
             content: "# Test Heading\nThis is a test with **bold** and *italic* text.".to_string(),
         };
 
+        // Create a test context
+        let context = ToolCallContext::default();
+
         // The function should execute without error and return a success message
-        let result = show_user.call(input).await;
+        let result = show_user.call(context, input).await;
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
