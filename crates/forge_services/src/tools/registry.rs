@@ -139,17 +139,9 @@ pub mod tests {
         }
     }
 
+    #[async_trait::async_trait]
     impl CommandExecutorService for Stub {
-        fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<CommandOutput> {
-            unimplemented!()
-        }
-
-        fn execute_command_with_color(
-            &self,
-            _: String,
-            _: String,
-            _: Vec<(String, String)>,
-        ) -> anyhow::Result<CommandOutput> {
+        async fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<CommandOutput> {
             unimplemented!()
         }
     }

@@ -142,16 +142,6 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         self.execute_command_internal(command, &working_dir, None)
             .await
     }
-
-    async fn execute_command_with_color(
-        &self,
-        command: String,
-        working_dir: String,
-        color_env_vars: Vec<(String, String)>,
-    ) -> anyhow::Result<CommandOutput> {
-        self.execute_command_internal(command, Path::new(&working_dir), Some(color_env_vars))
-            .await
-    }
 }
 
 #[cfg(test)]

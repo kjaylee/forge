@@ -59,14 +59,6 @@ pub trait CommandExecutorService: Send + Sync {
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput>;
-
-    /// Executes a shell command with colored output and returns the result
-    async fn execute_command_with_color(
-        &self,
-        command: String,
-        working_dir: String,
-        color_env_vars: Vec<(String, String)>,
-    ) -> anyhow::Result<CommandOutput>;
 }
 
 /// Output from a command execution

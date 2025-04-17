@@ -238,16 +238,12 @@ pub mod tests {
         }
     }
 
+    #[async_trait::async_trait]
     impl CommandExecutorService for () {
-        fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<crate::CommandOutput> {
-            unimplemented!()
-        }
-
-        fn execute_command_with_color(
+        async fn execute_command(
             &self,
             _: String,
-            _: String,
-            _: Vec<(String, String)>,
+            _: PathBuf,
         ) -> anyhow::Result<crate::CommandOutput> {
             unimplemented!()
         }
