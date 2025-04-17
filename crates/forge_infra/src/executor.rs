@@ -17,8 +17,14 @@ impl ForgeCommandExecutorService {
         Self { restricted }
     }
 
-    fn create_command(&self, command_str: &str) -> Command {
-        let shell = if self.restricted { "rbash" } else { "bash" };
+    fn prepare_command(&self, command_str: &str, working_dir: &Path) -> Command {
+        // Create a basic command
+        let is_windows = cfg!(target_os = "windows");
+        let shell = if self.restricted && !is_windows {
+            "rbash"
+        } else {
+            "bash"
+        };
         let mut command = Command::new(shell);
 
         // Core color settings for general commands
@@ -38,14 +44,11 @@ impl ForgeCommandExecutorService {
         // Other common tools
         command.env("GREP_OPTIONS", "--color=always"); // GNU grep
 
-        command.arg("-c").arg(command_str);
+        let parameter = if is_windows { "/C" } else { "-c" };
 
-        command
-    }
+        command.arg(parameter).arg(command_str);
 
-    fn prepare_command(&self, command_str: &str, working_dir: &Path) -> Command {
-        // Create a basic command
-        let mut command = self.create_command(command_str);
+        command.kill_on_drop(true);
 
         // Set the working directory
         command.current_dir(working_dir);
