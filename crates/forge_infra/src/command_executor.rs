@@ -78,51 +78,19 @@ impl ForgeCommandExecutorService {
         // Spawn the command
         let mut child = cmd.spawn()?;
 
-        let stdout_option = child.stdout.take();
-        let stderr_option = child.stderr.take();
+        let mut stdout_pipe = child.stdout.take();
+        let mut stderr_pipe = child.stderr.take();
 
-        // Handle stdout
-        let mut stdout_buffer = Vec::new();
-        if let Some(mut stdout) = stdout_option {
-            let mut buffer = [0; 1024];
-            loop {
-                let n = match stdout.read(&mut buffer).await {
-                    Ok(0) => break, // EOF
-                    Ok(n) => n,
-                    Err(e) => return Err(e.into()),
-                };
+        // Stream the output of the command to stdout and stderr concurrently
+        let (status, stdout_buffer, stderr_buffer) = tokio::try_join!(
+            child.wait(),
+            stream(&mut stdout_pipe, io::stdout()),
+            stream(&mut stderr_pipe, io::stderr())
+        )?;
 
-                // Write to console
-                io::stdout().write_all(&buffer[..n])?;
-                io::stdout().flush()?;
-
-                // Store for return value
-                stdout_buffer.extend_from_slice(&buffer[..n]);
-            }
-        }
-
-        // Handle stderr
-        let mut stderr_buffer = Vec::new();
-        if let Some(mut stderr) = stderr_option {
-            let mut buffer = [0; 1024];
-            loop {
-                let n = match stderr.read(&mut buffer).await {
-                    Ok(0) => break, // EOF
-                    Ok(n) => n,
-                    Err(e) => return Err(e.into()),
-                };
-
-                // Write to console
-                io::stderr().write_all(&buffer[..n])?;
-                io::stderr().flush()?;
-
-                // Store for return value
-                stderr_buffer.extend_from_slice(&buffer[..n]);
-            }
-        }
-
-        // Wait for the process to complete
-        let status = child.wait().await?;
+        // Drop happens after `try_join` due to <https://github.com/tokio-rs/tokio/issues/4309>
+        drop(stdout_pipe);
+        drop(stderr_pipe);
 
         Ok(CommandOutput {
             stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
@@ -130,6 +98,28 @@ impl ForgeCommandExecutorService {
             success: status.success(),
         })
     }
+}
+
+/// reads the output from A and writes it to W
+async fn stream<A: AsyncReadExt + Unpin, W: Write>(
+    io: &mut Option<A>,
+    mut writer: W,
+) -> io::Result<Vec<u8>> {
+    let mut output = Vec::new();
+    if let Some(io) = io.as_mut() {
+        let mut buff = [0; 1024];
+        loop {
+            let n = io.read(&mut buff).await?;
+            if n == 0 {
+                break;
+            }
+            writer.write_all(&buff[..n])?;
+            // note: flush is necessary else we get the cursor could not be found error.
+            writer.flush()?;
+            output.extend_from_slice(&buff[..n]);
+        }
+    }
+    Ok(output)
 }
 
 /// The implementation for CommandExecutorService
