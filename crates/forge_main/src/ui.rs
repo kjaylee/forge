@@ -496,7 +496,6 @@ impl<F: API> UI<F> {
                 let skin = termimad::get_default_skin();
                 let rendered_content = skin.term_text(&content);
                 CONSOLE.write(rendered_content.to_string())?;
-                
             }
             ChatResponse::ToolCallStart(_) => {
                 print!("\r{}\r", " ".repeat(100)); // Clear the line
