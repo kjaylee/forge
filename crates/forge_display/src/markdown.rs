@@ -1,7 +1,8 @@
 use derive_setters::Setters;
 use termimad::MadSkin;
 
-/// MarkdownFormat provides functionality for formatting markdown text for terminal display.
+/// MarkdownFormat provides functionality for formatting markdown text for
+/// terminal display.
 #[derive(Clone, Setters, Default)]
 #[setters(into, strip_option)]
 pub struct MarkdownFormat {
@@ -30,7 +31,8 @@ impl MarkdownFormat {
     }
 }
 
-/// Convenience function to quickly render markdown without creating a MarkdownFormat instance
+/// Convenience function to quickly render markdown without creating a
+/// MarkdownFormat instance
 ///
 /// # Arguments
 ///
@@ -69,7 +71,8 @@ mod tests {
 
         let actual = MarkdownFormat::new(fixture).skin(skin).format();
 
-        // Verify output contains ANSI color codes (we can't check exact contents due to styling)
+        // Verify output contains ANSI color codes (we can't check exact contents due to
+        // styling)
         assert!(!actual.is_empty());
     }
 }

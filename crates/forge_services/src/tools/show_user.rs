@@ -1,5 +1,5 @@
-use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName};
 use forge_display::markdown::MarkdownFormat;
+use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
