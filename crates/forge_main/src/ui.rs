@@ -121,7 +121,7 @@ impl<F: API> UI<F> {
         self.stop_spinner();
 
         // Create and start a new spinner
-        let spinner = Spinner::new(Spinners::Line, message.dimmed().to_string());
+        let spinner = Spinner::with_timer(Spinners::Line, message.dimmed().to_string());
         self.spinner = Some(spinner);
 
         Ok(())
