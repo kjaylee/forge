@@ -4,14 +4,14 @@ use std::sync::Arc;
 use anyhow::bail;
 use forge_display::TitleFormat;
 use forge_domain::{
-    Environment, EnvironmentService, ExecutableTool, NamedTool, ToolCallContext, ToolDescription,
-    ToolName,
+    CommandOutput, Environment, EnvironmentService, ExecutableTool, NamedTool, ToolCallContext,
+    ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{CommandExecutorService, CommandOutput, Infrastructure};
+use crate::{CommandExecutorService, Infrastructure};
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -113,29 +113,10 @@ mod tests {
     use std::sync::Arc;
     use std::{env, fs};
 
-    use forge_domain::Provider;
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
-
-    /// Create a default test environment
-    fn test_env() -> Environment {
-        Environment {
-            os: std::env::consts::OS.to_string(),
-            cwd: std::env::current_dir().unwrap_or_default(),
-            home: Some("/home/user".into()),
-            shell: if cfg!(windows) {
-                "cmd.exe".to_string()
-            } else {
-                "/bin/sh".to_string()
-            },
-            base_path: PathBuf::new(),
-            pid: std::process::id(),
-            provider: Provider::anthropic("test-key"),
-            retry_config: Default::default(),
-        }
-    }
 
     /// Platform-specific error message patterns for command not found errors
     #[cfg(target_os = "windows")]

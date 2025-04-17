@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{EnvironmentService, Tool};
+use forge_domain::Tool;
 
 use super::fetch::Fetch;
 use super::fs::*;
@@ -20,7 +20,6 @@ impl<F: Infrastructure> ToolRegistry<F> {
 
     /// Returns all available tools configured with the given infrastructure
     pub fn tools(&self) -> Vec<Tool> {
-        let env = self.infra.environment_service().get_environment();
         vec![
             FSRead::new(self.infra.clone()).into(),
             FSWrite::new(self.infra.clone()).into(),
@@ -42,13 +41,13 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{Environment, Provider};
+    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider};
     use forge_snaps::Snapshot;
 
     use super::*;
     use crate::{
-        CommandExecutorService, CommandOutput, FileRemoveService, FsCreateDirsService,
-        FsMetaService, FsReadService, FsSnapshotService, FsWriteService,
+        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
+        FsReadService, FsSnapshotService, FsWriteService,
     };
 
     /// Create a default test environment

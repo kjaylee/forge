@@ -65,6 +65,7 @@ impl ForgeCommandManager {
         Command::iter()
             .filter(|command| !matches!(command, Command::Message(_)))
             .filter(|command| !matches!(command, Command::Custom(_)))
+            .filter(|command| !matches!(command, Command::Shell(_)))
             .map(|command| ForgeCommand {
                 name: command.name().to_string(),
                 description: command.usage().to_string(),
@@ -151,6 +152,18 @@ impl ForgeCommandManager {
 
     pub fn parse(&self, input: &str) -> anyhow::Result<Command> {
         let trimmed = input.trim();
+
+        // Check if it's a shell command (starts with !)
+        if trimmed.starts_with("!") {
+            let command = trimmed
+                .strip_prefix("!")
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            return Ok(Command::Shell(command));
+        }
+
+        // Check if it's a system command (starts with /)
         let is_command = trimmed.starts_with("/");
         if !is_command {
             return Ok(Command::Message(trimmed.to_string()));
@@ -231,6 +244,10 @@ pub enum Command {
     Model,
     /// Handles custom command defined in workflow file.
     Custom(PartialEvent),
+    /// Executes a native shell command.
+    /// This can be triggered with commands starting with '!' character.
+    #[strum(props(usage = "Execute a native shell command"))]
+    Shell(String),
 }
 
 impl Command {
@@ -246,6 +263,7 @@ impl Command {
             Command::Dump => "/dump",
             Command::Model => "/model",
             Command::Custom(event) => &event.name,
+            Command::Shell(_) => "!shell",
         }
     }
 
@@ -395,5 +413,63 @@ mod tests {
 
         // Verify - provided value should override default
         assert_eq!(result, Some(String::from("provided_value")));
+    }
+    #[test]
+    fn test_parse_shell_command() {
+        // Setup
+        let cmd_manager = ForgeCommandManager::default();
+
+        // Execute
+        let result = cmd_manager.parse("!ls -la").unwrap();
+
+        // Verify
+        match result {
+            Command::Shell(cmd) => assert_eq!(cmd, "ls -la"),
+            _ => panic!("Expected Shell command, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_parse_shell_command_empty() {
+        // Setup
+        let cmd_manager = ForgeCommandManager::default();
+
+        // Execute
+        let result = cmd_manager.parse("!").unwrap();
+
+        // Verify
+        match result {
+            Command::Shell(cmd) => assert_eq!(cmd, ""),
+            _ => panic!("Expected Shell command, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_parse_shell_command_with_whitespace() {
+        // Setup
+        let cmd_manager = ForgeCommandManager::default();
+
+        // Execute
+        let result = cmd_manager.parse("!   echo 'test'   ").unwrap();
+
+        // Verify
+        match result {
+            Command::Shell(cmd) => assert_eq!(cmd, "echo 'test'"),
+            _ => panic!("Expected Shell command, got {:?}", result),
+        }
+    }
+
+    #[test]
+    fn test_shell_command_not_in_default_commands() {
+        // Setup
+        let manager = ForgeCommandManager::default();
+        let commands = manager.list();
+
+        // The shell command should not be included
+        let contains_shell = commands.iter().any(|cmd| cmd.name == "!shell");
+        assert!(
+            !contains_shell,
+            "Shell command should not be in default commands"
+        );
     }
 }

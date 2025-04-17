@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::EnvironmentService;
+use forge_domain::{CommandOutput, EnvironmentService};
 use forge_snaps::Snapshot;
 
 /// Repository for accessing system environment information
@@ -59,13 +59,6 @@ pub trait CommandExecutorService: Send + Sync {
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput>;
-}
-
-/// Output from a command execution
-pub struct CommandOutput {
-    pub stdout: String,
-    pub stderr: String,
-    pub success: bool,
 }
 
 pub trait Infrastructure: Send + Sync + Clone + 'static {

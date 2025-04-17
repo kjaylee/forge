@@ -1,7 +1,8 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use forge_services::{CommandExecutorService, CommandOutput};
+use forge_domain::CommandOutput;
+use forge_services::CommandExecutorService;
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 

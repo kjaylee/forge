@@ -76,7 +76,9 @@ pub mod tests {
 
     use base64::Engine;
     use bytes::Bytes;
-    use forge_domain::{AttachmentService, ContentType, Environment, EnvironmentService, Provider};
+    use forge_domain::{
+        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider,
+    };
     use forge_snaps::Snapshot;
 
     use crate::attachment::ForgeChatRequest;
@@ -244,13 +246,13 @@ pub mod tests {
             &self,
             command: String,
             working_dir: PathBuf,
-        ) -> anyhow::Result<crate::CommandOutput> {
-            // For test purposes, we'll create outputs that match what the shell tests expect
-            // Check for common command patterns
-            if command == "echo 'Hello, World!'" {  
+        ) -> anyhow::Result<CommandOutput> {
+            // For test purposes, we'll create outputs that match what the shell tests
+            // expect Check for common command patterns
+            if command == "echo 'Hello, World!'" {
                 // When the test_shell_echo looks for this specific command
                 // It's expecting to see "Mock command executed successfully"
-                return Ok(crate::CommandOutput {
+                return Ok(CommandOutput {
                     stdout: "Mock command executed successfully\n".to_string(),
                     stderr: "".to_string(),
                     success: true,
@@ -268,7 +270,7 @@ pub mod tests {
                     } else {
                         "stderr output\n"
                     };
-                    return Ok(crate::CommandOutput {
+                    return Ok(CommandOutput {
                         stdout: stdout.to_string(),
                         stderr: stderr.to_string(),
                         success: true,
@@ -277,7 +279,7 @@ pub mod tests {
                     // Command with only stderr
                     let content = command.split("echo").nth(1).unwrap_or("").trim();
                     let content = content.trim_matches(|c| c == '\'' || c == '"');
-                    return Ok(crate::CommandOutput {
+                    return Ok(CommandOutput {
                         stdout: "".to_string(),
                         stderr: format!("{content}\n"),
                         success: true,
@@ -304,7 +306,7 @@ pub mod tests {
                         }
                     };
 
-                    return Ok(crate::CommandOutput {
+                    return Ok(CommandOutput {
                         stdout: content,
                         stderr: "".to_string(),
                         success: true,
@@ -312,38 +314,38 @@ pub mod tests {
                 }
             } else if command == "pwd" || command == "cd" {
                 // Return working directory for pwd/cd commands
-                return Ok(crate::CommandOutput {
-                    stdout: format!("{working_dir}\n", working_dir=working_dir.display()),
+                return Ok(CommandOutput {
+                    stdout: format!("{working_dir}\n", working_dir = working_dir.display()),
                     stderr: "".to_string(),
                     success: true,
                 });
             } else if command == "true" {
                 // true command returns success with no output
-                return Ok(crate::CommandOutput {
+                return Ok(CommandOutput {
                     stdout: "".to_string(),
                     stderr: "".to_string(),
                     success: true,
                 });
             } else if command.starts_with("/bin/ls") || command.contains("whoami") {
                 // Full path commands
-                return Ok(crate::CommandOutput {
+                return Ok(CommandOutput {
                     stdout: "user\n".to_string(),
                     stderr: "".to_string(),
                     success: true,
                 });
             } else if command == "non_existent_command" {
                 // Command not found
-                return Ok(crate::CommandOutput {
+                return Ok(CommandOutput {
                     stdout: "".to_string(),
                     stderr: "command not found: non_existent_command\n".to_string(),
                     success: false,
                 });
             }
-            
+
             // Default response for other commands
-            Ok(crate::CommandOutput {
+            Ok(CommandOutput {
                 stdout: "Mock command executed successfully\n".to_string(),
-                stderr: "".to_string(), 
+                stderr: "".to_string(),
                 success: true,
             })
         }
