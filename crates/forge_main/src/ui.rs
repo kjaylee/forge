@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -56,7 +55,6 @@ pub struct UI<F> {
     console: Console,
     command: Arc<ForgeCommandManager>,
     cli: Cli,
-    in_progress: Arc<AtomicBool>,
     spinner: Option<Spinner>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
@@ -149,7 +147,6 @@ impl<F: API> UI<F> {
             console: Console::new(env.clone(), command.clone()),
             cli,
             command,
-            in_progress: Arc::new(AtomicBool::new(false)),
             spinner: None,
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
@@ -473,7 +470,6 @@ impl<F: API> UI<F> {
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
             ChatResponse::InProgress(status) => {
-                self.in_progress.store(status, Ordering::SeqCst);
                 if status {
                     // Show a more descriptive message for different types of processing
                     let message = "Processing...";
