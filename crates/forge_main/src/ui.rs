@@ -6,7 +6,7 @@ use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
     API,
 };
-use forge_display::TitleFormat;
+use forge_display::{render, TitleFormat};
 use forge_fs::ForgeFS;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
@@ -491,11 +491,10 @@ impl<F: API> UI<F> {
                 }
             }
             ChatResponse::Text(content) => {
-                // Apply markdown rendering with termimad
+                // Apply markdown rendering with forge_display
                 print!("\r{}\r", " ".repeat(100)); // Clear the line
-                let skin = termimad::get_default_skin();
-                let rendered_content = skin.term_text(&content);
-                CONSOLE.write(rendered_content.to_string())?;
+                let rendered_content = render(&content);
+                CONSOLE.write(rendered_content)?;
             }
             ChatResponse::ToolCallStart(_) => {
                 print!("\r{}\r", " ".repeat(100)); // Clear the line

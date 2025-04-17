@@ -1,4 +1,5 @@
 use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName};
+use forge_display::markdown::MarkdownFormat;
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -30,11 +31,9 @@ impl NamedTool for ShowUser {
 impl ExecutableTool for ShowUser {
     type Input = ShowUserInput;
     async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
-        // Use termimad to display the markdown to the terminal
-
-        let skin = termimad::get_default_skin();
-        let content = skin.term_text(&input.content);
-        context.send_text(content.to_string()).await?;
+        // Use forge_display's markdown formatter
+        let formatted_content = MarkdownFormat::new(&input.content).format();
+        context.send_text(formatted_content).await?;
 
         // Return a simple success message
         Ok("Markdown content displayed to user".to_string())
