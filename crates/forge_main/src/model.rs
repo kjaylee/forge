@@ -5,6 +5,7 @@ use strum::{EnumProperty, IntoEnumIterator};
 use strum_macros::{EnumIter, EnumProperty};
 
 use crate::info::Info;
+use crate::ui::PartialEvent;
 
 fn humanize_context_length(length: u64) -> String {
     if length >= 1_000_000 {
@@ -171,7 +172,7 @@ impl ForgeCommandManager {
                     if let Some(command) = self.find(command) {
                         let value = self.extract_command_value(&command, &parts[1..]);
 
-                        Ok(Command::Custom((
+                        Ok(Command::Custom(PartialEvent::new(
                             command.name.clone().strip_prefix('/').unwrap().to_string(),
                             value.unwrap_or_default(),
                         )))
@@ -229,7 +230,7 @@ pub enum Command {
     #[strum(props(usage = "Switch to a different model"))]
     Model,
     /// Handles custom command defined in workflow file.
-    Custom((String, String)),
+    Custom(PartialEvent),
 }
 
 impl Command {
@@ -244,7 +245,7 @@ impl Command {
             Command::Help => "/help",
             Command::Dump => "/dump",
             Command::Model => "/model",
-            Command::Custom((name, _)) => name,
+            Command::Custom(event) => &event.name,
         }
     }
 

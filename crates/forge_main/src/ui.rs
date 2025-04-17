@@ -216,7 +216,7 @@ impl<F: API> UI<F> {
                 }
 
                 Command::Custom(event) => {
-                    if let Err(e) = self.dispatch_event(Event::new(event.0, event.1)).await {
+                    if let Err(e) = self.dispatch_event(event.into()).await {
                         CONSOLE.writeln(
                             TitleFormat::failed("Failed to execute the command.")
                                 .sub_title("Command Execution")
