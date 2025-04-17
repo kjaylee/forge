@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -13,6 +14,7 @@ use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
 use serde::Deserialize;
 use serde_json::Value;
+use spinners::{Spinner, Spinners};
 use tokio_stream::StreamExt;
 use tracing::error;
 
@@ -54,6 +56,8 @@ pub struct UI<F> {
     console: Console,
     command: Arc<ForgeCommandManager>,
     cli: Cli,
+    in_progress: Arc<AtomicBool>,
+    spinner: Option<Spinner>,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
 }
@@ -113,6 +117,28 @@ impl<F: API> UI<F> {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
+    // Start the spinner with a message
+    fn start_spinner(&mut self, message: &str) -> Result<()> {
+        // Stop any existing spinner
+        self.stop_spinner();
+        
+        // Create and start a new spinner
+        let spinner = Spinner::new(Spinners::Line, message.dimmed().to_string());
+        self.spinner = Some(spinner);
+        
+        Ok(())
+    }
+    
+    // Stop the active spinner if any
+    fn stop_spinner(&mut self) {
+        // Use mut if we modify the spinner
+        if let Some(mut spinner) = self.spinner.take() {
+            // Clear the spinner
+            spinner.stop();
+            print!("\r{}\r", " ".repeat(100)); // Clear the line
+        }
+    }
+
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
         // Parse CLI arguments first to get flags
         let env = api.environment();
@@ -123,6 +149,8 @@ impl<F: API> UI<F> {
             console: Console::new(env.clone(), command.clone()),
             cli,
             command,
+            in_progress: Arc::new(AtomicBool::new(false)),
+            spinner: None,
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
     }
@@ -395,15 +423,20 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
+                    self.stop_spinner();
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
                         Some(Ok(message)) => self.handle_chat_response(message)?,
                         Some(Err(err)) => {
+                            self.stop_spinner();
                             return Err(err);
                         }
-                        None => return Ok(()),
+                        None => {
+                            self.stop_spinner();
+                            return Ok(())
+                        },
                     }
                 }
             }
@@ -439,6 +472,17 @@ impl<F: API> UI<F> {
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
+            ChatResponse::InProgress(status) => {
+                self.in_progress.store(status, Ordering::SeqCst);
+                if status {
+                // Show a more descriptive message for different types of processing
+                let message = "Processing...";
+                self.start_spinner(message)?;
+                } else {
+                    // Stop spinner when processing is done
+                    self.stop_spinner();
+                }
+            }
             ChatResponse::Text { text: content, is_complete } => {
                 if is_complete {
                     CONSOLE.writeln(content.trim())?;

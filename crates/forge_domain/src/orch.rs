@@ -156,25 +156,49 @@ impl<A: Services> Orchestrator<A> {
         })
     }
 
+    /// Helper function to filter out text within special tags
+    fn filter_special_tags(&self, text: &str) -> String {
+        // Tags to filter as defined in system prompt
+        const TAGS_TO_FILTER: &[&str] = &[
+            "thinking",
+            "analysis",
+            "action_plan",
+            "execution",
+            "verification",
+            "forge_analysis",
+            "forge_query_analysis",
+            "pr_preparation",
+            "thought_process",
+            "exploration_and_discovery",
+            "content_plan",
+            "creation",
+            "review",
+        ];
+
+        crate::text_utils::remove_tag_content(text, TAGS_TO_FILTER)
+    }
+
+    // Helper method to send InProgress status
+    async fn send_progress(&self, agent: &Agent, in_progress: bool) -> anyhow::Result<()> {
+        self.send(agent, ChatResponse::InProgress(in_progress))
+            .await
+    }
+
     async fn collect_messages(
         &self,
         agent: &Agent,
         mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
             + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
+        // Send InProgress(true) to indicate processing has started
+        self.send_progress(agent, true).await?;
+
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
 
         while let Some(message) = response.next().await {
             let message = message?;
             messages.push(message.clone());
-            if let Some(content) = message.content {
-                self.send(
-                    agent,
-                    ChatResponse::Text { text: content.as_str().to_string(), is_complete: false },
-                )
-                .await?;
-            }
 
             if let Some(usage) = message.usage {
                 request_usage = Some(usage.clone());
@@ -189,6 +213,19 @@ impl<A: Services> Orchestrator<A> {
             .map(|content| content.as_str())
             .collect::<Vec<_>>()
             .join("");
+
+        // Send InProgress(false) to indicate processing is complete
+        self.send_progress(agent, false).await?;
+
+        let filtered_content = self.filter_special_tags(&content);
+        self.send(
+            agent,
+            ChatResponse::Text {
+                text: filtered_content.as_str().to_string(),
+                is_complete: true,
+            },
+        )
+        .await?;
 
         // From Complete (incase streaming is disabled)
         let mut tool_calls: Vec<ToolCallFull> = messages
@@ -213,7 +250,7 @@ impl<A: Services> Orchestrator<A> {
         // From XML
         tool_calls.extend(ToolCallFull::try_from_xml(&content)?);
 
-        Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
+        Ok(ChatCompletionResult { content: filtered_content, tool_calls, usage: request_usage })
     }
 
     pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
