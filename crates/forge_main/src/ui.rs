@@ -205,6 +205,9 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Message(ref content) => {
+                    // Show a more descriptive message for different types of processing
+                    let message = "Thinking...";
+                    self.start_spinner(message)?;
                     let chat_result = match self.state.mode {
                         Mode::Help => {
                             self.dispatch_event(Self::create_user_help_query_event(content.clone()))
@@ -480,21 +483,12 @@ impl<F: API> UI<F> {
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
-            ChatResponse::InProgress(status) => {
-                if status {
-                    // Show a more descriptive message for different types of processing
-                    let message = "Thinking...";
-                    self.start_spinner(message)?;
-                } else {
-                    // Stop spinner when processing is done
-                    self.stop_spinner();
+            ChatResponse::Text { text: content, is_complete } => {
+                if is_complete {
+                    CONSOLE.writeln(format!("\r{}\r", " ".repeat(50)))?; // Clear the line
+                    let rendered_content = render(content.trim());
+                    CONSOLE.writeln(rendered_content)?;
                 }
-            }
-            ChatResponse::Text(content) => {
-                // Apply markdown rendering with forge_display
-                print!("\r{}\r", " ".repeat(100)); // Clear the line
-                let rendered_content = render(&content);
-                CONSOLE.write(rendered_content)?;
             }
             ChatResponse::ToolCallStart(_) => {
                 print!("\r{}\r", " ".repeat(100)); // Clear the line

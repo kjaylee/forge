@@ -178,12 +178,6 @@ impl<A: Services> Orchestrator<A> {
         crate::text_utils::remove_tag_content(text, TAGS_TO_FILTER)
     }
 
-    // Helper method to send InProgress status
-    async fn send_progress(&self, agent: &Agent, in_progress: bool) -> anyhow::Result<()> {
-        self.send(agent, ChatResponse::InProgress(in_progress))
-            .await
-    }
-
     async fn collect_messages(
         &self,
         agent: &Agent,
@@ -196,6 +190,13 @@ impl<A: Services> Orchestrator<A> {
         while let Some(message) = response.next().await {
             let message = message?;
             messages.push(message.clone());
+            if let Some(content) = message.content {
+                self.send(
+                    agent,
+                    ChatResponse::Text { text: content.as_str().to_string(), is_complete: false },
+                )
+                .await?;
+            }
 
             if let Some(usage) = message.usage {
                 request_usage = Some(usage.clone());
@@ -214,7 +215,10 @@ impl<A: Services> Orchestrator<A> {
         let filtered_content = self.filter_special_tags(&content);
         self.send(
             agent,
-            ChatResponse::Text(filtered_content.as_str().to_string()),
+            ChatResponse::Text {
+                text: filtered_content.as_str().to_string(),
+                is_complete: true,
+            },
         )
         .await?;
 
@@ -385,12 +389,9 @@ impl<A: Services> Orchestrator<A> {
         }
 
         self.set_context(&agent.id, context.clone()).await?;
-        // Send InProgress(true) to indicate processing has started
-        self.send_progress(agent, true).await?;
         loop {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
-
             // Determine which model to use - prefer workflow model if available, fallback
             // to agent model
             let model_id = agent
@@ -427,8 +428,6 @@ impl<A: Services> Orchestrator<A> {
             self.sync_conversation().await?;
 
             if tool_results.is_empty() {
-                // Send InProgress(false) to indicate processing is complete
-                self.send_progress(agent, false).await?;
                 break;
             }
         }
