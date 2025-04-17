@@ -190,9 +190,6 @@ impl<A: Services> Orchestrator<A> {
         mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
             + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
-        // Send InProgress(true) to indicate processing has started
-        self.send_progress(agent, true).await?;
-
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
 
@@ -213,9 +210,6 @@ impl<A: Services> Orchestrator<A> {
             .map(|content| content.as_str())
             .collect::<Vec<_>>()
             .join("");
-
-        // Send InProgress(false) to indicate processing is complete
-        self.send_progress(agent, false).await?;
 
         let filtered_content = self.filter_special_tags(&content);
         self.send(
@@ -391,7 +385,8 @@ impl<A: Services> Orchestrator<A> {
         }
 
         self.set_context(&agent.id, context.clone()).await?;
-
+        // Send InProgress(true) to indicate processing has started
+        self.send_progress(agent, true).await?;
         loop {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
@@ -432,6 +427,8 @@ impl<A: Services> Orchestrator<A> {
             self.sync_conversation().await?;
 
             if tool_results.is_empty() {
+                // Send InProgress(false) to indicate processing is complete
+                self.send_progress(agent, false).await?;
                 break;
             }
         }
