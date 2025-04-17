@@ -1,5 +1,6 @@
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Stdio};
 
 use forge_services::{CommandExecutorService, CommandOutput};
 
@@ -40,14 +41,6 @@ impl ForgeCommandExecutorService {
         command
     }
 
-    fn process_output(&self, output: Output) -> CommandOutput {
-        CommandOutput {
-            stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-            success: output.status.success(),
-        }
-    }
-
     fn prepare_command(&self, command_str: &str, working_dir: &Path) -> Command {
         // Create a basic command
         let mut command = self.create_command(command_str);
@@ -63,6 +56,69 @@ impl ForgeCommandExecutorService {
 
         command
     }
+
+    /// Internal method to execute commands with streaming to console
+    fn execute_command_internal(
+        &self,
+        command: String,
+        working_dir: &Path,
+        color_env_vars: Option<Vec<(String, String)>>,
+    ) -> anyhow::Result<CommandOutput> {
+        let mut cmd = self.prepare_command(&command, working_dir);
+        
+        // Add any additional color environment variables
+        if let Some(vars) = color_env_vars {
+            for (key, value) in vars {
+                cmd.env(key, value);
+            }
+        }
+
+        // Stream output to console while capturing it
+        let mut child = cmd.spawn()?;
+        
+        // Use separate buffers for stdout and stderr
+        let mut stdout_buffer = Vec::new();
+        let mut stderr_buffer = Vec::new();
+        
+        // Read from stdout and write to console
+        if let Some(mut stdout) = child.stdout.take() {
+            let mut buffer = [0; 1024];
+            while let Ok(n) = stdout.read(&mut buffer) {
+                if n == 0 { break; }
+                
+                // Write to console
+                io::stdout().write_all(&buffer[..n])?;
+                io::stdout().flush()?;
+                
+                // Store for return value
+                stdout_buffer.extend_from_slice(&buffer[..n]);
+            }
+        }
+        
+        // Read from stderr and write to console
+        if let Some(mut stderr) = child.stderr.take() {
+            let mut buffer = [0; 1024];
+            while let Ok(n) = stderr.read(&mut buffer) {
+                if n == 0 { break; }
+                
+                // Write to console
+                io::stderr().write_all(&buffer[..n])?;
+                io::stderr().flush()?;
+                
+                // Store for return value
+                stderr_buffer.extend_from_slice(&buffer[..n]);
+            }
+        }
+        
+        // Wait for the process to complete
+        let status = child.wait()?;
+        
+        Ok(CommandOutput {
+            stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
+            stderr: String::from_utf8_lossy(&stderr_buffer).into_owned(),
+            success: status.success(),
+        })
+    }
 }
 
 /// The implementation for CommandExecutorService
@@ -72,13 +128,7 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        let working_dir_path = Path::new(&working_dir);
-        let mut cmd = self.prepare_command(&command, working_dir_path);
-
-        // Execute the command synchronously
-        let output = cmd.output()?;
-
-        Ok(self.process_output(output))
+        self.execute_command_internal(command, &working_dir, None)
     }
 
     fn execute_command_with_color(
@@ -87,18 +137,7 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         working_dir: String,
         color_env_vars: Vec<(String, String)>,
     ) -> anyhow::Result<CommandOutput> {
-        let working_dir_path = Path::new(&working_dir);
-        let mut cmd = self.prepare_command(&command, working_dir_path);
-
-        // Add all color-related environment variables
-        for (key, value) in color_env_vars {
-            cmd.env(key, value);
-        }
-
-        // Execute the command synchronously
-        let output = cmd.output()?;
-
-        Ok(self.process_output(output))
+        self.execute_command_internal(command, Path::new(&working_dir), Some(color_env_vars))
     }
 }
 

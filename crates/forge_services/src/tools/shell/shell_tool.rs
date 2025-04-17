@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::bail;
+use forge_display::TitleFormat;
 use forge_domain::{
     Environment, EnvironmentService, ExecutableTool, NamedTool, ToolCallContext, ToolDescription,
     ToolName,
@@ -87,11 +88,15 @@ impl<I> NamedTool for Shell<I> {
 impl<I: Infrastructure> ExecutableTool for Shell<I> {
     type Input = ShellInput;
 
-    async fn call(&self, _: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());
         }
+        let title_format = TitleFormat::execute(&input.command)
+            .sub_title(format!("(using {})", self.env.shell.as_str()));
+
+        context.send_text(title_format.format()).await?;
 
         let output = self
             .infra
@@ -234,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -279,12 +284,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_description() {
-        assert!(Shell::new(test_env()).description().len() > 100)
+        assert!(
+            Shell::new(Arc::new(MockInfrastructure::new()))
+                .description()
+                .len()
+                > 100
+        )
     }
 
     #[tokio::test]
     async fn test_shell_pwd() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let current_dir = env::current_dir().unwrap();
         let result = shell
             .call(
@@ -309,7 +319,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_multiple_commands() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -325,7 +335,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_output() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -343,7 +353,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_whitespace_only_output() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -361,7 +371,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -379,7 +389,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_full_path_command() {
-        let shell = Shell::new(test_env());
+        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
         // Using a full path command which would be restricted in rbash
         let cmd = if cfg!(target_os = "windows") {
             r"C:\Windows\System32\whoami.exe"
