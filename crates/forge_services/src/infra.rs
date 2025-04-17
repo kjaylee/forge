@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
@@ -50,6 +50,31 @@ pub trait FsSnapshotService: Send + Sync {
     async fn undo_snapshot(&self, file_path: &Path) -> Result<()>;
 }
 
+/// Service for executing shell commands
+pub trait CommandExecutorService: Send + Sync {
+    /// Executes a shell command and returns the output
+    fn execute_command(
+        &self,
+        command: String,
+        working_dir: PathBuf,
+    ) -> anyhow::Result<CommandOutput>;
+
+    /// Executes a shell command with colored output and returns the result
+    fn execute_command_with_color(
+        &self,
+        command: String,
+        working_dir: String,
+        color_env_vars: Vec<(String, String)>,
+    ) -> anyhow::Result<CommandOutput>;
+}
+
+/// Output from a command execution
+pub struct CommandOutput {
+    pub stdout: String,
+    pub stderr: String,
+    pub success: bool,
+}
+
 pub trait Infrastructure: Send + Sync + Clone + 'static {
     type EnvironmentService: EnvironmentService;
     type FsMetaService: FsMetaService;
@@ -58,6 +83,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     type FsSnapshotService: FsSnapshotService;
     type FsWriteService: FsWriteService;
     type FsCreateDirsService: FsCreateDirsService;
+    type CommandExecutorService: CommandExecutorService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FsMetaService;
@@ -66,4 +92,5 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn file_snapshot_service(&self) -> &Self::FsSnapshotService;
     fn file_write_service(&self) -> &Self::FsWriteService;
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
+    fn command_executor_service(&self) -> &Self::CommandExecutorService;
 }

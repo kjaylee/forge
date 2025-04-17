@@ -30,7 +30,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             FSFileInfo.into(),
             FsUndo::new(self.infra.clone()).into(),
             ApplyPatchJson::new(self.infra.clone()).into(),
-            Shell::new(env.clone()).into(),
+            Shell::new(self.infra.clone()).into(),
             Fetch::default().into(),
             ShowUser.into(),
         ]
@@ -47,8 +47,8 @@ pub mod tests {
 
     use super::*;
     use crate::{
-        FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
-        FsWriteService,
+        CommandExecutorService, CommandOutput, FileRemoveService, FsCreateDirsService,
+        FsMetaService, FsReadService, FsSnapshotService, FsWriteService,
     };
 
     /// Create a default test environment
@@ -139,6 +139,21 @@ pub mod tests {
         }
     }
 
+    impl CommandExecutorService for Stub {
+        fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<CommandOutput> {
+            unimplemented!()
+        }
+
+        fn execute_command_with_color(
+            &self,
+            _: String,
+            _: String,
+            _: Vec<(String, String)>,
+        ) -> anyhow::Result<CommandOutput> {
+            unimplemented!()
+        }
+    }
+
     #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
@@ -148,6 +163,7 @@ pub mod tests {
         type FsMetaService = Stub;
         type FsSnapshotService = Stub;
         type FsCreateDirsService = Stub;
+        type CommandExecutorService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -174,6 +190,10 @@ pub mod tests {
         }
 
         fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+            self
+        }
+
+        fn command_executor_service(&self) -> &Self::CommandExecutorService {
             self
         }
     }

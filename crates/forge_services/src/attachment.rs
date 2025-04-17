@@ -81,8 +81,8 @@ pub mod tests {
 
     use crate::attachment::ForgeChatRequest;
     use crate::{
-        FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
-        FsWriteService, Infrastructure,
+        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
+        FsReadService, FsSnapshotService, FsWriteService, Infrastructure,
     };
 
     #[derive(Debug)]
@@ -238,6 +238,21 @@ pub mod tests {
         }
     }
 
+    impl CommandExecutorService for () {
+        fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<crate::CommandOutput> {
+            unimplemented!()
+        }
+
+        fn execute_command_with_color(
+            &self,
+            _: String,
+            _: String,
+            _: Vec<(String, String)>,
+        ) -> anyhow::Result<crate::CommandOutput> {
+            unimplemented!()
+        }
+    }
+
     impl Infrastructure for MockInfrastructure {
         type EnvironmentService = MockEnvironmentService;
         type FsReadService = MockFileService;
@@ -246,6 +261,7 @@ pub mod tests {
         type FsMetaService = MockFileService;
         type FsCreateDirsService = MockFileService;
         type FsSnapshotService = MockSnapService;
+        type CommandExecutorService = ();
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -273,6 +289,10 @@ pub mod tests {
 
         fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
             &self.file_service
+        }
+
+        fn command_executor_service(&self) -> &Self::CommandExecutorService {
+            &()
         }
     }
 

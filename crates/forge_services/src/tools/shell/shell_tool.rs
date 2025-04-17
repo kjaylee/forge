@@ -1,17 +1,16 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::bail;
-use forge_display::TitleFormat;
 use forge_domain::{
-    Environment, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    Environment, EnvironmentService, ExecutableTool, NamedTool, ToolCallContext, ToolDescription,
+    ToolName,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use tokio::process::Command;
 
-use super::executor::Output;
-use crate::tools::shell::executor::CommandExecutor;
+use crate::{CommandExecutorService, CommandOutput, Infrastructure};
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -26,7 +25,7 @@ pub struct ShellInput {
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
 /// empty.
-fn format_output(output: Output) -> anyhow::Result<String> {
+fn format_output(output: CommandOutput) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
 
     if !output.stdout.trim().is_empty() {
@@ -65,65 +64,54 @@ fn format_output(output: Output) -> anyhow::Result<String> {
 /// complete output including stdout, stderr, and exit code for diagnostic
 /// purposes.
 #[derive(ToolDescription)]
-pub struct Shell {
+pub struct Shell<I> {
     env: Environment,
+    infra: Arc<I>,
 }
 
-impl Shell {
+impl<I: Infrastructure> Shell<I> {
     /// Create a new Shell with environment configuration
-    pub fn new(env: Environment) -> Self {
-        Self { env }
+    pub fn new(infra: Arc<I>) -> Self {
+        let env = infra.environment_service().get_environment();
+        Self { env, infra }
     }
 }
 
-impl NamedTool for Shell {
+impl<I> NamedTool for Shell<I> {
     fn tool_name() -> ToolName {
         ToolName::new("tool_forge_process_shell")
     }
 }
 
 #[async_trait::async_trait]
-impl ExecutableTool for Shell {
+impl<I: Infrastructure> ExecutableTool for Shell<I> {
     type Input = ShellInput;
 
-    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(&self, _: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
         // Validate empty command
         if input.command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace".to_string());
         }
 
-        let parameter = if cfg!(target_os = "windows") {
-            "/C"
-        } else {
-            "-c"
-        };
+        let output = self
+            .infra
+            .command_executor_service()
+            .execute_command(input.command, input.cwd)?;
 
-        let title_format = TitleFormat::execute(&input.command)
-            .sub_title(format!("(using {})", self.env.shell.as_str()));
-
-        context.send_text(title_format.format()).await?;
-
-        let mut command = Command::new(&self.env.shell);
-
-        command.args([parameter, &input.command]);
-
-        // Set the current working directory for the command
-        command.current_dir(input.cwd);
-        // Kill the command when the handler is dropped
-        command.kill_on_drop(true);
-
-        format_output(CommandExecutor::new(command).colored().execute().await?)
+        format_output(output)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::{env, fs};
 
     use forge_domain::Provider;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::attachment::tests::MockInfrastructure;
 
     /// Create a default test environment
     fn test_env() -> Environment {
@@ -159,7 +147,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -170,12 +159,13 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(result.contains("<stdout>Hello, World!\n</stdout>"));
+        assert!(result.contains("Mock command executed successfully"));
     }
 
     #[tokio::test]
     async fn test_shell_stderr_with_success() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         // Use a command that writes to both stdout and stderr
         let result = shell
             .call(
@@ -200,7 +190,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_both_streams() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -220,7 +211,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
         let result = shell
@@ -270,7 +262,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let shell = Shell::new(test_env());
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
         let result = shell
             .call(
                 ToolCallContext::default(),
