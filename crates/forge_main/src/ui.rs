@@ -11,6 +11,7 @@ use forge_fs::ForgeFS;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
+use rand::seq::SliceRandom;
 use serde::Deserialize;
 use serde_json::Value;
 use spinners::{Spinner, Spinners};
@@ -121,7 +122,7 @@ impl<F: API> UI<F> {
         self.stop_spinner();
 
         // Create and start a new spinner
-        let spinner = Spinner::with_timer(Spinners::Line, message.dimmed().to_string());
+        let spinner = Spinner::new(Spinners::Dots8, message.green().bold().to_string());
         self.spinner = Some(spinner);
 
         Ok(())
@@ -224,8 +225,32 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Message(ref content) => {
-                    // Show a more descriptive message for different types of processing
-                    let message = "Thinking...";
+                    let words = vec![
+                        "Processing",
+                        "Analyzing",
+                        "Computing",
+                        "Synthesizing",
+                        "Contemplating",
+                        "Deliberating",
+                        "Pondering",
+                        "Formulating",
+                        "Evaluating",
+                        "Investigating",
+                        "Deciphering",
+                        "Considering",
+                        "Assimilating",
+                        "Integrating",
+                        "Brainstorming",
+                        "Calculating",
+                        "Interpreting",
+                        "Ruminating",
+                        "Reasoning",
+                        "Cogitating",
+                    ];
+
+                    // Use a random word from the list followed by ...
+                    let message = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
+
                     self.start_spinner(message)?;
                     let chat_result = match self.state.mode {
                         Mode::Help => {
