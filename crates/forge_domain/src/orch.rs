@@ -16,7 +16,22 @@ use crate::services::Services;
 use crate::*;
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
-
+// Tags to filter as defined in system prompt
+const TAGS_TO_FILTER: &[&str] = &[
+    "thinking",
+    "analysis",
+    "action_plan",
+    "execution",
+    "verification",
+    "forge_analysis",
+    "forge_query_analysis",
+    "pr_preparation",
+    "thought_process",
+    "exploration_and_discovery",
+    "content_plan",
+    "creation",
+    "review",
+];
 #[derive(Debug, Clone)]
 pub struct AgentMessage<T> {
     pub agent: AgentId,
@@ -153,28 +168,6 @@ impl<A: Services> Orchestrator<A> {
         })
     }
 
-    /// Helper function to filter out text within special tags
-    fn filter_special_tags(&self, text: &str) -> String {
-        // Tags to filter as defined in system prompt
-        const TAGS_TO_FILTER: &[&str] = &[
-            "thinking",
-            "analysis",
-            "action_plan",
-            "execution",
-            "verification",
-            "forge_analysis",
-            "forge_query_analysis",
-            "pr_preparation",
-            "thought_process",
-            "exploration_and_discovery",
-            "content_plan",
-            "creation",
-            "review",
-        ];
-
-        crate::text_utils::remove_tag_content(text, TAGS_TO_FILTER)
-    }
-
     async fn collect_messages(
         &self,
         agent: &Agent,
@@ -209,7 +202,7 @@ impl<A: Services> Orchestrator<A> {
             .collect::<Vec<_>>()
             .join("");
 
-        let filtered_content = self.filter_special_tags(&content);
+        let filtered_content = crate::text_utils::remove_tag_content(&content, TAGS_TO_FILTER);
         self.send(
             agent,
             ChatResponse::Text {
