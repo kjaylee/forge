@@ -35,7 +35,6 @@ pub fn extract_tag_content<'a>(text: &'a str, tag_name: &str) -> Option<&'a str>
 }
 
 /// Removes content within specific XML-style tags from text
-
 pub fn remove_tag_content(text: &str, tag_names: &[&str]) -> String {
     let mut result = text.to_string();
 
