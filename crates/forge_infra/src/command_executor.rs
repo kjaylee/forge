@@ -1,6 +1,8 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+
+use tokio::io::AsyncReadExt;
+use tokio::process::Command;
 
 use forge_services::{CommandExecutorService, CommandOutput};
 
@@ -50,15 +52,15 @@ impl ForgeCommandExecutorService {
 
         // Configure the command for output
         command
-            .stdin(Stdio::inherit())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
 
         command
     }
 
     /// Internal method to execute commands with streaming to console
-    fn execute_command_internal(
+    async fn execute_command_internal(
         &self,
         command: String,
         working_dir: &Path,
@@ -73,18 +75,22 @@ impl ForgeCommandExecutorService {
             }
         }
 
-        // Stream output to console while capturing it
+        // Spawn the command
         let mut child = cmd.spawn()?;
         
-        // Use separate buffers for stdout and stderr
-        let mut stdout_buffer = Vec::new();
-        let mut stderr_buffer = Vec::new();
+        let stdout_option = child.stdout.take();
+        let stderr_option = child.stderr.take();
         
-        // Read from stdout and write to console
-        if let Some(mut stdout) = child.stdout.take() {
+        // Handle stdout
+        let mut stdout_buffer = Vec::new();
+        if let Some(mut stdout) = stdout_option {
             let mut buffer = [0; 1024];
-            while let Ok(n) = stdout.read(&mut buffer) {
-                if n == 0 { break; }
+            loop {
+                let n = match stdout.read(&mut buffer).await {
+                    Ok(0) => break, // EOF
+                    Ok(n) => n,
+                    Err(e) => return Err(e.into()),
+                };
                 
                 // Write to console
                 io::stdout().write_all(&buffer[..n])?;
@@ -95,11 +101,16 @@ impl ForgeCommandExecutorService {
             }
         }
         
-        // Read from stderr and write to console
-        if let Some(mut stderr) = child.stderr.take() {
+        // Handle stderr
+        let mut stderr_buffer = Vec::new();
+        if let Some(mut stderr) = stderr_option {
             let mut buffer = [0; 1024];
-            while let Ok(n) = stderr.read(&mut buffer) {
-                if n == 0 { break; }
+            loop {
+                let n = match stderr.read(&mut buffer).await {
+                    Ok(0) => break, // EOF
+                    Ok(n) => n,
+                    Err(e) => return Err(e.into()),
+                };
                 
                 // Write to console
                 io::stderr().write_all(&buffer[..n])?;
@@ -111,7 +122,7 @@ impl ForgeCommandExecutorService {
         }
         
         // Wait for the process to complete
-        let status = child.wait()?;
+        let status = child.wait().await?;
         
         Ok(CommandOutput {
             stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
@@ -122,22 +133,23 @@ impl ForgeCommandExecutorService {
 }
 
 /// The implementation for CommandExecutorService
+#[async_trait::async_trait]
 impl CommandExecutorService for ForgeCommandExecutorService {
-    fn execute_command(
+    async fn execute_command(
         &self,
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        self.execute_command_internal(command, &working_dir, None)
+        self.execute_command_internal(command, &working_dir, None).await
     }
 
-    fn execute_command_with_color(
+    async fn execute_command_with_color(
         &self,
         command: String,
         working_dir: String,
         color_env_vars: Vec<(String, String)>,
     ) -> anyhow::Result<CommandOutput> {
-        self.execute_command_internal(command, Path::new(&working_dir), Some(color_env_vars))
+        self.execute_command_internal(command, Path::new(&working_dir), Some(color_env_vars)).await
     }
 }
 
@@ -147,15 +159,17 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_command_executor() {
+    #[tokio::test]
+    async fn test_command_executor() {
         let fixture = ForgeCommandExecutorService::new(false);
         let cmd = "echo 'hello world'";
         let dir = ".";
 
         let actual = fixture
             .execute_command(cmd.to_string(), PathBuf::new().join(dir))
+            .await
             .unwrap();
+                
         let expected = CommandOutput {
             stdout: "hello world\n".to_string(),
             stderr: "".to_string(),

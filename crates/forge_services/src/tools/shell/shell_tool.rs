@@ -101,7 +101,8 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
         let output = self
             .infra
             .command_executor_service()
-            .execute_command(input.command, input.cwd)?;
+            .execute_command(input.command, input.cwd)
+            .await?;
 
         format_output(output)
     }

@@ -51,16 +51,17 @@ pub trait FsSnapshotService: Send + Sync {
 }
 
 /// Service for executing shell commands
+#[async_trait::async_trait]
 pub trait CommandExecutorService: Send + Sync {
     /// Executes a shell command and returns the output
-    fn execute_command(
+    async fn execute_command(
         &self,
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput>;
 
     /// Executes a shell command with colored output and returns the result
-    fn execute_command_with_color(
+    async fn execute_command_with_color(
         &self,
         command: String,
         working_dir: String,
