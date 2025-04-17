@@ -25,16 +25,36 @@ npx @antinomyhq/forge
 
 This method works on **Windows**, **macOS**, and **Linux**, providing a consistent installation experience across all platforms.
 
-## 🔌 Provider Configuration
+## 🔥 Getting Started
 
-Forge requires two configuration files in your project directory:
+Getting started with Forge is simple and requires just one API key. We recommend using OpenRouter as it provides access to a wide range of models without the need for additional configuration.
 
-1. A `.env` file with your API credentials
-2. A `forge.yaml` file specifying additional settings
+### Quick Setup with OpenRouter
 
-Below are setup instructions for each supported provider:
+1. Sign up for an account at [OpenRouter](https://openrouter.ai/)
+2. Get your API key from the dashboard
+3. Create a `.env` file in your project directory with:
 
-### OpenRouter (Recommended)
+   ```bash
+   # .env
+   OPENROUTER_API_KEY=<your_openrouter_api_key>
+   ```
+
+4. Run Forge in your terminal:
+
+   ```bash
+   forge
+   ```
+
+That's it! Forge is now ready to assist you with your development tasks. For more advanced configuration options, including other providers, see the [Advanced Configuration](#-advanced-configuration) section below.
+
+## 🛠️ Advanced Configuration
+
+### Provider Configuration
+
+Forge supports multiple AI providers. Below are setup instructions for each supported provider:
+
+#### OpenRouter (Recommended)
 
 ```bash
 # .env
@@ -43,7 +63,7 @@ OPENROUTER_API_KEY=<your_openrouter_api_key>
 
 _No changes in `forge.yaml` is required_
 
-### OpenAI
+#### OpenAI
 
 ```bash
 # .env
@@ -55,7 +75,7 @@ OPENAI_API_KEY=<your_openai_api_key>
 model: o3-mini-high
 ```
 
-### Anthropic
+#### Anthropic
 
 ```bash
 # .env
@@ -67,7 +87,7 @@ ANTHROPIC_API_KEY=<your_anthropic_api_key>
 model: claude-3.7-sonnet
 ```
 
-### Google Vertex AI
+#### Google Vertex AI
 
 ```bash
 # .env
@@ -82,7 +102,7 @@ OPENAI_URL=https://${LOCATION}-aiplatform.googleapis.com/v1beta1/projects/${PROJ
 model: publishers/anthropic/models/claude-3-7-sonnet
 ```
 
-### OpenAI-Compatible Providers
+#### OpenAI-Compatible Providers
 
 ```bash
 # .env
@@ -95,7 +115,7 @@ OPENAI_URL=<your_provider_url>
 model: <provider-specific-model>
 ```
 
-### Amazon Bedrock
+#### Amazon Bedrock
 
 To use Amazon Bedrock models with Forge, you'll need to first set up the [Bedrock Access Gateway](https://github.com/aws-samples/bedrock-access-gateway):
 
@@ -119,7 +139,9 @@ To use Amazon Bedrock models with Forge, you'll need to first set up the [Bedroc
    model: anthropic.claude-3-opus
    ```
 
-### Advanced Configuration Options
+### forge.yaml Configuration Options
+
+The `forge.yaml` file supports several advanced configuration options that let you customize Forge's behavior. Here's a comprehensive list of available fields:
 
 #### `custom_rules`
 
@@ -132,8 +154,6 @@ custom_rules: |
   2. Include unit tests for all new functions.
   3. Follow our team's naming convention: camelCase for variables, PascalCase for classes.
 ```
-
-The `forge.yaml` file supports several advanced configuration options that let you customize Forge's behavior. Here's a comprehensive list of available fields:
 
 #### `commands`
 
@@ -173,10 +193,6 @@ Adjust the creativity and randomness in AI responses. Lower values (0.0-0.3) pro
 # forge.yaml
 temperature: 0.7 # Balanced creativity and focus
 ```
-
-## 📚 Documentation
-
-For comprehensive documentation on all features and capabilities, please visit the [documentation site](https://github.com/antinomyhq/forge/tree/main/docs).
 
 ## 🤝 Community
 
