@@ -1,5 +1,5 @@
 use derive_setters::Setters;
-use termimad::MadSkin;
+use termimad::{gray, CompoundStyle, LineStyle, MadSkin};
 
 /// MarkdownFormat provides functionality for formatting markdown text for
 /// terminal display.
@@ -25,7 +25,10 @@ impl MarkdownFormat {
     /// This method applies the specified skin (or default if none)
     /// to format the markdown content for terminal output.
     pub fn format(&self) -> String {
-        let skin = MadSkin::default();
+        let mut skin = MadSkin::default();
+        let compound_style = CompoundStyle::new(Some(gray(17)), None, Default::default());
+        skin.inline_code = compound_style.clone();
+        skin.code_block = LineStyle::new(compound_style, Default::default());
         let skin = self.skin.as_ref().unwrap_or(&skin);
         skin.term_text(&self.content).to_string()
     }
