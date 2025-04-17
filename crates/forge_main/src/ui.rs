@@ -121,14 +121,14 @@ impl<F: API> UI<F> {
     fn start_spinner(&mut self, message: &str) -> Result<()> {
         // Stop any existing spinner
         self.stop_spinner();
-        
+
         // Create and start a new spinner
         let spinner = Spinner::new(Spinners::Line, message.dimmed().to_string());
         self.spinner = Some(spinner);
-        
+
         Ok(())
     }
-    
+
     // Stop the active spinner if any
     fn stop_spinner(&mut self) {
         // Use mut if we modify the spinner
@@ -475,9 +475,9 @@ impl<F: API> UI<F> {
             ChatResponse::InProgress(status) => {
                 self.in_progress.store(status, Ordering::SeqCst);
                 if status {
-                // Show a more descriptive message for different types of processing
-                let message = "Processing...";
-                self.start_spinner(message)?;
+                    // Show a more descriptive message for different types of processing
+                    let message = "Processing...";
+                    self.start_spinner(message)?;
                 } else {
                     // Stop spinner when processing is done
                     self.stop_spinner();
