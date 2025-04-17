@@ -13,6 +13,7 @@ forge_tracker.workspace = true
 forge_snaps.workspace = true
 inquire.workspace = true
 serde_yml.workspace = true
+termimad.workspace = true
 
 
 forge_fs.workspace = true

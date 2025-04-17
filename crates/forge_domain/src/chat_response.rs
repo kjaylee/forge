@@ -8,7 +8,7 @@ use crate::{Event, ToolCallFull, ToolResult, Usage};
 #[serde(rename_all = "camelCase")]
 pub enum ChatResponse {
     InProgress(bool),
-    Text { text: String, is_complete: bool },
+    Text(String),
     ToolCallStart(ToolCallFull),
     ToolCallEnd(ToolResult),
     Usage(Usage),

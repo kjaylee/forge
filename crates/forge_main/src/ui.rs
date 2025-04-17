@@ -472,19 +472,18 @@ impl<F: API> UI<F> {
             ChatResponse::InProgress(status) => {
                 if status {
                     // Show a more descriptive message for different types of processing
-                    let message = "Processing...";
+                    let message = "Thinking...";
                     self.start_spinner(message)?;
                 } else {
                     // Stop spinner when processing is done
                     self.stop_spinner();
                 }
             }
-            ChatResponse::Text { text: content, is_complete } => {
-                if is_complete {
-                    CONSOLE.writeln(content.trim())?;
-                } else {
-                    CONSOLE.write(content.dimmed().to_string())?;
-                }
+            ChatResponse::Text(content) => {
+                // Apply markdown rendering with termimad
+                let skin = termimad::get_default_skin();
+                let rendered_content = skin.term_text(&content);
+                CONSOLE.write(rendered_content.to_string())?;
             }
             ChatResponse::ToolCallStart(_) => {
                 CONSOLE.newline()?;

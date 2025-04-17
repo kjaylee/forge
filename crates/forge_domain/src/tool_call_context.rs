@@ -30,7 +30,7 @@ impl ToolCallContext {
         if let Some(agent_id) = &self.agent_id {
             self.send(AgentMessage::new(
                 agent_id.clone(),
-                ChatResponse::Text { text: content.as_str().to_string(), is_complete: true },
+                ChatResponse::Text(content.as_str().to_string()),
             ))
             .await
         } else {

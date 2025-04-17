@@ -220,10 +220,7 @@ impl<A: Services> Orchestrator<A> {
         let filtered_content = self.filter_special_tags(&content);
         self.send(
             agent,
-            ChatResponse::Text {
-                text: filtered_content.as_str().to_string(),
-                is_complete: true,
-            },
+            ChatResponse::Text(filtered_content.as_str().to_string()),
         )
         .await?;
 
