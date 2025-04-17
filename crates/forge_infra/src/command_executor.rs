@@ -1,10 +1,9 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+use forge_services::{CommandExecutorService, CommandOutput};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
-
-use forge_services::{CommandExecutorService, CommandOutput};
 
 /// Service for executing shell commands
 #[derive(Clone, Debug)]
@@ -67,7 +66,7 @@ impl ForgeCommandExecutorService {
         color_env_vars: Option<Vec<(String, String)>>,
     ) -> anyhow::Result<CommandOutput> {
         let mut cmd = self.prepare_command(&command, working_dir);
-        
+
         // Add any additional color environment variables
         if let Some(vars) = color_env_vars {
             for (key, value) in vars {
@@ -77,10 +76,10 @@ impl ForgeCommandExecutorService {
 
         // Spawn the command
         let mut child = cmd.spawn()?;
-        
+
         let stdout_option = child.stdout.take();
         let stderr_option = child.stderr.take();
-        
+
         // Handle stdout
         let mut stdout_buffer = Vec::new();
         if let Some(mut stdout) = stdout_option {
@@ -91,16 +90,16 @@ impl ForgeCommandExecutorService {
                     Ok(n) => n,
                     Err(e) => return Err(e.into()),
                 };
-                
+
                 // Write to console
                 io::stdout().write_all(&buffer[..n])?;
                 io::stdout().flush()?;
-                
+
                 // Store for return value
                 stdout_buffer.extend_from_slice(&buffer[..n]);
             }
         }
-        
+
         // Handle stderr
         let mut stderr_buffer = Vec::new();
         if let Some(mut stderr) = stderr_option {
@@ -111,19 +110,19 @@ impl ForgeCommandExecutorService {
                     Ok(n) => n,
                     Err(e) => return Err(e.into()),
                 };
-                
+
                 // Write to console
                 io::stderr().write_all(&buffer[..n])?;
                 io::stderr().flush()?;
-                
+
                 // Store for return value
                 stderr_buffer.extend_from_slice(&buffer[..n]);
             }
         }
-        
+
         // Wait for the process to complete
         let status = child.wait().await?;
-        
+
         Ok(CommandOutput {
             stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
             stderr: String::from_utf8_lossy(&stderr_buffer).into_owned(),
@@ -140,7 +139,8 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        self.execute_command_internal(command, &working_dir, None).await
+        self.execute_command_internal(command, &working_dir, None)
+            .await
     }
 
     async fn execute_command_with_color(
@@ -149,7 +149,8 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         working_dir: String,
         color_env_vars: Vec<(String, String)>,
     ) -> anyhow::Result<CommandOutput> {
-        self.execute_command_internal(command, Path::new(&working_dir), Some(color_env_vars)).await
+        self.execute_command_internal(command, Path::new(&working_dir), Some(color_env_vars))
+            .await
     }
 }
 
@@ -169,7 +170,7 @@ mod tests {
             .execute_command(cmd.to_string(), PathBuf::new().join(dir))
             .await
             .unwrap();
-                
+
         let expected = CommandOutput {
             stdout: "hello world\n".to_string(),
             stderr: "".to_string(),
