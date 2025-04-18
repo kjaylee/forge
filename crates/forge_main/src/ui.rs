@@ -206,6 +206,7 @@ impl<F: API> UI<F> {
         loop {
             match input {
                 Command::Compact => {
+                    self.start_spinner()?;
                     let conversation_id = self.init_conversation().await?;
                     let compaction_result = self.api.compact_conversation(&conversation_id).await?;
 
@@ -213,14 +214,13 @@ impl<F: API> UI<F> {
                     let token_reduction = compaction_result.token_reduction_percentage();
                     let message_reduction = compaction_result.message_reduction_percentage();
 
-                    CONSOLE.writeln(
-                        TitleFormat::execute("compact")
-                            .sub_title(format!(
-                                "context size reduced by {:.1}% (tokens), {:.1}% (messages)",
-                                token_reduction, message_reduction
-                            ))
-                            .format(),
-                    )?;
+                    let content = TitleFormat::execute("compact")
+                        .sub_title(format!(
+                            "context size reduced by {:.1}% (tokens), {:.1}% (messages)",
+                            token_reduction, message_reduction
+                        ))
+                        .format();
+                    self.stop_spinner(Some(content));
                     input = self.prompt().await?;
                     continue;
                 }
