@@ -5,5 +5,5 @@ pub mod title;
 
 pub use diff::DiffFormat;
 pub use grep::GrepFormat;
-pub use markdown::{render, MarkdownFormat};
+pub use markdown::MarkdownFormat;
 pub use title::*;

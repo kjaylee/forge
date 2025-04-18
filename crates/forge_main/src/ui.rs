@@ -5,7 +5,7 @@ use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
     API,
 };
-use forge_display::{render, TitleFormat};
+use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
@@ -47,6 +47,7 @@ impl From<PartialEvent> for Event {
 }
 
 pub struct UI<F> {
+    markdown: MarkdownFormat,
     state: UIState,
     api: Arc<F>,
     console: Console,
@@ -120,6 +121,7 @@ impl<F: API> UI<F> {
             cli,
             command,
             spinner: SpinnerManager::new(),
+            markdown: MarkdownFormat::new(),
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
     }
@@ -466,9 +468,8 @@ impl<F: API> UI<F> {
             ChatResponse::Text { mut text, is_complete, is_md } => {
                 if is_complete && !text.trim().is_empty() {
                     if is_md {
-                        text = render(&text);
+                        text = self.markdown.render(&text);
                     }
-
                     self.spinner.stop(Some(text))?;
                 }
             }

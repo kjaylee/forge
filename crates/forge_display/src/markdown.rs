@@ -7,40 +7,36 @@ use termimad::{gray, CompoundStyle, LineStyle, MadSkin};
 #[derive(Clone, Setters, Default)]
 #[setters(into, strip_option)]
 pub struct MarkdownFormat {
-    content: String,
-    skin: Option<MadSkin>,
+    skin: MadSkin,
     max_consecutive_newlines: usize,
 }
 
 impl MarkdownFormat {
-    /// Create a new MarkdownFormat with the specified content
-    ///
-    /// # Arguments
-    ///
-    /// * `content` - The markdown content to be formatted
-    pub fn new(content: impl Into<String>) -> Self {
+    /// Create a new MarkdownFormat with the default skin
+    pub fn new() -> Self {
+        let mut skin = MadSkin::default();
+        let compound_style = CompoundStyle::new(Some(gray(17)), None, Default::default());
+        skin.inline_code = compound_style.clone();
+        skin.code_block = LineStyle::new(compound_style, Default::default());
+
         Self {
-            content: content.into(),
-            skin: None,
+            skin,
             max_consecutive_newlines: 2,
         }
     }
 
     /// Render the markdown content to a string formatted for terminal display.
     ///
-    /// This method applies the specified skin (or default if none)
-    /// to format the markdown content for terminal output.
-    pub fn format(&self) -> String {
-        let mut skin = MadSkin::default();
-        let compound_style = CompoundStyle::new(Some(gray(17)), None, Default::default());
-        skin.inline_code = compound_style.clone();
-        skin.code_block = LineStyle::new(compound_style, Default::default());
-        let skin = self.skin.as_ref().unwrap_or(&skin);
-
+    /// # Arguments
+    ///
+    /// * `content` - The markdown content to be rendered
+    pub fn render(&self, content: impl Into<String>) -> String {
+        let content_string = content.into();
+        
         // Strip excessive newlines before rendering
-        let processed_content = self.strip_excessive_newlines(&self.content);
+        let processed_content = self.strip_excessive_newlines(&content_string);
 
-        skin.term_text(&processed_content).to_string()
+        self.skin.term_text(&processed_content).to_string()
     }
 
     /// Strip excessive consecutive newlines from content
@@ -60,19 +56,6 @@ impl MarkdownFormat {
     }
 }
 
-/// Convenience function to quickly render markdown without creating a
-/// MarkdownFormat instance
-///
-/// # Arguments
-///
-/// * `content` - The markdown content to be formatted
-pub fn render(content: &str) -> String {
-    MarkdownFormat::new(content.trim())
-        .format()
-        .trim()
-        .to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -82,7 +65,8 @@ mod tests {
     #[test]
     fn test_render_simple_markdown() {
         let fixture = "# Test Heading\nThis is a test.";
-        let actual = render(fixture);
+        let markdown = MarkdownFormat::new();
+        let actual = markdown.render(fixture);
 
         // Basic verification that output is non-empty
         assert!(!actual.is_empty());
@@ -91,29 +75,17 @@ mod tests {
     #[test]
     fn test_render_empty_markdown() {
         let fixture = "";
-        let actual = render(fixture);
+        let markdown = MarkdownFormat::new();
+        let actual = markdown.render(fixture);
 
         // Verify empty input produces empty output
         assert!(actual.is_empty());
     }
 
     #[test]
-    fn test_markdown_format_with_custom_skin() {
-        let fixture = "**Bold text** and *italic text*";
-        let mut skin = MadSkin::default();
-        skin.bold.set_fg(termimad::rgb(255, 0, 0)); // Red bold text
-
-        let actual = MarkdownFormat::new(fixture).skin(skin).format();
-
-        // Verify output contains ANSI color codes (we can't check exact contents due to
-        // styling)
-        assert!(!actual.is_empty());
-    }
-
-    #[test]
     fn test_strip_excessive_newlines_default() {
         let fixture = "Line 1\n\n\n\nLine 2";
-        let formatter = MarkdownFormat::new(fixture);
+        let formatter = MarkdownFormat::new();
         let actual = formatter.strip_excessive_newlines(fixture);
         let expected = "Line 1\n\nLine 2";
 
@@ -123,7 +95,7 @@ mod tests {
     #[test]
     fn test_strip_excessive_newlines_custom() {
         let fixture = "Line 1\n\n\n\nLine 2";
-        let formatter = MarkdownFormat::new(fixture).max_consecutive_newlines(3_usize);
+        let formatter = MarkdownFormat::new().max_consecutive_newlines(3_usize);
         let actual = formatter.strip_excessive_newlines(fixture);
         let expected = "Line 1\n\n\nLine 2";
 
@@ -131,14 +103,15 @@ mod tests {
     }
 
     #[test]
-    fn test_format_with_excessive_newlines() {
+    fn test_render_with_excessive_newlines() {
         let fixture = "# Heading\n\n\n\nParagraph";
+        let markdown = MarkdownFormat::new();
 
         // Use the default max_consecutive_newlines (2)
-        let actual = MarkdownFormat::new(fixture).format();
+        let actual = markdown.render(fixture);
 
         // Compare with expected content containing only 2 newlines
-        let expected = MarkdownFormat::new("# Heading\n\nParagraph").format();
+        let expected = markdown.render("# Heading\n\nParagraph");
 
         // Strip any ANSI codes and whitespace for comparison
         let actual_clean = strip_ansi_escapes::strip_str(&actual).trim().to_string();
@@ -148,16 +121,15 @@ mod tests {
     }
 
     #[test]
-    fn test_format_with_custom_max_newlines() {
+    fn test_render_with_custom_max_newlines() {
         let fixture = "# Heading\n\n\n\nParagraph";
+        let markdown = MarkdownFormat::new().max_consecutive_newlines(1_usize);
 
         // Use a custom max_consecutive_newlines (1)
-        let actual = MarkdownFormat::new(fixture)
-            .max_consecutive_newlines(1_usize)
-            .format();
+        let actual = markdown.render(fixture);
 
         // Compare with expected content containing only 1 newline
-        let expected = MarkdownFormat::new("# Heading\nParagraph").format();
+        let expected = markdown.render("# Heading\nParagraph");
 
         // Strip any ANSI codes and whitespace for comparison
         let actual_clean = strip_ansi_escapes::strip_str(&actual).trim().to_string();
