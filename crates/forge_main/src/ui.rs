@@ -168,29 +168,19 @@ impl<F: API> UI<F> {
                             ))
                             .format(),
                     )?;
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::Dump => {
                     self.handle_dump().await?;
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::New => {
                     self.state = UIState::default();
                     self.init_conversation().await?;
                     banner::display()?;
-                    input = self.prompt().await?;
-
-                    continue;
                 }
                 Command::Info => {
                     let info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
 
                     CONSOLE.writeln(info.to_string())?;
-
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::Message(ref content) => {
                     let chat_result = self.chat(content.clone()).await;
@@ -202,27 +192,17 @@ impl<F: API> UI<F> {
 
                         CONSOLE.writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
                     }
-
-                    input = self.prompt().await?;
                 }
                 Command::Act => {
                     self.handle_mode_change(Mode::Act).await?;
-
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::Plan => {
                     self.handle_mode_change(Mode::Plan).await?;
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::Help => {
                     let info = Info::from(self.command.as_ref());
 
                     CONSOLE.writeln(info.to_string())?;
-
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::Exit => {
                     CONSOLE.writeln(
@@ -245,13 +225,9 @@ impl<F: API> UI<F> {
                                 .format(),
                         )?;
                     }
-
-                    input = self.prompt().await?;
                 }
                 Command::Model => {
                     self.handle_model_selection().await?;
-                    input = self.prompt().await?;
-                    continue;
                 }
                 Command::Shell(ref command) => {
                     // Execute the shell command using the existing infrastructure
@@ -260,11 +236,11 @@ impl<F: API> UI<F> {
 
                     // Execute the command
                     let _ = self.api.execute_shell_command(command, cwd).await;
-
-                    input = self.prompt().await?;
-                    continue;
                 }
             }
+
+            // Centralized prompt call at the end of the loop
+            input = self.prompt().await?;
         }
 
         Ok(())
