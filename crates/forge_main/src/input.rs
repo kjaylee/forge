@@ -52,7 +52,7 @@ impl Console {
                         Ok(command) => return Ok(command),
                         Err(e) => {
                             CONSOLE.writeln(
-                                TitleFormat::failed("command")
+                                TitleFormat::new("command")
                                     .sub_title(e.to_string())
                                     .format(),
                             )?;

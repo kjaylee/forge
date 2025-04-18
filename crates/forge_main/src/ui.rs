@@ -93,7 +93,7 @@ impl<F: API> UI<F> {
         };
 
         CONSOLE.write(
-            TitleFormat::success(mode.to_string())
+            TitleFormat::new(mode.to_string())
                 .sub_title(mode_message)
                 .format(),
         )?;
@@ -163,7 +163,7 @@ impl<F: API> UI<F> {
                     let token_reduction = compaction_result.token_reduction_percentage();
                     let message_reduction = compaction_result.message_reduction_percentage();
 
-                    let content = TitleFormat::execute("compact")
+                    let content = TitleFormat::new("compact")
                         .sub_title(format!(
                             "context size reduced by {:.1}% (tokens), {:.1}% (messages)",
                             token_reduction, message_reduction
@@ -193,7 +193,11 @@ impl<F: API> UI<F> {
                         );
                         error!(error = ?err, "Chat request failed");
 
-                        CONSOLE.writeln(TitleFormat::failed(format!("{:?}", err)).format())?;
+                        CONSOLE.writeln(
+                            TitleFormat::new("error")
+                                .error(format!("{:?}", err))
+                                .format(),
+                        )?;
                     }
                 }
                 Command::Act => {
@@ -209,7 +213,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Exit => {
                     CONSOLE.writeln(
-                        TitleFormat::execute("exit")
+                        TitleFormat::new("exit")
                             .sub_title("initializing graceful shutdown... thank you!")
                             .format(),
                     )?;
@@ -222,7 +226,7 @@ impl<F: API> UI<F> {
                 Command::Custom(event) => {
                     if let Err(e) = self.dispatch_event(event.into()).await {
                         CONSOLE.writeln(
-                            TitleFormat::failed("Failed to execute the command.")
+                            TitleFormat::new("Failed to execute the command.")
                                 .sub_title("Command Execution")
                                 .error(e.to_string())
                                 .format(),
@@ -299,13 +303,13 @@ impl<F: API> UI<F> {
             self.state.model = Some(model.clone());
 
             CONSOLE.writeln(
-                TitleFormat::success("model")
+                TitleFormat::new("model")
                     .sub_title(format!("switched to: {}", model))
                     .format(),
             )?;
         } else {
             CONSOLE.writeln(
-                TitleFormat::failed("model")
+                TitleFormat::new("model")
                     .error("Failed to update model: conversation not found")
                     .format(),
             )?;
@@ -427,13 +431,13 @@ impl<F: API> UI<F> {
                 tokio::fs::write(path.as_str(), content).await?;
 
                 CONSOLE.writeln(
-                    TitleFormat::success("dump")
+                    TitleFormat::new("dump")
                         .sub_title(format!("path: {path}"))
                         .format(),
                 )?;
             } else {
                 CONSOLE.writeln(
-                    TitleFormat::failed("dump")
+                    TitleFormat::new("dump")
                         .error("conversation not found")
                         .sub_title(format!("conversation_id: {conversation_id}"))
                         .format(),
