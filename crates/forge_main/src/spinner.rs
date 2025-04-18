@@ -22,14 +22,16 @@ impl SpinnerManager {
     pub fn start(&mut self) -> Result<()> {
         self.stop(None)?;
 
-        let words = ["Thinking",
+        let words = [
+            "Thinking",
             "Processing",
             "Analyzing",
             "Forging",
             "Researching",
             "Synthesizing",
             "Reasoning",
-            "Contemplating"];
+            "Contemplating",
+        ];
 
         // Use a random word from the list
         let word = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
