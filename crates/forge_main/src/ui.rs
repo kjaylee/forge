@@ -7,6 +7,7 @@ use forge_api::{
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
+use forge_spinner::SpinnerManager;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
@@ -20,7 +21,6 @@ use crate::cli::Cli;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
-use crate::spinner::SpinnerManager;
 use crate::state::{Mode, UIState};
 use crate::{banner, TRACKER};
 

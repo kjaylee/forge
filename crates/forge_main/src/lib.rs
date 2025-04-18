@@ -7,7 +7,6 @@ mod info;
 mod input;
 mod model;
 mod prompt;
-mod spinner;
 mod state;
 mod ui;
 

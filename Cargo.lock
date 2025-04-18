@@ -862,15 +862,14 @@ dependencies = [
  "forge_display",
  "forge_fs",
  "forge_snaps",
+ "forge_spinner",
  "forge_tracker",
  "forge_walker",
- "indicatif",
  "inquire",
  "insta",
  "lazy_static",
  "nu-ansi-term 0.50.1",
  "pretty_assertions",
- "rand 0.8.5",
  "reedline",
  "serde",
  "serde_json",
@@ -1104,6 +1103,16 @@ dependencies = [
  "tempfile",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "forge_spinner"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "colored 3.0.0",
+ "indicatif",
+ "rand 0.8.5",
 ]
 
 [[package]]
