@@ -190,8 +190,9 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Info => {
-                    let info =
-                        Info::from(&self.api.environment()).extend(Info::from(&self.state.usage));
+                    let info = Info::from(&self.api.environment())
+                        .extend(Info::from(&self.state))
+                        .extend(Info::from(self.command.as_ref()));
 
                     CONSOLE.writeln(info.to_string())?;
 
