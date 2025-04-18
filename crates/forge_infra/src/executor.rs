@@ -67,19 +67,11 @@ impl ForgeCommandExecutorService {
         &self,
         command: String,
         working_dir: &Path,
-        color_env_vars: Option<Vec<(String, String)>>,
     ) -> anyhow::Result<CommandOutput> {
-        let mut cmd = self.prepare_command(&command, working_dir);
-
-        // Add any additional color environment variables
-        if let Some(vars) = color_env_vars {
-            for (key, value) in vars {
-                cmd.env(key, value);
-            }
-        }
+        let mut command = self.prepare_command(&command, working_dir);
 
         // Spawn the command
-        let mut child = cmd.spawn()?;
+        let mut child = command.spawn()?;
 
         let mut stdout_pipe = child.stdout.take();
         let mut stderr_pipe = child.stderr.take();
@@ -133,8 +125,7 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        self.execute_command_internal(command, &working_dir, None)
-            .await
+        self.execute_command_internal(command, &working_dir).await
     }
 }
 
