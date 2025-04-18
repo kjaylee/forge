@@ -1,11 +1,12 @@
-use std::path::Path;
-use std::{fmt, path::PathBuf};
+use std::fmt;
+use std::path::{Path, PathBuf};
 
 use colored::Colorize;
 use forge_api::{Environment, Usage};
 use forge_tracker::VERSION;
 
-use crate::{model::ForgeCommandManager, state::UIState};
+use crate::model::ForgeCommandManager;
+use crate::state::UIState;
 
 pub enum Section {
     Title(String),
@@ -129,7 +130,7 @@ impl fmt::Display for Info {
 /// Formats a path in zsh style, replacing home directory with ~
 fn format_path_zsh_style(home: &Option<PathBuf>, path: &Path) -> String {
     if let Some(home) = home {
-        if let Ok(rel_path) = path.strip_prefix(&home) {
+        if let Ok(rel_path) = path.strip_prefix(home) {
             return format!("~/{}", rel_path.display());
         }
     }
