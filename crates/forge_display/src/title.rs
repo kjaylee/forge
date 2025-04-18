@@ -19,14 +19,6 @@ impl Kind {
             Kind::Failed => "✗",
         }
     }
-
-    fn label(&self) -> &'static str {
-        match self {
-            Kind::Execute => "execute",
-            Kind::Success => "success",
-            Kind::Failed => "error",
-        }
-    }
 }
 
 #[derive(Clone, Setters)]
@@ -122,10 +114,6 @@ impl TitleFormat {
 
     fn icon(&self) -> &'static str {
         self.kind.icon()
-    }
-
-    fn label(&self) -> &'static str {
-        self.kind.label()
     }
 }
 
