@@ -17,7 +17,6 @@ use tracing::error;
 
 use crate::auto_update::update_forge;
 use crate::cli::Cli;
-use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
@@ -92,11 +91,12 @@ impl<F: API> UI<F> {
             Mode::Plan => "mode - plans actions without making changes",
         };
 
-        CONSOLE.write(
+        println!(
+            "{}",
             TitleFormat::new(mode.to_string())
                 .sub_title(mode_message)
-                .format(),
-        )?;
+                .format()
+        );
 
         Ok(())
     }
@@ -181,8 +181,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Info => {
                     let info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
-
-                    CONSOLE.writeln(info.to_string())?;
+                    println!("{}", info);
                 }
                 Command::Message(ref content) => {
                     self.spinner.start()?;
@@ -193,11 +192,12 @@ impl<F: API> UI<F> {
                         );
                         error!(error = ?err, "Chat request failed");
 
-                        CONSOLE.writeln(
+                        println!(
+                            "{}",
                             TitleFormat::new("error")
                                 .error(format!("{:?}", err))
-                                .format(),
-                        )?;
+                                .format()
+                        );
                     }
                 }
                 Command::Act => {
@@ -208,15 +208,15 @@ impl<F: API> UI<F> {
                 }
                 Command::Help => {
                     let info = Info::from(self.command.as_ref());
-
-                    CONSOLE.writeln(info.to_string())?;
+                    println!("{}", info);
                 }
                 Command::Exit => {
-                    CONSOLE.writeln(
+                    println!(
+                        "{}",
                         TitleFormat::new("exit")
                             .sub_title("initializing graceful shutdown... thank you!")
-                            .format(),
-                    )?;
+                            .format()
+                    );
 
                     update_forge().await;
 
@@ -225,12 +225,13 @@ impl<F: API> UI<F> {
 
                 Command::Custom(event) => {
                     if let Err(e) = self.dispatch_event(event.into()).await {
-                        CONSOLE.writeln(
+                        println!(
+                            "{}",
                             TitleFormat::new("Failed to execute the command.")
                                 .sub_title("Command Execution")
                                 .error(e.to_string())
-                                .format(),
-                        )?;
+                                .format()
+                        );
                     }
                 }
                 Command::Model => {
@@ -302,17 +303,19 @@ impl<F: API> UI<F> {
             // Update the UI state with the new model
             self.state.model = Some(model.clone());
 
-            CONSOLE.writeln(
+            println!(
+                "{}",
                 TitleFormat::new("model")
                     .sub_title(format!("switched to: {}", model))
-                    .format(),
-            )?;
+                    .format()
+            );
         } else {
-            CONSOLE.writeln(
+            println!(
+                "{}",
                 TitleFormat::new("model")
                     .error("Failed to update model: conversation not found")
-                    .format(),
-            )?;
+                    .format()
+            );
         }
 
         Ok(())
@@ -430,18 +433,20 @@ impl<F: API> UI<F> {
                 let content = serde_json::to_string_pretty(&conversation)?;
                 tokio::fs::write(path.as_str(), content).await?;
 
-                CONSOLE.writeln(
+                println!(
+                    "{}",
                     TitleFormat::new("dump")
                         .sub_title(format!("path: {path}"))
-                        .format(),
-                )?;
+                        .format()
+                );
             } else {
-                CONSOLE.writeln(
+                println!(
+                    "{}",
                     TitleFormat::new("dump")
                         .error("conversation not found")
                         .sub_title(format!("conversation_id: {conversation_id}"))
-                        .format(),
-                )?;
+                        .format()
+                );
             }
         }
         Ok(())

@@ -3,8 +3,6 @@ use colored::Colorize;
 use rand::seq::SliceRandom;
 use spinners::{Spinner, Spinners};
 
-use crate::console::CONSOLE;
-
 /// Manages spinner functionality for the UI
 #[derive(Default)]
 pub struct SpinnerManager {
@@ -38,7 +36,7 @@ impl SpinnerManager {
 
         // Use a random word from the list followed by ...
         let message = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
-        let cancel_message = "· Ctrl+C - Interrupt".white().dimmed();
+        let cancel_message = "· Ctrl+C to interrupt".white().dimmed();
         let message = format!("{} {}", message, cancel_message);
         // Create and start a new spinner
         let spinner = Spinner::with_timer(Spinners::Dots8, message.green().bold().to_string());
@@ -52,7 +50,7 @@ impl SpinnerManager {
         if let Some(mut spinner) = self.spinner.take() {
             spinner.stop_with_message(message.unwrap_or_default().to_string());
         } else if let Some(message) = message {
-            CONSOLE.writeln(message)?;
+            println!("{}", message);
         }
         Ok(())
     }
