@@ -1,8 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 
 use colored::Colorize;
-use derive_setters::Setters;
 use convert_case::{Case, Casing};
+use derive_setters::Setters;
 
 #[derive(Clone)]
 pub enum Kind {
