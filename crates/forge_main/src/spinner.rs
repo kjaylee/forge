@@ -38,7 +38,7 @@ impl SpinnerManager {
 
         // Use a random word from the list followed by ...
         let message = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
-        let cancel_message = "(press Ctrl+C to stop & Ctrl+D to exit)".dimmed();
+        let cancel_message = "(press Ctrl+C to stop & Ctrl+D to exit)".white().dimmed();
         let message = format!("{} {}", message, cancel_message);
         // Create and start a new spinner
         let spinner = Spinner::with_timer(Spinners::Dots8, message.green().bold().to_string());
