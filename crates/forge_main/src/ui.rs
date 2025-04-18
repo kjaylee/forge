@@ -114,16 +114,6 @@ impl<F: API> UI<F> {
         Event::new(EVENT_USER_HELP_QUERY, content)
     }
 
-    // Start the spinner with a message
-    fn start_spinner(&mut self) -> Result<()> {
-        self.spinner.start()
-    }
-
-    // Stop the active spinner if any
-    fn stop_spinner(&mut self, message: Option<String>) -> Result<()> {
-        self.spinner.stop(message)
-    }
-
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
         // Parse CLI arguments first to get flags
         let env = api.environment();
@@ -170,7 +160,7 @@ impl<F: API> UI<F> {
         loop {
             match input {
                 Command::Compact => {
-                    self.start_spinner()?;
+                    self.spinner.start()?;
                     let conversation_id = self.init_conversation().await?;
                     let compaction_result = self.api.compact_conversation(&conversation_id).await?;
 
@@ -184,7 +174,7 @@ impl<F: API> UI<F> {
                             token_reduction, message_reduction
                         ))
                         .format();
-                    self.stop_spinner(Some(content))?;
+                    self.spinner.stop(Some(content))?;
                     input = self.prompt().await?;
                     continue;
                 }
@@ -211,7 +201,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Message(ref content) => {
-                    self.start_spinner()?;
+                    self.spinner.start()?;
                     let chat_result = match self.state.mode {
                         Mode::Help => {
                             self.dispatch_event(Self::create_user_help_query_event(content.clone()))
@@ -440,18 +430,18 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
-                    self.stop_spinner(None)?;
+                    self.spinner.stop(None)?;
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
                         Some(Ok(message)) => self.handle_chat_response(message)?,
                         Some(Err(err)) => {
-                            self.stop_spinner(None)?;
+                            self.spinner.stop(None)?;
                             return Err(err);
                         }
                         None => {
-                            self.stop_spinner(None)?;
+                            self.spinner.stop(None)?;
                             return Ok(())
                         },
                     }
@@ -492,14 +482,14 @@ impl<F: API> UI<F> {
             ChatResponse::Text { text: content, is_complete } => {
                 if is_complete {
                     let rendered_content = render(content.trim());
-                    self.stop_spinner(Some(rendered_content))?;
+                    self.spinner.stop(Some(rendered_content))?;
                 }
             }
             ChatResponse::ToolCallStart(_) => {
-                self.stop_spinner(None)?;
+                self.spinner.stop(None)?;
             }
             ChatResponse::ToolCallEnd(_) => {
-                self.start_spinner()?;
+                self.spinner.start()?;
                 if !self.cli.verbose {
                     return Ok(());
                 }
