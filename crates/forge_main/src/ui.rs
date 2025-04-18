@@ -213,13 +213,6 @@ impl<F: API> UI<F> {
                     println!("{}", info);
                 }
                 Command::Exit => {
-                    println!(
-                        "{}",
-                        TitleFormat::new("exit")
-                            .sub_title("initializing graceful shutdown... thank you!")
-                            .format()
-                    );
-
                     update_forge().await;
 
                     break;
