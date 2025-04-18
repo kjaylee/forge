@@ -6,15 +6,11 @@ use spinners::{Spinner, Spinners};
 use crate::console::CONSOLE;
 
 /// Manages spinner functionality for the UI
+#[derive(Default)]
 pub struct SpinnerManager {
     spinner: Option<Spinner>,
 }
 
-impl Default for SpinnerManager {
-    fn default() -> Self {
-        Self { spinner: None }
-    }
-}
 
 impl SpinnerManager {
     pub fn new() -> Self {
