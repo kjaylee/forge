@@ -11,7 +11,6 @@ pub struct SpinnerManager {
     spinner: Option<Spinner>,
 }
 
-
 impl SpinnerManager {
     pub fn new() -> Self {
         Self::default()
