@@ -33,7 +33,11 @@ impl MarkdownFormat {
         // Strip excessive newlines before rendering
         let processed_content = self.strip_excessive_newlines(content_string.trim());
 
-        self.skin.term_text(&processed_content).to_string()
+        self.skin
+            .term_text(&processed_content)
+            .to_string()
+            .trim()
+            .to_string()
     }
 
     /// Strip excessive consecutive newlines from content
