@@ -480,8 +480,8 @@ impl<F: API> UI<F> {
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
             ChatResponse::Text { text: content, is_complete } => {
-                if is_complete {
-                    let rendered_content = render(content.trim());
+                if is_complete && !content.trim().is_empty() {
+                    let rendered_content = render(&content);
                     self.spinner.stop(Some(rendered_content))?;
                 }
             }
