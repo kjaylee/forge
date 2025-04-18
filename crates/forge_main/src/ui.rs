@@ -483,9 +483,11 @@ impl<F: API> UI<F> {
                     match maybe_message {
                         Some(Ok(message)) => self.handle_chat_response(message)?,
                         Some(Err(err)) => {
+                            self.stop_spinner(None);
                             return Err(err);
                         }
                         None => {
+                            self.stop_spinner(None);
                             return Ok(())
                         },
                     }
