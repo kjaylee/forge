@@ -36,7 +36,8 @@ impl TitleFormat {
     }
     pub fn format(&self) -> String {
         let mut buf = String::new();
-        let mut title = self.title.to_case(Case::Title).cyan().bold();
+        buf.push_str(format!("{} ", "⏺".blue()).as_str());
+        let mut title = self.title.to_case(Case::Title).white().bold();
 
         if self.error.is_some() {
             title = title.red().bold();

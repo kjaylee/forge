@@ -31,7 +31,7 @@ impl MarkdownFormat {
         let content_string = content.into();
 
         // Strip excessive newlines before rendering
-        let processed_content = self.strip_excessive_newlines(&content_string);
+        let processed_content = self.strip_excessive_newlines(&content_string.trim());
 
         self.skin.term_text(&processed_content).to_string()
     }
