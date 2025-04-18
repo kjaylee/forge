@@ -184,7 +184,11 @@ impl<A: Services> Orchestrator<A> {
             if let Some(content) = message.content {
                 self.send(
                     agent,
-                    ChatResponse::Text { text: content.as_str().to_string(), is_complete: false },
+                    ChatResponse::Text {
+                        text: content.as_str().to_string(),
+                        is_complete: false,
+                        is_md: false,
+                    },
                 )
                 .await?;
             }
@@ -209,6 +213,7 @@ impl<A: Services> Orchestrator<A> {
             ChatResponse::Text {
                 text: filtered_content.as_str().to_string(),
                 is_complete: true,
+                is_md: true,
             },
         )
         .await?;
