@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -285,9 +285,12 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
                 &patch.content,
             )?;
 
+            // Format the display path for output
+            let path = self.format_display_path(path)?;
+
             // Generate diff between old and new content
             let diff =
-                DiffFormat::format("patch", path.to_path_buf(), &old_content, &current_content);
+                DiffFormat::format("patch", PathBuf::from(path), &old_content, &current_content);
 
             // Output diff either to sender or println
             context.send_text(diff).await?;
@@ -299,14 +302,15 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
             .write(path, Bytes::from(current_content.clone()))
             .await?;
 
-        // Format the display path for output
-        let display_path = self.format_display_path(path)?;
-
         // Check for syntax errors
         let warning = syn::validate(path, &current_content).map(|e| e.to_string());
 
         // Format the output
-        let result = format_output(&display_path, &current_content, warning.as_deref());
+        let result = format_output(
+            path.to_string_lossy().as_ref(),
+            &current_content,
+            warning.as_deref(),
+        );
 
         // Return the final result
         Ok(result)
