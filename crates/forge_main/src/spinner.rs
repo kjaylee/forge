@@ -23,20 +23,14 @@ impl SpinnerManager {
         self.stop(None)?;
 
         let words = vec![
-            "Unfolding",
-            "Ripening",
-            "Emerging",
-            "Stirring",
-            "Dwelling",
-            "Gesturing",
             "Thinking",
             "Processing",
+            "Analyzing",
             "Forging",
-            "Tracing",
-            "Seeking",
-            "Hovering",
-            "Yearning",
-            "Glimpsing",
+            "Researching",
+            "Synthesizing",
+            "Reasoning",
+            "Contemplating",
         ];
 
         // Use a random word from the list
