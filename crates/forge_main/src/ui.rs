@@ -118,7 +118,7 @@ impl<F: API> UI<F> {
 
     // Start the spinner with a message
     fn start_spinner(&mut self) -> Result<()> {
-        self.stop_spinner(None);
+        self.stop_spinner(None)?;
         let words = vec![
             "Becoming",
             "Unfolding",
@@ -152,12 +152,13 @@ impl<F: API> UI<F> {
     }
 
     // Stop the active spinner if any
-    fn stop_spinner(&mut self, message: Option<String>) {
+    fn stop_spinner(&mut self, message: Option<String>) -> Result<()> {
         if let Some(mut spinner) = self.spinner.take() {
             spinner.stop_with_message(message.unwrap_or_default().to_string());
         } else if let Some(message) = message {
-            CONSOLE.writeln(message).unwrap();
+            CONSOLE.writeln(message)?;
         }
+        Ok(())
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -220,7 +221,7 @@ impl<F: API> UI<F> {
                             token_reduction, message_reduction
                         ))
                         .format();
-                    self.stop_spinner(Some(content));
+                    self.stop_spinner(Some(content))?;
                     input = self.prompt().await?;
                     continue;
                 }
@@ -476,18 +477,18 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
-                    self.stop_spinner(None);
+                    self.stop_spinner(None)?;
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
                         Some(Ok(message)) => self.handle_chat_response(message)?,
                         Some(Err(err)) => {
-                            self.stop_spinner(None);
+                            self.stop_spinner(None)?;
                             return Err(err);
                         }
                         None => {
-                            self.stop_spinner(None);
+                            self.stop_spinner(None)?;
                             return Ok(())
                         },
                     }
@@ -528,12 +529,11 @@ impl<F: API> UI<F> {
             ChatResponse::Text { text: content, is_complete } => {
                 if is_complete {
                     let rendered_content = render(content.trim());
-
-                    self.stop_spinner(Some(rendered_content));
+                    self.stop_spinner(Some(rendered_content))?;
                 }
             }
             ChatResponse::ToolCallStart(_) => {
-                self.stop_spinner(None);
+                self.stop_spinner(None)?;
             }
             ChatResponse::ToolCallEnd(_) => {
                 self.start_spinner()?;
