@@ -33,7 +33,7 @@ serde.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 base64.workspace = true
-spinoff = "0.8.0"
+indicatif = "0.17.11"
 rand = "0.8.5"
 convert_case.workspace = true
 
