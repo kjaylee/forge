@@ -54,5 +54,4 @@ impl Console {
         let content = format!("{}\n", content.as_ref());
         self.write(content)
     }
-
 }

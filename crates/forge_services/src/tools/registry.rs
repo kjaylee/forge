@@ -6,7 +6,6 @@ use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
-
 use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
