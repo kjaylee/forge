@@ -117,9 +117,32 @@ impl<F: API> UI<F> {
     }
 
     // Start the spinner with a message
-    fn start_spinner(&mut self, message: &str) -> Result<()> {
-        // Stop any existing spinner
-        self.stop_spinner();
+    fn start_spinner(&mut self) -> Result<()> {
+        self.stop_spinner(None);
+        let words = vec![
+            "Becoming",
+            "Unfolding",
+            "Blooming",
+            "Ripening",
+            "Emerging",
+            "Stirring",
+            "Dwelling",
+            "Listening",
+            "Rooting",
+            "Reflecting",
+            "Gesturing",
+            "Waking",
+            "Kindling",
+            "Flowing",
+            "Tracing",
+            "Seeking",
+            "Hovering",
+            "Yearning",
+            "Glimpsing",
+        ];
+
+        // Use a random word from the list followed by ...
+        let message = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
 
         // Create and start a new spinner
         let spinner = Spinner::with_timer(Spinners::Dots8, message.green().bold().to_string());
@@ -129,11 +152,9 @@ impl<F: API> UI<F> {
     }
 
     // Stop the active spinner if any
-    fn stop_spinner(&mut self) {
-        // Use mut if we modify the spinner
+    fn stop_spinner(&mut self, message: Option<String>) {
         if let Some(mut spinner) = self.spinner.take() {
-            // Clear the spinner
-            spinner.stop_with_message("".to_string());
+            spinner.stop_with_message(message.unwrap_or_default().to_string());
         }
     }
 
@@ -224,32 +245,7 @@ impl<F: API> UI<F> {
                     continue;
                 }
                 Command::Message(ref content) => {
-                    let words = vec![
-                        "Becoming",
-                        "Unfolding",
-                        "Blooming",
-                        "Ripening",
-                        "Emerging",
-                        "Stirring",
-                        "Dwelling",
-                        "Listening",
-                        "Rooting",
-                        "Reflecting",
-                        "Gesturing",
-                        "Waking",
-                        "Kindling",
-                        "Flowing",
-                        "Tracing",
-                        "Seeking",
-                        "Hovering",
-                        "Yearning",
-                        "Glimpsing",
-                    ];
-
-                    // Use a random word from the list followed by ...
-                    let message = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
-
-                    self.start_spinner(message)?;
+                    self.start_spinner()?;
                     let chat_result = match self.state.mode {
                         Mode::Help => {
                             self.dispatch_event(Self::create_user_help_query_event(content.clone()))
@@ -478,18 +474,15 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
-                    self.stop_spinner();
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
                         Some(Ok(message)) => self.handle_chat_response(message)?,
                         Some(Err(err)) => {
-                            self.stop_spinner();
                             return Err(err);
                         }
                         None => {
-                            self.stop_spinner();
                             return Ok(())
                         },
                     }
@@ -529,29 +522,18 @@ impl<F: API> UI<F> {
         match message.message {
             ChatResponse::Text { text: content, is_complete } => {
                 if is_complete {
-                    CONSOLE.writeln(format!("\r{}\r", " ".repeat(50)))?; // Clear the line
                     let rendered_content = render(content.trim());
-                    CONSOLE.writeln(rendered_content)?;
+
+                    self.stop_spinner(Some(rendered_content));
                 }
             }
             ChatResponse::ToolCallStart(_) => {
-                print!("\r{}\r", " ".repeat(100)); // Clear the line
-                CONSOLE.newline()?;
-                CONSOLE.newline()?;
+                self.stop_spinner(None);
             }
             ChatResponse::ToolCallEnd(tool_result) => {
+                self.start_spinner()?;
                 if !self.cli.verbose {
                     return Ok(());
-                }
-
-                let tool_name = tool_result.name.as_str();
-
-                CONSOLE.writeln(format!("{}", tool_result.content.dimmed()))?;
-
-                if tool_result.is_error {
-                    CONSOLE.writeln(TitleFormat::failed(tool_name).format())?;
-                } else {
-                    CONSOLE.writeln(TitleFormat::success(tool_name).format())?;
                 }
             }
             ChatResponse::Event(_event) => {
