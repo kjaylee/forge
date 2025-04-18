@@ -155,6 +155,8 @@ impl<F: API> UI<F> {
     fn stop_spinner(&mut self, message: Option<String>) {
         if let Some(mut spinner) = self.spinner.take() {
             spinner.stop_with_message(message.unwrap_or_default().to_string());
+        } else if let Some(message) = message {
+            CONSOLE.writeln(message).unwrap();
         }
     }
 
@@ -474,6 +476,7 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
+                    self.stop_spinner(None);
                     return Ok(());
                 }
                 maybe_message = stream.next() => {
