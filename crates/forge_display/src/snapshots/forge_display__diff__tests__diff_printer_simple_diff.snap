@@ -1,9 +1,8 @@
 ---
 source: crates/forge_display/src/diff.rs
 expression: clean_diff
-snapshot_kind: text
 ---
-10:00:00.000 ✓ success diff abc.txt
+10:00:00.000 ✓ Diff abc.txt
 
 1   1    | line 1
 2        |-line 2
