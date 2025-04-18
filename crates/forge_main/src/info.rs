@@ -102,12 +102,6 @@ impl From<&UIState> for Info {
             .add_key_value("Completion Tokens", value.usage.completion_tokens)
             .add_key_value("Total Tokens", value.usage.total_tokens);
 
-        info = info
-            .add_title("Keyboard Shortcuts")
-            .add_key_value("CTRL+C", "Interrupt current operation")
-            .add_key_value("CTRL+D", "Quit Forge interactive shell")
-            .add_key_value("OPT+ENTER", "Insert new line (multiline input)");
-
         info
     }
 }
@@ -118,7 +112,7 @@ impl fmt::Display for Info {
             match section {
                 Section::Title(title) => {
                     writeln!(f)?;
-                    writeln!(f, "{}", title.dimmed())?
+                    writeln!(f, "{}", title.to_uppercase().bold().dimmed())?
                 }
                 Section::Items(key, value) => {
                     if let Some(value) = value {
@@ -178,6 +172,12 @@ impl From<&ForgeCommandManager> for Info {
         for command in command_manager.list() {
             info = info.add_key_value(command.name, command.description);
         }
+
+        info = info
+            .add_title("Keyboard Shortcuts")
+            .add_key_value("<CTRL+C>", "Interrupt current operation")
+            .add_key_value("<CTRL+D>", "Quit Forge interactive shell")
+            .add_key_value("<OPT+ENTER>", "Insert new line (multiline input)");
 
         info
     }
