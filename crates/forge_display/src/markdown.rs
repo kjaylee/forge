@@ -19,10 +19,7 @@ impl MarkdownFormat {
         skin.inline_code = compound_style.clone();
         skin.code_block = LineStyle::new(compound_style, Default::default());
 
-        Self {
-            skin,
-            max_consecutive_newlines: 2,
-        }
+        Self { skin, max_consecutive_newlines: 2 }
     }
 
     /// Render the markdown content to a string formatted for terminal display.
@@ -32,7 +29,7 @@ impl MarkdownFormat {
     /// * `content` - The markdown content to be rendered
     pub fn render(&self, content: impl Into<String>) -> String {
         let content_string = content.into();
-        
+
         // Strip excessive newlines before rendering
         let processed_content = self.strip_excessive_newlines(&content_string);
 
