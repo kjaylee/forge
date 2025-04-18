@@ -2,6 +2,7 @@ use std::fmt::{self, Display, Formatter};
 
 use colored::Colorize;
 use derive_setters::Setters;
+use convert_case::{Case, Casing};
 
 #[derive(Clone)]
 pub enum Kind {
@@ -82,16 +83,14 @@ impl TitleFormat {
     }
 
     pub fn format(&self) -> String {
-        let (icon, label, message) = match self.kind {
+        let (icon, message) = match self.kind {
             Kind::Execute => (
                 self.icon().cyan(),
-                self.label().bold().cyan(),
-                self.title.to_string(),
+                self.title.to_case(Case::Title).green().bold().to_string(),
             ),
             Kind::Success => (
                 self.icon().green(),
-                self.label().bold().green(),
-                self.title.to_string(),
+                self.title.to_case(Case::Title).green().bold().to_string(),
             ),
             Kind::Failed => {
                 let error_suffix = self
@@ -101,8 +100,7 @@ impl TitleFormat {
                     .unwrap_or_default();
                 (
                     self.icon().red(),
-                    self.label().bold().red(),
-                    format!("{}{}", self.title, error_suffix.red()),
+                    format!("{}{}", self.title.to_case(Case::Title), error_suffix.red()),
                 )
             }
         };
@@ -113,7 +111,7 @@ impl TitleFormat {
         } else {
             &chrono::Local::now().format("%H:%M:%S%.3f").to_string()
         };
-        let mut result = format!("{} {} {} {}", timestamp.dimmed(), icon, label, message);
+        let mut result = format!("{} {} {}", timestamp.dimmed(), icon, message);
 
         if let Some(ref sub_title) = self.sub_title {
             result.push_str(&format!(" {}", sub_title).dimmed().to_string());
