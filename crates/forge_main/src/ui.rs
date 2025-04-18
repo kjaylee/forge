@@ -400,11 +400,20 @@ impl<F: API> UI<F> {
         &mut self,
         stream: &mut (impl StreamExt<Item = Result<AgentMessage<ChatResponse>>> + Unpin),
     ) -> Result<()> {
+        // Set up a tokio interval to update the spinner every second
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
                     self.spinner.stop(None)?;
                     return Ok(());
+                }
+                _ = interval.tick() => {
+                    // Update the spinner with elapsed time
+                    if let Err(e) = self.spinner.update_time() {
+                        tracing::warn!("Failed to update spinner time: {}", e);
+                    }
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
