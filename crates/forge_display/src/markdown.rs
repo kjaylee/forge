@@ -41,7 +41,7 @@ impl MarkdownFormat {
 ///
 /// * `content` - The markdown content to be formatted
 pub fn render(content: &str) -> String {
-    MarkdownFormat::new(content).format()
+    MarkdownFormat::new(content.trim()).format()
 }
 
 #[cfg(test)]

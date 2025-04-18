@@ -21,8 +21,6 @@ agents:
     system_prompt: "{{> system-prompt-help.hbs }}"
     user_prompt: <query>{{event.value}}</query>
     tool_supported: true
-    tools:
-      - tool_forge_display_show_user
     subscribe:
       - user_help_query
 

@@ -530,13 +530,13 @@ impl<F: API> UI<F> {
             ChatResponse::ToolCallStart(_) => {
                 self.stop_spinner(None);
             }
-            ChatResponse::ToolCallEnd(tool_result) => {
+            ChatResponse::ToolCallEnd(_) => {
                 self.start_spinner()?;
                 if !self.cli.verbose {
                     return Ok(());
                 }
             }
-            ChatResponse::Event(_event) => {
+            ChatResponse::Event(_) => {
                 // Event handling removed
             }
             ChatResponse::Usage(u) => {

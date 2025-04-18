@@ -55,8 +55,4 @@ impl Console {
         self.write(content)
     }
 
-    /// Writes a newline
-    pub fn newline(&self) -> io::Result<()> {
-        self.write("\n")
-    }
 }
