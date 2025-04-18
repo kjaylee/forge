@@ -9,6 +9,7 @@ mod input;
 mod model;
 mod normalize;
 mod prompt;
+mod spinner;
 mod state;
 mod ui;
 

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use colored::Colorize;
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
     API,
@@ -11,10 +10,8 @@ use forge_fs::ForgeFS;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
-use rand::seq::SliceRandom;
 use serde::Deserialize;
 use serde_json::Value;
-use spinners::{Spinner, Spinners};
 use tokio_stream::StreamExt;
 use tracing::error;
 
@@ -24,6 +21,7 @@ use crate::console::CONSOLE;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
+use crate::spinner::SpinnerManager;
 use crate::state::{Mode, UIState};
 use crate::{banner, TRACKER};
 
@@ -56,7 +54,7 @@ pub struct UI<F> {
     console: Console,
     command: Arc<ForgeCommandManager>,
     cli: Cli,
-    spinner: Option<Spinner>,
+    spinner: SpinnerManager,
     #[allow(dead_code)] // The guard is kept alive by being held in the struct
     _guard: forge_tracker::Guard,
 }
@@ -118,43 +116,12 @@ impl<F: API> UI<F> {
 
     // Start the spinner with a message
     fn start_spinner(&mut self) -> Result<()> {
-        self.stop_spinner(None)?;
-        let words = vec![
-            "Unfolding",
-            "Ripening",
-            "Emerging",
-            "Stirring",
-            "Dwelling",
-            "Gesturing",
-            "Thinking",
-            "Processing",
-            "Forging",
-            "Tracing",
-            "Seeking",
-            "Hovering",
-            "Yearning",
-            "Glimpsing",
-        ];
-
-        // Use a random word from the list followed by ...
-        let message = words.choose(&mut rand::thread_rng()).unwrap_or(&words[0]);
-        let cancel_message = "(press Ctrl+C to stop & Ctrl+D to exit)".dimmed();
-        let message = format!("{} {}", message, cancel_message);
-        // Create and start a new spinner
-        let spinner = Spinner::with_timer(Spinners::Dots8, message.green().bold().to_string());
-        self.spinner = Some(spinner);
-
-        Ok(())
+        self.spinner.start()
     }
 
     // Stop the active spinner if any
     fn stop_spinner(&mut self, message: Option<String>) -> Result<()> {
-        if let Some(mut spinner) = self.spinner.take() {
-            spinner.stop_with_message(message.unwrap_or_default().to_string());
-        } else if let Some(message) = message {
-            CONSOLE.writeln(message)?;
-        }
-        Ok(())
+        self.spinner.stop(message)
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -167,7 +134,7 @@ impl<F: API> UI<F> {
             console: Console::new(env.clone(), command.clone()),
             cli,
             command,
-            spinner: None,
+            spinner: SpinnerManager::new(),
             _guard: forge_tracker::init_tracing(env.log_path())?,
         })
     }
