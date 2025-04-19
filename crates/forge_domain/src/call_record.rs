@@ -69,10 +69,11 @@ impl CallRecord {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{ToolCallId, ToolName};
     use insta::assert_snapshot;
     use serde_json::json;
+
+    use super::*;
+    use crate::{ToolCallId, ToolName};
 
     #[test]
     fn test_call_record_creation() {
