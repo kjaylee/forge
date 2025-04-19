@@ -35,7 +35,11 @@ impl Display for CallRecord {
         if self.result.is_error {
             writeln!(f, "    <error><![CDATA[{}]]></error>", self.result.content)?;
         } else {
-            writeln!(f, "    <content><![CDATA[{}]]></content>", self.result.content)?;
+            writeln!(
+                f,
+                "    <content><![CDATA[{}]]></content>",
+                self.result.content
+            )?;
         }
 
         write!(f, "  </result>")?;

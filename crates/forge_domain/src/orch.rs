@@ -31,6 +31,7 @@ const THINKING_TAGS: &[&str] = &[
     "content_plan",
     "creation",
     "review",
+    "tool_call"
 ];
 
 #[derive(Debug, Clone)]
