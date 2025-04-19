@@ -524,6 +524,13 @@ impl<A: Services> Orchestrator<A> {
 
             let tool_call_count = tool_calls.is_empty();
 
+            debug!(
+                agent_id = %agent.id,
+                tool_call_count = tool_call_count,
+                "Tool call count: {}",
+                tool_call_count
+            );
+
             // Process tool calls and update context
             context = self
                 .process_tool_calls(agent, tool_calls, content, context)
