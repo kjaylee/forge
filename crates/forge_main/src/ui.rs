@@ -424,8 +424,8 @@ impl<F: API> UI<F> {
 
                 println!(
                     "{}",
-                    TitleFormat::action(format!("Conversation dump created"))
-                        .sub_title(format!("{path}"))
+                    TitleFormat::action("Conversation dump created".to_string())
+                        .sub_title(path.to_string())
                         .format()
                 );
             } else {

@@ -173,28 +173,24 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         tool_calls: &[ToolCallFull],
     ) -> anyhow::Result<Vec<CallRecord>> {
-        // Process tool calls sequentially using futures::future::try_join_all
-        // with a more functional approach
-        let tool_results =
-            futures::future::try_join_all(tool_calls.iter().map(|tool_call| async move {
-                // Send the start notification
-                self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
-                    .await?;
+        // Always process tool calls sequentially
+        let mut tool_results = Vec::with_capacity(tool_calls.len());
 
-                // Execute the tool
-                let tool_result = self.execute_tool(agent, tool_call).await?;
+        for tool_call in tool_calls {
+            // Send the start notification
+            self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
+                .await?;
 
-                // Send the end notification
-                self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone()))
-                    .await?;
+            // Execute the tool
+            let tool_result = self.execute_tool(agent, tool_call).await?;
 
-                // Return the result
-                Ok::<CallRecord, anyhow::Error>(CallRecord {
-                    tool_call: tool_call.clone(),
-                    tool_result: tool_result,
-                })
-            }))
-            .await?;
+            // Send the end notification
+            self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone()))
+                .await?;
+
+            // Add the result to our collection
+            tool_results.push(CallRecord { tool_call: tool_call.clone(), tool_result });
+        }
 
         Ok(tool_results)
     }
