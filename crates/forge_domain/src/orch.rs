@@ -53,12 +53,6 @@ pub struct Orchestrator<Services> {
     retry_strategy: std::iter::Take<tokio_retry::strategy::ExponentialBackoff>,
 }
 
-struct ChatCompletionResult {
-    pub content: String,
-    pub tool_calls: Vec<ToolCallFull>,
-    pub usage: Option<Usage>,
-}
-
 impl<A: Services> Orchestrator<A> {
     pub fn new(
         services: Arc<A>,
@@ -90,16 +84,23 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         tool_calls: &[ToolCallFull],
     ) -> anyhow::Result<Vec<ToolResult>> {
-        let mut tool_results = Vec::new();
-
-        for tool_call in tool_calls.iter() {
-            self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
-                .await?;
-            let tool_result = self.execute_tool(agent, tool_call).await?;
-            tool_results.push(tool_result.clone());
-            self.send(agent, ChatResponse::ToolCallEnd(tool_result))
-                .await?;
-        }
+        // Process tool calls sequentially using futures::future::try_join_all
+        // with a more functional approach
+        let tool_results = futures::future::try_join_all(
+            tool_calls.iter().map(|tool_call| async move {
+                // Send the start notification
+                self.send(agent, ChatResponse::ToolCallStart(tool_call.clone())).await?;
+                
+                // Execute the tool
+                let tool_result = self.execute_tool(agent, tool_call).await?;
+                
+                // Send the end notification
+                self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone())).await?;
+                
+                // Return the result
+                Ok::<ToolResult, anyhow::Error>(tool_result)
+            })
+        ).await?;
 
         Ok(tool_results)
     }
@@ -174,7 +175,7 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
             + std::marker::Unpin,
-    ) -> anyhow::Result<ChatCompletionResult> {
+    ) -> anyhow::Result<ChatCompletionMessage> {
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
 
@@ -218,30 +219,43 @@ impl<A: Services> Orchestrator<A> {
         )
         .await?;
 
-        // From Complete (incase streaming is disabled)
-        let mut tool_calls: Vec<ToolCallFull> = messages
+        // Extract all tool calls in a fully declarative way with combined sources
+        // Start with complete tool calls (for non-streaming mode)
+        let initial_tool_calls: Vec<ToolCallFull> = messages.iter()
+            .flat_map(|message| &message.tool_calls)
+            .filter_map(|tool_call| tool_call.as_full().cloned())
+            .collect();
+            
+        // Get partial tool calls
+        let tool_call_parts: Vec<ToolCallPart> = messages
             .iter()
-            .flat_map(|message| message.tool_call.iter())
-            .filter_map(|message| message.as_full().cloned())
-            .collect::<Vec<_>>();
-
-        // From partial tool calls
-        let tool_call_parts = messages
-            .iter()
-            .filter_map(|message| message.tool_call.first())
-            .clone()
+            .flat_map(|message| &message.tool_calls)
             .filter_map(|tool_call| tool_call.as_partial().cloned())
-            .collect::<Vec<_>>();
+            .collect();
+            
+        // Process partial tool calls
+        let partial_tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)
+            .with_context(|| format!("Failed to parse tool call: {:?}", tool_call_parts))?;
+            
+        // Process XML tool calls
+        let xml_tool_calls = ToolCallFull::try_from_xml(&content)?;
+        
+        // Combine all sources of tool calls
+        let tool_calls: Vec<ToolCallFull> = initial_tool_calls.into_iter()
+            .chain(partial_tool_calls)
+            .chain(xml_tool_calls)
+            .collect();
 
-        tool_calls.extend(
-            ToolCallFull::try_from_parts(&tool_call_parts)
-                .with_context(|| format!("Failed to parse tool call: {:?}", tool_call_parts))?,
-        );
+        // Convert Vec<ToolCallFull> to Vec<ToolCall> for use with ChatCompletionMessage
+        let tool_calls_vec: Vec<ToolCall> = tool_calls
+            .iter()
+            .map(|tc| ToolCall::Full(tc.clone()))
+            .collect();
 
-        // From XML
-        tool_calls.extend(ToolCallFull::try_from_xml(&content)?);
-
-        Ok(ChatCompletionResult { content: filtered_content, tool_calls, usage: request_usage })
+        Ok(ChatCompletionMessage::default()
+            .content(Content::full(filtered_content))
+            .tool_calls(tool_calls_vec)
+            .usage(request_usage.unwrap_or_default()))
     }
 
     pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
@@ -362,27 +376,28 @@ impl<A: Services> Orchestrator<A> {
             context = context.temperature(temperature);
         }
 
-        // Process attachments
+        // Process attachments in a more declarative way
         let attachments = self
             .services
             .attachment_service()
             .attachments(&event.value.to_string())
             .await?;
 
-        for attachment in attachments.into_iter() {
+        // Process each attachment and fold the results into the context
+        context = attachments.into_iter().fold(context, |ctx, attachment| {
             match attachment.content_type {
                 ContentType::Image => {
-                    context = context.add_message(ContextMessage::Image(attachment.content));
+                    ctx.add_message(ContextMessage::Image(attachment.content))
                 }
                 ContentType::Text => {
                     let content = format!(
                         "<file_content path=\"{}\">{}</file_content>",
                         attachment.path, attachment.content
                     );
-                    context = context.add_message(ContextMessage::user(content));
+                    ctx.add_message(ContextMessage::user(content))
                 }
             }
-        }
+        });
 
         self.set_context(&agent.id, context.clone()).await?;
         loop {
@@ -400,7 +415,7 @@ impl<A: Services> Orchestrator<A> {
                 .provider_service()
                 .chat(model_id, context.clone())
                 .await?;
-            let ChatCompletionResult { tool_calls, content, usage } =
+            let ChatCompletionMessage { tool_calls, content, usage, finish_reason: _ } =
                 self.collect_messages(agent, response).await?;
 
             // Check if context requires compression and decide to compact
@@ -415,11 +430,23 @@ impl<A: Services> Orchestrator<A> {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
 
+            // We have Vec<ToolCall> but need to extract Vec<ToolCallFull> for tool processing
+            let full_tool_calls: Vec<ToolCallFull> = tool_calls
+                .iter()
+                .filter_map(|tc| tc.as_full().cloned())
+                .collect();
+
             // Get all tool results using the helper function
-            let tool_results = self.get_all_tool_results(agent, &tool_calls).await?;
+            let tool_results = self.get_all_tool_results(agent, &full_tool_calls).await?;
+
+            // For usage in ContextMessage::assistant
+            let content_str = content.map_or(String::new(), |c| c.as_str().to_string());
 
             context = context
-                .add_message(ContextMessage::assistant(content, Some(tool_calls)))
+                .add_message(ContextMessage::assistant(
+                    content_str,
+                    Some(full_tool_calls),
+                ))
                 .add_tool_results(tool_results.clone());
 
             self.set_context(&agent.id, context.clone()).await?;
