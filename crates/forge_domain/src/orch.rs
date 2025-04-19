@@ -31,7 +31,6 @@ const THINKING_TAGS: &[&str] = &[
     "content_plan",
     "creation",
     "review",
-    "tool_call",
 ];
 
 #[derive(Debug, Clone)]
@@ -84,7 +83,7 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         full_tool_calls: &[ToolCallFull],
-        content_str: String,
+        content: String,
         mut context: Context,
     ) -> anyhow::Result<Context> {
         // If tools are not supported, get tool results and convert to content instead
@@ -94,13 +93,13 @@ impl<A: Services> Orchestrator<A> {
         let tool_results = self.get_all_tool_results(agent, full_tool_calls).await?;
 
         // Add the original assistant message without tool calls
-        context = context.add_message(ContextMessage::assistant(content_str, None));
+        context = context.add_message(ContextMessage::assistant(content.as_str(), None));
 
         // Add each tool result as a separate user message to make them distinct
         for result in &tool_results {
             // Add as a separate system message to distinguish it from user and assistant
             // messages
-            context = context.add_message(ContextMessage::assistant(result.to_string(), None));
+            context = context.add_message(ContextMessage::user(result.to_string()));
         }
 
         // Return updated context and signal to break the loop
@@ -149,14 +148,14 @@ impl<A: Services> Orchestrator<A> {
             .collect();
 
         // For usage in ContextMessage::assistant
-        let content_str = content.map_or(String::new(), |c| c.as_str().to_string());
+        let content = content.map_or(String::new(), |c| c.as_str().to_string());
 
         // Check if tools are supported for this agent
         if !agent.tool_supported.unwrap_or_default() && !full_tool_calls.is_empty() {
-            self.handle_unsupported_tools(agent, &full_tool_calls, content_str, context)
+            self.handle_unsupported_tools(agent, &full_tool_calls, content, context)
                 .await
         } else {
-            self.handle_supported_tools(agent, &full_tool_calls, content_str, context)
+            self.handle_supported_tools(agent, &full_tool_calls, content, context)
                 .await
         }
     }
