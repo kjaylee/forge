@@ -10,17 +10,17 @@ use crate::{ToolCallFull, ToolResult};
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
 pub struct CallRecord {
-    pub call: ToolCallFull,
-    pub result: ToolResult,
+    pub tool_call: ToolCallFull,
+    pub tool_result: ToolResult,
 }
 
 /// Formats the CallRecord as XML with tool name, arguments, and result
 impl Display for CallRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tool_name = self.call.name.as_str();
+        let tool_name = self.tool_call.name.as_str();
         write!(f, "<tool_result tool=\"{}\">", tool_name)?;
 
-        if let Some(object) = self.call.arguments.as_object() {
+        if let Some(object) = self.tool_call.arguments.as_object() {
             writeln!(f)?;
             writeln!(f, "  <arguments>")?;
             for (key, value) in object.iter() {
@@ -32,13 +32,17 @@ impl Display for CallRecord {
         writeln!(f)?;
         writeln!(f, "  <result>")?;
 
-        if self.result.is_error {
-            writeln!(f, "    <error><![CDATA[{}]]></error>", self.result.content)?;
+        if self.tool_result.is_error {
+            writeln!(
+                f,
+                "    <error><![CDATA[{}]]></error>",
+                self.tool_result.content
+            )?;
         } else {
             writeln!(
                 f,
                 "    <content><![CDATA[{}]]></content>",
-                self.result.content
+                self.tool_result.content
             )?;
         }
 
@@ -53,17 +57,17 @@ impl Display for CallRecord {
 impl CallRecord {
     /// Creates a new CallRecord from a tool call and its result
     pub fn new(call: ToolCallFull, result: ToolResult) -> Self {
-        Self { call, result }
+        Self { tool_call: call, tool_result: result }
     }
 
     /// Returns true if the tool execution was successful
     pub fn is_success(&self) -> bool {
-        !self.result.is_error
+        !self.tool_result.is_error
     }
 
     /// Returns true if the tool execution resulted in an error
     pub fn is_error(&self) -> bool {
-        self.result.is_error
+        self.tool_result.is_error
     }
 }
 

@@ -116,14 +116,19 @@ impl<A: Services> Orchestrator<A> {
         mut context: Context,
     ) -> anyhow::Result<Context> {
         // Get all tool results using the helper function
-        let tool_results = self.get_all_tool_results(agent, full_tool_calls).await?;
+        let records = self.get_all_tool_results(agent, full_tool_calls).await?;
 
         context = context
             .add_message(ContextMessage::assistant(
                 content_str,
                 Some(full_tool_calls.to_vec()),
             ))
-            .add_tool_results(tool_results.clone());
+            .add_tool_results(
+                records
+                    .into_iter()
+                    .map(|record| record.tool_result)
+                    .collect::<Vec<_>>(),
+            );
 
         // Update context after modifications
         self.set_context(&agent.id, context.clone()).await?;
@@ -167,7 +172,7 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
-    ) -> anyhow::Result<Vec<ToolResult>> {
+    ) -> anyhow::Result<Vec<CallRecord>> {
         // Process tool calls sequentially using futures::future::try_join_all
         // with a more functional approach
         let tool_results =
@@ -184,7 +189,10 @@ impl<A: Services> Orchestrator<A> {
                     .await?;
 
                 // Return the result
-                Ok::<ToolResult, anyhow::Error>(tool_result)
+                Ok::<CallRecord, anyhow::Error>(CallRecord {
+                    tool_call: tool_call.clone(),
+                    tool_result: tool_result,
+                })
             }))
             .await?;
 
