@@ -78,7 +78,8 @@ impl<A: Services> Orchestrator<A> {
         }
     }
 
-    // Helper method to handle tool-unsupported cases by converting tool calls to content
+    // Helper method to handle tool-unsupported cases by converting tool calls to
+    // content
     async fn handle_unsupported_tools(
         &self,
         agent: &Agent,
@@ -97,7 +98,8 @@ impl<A: Services> Orchestrator<A> {
 
         // Add each tool result as a separate user message to make them distinct
         for result in &tool_results {
-            // Add as a separate system message to distinguish it from user and assistant messages
+            // Add as a separate system message to distinguish it from user and assistant
+            // messages
             context = context.add_message(ContextMessage::assistant(result.to_string(), None));
         }
 
@@ -139,7 +141,8 @@ impl<A: Services> Orchestrator<A> {
         content: Option<Content>,
         context: Context,
     ) -> anyhow::Result<Context> {
-        // We have Vec<ToolCall> but need to extract Vec<ToolCallFull> for tool processing
+        // We have Vec<ToolCall> but need to extract Vec<ToolCallFull> for tool
+        // processing
         let full_tool_calls: Vec<ToolCallFull> = tool_calls
             .iter()
             .filter_map(|tc| tc.as_full().cloned())
