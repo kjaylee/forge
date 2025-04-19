@@ -84,8 +84,8 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         full_tool_calls: &[ToolCallFull],
         content_str: String,
-        context: Context,
-    ) -> anyhow::Result<(Context, bool)> {
+        mut context: Context,
+    ) -> anyhow::Result<Context> {
         // If tools are not supported, get tool results and convert to content instead
         debug!(agent_id = %agent.id, "Tools not supported, adding tool results as separate messages");
 
@@ -93,21 +93,16 @@ impl<A: Services> Orchestrator<A> {
         let tool_results = self.get_all_tool_results(agent, full_tool_calls).await?;
 
         // Add the original assistant message without tool calls
-        let mut updated_context = context.add_message(ContextMessage::assistant(content_str, None));
+        context = context.add_message(ContextMessage::assistant(content_str, None));
 
         // Add each tool result as a separate user message to make them distinct
         for result in &tool_results {
             // Add as a separate system message to distinguish it from user and assistant messages
-            updated_context =
-                updated_context.add_message(ContextMessage::assistant(result.to_string(), None));
+            context = context.add_message(ContextMessage::assistant(result.to_string(), None));
         }
 
-        // Update context in the conversation
-        self.set_context(&agent.id, updated_context.clone()).await?;
-        self.sync_conversation().await?;
-
         // Return updated context and signal to break the loop
-        Ok((updated_context, true))
+        Ok(context)
     }
 
     // Helper method to handle standard tool-supported flow
@@ -116,12 +111,12 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         full_tool_calls: &[ToolCallFull],
         content_str: String,
-        context: Context,
-    ) -> anyhow::Result<(Context, bool)> {
+        mut context: Context,
+    ) -> anyhow::Result<Context> {
         // Get all tool results using the helper function
         let tool_results = self.get_all_tool_results(agent, full_tool_calls).await?;
 
-        let updated_context = context
+        context = context
             .add_message(ContextMessage::assistant(
                 content_str,
                 Some(full_tool_calls.to_vec()),
@@ -129,11 +124,11 @@ impl<A: Services> Orchestrator<A> {
             .add_tool_results(tool_results.clone());
 
         // Update context after modifications
-        self.set_context(&agent.id, updated_context.clone()).await?;
+        self.set_context(&agent.id, context.clone()).await?;
         self.sync_conversation().await?;
 
         // Return updated context and signal whether to break loop
-        Ok((updated_context, tool_results.is_empty()))
+        Ok(context)
     }
 
     // Helper method to process tool calls based on agent capabilities
@@ -143,7 +138,7 @@ impl<A: Services> Orchestrator<A> {
         tool_calls: Vec<ToolCall>,
         content: Option<Content>,
         context: Context,
-    ) -> anyhow::Result<(Context, bool)> {
+    ) -> anyhow::Result<Context> {
         // We have Vec<ToolCall> but need to extract Vec<ToolCallFull> for tool processing
         let full_tool_calls: Vec<ToolCallFull> = tool_calls
             .iter()
@@ -474,18 +469,22 @@ impl<A: Services> Orchestrator<A> {
             .await?;
 
         // Process each attachment and fold the results into the context
-        context = attachments.into_iter().fold(context, |ctx, attachment| {
-            match attachment.content_type {
-                ContentType::Image => ctx.add_message(ContextMessage::Image(attachment.content)),
-                ContentType::Text => {
-                    let content = format!(
-                        "<file_content path=\"{}\">{}</file_content>",
-                        attachment.path, attachment.content
-                    );
-                    ctx.add_message(ContextMessage::user(content))
+        context = attachments
+            .into_iter()
+            .fold(context.clone(), |ctx, attachment| {
+                match attachment.content_type {
+                    ContentType::Image => {
+                        ctx.add_message(ContextMessage::Image(attachment.content))
+                    }
+                    ContentType::Text => {
+                        let content = format!(
+                            "<file_content path=\"{}\">{}</file_content>",
+                            attachment.path, attachment.content
+                        );
+                        ctx.add_message(ContextMessage::user(content))
+                    }
                 }
-            }
-        });
+            });
 
         self.set_context(&agent.id, context.clone()).await?;
         loop {
@@ -520,14 +519,18 @@ impl<A: Services> Orchestrator<A> {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
 
+            let tool_call_count = tool_calls.is_empty();
+
             // Process tool calls and update context
-            let (updated_context, should_break) = self
+            context = self
                 .process_tool_calls(agent, tool_calls, content, context)
                 .await?;
 
-            context = updated_context;
+            // Update context in the conversation
+            self.set_context(&agent.id, context.clone()).await?;
+            self.sync_conversation().await?;
 
-            if should_break {
+            if tool_call_count {
                 break;
             }
         }
