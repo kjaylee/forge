@@ -94,7 +94,7 @@ impl<F: API> UI<F> {
 
         println!(
             "{}",
-            TitleFormat::new(mode.to_string())
+            TitleFormat::action(mode.to_string())
                 .sub_title(mode_message)
                 .format()
         );
@@ -165,7 +165,7 @@ impl<F: API> UI<F> {
                     let token_reduction = compaction_result.token_reduction_percentage();
                     let message_reduction = compaction_result.message_reduction_percentage();
 
-                    let content = TitleFormat::new("compact")
+                    let content = TitleFormat::action("compact")
                         .sub_title(format!(
                             "context size reduced by {:.1}% (tokens), {:.1}% (messages)",
                             token_reduction, message_reduction
@@ -196,7 +196,7 @@ impl<F: API> UI<F> {
 
                         println!(
                             "{}",
-                            TitleFormat::new("error")
+                            TitleFormat::action("error")
                                 .error(format!("{:?}", err))
                                 .format()
                         );
@@ -222,7 +222,7 @@ impl<F: API> UI<F> {
                     if let Err(e) = self.dispatch_event(event.into()).await {
                         println!(
                             "{}",
-                            TitleFormat::new("Failed to execute the command.")
+                            TitleFormat::action("Failed to execute the command.")
                                 .sub_title("Command Execution")
                                 .error(e.to_string())
                                 .format()
@@ -300,14 +300,14 @@ impl<F: API> UI<F> {
 
             println!(
                 "{}",
-                TitleFormat::new("model")
+                TitleFormat::action("model")
                     .sub_title(format!("switched to: {}", model))
                     .format()
             );
         } else {
             println!(
                 "{}",
-                TitleFormat::new("model")
+                TitleFormat::action("model")
                     .error("Failed to update model: conversation not found")
                     .format()
             );
@@ -439,14 +439,14 @@ impl<F: API> UI<F> {
 
                 println!(
                     "{}",
-                    TitleFormat::new("dump")
+                    TitleFormat::action("dump")
                         .sub_title(format!("path: {path}"))
                         .format()
                 );
             } else {
                 println!(
                     "{}",
-                    TitleFormat::new("dump")
+                    TitleFormat::action("dump")
                         .error("conversation not found")
                         .sub_title(format!("conversation_id: {conversation_id}"))
                         .format()
