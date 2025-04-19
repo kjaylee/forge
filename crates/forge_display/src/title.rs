@@ -49,7 +49,7 @@ impl TitleFormat {
         } else {
             buf.push_str(format!("{} ", "⏺".blue()).as_str());
         }
-        let mut title = self.title.to_case(Case::Title).white().bold();
+        let mut title = self.title.to_case(Case::Sentence).bold();
 
         if self.error.is_some() {
             title = title.red().bold();
