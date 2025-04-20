@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use colored::Colorize;
 use console::style;
 use derive_setters::Setters;
 use regex::Regex;
@@ -90,9 +91,9 @@ impl GrepFormat {
                 |mat| {
                     format!(
                         "{}{}{}",
-                        &content[..mat.start()],
-                        style(&content[mat.start()..mat.end()]).blue().underlined().bold(),
-                        &content[mat.end()..]
+                        &content[..mat.start()].dimmed(),
+                        style(&content[mat.start()..mat.end()]),
+                        &content[mat.end()..].dimmed()
                     )
                 },
             ),
