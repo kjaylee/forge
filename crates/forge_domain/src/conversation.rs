@@ -1,4 +1,3 @@
-use handlebars::Handlebars;
 use std::collections::{HashMap, VecDeque};
 
 use derive_more::derive::Display;
@@ -201,16 +200,8 @@ impl Conversation {
     /// - If the Handlebars template registration fails
     /// - If the template rendering fails
     pub fn to_html(&self) -> String {
-        let handlebars = Handlebars::new();
-
-        // Include the template directly in the binary
-        static CONVERSATION_TEMPLATE: &str = include_str!("../templates/conversation.hbs");
-
-        // Render the template
-        // NOTE: This should never fail
-        handlebars
-            .render_template(CONVERSATION_TEMPLATE, self)
-            .unwrap()
+        // Instead of using Handlebars, we now use our Element DSL
+        crate::conversation_html::render_conversation_html(self)
     }
 
     /// Add an event to the queue of subscribed agents

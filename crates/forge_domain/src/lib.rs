@@ -1,3 +1,4 @@
+mod conversation_html;
 mod agent;
 mod api;
 mod attachment;
@@ -37,6 +38,7 @@ mod tool_result;
 mod tool_usage;
 mod workflow;
 
+pub use conversation_html::*;
 pub use agent::*;
 pub use api::*;
 pub use attachment::*;

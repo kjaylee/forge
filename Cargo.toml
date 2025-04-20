@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/*"]
+members = ["crates/*", "forge_template"]
 resolver = "2"
 
 [profile.release]

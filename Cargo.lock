@@ -944,6 +944,7 @@ dependencies = [
  "derive_more 2.0.1",
  "derive_setters",
  "forge_stream",
+ "forge_template",
  "futures",
  "handlebars",
  "insta",
@@ -1122,6 +1123,14 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "tokio",
+]
+
+[[package]]
+name = "forge_template"
+version = "0.1.0"
+dependencies = [
+ "derive_more 2.0.1",
+ "pretty_assertions",
 ]
 
 [[package]]
