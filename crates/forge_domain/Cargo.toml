@@ -28,6 +28,7 @@ url.workspace = true
 merge.workspace = true
 tokio-retry = { workspace = true }
 serde_yml.workspace = true
+handlebars.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

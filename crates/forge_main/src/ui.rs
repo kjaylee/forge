@@ -422,7 +422,7 @@ impl<F: API> UI<F> {
                 if let Some(format) = format {
                     if format == "html" {
                         // Export as HTML
-                        let html_content = conversation.to_html()?;
+                        let html_content = conversation.to_html();
                         let path = format!("{timestamp}-dump.html");
                         tokio::fs::write(path.as_str(), html_content).await?;
 

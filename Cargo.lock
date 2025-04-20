@@ -945,6 +945,7 @@ dependencies = [
  "derive_setters",
  "forge_stream",
  "futures",
+ "handlebars",
  "insta",
  "merge",
  "nom 8.0.0",

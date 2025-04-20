@@ -1,3 +1,4 @@
+use handlebars::Handlebars;
 use std::collections::{HashMap, VecDeque};
 
 use derive_more::derive::Display;
@@ -188,6 +189,28 @@ impl Conversation {
     /// Returns true if the variable was present and removed, false otherwise
     pub fn delete_variable(&mut self, key: &str) -> bool {
         self.variables.remove(key).is_some()
+    }
+
+    /// Generates an HTML representation of the conversation
+    ///
+    /// This method uses Handlebars to render the conversation as HTML
+    /// from the template file, including all agents, events, and variables.
+    ///
+    /// # Errors
+    /// - If the template file cannot be found or read
+    /// - If the Handlebars template registration fails
+    /// - If the template rendering fails
+    pub fn to_html(&self) -> String {
+        let handlebars = Handlebars::new();
+
+        // Include the template directly in the binary
+        static CONVERSATION_TEMPLATE: &str = include_str!("../templates/conversation.hbs");
+
+        // Render the template
+        // NOTE: This should never fail
+        handlebars
+            .render_template(CONVERSATION_TEMPLATE, self)
+            .unwrap()
     }
 
     /// Add an event to the queue of subscribed agents
