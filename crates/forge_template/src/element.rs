@@ -50,11 +50,8 @@ impl Element {
         self
     }
 
-    pub fn append(mut self, children: impl IntoIterator<Item = Element>) -> Self {
-        for c in children {
-            self.children.push(c);
-        }
-        self
+    pub fn append(self, item: impl CanAppend) -> Self {
+        item.append_to(self)
     }
 
     pub fn render(&self) -> String {
@@ -78,27 +75,34 @@ impl Element {
     }
 }
 
-pub struct ElementIterator(Option<Element>);
-impl Iterator for ElementIterator {
-    type Item = Element;
+pub trait CanAppend {
+    fn append_to(self, element: Element) -> Element;
+}
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.take()
+impl CanAppend for Element {
+    fn append_to(self, mut element: Element) -> Element {
+        element.children.push(self);
+        element
     }
 }
 
-impl IntoIterator for Element {
-    type Item = Element;
-    type IntoIter = ElementIterator;
-    fn into_iter(self) -> Self::IntoIter {
-        ElementIterator(Some(self))
+impl<T> CanAppend for T
+where
+    T: IntoIterator<Item = Element>,
+{
+    fn append_to(self, mut element: Element) -> Element {
+        for item in self {
+            element.children.push(item);
+        }
+        element
     }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_element() {
@@ -130,7 +134,7 @@ mod test {
     fn test_element_with_multiple_children() {
         let html = Element::new("div")
             .attr("class", "test")
-            .append(vec![Element::new("span"), Element::new("p")]);
+            .append([Element::new("span"), Element::new("p")]);
         let actual = html.render();
         let expected = "<div class=\"test\"><span></span><p></p></div>";
         assert_eq!(actual, expected);
@@ -138,7 +142,7 @@ mod test {
 
     #[test]
     fn test_element_with_nested_children() {
-        let html = Element::new("div").attr("class", "test").append(vec![
+        let html = Element::new("div").attr("class", "test").append([
             Element::new("span").attr("class", "child"),
             Element::new("p").attr("class", "child"),
         ]);
@@ -153,7 +157,7 @@ mod test {
         let html = Element::new("div")
             .attr("class", "test")
             .text("Hello, world!")
-            .append(vec![Element::new("span").attr("class", "child")]);
+            .append([Element::new("span").attr("class", "child")]);
         let actual = html.render();
         let expected = "<div class=\"test\">Hello, world!<span class=\"child\"></span></div>";
         assert_eq!(actual, expected);
@@ -185,6 +189,53 @@ mod test {
         let html = Element::new("div.foo.bar").class("extra-class");
         let actual = html.render();
         let expected = "<div class=\"foo bar extra-class\"></div>";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_if_some() {
+        let html = Element::new("div").append(Some(Element::new("span")));
+        let actual = html.render();
+        let expected = "<div><span></span></div>";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_if_none() {
+        let html = Element::new("div").append(None);
+        let actual = html.render();
+        let expected = "<div></div>";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_all() {
+        let elements = vec![
+            Element::new("span").text("First"),
+            Element::new("span").text("Second"),
+            Element::new("span").text("Third"),
+        ];
+        let html = Element::new("div").append(elements);
+        let actual = html.render();
+        let expected = "<div><span>First</span><span>Second</span><span>Third</span></div>";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_all_empty() {
+        let elements: Vec<Element> = vec![];
+        let html = Element::new("div").append(elements);
+        let actual = html.render();
+        let expected = "<div></div>";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_all_with_iterator() {
+        let html =
+            Element::new("div").append((0..3).map(|i| Element::new("span").text(i.to_string())));
+        let actual = html.render();
+        let expected = "<div><span>0</span><span>1</span><span>2</span></div>";
         assert_eq!(actual, expected);
     }
 }
