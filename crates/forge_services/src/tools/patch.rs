@@ -193,7 +193,8 @@ pub struct Input {
     /// end of the file.
     pub search: String,
 
-    /// The operation to perform on the matched text
+    /// The operation to perform on the matched text. Possible options are only
+    /// 'prepend', 'append', 'replace', and 'swap'.
     pub operation: Operation,
 
     /// The content to use for the operation (replacement text, text to

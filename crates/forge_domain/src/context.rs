@@ -243,10 +243,14 @@ impl Context {
             )
         } else {
             self = self.add_message(ContextMessage::assistant(content, None));
-            for result in tool_records {
-                self = self.add_message(ContextMessage::user(result.to_string()));
-            }
-            self
+            let user_message = tool_records.iter().fold(String::new(), |mut acc, result| {
+                if !acc.is_empty() {
+                    acc.push_str("\n\n");
+                }
+                acc.push_str(result.to_string().as_str());
+                acc
+            });
+            self.add_message(ContextMessage::user(user_message))
         }
     }
 }

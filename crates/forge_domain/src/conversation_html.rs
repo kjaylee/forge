@@ -192,37 +192,31 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                             // Add tool calls if any
                             if let Some(tool_calls) = &content_message.tool_calls {
                                 if !tool_calls.is_empty() {
-                                    message_div.append(
-                                        Element::new("div")
-                                            .append(tool_calls.iter().map(|tool_call| {
-                                                Element::new("div.tool-call")
-                                                    .append(
-                                                        Element::new("p").append(
-                                                            Element::new("strong")
-                                                                .text(tool_call.name.as_str()),
-                                                        ),
-                                                    )
-                                                    .append(tool_call.call_id.as_ref().map(
-                                                        |call_id| {
-                                                            Element::new("p")
-                                                                .append(
-                                                                    Element::new("strong")
-                                                                        .text("ID: "),
-                                                                )
-                                                                .text(call_id.as_str())
-                                                        },
-                                                    ))
-                                                    .append(Element::new("p").append(
-                                                        Element::new("strong").text("Arguments: "),
-                                                    ))
-                                                    .append(
-                                                        Element::new("pre").text(
-                                                            to_string_pretty(&tool_call.arguments)
-                                                                .unwrap_or_default(),
-                                                        ),
-                                                    )
-                                            })),
-                                    )
+                                    message_div.append(Element::new("div").append(
+                                        tool_calls.iter().map(|tool_call| {
+                                            Element::new("div.tool-call")
+                                                .append(
+                                                    Element::new("p").append(
+                                                        Element::new("strong")
+                                                            .text(tool_call.name.as_str()),
+                                                    ),
+                                                )
+                                                .append(tool_call.call_id.as_ref().map(|call_id| {
+                                                    Element::new("p")
+                                                        .append(Element::new("strong").text("ID: "))
+                                                        .text(call_id.as_str())
+                                                }))
+                                                .append(Element::new("p").append(
+                                                    Element::new("strong").text("Arguments: "),
+                                                ))
+                                                .append(
+                                                    Element::new("pre").text(
+                                                        to_string_pretty(&tool_call.arguments)
+                                                            .unwrap_or_default(),
+                                                    ),
+                                                )
+                                        }),
+                                    ))
                                 } else {
                                     message_div
                                 }
