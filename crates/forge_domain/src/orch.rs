@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
@@ -205,38 +205,6 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    fn init_default_tool_definitions(&self) -> Vec<ToolDefinition> {
-        self.services.tool_service().list()
-    }
-
-    fn init_tool_definitions(&self, agent: &Agent) -> Vec<ToolDefinition> {
-        let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
-        let mut forge_tools = self.init_default_tool_definitions();
-
-        // Adding Event tool to the list of tool definitions
-        forge_tools.push(Event::tool_definition());
-
-        forge_tools
-            .into_iter()
-            .filter(|tool| allowed.contains(&tool.name))
-            .collect::<Vec<_>>()
-    }
-
-    async fn init_agent_context(&self, agent: &Agent) -> anyhow::Result<Context> {
-        let tool_defs = self.init_tool_definitions(agent);
-
-        // Use the agent's tool_supported flag directly instead of querying the provider
-        let tool_supported = agent.tool_supported.unwrap_or_default();
-
-        let context = Context::default();
-
-        Ok(context.extend_tools(if tool_supported {
-            tool_defs
-        } else {
-            Vec::new()
-        }))
-    }
-
     async fn set_system_prompt(
         &self,
         context: Context,
@@ -435,11 +403,17 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            self.init_agent_context(agent).await?
+            agent
+                .init_context(self.services.tool_service().list())
+                .await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => self.init_agent_context(agent).await?,
+                None => {
+                    agent
+                        .init_context(self.services.tool_service().list())
+                        .await?
+                }
             }
         };
 
