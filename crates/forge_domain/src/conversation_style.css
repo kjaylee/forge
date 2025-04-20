@@ -7,6 +7,10 @@ body {
   margin: 0 auto;
 }
 
+summary {
+  cursor: pointer;
+}
+
 tr {
   border: 0;
 }
