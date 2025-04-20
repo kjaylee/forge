@@ -84,84 +84,6 @@ impl<A: Services> Orchestrator<A> {
         }
     }
 
-    // Helper method to handle tool-unsupported cases by converting tool calls to
-    // content
-    async fn handle_unsupported_tools(
-        &self,
-        agent: &Agent,
-        tool_calls: &[ToolCallFull],
-        content: &str,
-        mut context: Context,
-    ) -> anyhow::Result<Context> {
-        // If tools are not supported, get tool results and convert to content instead
-        debug!(agent_id = %agent.id, "Tools not supported, adding tool results as separate messages");
-
-        // Get all tool results
-        let tool_results = self.get_all_tool_results(agent, tool_calls).await?;
-
-        // Add the original assistant message without tool calls
-        context = context.add_message(ContextMessage::assistant(content, None));
-
-        // Add each tool result as a separate user message to make them distinct
-        for result in &tool_results {
-            // Add as a separate system message to distinguish it from user and assistant
-            // messages
-            context = context.add_message(ContextMessage::user(result.to_string()));
-        }
-
-        // Return updated context and signal to break the loop
-        Ok(context)
-    }
-
-    // Helper method to handle standard tool-supported flow
-    async fn handle_supported_tools(
-        &self,
-        agent: &Agent,
-        tool_calls: &[ToolCallFull],
-        content: &str,
-        mut context: Context,
-    ) -> anyhow::Result<Context> {
-        // Get all tool results using the helper function
-        let records = self.get_all_tool_results(agent, tool_calls).await?;
-
-        context = context
-            .add_message(ContextMessage::assistant(
-                content,
-                Some(tool_calls.to_vec()),
-            ))
-            .add_tool_results(
-                records
-                    .into_iter()
-                    .map(|record| record.tool_result)
-                    .collect::<Vec<_>>(),
-            );
-
-        // Update context after modifications
-        self.set_context(&agent.id, context.clone()).await?;
-        self.sync_conversation().await?;
-
-        // Return updated context and signal whether to break loop
-        Ok(context)
-    }
-
-    // Helper method to process tool calls based on agent capabilities
-    async fn process_tool_calls(
-        &self,
-        agent: &Agent,
-        tool_calls: Vec<ToolCallFull>,
-        content: &str,
-        context: Context,
-    ) -> anyhow::Result<Context> {
-        // Check if tools are supported for this agent
-        if !agent.tool_supported.unwrap_or_default() && !tool_calls.is_empty() {
-            self.handle_unsupported_tools(agent, &tool_calls, content, context)
-                .await
-        } else {
-            self.handle_supported_tools(agent, &tool_calls, content, context)
-                .await
-        }
-    }
-
     // Helper function to get all tool results from a vector of tool calls
     #[async_recursion]
     async fn get_all_tool_results(
@@ -497,9 +419,11 @@ impl<A: Services> Orchestrator<A> {
             );
 
             // Process tool calls and update context
-            context = self
-                .process_tool_calls(agent, tool_calls, content.as_str(), context)
-                .await?;
+            context = context.assistant_message(
+                content,
+                self.get_all_tool_results(agent, &tool_calls).await?,
+                !agent.tool_supported.unwrap_or_default() && !tool_calls.is_empty(),
+            );
 
             // Update context in the conversation
             self.set_context(&agent.id, context.clone()).await?;

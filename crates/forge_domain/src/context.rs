@@ -5,7 +5,7 @@ use tracing::debug;
 
 use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
-use crate::{ToolChoice, ToolDefinition};
+use crate::{CallRecord, ToolChoice, ToolDefinition};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -213,6 +213,37 @@ impl Context {
         // Call the standalone function from agent.rs with the text representation of
         // this context
         crate::estimate_token_count(&self.to_text())
+    }
+
+    pub fn assistant_message(
+        mut self,
+        content: impl ToString,
+        tool_records: Vec<CallRecord>,
+        tool_supported: bool,
+    ) -> Self {
+        if tool_supported {
+            self.add_message(ContextMessage::assistant(
+                content,
+                Some(
+                    tool_records
+                        .iter()
+                        .map(|record| record.tool_call.clone())
+                        .collect::<Vec<_>>(),
+                ),
+            ))
+            .add_tool_results(
+                tool_records
+                    .iter()
+                    .map(|record| record.tool_result.clone())
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            self = self.add_message(ContextMessage::assistant(content, None));
+            for result in tool_records {
+                self = self.add_message(ContextMessage::user(result.to_string()));
+            }
+            self
+        }
     }
 }
 
