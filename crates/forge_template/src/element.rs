@@ -6,22 +6,47 @@ pub struct Element {
 }
 
 impl Element {
-    pub fn new(name: impl ToString) -> Self {
-        Element {
-            name: name.to_string(),
+    pub fn new(name_with_classes: impl ToString) -> Self {
+        let full_name = name_with_classes.to_string();
+        let parts: Vec<&str> = full_name.split('.').collect();
+
+        let mut element = Element {
+            name: parts[0].to_string(),
             attr: vec![],
             children: vec![],
             text: None,
+        };
+
+        // Add classes if there are any
+        if parts.len() > 1 {
+            let classes = parts[1..].join(" ");
+            element.attr.push(("class".to_string(), classes));
         }
+
+        element
     }
 
     pub fn text(mut self, text: impl ToString) -> Self {
-        self.text = Some(text.to_string());
+        self.text = Some(html_escape::encode_text(&text.to_string()).to_string());
         self
     }
 
     pub fn attr(mut self, key: impl ToString, value: impl ToString) -> Self {
         self.attr.push((key.to_string(), value.to_string()));
+        self
+    }
+    pub fn class(mut self, class_name: impl ToString) -> Self {
+        // Check if class attribute already exists
+        if let Some(pos) = self.attr.iter().position(|(key, _)| key == "class") {
+            // Append to existing class
+            let (_, current_class) = &self.attr[pos];
+            let new_class = format!("{} {}", current_class, class_name.to_string());
+            self.attr[pos] = ("class".to_string(), new_class);
+        } else {
+            // Add new class attribute
+            self.attr
+                .push(("class".to_string(), class_name.to_string()));
+        }
         self
     }
 
@@ -131,6 +156,35 @@ mod test {
             .append(vec![Element::new("span").attr("class", "child")]);
         let actual = html.render();
         let expected = "<div class=\"test\">Hello, world!<span class=\"child\"></span></div>";
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_element_with_multiple_classes() {
+        let html = Element::new("div")
+            .class("first-class")
+            .class("second-class");
+        let actual = html.render();
+        let expected = "<div class=\"first-class second-class\"></div>";
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_element_with_html_escape() {
+        let html = Element::new("div").text("<script>alert('XSS')</script>");
+        let actual = html.render();
+        let expected = "<div>&lt;script&gt;alert('XSS')&lt;/script&gt;</div>";
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_element_with_css_style_classes() {
+        let html = Element::new("div.foo.bar");
+        let actual = html.render();
+        let expected = "<div class=\"foo bar\"></div>";
+        assert_eq!(actual, expected);
+
+        // Test that we can still add more classes
+        let html = Element::new("div.foo.bar").class("extra-class");
+        let actual = html.render();
+        let expected = "<div class=\"foo bar extra-class\"></div>";
         assert_eq!(actual, expected);
     }
 }
