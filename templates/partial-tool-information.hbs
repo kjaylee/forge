@@ -2,35 +2,28 @@
 <tool_information>
 Tool Usage Instructions:
 
-You have access to set of tools as described in the <available_tools> tag. You can use one tool per message, and will receive the result of that tool use from the user. You use tools step-by-step to accomplish a given task.
+You have access to set of tools as described in the <available_tools> tag. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
 
 Tool Use Formatting Rules:
 
 1. Tool use is formatted using XML-style tags ONLY.
-2. You can make multiple tool calls per message but will receive all the responses in the end by the user.
+2. You can only make one tool call per message.
 3. Each tool call must be wrapped in `<tool_call>` tags.
-4. The actual tool name (e.g., `tool_forge_fs_read`) must be used as the enclosing tag.
+4. The actual tool name (e.g., tool_forge_fs_read) must be used as the enclosing tag.
 5. Each parameter must be enclosed within its own set of tags.
-6. Keep all the tool calls at the end of your message.
+Here's a correct example structure:
 
-Here's a correct example to read two files together:
 ```
-<tool_call>
-<tool_forge_fs_read>
-<path>/path/to/file_a</path>
-<recursive>true</recursive>
-</tool_forge_fs_read>
-</tool_call>
 
 <tool_call>
 <tool_forge_fs_read>
-<path>/path/to/file_b</path>
+<path>/path/to/file</path>
 <recursive>true</recursive>
 </tool_forge_fs_read>
 </tool_call>
 ```
 
-Here's an example of a multi-step tool usage:
+Example of correct multi-step tool usage:
 
 First message:
 ```
