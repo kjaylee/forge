@@ -228,12 +228,6 @@ impl<A: Services> Orchestrator<A> {
         Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
     }
 
-    pub async fn dispatch_spawned(&self, event: Event) -> anyhow::Result<()> {
-        let this = self.clone();
-        let _ = tokio::spawn(async move { this.dispatch(event).await }).await?;
-        Ok(())
-    }
-
     pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
         let inactive_agents = {
             let mut conversation = self.conversation.write().await;
@@ -260,23 +254,16 @@ impl<A: Services> Orchestrator<A> {
         agent: &Agent,
         tool_call: &ToolCallFull,
     ) -> anyhow::Result<ToolResult> {
-        if let Some(event) = Event::parse(tool_call) {
-            self.send(agent, ChatResponse::Event(event.clone())).await?;
-
-            self.dispatch_spawned(event).await?;
-            Ok(ToolResult::from(tool_call.clone()).success("Event Dispatched Successfully"))
-        } else {
-            Ok(self
-                .services
-                .tool_service()
-                .call(
-                    ToolCallContext::default()
-                        .sender(self.sender.clone())
-                        .agent_id(agent.id.clone()),
-                    tool_call.clone(),
-                )
-                .await)
-        }
+        Ok(self
+            .services
+            .tool_service()
+            .call(
+                ToolCallContext::default()
+                    .sender(self.sender.clone())
+                    .agent_id(agent.id.clone()),
+                tool_call.clone(),
+            )
+            .await)
     }
 
     async fn sync_conversation(&self) -> anyhow::Result<()> {

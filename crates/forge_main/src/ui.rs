@@ -479,9 +479,6 @@ impl<F: API> UI<F> {
                     return Ok(());
                 }
             }
-            ChatResponse::Event(_) => {
-                // Event handling removed
-            }
             ChatResponse::Usage(u) => {
                 self.state.usage = u;
             }

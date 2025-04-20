@@ -17,7 +17,7 @@ agents:
       message_threshold: 200
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     # FIXME: We should have only disabled in forge.yaml
-    tool_supported: false
+    tool_supported: true
     model: *advanced_model
     system_prompt: |-
       {{#if (eq variables.mode "PLAN") }}
