@@ -41,8 +41,8 @@ impl DiffFormat {
             for op in group {
                 for change in diff.iter_inline_changes(op) {
                     let (sign, s) = match change.tag() {
-                        ChangeTag::Delete => ("-", Style::new().blue()),
-                        ChangeTag::Insert => ("+", Style::new().yellow()),
+                        ChangeTag::Delete => ("-", Style::new().magenta()),
+                        ChangeTag::Insert => ("+", Style::new().cyan()),
                         ChangeTag::Equal => (" ", Style::new().dim()),
                     };
 

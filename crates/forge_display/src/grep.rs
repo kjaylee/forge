@@ -91,7 +91,7 @@ impl GrepFormat {
                     format!(
                         "{}{}{}",
                         &content[..mat.start()],
-                        style(&content[mat.start()..mat.end()]).yellow().bold(),
+                        style(&content[mat.start()..mat.end()]).blue().underlined().bold(),
                         &content[mat.end()..]
                     )
                 },
