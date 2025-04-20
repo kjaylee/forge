@@ -142,9 +142,9 @@ impl ForgeCommandManager {
     }
 
     pub fn parse(&self, input: &str) -> anyhow::Result<Command> {
-        let mut input = input.trim().split_ascii_whitespace();
-        let command = input.next().unwrap();
-        let parameters = input.collect::<Vec<_>>();
+        let mut tokens = input.trim().split_ascii_whitespace();
+        let command = tokens.next().unwrap();
+        let parameters = tokens.collect::<Vec<_>>();
 
         // Check if it's a shell command (starts with !)
         if command.starts_with("!") {
@@ -159,7 +159,7 @@ impl ForgeCommandManager {
         // Check if it's a system command (starts with /)
         let is_command = command.starts_with("/");
         if !is_command {
-            return Ok(Command::Message(command.to_string()));
+            return Ok(Command::Message(input.to_string()));
         }
 
         // TODO: Can leverage Clap to parse commands and provide correct error messages

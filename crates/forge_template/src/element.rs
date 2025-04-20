@@ -26,6 +26,10 @@ impl Element {
         element
     }
 
+    pub fn span(name: impl ToString) -> Self {
+        Element::new("span").text(name)
+    }
+
     pub fn text(mut self, text: impl ToString) -> Self {
         self.text = Some(html_escape::encode_text(&text.to_string()).to_string());
         self

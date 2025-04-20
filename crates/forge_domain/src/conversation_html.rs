@@ -85,7 +85,7 @@ fn create_agents_section(conversation: &Conversation) -> Element {
         if let Some(custom_rules) = &agent.custom_rules {
             agent_div = agent_div.append(
                 Element::new("div")
-                    .append(Element::new("h4").text("Custom Rules"))
+                    .append(Element::new("strong").text("Custom Rules"))
                     .append(Element::new("pre").text(custom_rules)),
             );
         }
@@ -94,7 +94,7 @@ fn create_agents_section(conversation: &Conversation) -> Element {
         if let Some(description) = &agent.description {
             agent_div = agent_div.append(
                 Element::new("div")
-                    .append(Element::new("h4").text("Description"))
+                    .append(Element::new("strong").text("Description"))
                     .append(Element::new("p").text(description)),
             );
         }
@@ -109,7 +109,7 @@ fn create_agents_section(conversation: &Conversation) -> Element {
 
                 agent_div = agent_div.append(
                     Element::new("div")
-                        .append(Element::new("h4").text("Subscriptions"))
+                        .append(Element::new("strong").text("Subscriptions"))
                         .append(subscriptions_list),
                 );
             }
@@ -149,12 +149,12 @@ fn create_events_section(conversation: &Conversation) -> Element {
             )
             .append(
                 Element::new("div")
-                    .append(Element::new("h4").text("Value"))
+                    .append(Element::new("strong").text("Value"))
                     .append(Element::new("pre").text(&event.value)),
             )
             .append(
                 Element::new("div")
-                    .append(Element::new("h4").text("Timestamp"))
+                    .append(Element::new("strong").text("Timestamp"))
                     .append(Element::new("pre").text(event.timestamp.to_string())),
             );
 
@@ -194,16 +194,13 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                                 if !tool_calls.is_empty() {
                                     message_div.append(
                                         Element::new("div")
-                                            .append(Element::new("h6").text("Tool Calls"))
                                             .append(tool_calls.iter().map(|tool_call| {
                                                 Element::new("div.tool-call")
                                                     .append(
-                                                        Element::new("p")
-                                                            .append(
-                                                                Element::new("strong")
-                                                                    .text("Name: "),
-                                                            )
-                                                            .text(tool_call.name.as_str()),
+                                                        Element::new("p").append(
+                                                            Element::new("strong")
+                                                                .text(tool_call.name.as_str()),
+                                                        ),
                                                     )
                                                     .append(tool_call.call_id.as_ref().map(
                                                         |call_id| {
@@ -235,27 +232,20 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                         }
                         ContextMessage::ToolMessage(tool_result) => {
                             // Tool Message
-                            Element::new("div.message-card.message-tool")
-                                .append(Element::new("h5").text("Tool Result"))
+                            Element::new("details.message-card.message-tool")
                                 .append(
-                                    Element::new("div.tool-result")
-                                        .append(
-                                            Element::new("p")
-                                                .append(Element::new("strong").text("Tool Name: "))
-                                                .text(tool_result.name.as_str()),
-                                        )
-                                        .append(
-                                            Element::new("pre").text(
-                                                to_string_pretty(&tool_result.content)
-                                                    .unwrap_or_default(),
-                                            ),
-                                        ),
+                                    Element::new("summary")
+                                        .append(Element::new("strong").text("Tool Result: "))
+                                        .append(Element::span(tool_result.name.as_str())),
                                 )
+                                .append(Element::new("pre").text(
+                                    to_string_pretty(&tool_result.content).unwrap_or_default(),
+                                ))
                         }
                         ContextMessage::Image(url) => {
                             // Image message
                             Element::new("div.message-card.message-user")
-                                .append(Element::new("h5").text("Image Attachment"))
+                                .append(Element::new("strong").text("Image Attachment"))
                                 .append(Element::new("p").text(format!("URL: {}", url)))
                         }
                     }),
@@ -263,7 +253,7 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
 
                 // Create tools section
                 let tools_section = Element::new("div")
-                    .append(Element::new("h5").text("Tools"))
+                    .append(Element::new("strong").text("Tools"))
                     .append(context.tools.iter().map(|tool| {
                         Element::new("div.tool-call")
                             .append(
@@ -299,7 +289,7 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                 // Create tool choice section if available
                 let context_with_tool_choice = if let Some(tool_choice) = &context.tool_choice {
                     context_messages
-                        .append(Element::new("h5").text("Tool Choice"))
+                        .append(Element::new("strong").text("Tool Choice"))
                         .append(
                             Element::new("div.tool-choice").append(
                                 Element::new("pre")
@@ -345,7 +335,7 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
             }));
 
             let event_queue_div = Element::new("div")
-                .append(Element::new("h4").text("Event Queue"))
+                .append(Element::new("strong").text("Event Queue"))
                 .append(event_queue);
 
             section.append(agent_div.append(event_queue_div))
