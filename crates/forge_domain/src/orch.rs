@@ -89,7 +89,7 @@ impl<A: Services> Orchestrator<A> {
     async fn handle_unsupported_tools(
         &self,
         agent: &Agent,
-        full_tool_calls: &[ToolCallFull],
+        tool_calls: &[ToolCallFull],
         content: &str,
         mut context: Context,
     ) -> anyhow::Result<Context> {
@@ -97,7 +97,7 @@ impl<A: Services> Orchestrator<A> {
         debug!(agent_id = %agent.id, "Tools not supported, adding tool results as separate messages");
 
         // Get all tool results
-        let tool_results = self.get_all_tool_results(agent, full_tool_calls).await?;
+        let tool_results = self.get_all_tool_results(agent, tool_calls).await?;
 
         // Add the original assistant message without tool calls
         context = context.add_message(ContextMessage::assistant(content, None));
@@ -117,17 +117,17 @@ impl<A: Services> Orchestrator<A> {
     async fn handle_supported_tools(
         &self,
         agent: &Agent,
-        full_tool_calls: &[ToolCallFull],
+        tool_calls: &[ToolCallFull],
         content: &str,
         mut context: Context,
     ) -> anyhow::Result<Context> {
         // Get all tool results using the helper function
-        let records = self.get_all_tool_results(agent, full_tool_calls).await?;
+        let records = self.get_all_tool_results(agent, tool_calls).await?;
 
         context = context
             .add_message(ContextMessage::assistant(
                 content,
-                Some(full_tool_calls.to_vec()),
+                Some(tool_calls.to_vec()),
             ))
             .add_tool_results(
                 records
@@ -170,7 +170,7 @@ impl<A: Services> Orchestrator<A> {
         tool_calls: &[ToolCallFull],
     ) -> anyhow::Result<Vec<CallRecord>> {
         // Always process tool calls sequentially
-        let mut tool_results = Vec::with_capacity(tool_calls.len());
+        let mut tool_call_records = Vec::with_capacity(tool_calls.len());
 
         for tool_call in tool_calls {
             // Send the start notification
@@ -185,10 +185,10 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Add the result to our collection
-            tool_results.push(CallRecord { tool_call: tool_call.clone(), tool_result });
+            tool_call_records.push(CallRecord { tool_call: tool_call.clone(), tool_result });
         }
 
-        Ok(tool_results)
+        Ok(tool_call_records)
     }
 
     async fn send(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
