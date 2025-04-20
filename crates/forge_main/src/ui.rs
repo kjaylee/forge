@@ -167,8 +167,8 @@ impl<F: API> UI<F> {
                     .format();
                     self.spinner.stop(Some(content))?;
                 }
-                Command::Dump => {
-                    self.handle_dump().await?;
+                Command::Dump(format) => {
+                    self.handle_dump(format).await?;
                 }
                 Command::New => {
                     self.state = UIState::default();
@@ -412,22 +412,41 @@ impl<F: API> UI<F> {
         }
     }
 
-    async fn handle_dump(&mut self) -> Result<()> {
+    /// Modified version of handle_dump that supports HTML format
+    async fn handle_dump(&mut self, format: Option<String>) -> Result<()> {
         if let Some(conversation_id) = self.state.conversation_id.clone() {
             let conversation = self.api.conversation(&conversation_id).await?;
             if let Some(conversation) = conversation {
                 let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-                let path = format!("{timestamp}-dump.json");
 
-                let content = serde_json::to_string_pretty(&conversation)?;
-                tokio::fs::write(path.as_str(), content).await?;
+                if let Some(format) = format {
+                    if format == "html" {
+                        // Export as HTML
+                        let html_content = conversation.to_html()?;
+                        let path = format!("{timestamp}-dump.html");
+                        tokio::fs::write(path.as_str(), html_content).await?;
 
-                println!(
-                    "{}",
-                    TitleFormat::action("Conversation dump created".to_string())
-                        .sub_title(path.to_string())
-                        .format()
-                );
+                        println!(
+                            "{}",
+                            TitleFormat::action("Conversation HTML dump created".to_string())
+                                .sub_title(path.to_string())
+                                .format()
+                        );
+                        return Ok(());
+                    }
+                } else {
+                    // Default: Export as JSON
+                    let path = format!("{timestamp}-dump.json");
+                    let content = serde_json::to_string_pretty(&conversation)?;
+                    tokio::fs::write(path.as_str(), content).await?;
+
+                    println!(
+                        "{}",
+                        TitleFormat::action("Conversation JSON dump created".to_string())
+                            .sub_title(path.to_string())
+                            .format()
+                    );
+                }
             } else {
                 println!(
                     "{}",
