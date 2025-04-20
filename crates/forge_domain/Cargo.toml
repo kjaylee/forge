@@ -28,8 +28,6 @@ url.workspace = true
 merge.workspace = true
 tokio-retry = { workspace = true }
 serde_yml.workspace = true
-handlebars.workspace = true
-html-escape = "0.2.13"
 forge_template.workspace = true
 
 [dev-dependencies]

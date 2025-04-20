@@ -946,8 +946,6 @@ dependencies = [
  "forge_stream",
  "forge_template",
  "futures",
- "handlebars",
- "html-escape",
  "insta",
  "merge",
  "nom 8.0.0",
