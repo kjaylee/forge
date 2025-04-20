@@ -21,33 +21,26 @@ impl Display for ToolCallRecord {
         write!(f, "<tool_result tool=\"{}\">", tool_name)?;
 
         if let Some(object) = self.tool_call.arguments.as_object() {
-            writeln!(f)?;
-            writeln!(f, "  <arguments>")?;
+            write!(f, "<arguments>")?;
             for (key, value) in object.iter() {
-                writeln!(f, "    <{0}>{1}</{0}>", key, value)?;
+                write!(f, "<{0}>{1}</{0}>", key, value)?;
             }
-            write!(f, "  </arguments>")?;
+            write!(f, "</arguments>")?;
         }
 
-        writeln!(f)?;
-        writeln!(f, "  <result>")?;
+        write!(f, "<result>")?;
 
         if self.tool_result.is_error {
-            writeln!(
-                f,
-                "    <error><![CDATA[{}]]></error>",
-                self.tool_result.content
-            )?;
+            write!(f, "<error><![CDATA[{}]]></error>", self.tool_result.content)?;
         } else {
-            writeln!(
+            write!(
                 f,
-                "    <content><![CDATA[{}]]></content>",
+                "<content><![CDATA[{}]]></content>",
                 self.tool_result.content
             )?;
         }
 
-        write!(f, "  </result>")?;
-        writeln!(f)?;
+        write!(f, "</result>")?;
         write!(f, "</tool_result>")?;
 
         Ok(())

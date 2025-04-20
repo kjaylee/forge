@@ -142,19 +142,20 @@ impl ForgeCommandManager {
     }
 
     pub fn parse(&self, input: &str) -> anyhow::Result<Command> {
+        // Check if it's a shell command (starts with !)
+        if input.trim().starts_with("!") {
+            return Ok(Command::Shell(
+                input
+                    .strip_prefix("!")
+                    .unwrap_or_default()
+                    .trim()
+                    .to_string(),
+            ));
+        }
+
         let mut tokens = input.trim().split_ascii_whitespace();
         let command = tokens.next().unwrap();
         let parameters = tokens.collect::<Vec<_>>();
-
-        // Check if it's a shell command (starts with !)
-        if command.starts_with("!") {
-            let command = command
-                .strip_prefix("!")
-                .unwrap_or_default()
-                .trim()
-                .to_string();
-            return Ok(Command::Shell(command));
-        }
 
         // Check if it's a system command (starts with /)
         let is_command = command.starts_with("/");
