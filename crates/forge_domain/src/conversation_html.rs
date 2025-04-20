@@ -345,15 +345,7 @@ mod tests {
     fn test_render_empty_conversation() {
         // Create a new empty conversation
         let id = crate::conversation::ConversationId::generate();
-        let workflow = crate::Workflow {
-            agents: Vec::new(),
-            variables: std::collections::HashMap::new(),
-            commands: Vec::new(),
-            model: None,
-            max_walker_depth: None,
-            custom_rules: None,
-            temperature: None,
-        };
+        let workflow = crate::Workflow::new();
 
         let fixture = Conversation::new(id, workflow);
         let actual = render_conversation_html(&fixture);
