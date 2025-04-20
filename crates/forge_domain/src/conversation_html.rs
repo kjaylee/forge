@@ -177,11 +177,9 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
 
         // Add context if available
         if let Some(context) = &state.context {
-            let mut context_div = Element::new("div")
-                .append(Element::new("h4").text("Context"))
-                .append(
-                    Element::new("div.context-section").append(Element::new("h5").text("Messages")),
-                );
+            let mut context_div = Element::new("div").append(
+                Element::new("div.context-section").append(Element::new("h5").text("Messages")),
+            );
 
             let context_section = context_div.children.last_mut().unwrap();
 
