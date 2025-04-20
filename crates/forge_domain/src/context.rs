@@ -5,7 +5,7 @@ use tracing::debug;
 
 use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
-use crate::{CallRecord, ToolChoice, ToolDefinition};
+use crate::{ToolCallRecord, ToolChoice, ToolDefinition};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -215,10 +215,14 @@ impl Context {
         crate::estimate_token_count(&self.to_text())
     }
 
-    pub fn assistant_message(
+    /// Will append a message to the context. If the model supports tools, it will
+    /// append the tool calls and results to the message. If the model does not
+    /// support tools, it will append the tool calls and results as separate
+    /// messages.
+    pub fn append_message(
         mut self,
         content: impl ToString,
-        tool_records: Vec<CallRecord>,
+        tool_records: Vec<ToolCallRecord>,
         tool_supported: bool,
     ) -> Self {
         if tool_supported {

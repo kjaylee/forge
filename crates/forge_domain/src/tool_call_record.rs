@@ -9,13 +9,13 @@ use crate::{ToolCallFull, ToolResult};
 /// call and its corresponding result.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
 #[setters(strip_option, into)]
-pub struct CallRecord {
+pub struct ToolCallRecord {
     pub tool_call: ToolCallFull,
     pub tool_result: ToolResult,
 }
 
 /// Formats the CallRecord as XML with tool name, arguments, and result
-impl Display for CallRecord {
+impl Display for ToolCallRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tool_name = self.tool_call.name.as_str();
         write!(f, "<tool_result tool=\"{}\">", tool_name)?;
@@ -54,7 +54,7 @@ impl Display for CallRecord {
     }
 }
 
-impl CallRecord {
+impl ToolCallRecord {
     /// Creates a new CallRecord from a tool call and its result
     pub fn new(call: ToolCallFull, result: ToolResult) -> Self {
         Self { tool_call: call, tool_result: result }
@@ -94,7 +94,7 @@ mod tests {
             .success("Operation completed successfully");
 
         // Create a CallRecord
-        let record = CallRecord::new(call, result);
+        let record = ToolCallRecord::new(call, result);
 
         // Verify it's successful
         assert!(record.is_success());
@@ -116,7 +116,7 @@ mod tests {
             .failure(anyhow::anyhow!("File not found"));
 
         // Create a CallRecord
-        let record = CallRecord::new(call, result);
+        let record = ToolCallRecord::new(call, result);
 
         // Verify it's an error
         assert!(record.is_error());
@@ -138,7 +138,7 @@ mod tests {
             .success("Contents of the file");
 
         // Create a CallRecord
-        let record = CallRecord::new(call, result);
+        let record = ToolCallRecord::new(call, result);
 
         // Check the formatted output
         assert_snapshot!(record.to_string());
@@ -163,7 +163,7 @@ mod tests {
             .failure(anyhow::anyhow!("Permission denied"));
 
         // Create a CallRecord
-        let record = CallRecord::new(call, result);
+        let record = ToolCallRecord::new(call, result);
 
         // Check the formatted output
         assert_snapshot!(record.to_string());
@@ -186,7 +186,7 @@ mod tests {
             .success("Result with <tags> & special \"characters\"");
 
         // Create a CallRecord
-        let record = CallRecord::new(call, result);
+        let record = ToolCallRecord::new(call, result);
 
         // Check the formatted output properly escapes special characters
         assert_snapshot!(record.to_string());

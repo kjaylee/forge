@@ -90,7 +90,7 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
-    ) -> anyhow::Result<Vec<CallRecord>> {
+    ) -> anyhow::Result<Vec<ToolCallRecord>> {
         // Always process tool calls sequentially
         let mut tool_call_records = Vec::with_capacity(tool_calls.len());
 
@@ -100,14 +100,23 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Execute the tool
-            let tool_result = self.execute_tool(agent, tool_call).await?;
+            let tool_result = self
+                .services
+                .tool_service()
+                .call(
+                    ToolCallContext::default()
+                        .sender(self.sender.clone())
+                        .agent_id(agent.id.clone()),
+                    tool_call.clone(),
+                )
+                .await;
 
             // Send the end notification
             self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone()))
                 .await?;
 
             // Add the result to our collection
-            tool_call_records.push(CallRecord { tool_call: tool_call.clone(), tool_result });
+            tool_call_records.push(ToolCallRecord { tool_call: tool_call.clone(), tool_result });
         }
 
         Ok(tool_call_records)
@@ -248,24 +257,6 @@ impl<A: Services> Orchestrator<A> {
 
         Ok(())
     }
-
-    async fn execute_tool(
-        &self,
-        agent: &Agent,
-        tool_call: &ToolCallFull,
-    ) -> anyhow::Result<ToolResult> {
-        Ok(self
-            .services
-            .tool_service()
-            .call(
-                ToolCallContext::default()
-                    .sender(self.sender.clone())
-                    .agent_id(agent.id.clone()),
-                tool_call.clone(),
-            )
-            .await)
-    }
-
     async fn sync_conversation(&self) -> anyhow::Result<()> {
         let conversation = self.conversation.read().await.clone();
         self.services
@@ -406,10 +397,10 @@ impl<A: Services> Orchestrator<A> {
             );
 
             // Process tool calls and update context
-            context = context.assistant_message(
+            context = context.append_message(
                 content,
                 self.get_all_tool_results(agent, &tool_calls).await?,
-                !agent.tool_supported.unwrap_or_default() && !tool_calls.is_empty(),
+                agent.tool_supported.unwrap_or_default(),
             );
 
             // Update context in the conversation
