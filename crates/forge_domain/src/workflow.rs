@@ -59,6 +59,14 @@ pub struct Workflow {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub temperature: Option<Temperature>,
+    
+    /// Flag to enable/disable tool support for all agents in this workflow.
+    /// If not specified, each agent's individual setting will be used.
+    /// Default is false (tools disabled) when not specified.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub tool_supported: Option<bool>,
 }
 
 impl Default for Workflow {
@@ -81,6 +89,21 @@ pub struct Command {
 }
 
 impl Workflow {
+    /// Creates a new empty workflow with all fields set to their empty state.
+    /// This is useful for testing where you want to build a workflow from scratch.
+    pub fn new() -> Self {
+        Self {
+            agents: Vec::new(),
+            variables: HashMap::new(),
+            commands: Vec::new(),
+            model: None,
+            max_walker_depth: None,
+            custom_rules: None,
+            temperature: None,
+            tool_supported: None,
+        }
+    }
+
     fn find_agent(&self, id: &AgentId) -> Option<&Agent> {
         self.agents.iter().find(|a| a.id == *id)
     }
