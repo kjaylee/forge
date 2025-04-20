@@ -49,7 +49,7 @@ impl TitleFormat {
         } else {
             buf.push_str(format!("{} ", "⏺".blue()).as_str());
         }
-        let mut title = self.title.to_case(Case::Sentence).bold();
+        let mut title = self.title.to_case(Case::Sentence).dimmed();
 
         if self.error.is_some() {
             title = title.red().bold();
@@ -58,7 +58,7 @@ impl TitleFormat {
         buf.push_str(&format!("{}", title));
 
         if let Some(ref sub_title) = self.sub_title {
-            buf.push_str(&format!(" {}", sub_title).to_string());
+            buf.push_str(&format!(" {}", sub_title.dimmed()).to_string());
         }
 
         if let Some(ref error) = self.error {
