@@ -215,10 +215,10 @@ impl Context {
         crate::estimate_token_count(&self.to_text())
     }
 
-    /// Will append a message to the context. If the model supports tools, it will
-    /// append the tool calls and results to the message. If the model does not
-    /// support tools, it will append the tool calls and results as separate
-    /// messages.
+    /// Will append a message to the context. If the model supports tools, it
+    /// will append the tool calls and results to the message. If the model
+    /// does not support tools, it will append the tool calls and results as
+    /// separate messages.
     pub fn append_message(
         mut self,
         content: impl ToString,
