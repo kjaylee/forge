@@ -47,7 +47,7 @@ impl TitleFormat {
         if self.is_user_action {
             buf.push_str(format!("{} ", "⏺".yellow()).as_str());
         } else {
-            buf.push_str(format!("{} ", "⏺".blue()).as_str());
+            buf.push_str(format!("{} ", "⏺".dimmed()).as_str());
         }
         let mut title = self.title.to_case(Case::Sentence).dimmed();
 
