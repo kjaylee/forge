@@ -429,7 +429,7 @@ mod tests {
 
     #[test]
     fn test_parse_with_newlines() {
-        let input = vec!["<tool_call><foo><p1>", "abc", "</p1></foo></tool_call>"].join("\n");
+        let input = ["<tool_call><foo><p1>", "abc", "</p1></foo></tool_call>"].join("\n");
 
         let action = parse(&input).unwrap();
         let expected = vec![ToolCallFull {
