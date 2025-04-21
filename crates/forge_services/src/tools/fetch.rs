@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use forge_display::TitleFormat;
-use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription};
+use forge_domain::{ExecutableTool, NamedTool, NonNegativeInteger, ToolCallContext, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use reqwest::{Client, Url};
 use schemars::JsonSchema;
@@ -31,8 +31,8 @@ impl Default for Fetch {
     }
 }
 
-fn default_start_index() -> Option<usize> {
-    Some(0)
+fn default_start_index() -> Option<NonNegativeInteger> {
+    Some(NonNegativeInteger::new(0))
 }
 
 fn default_raw() -> Option<bool> {
@@ -44,12 +44,12 @@ pub struct FetchInput {
     /// URL to fetch
     url: String,
     /// Maximum number of characters to return (default: 40000)
-    max_length: Option<usize>,
+    max_length: Option<NonNegativeInteger>,
     /// Start content from this character index (default: 0),
     /// On return output starting at this character index, useful if a previous
     /// fetch was truncated and more context is required.
     #[serde(default = "default_start_index")]
-    start_index: Option<usize>,
+    start_index: Option<NonNegativeInteger>,
     /// Get raw content without any markdown conversion (default: false)
     #[serde(default = "default_raw")]
     raw: Option<bool>,
@@ -161,13 +161,13 @@ impl ExecutableTool for Fetch {
             .await?;
 
         let original_length = content.len();
-        let start_index = input.start_index.unwrap_or(0);
+        let start_index = input.start_index.map(|i| i.value()).unwrap_or(0);
 
         if start_index >= original_length {
             return Ok("<error>No more content available.</error>".to_string());
         }
 
-        let max_length = input.max_length.unwrap_or(40000);
+        let max_length = input.max_length.map(|m| m.value()).unwrap_or(40000);
         let end = (start_index + max_length).min(original_length);
         let mut truncated = content[start_index..end].to_string();
 
@@ -186,6 +186,7 @@ impl ExecutableTool for Fetch {
 mod tests {
     use regex::Regex;
     use tokio::runtime::Runtime;
+    use forge_domain::NonNegativeInteger;
 
     use super::*;
 
@@ -230,8 +231,8 @@ mod tests {
 
         let input = FetchInput {
             url: format!("{}/test.html", server.url()),
-            max_length: Some(1000),
-            start_index: Some(0),
+            max_length: Some(NonNegativeInteger::new(1000)),
+            start_index: Some(NonNegativeInteger::new(0)),
             raw: Some(false),
         };
 
@@ -261,8 +262,8 @@ mod tests {
 
         let input = FetchInput {
             url: format!("{}/test.txt", server.url()),
-            max_length: Some(1000),
-            start_index: Some(0),
+            max_length: Some(NonNegativeInteger::new(1000)),
+            start_index: Some(NonNegativeInteger::new(0)),
             raw: Some(true),
         };
 
@@ -330,8 +331,8 @@ mod tests {
         // First page
         let input = FetchInput {
             url: format!("{}/long.txt", server.url()),
-            max_length: Some(5000),
-            start_index: Some(0),
+            max_length: Some(NonNegativeInteger::new(5000)),
+            start_index: Some(NonNegativeInteger::new(0)),
             raw: Some(true),
         };
 
@@ -343,8 +344,8 @@ mod tests {
         // Second page
         let input = FetchInput {
             url: format!("{}/long.txt", server.url()),
-            max_length: Some(5000),
-            start_index: Some(5000),
+            max_length: Some(NonNegativeInteger::new(5000)),
+            start_index: Some(NonNegativeInteger::new(5000)),
             raw: Some(true),
         };
 
