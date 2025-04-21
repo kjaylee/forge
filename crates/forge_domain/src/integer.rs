@@ -1,12 +1,14 @@
+use std::fmt;
+use std::ops::Deref;
+
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt;
-use std::ops::Deref;
 
-/// A non-negative integer that serializes as i64 in JSON Schema for compatibility
-/// with providers like Google AI Studio that don't support 'uint' format.
+/// A non-negative integer that serializes as i64 in JSON Schema for
+/// compatibility with providers like Google AI Studio that don't support 'uint'
+/// format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct NonNegativeInteger(usize);
 
@@ -14,7 +16,7 @@ impl NonNegativeInteger {
     pub fn new(value: usize) -> Self {
         Self(value)
     }
-    
+
     pub fn value(&self) -> usize {
         self.0
     }
@@ -22,7 +24,7 @@ impl NonNegativeInteger {
 
 impl Deref for NonNegativeInteger {
     type Target = usize;
-    
+
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -58,19 +60,20 @@ impl JsonSchema for NonNegativeInteger {
     fn json_schema(gen: &mut SchemaGenerator) -> Schema {
         let mut schema = SchemaObject {
             instance_type: Some(InstanceType::Integer.into()),
-            format: Some("int64".to_string()), // Using int64 format for Google AI Studio compatibility
+            format: Some("int64".to_string()), /* Using int64 format for Google AI Studio
+                                                * compatibility */
             ..Default::default()
         };
-        
+
         // Add minimum constraint for non-negative values
         schema.number = Some(Box::new(schemars::schema::NumberValidation {
             minimum: Some(0.0),
             ..Default::default()
         }));
-        
+
         // Add description
         schema.metadata().description = Some("A non-negative integer value".to_string());
-        
+
         schema.into()
     }
 }

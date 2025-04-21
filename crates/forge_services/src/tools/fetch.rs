@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use forge_display::TitleFormat;
-use forge_domain::{ExecutableTool, NamedTool, NonNegativeInteger, ToolCallContext, ToolDescription};
+use forge_domain::{
+    ExecutableTool, NamedTool, NonNegativeInteger, ToolCallContext, ToolDescription,
+};
 use forge_tool_macros::ToolDescription;
 use reqwest::{Client, Url};
 use schemars::JsonSchema;
@@ -184,9 +186,9 @@ impl ExecutableTool for Fetch {
 
 #[cfg(test)]
 mod tests {
+    use forge_domain::NonNegativeInteger;
     use regex::Regex;
     use tokio::runtime::Runtime;
-    use forge_domain::NonNegativeInteger;
 
     use super::*;
 
