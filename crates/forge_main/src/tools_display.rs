@@ -18,7 +18,7 @@ pub fn format_tools(tools: &[ToolDefinition]) -> String {
         let schema = format!("{}", schema_json.dimmed());
 
         if i > 0 {
-            out.push_str("\n");
+            out.push('\n');
         }
 
         out.push_str(&format!("{}\n{}\n{}\n", name, description, schema));
