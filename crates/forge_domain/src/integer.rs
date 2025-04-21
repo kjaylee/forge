@@ -57,7 +57,7 @@ impl JsonSchema for NonNegativeInteger {
         "NonNegativeInteger".to_string()
     }
 
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+    fn json_schema(_gen: &mut SchemaGenerator) -> Schema {
         let mut schema = SchemaObject {
             instance_type: Some(InstanceType::Integer.into()),
             format: Some("int64".to_string()), /* Using int64 format for Google AI Studio
