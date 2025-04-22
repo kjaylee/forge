@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::{
@@ -86,6 +87,12 @@ pub trait TemplateService: Send + Sync {
         &self,
         compaction: &Compact,
         context: &Context,
+    ) -> anyhow::Result<String>;
+
+    async fn render<S: Serialize + Send + Sync>(
+        &self,
+        template: &str,
+        data: &S,
     ) -> anyhow::Result<String>;
 }
 

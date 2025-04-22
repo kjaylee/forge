@@ -4,6 +4,12 @@ use inquire::ui::{RenderConfig, Styled};
 
 pub struct ForgeInquire;
 
+impl Default for ForgeInquire {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForgeInquire {
     pub fn new() -> Self {
         Self
