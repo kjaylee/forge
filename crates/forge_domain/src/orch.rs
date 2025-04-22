@@ -257,14 +257,6 @@ impl<A: Services> Orchestrator<A> {
 
         Ok(())
     }
-    async fn sync_conversation(&self) -> anyhow::Result<()> {
-        let conversation = self.conversation.read().await.clone();
-        self.services
-            .conversation_service()
-            .upsert(conversation)
-            .await?;
-        Ok(())
-    }
 
     async fn get_conversation(&self) -> anyhow::Result<Conversation> {
         Ok(self.conversation.read().await.clone())
@@ -287,6 +279,11 @@ impl<A: Services> Orchestrator<A> {
             .entry(agent_id.clone())
             .or_default()
             .context = Some(context);
+
+        self.services
+            .conversation_service()
+            .upsert(conversation.clone())
+            .await?;
 
         Ok(())
     }
@@ -390,7 +387,7 @@ impl<A: Services> Orchestrator<A> {
             }
 
             let tool_call_count = tool_calls.is_empty();
-            
+
             debug!(
                 agent_id = %agent.id,
                 tool_call_count = tool_call_count,
@@ -425,7 +422,6 @@ impl<A: Services> Orchestrator<A> {
 
             self.complete_turn(&agent.id).await?;
             self.set_context(&agent.id, context.clone()).await?;
-            self.sync_conversation().await?;
         }
 
         Ok(())
