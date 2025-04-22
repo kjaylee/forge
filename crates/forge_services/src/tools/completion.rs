@@ -47,7 +47,7 @@ mod tests {
     #[tokio::test]
     async fn test_attempt_completion() {
         // Create fixture
-        let tool = Completion::default();
+        let tool = Completion;
         let input =
             AttemptCompletionInput { message: "All required features implemented".to_string() };
 
