@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
+use chrono::{DateTime, Local};
 use colored::Colorize;
 use derive_setters::Setters;
 
@@ -10,6 +11,7 @@ pub struct TitleFormat {
     pub sub_title: Option<String>,
     pub error: Option<String>,
     pub is_user_action: bool,
+    pub timestamp: DateTime<Local>,
 }
 
 pub trait TitleExt {
@@ -33,16 +35,32 @@ impl TitleFormat {
             error: None,
             sub_title: Default::default(),
             is_user_action: false,
+            timestamp: Local::now(),
         }
     }
 
     /// Create a status for executing a tool
     pub fn action(title: impl Into<String>) -> Self {
-        Self::new(title).is_user_action(true)
+        Self {
+            title: title.into(),
+            error: None,
+            sub_title: Default::default(),
+            is_user_action: true,
+            timestamp: Local::now(), // Still set timestamp even for user actions
+        }
     }
 
     pub fn format(&self) -> String {
         let mut buf = String::new();
+
+        // Add timestamp at the beginning if this is not a user action
+        if !self.is_user_action {
+            buf.push_str(&format!(
+                "{} ",
+                self.timestamp.format("%H:%M:%S.%3f").to_string().dimmed()
+            ));
+        }
+
         if self.is_user_action {
             buf.push_str(format!("{} ", "⏺".yellow()).as_str());
         } else {
