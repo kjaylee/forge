@@ -389,6 +389,15 @@ impl<A: Services> Orchestrator<A> {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
 
+            let tool_call_count = tool_calls.is_empty();
+            
+            debug!(
+                agent_id = %agent.id,
+                tool_call_count = tool_call_count,
+                "Tool call count: {}",
+                tool_call_count
+            );
+
             // Process tool calls and update context
             let tool_records = self.get_all_tool_results(agent, &tool_calls).await?;
 
@@ -397,7 +406,13 @@ impl<A: Services> Orchestrator<A> {
                 .iter()
                 .any(|record| record.tool_result.is_complete);
 
-            if tool_records.is_empty() {
+            context = context.append_message(
+                content,
+                tool_records,
+                agent.tool_supported.unwrap_or_default(),
+            );
+
+            if tool_call_count {
                 // Send a message forcing the agent to use a tool
                 let content = self
                     .services
@@ -406,12 +421,6 @@ impl<A: Services> Orchestrator<A> {
                     .await?;
 
                 context = context.add_message(ContextMessage::user(content));
-            } else {
-                context = context.append_message(
-                    content,
-                    tool_records,
-                    agent.tool_supported.unwrap_or_default(),
-                );
             }
 
             self.complete_turn(&agent.id).await?;
