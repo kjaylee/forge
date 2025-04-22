@@ -12,6 +12,8 @@ pub struct ToolResult {
     pub content: String,
     #[setters(skip)]
     pub is_error: bool,
+    #[setters(skip)]
+    pub is_complete: bool,
 }
 
 impl ToolResult {
@@ -21,6 +23,7 @@ impl ToolResult {
             call_id: None,
             content: String::default(),
             is_error: false,
+            is_complete: false,
         }
     }
 
@@ -42,6 +45,11 @@ impl ToolResult {
         self.is_error = true;
         self
     }
+
+    pub fn complete(mut self) -> Self {
+        self.is_complete = true;
+        self
+    }
 }
 
 impl From<ToolCallFull> for ToolResult {
@@ -51,6 +59,7 @@ impl From<ToolCallFull> for ToolResult {
             call_id: value.call_id,
             content: String::default(),
             is_error: false,
+            is_complete: false,
         }
     }
 }
@@ -152,5 +161,23 @@ mod tests {
             ToolResult::new(ToolName::new("test_tool")).failure(anyhow::anyhow!("error message"));
         assert!(failure.is_error);
         assert_eq!(failure.content, "\nERROR:\nCaused by: error message\n");
+    }
+
+    #[test]
+    fn test_complete() {
+        let result = ToolResult::new(ToolName::new("test_tool")).complete();
+        assert!(result.is_complete);
+
+        let result = ToolResult::new(ToolName::new("test_tool"))
+            .success("success message")
+            .complete();
+        assert!(result.is_complete);
+        assert_eq!(result.content, "success message");
+
+        let result = ToolResult::new(ToolName::new("test_tool"))
+            .failure(anyhow::anyhow!("error message"))
+            .complete();
+        assert!(result.is_complete);
+        assert!(result.is_error);
     }
 }
