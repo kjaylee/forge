@@ -36,12 +36,34 @@ impl ForgeEnvironmentService {
     /// Returns a tuple of (provider_key, provider)
     /// Panics if no API key is found in the environment
     fn resolve_provider(&self) -> Provider {
-        let keys: [ProviderSearch; 4] = [
-            ("FORGE_KEY", Box::new(Provider::antinomy)),
-            ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
-            ("OPENAI_API_KEY", Box::new(Provider::openai)),
-            ("ANTHROPIC_API_KEY", Box::new(Provider::anthropic)),
-        ];
+        // Check if a custom OpenAI URL is provided
+        let custom_openai_url = std::env::var("OPENAI_URL").ok();
+
+        // If a custom OpenAI URL is provided and it's not the default OpenAI URL,
+        // we should use the OpenRouter provider type for better compatibility with
+        // third-party providers
+        let use_open_router_for_openai = custom_openai_url
+            .as_ref()
+            .is_some_and(|url| !url.starts_with("https://api.openai.com"));
+
+        let keys: Vec<ProviderSearch> = if use_open_router_for_openai {
+            // When using a custom non-OpenAI URL, prioritize OpenRouter provider type for
+            // OPENAI_API_KEY
+            vec![
+                ("FORGE_KEY", Box::new(Provider::antinomy)),
+                ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
+                ("OPENAI_API_KEY", Box::new(Provider::open_router)), /* Use OpenRouter provider for better compatibility */
+                ("ANTHROPIC_API_KEY", Box::new(Provider::anthropic)),
+            ]
+        } else {
+            // Standard provider mapping
+            vec![
+                ("FORGE_KEY", Box::new(Provider::antinomy)),
+                ("OPENROUTER_API_KEY", Box::new(Provider::open_router)),
+                ("OPENAI_API_KEY", Box::new(Provider::openai)),
+                ("ANTHROPIC_API_KEY", Box::new(Provider::anthropic)),
+            ]
+        };
 
         let env_variables = keys
             .iter()
