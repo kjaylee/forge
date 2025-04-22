@@ -84,7 +84,7 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, Infrastructure,
+        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService,
     };
 
     #[derive(Debug)]
@@ -351,6 +351,17 @@ pub mod tests {
         }
     }
 
+    #[async_trait::async_trait]
+    impl InquireService for () {
+        async fn select_one(&self, _: &str, _: Vec<String>) -> anyhow::Result<String> {
+            unimplemented!()
+        }
+
+        async fn select_many(&self, _: &str, _: Vec<String>) -> anyhow::Result<Vec<String>> {
+            unimplemented!()
+        }
+    }
+
     impl Infrastructure for MockInfrastructure {
         type EnvironmentService = MockEnvironmentService;
         type FsReadService = MockFileService;
@@ -360,6 +371,7 @@ pub mod tests {
         type FsCreateDirsService = MockFileService;
         type FsSnapshotService = MockSnapService;
         type CommandExecutorService = ();
+        type InquireService = ();
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -390,6 +402,10 @@ pub mod tests {
         }
 
         fn command_executor_service(&self) -> &Self::CommandExecutorService {
+            &()
+        }
+
+        fn inquire_service(&self) -> &Self::InquireService {
             &()
         }
     }

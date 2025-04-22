@@ -6,6 +6,7 @@ use super::completion::Completion;
 use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
+use super::feedback::Feedback;
 use super::shell::Shell;
 use crate::Infrastructure;
 
@@ -32,6 +33,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Shell::new(self.infra.clone()).into(),
             Fetch::default().into(),
             Completion.into(),
+            Feedback::new(self.infra.clone()).into(),
         ]
     }
 }
@@ -47,7 +49,7 @@ pub mod tests {
     use super::*;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService,
+        FsReadService, FsSnapshotService, FsWriteService, InquireService,
     };
 
     /// Create a default test environment
@@ -146,6 +148,17 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl InquireService for Stub {
+        async fn select_one(&self, _: &str, _: Vec<String>) -> anyhow::Result<String> {
+            unimplemented!()
+        }
+
+        async fn select_many(&self, _: &str, _: Vec<String>) -> anyhow::Result<Vec<String>> {
+            unimplemented!()
+        }
+    }
+
+    #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FsReadService = Stub;
@@ -155,6 +168,7 @@ pub mod tests {
         type FsSnapshotService = Stub;
         type FsCreateDirsService = Stub;
         type CommandExecutorService = Stub;
+        type InquireService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -185,6 +199,10 @@ pub mod tests {
         }
 
         fn command_executor_service(&self) -> &Self::CommandExecutorService {
+            self
+        }
+
+        fn inquire_service(&self) -> &Self::InquireService {
             self
         }
     }
