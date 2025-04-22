@@ -4,10 +4,13 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-/// Marks a task as completed with the provided summary message. When this tool
-/// is called, the system will set the completion flag to indicate that the task
-/// has been successfully completed. Use this tool when you want to signal that
-/// a workflow or task sequence has reached its intended conclusion.
+/// After each tool use, the user will respond with the result of that tool use,
+/// i.e. if it succeeded or failed, along with any reasons for failure. Once
+/// you've received the results of tool uses and can confirm that the task is
+/// complete, use this tool to present the result of your work to the user.
+/// Optionally you may provide a CLI command to showcase the result of your
+/// work. The user may respond with feedback if they are not satisfied with the
+/// result, which you can use to make improvements and try again.
 #[derive(Debug, Default, ToolDescription)]
 pub struct Completion;
 

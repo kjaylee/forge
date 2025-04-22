@@ -4,9 +4,9 @@ use forge_domain::Tool;
 
 use super::completion::Completion;
 use super::fetch::Fetch;
+use super::followup::Followup;
 use super::fs::*;
 use super::patch::*;
-use super::feedback::Feedback;
 use super::shell::Shell;
 use crate::Infrastructure;
 
@@ -33,7 +33,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Shell::new(self.infra.clone()).into(),
             Fetch::default().into(),
             Completion.into(),
-            Feedback::new(self.infra.clone()).into(),
+            Followup::new(self.infra.clone()).into(),
         ]
     }
 }

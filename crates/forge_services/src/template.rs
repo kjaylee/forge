@@ -131,4 +131,12 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         )?;
         Ok(result)
     }
+
+    async fn render<S: serde::Serialize + Send + Sync>(
+        &self,
+        template: &str,
+        data: &S,
+    ) -> anyhow::Result<String> {
+        Ok(self.hb.render_template(template, data)?)
+    }
 }

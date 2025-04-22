@@ -65,18 +65,11 @@ pub trait CommandExecutorService: Send + Sync {
 #[async_trait::async_trait]
 pub trait InquireService: Send + Sync {
     /// Prompts the user to select a single option from a list
-    async fn select_one(
-        &self,
-        message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<String>;
+    async fn select_one(&self, message: &str, options: Vec<String>) -> anyhow::Result<String>;
 
     /// Prompts the user to select multiple options from a list
-    async fn select_many(
-        &self,
-        message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Vec<String>>;
+    async fn select_many(&self, message: &str, options: Vec<String>)
+        -> anyhow::Result<Vec<String>>;
 }
 
 pub trait Infrastructure: Send + Sync + Clone + 'static {

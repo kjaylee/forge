@@ -141,7 +141,7 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
     fn command_executor_service(&self) -> &Self::CommandExecutorService {
         self.infra.command_executor_service()
     }
-    
+
     fn inquire_service(&self) -> &Self::InquireService {
         self.infra.inquire_service()
     }
