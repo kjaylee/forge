@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::tools::utils::assert_absolute_path;
-use crate::{FileRemoveService, FsMetaService, Infrastructure};
+use crate::{FsMetaService, FsRemoveService, Infrastructure};
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSRemoveInput {
