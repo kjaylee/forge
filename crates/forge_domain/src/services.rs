@@ -1,5 +1,3 @@
-
-
 use crate::{
     Agent, Attachment, ChatCompletionMessage, Compact, CompactionResult, Context, Conversation,
     ConversationId, Environment, Event, EventContext, Mode, Model, ModelId, ResultStream,
