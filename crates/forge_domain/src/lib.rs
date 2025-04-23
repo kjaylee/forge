@@ -35,7 +35,7 @@ mod tool_choice;
 mod tool_definition;
 mod tool_name;
 mod tool_result;
-mod tool_usage;
+mod tool_usage_prompt;
 mod workflow;
 
 pub use agent::*;
@@ -73,5 +73,5 @@ pub use tool_choice::*;
 pub use tool_definition::*;
 pub use tool_name::*;
 pub use tool_result::*;
-pub use tool_usage::*;
+pub use tool_usage_prompt::*;
 pub use workflow::*;
