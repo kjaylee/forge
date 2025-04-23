@@ -43,8 +43,9 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider};
+    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider, ToolUsagePrompt};
     use forge_snaps::Snapshot;
+    use insta::assert_snapshot;
 
     use super::*;
     use crate::{
@@ -239,5 +240,22 @@ pub mod tests {
             "One or more tools exceed the maximum description length of {}",
             MAX_DESCRIPTION_LENGTH
         );
+    }
+
+    #[test]
+    fn test_tool_usage() {
+        let stub = Arc::new(stub());
+        let registry = ToolRegistry::new(stub.clone());
+        let tools = registry
+            .tools()
+            .into_iter()
+            .map(|tool| ToolUsagePrompt::from(tool.definition))
+            .fold(String::new(), |mut acc, tool| {
+                acc.push_str("\n\n");
+                acc.push_str(&tool.to_string());
+                acc
+            });
+
+        assert_snapshot!(tools)
     }
 }

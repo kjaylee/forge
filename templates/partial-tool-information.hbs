@@ -16,46 +16,16 @@ Here's a correct example structure:
 ```
 
 <tool_call>
-<tool_forge_fs_read>
-<path>/path/to/file</path>
-<recursive>true</recursive>
-</tool_forge_fs_read>
+{
+    "name": ..., // Tool Name
+    "parameter": { 
+        ... // Tool Parameters
+    }
+}
 </tool_call>
 ```
 
-Example of correct multi-step tool usage:
 
-```
-First message to read file_a:
-<tool_call>
-<tool_forge_fs_read>
-<path>/path/to/file_a</path>
-</tool_forge_fs_read>
-</tool_call>
-
-User response for the first message:
-<tool_result>
-<tool_forge_fs_create>  
-<success>[success message]</success>
-</tool_forge_fs_create>
-<tool_result>
-
-
-Second request to read file_b:
-<tool_call>
-<tool_forge_fs_create>
-<path>/path/to/file_b</path>
-<content>New content</content>
-</tool_forge_fs_create>
-</tool_call>
-
-User response for the second message:
-<tool_result>
-<tool_forge_fs_create>  
-<success>[success message]</success>
-</tool_forge_fs_create>
-<tool_result>
-```
 
 Important:
 
