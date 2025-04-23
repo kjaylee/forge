@@ -337,8 +337,8 @@ impl Agent {
         }))
     }
 
-    /// Determines if a tool is allowed for this agent based on the specified
-    /// mode If no mode is provided, defaults to Act mode
+    /// Determines if a tool is allowed for this agent based on the specified mode
+    /// If no mode is provided, defaults to Act mode
     pub fn is_tool_allowed(&self, tool_name: &ToolName, mode: Mode) -> bool {
         // Check if the tool is in the general tools list
         if let Some(tools) = &self.tools {

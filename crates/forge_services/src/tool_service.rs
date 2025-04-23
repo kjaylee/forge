@@ -42,11 +42,21 @@ impl ToolService for ForgeToolService {
         let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
-        let mut available_tools = self
-            .tools
-            .keys()
-            .map(|name| name.as_str())
-            .collect::<Vec<_>>();
+        // Get agent and mode from context if available
+        let mut available_tools = if let (Some(agent), Some(mode)) = (&context.agent, &context.mode) {
+            // Filter available tools based on agent and mode
+            self.tools
+                .keys()
+                .filter(|tool_name| agent.is_tool_allowed(tool_name, mode.clone()))
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>()
+        } else {
+            // If agent or mode is not available, include all tools
+            self.tools
+                .keys()
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>()
+        };
 
         available_tools.sort();
         let output = match self.tools.get(&name) {

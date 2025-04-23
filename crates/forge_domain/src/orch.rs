@@ -97,14 +97,20 @@ impl<A: Services> Orchestrator<A> {
             self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
 
-            // Execute the tool
+            // Get the conversation mode
+            let conversation = self.get_conversation().await?;
+            let mode = conversation.mode.clone();
+
+            // Execute the tool with mode-specific filtering
             let tool_result = self
                 .services
                 .tool_service()
                 .call(
                     ToolCallContext::default()
                         .sender(self.sender.clone())
-                        .agent_id(agent.id.clone()),
+                        .agent_id(agent.id.clone())
+                        .agent(agent.clone())
+                        .mode(mode),
                     tool_call.clone(),
                 )
                 .await;
