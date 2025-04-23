@@ -1,11 +1,9 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
-use serde_json::Value;
 use tokio::sync::RwLock;
 use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::RetryIf;
@@ -136,17 +134,16 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    async fn set_system_prompt(
-        &self,
-        context: Context,
-        agent: &Agent,
-        variables: &HashMap<String, Value>,
-    ) -> anyhow::Result<Context> {
+    async fn set_system_prompt(&self, context: Context, agent: &Agent) -> anyhow::Result<Context> {
         Ok(if let Some(system_prompt) = &agent.system_prompt {
+            // Get the conversation mode
+            let conversation = self.get_conversation().await?;
+            let mode = conversation.mode.clone();
+
             let system_message = self
                 .services
                 .template_service()
-                .render_system(agent, system_prompt, variables)
+                .render_system(agent, system_prompt, mode)
                 .await?;
 
             context.set_first_system_message(system_message)
@@ -293,8 +290,6 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
-        // Use an empty HashMap for variables since we removed the variables field
-        let variables = &HashMap::new();
         debug!(
             conversation_id = %conversation.id,
             agent = %agent_id,
@@ -303,28 +298,29 @@ impl<A: Services> Orchestrator<A> {
         );
         let agent = conversation.get_agent(agent_id)?;
 
+        // Get the current mode from the conversation
+        let mode = conversation.mode.clone();
+
         let mut context = if agent.ephemeral.unwrap_or_default() {
             agent
-                .init_context(self.services.tool_service().list())
+                .init_context(self.services.tool_service().list(), mode.clone())
                 .await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
                 None => {
                     agent
-                        .init_context(self.services.tool_service().list())
+                        .init_context(self.services.tool_service().list(), mode.clone())
                         .await?
                 }
             }
         };
 
         // Render the system prompts with the variables
-        context = self.set_system_prompt(context, agent, variables).await?;
+        context = self.set_system_prompt(context, agent).await?;
 
         // Render user prompts
-        context = self
-            .set_user_prompt(context, agent, variables, event)
-            .await?;
+        context = self.set_user_prompt(context, agent, event).await?;
 
         if let Some(temperature) = agent.temperature {
             context = context.temperature(temperature);
@@ -423,7 +419,6 @@ impl<A: Services> Orchestrator<A> {
         &self,
         mut context: Context,
         agent: &Agent,
-        variables: &HashMap<String, Value>,
         event: &Event,
     ) -> anyhow::Result<Context> {
         let content = if let Some(user_prompt) = &agent.user_prompt {
@@ -431,7 +426,7 @@ impl<A: Services> Orchestrator<A> {
             // variables
             self.services
                 .template_service()
-                .render_event(agent, user_prompt, event, variables)
+                .render_event(agent, user_prompt, event)
                 .await?
         } else {
             // Use the raw event value as content if no user_prompt is provided

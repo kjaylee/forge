@@ -26,15 +26,23 @@ agents:
       <task>{{event.value}}</task>
       <current_time>{{current_time}}</current_time>
     ephemeral: false
+    # Tools available in all modes
     tools:
       - tool_forge_fs_read
+      - tool_forge_fs_search
+      - tool_forge_net_fetch
+
+    # Tools available only in Act mode
+    act_tools:
       - tool_forge_fs_create
       - tool_forge_fs_remove
       - tool_forge_fs_patch
       - tool_forge_process_shell
-      - tool_forge_net_fetch
-      - tool_forge_fs_search
       - tool_forge_fs_undo
+
+    # Tools available only in Plan mode
+    plan_tools:
+      - tool_forge_fs_search
     subscribe:
       - user_task_init
       - user_task_update

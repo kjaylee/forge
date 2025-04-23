@@ -1,5 +1,4 @@
 use std::cmp::max;
-use std::collections::HashSet;
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
@@ -11,8 +10,8 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, Event, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition,
-    ToolName,
+    Context, Error, Event, EventContext, Mode, ModelId, Result, Role, SystemContext,
+    ToolDefinition, ToolName,
 };
 
 // Unique identifier for an agent
@@ -200,23 +199,33 @@ pub struct Agent {
     pub user_prompt: Option<Template<EventContext>>,
 
     /// Suggests if the agent needs to maintain its state for the lifetime of
-    /// the program.    
+    /// the program.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub ephemeral: Option<bool>,
 
-    /// Tools that the agent can use    
+    /// Tools that the agent can use in all modes
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub tools: Option<Vec<ToolName>>,
 
+    /// Tools that the agent can use only in Act mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub act_tools: Option<Vec<ToolName>>,
+
+    /// Tools that the agent can use only in Plan mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub plan_tools: Option<Vec<ToolName>>,
+
     // The transforms feature has been removed
-    /// Used to specify the events the agent is interested in    
+    /// Used to specify the events the agent is interested in
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = merge_subscription)]
     pub subscribe: Option<Vec<String>>,
 
-    /// Maximum number of turns the agent can take    
+    /// Maximum number of turns the agent can take
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub max_turns: Option<u64>,
@@ -275,6 +284,8 @@ impl Agent {
             user_prompt: None,
             ephemeral: None,
             tools: None,
+            act_tools: None,
+            plan_tools: None,
             // transforms field removed
             subscribe: None,
             max_turns: None,
@@ -303,16 +314,13 @@ impl Agent {
         }
     }
 
-    pub async fn init_context(&self, mut forge_tools: Vec<ToolDefinition>) -> Result<Context> {
-        let allowed = self.tools.iter().flatten().collect::<HashSet<_>>();
-
+    pub async fn init_context(
+        &self,
+        mut forge_tools: Vec<ToolDefinition>,
+        mode: Mode,
+    ) -> Result<Context> {
         // Adding Event tool to the list of tool definitions
         forge_tools.push(Event::tool_definition());
-
-        let tool_defs = forge_tools
-            .into_iter()
-            .filter(|tool| allowed.contains(&tool.name))
-            .collect::<Vec<_>>();
 
         // Use the agent's tool_supported flag directly instead of querying the provider
         let tool_supported = self.tool_supported.unwrap_or_default();
@@ -320,10 +328,44 @@ impl Agent {
         let context = Context::default();
 
         Ok(context.extend_tools(if tool_supported {
-            tool_defs
+            forge_tools
+                .into_iter()
+                .filter(|tool| self.is_tool_allowed(&tool.name, mode.clone()))
+                .collect()
         } else {
             Vec::new()
         }))
+    }
+
+    /// Determines if a tool is allowed for this agent based on the specified
+    /// mode If no mode is provided, defaults to Act mode
+    pub fn is_tool_allowed(&self, tool_name: &ToolName, mode: Mode) -> bool {
+        // Check if the tool is in the general tools list
+        if let Some(tools) = &self.tools {
+            if tools.contains(tool_name) {
+                return true;
+            }
+        }
+
+        // Check mode-specific tools
+        match mode {
+            Mode::Act => {
+                if let Some(act_tools) = &self.act_tools {
+                    if act_tools.contains(tool_name) {
+                        return true;
+                    }
+                }
+            }
+            Mode::Plan => {
+                if let Some(plan_tools) = &self.plan_tools {
+                    if plan_tools.contains(tool_name) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
 

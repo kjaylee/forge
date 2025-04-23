@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Local;
@@ -9,7 +8,6 @@ use forge_domain::{
 use forge_walker::Walker;
 use handlebars::Handlebars;
 use rust_embed::Embed;
-use serde_json::Value;
 use tracing::debug;
 
 use crate::Infrastructure;
@@ -45,9 +43,10 @@ impl<F, T> ForgeTemplateService<F, T> {
 impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService<F, T> {
     async fn render_system(
         &self,
-        _agent: &Agent,
+        agent: &Agent,
         prompt: &Template<SystemContext>,
-        _variables: &HashMap<String, Value>,
+
+        mode: Mode,
     ) -> anyhow::Result<String> {
         let env = self.infra.environment_service().get_environment();
 
@@ -56,7 +55,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
         // Only set max_depth if the value is provided
         // Create maximum depth for file walker, defaulting to 1 if not specified
-        walker = walker.max_depth(_agent.max_walker_depth.unwrap_or(1));
+        walker = walker.max_depth(agent.max_walker_depth.unwrap_or(1));
 
         let mut files = walker
             .cwd(env.cwd.clone())
@@ -72,18 +71,24 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         // Get current date and time with timezone
         let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
-        // Use the default mode (Act)
-        let mode = Mode::default();
+        // Use the mode passed directly to the method
+
+        // Filter tool information based on the mode
+        let tool_information = if agent.tool_supported.unwrap_or_default() {
+            Some(self.tool_service.usage_prompt_for_mode(agent, mode.clone()))
+        } else {
+            None
+        };
 
         // Create the context with README content for all agents
         let ctx = SystemContext {
             current_time,
             env: Some(env),
-            tool_information: Some(self.tool_service.usage_prompt()),
-            tool_supported: _agent.tool_supported.unwrap_or_default(),
+            tool_information,
+            tool_supported: agent.tool_supported.unwrap_or_default(),
             files,
             readme: README_CONTENT.to_string(),
-            custom_rules: _agent.custom_rules.as_ref().cloned().unwrap_or_default(),
+            custom_rules: agent.custom_rules.as_ref().cloned().unwrap_or_default(),
             mode,
         };
 
@@ -97,7 +102,6 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         _agent: &Agent,
         prompt: &Template<EventContext>,
         event: &Event,
-        _variables: &HashMap<String, Value>,
     ) -> anyhow::Result<String> {
         // Create an EventContext with the provided event
         let event_context = EventContext::new(event.clone());

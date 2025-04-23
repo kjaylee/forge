@@ -1,11 +1,9 @@
-use std::collections::HashMap;
 
-use serde_json::Value;
 
 use crate::{
     Agent, Attachment, ChatCompletionMessage, Compact, CompactionResult, Context, Conversation,
-    ConversationId, Environment, Event, EventContext, Model, ModelId, ResultStream, SystemContext,
-    Template, ToolCallContext, ToolCallFull, ToolDefinition, ToolResult, Workflow,
+    ConversationId, Environment, Event, EventContext, Mode, Model, ModelId, ResultStream,
+    SystemContext, Template, ToolCallContext, ToolCallFull, ToolDefinition, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -24,6 +22,7 @@ pub trait ToolService: Send + Sync {
     async fn call(&self, context: ToolCallContext, call: ToolCallFull) -> ToolResult;
     fn list(&self) -> Vec<ToolDefinition>;
     fn usage_prompt(&self) -> String;
+    fn usage_prompt_for_mode(&self, agent: &Agent, mode: Mode) -> String;
 }
 
 #[async_trait::async_trait]
@@ -57,7 +56,7 @@ pub trait TemplateService: Send + Sync {
         &self,
         agent: &Agent,
         prompt: &Template<SystemContext>,
-        variables: &HashMap<String, Value>,
+        mode: Mode,
     ) -> anyhow::Result<String>;
 
     async fn render_event(
@@ -65,7 +64,6 @@ pub trait TemplateService: Send + Sync {
         agent: &Agent,
         prompt: &Template<EventContext>,
         event: &Event,
-        variables: &HashMap<String, Value>,
     ) -> anyhow::Result<String>;
 
     /// Renders a custom summarization prompt for context compaction
