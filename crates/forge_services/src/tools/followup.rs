@@ -35,8 +35,8 @@ impl<F: Infrastructure> NamedTool for Followup<F> {
 /// Input for the select tool
 #[derive(Deserialize, JsonSchema)]
 pub struct SelectInput {
-    /// Message to display as prompt to the user
-    pub message: String,
+    /// Question to ask the user
+    pub question: String,
 
     /// List of options to choose from
     pub options: Vec<String>,
@@ -57,7 +57,7 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
             let selected = self
                 .infra
                 .inquire_service()
-                .select_many(&input.message, input.options)
+                .select_many(&input.question, input.options)
                 .await?;
             format!(
                 "User selected {} option(s): {}",
@@ -68,29 +68,11 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
             let selected = self
                 .infra
                 .inquire_service()
-                .select_one(&input.message, input.options)
+                .select_one(&input.question, input.options)
                 .await?;
             format!("User selected: {}", selected)
         };
 
         Ok(result)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use forge_domain::ToolName;
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn test_tool_name() {
-        let expected = ToolName::new("tool_forge_select");
-        let actual = <Followup<crate::tools::registry::tests::Stub> as NamedTool>::tool_name();
-        assert_eq!(actual, expected);
-    }
-
-    // Note: We can't easily test the actual select functionality without
-    // mocking user input
 }

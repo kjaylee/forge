@@ -79,14 +79,28 @@ Based on my analysis, I should clarify:
 </thinking>
 ```
 
-- Then present these questions to the user using the `tool_forge_followup` tool:
+- Then present these questions to the user one by one using the `tool_forge_followup` tool:
 
 ```
 Based on my analysis, I need to clarify:
 
-1. [First question from thinking, with possible options]
-2. [Second question from thinking, with possible options]
-3. [Third question from thinking, with possible options]
+<tool_forge_followup>
+<message>[First question from thinking]</message>
+<option_1>[Option 1]</option_1>
+<option_2>[Option 2]</option_2>
+</tool_forge_followup>
+
+<tool_forge_followup>
+<message>[Second question from thinking]</message>
+<option_1>[Option 1]</option_1>
+<option_2>[Option 2]</option_2>
+</tool_forge_followup>
+
+<tool_forge_followup>
+<message>[Third question from thinking]</message>
+<option_1>[Option 1]</option_1>
+<option_2>[Option 2]</option_2>
+</tool_forge_followup>
 ```
 
 - Wait for user's answers before proceeding to Action Plan
