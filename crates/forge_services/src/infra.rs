@@ -96,7 +96,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
 
 #[cfg(test)]
 pub mod stub {
-    use std::sync::Arc;
+    
 
     use forge_domain::{Environment, EnvironmentService, Provider};
 
