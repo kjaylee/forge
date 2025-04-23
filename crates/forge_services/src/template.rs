@@ -73,12 +73,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
 
         // Use the mode passed directly to the method
 
-        // Filter tool information based on the mode
-        let tool_information = if agent.tool_supported.unwrap_or_default() {
-            Some(self.tool_service.usage_prompt_for_mode(agent, mode.clone()))
-        } else {
-            None
-        };
+        let tool_information = Some(self.tool_service.usage_prompt(agent, mode.clone()));
 
         // Create the context with README content for all agents
         let ctx = SystemContext {
