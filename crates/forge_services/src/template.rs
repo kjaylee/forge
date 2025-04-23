@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use chrono::Local;
 use forge_domain::{
-    Agent, Compact, Context, EnvironmentService, Event, EventContext, Mode, SystemContext, Template,
-    TemplateService, ToolService,
+    Agent, Compact, Context, EnvironmentService, Event, EventContext, Mode, SystemContext,
+    Template, TemplateService, ToolService,
 };
 use forge_walker::Walker;
 use handlebars::Handlebars;

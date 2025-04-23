@@ -15,8 +15,6 @@ pub struct Workflow {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<Agent>,
 
-
-
     /// Commands that can be used to interact with the workflow
     #[merge(strategy = crate::merge::vec::append)]
     #[serde(default)]

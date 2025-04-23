@@ -1,5 +1,3 @@
-
-
 pub mod std {
     pub fn overwrite<T>(base: &mut T, other: T) {
         *base = other;
@@ -36,5 +34,3 @@ pub trait Key {
     type Id: Eq;
     fn key(&self) -> &Self::Id;
 }
-
-
