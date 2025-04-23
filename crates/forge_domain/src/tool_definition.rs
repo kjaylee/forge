@@ -1,4 +1,3 @@
-
 use derive_setters::Setters;
 use schemars::schema::RootSchema;
 use schemars::JsonSchema;
