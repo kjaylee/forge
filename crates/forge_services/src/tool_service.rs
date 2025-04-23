@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use forge_domain::{
     Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    ToolUsagePrompt,
 };
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
@@ -104,7 +105,11 @@ impl ToolService for ForgeToolService {
                 acc.push('\n');
                 acc.push_str((i + 1).to_string().as_str());
                 acc.push_str(". ");
-                acc.push_str(tool.definition.usage_prompt().to_string().as_str());
+                acc.push_str(
+                    ToolUsagePrompt::from(tool.definition.clone())
+                        .to_string()
+                        .as_str(),
+                );
                 acc
             })
     }
