@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use chrono::Local;
 use forge_domain::{
-    Agent, Compact, Context, EnvironmentService, Event, EventContext, SystemContext, Template,
+    Agent, Compact, Context, EnvironmentService, Event, EventContext, Mode, SystemContext, Template,
     TemplateService, ToolService,
 };
 use forge_walker::Walker;
@@ -72,6 +72,9 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         // Get current date and time with timezone
         let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
+        // Use the default mode (Act)
+        let mode = Mode::default();
+
         // Create the context with README content for all agents
         let ctx = SystemContext {
             current_time,
@@ -81,7 +84,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             files,
             readme: README_CONTENT.to_string(),
             custom_rules: _agent.custom_rules.as_ref().cloned().unwrap_or_default(),
-            // Variables removed
+            mode,
         };
 
         // Render the template with the context

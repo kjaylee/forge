@@ -1,7 +1,7 @@
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use crate::Environment;
+use crate::{Environment, Mode};
 
 #[derive(Debug, Setters, Clone, Serialize, Deserialize)]
 #[setters(strip_option)]
@@ -32,5 +32,6 @@ pub struct SystemContext {
     #[serde(skip_serializing_if = "String::is_empty")]
     pub custom_rules: String,
 
-
+    /// The current mode (Act or Plan)
+    pub mode: Mode,
 }

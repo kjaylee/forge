@@ -17,7 +17,11 @@ agents:
     tool_supported: true
     model: *advanced_model
     system_prompt: |-
+      {{#if (eq mode "PLAN") }}
+      {{> system-prompt-engineer-plan.hbs }}
+      {{else}}
       {{> system-prompt-engineer-act.hbs }}
+      {{/if}}
     user_prompt: |-
       <task>{{event.value}}</task>
       <current_time>{{current_time}}</current_time>
