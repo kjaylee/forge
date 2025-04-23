@@ -116,7 +116,6 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
 
     /// Platform-specific error message patterns for command not found errors
     #[cfg(target_os = "windows")]
@@ -134,7 +133,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_echo() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let shell = Shell::new(infra);
         let result = shell
             .call(
@@ -151,7 +150,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_stderr_with_success() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let shell = Shell::new(infra);
         // Use a command that writes to both stdout and stderr
         let result = shell
@@ -177,7 +176,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_both_streams() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let shell = Shell::new(infra);
         let result = shell
             .call(
@@ -198,7 +197,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_working_directory() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let shell = Shell::new(infra);
         let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
 
@@ -221,7 +220,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_invalid_command() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -249,7 +248,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_command() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let shell = Shell::new(infra);
         let result = shell
             .call(
@@ -267,7 +266,7 @@ mod tests {
     #[tokio::test]
     async fn test_description() {
         assert!(
-            Shell::new(Arc::new(MockInfrastructure::new()))
+            Shell::new(Arc::new(crate::infra::stub::Stub::default()))
                 .description()
                 .len()
                 > 100
@@ -276,7 +275,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_pwd() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         let current_dir = env::current_dir().unwrap();
         let result = shell
             .call(
@@ -301,7 +300,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_multiple_commands() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -317,7 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_empty_output() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -335,7 +334,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_whitespace_only_output() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -353,7 +352,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_with_environment_variables() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         let result = shell
             .call(
                 ToolCallContext::default(),
@@ -371,7 +370,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_shell_full_path_command() {
-        let shell = Shell::new(Arc::new(MockInfrastructure::new()));
+        let shell = Shell::new(Arc::new(crate::infra::stub::Stub::default()));
         // Using a full path command which would be restricted in rbash
         let cmd = if cfg!(target_os = "windows") {
             r"C:\Windows\System32\whoami.exe"

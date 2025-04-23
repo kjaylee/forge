@@ -63,7 +63,6 @@ mod test {
     use bytes::Bytes;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
     use crate::{FsCreateDirsService, FsWriteService};
 
@@ -71,7 +70,7 @@ mod test {
     async fn test_fs_remove_success() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
 
         // Create a test file
         infra
@@ -102,7 +101,7 @@ mod test {
     async fn test_fs_remove_nonexistent_file() {
         let temp_dir = TempDir::new().unwrap();
         let nonexistent_file = temp_dir.path().join("nonexistent.txt");
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
 
         let fs_remove = FSRemove::new(infra);
         let result = fs_remove
@@ -120,7 +119,7 @@ mod test {
     async fn test_fs_remove_directory() {
         let temp_dir = TempDir::new().unwrap();
         let dir_path = temp_dir.path().join("test_dir");
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
 
         // Create a test directory
         infra
@@ -156,7 +155,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_remove_relative_path() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_remove = FSRemove::new(infra);
         let result = fs_remove
             .call(

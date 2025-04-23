@@ -150,11 +150,10 @@ mod test {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
     use crate::{FsMetaService, FsReadService};
 
-    async fn assert_path_exists(path: impl AsRef<Path>, infra: &MockInfrastructure) {
+    async fn assert_path_exists(path: impl AsRef<Path>, infra: &Arc<impl Infrastructure>) {
         assert!(
             infra
                 .file_meta_service()
@@ -172,7 +171,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
         let content = "Hello, World!";
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let output = fs_write
             .call(
@@ -208,7 +207,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
@@ -230,7 +229,7 @@ mod test {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.rs");
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let content = "fn main() { let x = 42; }";
         let result = fs_write
@@ -269,7 +268,7 @@ mod test {
         let nested_path = temp_dir.path().join("new_dir").join("test.txt");
         let content = "Hello from nested file!";
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
@@ -312,7 +311,7 @@ mod test {
             .join("deep.txt");
         let content = "Deep in the directory structure";
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
@@ -357,7 +356,7 @@ mod test {
         let path_str = format!("{}/dir_a/dir_b/file.txt", temp_dir.path().to_string_lossy());
         let content = "Testing path separators";
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
@@ -396,7 +395,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_write_relative_path() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
@@ -422,7 +421,7 @@ mod test {
         let file_path = temp_dir.path().join("test_overwrite.txt");
         let original_content = "Original content";
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         // First, create the file
         infra
             .file_write_service()
@@ -472,7 +471,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
 
         // Create a mock infrastructure with controlled cwd
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_write = FSWrite::new(infra);
 
         // Test with a mock path
@@ -491,7 +490,7 @@ mod test {
         let original_content = "Original content";
         let new_content = "New content";
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         // First, create the file
         infra
             .file_write_service()

@@ -87,8 +87,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
-    use crate::tools::registry::tests::Stub;
+    use crate::stub::Stub;
 
     #[tokio::test]
     async fn test_successful_undo() {
@@ -133,7 +132,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.txt");
 
         // Create a mock infrastructure with controlled cwd
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_undo = FsUndo::new(infra);
 
         // Test with a mock path

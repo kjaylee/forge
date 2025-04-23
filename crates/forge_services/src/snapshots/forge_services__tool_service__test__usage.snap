@@ -1,0 +1,339 @@
+---
+source: crates/forge_services/src/tool_service.rs
+expression: service.usage_prompt()
+---
+1. tool_forge_attempt_completion
+After each tool use, the user will respond with the result of that tool use,  i.e. if it succeeded or failed, along with any reasons for failure. Once  you\'ve received the results of tool uses and can confirm that the task is  complete, use this tool to present the result of your work to the user.  Optionally you may provide a CLI command to showcase the result of your  work. The user may respond with feedback if they are not satisfied with the  result, which you can use to make improvements and try again.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AttemptCompletionInput",
+  "type": "object",
+  "required": [
+    "message"
+  ],
+  "properties": {
+    "message": {
+      "description": "Summary message describing the completed task",
+      "type": "string"
+    }
+  }
+}
+2. tool_forge_followup
+Ask the user a question to gather additional information needed to complete  the task. This tool should be used when you encounter ambiguities, need  clarification, or require more details to proceed effectively. It allows for  interactive problem-solving by enabling direct communication with the user.  Use this tool judiciously to maintain a balance between gathering necessary  information and avoiding excessive back-and-forth
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SelectInput",
+  "description": "Input for the select tool",
+  "type": "object",
+  "required": [
+    "options",
+    "question"
+  ],
+  "properties": {
+    "multiple": {
+      "description": "If true, allows selecting multiple options; if false, only one option can be selected",
+      "default": false,
+      "type": "boolean"
+    },
+    "options": {
+      "description": "List of options to choose from",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "question": {
+      "description": "Question to ask the user",
+      "type": "string"
+    }
+  }
+}
+3. tool_forge_fs_create
+Use it to create a new file at a specified path with the provided content.  Always provide absolute paths for file locations. The tool  automatically handles the creation of any missing intermediary directories  in the specified path.  IMPORTANT: DO NOT attempt to use this tool to move or rename files, use the  shell tool instead.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FSWriteInput",
+  "type": "object",
+  "required": [
+    "content",
+    "path"
+  ],
+  "properties": {
+    "content": {
+      "description": "The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified.",
+      "type": "string"
+    },
+    "overwrite": {
+      "description": "If set to true, existing files will be overwritten. If not set and the file exists, an error will be returned with the content of the existing file.",
+      "default": false,
+      "type": "boolean"
+    },
+    "path": {
+      "description": "The path of the file to write to (absolute path required)",
+      "type": "string"
+    }
+  }
+}
+4. tool_forge_fs_info
+Request to retrieve detailed metadata about a file or directory at the  specified path. Returns comprehensive information including size, creation  time, last modified time, permissions, and type. Path must be absolute. Use  this when you need to understand file characteristics without reading the  actual content.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FSFileInfoInput",
+  "type": "object",
+  "required": [
+    "path"
+  ],
+  "properties": {
+    "path": {
+      "description": "The path of the file or directory to inspect (absolute path required)",
+      "type": "string"
+    }
+  }
+}
+5. tool_forge_fs_list
+Request to list files and directories within the specified directory. If  recursive is true, it will list all files and directories recursively. If  recursive is false or not provided, it will only list the top-level  contents. The path must be absolute. Do not use this tool to confirm the  existence of files you may have created, as the user will let you know if  the files were created successfully or not.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FSListInput",
+  "type": "object",
+  "required": [
+    "path"
+  ],
+  "properties": {
+    "path": {
+      "description": "The path of the directory to list contents for (absolute path required)",
+      "type": "string"
+    },
+    "recursive": {
+      "description": "Whether to list files recursively. Use true for recursive listing, false or omit for top-level only.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  }
+}
+6. tool_forge_fs_patch
+Modifies files with targeted text operations on matched patterns. Supports  prepend, append, replace, swap, delete operations on first pattern  occurrence. Ideal for precise changes to configs, code, or docs while  preserving context. Not suitable for complex refactoring or modifying all  pattern occurrences - use tool_forge_fs_create instead for complete  rewrites. Fails if search pattern isn\'t found.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Input",
+  "type": "object",
+  "required": [
+    "content",
+    "operation",
+    "path",
+    "search"
+  ],
+  "properties": {
+    "content": {
+      "description": "The content to use for the operation (replacement text, text to prepend/append, or target text for swap operations)",
+      "type": "string"
+    },
+    "operation": {
+      "description": "The operation to perform on the matched text. Possible options are only 'prepend', 'append', 'replace', and 'swap'.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Operation"
+        }
+      ]
+    },
+    "path": {
+      "description": "The path to the file to modify",
+      "type": "string"
+    },
+    "search": {
+      "description": "The text to search for in the source. If empty, operation applies to the end of the file.",
+      "type": "string"
+    }
+  },
+  "definitions": {
+    "Operation": {
+      "description": "Operation types that can be performed on matched text",
+      "oneOf": [
+        {
+          "description": "Prepend content before the matched text",
+          "type": "string",
+          "enum": [
+            "prepend"
+          ]
+        },
+        {
+          "description": "Append content after the matched text",
+          "type": "string",
+          "enum": [
+            "append"
+          ]
+        },
+        {
+          "description": "Replace the matched text with new content",
+          "type": "string",
+          "enum": [
+            "replace"
+          ]
+        },
+        {
+          "description": "Swap the matched text with another text (search for the second text and swap them)",
+          "type": "string",
+          "enum": [
+            "swap"
+          ]
+        }
+      ]
+    }
+  }
+}
+7. tool_forge_fs_read
+Reads file contents at specified path. Use for analyzing code, config files,  documentation or text data. Extracts text from PDF/DOCX files and preserves  original formatting. Returns content as string. Always use absolute paths.  Read-only with no file modifications.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FSReadInput",
+  "type": "object",
+  "required": [
+    "path"
+  ],
+  "properties": {
+    "path": {
+      "description": "The path of the file to read, always provide absolute paths.",
+      "type": "string"
+    }
+  }
+}
+8. tool_forge_fs_remove
+Request to remove a file at the specified path. Use this when you need to  delete an existing file. The path must be absolute. This operation cannot  be undone, so use it carefully.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FSRemoveInput",
+  "type": "object",
+  "required": [
+    "path"
+  ],
+  "properties": {
+    "path": {
+      "description": "The path of the file to remove (absolute path required)",
+      "type": "string"
+    }
+  }
+}
+9. tool_forge_fs_search
+Recursively searches directories for files by content (regex) and/or name  (glob pattern). Provides context-rich results with line numbers for content  matches. Two modes: content search (when regex provided) or file finder  (when regex omitted). Uses case-insensitive Rust regex syntax. Requires  absolute paths. Avoids binary files and excluded directories. Best for code  exploration, API usage discovery, configuration settings, or finding  patterns across projects.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FSFindInput",
+  "type": "object",
+  "required": [
+    "path"
+  ],
+  "properties": {
+    "file_pattern": {
+      "description": "Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not provided, it will search all files (*).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "path": {
+      "description": "The path of the directory to search in (absolute path required). This directory will be recursively searched.",
+      "type": "string"
+    },
+    "regex": {
+      "description": "The regular expression pattern to search for in file contents. Uses Rust regex syntax. If not provided, only file name matching will be performed.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
+10. tool_forge_fs_undo
+Reverts the most recent file operation (create/modify/delete) on a specific  file. Use this tool when you need to recover from incorrect file changes or  if a revert is requested by the user.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UndoInput",
+  "type": "object",
+  "required": [
+    "path"
+  ],
+  "properties": {
+    "path": {
+      "description": "The absolute path of the file to revert to its previous state. Must be the exact path that was previously modified, created, or deleted by a Forge file operation. If the file was deleted, provide the original path it had before deletion. The system requires a prior snapshot for this path.",
+      "type": "string"
+    }
+  }
+}
+11. tool_forge_net_fetch
+Retrieves content from URLs as markdown or raw text. Enables access to  current online information including websites, APIs and documentation. Use  for obtaining up-to-date information beyond training data, verifying facts,  or retrieving specific online content. Handles HTTP/HTTPS and converts HTML  to readable markdown by default. Cannot access private/restricted resources  requiring authentication. Respects robots.txt and may be blocked by  anti-scraping measures. Large pages may require multiple requests with  adjusted start_index.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FetchInput",
+  "type": "object",
+  "required": [
+    "url"
+  ],
+  "properties": {
+    "max_length": {
+      "description": "Maximum number of characters to return (default: 40000)",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint",
+      "minimum": 0.0
+    },
+    "raw": {
+      "description": "Get raw content without any markdown conversion (default: false)",
+      "default": false,
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "start_index": {
+      "description": "Start content from this character index (default: 0), On return output starting at this character index, useful if a previous fetch was truncated and more context is required.",
+      "default": 0,
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint",
+      "minimum": 0.0
+    },
+    "url": {
+      "description": "URL to fetch",
+      "type": "string"
+    }
+  }
+}
+12. tool_forge_process_shell
+Executes shell commands with safety measures using restricted bash (rbash).  Prevents potentially harmful operations like absolute path execution and  directory changes. Use for file system interaction, running utilities,  installing packages, or executing build commands. For operations requiring  unrestricted access, advise users to run forge CLI with \'-u\' flag. Returns  complete output including stdout, stderr, and exit code for diagnostic  purposes.
+Json Schema:
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ShellInput",
+  "type": "object",
+  "required": [
+    "command",
+    "cwd"
+  ],
+  "properties": {
+    "command": {
+      "description": "The shell command to execute.",
+      "type": "string"
+    },
+    "cwd": {
+      "description": "The working directory where the command should be executed.",
+      "type": "string"
+    }
+  }
+}

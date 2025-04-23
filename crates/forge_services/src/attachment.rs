@@ -70,350 +70,20 @@ impl<F: Infrastructure> AttachmentService for ForgeChatRequest<F> {
 
 #[cfg(test)]
 pub mod tests {
-    use std::collections::HashMap;
-    use std::path::{Path, PathBuf};
-    use std::sync::{Arc, Mutex};
+
+    use std::path::Path;
+    use std::sync::Arc;
 
     use base64::Engine;
-    use bytes::Bytes;
-    use forge_domain::{
-        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider,
-    };
-    use forge_snaps::Snapshot;
+    use forge_domain::{AttachmentService, ContentType};
 
     use crate::attachment::ForgeChatRequest;
-    use crate::{
-        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService,
-    };
-
-    #[derive(Debug)]
-    pub struct MockEnvironmentService {}
-
-    #[async_trait::async_trait]
-    impl EnvironmentService for MockEnvironmentService {
-        fn get_environment(&self) -> Environment {
-            Environment {
-                os: "test".to_string(),
-                pid: 12345,
-                cwd: PathBuf::from("/test"),
-                home: Some(PathBuf::from("/home/test")),
-                shell: "bash".to_string(),
-                base_path: PathBuf::from("/base"),
-                provider: Provider::open_router("test-key"),
-                retry_config: Default::default(),
-            }
-        }
-    }
-
-    impl MockFileService {
-        fn new() -> Self {
-            let mut files = HashMap::new();
-            // Add some mock files
-            files.insert(
-                PathBuf::from("/test/file1.txt"),
-                "This is a text file content".to_string(),
-            );
-            files.insert(
-                PathBuf::from("/test/image.png"),
-                "mock-binary-content".to_string(),
-            );
-            files.insert(
-                PathBuf::from("/test/image with spaces.jpg"),
-                "mock-jpeg-content".to_string(),
-            );
-
-            Self {
-                files: Mutex::new(
-                    files
-                        .into_iter()
-                        .map(|(a, b)| (a, Bytes::from(b)))
-                        .collect::<Vec<_>>(),
-                ),
-            }
-        }
-
-        fn add_file(&self, path: PathBuf, content: String) {
-            let mut files = self.files.lock().unwrap();
-            files.push((path, Bytes::from_owner(content)));
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl FsReadService for MockFileService {
-        async fn read(&self, path: &Path) -> anyhow::Result<Bytes> {
-            let files = self.files.lock().unwrap();
-            match files.iter().find(|v| v.0 == path) {
-                Some((_, content)) => Ok(content.clone()),
-                None => Err(anyhow::anyhow!("File not found: {:?}", path)),
-            }
-        }
-    }
-
-    #[derive(Debug, Clone)]
-    pub struct MockInfrastructure {
-        env_service: Arc<MockEnvironmentService>,
-        file_service: Arc<MockFileService>,
-        file_snapshot_service: Arc<MockSnapService>,
-    }
-
-    impl MockInfrastructure {
-        pub fn new() -> Self {
-            Self {
-                env_service: Arc::new(MockEnvironmentService {}),
-                file_service: Arc::new(MockFileService::new()),
-                file_snapshot_service: Arc::new(MockSnapService),
-            }
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct MockFileService {
-        files: Mutex<Vec<(PathBuf, Bytes)>>,
-    }
-
-    #[async_trait::async_trait]
-    impl FileRemoveService for MockFileService {
-        async fn remove(&self, path: &Path) -> anyhow::Result<()> {
-            if !self.exists(path).await? {
-                return Err(anyhow::anyhow!("File not found: {:?}", path));
-            }
-            self.files.lock().unwrap().retain(|(p, _)| p != path);
-            Ok(())
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl FsCreateDirsService for MockFileService {
-        async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
-            self.files
-                .lock()
-                .unwrap()
-                .push((path.to_path_buf(), Bytes::new()));
-            Ok(())
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl FsWriteService for MockFileService {
-        async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
-            let index = self.files.lock().unwrap().iter().position(|v| v.0 == path);
-            if let Some(index) = index {
-                self.files.lock().unwrap().remove(index);
-            }
-            self.files
-                .lock()
-                .unwrap()
-                .push((path.to_path_buf(), contents));
-            Ok(())
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct MockSnapService;
-
-    #[async_trait::async_trait]
-    impl FsSnapshotService for MockSnapService {
-        async fn create_snapshot(&self, _: &Path) -> anyhow::Result<Snapshot> {
-            unimplemented!()
-        }
-
-        async fn undo_snapshot(&self, _: &Path) -> anyhow::Result<()> {
-            unimplemented!()
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl FsMetaService for MockFileService {
-        async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
-            Ok(self
-                .files
-                .lock()
-                .unwrap()
-                .iter()
-                .filter(|v| v.0.extension().is_some())
-                .any(|(p, _)| p == path))
-        }
-
-        async fn exists(&self, path: &Path) -> anyhow::Result<bool> {
-            Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl CommandExecutorService for () {
-        async fn execute_command(
-            &self,
-            command: String,
-            working_dir: PathBuf,
-        ) -> anyhow::Result<CommandOutput> {
-            // For test purposes, we'll create outputs that match what the shell tests
-            // expect Check for common command patterns
-            if command == "echo 'Hello, World!'" {
-                // When the test_shell_echo looks for this specific command
-                // It's expecting to see "Mock command executed successfully"
-                return Ok(CommandOutput {
-                    stdout: "Mock command executed successfully\n".to_string(),
-                    stderr: "".to_string(),
-                    success: true,
-                });
-            } else if command.contains("echo") {
-                if command.contains(">") && command.contains(">&2") {
-                    // Commands with both stdout and stderr
-                    let stdout = if command.contains("to stdout") {
-                        "to stdout\n"
-                    } else {
-                        "stdout output\n"
-                    };
-                    let stderr = if command.contains("to stderr") {
-                        "to stderr\n"
-                    } else {
-                        "stderr output\n"
-                    };
-                    return Ok(CommandOutput {
-                        stdout: stdout.to_string(),
-                        stderr: stderr.to_string(),
-                        success: true,
-                    });
-                } else if command.contains(">&2") {
-                    // Command with only stderr
-                    let content = command.split("echo").nth(1).unwrap_or("").trim();
-                    let content = content.trim_matches(|c| c == '\'' || c == '"');
-                    return Ok(CommandOutput {
-                        stdout: "".to_string(),
-                        stderr: format!("{content}\n"),
-                        success: true,
-                    });
-                } else {
-                    // Standard echo command
-                    let content = if command == "echo ''" {
-                        "\n".to_string()
-                    } else if command.contains("&&") {
-                        // Multiple commands
-                        "first\nsecond\n".to_string()
-                    } else if command.contains("$PATH") {
-                        // PATH command returns a mock path
-                        "/usr/bin:/bin:/usr/sbin:/sbin\n".to_string()
-                    } else {
-                        let parts: Vec<&str> = command.split("echo").collect();
-                        if parts.len() > 1 {
-                            let content = parts[1].trim();
-                            // Remove quotes if present
-                            let content = content.trim_matches(|c| c == '\'' || c == '"');
-                            format!("{content}\n")
-                        } else {
-                            "Hello, World!\n".to_string()
-                        }
-                    };
-
-                    return Ok(CommandOutput {
-                        stdout: content,
-                        stderr: "".to_string(),
-                        success: true,
-                    });
-                }
-            } else if command == "pwd" || command == "cd" {
-                // Return working directory for pwd/cd commands
-                return Ok(CommandOutput {
-                    stdout: format!("{working_dir}\n", working_dir = working_dir.display()),
-                    stderr: "".to_string(),
-                    success: true,
-                });
-            } else if command == "true" {
-                // true command returns success with no output
-                return Ok(CommandOutput {
-                    stdout: "".to_string(),
-                    stderr: "".to_string(),
-                    success: true,
-                });
-            } else if command.starts_with("/bin/ls") || command.contains("whoami") {
-                // Full path commands
-                return Ok(CommandOutput {
-                    stdout: "user\n".to_string(),
-                    stderr: "".to_string(),
-                    success: true,
-                });
-            } else if command == "non_existent_command" {
-                // Command not found
-                return Ok(CommandOutput {
-                    stdout: "".to_string(),
-                    stderr: "command not found: non_existent_command\n".to_string(),
-                    success: false,
-                });
-            }
-
-            // Default response for other commands
-            Ok(CommandOutput {
-                stdout: "Mock command executed successfully\n".to_string(),
-                stderr: "".to_string(),
-                success: true,
-            })
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl InquireService for () {
-        async fn select_one(&self, _: &str, _: Vec<String>) -> anyhow::Result<String> {
-            unimplemented!()
-        }
-
-        async fn select_many(&self, _: &str, _: Vec<String>) -> anyhow::Result<Vec<String>> {
-            unimplemented!()
-        }
-    }
-
-    impl Infrastructure for MockInfrastructure {
-        type EnvironmentService = MockEnvironmentService;
-        type FsReadService = MockFileService;
-        type FsWriteService = MockFileService;
-        type FsRemoveService = MockFileService;
-        type FsMetaService = MockFileService;
-        type FsCreateDirsService = MockFileService;
-        type FsSnapshotService = MockSnapService;
-        type CommandExecutorService = ();
-        type InquireService = ();
-
-        fn environment_service(&self) -> &Self::EnvironmentService {
-            &self.env_service
-        }
-
-        fn file_read_service(&self) -> &Self::FsReadService {
-            &self.file_service
-        }
-
-        fn file_write_service(&self) -> &Self::FsWriteService {
-            &self.file_service
-        }
-
-        fn file_meta_service(&self) -> &Self::FsMetaService {
-            &self.file_service
-        }
-
-        fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
-            &self.file_snapshot_service
-        }
-
-        fn file_remove_service(&self) -> &Self::FsRemoveService {
-            &self.file_service
-        }
-
-        fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
-            &self.file_service
-        }
-
-        fn command_executor_service(&self) -> &Self::CommandExecutorService {
-            &()
-        }
-
-        fn inquire_service(&self) -> &Self::InquireService {
-            &()
-        }
-    }
+    use crate::{infra, FsWriteService, Infrastructure};
 
     #[tokio::test]
     async fn test_add_url_with_text_file() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with a text file path in chat message
@@ -434,7 +104,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_add_url_with_image() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with an image file
@@ -462,7 +132,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_add_url_with_jpg_image_with_spaces() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with an image file that has spaces in the path
@@ -488,13 +158,17 @@ pub mod tests {
     #[tokio::test]
     async fn test_add_url_with_multiple_files() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
 
         // Add an extra file to our mock service
-        infra.file_service.add_file(
-            PathBuf::from("/test/file2.txt"),
-            "This is another text file".to_string(),
-        );
+        infra
+            .file_write_service()
+            .write(
+                Path::new("/test/file2.txt"),
+                "This is another text file".into(),
+            )
+            .await
+            .unwrap();
 
         let chat_request = ForgeChatRequest::new(infra.clone());
 
@@ -527,7 +201,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_add_url_with_nonexistent_file() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with a file that doesn't exist
@@ -544,7 +218,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_add_url_empty() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with an empty message
@@ -560,13 +234,14 @@ pub mod tests {
     #[tokio::test]
     async fn test_add_url_with_unsupported_extension() {
         // Setup
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
 
         // Add a file with unsupported extension
-        infra.file_service.add_file(
-            PathBuf::from("/test/unknown.xyz"),
-            "Some content".to_string(),
-        );
+        infra
+            .file_write_service()
+            .write(Path::new("/test/unknown.xyz"), "Some content".into())
+            .await
+            .unwrap();
 
         let chat_request = ForgeChatRequest::new(infra.clone());
 

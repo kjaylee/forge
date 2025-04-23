@@ -268,4 +268,10 @@ mod test {
         );
         assert!(result.is_error, "Expected error result for timeout");
     }
+
+    #[test]
+    fn test_usage() {
+        let service = ForgeToolService::new(Arc::new(crate::infra::stub::Stub::default()));
+        insta::assert_snapshot!(service.usage_prompt());
+    }
 }

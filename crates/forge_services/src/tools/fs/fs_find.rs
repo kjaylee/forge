@@ -240,7 +240,7 @@ mod test {
     use tokio::fs;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
+    use crate::infra;
     use crate::tools::utils::TempDir;
 
     #[tokio::test]
@@ -257,7 +257,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -288,7 +288,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -321,7 +321,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -351,7 +351,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -387,7 +387,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -419,7 +419,7 @@ mod test {
         .await
         .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -447,7 +447,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -475,7 +475,7 @@ mod test {
             .await
             .unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -499,7 +499,7 @@ mod test {
     async fn test_fs_search_invalid_regex() {
         let temp_dir = TempDir::new().unwrap();
 
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -521,7 +521,7 @@ mod test {
 
     #[tokio::test]
     async fn test_fs_search_relative_path() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
@@ -546,7 +546,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
 
         // Create a mock infrastructure with controlled cwd
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(infra::stub::Stub::default());
         let fs_search = FSFind::new(infra);
 
         // Test with a mock path

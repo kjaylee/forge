@@ -483,13 +483,11 @@ mod test {
     async fn test_format_display_path() {
         use std::sync::Arc;
 
-        use crate::attachment::tests::MockInfrastructure;
-
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
 
         // Create a mock infrastructure with controlled cwd
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let patch_tool = ApplyPatchJson::new(infra);
 
         // Test with a mock path

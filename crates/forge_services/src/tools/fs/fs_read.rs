@@ -94,12 +94,11 @@ mod test {
     use tokio::fs;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
 
     // Helper function to test relative paths
     async fn test_with_mock(path: &str) -> anyhow::Result<String> {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_read = FSRead::new(infra);
         fs_read
             .call(
@@ -155,7 +154,7 @@ mod test {
 
     #[test]
     fn test_description() {
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_read = FSRead::new(infra);
         assert!(fs_read.description().len() > 100)
     }
@@ -175,7 +174,7 @@ mod test {
         let file_path = temp_dir.path().join("test.txt");
 
         // Create a mock infrastructure with controlled cwd
-        let infra = Arc::new(MockInfrastructure::new());
+        let infra = Arc::new(crate::infra::stub::Stub::default());
         let fs_read = FSRead::new(infra);
 
         // Test with a mock path
