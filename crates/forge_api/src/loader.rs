@@ -47,17 +47,20 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         match source {
             WorkflowSource::ExplicitPath(path) => self.load_and_merge_workflow(path).await,
             WorkflowSource::Default => Ok(Workflow::default()),
-            WorkflowSource::ProjectConfig => self.load_and_merge_workflow(Path::new("forge.yaml")).await,
+            WorkflowSource::ProjectConfig => {
+                self.load_and_merge_workflow(Path::new("forge.yaml")).await
+            }
         }
     }
 
-    /// Loads a workflow from a specific file path and merges it with the default workflow
+    /// Loads a workflow from a specific file path and merges it with the
+    /// default workflow
     async fn load_and_merge_workflow(&self, path: &Path) -> anyhow::Result<Workflow> {
         // Load the custom workflow
         let content = String::from_utf8(self.0.file_read_service().read(path).await?.to_vec())?;
         let custom_workflow: Workflow = serde_yml::from_str(&content)
             .with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
-        
+
         // Create a default workflow and merge with the custom one
         let mut merged_workflow = Workflow::default();
         merged_workflow.merge(custom_workflow);
