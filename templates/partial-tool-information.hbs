@@ -35,25 +35,25 @@ First message to read file_a:
 
 User response for the first message:
 <tool_result>
-<tool_forge_fs_create>  
+<tool_forge_fs_read>  
 <success>[success message]</success>
-</tool_forge_fs_create>
+</tool_forge_fs_read>
 <tool_result>
 
 
 Second request to read file_b:
 <tool_call>
-<tool_forge_fs_create>
+<tool_forge_fs_read>
 <path>/path/to/file_b</path>
 <content>New content</content>
-</tool_forge_fs_create>
+</tool_forge_fs_read>
 </tool_call>
 
 User response for the second message:
 <tool_result>
-<tool_forge_fs_create>  
+<tool_forge_fs_read>  
 <success>[success message]</success>
-</tool_forge_fs_create>
+</tool_forge_fs_read>
 <tool_result>
 ```
 
