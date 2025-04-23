@@ -1,5 +1,4 @@
-use ::std::collections::HashMap;
-use ::std::hash::Hash;
+
 
 pub mod std {
     pub fn overwrite<T>(base: &mut T, other: T) {
@@ -38,8 +37,4 @@ pub trait Key {
     fn key(&self) -> &Self::Id;
 }
 
-pub fn hashmap<K: Eq + Hash, V>(base: &mut HashMap<K, V>, other: HashMap<K, V>) {
-    for (key, value) in other {
-        base.insert(key, value);
-    }
-}
+

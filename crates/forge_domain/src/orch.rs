@@ -293,7 +293,8 @@ impl<A: Services> Orchestrator<A> {
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
-        let variables = &conversation.variables;
+        // Use an empty HashMap for variables since we removed the variables field
+        let variables = &HashMap::new();
         debug!(
             conversation_id = %conversation.id,
             agent = %agent_id,

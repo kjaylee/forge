@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::temperature::Temperature;
 use crate::{Agent, AgentId, ModelId};
@@ -18,10 +15,7 @@ pub struct Workflow {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<Agent>,
 
-    /// Variables that can be used in templates
-    #[merge(strategy = crate::merge::hashmap)]
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub variables: HashMap<String, Value>,
+
 
     /// Commands that can be used to interact with the workflow
     #[merge(strategy = crate::merge::vec::append)]
@@ -95,7 +89,6 @@ impl Workflow {
     pub fn new() -> Self {
         Self {
             agents: Vec::new(),
-            variables: HashMap::new(),
             commands: Vec::new(),
             model: None,
             max_walker_depth: None,
@@ -130,7 +123,6 @@ mod tests {
 
         // Assert
         assert!(actual.agents.is_empty());
-        assert!(actual.variables.is_empty());
         assert!(actual.commands.is_empty());
         assert_eq!(actual.model, None);
         assert_eq!(actual.max_walker_depth, None);

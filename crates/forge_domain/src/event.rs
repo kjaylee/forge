@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use derive_setters::Setters;
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
@@ -32,7 +30,6 @@ impl From<EventMessage> for Event {
 pub struct EventContext {
     event: Event,
     suggestions: Vec<String>,
-    variables: HashMap<String, Value>,
     current_time: String,
 }
 
@@ -41,7 +38,6 @@ impl EventContext {
         Self {
             event,
             suggestions: Default::default(),
-            variables: Default::default(),
             current_time: chrono::Local::now()
                 .format("%Y-%m-%d %H:%M:%S %:z")
                 .to_string(),

@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use forge_stream::MpscStream;
-use serde_json::Value;
 
 use crate::*;
 
@@ -54,23 +53,6 @@ pub trait API: Sync + Send {
         &self,
         conversation_id: &ConversationId,
     ) -> anyhow::Result<CompactionResult>;
-
-    // TODO: This function can be remove since we now have the upsert_conversation
-    /// Gets a variable from the conversation
-    async fn get_variable(
-        &self,
-        conversation_id: &ConversationId,
-        key: &str,
-    ) -> anyhow::Result<Option<Value>>;
-
-    // TODO: This function can be remove since we now have the upsert_conversation
-    /// Sets a variable in the conversation
-    async fn set_variable(
-        &self,
-        conversation_id: &ConversationId,
-        key: String,
-        value: Value,
-    ) -> anyhow::Result<()>;
 
     /// Executes a shell command using the shell tool infrastructure
     async fn execute_shell_command(

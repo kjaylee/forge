@@ -47,7 +47,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         &self,
         _agent: &Agent,
         prompt: &Template<SystemContext>,
-        variables: &HashMap<String, Value>,
+        _variables: &HashMap<String, Value>,
     ) -> anyhow::Result<String> {
         let env = self.infra.environment_service().get_environment();
 
@@ -81,7 +81,7 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
             files,
             readme: README_CONTENT.to_string(),
             custom_rules: _agent.custom_rules.as_ref().cloned().unwrap_or_default(),
-            variables: variables.clone(),
+            // Variables removed
         };
 
         // Render the template with the context
@@ -94,13 +94,12 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         _agent: &Agent,
         prompt: &Template<EventContext>,
         event: &Event,
-        variables: &HashMap<String, Value>,
+        _variables: &HashMap<String, Value>,
     ) -> anyhow::Result<String> {
         // Create an EventContext with the provided event
-        let mut event_context = EventContext::new(event.clone());
+        let event_context = EventContext::new(event.clone());
 
-        // Add variables to the context
-        event_context = event_context.variables(variables.clone());
+        // Variables removed
 
         debug!(event_context = ?event_context, "Event context");
 

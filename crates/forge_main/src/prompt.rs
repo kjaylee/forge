@@ -4,12 +4,10 @@ use std::fmt::Write;
 use std::process::Command;
 
 use derive_setters::Setters;
-use forge_api::{ModelId, Usage};
+use forge_api::{Mode, ModelId, Usage};
 use forge_tracker::VERSION;
 use nu_ansi_term::{Color, Style};
 use reedline::{Prompt, PromptHistorySearchStatus};
-
-use crate::state::Mode;
 
 // Constants
 const MULTILINE_INDICATOR: &str = "::: ";
@@ -20,8 +18,8 @@ const RIGHT_CHEVRON: &str = "❯";
 #[setters(strip_option, borrow_self)]
 pub struct ForgePrompt {
     pub usage: Option<Usage>,
-    pub mode: Mode,
     pub model: Option<ModelId>,
+    pub mode: Mode,
 }
 
 impl Prompt for ForgePrompt {
@@ -49,10 +47,13 @@ impl Prompt for ForgePrompt {
 
         // Build the string step-by-step
 
+        // Get the mode from the prompt
+        let mode_text = self.mode.to_string();
+
         let _ = write!(
             result,
             "{} {}",
-            mode_style.paint(self.mode.to_string()),
+            mode_style.paint(mode_text),
             folder_style.paint(&current_dir)
         );
 

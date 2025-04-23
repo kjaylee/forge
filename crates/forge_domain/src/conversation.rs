@@ -3,10 +3,9 @@ use std::collections::{HashMap, VecDeque};
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Error, Event, ModelId, Result, Workflow};
+use crate::{Agent, AgentId, Context, Error, Event, Mode, ModelId, Result, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -33,9 +32,9 @@ pub struct Conversation {
     pub id: ConversationId,
     pub archived: bool,
     pub state: HashMap<AgentId, AgentState>,
-    pub variables: HashMap<String, Value>,
     pub agents: Vec<Agent>,
     pub events: Vec<Event>,
+    pub mode: Mode,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -119,13 +118,16 @@ impl Conversation {
             agents.push(agent);
         }
 
+        // Use the default mode (Act)
+        let mode = Mode::default();
+
         Self {
             id,
             archived: false,
             state: Default::default(),
-            variables: workflow.variables.clone(),
             agents,
             events: Default::default(),
+            mode,
         }
     }
 
@@ -170,28 +172,6 @@ impl Conversation {
             .values()
             .flat_map(|state| state.queue.iter().rev())
             .find(|event| event.name == event_name)
-    }
-
-    /// Get a variable value by its key
-    ///
-    /// Returns None if the variable doesn't exist
-    pub fn get_variable(&self, key: &str) -> Option<&Value> {
-        self.variables.get(key)
-    }
-
-    /// Set a variable with the given key and value
-    ///
-    /// If the key already exists, its value will be updated
-    pub fn set_variable(&mut self, key: String, value: Value) -> &mut Self {
-        self.variables.insert(key, value);
-        self
-    }
-
-    /// Delete a variable by its key
-    ///
-    /// Returns true if the variable was present and removed, false otherwise
-    pub fn delete_variable(&mut self, key: &str) -> bool {
-        self.variables.remove(key).is_some()
     }
 
     /// Generates an HTML representation of the conversation
@@ -280,11 +260,7 @@ impl Conversation {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use serde_json::json;
-
-    use crate::{Agent, Command, Error, ModelId, Temperature, Workflow};
+    use crate::{Agent, Command, Error, Mode, ModelId, Temperature, Workflow};
 
     #[test]
     fn test_conversation_new_with_empty_workflow() {
@@ -299,7 +275,6 @@ mod tests {
         assert_eq!(conversation.id, id);
         assert!(!conversation.archived);
         assert!(conversation.state.is_empty());
-        assert!(conversation.variables.is_empty());
         assert!(conversation.agents.is_empty());
         assert!(conversation.events.is_empty());
     }
@@ -308,19 +283,15 @@ mod tests {
     fn test_conversation_new_with_workflow_variables() {
         // Arrange
         let id = super::ConversationId::generate();
-        let mut variables = HashMap::new();
-        variables.insert("key1".to_string(), json!("value1"));
-        variables.insert("key2".to_string(), json!(42));
-
-        let mut workflow = Workflow::new();
-        workflow.variables = variables.clone();
+        let workflow = Workflow::new();
 
         // Act
         let conversation = super::Conversation::new(id.clone(), workflow);
 
         // Assert
         assert_eq!(conversation.id, id);
-        assert_eq!(conversation.variables, variables);
+        // Verify that the default mode is used
+        assert_eq!(conversation.mode, Mode::default());
     }
 
     #[test]

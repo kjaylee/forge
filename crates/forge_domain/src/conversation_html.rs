@@ -30,8 +30,7 @@ pub fn render_conversation_html(conversation: &Conversation) -> String {
                             Element::new("p").text(format!("Archived: {}", conversation.archived)),
                         ),
                 )
-                // Variables Section
-                .append(create_variables_section(conversation))
+                // Variables Section removed
                 // Agent States Section
                 .append(create_agent_states_section(conversation))
                 // Agents Section
@@ -41,29 +40,6 @@ pub fn render_conversation_html(conversation: &Conversation) -> String {
         );
 
     html.render()
-}
-
-fn create_variables_section(conversation: &Conversation) -> Element {
-    let table = Element::new("table").append(
-        Element::new("tr")
-            .append(Element::new("th").text("Key"))
-            .append(Element::new("th").text("Value")),
-    );
-
-    let table_with_rows = conversation
-        .variables
-        .iter()
-        .fold(table, |table, (key, value)| {
-            table.append(
-                Element::new("tr")
-                    .append(Element::new("td").text(key))
-                    .append(Element::new("td").append(Element::new("pre").text(value.to_string()))),
-            )
-        });
-
-    Element::new("div.section")
-        .append(Element::new("h2").text("Variables"))
-        .append(table_with_rows)
 }
 
 fn create_agents_section(conversation: &Conversation) -> Element {
@@ -354,7 +330,6 @@ mod tests {
         assert!(actual.contains("</html>"));
         assert!(actual.contains("Conversation: "));
         assert!(actual.contains("Basic Information"));
-        assert!(actual.contains("Variables"));
         assert!(actual.contains("Agents"));
         assert!(actual.contains("Events"));
         assert!(actual.contains("Agent States"));

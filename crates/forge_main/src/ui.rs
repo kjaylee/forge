@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Mode, Model,
+    ModelId, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -21,7 +21,7 @@ use crate::cli::Cli;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
-use crate::state::{Mode, UIState};
+use crate::state::UIState;
 use crate::{banner, TRACKER};
 
 // Event type constants moved to UI layer
@@ -70,29 +70,26 @@ impl<F: API> UI<F> {
         }
     }
 
-    // Set the current mode and update conversation variable
+    // Set the current mode in the conversation
     async fn handle_mode_change(&mut self, mode: Mode) -> Result<()> {
-        // Set the mode variable in the conversation if a conversation exists
+        // Get the conversation
         let conversation_id = self.init_conversation().await?;
 
-        // Override the mode that was reset by the conversation
-        self.state.mode = mode.clone();
+        if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
+            // Update the mode in the conversation
+            conversation.mode = mode.clone();
 
-        self.api
-            .set_variable(
-                &conversation_id,
-                "mode".to_string(),
-                Value::from(mode.to_string()),
-            )
-            .await?;
+            // Upsert the updated conversation
+            self.api.upsert_conversation(conversation).await?;
 
-        // Print a mode-specific message
-        let mode_message = match self.state.mode {
-            Mode::Act => "Switched to 'ACT' mode",
-            Mode::Plan => "Switched to 'PLAN' mode",
-        };
+            // Print a mode-specific message
+            let mode_message = match mode {
+                Mode::Act => "Switched to 'ACT' mode",
+                Mode::Plan => "Switched to 'PLAN' mode",
+            };
 
-        println!("{}", TitleFormat::action(mode_message).format());
+            println!("{}", TitleFormat::action(mode_message).format());
+        }
 
         Ok(())
     }
@@ -122,8 +119,19 @@ impl<F: API> UI<F> {
     }
 
     async fn prompt(&self) -> Result<Command> {
+        // Create a prompt with the current state
+        let mut prompt: crate::prompt::ForgePrompt = self.state.clone().into();
+
+        // If we have a conversation, get its mode
+        if let Some(conversation_id) = &self.state.conversation_id {
+            if let Ok(Some(conversation)) = self.api.conversation(conversation_id).await {
+                // Set the mode from the conversation
+                prompt.mode = conversation.mode.clone();
+            }
+        }
+
         // Prompt the user for input
-        self.console.prompt(Some(self.state.clone().into())).await
+        self.console.prompt(Some(prompt)).await
     }
 
     pub async fn run(&mut self) -> Result<()> {
@@ -329,15 +337,7 @@ impl<F: API> UI<F> {
             None => {
                 let config = self.api.load(self.cli.workflow.as_deref()).await?;
 
-                // Get the mode from the config
-                let mode = config
-                    .variables
-                    .get("mode")
-                    .cloned()
-                    .and_then(|value| serde_json::from_value(value).ok())
-                    .unwrap_or(Mode::Act);
-
-                self.state = UIState::new(mode);
+                self.state = UIState::new();
                 self.command.register_all(&config);
 
                 // We need to try and get the conversation ID first before fetching the model
