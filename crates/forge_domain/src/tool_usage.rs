@@ -1,13 +1,13 @@
 use std::fmt::Display;
 
 #[derive(Debug)]
-pub struct UsagePrompt {
+pub struct ToolUsagePrompt {
     pub tool_name: String,
     pub input_parameters: Vec<UsageParameterPrompt>,
     pub description: String,
 }
 
-impl Display for UsagePrompt {
+impl Display for ToolUsagePrompt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.tool_name)?;
         f.write_str("\n")?;

@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::{NamedTool, ToolCallContext, ToolName, UsageParameterPrompt, UsagePrompt};
+use crate::{NamedTool, ToolCallContext, ToolName, ToolUsagePrompt, UsageParameterPrompt};
 
 ///
 /// Refer to the specification over here:
@@ -32,7 +32,7 @@ impl ToolDefinition {
     }
 
     /// Usage prompt method (existing implementation)
-    pub fn usage_prompt(&self) -> UsagePrompt {
+    pub fn usage_prompt(&self) -> ToolUsagePrompt {
         let input_parameters = self
             .input_schema
             .schema
@@ -50,25 +50,10 @@ impl ToolDefinition {
             })
             .unwrap_or_default();
 
-        UsagePrompt {
-            tool_name: self.name.clone().into_string(),
-            input_parameters,
-            description: self.description.to_string(),
-        }
-    }
-}
+        let input: RootSchema = self.input_schema.clone();
+        let mut description = self.description.clone();
 
-impl<T> From<&T> for ToolDefinition
-where
-    T: NamedTool + ExecutableTool + ToolDescription + Send + Sync + 'static,
-    T::Input: serde::de::DeserializeOwned + JsonSchema,
-{
-    fn from(t: &T) -> Self {
-        let input: RootSchema = schemars::schema_for!(T::Input);
-        let output: RootSchema = schemars::schema_for!(String);
-        let mut full_description = t.description();
-
-        full_description.push_str("\n\nParameters:");
+        description.push_str("\n\nParameters:");
 
         let required = input
             .schema
@@ -97,22 +82,39 @@ where
                     .map(move |desc| (name.clone(), desc))
             })
         {
-            full_description.push_str("\n- ");
-            full_description.push_str(&name);
+            description.push_str("\n- ");
+            description.push_str(&name);
 
             if required.contains(&name) {
-                full_description.push_str(" (required)");
+                description.push_str(" (required)");
             }
 
-            full_description.push_str(": ");
-            full_description.push_str(&desc);
+            description.push_str(": ");
+            description.push_str(&desc);
         }
+
+        ToolUsagePrompt {
+            tool_name: self.name.clone().into_string(),
+            input_parameters,
+            description: self.description.to_string(),
+        }
+    }
+}
+
+impl<T> From<&T> for ToolDefinition
+where
+    T: NamedTool + ExecutableTool + ToolDescription + Send + Sync + 'static,
+    T::Input: serde::de::DeserializeOwned + JsonSchema,
+{
+    fn from(t: &T) -> Self {
+        let input_schema = schemars::schema_for!(T::Input);
+        let output_schema = Some(schemars::schema_for!(String));
 
         ToolDefinition {
             name: T::tool_name(),
-            description: full_description,
-            input_schema: input,
-            output_schema: Some(output),
+            description: t.description(),
+            input_schema,
+            output_schema,
         }
     }
 }

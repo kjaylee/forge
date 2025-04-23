@@ -32,8 +32,8 @@ impl<F: Infrastructure> ToolRegistry<F> {
             ApplyPatchJson::new(self.infra.clone()).into(),
             Shell::new(self.infra.clone()).into(),
             Fetch::default().into(),
-            Completion.into(),
-            Followup::new(self.infra.clone()).into(),
+            Completion::default().into(),
+            Followup::new(self.infra.clone()).into(),            
         ]
     }
 }
