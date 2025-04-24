@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use forge_domain::TemplateService;
 use handlebars::Handlebars;
 use rust_embed::Embed;
@@ -8,7 +10,7 @@ struct Templates;
 
 #[derive(Clone)]
 pub struct ForgeTemplateService {
-    hb: Handlebars<'static>,
+    hb: Arc<Handlebars<'static>>,
 }
 
 impl Default for ForgeTemplateService {
@@ -26,7 +28,7 @@ impl ForgeTemplateService {
         // Register all partial templates
         hb.register_embed_templates::<Templates>().unwrap();
 
-        Self { hb }
+        Self { hb: Arc::new(hb) }
     }
 }
 
@@ -38,7 +40,7 @@ impl TemplateService for ForgeTemplateService {
         object: &impl serde::Serialize,
     ) -> anyhow::Result<String> {
         let template = template.to_string();
-        let rendered = self.hb.render(&template, object)?;
+        let rendered = self.hb.render_template(&template, object)?;
         Ok(rendered)
     }
 }
