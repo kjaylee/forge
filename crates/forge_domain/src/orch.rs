@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
@@ -138,6 +138,17 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
+    /// Get the allowed tools for an agent
+    fn get_allowed_tools(&self, agent: &Agent) -> Vec<ToolDefinition> {
+        let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
+        self.services
+            .tool_service()
+            .list()
+            .into_iter()
+            .filter(|tool| allowed.contains(&tool.name))
+            .collect()
+    }
+
     async fn set_system_prompt(
         &self,
         context: Context,
@@ -157,10 +168,16 @@ impl<A: Services> Orchestrator<A> {
             files.sort();
 
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
+
+            let tool_information = match agent.tool_supported.unwrap_or_default() {
+                true => None,
+                false => Some(ToolUsagePrompt::from(&self.get_allowed_tools(agent)).to_string()),
+            };
+
             let ctx = SystemContext {
                 current_time,
                 env: Some(env),
-                tool_information: Some(self.services.tool_service().usage_prompt()),
+                tool_information,
                 tool_supported: agent.tool_supported.unwrap_or_default(),
                 files,
                 custom_rules: agent.custom_rules.as_ref().cloned().unwrap_or_default(),
@@ -326,17 +343,11 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.get_agent(agent_id)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent
-                .init_context(self.services.tool_service().list())
-                .await?
+            agent.init_context(self.get_allowed_tools(agent)).await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => {
-                    agent
-                        .init_context(self.services.tool_service().list())
-                        .await?
-                }
+                None => agent.init_context(self.get_allowed_tools(agent)).await?,
             }
         };
 

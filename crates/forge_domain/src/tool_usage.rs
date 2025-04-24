@@ -1,54 +1,42 @@
 use std::fmt::Display;
 
-#[derive(Debug)]
-pub struct UsagePrompt {
-    pub tool_name: String,
-    pub input_parameters: Vec<UsageParameterPrompt>,
-    pub description: String,
+use crate::ToolDefinition;
+
+pub struct ToolUsagePrompt<'a> {
+    tools: &'a Vec<ToolDefinition>,
 }
 
-impl Display for UsagePrompt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.tool_name)?;
-        f.write_str("\n")?;
-        f.write_str(&self.description)?;
-
-        f.write_str("\n\nUsage:\n")?;
-        f.write_str("<tool_call>\n")?;
-        f.write_str("<")?;
-        f.write_str(&self.tool_name)?;
-        f.write_str(">")?;
-
-        for parameter in self.input_parameters.iter() {
-            f.write_str("\n")?;
-            parameter.fmt(f)?;
-        }
-
-        f.write_str("\n")?;
-        f.write_str("</")?;
-        f.write_str(&self.tool_name)?;
-        f.write_str(">\n")?;
-        f.write_str("</tool_call>\n")?;
-
-        Ok(())
+impl<'a> From<&'a Vec<ToolDefinition>> for ToolUsagePrompt<'a> {
+    fn from(value: &'a Vec<ToolDefinition>) -> Self {
+        Self { tools: value }
     }
 }
 
-#[derive(Debug)]
-pub struct UsageParameterPrompt {
-    pub parameter_name: String,
-    pub parameter_type: String,
-}
-
-impl Display for UsageParameterPrompt {
+impl Display for ToolUsagePrompt<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("<")?;
-        f.write_str(&self.parameter_name)?;
-        f.write_str(">")?;
-        f.write_str(&self.parameter_type)?;
-        f.write_str("</")?;
-        f.write_str(&self.parameter_name)?;
-        f.write_str(">")?;
+        for (i, tool) in self.tools.iter().enumerate() {
+            writeln!(f, "{}. {}:", i + 1, tool.name.as_str())?;
+            writeln!(f, "{}", &tool.description)?;
+
+            writeln!(f, "\n\nUsage:")?;
+            writeln!(f, "<tool_call>")?;
+            writeln!(f, "<{}>", tool.name.as_str())?;
+
+            let parameters = tool
+                .input_schema
+                .schema
+                .object
+                .clone()
+                .into_iter()
+                .flat_map(|object| object.properties.into_iter().map(|(name, _)| name));
+
+            for parameter in parameters {
+                writeln!(f, "<{parameter}>...</{parameter}>")?;
+            }
+
+            writeln!(f, "</{}>", tool.name.as_str())?;
+            writeln!(f, "{}", "</tool_call>")?;
+        }
 
         Ok(())
     }
