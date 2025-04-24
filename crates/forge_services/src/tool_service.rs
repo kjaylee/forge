@@ -43,70 +43,14 @@ impl ToolService for ForgeToolService {
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
         // Get agent and conversation from context
-        let mut available_tools = {
-            // Get mode-specific tools from the conversation
-            // No need to get tools from the conversation as we already have the agent
-
-            // Get the mode from the conversation if available
-            let mode = context.conversation.as_ref().map(|conv| &conv.mode);
-
-            // Get mode-specific tools from the agent if available
-            let agent_mode_tools = if let (Some(agent), Some(mode)) = (&context.agent, mode) {
-                agent
-                    .modes
-                    .get(mode)
-                    .and_then(|mode_config| mode_config.tools.as_ref())
+        let available_tools = {
+            if let (Some(conversation), Some(agent)) = (context.conversation.as_ref(), context.agent.as_ref()) {
+                conversation.get_allowed_tools(&agent.id).unwrap_or_default()
             } else {
-                None
-            };
-
-            // Get general tools from the agent if available
-            let agent_general_tools = context
-                .agent
-                .as_ref()
-                .and_then(|agent| agent.tools.as_ref());
-
-            // Legacy mode-specific tools (act_tools and plan_tools) have been removed
-
-            // Filter available tools based on agent and mode
-            self.tools
-                .keys()
-                .filter(|tool_name| {
-                    // We can use the conversation to get allowed tools directly if both agent and
-                    // conversation are available
-                    if let (Some(agent), Some(conversation)) =
-                        (&context.agent, &context.conversation)
-                    {
-                        if let Ok(allowed_tools) = conversation.get_allowed_tools(&agent.id) {
-                            if allowed_tools.contains(tool_name) {
-                                return true;
-                            }
-                        }
-                    }
-
-                    // Check if the tool is in the agent's mode-specific tools
-                    if let Some(mode_tools) = agent_mode_tools {
-                        if mode_tools.contains(tool_name) {
-                            return true;
-                        }
-                    }
-
-                    // Check if the tool is in the agent's general tools
-                    if let Some(general_tools) = agent_general_tools {
-                        if general_tools.contains(tool_name) {
-                            return true;
-                        }
-                    }
-
-                    // Legacy mode-specific tools (act_tools and plan_tools) have been removed
-
-                    false
-                })
-                .map(|name| name.as_str())
-                .collect::<Vec<_>>()
+                Vec::new()
+            }
         };
 
-        available_tools.sort();
         let output = match self.tools.get(&name) {
             Some(tool) => {
                 // Wrap tool call with timeout
@@ -122,7 +66,7 @@ impl ToolService for ForgeToolService {
             None => Err(anyhow::anyhow!(
                 "No tool with name '{}' was found. Please try again with one of these tools {}",
                 name.as_str(),
-                available_tools.join(", ")
+                available_tools.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(", ")
             )),
         };
 
