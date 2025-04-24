@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use forge_api::Workflow;
-use forge_domain::{Agent, AgentId, EventContext, Mode, ModeConfig, ModelId, SystemContext, Template, ToolName};
+use forge_domain::{
+    Agent, AgentId, EventContext, Mode, ModeConfig, ModelId, SystemContext, Template, ToolName,
+};
 
 /// System prompt for the developer agent
 const SYSTEM_PROMPT: &str = r#"

@@ -1,12 +1,11 @@
 use std::cmp::max;
+use std::collections::HashMap;
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
-
-use std::collections::HashMap;
 
 use crate::merge::Key;
 use crate::mode::{Mode, ModeConfig};
@@ -188,7 +187,8 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub description: Option<String>,
 
-    // Template for the system prompt provided to the agent (deprecated, use modes[mode].system_prompt instead)
+    // Template for the system prompt provided to the agent (deprecated, use
+    // modes[mode].system_prompt instead)
 
     // Template for the user prompt provided to the agent
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -310,8 +310,9 @@ impl Agent {
 
         let context = Context::default();
 
-        // Note: We're still using is_tool_allowed here because we don't have access to the Conversation object
-        // In the future, this should be updated to use Conversation::get_allowed_tools
+        // Note: We're still using is_tool_allowed here because we don't have access to
+        // the Conversation object In the future, this should be updated to use
+        // Conversation::get_allowed_tools
         Ok(context.extend_tools(if tool_supported {
             forge_tools
         } else {
@@ -319,10 +320,11 @@ impl Agent {
         }))
     }
 
-    /// Determines if a tool is allowed for this agent based on the specified mode
-    /// If no mode is provided, defaults to Act mode
+    /// Determines if a tool is allowed for this agent based on the specified
+    /// mode If no mode is provided, defaults to Act mode
     ///
-    /// Note: This method is deprecated. Use Conversation::get_allowed_tools instead.
+    /// Note: This method is deprecated. Use Conversation::get_allowed_tools
+    /// instead.
     pub fn is_tool_allowed(&self, tool_name: &ToolName, mode: Mode) -> bool {
         // Check if the tool is in the general tools list (available in all modes)
         let in_general_tools = if let Some(tools) = &self.tools {

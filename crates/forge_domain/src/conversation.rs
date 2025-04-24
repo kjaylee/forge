@@ -5,7 +5,9 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Error, Event, Mode, ModeConfig, ModelId, Result, ToolName, Workflow};
+use crate::{
+    Agent, AgentId, Context, Error, Event, Mode, ModeConfig, ModelId, Result, ToolName, Workflow,
+};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -120,7 +122,10 @@ impl Conversation {
                 for mode in [Mode::Act, Mode::Plan] {
                     if let Some(mode_config) = workflow.modes.get(&mode) {
                         // Add mode configuration to the agent's modes
-                        let agent_mode_config = agent.modes.entry(mode.clone()).or_insert_with(ModeConfig::new);
+                        let agent_mode_config = agent
+                            .modes
+                            .entry(mode.clone())
+                            .or_insert_with(ModeConfig::new);
 
                         // Add mode-specific tools
                         if let Some(mode_tools) = &mode_config.tools {
@@ -131,7 +136,8 @@ impl Conversation {
                                 agent_mode_config.tools = Some(mode_tools.clone());
                             }
 
-                            // Legacy mode-specific tools (act_tools and plan_tools) have been removed
+                            // Legacy mode-specific tools (act_tools and
+                            // plan_tools) have been removed
                         }
 
                         // Add mode-specific system prompt to the agent's mode configuration

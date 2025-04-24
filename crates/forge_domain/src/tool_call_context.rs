@@ -10,42 +10,22 @@ type ArcSender = Arc<Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
 
 /// Provides additional context for tool calls.
 /// Contains the agent and conversation for accessing tools and other context.
-#[derive(Clone, Debug, Setters)]
+#[derive(Clone, Debug, Setters, Default)]
 #[setters(strip_option)]
 pub struct ToolCallContext {
     pub sender: Option<ArcSender>,
-    pub agent: Agent,
-    pub conversation: Conversation,
-}
-
-impl Default for ToolCallContext {
-    fn default() -> Self {
-        panic!("ToolCallContext requires agent and conversation, use new() instead of default()")
-    }
+    pub agent: Option<Agent>,
+    pub conversation: Option<Conversation>,
 }
 
 impl ToolCallContext {
     /// Create a new ToolCallContext with required fields
     pub fn new(agent: Agent, conversation: Conversation) -> Self {
-        Self { sender: None, agent, conversation }
-    }
-
-    /// Create a new ToolCallContext for tests
-    #[cfg(test)]
-    pub fn for_tests() -> Self {
-        use crate::{ConversationId, Mode};
-
-        let agent = Agent::new("test-agent");
-        let conversation = Conversation {
-            id: ConversationId::generate(),
-            archived: false,
-            state: Default::default(),
-            agents: vec![],
-            events: vec![],
-            mode: Mode::default(),
-        };
-
-        Self::new(agent, conversation)
+        Self {
+            sender: None,
+            agent: Some(agent),
+            conversation: Some(conversation),
+        }
     }
 
     /// Send a message through the sender if available
@@ -57,15 +37,19 @@ impl ToolCallContext {
     }
 
     pub async fn send_text(&self, content: String) -> anyhow::Result<()> {
-        self.send(AgentMessage::new(
-            self.agent.id.clone(),
-            ChatResponse::Text {
-                text: content.as_str().to_string(),
-                is_complete: true,
-                is_md: false,
-            },
-        ))
-        .await
+        if let Some(agent) = &self.agent {
+            self.send(AgentMessage::new(
+                agent.id.clone(),
+                ChatResponse::Text {
+                    text: content.as_str().to_string(),
+                    is_complete: true,
+                    is_md: false,
+                },
+            ))
+            .await
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -95,6 +79,8 @@ mod tests {
         let conversation = create_test_conversation();
         let context = ToolCallContext::new(agent, conversation);
         assert!(context.sender.is_none());
+        assert!(context.agent.is_some());
+        assert!(context.conversation.is_some());
     }
 
     #[test]
@@ -105,5 +91,15 @@ mod tests {
         let conversation = create_test_conversation();
         let context = ToolCallContext::new(agent, conversation);
         assert!(context.sender.is_none());
+        assert!(context.agent.is_some());
+        assert!(context.conversation.is_some());
+    }
+
+    #[test]
+    fn test_default() {
+        let context = ToolCallContext::default();
+        assert!(context.sender.is_none());
+        assert!(context.agent.is_none());
+        assert!(context.conversation.is_none());
     }
 }

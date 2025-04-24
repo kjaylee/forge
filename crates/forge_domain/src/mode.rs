@@ -40,9 +40,6 @@ pub struct ModeConfig {
 impl ModeConfig {
     /// Creates a new empty mode configuration
     pub fn new() -> Self {
-        Self {
-            tools: None,
-            system_prompt: None,
-        }
+        Self { tools: None, system_prompt: None }
     }
 }

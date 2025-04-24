@@ -51,7 +51,11 @@ impl ToolService for ForgeToolService {
             let mode = &context.conversation.mode;
 
             // Get mode-specific tools from the agent
-            let agent_mode_tools = context.agent.modes.get(mode).and_then(|mode_config| mode_config.tools.as_ref());
+            let agent_mode_tools = context
+                .agent
+                .modes
+                .get(mode)
+                .and_then(|mode_config| mode_config.tools.as_ref());
 
             // Get general tools from the agent
             let agent_general_tools = context.agent.tools.as_ref();
@@ -63,7 +67,9 @@ impl ToolService for ForgeToolService {
                 .keys()
                 .filter(|tool_name| {
                     // We can use the conversation to get allowed tools directly
-                    if let Ok(allowed_tools) = context.conversation.get_allowed_tools(&context.agent.id) {
+                    if let Ok(allowed_tools) =
+                        context.conversation.get_allowed_tools(&context.agent.id)
+                    {
                         if allowed_tools.contains(tool_name) {
                             return true;
                         }
@@ -138,7 +144,10 @@ impl ToolService for ForgeToolService {
 
     fn usage_prompt(&self, agent: &forge_domain::Agent, mode: forge_domain::Mode) -> String {
         // Get mode-specific tools from the agent
-        let agent_mode_tools = agent.modes.get(&mode).and_then(|mode_config| mode_config.tools.as_ref());
+        let agent_mode_tools = agent
+            .modes
+            .get(&mode)
+            .and_then(|mode_config| mode_config.tools.as_ref());
 
         // Get general tools from the agent
         let agent_general_tools = agent.tools.as_ref();
