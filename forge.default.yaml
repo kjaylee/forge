@@ -48,7 +48,6 @@ agents:
     # Tools available in all modes
     tools:
       - tool_forge_fs_read
-      - tool_forge_fs_search
       - tool_forge_net_fetch
     # Mode-specific configurations for this agent
     modes:

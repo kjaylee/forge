@@ -42,38 +42,51 @@ impl ToolService for ForgeToolService {
         let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
-        // Get agent, mode, and workflow from context if available
-        let mut available_tools = if let (Some(agent), Some(mode), Some(workflow)) = (&context.agent, &context.mode, &context.workflow) {
-            // First check if the tool is in the workflow's mode-specific tools
-            let mode_tools = workflow.modes.get(mode).and_then(|mode_config| mode_config.tools.as_ref());
+        // Get agent and conversation from context
+        let mut available_tools = {
+            // Get mode-specific tools from the conversation
+            // No need to get tools from the conversation as we already have the agent
+
+            // Get the mode from the conversation
+            let mode = &context.conversation.mode;
+
+            // Get mode-specific tools from the agent
+            let agent_mode_tools = context.agent.modes.get(mode).and_then(|mode_config| mode_config.tools.as_ref());
+
+            // Get general tools from the agent
+            let agent_general_tools = context.agent.tools.as_ref();
+
+            // Legacy mode-specific tools (act_tools and plan_tools) have been removed
 
             // Filter available tools based on agent and mode
             self.tools
                 .keys()
                 .filter(|tool_name| {
-                    // Check if the tool is in the workflow's mode-specific tools
-                    if let Some(mode_tools) = mode_tools {
+                    // We can use the conversation to get allowed tools directly
+                    if let Ok(allowed_tools) = context.conversation.get_allowed_tools(&context.agent.id) {
+                        if allowed_tools.contains(tool_name) {
+                            return true;
+                        }
+                    }
+
+                    // Check if the tool is in the agent's mode-specific tools
+                    if let Some(mode_tools) = agent_mode_tools {
                         if mode_tools.contains(tool_name) {
                             return true;
                         }
                     }
 
-                    // Fall back to agent's tool configuration
-                    agent.is_tool_allowed(tool_name, mode.clone())
+                    // Check if the tool is in the agent's general tools
+                    if let Some(general_tools) = agent_general_tools {
+                        if general_tools.contains(tool_name) {
+                            return true;
+                        }
+                    }
+
+                    // Legacy mode-specific tools (act_tools and plan_tools) have been removed
+
+                    false
                 })
-                .map(|name| name.as_str())
-                .collect::<Vec<_>>()
-        } else if let (Some(agent), Some(mode)) = (&context.agent, &context.mode) {
-            // If workflow is not available, fall back to agent's tool configuration
-            self.tools
-                .keys()
-                .filter(|tool_name| agent.is_tool_allowed(tool_name, mode.clone()))
-                .map(|name| name.as_str())
-                .collect::<Vec<_>>()
-        } else {
-            // If agent or mode is not available, include all tools
-            self.tools
-                .keys()
                 .map(|name| name.as_str())
                 .collect::<Vec<_>>()
         };
@@ -124,11 +137,41 @@ impl ToolService for ForgeToolService {
     }
 
     fn usage_prompt(&self, agent: &forge_domain::Agent, mode: forge_domain::Mode) -> String {
+        // Get mode-specific tools from the agent
+        let agent_mode_tools = agent.modes.get(&mode).and_then(|mode_config| mode_config.tools.as_ref());
+
+        // Get general tools from the agent
+        let agent_general_tools = agent.tools.as_ref();
+
+        // Legacy mode-specific tools (act_tools and plan_tools) have been removed
+
+        // Filter tools based on the current mode
         let mut tools: Vec<_> = self
             .tools
             .values()
-            .filter(|tool| agent.is_tool_allowed(&tool.definition.name, mode.clone()))
+            .filter(|tool| {
+                let tool_name = &tool.definition.name;
+
+                // Check if the tool is in the agent's mode-specific tools
+                if let Some(mode_tools) = agent_mode_tools {
+                    if mode_tools.contains(tool_name) {
+                        return true;
+                    }
+                }
+
+                // Check if the tool is in the agent's general tools
+                if let Some(general_tools) = agent_general_tools {
+                    if general_tools.contains(tool_name) {
+                        return true;
+                    }
+                }
+
+                // Legacy mode-specific tools (act_tools and plan_tools) have been removed
+
+                false
+            })
             .collect();
+
         tools.sort_by(|a, b| a.definition.name.as_str().cmp(b.definition.name.as_str()));
 
         tools

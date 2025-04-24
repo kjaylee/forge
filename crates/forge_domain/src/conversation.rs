@@ -5,7 +5,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Error, Event, Mode, ModeConfig, ModelId, Result, Workflow};
+use crate::{Agent, AgentId, Context, Error, Event, Mode, ModeConfig, ModelId, Result, ToolName, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -131,23 +131,7 @@ impl Conversation {
                                 agent_mode_config.tools = Some(mode_tools.clone());
                             }
 
-                            // For backward compatibility, also update legacy fields
-                            match mode {
-                                Mode::Act => {
-                                    if let Some(ref mut act_tools_agent) = agent.act_tools {
-                                        act_tools_agent.extend(mode_tools.clone());
-                                    } else {
-                                        agent.act_tools = Some(mode_tools.clone());
-                                    }
-                                },
-                                Mode::Plan => {
-                                    if let Some(ref mut plan_tools_agent) = agent.plan_tools {
-                                        plan_tools_agent.extend(mode_tools.clone());
-                                    } else {
-                                        agent.plan_tools = Some(mode_tools.clone());
-                                    }
-                                },
-                            }
+                            // Legacy mode-specific tools (act_tools and plan_tools) have been removed
                         }
 
                         // Add mode-specific system prompt to the agent's mode configuration
@@ -215,6 +199,34 @@ impl Conversation {
             .values()
             .flat_map(|state| state.queue.iter().rev())
             .find(|event| event.name == event_name)
+    }
+
+    /// Returns the allowed tools for a specific agent based on the current mode
+    pub fn get_allowed_tools(&self, agent_id: &AgentId) -> Result<Vec<ToolName>> {
+        let agent = self.get_agent(agent_id)?;
+        let current_mode = &self.mode;
+
+        let mut allowed_tools = Vec::new();
+
+        // Add general tools (available in all modes)
+        if let Some(general_tools) = &agent.tools {
+            allowed_tools.extend(general_tools.clone());
+        }
+
+        // Add mode-specific tools from the agent's modes
+        if let Some(mode_config) = agent.modes.get(current_mode) {
+            if let Some(mode_tools) = &mode_config.tools {
+                allowed_tools.extend(mode_tools.clone());
+            }
+        }
+
+        // Legacy mode-specific tools (act_tools and plan_tools) have been removed
+
+        // Remove duplicates
+        allowed_tools.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        allowed_tools.dedup();
+
+        Ok(allowed_tools)
     }
 
     /// Generates an HTML representation of the conversation

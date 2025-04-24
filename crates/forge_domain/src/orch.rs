@@ -97,20 +97,19 @@ impl<A: Services> Orchestrator<A> {
             self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
 
-            // Get the conversation mode
+            // Get the conversation
             let conversation = self.get_conversation().await?;
-            let mode = conversation.mode.clone();
 
             // Execute the tool with mode-specific filtering
             let tool_result = self
                 .services
                 .tool_service()
                 .call(
-                    ToolCallContext::default()
-                        .sender(self.sender.clone())
-                        .agent_id(agent.id.clone())
-                        .agent(agent.clone())
-                        .mode(mode),
+                    ToolCallContext::new(agent.clone(), conversation.clone()).sender(
+                        self.sender
+                            .clone()
+                            .unwrap_or_else(|| panic!("Sender is required for tool calls")),
+                    ),
                     tool_call.clone(),
                 )
                 .await;
@@ -146,7 +145,10 @@ impl<A: Services> Orchestrator<A> {
         let mode = conversation.mode.clone();
 
         // Get the mode-specific system prompt from the agent's modes
-        let system_prompt = agent.modes.get(&mode).and_then(|mode_config| mode_config.system_prompt.as_ref());
+        let system_prompt = agent
+            .modes
+            .get(&mode)
+            .and_then(|mode_config| mode_config.system_prompt.as_ref());
 
         Ok(if let Some(system_prompt) = system_prompt {
             let system_message = self

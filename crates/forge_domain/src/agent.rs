@@ -214,15 +214,7 @@ pub struct Agent {
     #[merge(skip)]
     pub modes: HashMap<Mode, ModeConfig>,
 
-    /// Tools that the agent can use only in Act mode (deprecated, use modes.act.tools instead)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub act_tools: Option<Vec<ToolName>>,
-
-    /// Tools that the agent can use only in Plan mode (deprecated, use modes.plan.tools instead)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub plan_tools: Option<Vec<ToolName>>,
+    // The act_tools and plan_tools fields have been removed in favor of the modes field
 
     // The transforms feature has been removed
     /// Used to specify the events the agent is interested in
@@ -290,8 +282,7 @@ impl Agent {
             ephemeral: None,
             tools: None,
             modes: HashMap::new(),
-            act_tools: None,
-            plan_tools: None,
+            // act_tools and plan_tools fields have been removed
             // transforms field removed
             subscribe: None,
             max_turns: None,
@@ -333,6 +324,8 @@ impl Agent {
 
         let context = Context::default();
 
+        // Note: We're still using is_tool_allowed here because we don't have access to the Conversation object
+        // In the future, this should be updated to use Conversation::get_allowed_tools
         Ok(context.extend_tools(if tool_supported {
             forge_tools
                 .into_iter()
@@ -345,42 +338,30 @@ impl Agent {
 
     /// Determines if a tool is allowed for this agent based on the specified mode
     /// If no mode is provided, defaults to Act mode
+    ///
+    /// Note: This method is deprecated. Use Conversation::get_allowed_tools instead.
     pub fn is_tool_allowed(&self, tool_name: &ToolName, mode: Mode) -> bool {
         // Check if the tool is in the general tools list (available in all modes)
-        if let Some(tools) = &self.tools {
-            if tools.contains(tool_name) {
-                return true;
-            }
-        }
+        let in_general_tools = if let Some(tools) = &self.tools {
+            tools.contains(tool_name)
+        } else {
+            false
+        };
 
         // Check if the tool is in the mode-specific tools list (preferred approach)
-        if let Some(mode_config) = self.modes.get(&mode) {
+        let in_mode_specific_tools = if let Some(mode_config) = self.modes.get(&mode) {
             if let Some(mode_tools) = &mode_config.tools {
-                if mode_tools.contains(tool_name) {
-                    return true;
-                }
+                mode_tools.contains(tool_name)
+            } else {
+                false
             }
-        }
+        } else {
+            false
+        };
 
-        // For backward compatibility, check legacy mode-specific tools fields
-        match mode {
-            Mode::Act => {
-                if let Some(act_tools) = &self.act_tools {
-                    if act_tools.contains(tool_name) {
-                        return true;
-                    }
-                }
-            }
-            Mode::Plan => {
-                if let Some(plan_tools) = &self.plan_tools {
-                    if plan_tools.contains(tool_name) {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        false
+        // A tool is allowed if it's in the general tools list OR
+        // it's in the mode-specific tools list for the current mode
+        in_general_tools || in_mode_specific_tools
     }
 }
 
