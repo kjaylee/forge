@@ -83,7 +83,7 @@ impl<F: API> UI<F> {
             self.api.upsert_conversation(conversation).await?;
 
             // Print a mode-specific message
-            let mode_message = format!("Switched to '{}' mode", mode);
+            let mode_message = format!("Switched to '{mode}' mode");
 
             println!("{}", TitleFormat::action(mode_message).format());
         }
@@ -166,8 +166,7 @@ impl<F: API> UI<F> {
                     let message_reduction = compaction_result.message_reduction_percentage();
 
                     let content = TitleFormat::action(format!(
-                        "Context size reduced by {:.1}% (tokens), {:.1}% (messages)",
-                        token_reduction, message_reduction
+                        "Context size reduced by {token_reduction:.1}% (tokens), {message_reduction:.1}% (messages)"
                     ))
                     .format();
                     self.spinner.stop(Some(content))?;
@@ -182,21 +181,21 @@ impl<F: API> UI<F> {
                 }
                 Command::Info => {
                     let info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
-                    println!("{}", info);
+                    println!("{info}");
                 }
                 Command::Message(ref content) => {
                     self.spinner.start()?;
                     let chat_result = self.chat(content.clone()).await;
                     if let Err(err) = chat_result {
                         tokio::spawn(
-                            TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{:?}", err))),
+                            TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{err:?}"))),
                         );
                         error!(error = ?err, "Chat request failed");
 
                         println!(
                             "{}",
                             TitleFormat::action("Error")
-                                .error(format!("{:?}", err))
+                                .error(format!("{err:?}"))
                                 .format()
                         );
                     }
@@ -206,13 +205,13 @@ impl<F: API> UI<F> {
                 }
                 Command::Help => {
                     let info = Info::from(self.command.as_ref());
-                    println!("{}", info);
+                    println!("{info}");
                 }
                 Command::Tools => {
                     use crate::tools_display::format_tools;
                     let tools = self.api.tools().await;
                     let output = format_tools(&tools);
-                    println!("{}", output);
+                    println!("{output}");
                 }
                 Command::Exit => {
                     update_forge().await;
@@ -302,7 +301,7 @@ impl<F: API> UI<F> {
 
             println!(
                 "{}",
-                TitleFormat::action(format!("Switched to model: {}", model)).format()
+                TitleFormat::action(format!("Switched to model: {model}")).format()
             );
         }
 

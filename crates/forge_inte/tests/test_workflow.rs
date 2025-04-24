@@ -1,4 +1,3 @@
-
 use forge_api::{ModeDefinitions, Workflow};
 use forge_domain::{
     Agent, AgentId, EventContext, ModeConfig, ModelId, SystemContext, Template, ToolName,

@@ -13,7 +13,7 @@ fn humanize_context_length(length: u64) -> String {
     } else if length >= 1_000 {
         format!("{:.1}K context", length as f64 / 1_000.0)
     } else {
-        format!("{} context", length)
+        format!("{length} context")
     }
 }
 
@@ -99,7 +99,7 @@ impl ForgeCommandManager {
                 .unwrap_or_else(|| format!("Switch to {} mode", mode_name.to_uppercase()));
 
             commands.push(ForgeCommand {
-                name: format!("/{}", mode_name),
+                name: format!("/{mode_name}"),
                 description,
                 value: None,
             });
@@ -470,7 +470,7 @@ mod tests {
         // Verify
         match result {
             Command::Shell(cmd) => assert_eq!(cmd, "ls -la"),
-            _ => panic!("Expected Shell command, got {:?}", result),
+            _ => panic!("Expected Shell command, got {result:?}"),
         }
     }
 
@@ -485,7 +485,7 @@ mod tests {
         // Verify
         match result {
             Command::Shell(cmd) => assert_eq!(cmd, ""),
-            _ => panic!("Expected Shell command, got {:?}", result),
+            _ => panic!("Expected Shell command, got {result:?}"),
         }
     }
 
@@ -500,7 +500,7 @@ mod tests {
         // Verify
         match result {
             Command::Shell(cmd) => assert_eq!(cmd, "echo 'test'"),
-            _ => panic!("Expected Shell command, got {:?}", result),
+            _ => panic!("Expected Shell command, got {result:?}"),
         }
     }
 
