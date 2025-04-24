@@ -9,6 +9,8 @@ models:
 modes:
   # Act mode configuration
   act:
+    # Description of the mode (used for command generation)
+    description: "Enable implementation mode with code changes"
     # Tools available in Act mode
     tools:
       - tool_forge_fs_create
@@ -22,6 +24,8 @@ modes:
 
   # Plan mode configuration
   plan:
+    # Description of the mode (used for command generation)
+    description: "Enable planning mode without code changes"
     # Tools available in Plan mode
     tools:
       - tool_forge_fs_search

@@ -20,14 +20,6 @@ impl Mode {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-
-    pub fn is_act(&self) -> bool {
-        self.0 == "act"
-    }
-
-    pub fn is_plan(&self) -> bool {
-        self.0 == "plan"
-    }
 }
 
 impl Default for Mode {
@@ -54,7 +46,7 @@ impl From<String> for Mode {
     }
 }
 
-/// Configuration for a specific mode (Act or Plan)
+/// Configuration for a specific mode
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option)]
 pub struct ModeConfig {
@@ -67,6 +59,11 @@ pub struct ModeConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub system_prompt: Option<Template<SystemContext>>,
+
+    /// Description of this mode (used for command generation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[merge(strategy = crate::merge::option)]
+    pub description: Option<String>,
 }
 
 impl Default for ModeConfig {
@@ -78,7 +75,11 @@ impl Default for ModeConfig {
 impl ModeConfig {
     /// Creates a new empty mode configuration
     pub fn new() -> Self {
-        Self { tools: None, system_prompt: None }
+        Self {
+            tools: None,
+            system_prompt: None,
+            description: None,
+        }
     }
 }
 

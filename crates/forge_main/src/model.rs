@@ -81,6 +81,7 @@ impl ForgeCommandManager {
 
         commands.sort_by(|a, b| a.name.cmp(&b.name));
 
+        // Add custom commands from the workflow
         commands.extend(workflow.commands.clone().into_iter().map(|cmd| {
             let name = format!("/{}", cmd.name);
             let description = format!("⚙ {}", cmd.description);
@@ -88,6 +89,19 @@ impl ForgeCommandManager {
 
             ForgeCommand { name, description, value }
         }));
+
+        // Add mode commands from the workflow
+        for (mode, config) in workflow.modes.iter() {
+            let mode_name = mode.as_str();
+            let description = config.description.clone()
+                .unwrap_or_else(|| format!("Switch to {} mode", mode_name.to_uppercase()));
+
+            commands.push(ForgeCommand {
+                name: format!("/{}", mode_name),
+                description,
+                value: None,
+            });
+        }
 
         *guard = commands;
     }
@@ -176,8 +190,6 @@ impl ForgeCommandManager {
                     Ok(Command::Dump(None))
                 }
             }
-            "/act" => Ok(Command::Act),
-            "/plan" => Ok(Command::Plan),
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
@@ -185,13 +197,22 @@ impl ForgeCommandManager {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
                 if let Some(command) = parts.first() {
-                    if let Some(command) = self.find(command) {
-                        let value = self.extract_command_value(&command, &parts[1..]);
-
-                        Ok(Command::Custom(PartialEvent::new(
-                            command.name.clone().strip_prefix('/').unwrap().to_string(),
-                            value.unwrap_or_default(),
-                        )))
+                    if let Some(forge_command) = self.find(command) {
+                        // Check if this is a mode command (starts with / and has no value)
+                        if forge_command.value.is_none() &&
+                           command.starts_with('/') &&
+                           command.len() > 1 {
+                            // Extract the mode name (remove the leading /)
+                            let mode_name = command.strip_prefix('/').unwrap().to_string();
+                            Ok(Command::SwitchMode(mode_name))
+                        } else {
+                            // Handle as a custom command
+                            let value = self.extract_command_value(&forge_command, &parts[1..]);
+                            Ok(Command::Custom(PartialEvent::new(
+                                forge_command.name.clone().strip_prefix('/').unwrap().to_string(),
+                                value.unwrap_or_default(),
+                            )))
+                        }
                     } else {
                         Err(anyhow::anyhow!("{} is not valid", command))
                     }
@@ -230,14 +251,10 @@ pub enum Command {
     /// Exit the application without any further action.
     #[strum(props(usage = "Exit the application"))]
     Exit,
-    /// Switch to "act" mode.
-    /// This can be triggered with the '/act' command.
-    #[strum(props(usage = "Enable implementation mode with code changes"))]
-    Act,
-    /// Switch to "plan" mode.
-    /// This can be triggered with the '/plan' command.
-    #[strum(props(usage = "Enable planning mode without code changes"))]
-    Plan,
+    /// Switch to a specific mode.
+    /// This can be triggered with the '/mode <name>' command.
+    #[strum(props(usage = "Switch to a specific mode"))]
+    SwitchMode(String),
     /// Switch to "help" mode.
     /// This can be triggered with the '/help' command.
     #[strum(props(usage = "Enable help mode for tool questions"))]
@@ -269,8 +286,15 @@ impl Command {
             Command::Message(_) => "/message",
             Command::Info => "/info",
             Command::Exit => "/exit",
-            Command::Act => "/act",
-            Command::Plan => "/plan",
+            Command::SwitchMode(mode) => {
+                if mode == "act" {
+                    "/act"
+                } else if mode == "plan" {
+                    "/plan"
+                } else {
+                    "/mode"
+                }
+            },
             Command::Help => "/help",
             Command::Dump(_) => "/dump",
             Command::Model => "/model",

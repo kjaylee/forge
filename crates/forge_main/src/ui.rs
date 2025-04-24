@@ -83,13 +83,7 @@ impl<F: API> UI<F> {
             self.api.upsert_conversation(conversation).await?;
 
             // Print a mode-specific message
-            let mode_message = if mode.is_act() {
-                "Switched to 'ACT' mode".to_string()
-            } else if mode.is_plan() {
-                "Switched to 'PLAN' mode".to_string()
-            } else {
-                format!("Switched to '{}' mode", mode.to_string())
-            };
+            let mode_message = format!("Switched to '{}' mode", mode.to_string());
 
             println!("{}", TitleFormat::action(mode_message).format());
         }
@@ -207,11 +201,8 @@ impl<F: API> UI<F> {
                         );
                     }
                 }
-                Command::Act => {
-                    self.handle_mode_change(Mode::new("act")).await?;
-                }
-                Command::Plan => {
-                    self.handle_mode_change(Mode::new("plan")).await?;
+                Command::SwitchMode(mode) => {
+                    self.handle_mode_change(Mode::new(mode)).await?;
                 }
                 Command::Help => {
                     let info = Info::from(self.command.as_ref());
