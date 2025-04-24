@@ -93,7 +93,9 @@ impl ForgeCommandManager {
         // Add mode commands from the workflow
         for (mode, config) in workflow.modes.iter() {
             let mode_name = mode.as_str();
-            let description = config.description.clone()
+            let description = config
+                .description
+                .clone()
                 .unwrap_or_else(|| format!("Switch to {} mode", mode_name.to_uppercase()));
 
             commands.push(ForgeCommand {
@@ -199,9 +201,10 @@ impl ForgeCommandManager {
                 if let Some(command) = parts.first() {
                     if let Some(forge_command) = self.find(command) {
                         // Check if this is a mode command (starts with / and has no value)
-                        if forge_command.value.is_none() &&
-                           command.starts_with('/') &&
-                           command.len() > 1 {
+                        if forge_command.value.is_none()
+                            && command.starts_with('/')
+                            && command.len() > 1
+                        {
                             // Extract the mode name (remove the leading /)
                             let mode_name = command.strip_prefix('/').unwrap().to_string();
                             Ok(Command::SwitchMode(mode_name))
@@ -209,7 +212,12 @@ impl ForgeCommandManager {
                             // Handle as a custom command
                             let value = self.extract_command_value(&forge_command, &parts[1..]);
                             Ok(Command::Custom(PartialEvent::new(
-                                forge_command.name.clone().strip_prefix('/').unwrap().to_string(),
+                                forge_command
+                                    .name
+                                    .clone()
+                                    .strip_prefix('/')
+                                    .unwrap()
+                                    .to_string(),
                                 value.unwrap_or_default(),
                             )))
                         }
@@ -294,7 +302,7 @@ impl Command {
                 } else {
                     "/mode"
                 }
-            },
+            }
             Command::Help => "/help",
             Command::Dump(_) => "/dump",
             Command::Model => "/model",

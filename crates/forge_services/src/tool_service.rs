@@ -44,31 +44,38 @@ impl ToolService for ForgeToolService {
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
         // Get agent and conversation from context
         let available_tools = {
-            if let (Some(conversation), Some(agent)) = (context.conversation.as_ref(), context.agent.as_ref()) {
-                conversation.get_allowed_tools(&agent.id).unwrap_or_default()
+            if let (Some(conversation), Some(agent)) =
+                (context.conversation.as_ref(), context.agent.as_ref())
+            {
+                conversation
+                    .get_allowed_tools(&agent.id)
+                    .unwrap_or_default()
             } else {
                 Vec::new()
             }
         };
 
-        let output = match self.tools.get(&name) {
-            Some(tool) => {
-                // Wrap tool call with timeout
-                match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(context, input)).await {
-                    Ok(result) => result,
-                    Err(_) => Err(anyhow::anyhow!(
-                        "Tool '{}' timed out after {} minutes",
-                        name.as_str(),
-                        TOOL_CALL_TIMEOUT.as_secs() / 60
-                    )),
+        let output =
+            match self.tools.get(&name) {
+                Some(tool) => {
+                    // Wrap tool call with timeout
+                    match timeout(TOOL_CALL_TIMEOUT, tool.executable.call(context, input)).await {
+                        Ok(result) => result,
+                        Err(_) => Err(anyhow::anyhow!(
+                            "Tool '{}' timed out after {} minutes",
+                            name.as_str(),
+                            TOOL_CALL_TIMEOUT.as_secs() / 60
+                        )),
+                    }
                 }
-            }
-            None => Err(anyhow::anyhow!(
+                None => {
+                    Err(anyhow::anyhow!(
                 "No tool with name '{}' was found. Please try again with one of these tools {}",
                 name.as_str(),
                 available_tools.iter().map(|s| s.as_str()).collect::<Vec<&str>>().join(", ")
-            )),
-        };
+            ))
+                }
+            };
 
         let result = match output {
             Ok(output) => ToolResult::from(call).success(output),

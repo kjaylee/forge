@@ -75,15 +75,12 @@ impl Default for ModeConfig {
 impl ModeConfig {
     /// Creates a new empty mode configuration
     pub fn new() -> Self {
-        Self {
-            tools: None,
-            system_prompt: None,
-            description: None,
-        }
+        Self { tools: None, system_prompt: None, description: None }
     }
 }
 
-/// A newtype wrapper around HashMap<Mode, ModeConfig> to provide additional functionality
+/// A newtype wrapper around HashMap<Mode, ModeConfig> to provide additional
+/// functionality
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ModeDefinitions(HashMap<Mode, ModeConfig>);
@@ -102,7 +99,7 @@ impl ModeDefinitions {
     /// Get a mutable reference to the ModeConfig for the specified mode
     /// If the mode doesn't exist, it will be created with a default ModeConfig
     pub fn get_mut_or_default(&mut self, mode: Mode) -> &mut ModeConfig {
-        self.0.entry(mode).or_insert_with(ModeConfig::new)
+        self.0.entry(mode).or_default()
     }
 
     /// Insert a ModeConfig for the specified mode

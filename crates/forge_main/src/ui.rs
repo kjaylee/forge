@@ -83,7 +83,7 @@ impl<F: API> UI<F> {
             self.api.upsert_conversation(conversation).await?;
 
             // Print a mode-specific message
-            let mode_message = format!("Switched to '{}' mode", mode.to_string());
+            let mode_message = format!("Switched to '{}' mode", mode);
 
             println!("{}", TitleFormat::action(mode_message).format());
         }

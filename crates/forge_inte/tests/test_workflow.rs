@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 
-use forge_api::Workflow;
+use forge_api::{ModeDefinitions, Workflow};
 use forge_domain::{
-    Agent, AgentId, EventContext, Mode, ModeConfig, ModelId, SystemContext, Template, ToolName,
+    Agent, AgentId, EventContext, ModeConfig, ModelId, SystemContext, Template, ToolName,
 };
 
 /// System prompt for the developer agent
@@ -38,10 +37,12 @@ pub fn create_test_workflow() -> Workflow {
         .user_prompt(Template::<EventContext>::new(USER_PROMPT.trim()));
 
     // Add mode-specific system prompt
-    let mut modes = HashMap::new();
-    let mut act_config = ModeConfig::new();
-    act_config.system_prompt = Some(Template::<SystemContext>::new(SYSTEM_PROMPT.trim()));
-    modes.insert(Mode::Act, act_config);
+    let mut modes = ModeDefinitions::new();
+
+    modes.insert(
+        "act".into(),
+        ModeConfig::new().system_prompt(Template::<SystemContext>::new(SYSTEM_PROMPT.trim())),
+    );
 
     // Set the modes on the developer agent
     let developer = developer.modes(modes);

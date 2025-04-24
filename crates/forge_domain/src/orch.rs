@@ -299,41 +299,43 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    // Create a helper method with the core functionality
-    async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
-        let conversation = self.get_conversation().await?;
-        debug!(
-            conversation_id = %conversation.id,
-            agent = %agent_id,
-            event = ?event,
-            "Initializing agent"
-        );
-        let agent = conversation.get_agent(agent_id)?;
-
-        // Get the current mode from the conversation
-        let allowed_tools: HashSet<ToolName> = conversation
-            .get_allowed_tools(agent_id)?
-            .into_iter()
-            .collect();
-        let tool_definitions = self
-            .services
-            .tool_service()
-            .list()
-            .into_iter()
-            .filter(|tool| allowed_tools.contains(&tool.name))
-            .collect::<Vec<_>>();
-
+    /// Initialize a context for an agent with the given event
+    /// This method handles setting up the context with system prompts, tools,
+    /// user prompts, and attachments
+    pub async fn init_context(
+        &self,
+        conversation: &Conversation,
+        agent: &Agent,
+        event: &Event,
+    ) -> anyhow::Result<Context> {
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent.init_context(tool_definitions).await?
+            Context::default()
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => agent.init_context(tool_definitions).await?,
+                None => Context::default(),
             }
         };
 
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, agent).await?;
+
+        if agent.tool_supported.unwrap_or_default() {
+            // Get the current mode from the conversation
+            let allowed_tools: HashSet<ToolName> = conversation
+                .get_allowed_tools(&agent.id)?
+                .into_iter()
+                .collect();
+            let tool_definitions = self
+                .services
+                .tool_service()
+                .list()
+                .into_iter()
+                .filter(|tool| allowed_tools.contains(&tool.name))
+                .collect::<Vec<_>>();
+
+            context = context.extend_tools(tool_definitions);
+        }
 
         // Render user prompts
         context = self.set_user_prompt(context, agent, event).await?;
@@ -367,6 +369,24 @@ impl<A: Services> Orchestrator<A> {
                 }
             });
 
+        Ok(context)
+    }
+
+    // Create a helper method with the core functionality
+    async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+        let conversation = self.get_conversation().await?;
+        debug!(
+            conversation_id = %conversation.id,
+            agent = %agent_id,
+            event = ?event,
+            "Initializing agent"
+        );
+        let agent = conversation.get_agent(agent_id)?;
+
+        // Initialize the context using the new method
+        let mut context = self.init_context(&conversation, agent, event).await?;
+
+        // Set the initial context
         self.set_context(&agent.id, context.clone()).await?;
         loop {
             // Set context for the current loop iteration

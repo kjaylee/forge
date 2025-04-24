@@ -300,19 +300,6 @@ impl Agent {
             false
         }
     }
-
-    pub async fn init_context(&self, forge_tools: Vec<ToolDefinition>) -> Result<Context> {
-        // Use the agent's tool_supported flag directly instead of querying the provider
-        let tool_supported = self.tool_supported.unwrap_or_default();
-
-        let context = Context::default();
-
-        Ok(context.extend_tools(if tool_supported {
-            forge_tools
-        } else {
-            Vec::new()
-        }))
-    }
 }
 
 impl Key for Agent {
