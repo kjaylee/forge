@@ -37,6 +37,12 @@ pub struct ModeConfig {
     pub system_prompt: Option<Template<SystemContext>>,
 }
 
+impl Default for ModeConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModeConfig {
     /// Creates a new empty mode configuration
     pub fn new() -> Self {
