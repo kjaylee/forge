@@ -47,18 +47,24 @@ impl ToolService for ForgeToolService {
             // Get mode-specific tools from the conversation
             // No need to get tools from the conversation as we already have the agent
 
-            // Get the mode from the conversation
-            let mode = &context.conversation.mode;
+            // Get the mode from the conversation if available
+            let mode = context.conversation.as_ref().map(|conv| &conv.mode);
 
-            // Get mode-specific tools from the agent
-            let agent_mode_tools = context
+            // Get mode-specific tools from the agent if available
+            let agent_mode_tools = if let (Some(agent), Some(mode)) = (&context.agent, mode) {
+                agent
+                    .modes
+                    .get(mode)
+                    .and_then(|mode_config| mode_config.tools.as_ref())
+            } else {
+                None
+            };
+
+            // Get general tools from the agent if available
+            let agent_general_tools = context
                 .agent
-                .modes
-                .get(mode)
-                .and_then(|mode_config| mode_config.tools.as_ref());
-
-            // Get general tools from the agent
-            let agent_general_tools = context.agent.tools.as_ref();
+                .as_ref()
+                .and_then(|agent| agent.tools.as_ref());
 
             // Legacy mode-specific tools (act_tools and plan_tools) have been removed
 
@@ -66,12 +72,15 @@ impl ToolService for ForgeToolService {
             self.tools
                 .keys()
                 .filter(|tool_name| {
-                    // We can use the conversation to get allowed tools directly
-                    if let Ok(allowed_tools) =
-                        context.conversation.get_allowed_tools(&context.agent.id)
+                    // We can use the conversation to get allowed tools directly if both agent and
+                    // conversation are available
+                    if let (Some(agent), Some(conversation)) =
+                        (&context.agent, &context.conversation)
                     {
-                        if allowed_tools.contains(tool_name) {
-                            return true;
+                        if let Ok(allowed_tools) = conversation.get_allowed_tools(&agent.id) {
+                            if allowed_tools.contains(tool_name) {
+                                return true;
+                            }
                         }
                     }
 
