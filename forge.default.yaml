@@ -5,6 +5,31 @@ models:
   - &advanced_model anthropic/claude-3.7-sonnet
   - &standard_model anthropic/claude-3.5-haiku
 
+# Mode-specific configurations
+modes:
+  # Act mode configuration
+  act:
+    # Tools available in Act mode
+    tools:
+      - tool_forge_fs_create
+      - tool_forge_fs_remove
+      - tool_forge_fs_patch
+      - tool_forge_process_shell
+      - tool_forge_fs_undo
+    # System prompt for Act mode
+    system_prompt: |-
+      {{> system-prompt-engineer-act.hbs }}
+
+  # Plan mode configuration
+  plan:
+    # Tools available in Plan mode
+    tools:
+      - tool_forge_fs_search
+      - tool_forge_fs_create
+    # System prompt for Plan mode
+    system_prompt: |-
+      {{> system-prompt-engineer-plan.hbs }}
+
 agents:
   - id: software-engineer
     compact:
@@ -16,12 +41,6 @@ agents:
       prompt: "{{> system-prompt-context-summarizer.hbs }}"
     tool_supported: true
     model: *advanced_model
-    system_prompt: |-
-      {{#if (eq mode "PLAN") }}
-      {{> system-prompt-engineer-plan.hbs }}
-      {{else}}
-      {{> system-prompt-engineer-act.hbs }}
-      {{/if}}
     user_prompt: |-
       <task>{{event.value}}</task>
       <current_time>{{current_time}}</current_time>
@@ -31,18 +50,29 @@ agents:
       - tool_forge_fs_read
       - tool_forge_fs_search
       - tool_forge_net_fetch
-
-    # Tools available only in Act mode
-    act_tools:
-      - tool_forge_fs_create
-      - tool_forge_fs_remove
-      - tool_forge_fs_patch
-      - tool_forge_process_shell
-      - tool_forge_fs_undo
-
-    # Tools available only in Plan mode
-    plan_tools:
-      - tool_forge_fs_search
+    # Mode-specific configurations for this agent
+    modes:
+      # Act mode configuration
+      act:
+        # Additional tools for Act mode
+        tools:
+          - tool_forge_fs_create
+          - tool_forge_fs_remove
+          - tool_forge_fs_patch
+          - tool_forge_process_shell
+          - tool_forge_fs_undo
+        # System prompt for Act mode
+        system_prompt: |-
+          {{> system-prompt-engineer-act.hbs }}
+      # Plan mode configuration
+      plan:
+        # Additional tools for Plan mode
+        tools:
+          - tool_forge_fs_search
+          - tool_forge_fs_create
+        # System prompt for Plan mode
+        system_prompt: |-
+          {{> system-prompt-engineer-plan.hbs }}
     subscribe:
       - user_task_init
       - user_task_update

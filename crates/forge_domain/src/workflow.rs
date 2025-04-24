@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
 
+use crate::mode::{Mode, ModeConfig};
 use crate::temperature::Temperature;
 use crate::{Agent, AgentId, ModelId};
 
@@ -59,6 +62,11 @@ pub struct Workflow {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub tool_supported: Option<bool>,
+
+    /// Mode-specific configurations
+    #[serde(default)]
+    #[merge(skip)]
+    pub modes: HashMap<Mode, ModeConfig>,
 }
 
 impl Default for Workflow {
@@ -93,6 +101,7 @@ impl Workflow {
             custom_rules: None,
             temperature: None,
             tool_supported: None,
+            modes: HashMap::new(),
         }
     }
 

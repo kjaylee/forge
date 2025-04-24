@@ -52,11 +52,12 @@ impl<C: CompactionService> ConversationService for ForgeConversationService<C> {
 
     async fn create(&self, workflow: Workflow) -> Result<Conversation> {
         let id = ConversationId::generate();
-        let conversation = Conversation::new(id.clone(), workflow);
+        let conversation = Conversation::new(id.clone(), workflow.clone());
         self.workflows
             .lock()
             .await
             .insert(id.clone(), conversation.clone());
+
         Ok(conversation)
     }
 

@@ -5,7 +5,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Error, Event, Mode, ModelId, Result, Workflow};
+use crate::{Agent, AgentId, Context, Error, Event, Mode, ModeConfig, ModelId, Result, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -103,6 +103,7 @@ impl Conversation {
             }
 
             if agent.id.as_str() == Conversation::MAIN_AGENT_NAME {
+                // Add command subscriptions to the main agent
                 let commands = workflow
                     .commands
                     .iter()
@@ -112,6 +113,48 @@ impl Conversation {
                     subscriptions.extend(commands);
                 } else {
                     agent.subscribe = Some(commands);
+                }
+
+                // Add mode-specific tools and system prompts from the workflow to the agent
+                // Apply configuration for each mode
+                for mode in [Mode::Act, Mode::Plan] {
+                    if let Some(mode_config) = workflow.modes.get(&mode) {
+                        // Add mode configuration to the agent's modes
+                        let agent_mode_config = agent.modes.entry(mode.clone()).or_insert_with(ModeConfig::new);
+
+                        // Add mode-specific tools
+                        if let Some(mode_tools) = &mode_config.tools {
+                            // Add tools to the agent's mode configuration
+                            if let Some(ref mut agent_tools) = agent_mode_config.tools {
+                                agent_tools.extend(mode_tools.clone());
+                            } else {
+                                agent_mode_config.tools = Some(mode_tools.clone());
+                            }
+
+                            // For backward compatibility, also update legacy fields
+                            match mode {
+                                Mode::Act => {
+                                    if let Some(ref mut act_tools_agent) = agent.act_tools {
+                                        act_tools_agent.extend(mode_tools.clone());
+                                    } else {
+                                        agent.act_tools = Some(mode_tools.clone());
+                                    }
+                                },
+                                Mode::Plan => {
+                                    if let Some(ref mut plan_tools_agent) = agent.plan_tools {
+                                        plan_tools_agent.extend(mode_tools.clone());
+                                    } else {
+                                        agent.plan_tools = Some(mode_tools.clone());
+                                    }
+                                },
+                            }
+                        }
+
+                        // Add mode-specific system prompt to the agent's mode configuration
+                        if mode_config.system_prompt.is_some() {
+                            agent_mode_config.system_prompt = mode_config.system_prompt.clone();
+                        }
+                    }
                 }
             }
 

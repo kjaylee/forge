@@ -141,15 +141,18 @@ impl<A: Services> Orchestrator<A> {
     }
 
     async fn set_system_prompt(&self, context: Context, agent: &Agent) -> anyhow::Result<Context> {
-        Ok(if let Some(system_prompt) = &agent.system_prompt {
-            // Get the conversation mode
-            let conversation = self.get_conversation().await?;
-            let mode = conversation.mode.clone();
+        // Get the conversation mode
+        let conversation = self.get_conversation().await?;
+        let mode = conversation.mode.clone();
 
+        // Get the mode-specific system prompt from the agent's modes
+        let system_prompt = agent.modes.get(&mode).and_then(|mode_config| mode_config.system_prompt.as_ref());
+
+        Ok(if let Some(system_prompt) = system_prompt {
             let system_message = self
                 .services
                 .template_service()
-                .render_system(agent, system_prompt, mode)
+                .render_system(agent, system_prompt, mode.clone())
                 .await?;
 
             context.set_first_system_message(system_message)

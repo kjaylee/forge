@@ -42,9 +42,29 @@ impl ToolService for ForgeToolService {
         let name = call.name.clone();
         let input = call.arguments.clone();
         debug!(tool_name = ?call.name, arguments = ?call.arguments, "Executing tool call");
-        // Get agent and mode from context if available
-        let mut available_tools = if let (Some(agent), Some(mode)) = (&context.agent, &context.mode) {
+        // Get agent, mode, and workflow from context if available
+        let mut available_tools = if let (Some(agent), Some(mode), Some(workflow)) = (&context.agent, &context.mode, &context.workflow) {
+            // First check if the tool is in the workflow's mode-specific tools
+            let mode_tools = workflow.modes.get(mode).and_then(|mode_config| mode_config.tools.as_ref());
+
             // Filter available tools based on agent and mode
+            self.tools
+                .keys()
+                .filter(|tool_name| {
+                    // Check if the tool is in the workflow's mode-specific tools
+                    if let Some(mode_tools) = mode_tools {
+                        if mode_tools.contains(tool_name) {
+                            return true;
+                        }
+                    }
+
+                    // Fall back to agent's tool configuration
+                    agent.is_tool_allowed(tool_name, mode.clone())
+                })
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>()
+        } else if let (Some(agent), Some(mode)) = (&context.agent, &context.mode) {
+            // If workflow is not available, fall back to agent's tool configuration
             self.tools
                 .keys()
                 .filter(|tool_name| agent.is_tool_allowed(tool_name, mode.clone()))

@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use forge_api::Workflow;
-use forge_domain::{Agent, AgentId, EventContext, ModelId, SystemContext, Template, ToolName};
+use forge_domain::{Agent, AgentId, EventContext, Mode, ModeConfig, ModelId, SystemContext, Template, ToolName};
 
 /// System prompt for the developer agent
 const SYSTEM_PROMPT: &str = r#"
@@ -31,8 +33,16 @@ pub fn create_test_workflow() -> Workflow {
         ])
         .subscribe(vec!["user_task_init".to_string()])
         .ephemeral(false)
-        .system_prompt(Template::<SystemContext>::new(SYSTEM_PROMPT.trim()))
         .user_prompt(Template::<EventContext>::new(USER_PROMPT.trim()));
+
+    // Add mode-specific system prompt
+    let mut modes = HashMap::new();
+    let mut act_config = ModeConfig::new();
+    act_config.system_prompt = Some(Template::<SystemContext>::new(SYSTEM_PROMPT.trim()));
+    modes.insert(Mode::Act, act_config);
+
+    // Set the modes on the developer agent
+    let developer = developer.modes(modes);
 
     // Using the new Workflow::new() function instead of default()
     Workflow::new().agents(vec![developer])

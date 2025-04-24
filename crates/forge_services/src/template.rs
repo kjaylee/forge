@@ -45,7 +45,6 @@ impl<F: Infrastructure, T: ToolService> TemplateService for ForgeTemplateService
         &self,
         agent: &Agent,
         prompt: &Template<SystemContext>,
-
         mode: Mode,
     ) -> anyhow::Result<String> {
         let env = self.infra.environment_service().get_environment();

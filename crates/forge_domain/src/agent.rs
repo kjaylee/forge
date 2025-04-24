@@ -6,11 +6,14 @@ use merge::Merge;
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 
+use std::collections::HashMap;
+
 use crate::merge::Key;
+use crate::mode::{Mode, ModeConfig};
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, Event, EventContext, Mode, ModelId, Result, Role, SystemContext,
+    Context, Error, Event, EventContext, ModelId, Result, Role,
     ToolDefinition, ToolName,
 };
 
@@ -188,10 +191,7 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub description: Option<String>,
 
-    // Template for the system prompt provided to the agent
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub system_prompt: Option<Template<SystemContext>>,
+    // Template for the system prompt provided to the agent (deprecated, use modes[mode].system_prompt instead)
 
     // Template for the user prompt provided to the agent
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -209,12 +209,17 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub tools: Option<Vec<ToolName>>,
 
-    /// Tools that the agent can use only in Act mode
+    /// Mode-specific configurations
+    #[serde(default)]
+    #[merge(skip)]
+    pub modes: HashMap<Mode, ModeConfig>,
+
+    /// Tools that the agent can use only in Act mode (deprecated, use modes.act.tools instead)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub act_tools: Option<Vec<ToolName>>,
 
-    /// Tools that the agent can use only in Plan mode
+    /// Tools that the agent can use only in Plan mode (deprecated, use modes.plan.tools instead)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub plan_tools: Option<Vec<ToolName>>,
@@ -280,10 +285,11 @@ impl Agent {
             tool_supported: None,
             model: None,
             description: None,
-            system_prompt: None,
+
             user_prompt: None,
             ephemeral: None,
             tools: None,
+            modes: HashMap::new(),
             act_tools: None,
             plan_tools: None,
             // transforms field removed
@@ -340,14 +346,23 @@ impl Agent {
     /// Determines if a tool is allowed for this agent based on the specified mode
     /// If no mode is provided, defaults to Act mode
     pub fn is_tool_allowed(&self, tool_name: &ToolName, mode: Mode) -> bool {
-        // Check if the tool is in the general tools list
+        // Check if the tool is in the general tools list (available in all modes)
         if let Some(tools) = &self.tools {
             if tools.contains(tool_name) {
                 return true;
             }
         }
 
-        // Check mode-specific tools
+        // Check if the tool is in the mode-specific tools list (preferred approach)
+        if let Some(mode_config) = self.modes.get(&mode) {
+            if let Some(mode_tools) = &mode_config.tools {
+                if mode_tools.contains(tool_name) {
+                    return true;
+                }
+            }
+        }
+
+        // For backward compatibility, check legacy mode-specific tools fields
         match mode {
             Mode::Act => {
                 if let Some(act_tools) = &self.act_tools {
