@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
@@ -310,20 +311,24 @@ impl<A: Services> Orchestrator<A> {
         let agent = conversation.get_agent(agent_id)?;
 
         // Get the current mode from the conversation
-        let mode = conversation.mode.clone();
+        let allowed_tools: HashSet<ToolName> = conversation
+            .get_allowed_tools(agent_id)?
+            .into_iter()
+            .collect();
+        let tool_definitions = self
+            .services
+            .tool_service()
+            .list()
+            .into_iter()
+            .filter(|tool| allowed_tools.contains(&tool.name))
+            .collect::<Vec<_>>();
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent
-                .init_context(self.services.tool_service().list(), mode.clone())
-                .await?
+            agent.init_context(tool_definitions).await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => {
-                    agent
-                        .init_context(self.services.tool_service().list(), mode.clone())
-                        .await?
-                }
+                None => agent.init_context(tool_definitions).await?,
             }
         };
 

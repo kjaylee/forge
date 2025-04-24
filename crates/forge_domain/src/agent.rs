@@ -12,10 +12,7 @@ use crate::merge::Key;
 use crate::mode::{Mode, ModeConfig};
 use crate::temperature::Temperature;
 use crate::template::Template;
-use crate::{
-    Context, Error, Event, EventContext, ModelId, Result, Role,
-    ToolDefinition, ToolName,
-};
+use crate::{Context, Error, EventContext, ModelId, Result, Role, ToolDefinition, ToolName};
 
 // Unique identifier for an agent
 #[derive(Debug, Display, Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
@@ -214,8 +211,6 @@ pub struct Agent {
     #[merge(skip)]
     pub modes: HashMap<Mode, ModeConfig>,
 
-    // The act_tools and plan_tools fields have been removed in favor of the modes field
-
     // The transforms feature has been removed
     /// Used to specify the events the agent is interested in
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -282,8 +277,6 @@ impl Agent {
             ephemeral: None,
             tools: None,
             modes: HashMap::new(),
-            // act_tools and plan_tools fields have been removed
-            // transforms field removed
             subscribe: None,
             max_turns: None,
             max_walker_depth: None,
@@ -311,14 +304,7 @@ impl Agent {
         }
     }
 
-    pub async fn init_context(
-        &self,
-        mut forge_tools: Vec<ToolDefinition>,
-        mode: Mode,
-    ) -> Result<Context> {
-        // Adding Event tool to the list of tool definitions
-        forge_tools.push(Event::tool_definition());
-
+    pub async fn init_context(&self, forge_tools: Vec<ToolDefinition>) -> Result<Context> {
         // Use the agent's tool_supported flag directly instead of querying the provider
         let tool_supported = self.tool_supported.unwrap_or_default();
 
@@ -328,9 +314,6 @@ impl Agent {
         // In the future, this should be updated to use Conversation::get_allowed_tools
         Ok(context.extend_tools(if tool_supported {
             forge_tools
-                .into_iter()
-                .filter(|tool| self.is_tool_allowed(&tool.name, mode.clone()))
-                .collect()
         } else {
             Vec::new()
         }))

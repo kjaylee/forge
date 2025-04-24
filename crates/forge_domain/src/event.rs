@@ -1,9 +1,9 @@
 use derive_setters::Setters;
-use schemars::{schema_for, JsonSchema};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{NamedTool, ToolCallFull, ToolDefinition, ToolName};
+use crate::{NamedTool, ToolName};
 
 // We'll use simple strings for JSON schema compatibility
 #[derive(Debug, Deserialize, Serialize, Clone, Setters)]
@@ -52,25 +52,6 @@ impl NamedTool for Event {
 }
 
 impl Event {
-    pub fn tool_definition() -> ToolDefinition {
-        ToolDefinition {
-            name: Self::tool_name(),
-            description: "Dispatches an event with the provided name and value".to_string(),
-            input_schema: schema_for!(EventMessage),
-            output_schema: None,
-        }
-    }
-
-    pub fn parse(tool_call: &ToolCallFull) -> Option<Self> {
-        if tool_call.name != Self::tool_definition().name {
-            return None;
-        }
-        let message: Option<EventMessage> =
-            serde_json::from_value(tool_call.arguments.clone()).ok();
-
-        message.map(|message| message.into())
-    }
-
     pub fn new<V: Into<Value>>(name: impl ToString, value: V) -> Self {
         let id = uuid::Uuid::new_v4().to_string();
         let timestamp = chrono::Utc::now().to_rfc3339();
