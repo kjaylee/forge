@@ -47,9 +47,10 @@ impl TemplateService for ForgeTemplateService {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
     use serde_json::json;
+
+    use super::*;
 
     #[test]
     fn test_render_simple_template() {
@@ -92,7 +93,8 @@ mod tests {
             .render("{{> partial-system-info.hbs }}", &data)
             .unwrap();
 
-        // Expected: Result should contain the rendered system info with substituted values
+        // Expected: Result should contain the rendered system info with substituted
+        // values
         assert!(actual.contains("<operating_system>test-os</operating_system>"));
     }
 }
