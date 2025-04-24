@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    API,
+    AgentId, AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model,
+    ModelId, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -70,8 +70,18 @@ impl<F: API> UI<F> {
         }
     }
 
+    // Handle creating a new conversation
+    async fn handle_new(&mut self) -> Result<()> {
+        self.state = UIState::default();
+        self.init_conversation().await?;
+        banner::display()?;
+
+        Ok(())
+    }
+
     // Set the current mode and update conversation variable
     async fn handle_mode_change(&mut self, mode: Mode) -> Result<()> {
+        self.handle_new().await?;
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
 
@@ -86,13 +96,14 @@ impl<F: API> UI<F> {
             )
             .await?;
 
-        // Print a mode-specific message
-        let mode_message = match self.state.mode {
-            Mode::Act => "Switched to 'ACT' mode",
-            Mode::Plan => "Switched to 'PLAN' mode",
-        };
-
-        println!("{}", TitleFormat::action(mode_message).format());
+        println!(
+            "{}",
+            TitleFormat::action(format!(
+                "Switched to '{}' mode (context cleared)",
+                self.state.mode
+            ))
+            .format()
+        );
 
         Ok(())
     }
@@ -170,9 +181,7 @@ impl<F: API> UI<F> {
                     self.handle_dump(format).await?;
                 }
                 Command::New => {
-                    self.state = UIState::default();
-                    self.init_conversation().await?;
-                    banner::display()?;
+                    self.handle_new().await?;
                 }
                 Command::Info => {
                     let info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
