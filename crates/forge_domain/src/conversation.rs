@@ -37,6 +37,7 @@ pub struct Conversation {
     pub agents: Vec<Agent>,
     pub events: Vec<Event>,
     pub mode: Mode,
+    pub workflow: Workflow,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -83,7 +84,7 @@ impl Conversation {
     pub fn new(id: ConversationId, workflow: Workflow) -> Self {
         let mut agents = Vec::new();
 
-        for mut agent in workflow.agents.into_iter() {
+        for mut agent in workflow.clone().agents.into_iter() {
             if let Some(custom_rules) = workflow.custom_rules.clone() {
                 agent.custom_rules = Some(custom_rules);
             }
@@ -159,6 +160,7 @@ impl Conversation {
             agents,
             events: Default::default(),
             mode,
+            workflow,
         }
     }
 

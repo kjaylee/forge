@@ -70,6 +70,7 @@ mod tests {
             agents: vec![],
             events: vec![],
             mode: Default::default(),
+            workflow: crate::Workflow::new(),
         }
     }
 
