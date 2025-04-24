@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
+use chrono::Local;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use tokio::sync::RwLock;
@@ -11,8 +12,15 @@ use tokio_retry::RetryIf;
 use tracing::debug;
 
 // Use retry_config default values directly in this file
-use crate::services::Services;
-use crate::*;
+use crate::services::{
+    AttachmentService, CompactionService, ConversationService, EnvironmentService, ProviderService,
+    Services, TemplateService, ToolService,
+};
+use crate::{
+    remove_tag_content, Agent, AgentId, ChatCompletionMessage, ChatResponse,
+    ContentType, Context, ContextMessage, Conversation, Error, Event, EventContext, SystemContext,
+    ToolCallContext, ToolCallFull, ToolCallPart, ToolCallRecord, ToolName, Usage,
+};
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
 // Tags to filter as defined in system prompt
@@ -152,11 +160,31 @@ impl<A: Services> Orchestrator<A> {
             .and_then(|mode_config| mode_config.system_prompt.as_ref());
 
         Ok(if let Some(system_prompt) = system_prompt {
+            // Create the system context manually
+            let env = self.services.environment_service().get_environment();
+
+            // Get current date and time with timezone
+            let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
+
+            // Create the tool information
+            let tool_information = Some(self.services.tool_service().usage_prompt(agent, mode.clone()));
+
+            // Create the system context
+            let system_context = SystemContext {
+                current_time,
+                env: Some(env),
+                tool_information,
+                tool_supported: agent.tool_supported.unwrap_or_default(),
+                files: Vec::new(), // We'll skip the files for now
+                custom_rules: agent.custom_rules.as_ref().cloned().unwrap_or_default(),
+                mode: mode.clone(),
+            };
+
+            // Render the system prompt with the context
             let system_message = self
                 .services
                 .template_service()
-                .render_system(agent, system_prompt, mode.clone())
-                .await?;
+                .render(system_prompt.template.as_str(), &system_context)?;
 
             context.set_first_system_message(system_message)
         } else {
@@ -458,12 +486,14 @@ impl<A: Services> Orchestrator<A> {
         event: &Event,
     ) -> anyhow::Result<Context> {
         let content = if let Some(user_prompt) = &agent.user_prompt {
-            // Use the consolidated render_event method which handles suggestions and
-            // variables
+            debug!(event = ?event, "Event context");
+            // Create an EventContext with the provided event
+            let event_context = EventContext::new(event.clone());
+
+            // Render the template with the event context
             self.services
                 .template_service()
-                .render_event(agent, user_prompt, event)
-                .await?
+                .render(user_prompt.template.as_str(), &event_context)?
         } else {
             // Use the raw event value as content if no user_prompt is provided
             event.value.to_string()

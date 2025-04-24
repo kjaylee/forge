@@ -99,8 +99,7 @@ fn create_agents_section(conversation: &Conversation) -> Element {
 
         // Add max turns if available
         if let Some(max_turns) = agent.max_turns {
-            agent_div =
-                agent_div.append(Element::new("p").text(format!("Max Turns: {max_turns}")));
+            agent_div = agent_div.append(Element::new("p").text(format!("Max Turns: {max_turns}")));
         }
 
         // Add max walker depth if available

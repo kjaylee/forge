@@ -19,9 +19,7 @@ fn forge_event_json(event_name: &str, value_expr: &str) -> String {
         .replace('\n', "\\n")
         .replace('\t', "\\t");
 
-    format!(
-        "forge --event='{{\"name\": \"{event_name}\", \"value\": \"{escaped_value}\"}}'"
-    )
+    format!("forge --event='{{\"name\": \"{event_name}\", \"value\": \"{escaped_value}\"}}'")
 }
 
 /// Get the appropriate issue/PR number based on event context
@@ -121,8 +119,8 @@ fn test_forge_automation() {
                 .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
                 .add_with(("issue-number", "${{ github.event.issue.number }}"))
                 .add_with(("body", generate_comment_body(
-                    "✨", 
-                    "Forge Automation Engaged!", 
+                    "✨",
+                    "Forge Automation Engaged!",
                     "I've started working on this issue with the power of AI. I'll analyze the issue and create a plan for review. Stay tuned for updates"
                 ))),
         )
@@ -154,8 +152,8 @@ fn test_forge_automation() {
                 .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
                 .add_with(("issue-number", "${{ github.event.issue.number }}"))
                 .add_with(("body", generate_comment_body(
-                    "📝", 
-                    "Revising Plan", 
+                    "📝",
+                    "Revising Plan",
                     "I'm working on revising the plan based on your feedback. I'll update the task file with the revised plan shortly"
                 ))),
         )
@@ -183,8 +181,8 @@ fn test_forge_automation() {
             .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
             .add_with(("issue-number", "${{ github.event.issue.number }}"))
             .add_with(("body", generate_comment_body(
-                "✅", 
-                "Plan Approved", 
+                "✅",
+                "Plan Approved",
                 "Thank you for approving the plan! I'm now ready to implement the changes. You can either wait for automatic implementation or trigger it manually with `/forge continue`"
             ))),
     )
@@ -219,8 +217,8 @@ fn test_forge_automation() {
                 .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
                 .add_with(("issue-number", &pr_number))
                 .add_with(("body", generate_comment_body(
-                    "🔨️", 
-                    "Implementation In Progress", 
+                    "🔨️",
+                    "Implementation In Progress",
                     "I'm now implementing the approved plan. I'll update this PR with the implementation soon"
                 ))),
         )
@@ -252,8 +250,8 @@ fn test_forge_automation() {
                 .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
                 .add_with(("issue-number", "${{ github.event.pull_request.number }}"))
                 .add_with(("body", generate_comment_body(
-                    "💬", 
-                    "Processing Review Comment", 
+                    "💬",
+                    "Processing Review Comment",
                     "I'm analyzing and addressing this review comment. I'll update the PR shortly with the requested changes"
                 ))),
         )
@@ -287,8 +285,8 @@ fn test_forge_automation() {
                 .add_with(("token", "${{ steps.generate-token.outputs.token }}"))
                 .add_with(("issue-number", "${{ github.event.issue.number }}"))
                 .add_with(("body", generate_comment_body(
-                    "💬", 
-                    "Processing PR Comment", 
+                    "💬",
+                    "Processing PR Comment",
                     "I'm analyzing and addressing your comment. I'll update the PR shortly with any needed changes"
                 ))),
         )

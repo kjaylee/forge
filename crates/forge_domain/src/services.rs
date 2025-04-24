@@ -1,7 +1,7 @@
 use crate::{
-    Agent, Attachment, ChatCompletionMessage, Compact, CompactionResult, Context, Conversation,
-    ConversationId, Environment, Event, EventContext, Mode, Model, ModelId, ResultStream,
-    SystemContext, Template, ToolCallContext, ToolCallFull, ToolDefinition, ToolResult, Workflow,
+    Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
+    ConversationId, Environment, Mode, Model, ModelId, ResultStream, ToolCallContext, ToolCallFull,
+    ToolDefinition, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -49,28 +49,10 @@ pub trait ConversationService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait TemplateService: Send + Sync {
-    async fn render_system(
+    fn render(
         &self,
-        agent: &Agent,
-        prompt: &Template<SystemContext>,
-        mode: Mode,
-    ) -> anyhow::Result<String>;
-
-    async fn render_event(
-        &self,
-        agent: &Agent,
-        prompt: &Template<EventContext>,
-        event: &Event,
-    ) -> anyhow::Result<String>;
-
-    /// Renders a custom summarization prompt for context compaction
-    /// This takes a raw string template and renders it with information about
-    /// the compaction and the original context (which allows for more
-    /// sophisticated compaction templates)
-    async fn render_summarization(
-        &self,
-        compaction: &Compact,
-        context: &Context,
+        template: impl ToString,
+        object: &impl serde::Serialize,
     ) -> anyhow::Result<String>;
 }
 

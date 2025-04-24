@@ -98,9 +98,7 @@ impl<F: Infrastructure> FSFind<F> {
 
         let sub_title = match (&input.regex, &input.file_pattern) {
             (Some(regex), Some(pattern)) => {
-                format!(
-                    "for '{regex}' in '{pattern}' files at {formatted_dir}"
-                )
+                format!("for '{regex}' in '{pattern}' files at {formatted_dir}")
             }
             (Some(regex), None) => format!("for '{regex}' at {formatted_dir}"),
             (None, Some(pattern)) => format!("for '{pattern}' at {formatted_dir}"),

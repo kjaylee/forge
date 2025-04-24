@@ -98,11 +98,7 @@ impl ForgeCommandManager {
                 .clone()
                 .unwrap_or_else(|| format!("Switch to {} mode", mode_name.to_uppercase()));
 
-            commands.push(ForgeCommand {
-                name: format!("/{mode_name}"),
-                description,
-                value: None,
-            });
+            commands.push(ForgeCommand { name: format!("/{mode_name}"), description, value: None });
         }
 
         *guard = commands;
