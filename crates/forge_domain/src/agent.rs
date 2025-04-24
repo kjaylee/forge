@@ -187,9 +187,6 @@ pub struct Agent {
     #[merge(strategy = crate::merge::option)]
     pub description: Option<String>,
 
-    // Template for the system prompt provided to the agent (deprecated, use
-    // modes[mode].system_prompt instead)
-
     // Template for the user prompt provided to the agent
     #[serde(skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
@@ -310,43 +307,11 @@ impl Agent {
 
         let context = Context::default();
 
-        // Note: We're still using is_tool_allowed here because we don't have access to
-        // the Conversation object In the future, this should be updated to use
-        // Conversation::get_allowed_tools
         Ok(context.extend_tools(if tool_supported {
             forge_tools
         } else {
             Vec::new()
         }))
-    }
-
-    /// Determines if a tool is allowed for this agent based on the specified
-    /// mode If no mode is provided, defaults to Act mode
-    ///
-    /// Note: This method is deprecated. Use Conversation::get_allowed_tools
-    /// instead.
-    pub fn is_tool_allowed(&self, tool_name: &ToolName, mode: Mode) -> bool {
-        // Check if the tool is in the general tools list (available in all modes)
-        let in_general_tools = if let Some(tools) = &self.tools {
-            tools.contains(tool_name)
-        } else {
-            false
-        };
-
-        // Check if the tool is in the mode-specific tools list (preferred approach)
-        let in_mode_specific_tools = if let Some(mode_config) = self.modes.get(&mode) {
-            if let Some(mode_tools) = &mode_config.tools {
-                mode_tools.contains(tool_name)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-        // A tool is allowed if it's in the general tools list OR
-        // it's in the mode-specific tools list for the current mode
-        in_general_tools || in_mode_specific_tools
     }
 }
 

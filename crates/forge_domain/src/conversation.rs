@@ -119,31 +119,29 @@ impl Conversation {
 
                 // Add mode-specific tools and system prompts from the workflow to the agent
                 // Apply configuration for each mode
-                for mode in [Mode::Act, Mode::Plan] {
-                    if let Some(mode_config) = workflow.modes.get(&mode) {
-                        // Add mode configuration to the agent's modes
-                        let agent_mode_config = agent
-                            .modes
-                            .entry(mode.clone())
-                            .or_insert_with(ModeConfig::new);
+                for (mode, mode_config) in workflow.modes.iter() {
+                    // Add mode configuration to the agent's modes
+                    let agent_mode_config = agent
+                        .modes
+                        .entry(mode.clone())
+                        .or_insert_with(ModeConfig::new);
 
-                        // Add mode-specific tools
-                        if let Some(mode_tools) = &mode_config.tools {
-                            // Add tools to the agent's mode configuration
-                            if let Some(ref mut agent_tools) = agent_mode_config.tools {
-                                agent_tools.extend(mode_tools.clone());
-                            } else {
-                                agent_mode_config.tools = Some(mode_tools.clone());
-                            }
-
-                            // Legacy mode-specific tools (act_tools and
-                            // plan_tools) have been removed
+                    // Add mode-specific tools
+                    if let Some(mode_tools) = &mode_config.tools {
+                        // Add tools to the agent's mode configuration
+                        if let Some(ref mut agent_tools) = agent_mode_config.tools {
+                            agent_tools.extend(mode_tools.clone());
+                        } else {
+                            agent_mode_config.tools = Some(mode_tools.clone());
                         }
 
-                        // Add mode-specific system prompt to the agent's mode configuration
-                        if mode_config.system_prompt.is_some() {
-                            agent_mode_config.system_prompt = mode_config.system_prompt.clone();
-                        }
+                        // Legacy mode-specific tools (act_tools and
+                        // plan_tools) have been removed
+                    }
+
+                    // Add mode-specific system prompt to the agent's mode configuration
+                    if mode_config.system_prompt.is_some() {
+                        agent_mode_config.system_prompt = mode_config.system_prompt.clone();
                     }
                 }
             }

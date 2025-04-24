@@ -65,7 +65,7 @@ pub struct Workflow {
 
     /// Mode-specific configurations
     #[serde(default)]
-    #[merge(skip)]
+    #[merge(strategy = crate::merge::hashmap)]
     pub modes: HashMap<Mode, ModeConfig>,
 }
 
