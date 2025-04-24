@@ -19,9 +19,7 @@ fn forge_event_json(event_name: &str, value_expr: &str) -> String {
         .replace('\n', "\\n")
         .replace('\t', "\\t");
 
-    format!(
-        "forge --event='{{\"name\": \"{event_name}\", \"value\": \"{escaped_value}\"}}'"
-    )
+    format!("forge --event='{{\"name\": \"{event_name}\", \"value\": \"{escaped_value}\"}}'")
 }
 
 /// Get the appropriate issue/PR number based on event context

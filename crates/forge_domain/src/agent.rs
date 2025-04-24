@@ -498,10 +498,7 @@ mod tests {
             });
 
             let agent: std::result::Result<Agent, serde_json::Error> = serde_json::from_value(json);
-            assert!(
-                agent.is_ok(),
-                "Valid temperature {temp} should deserialize"
-            );
+            assert!(agent.is_ok(), "Valid temperature {temp} should deserialize");
             assert_eq!(agent.unwrap().temperature.unwrap().value(), temp);
         }
 
