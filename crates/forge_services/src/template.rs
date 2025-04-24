@@ -44,3 +44,55 @@ impl TemplateService for ForgeTemplateService {
         Ok(rendered)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+
+    #[test]
+    fn test_render_simple_template() {
+        // Fixture: Create template service and data
+        let service = ForgeTemplateService::new();
+        let data = json!({
+            "name": "Forge",
+            "version": "1.0",
+            "features": ["templates", "rendering", "handlebars"]
+        });
+
+        // Actual: Render a simple template
+        let template = "App: {{name}} v{{version}} - Features: {{#each features}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}";
+        let actual = service.render(template, &data).unwrap();
+
+        // Expected: Result should match the expected string
+        let expected = "App: Forge v1.0 - Features: templates, rendering, handlebars";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_render_partial_system_info() {
+        // Fixture: Create template service and data
+        let service = ForgeTemplateService::new();
+        let data = json!({
+            "env": {
+                "os": "test-os",
+                "cwd": "/test/path",
+                "shell": "/bin/test",
+                "home": "/home/test"
+            },
+            "files": [
+                "/file1.txt",
+                "/file2.txt"
+            ]
+        });
+
+        // Actual: Render the partial-system-info template
+        let actual = service
+            .render("{{> partial-system-info.hbs }}", &data)
+            .unwrap();
+
+        // Expected: Result should contain the rendered system info with substituted values
+        assert!(actual.contains("<operating_system>test-os</operating_system>"));
+    }
+}
