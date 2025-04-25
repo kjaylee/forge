@@ -1,4 +1,5 @@
-use std::{collections::HashSet, fmt::Display};
+use std::collections::HashSet;
+use std::fmt::Display;
 
 use crate::ToolDefinition;
 
@@ -73,19 +74,17 @@ impl Display for ToolUsagePrompt<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-    use schemars::{
-        schema::{InstanceType, ObjectValidation, RootSchema, Schema, SchemaObject, SingleOrVec},
-        JsonSchema,
-    };
-    use serde::Deserialize;
-    use std::collections::BTreeMap;
+    
 
+    use insta::assert_snapshot;
+    
+    use schemars::JsonSchema;
+    use serde::Deserialize;
+
+    use super::*;
     use crate::{
         ExecutableTool, NamedTool, ToolCallContext, ToolDefinition, ToolDescription, ToolName,
     };
-
-    use super::*;
 
     #[derive(Default)]
     pub struct MangoTool;
@@ -126,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_tool_usage_prompt_to_string() {
-        let tools = vec![ToolDefinition::from(&MangoTool::default())];
+        let tools = vec![ToolDefinition::from(&MangoTool)];
         let prompt = ToolUsagePrompt::from(&tools);
         assert_snapshot!(prompt);
     }
