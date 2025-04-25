@@ -18,28 +18,6 @@ use crate::services::Services;
 use crate::*;
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
-// Tags to filter as defined in system prompt
-const THINKING_TAGS: &[&str] = &[
-    "thinking",
-    "analysis",
-    "action_plan",
-    "execution",
-    "verification",
-    "forge_analysis",
-    "forge_query_analysis",
-    "pr_preparation",
-    "thought_process",
-    "exploration_and_discovery",
-    "content_plan",
-    "creation",
-    "review",
-    "tool_call",
-    "implementation_steps",
-    "quality_assurance",
-    "solution_strategy",
-    "task_analysis",
-    "forge_planning",
-];
 
 #[derive(Debug, Clone)]
 pub struct AgentMessage<T> {
@@ -241,7 +219,7 @@ impl<A: Services> Orchestrator<A> {
         self.send(
             agent,
             ChatResponse::Text {
-                text: remove_tag_content(&content, THINKING_TAGS)
+                text: remove_tag_with_prefix(&content, "forge_")
                     .as_str()
                     .to_string(),
                 is_complete: true,
