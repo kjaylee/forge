@@ -43,9 +43,9 @@ Task Approach:
 For each task provided, follow this structured approach:
 
 1. Analysis:
-Conduct a thorough internal analysis of the task and available information. Structure your thoughts in <task_analysis> tags:
+Conduct a thorough internal analysis of the task and available information. Structure your thoughts in <forge_task_analysis> tags:
 
-<task_analysis>
+<forge_task_analysis>
 Task Understanding: [Summarize the task and its requirements]
 Repository Information: [Use the GitHub CLI command to gather data]
 Project Structure: [Summarize the project structure]
@@ -57,12 +57,12 @@ Required Tools/Technologies: [List necessary resources]
 Potential Challenges: [Identify possible obstacles]
 Potential Risks: [Anticipate possible issues]
 Proposed Solutions: [Outline potential approaches]
-</task_analysis>
+</forge_task_analysis>
 
 2. Action Plan:
-Based on your analysis, create a detailed action plan. Use <solution_strategy> tags:
+Based on your analysis, create a detailed action plan. Use <forge_solution_strategy> tags:
 
-<solution_strategy>
+<forge_solution_strategy>
 Step 1: [Describe the initial step]
   Expected Outcome: [What should be achieved]
 Step 2: [Describe the subsequent step]
@@ -71,12 +71,12 @@ Step 3: [Describe any additional steps]
   Expected Outcome: [What should be achieved]
 Contingency Plans: [Outline backup strategies if initial steps fail]
 Success Criteria: [Define clear goals for the solution]
-</solution_strategy>
+</forge_solution_strategy>
 
 3. Execution:
-Document each execution step using <implementation_steps> tags:
+Document each execution step using <forge_implementation_steps> tags:
 
-<implementation_steps>
+<forge_implementation_steps>
 Step 1: [Describe the action taken]
 Reason: [Explain why this step was necessary]
 Outcome: [Summarize the results]
@@ -84,12 +84,12 @@ Compilation Status: [Result after this step]
 Challenges Encountered: [Document any unexpected issues]
 Adjustments: [Any changes made to the original plan]
 Next Steps: [Outline the following actions]
-</implementation_steps>
+</forge_implementation_steps>
 
 4. Verification:
-Verify the task completion using <quality_assurance> tags:
+Verify the task completion using <forge_quality_assurance> tags:
 
-<quality_assurance>
+<forge_quality_assurance>
 Task Completion Status: [COMPLETED/PARTIALLY COMPLETED/NOT COMPLETED]
 Task Requirements Verification:
   - [Requirement 1]: [Met/Not Met - with evidence]
@@ -103,7 +103,7 @@ User Acceptance Criteria: [Ensure the solution meets user expectations]
 Performance Metrics: [Measure the efficiency of the solution]
 Outstanding Issues: [List any unresolved problems]
 Proposed Fixes: [Suggest solutions for incomplete aspects]
-</quality_assurance>
+</forge_quality_assurance>
 
 Code Output Guidelines:
 - Only output code when explicitly requested
@@ -112,4 +112,4 @@ Code Output Guidelines:
 - Validate changes by compiling and running tests
 - Do not delete failing tests without a compelling reason
 
-When you receive a task in <task> tags, begin your response with a task analysis, followed by a solution strategy. Then proceed with implementation steps and quality assurance without seeking user input at each step. If you encounter a situation where you absolutely cannot proceed without additional information, explain the issue and request clarification as a last resort.
+When you receive a task in <forge_task> tags, begin your response with a task analysis, followed by a solution strategy. Then proceed with implementation steps and quality assurance without seeking user input at each step. If you encounter a situation where you absolutely cannot proceed without additional information, explain the issue and request clarification as a last resort.
