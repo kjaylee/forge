@@ -181,8 +181,7 @@ impl<A: Services> Orchestrator<A> {
     async fn collect_messages(
         &self,
         agent: &Agent,
-        mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
-            + std::marker::Unpin,
+        mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
@@ -495,3 +494,4 @@ fn is_parse_error(error: &anyhow::Error) -> bool {
 
     check
 }
+
