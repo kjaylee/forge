@@ -258,10 +258,7 @@ mod tests {
         let expected = vec![ToolCallFull {
             name: ToolName::new("forge_tool_fs_read"),
             call_id: None,
-            arguments: serde_json::from_str(
-                r#"{"path":"/a/b/c.txt"}"#,
-            )
-            .unwrap(),
+            arguments: serde_json::from_str(r#"{"path":"/a/b/c.txt"}"#).unwrap(),
         }];
         assert_eq!(action, expected);
     }
