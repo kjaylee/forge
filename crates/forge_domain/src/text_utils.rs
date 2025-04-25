@@ -182,7 +182,8 @@ mod tests {
 
     #[test]
     fn test_extract_tag_names_with_prefix_duplicates() {
-        let fixture = "<forge_tool>First</forge_tool><other>Middle</other><forge_tool>Second</forge_tool>";
+        let fixture =
+            "<forge_tool>First</forge_tool><other>Middle</other><forge_tool>Second</forge_tool>";
         let actual = remove_tag_with_prefix(fixture, "forge");
         let expected = "<other>Middle</other>";
         assert_eq!(actual, expected);

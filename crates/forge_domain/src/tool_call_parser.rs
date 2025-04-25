@@ -417,7 +417,12 @@ mod tests {
 
     #[test]
     fn test_parse_with_newlines() {
-        let input = ["<forge_tool_call><foo><p1>", "abc", "</p1></foo></forge_tool_call>"].join("\n");
+        let input = [
+            "<forge_tool_call><foo><p1>",
+            "abc",
+            "</p1></foo></forge_tool_call>",
+        ]
+        .join("\n");
 
         let action = parse(&input).unwrap();
         let expected = vec![ToolCallFull {
