@@ -90,9 +90,11 @@ mod tests {
     #[derive(JsonSchema, Deserialize)]
     pub struct ToolInput {
         /// This is parameter 1
+        #[allow(dead_code)]
         param1: String,
 
         /// This is parameter 2
+        #[allow(dead_code)]
         param2: Option<String>,
     }
 
@@ -112,11 +114,7 @@ mod tests {
     impl ExecutableTool for MangoTool {
         type Input = ToolInput;
 
-        async fn call(
-            &self,
-            context: ToolCallContext,
-            input: Self::Input,
-        ) -> anyhow::Result<String> {
+        async fn call(&self, _: ToolCallContext, _: Self::Input) -> anyhow::Result<String> {
             Ok("Completed".to_string())
         }
     }
