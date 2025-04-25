@@ -19,7 +19,7 @@ impl Display for ToolUsagePrompt<'_> {
             writeln!(f, "{}", &tool.description)?;
 
             writeln!(f, "\n\nUsage:")?;
-            writeln!(f, "<tool_call>")?;
+            writeln!(f, "<forge_tool_call>")?;
             writeln!(f, "<{}>", tool.name.as_str())?;
 
             let parameters = tool
@@ -35,7 +35,7 @@ impl Display for ToolUsagePrompt<'_> {
             }
 
             writeln!(f, "</{}>", tool.name.as_str())?;
-            writeln!(f, "</tool_call>")?;
+            writeln!(f, "</forge_tool_call>")?;
         }
 
         Ok(())

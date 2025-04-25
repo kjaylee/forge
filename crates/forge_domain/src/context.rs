@@ -176,7 +176,7 @@ impl Context {
                     if let Some(tool_calls) = &message.tool_calls {
                         for call in tool_calls {
                             lines.push_str(&format!(
-                                "<tool_call name=\"{}\"><![CDATA[{}]]></tool_call>",
+                                "<forge_tool_call name=\"{}\"><![CDATA[{}]]></forge_tool_call>",
                                 call.name.as_str(),
                                 serde_json::to_string(&call.arguments).unwrap()
                             ));

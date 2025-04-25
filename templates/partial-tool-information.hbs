@@ -8,30 +8,30 @@ Tool Use Formatting Rules:
 
 1. Tool use is formatted using XML-style tags ONLY.
 2. You can only make one tool call per message.
-3. Each tool call must be wrapped in `<tool_call>` tags.
+3. Each tool call must be wrapped in `<forge_tool_call>` tags.
 4. The actual tool name (e.g., tool_forge_fs_read) must be used as the enclosing tag.
 5. Each parameter must be enclosed within its own set of tags.
 Here's a correct example structure:
 
 ```
 
-<tool_call>
+<forge_tool_call>
 <tool_forge_fs_read>
 <path>/path/to/file</path>
 <recursive>true</recursive>
 </tool_forge_fs_read>
-</tool_call>
+</forge_tool_call>
 ```
 
 Example of correct multi-step tool usage:
 
 ```
 First message to read file_a:
-<tool_call>
+<forge_tool_call>
 <tool_forge_fs_read>
 <path>/path/to/file_a</path>
 </tool_forge_fs_read>
-</tool_call>
+</forge_tool_call>
 
 User response for the first message:
 <tool_result>
@@ -42,12 +42,12 @@ User response for the first message:
 
 
 Second request to read file_b:
-<tool_call>
+<forge_tool_call>
 <tool_forge_fs_create>
 <path>/path/to/file_b</path>
 <content>New content</content>
 </tool_forge_fs_create>
-</tool_call>
+</forge_tool_call>
 
 User response for the second message:
 <tool_result>

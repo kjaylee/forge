@@ -156,26 +156,26 @@ mod tests {
 
     #[test]
     fn test_extract_tag_names_with_prefix() {
-        let fixture = "<tool>Something</tool> <tool_call>Content</tool_call> <other>More</other>";
-        let actual = remove_tag_with_prefix(fixture, "tool");
+        let fixture = "<tool>Something</tool> <forge_tool_call>Content</forge_tool_call> <other>More</other>";
+        let actual = remove_tag_with_prefix(fixture, "forge");
         // Check that both tool tags have been removed, leaving only <other> tag
         assert!(actual.contains("<other>More</other>"));
         assert!(!actual.contains("<tool>"));
-        assert!(!actual.contains("<tool_call>"));
+        assert!(!actual.contains("<forge_tool_call>"));
     }
 
     #[test]
     fn test_extract_tag_names_with_prefix_no_matches() {
         let fixture = "<other>Some content</other> <another>Other content</another>";
-        let actual = remove_tag_with_prefix(fixture, "tool");
+        let actual = remove_tag_with_prefix(fixture, "forge");
         let expected = "<other>Some content</other> <another>Other content</another>";
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_extract_tag_names_with_prefix_nested() {
-        let fixture = "<parent><tool>Inner</tool><tool_call>Nested</tool_call></parent>";
-        let actual = remove_tag_with_prefix(fixture, "tool");
+        let fixture = "<parent><tool>Inner</tool><forge_tool_call>Nested</forge_tool_call></parent>";
+        let actual = remove_tag_with_prefix(fixture, "forge");
         let expected = "<parent></parent>";
         assert_eq!(actual, expected);
     }
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_extract_tag_names_with_prefix_duplicates() {
         let fixture = "<tool>First</tool><other>Middle</other><tool>Second</tool>";
-        let actual = remove_tag_with_prefix(fixture, "tool");
+        let actual = remove_tag_with_prefix(fixture, "forge");
         let expected = "<other>Middle</other>";
         assert_eq!(actual, expected);
     }
@@ -191,8 +191,8 @@ mod tests {
     #[test]
     fn test_extract_tag_names_with_prefix_attributes() {
         let fixture =
-            "<tool id=\"1\">Content</tool> <tool_call class=\"important\">More</tool_call>";
-        let actual = remove_tag_with_prefix(fixture, "tool");
+            "<tool id=\"1\">Content</tool> <tool_call class=\"important\">More</forge_tool_call>";
+        let actual = remove_tag_with_prefix(fixture, "forge");
         // Check that both tool tags have been removed
         assert!(!actual.contains("<tool"));
         assert!(!actual.contains("<tool_call"));
