@@ -189,7 +189,7 @@ impl Context {
                     lines.push_str("<message role=\"tool\">");
 
                     lines.push_str(&format!(
-                        "<tool_result name=\"{}\"><![CDATA[{}]]></tool_result>",
+                        "<forge_tool_result name=\"{}\"><![CDATA[{}]]></forge_tool_result>",
                         result.name.as_str(),
                         serde_json::to_string(&result.content).unwrap()
                     ));

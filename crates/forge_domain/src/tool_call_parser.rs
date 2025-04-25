@@ -49,7 +49,7 @@ fn parse_tool_call(input: &str) -> IResult<&str, ToolCallParsed> {
     let (input, _) = tag("<forge_tool_call>").parse(input)?;
     let (input, _) = multispace0(input)?; // Handle whitespace after <forge_tool_call>
 
-    // Match the tool name tags: <tool_name>
+    // Match the tool name tags: <forge_tool_name>
     let (input, _) = tag("<").parse(input)?;
     let (input, name) = parse_identifier(input)?;
     let (input, _) = tag(">").parse(input)?;
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn test_actual_llm_respone() {
         // Test with real LLM response including newlines and indentation
-        let str = r#"To find the cat hidden in the codebase, I will use the `tool_forge_fs_search` to grep for the string "cat" in all markdown files except those in the `docs` directory.
+        let str = r#"To find the cat hidden in the codebase, I will use the `forge_tool_fs_search` to grep for the string "cat" in all markdown files except those in the `docs` directory.
                 <analysis>
                 Files Read: */*.md
                 Git Status: Not applicable, as we are not dealing with version control changes.
@@ -240,7 +240,7 @@ mod tests {
                 </analysis>
 
                 <forge_tool_call>
-                <tool_forge_fs_search>
+                <forge_tool_fs_search>
                 <file_pattern>**/*.md</file_pattern>
                 <path>/Users/amit/code-forge</path>
                 <regex>cat</regex>
@@ -250,7 +250,7 @@ mod tests {
         let action = parse(str).unwrap();
 
         let expected = vec![ToolCallFull {
-            name: ToolName::new("tool_forge_fs_search"),
+            name: ToolName::new("forge_tool_fs_search"),
             call_id: None,
             arguments: serde_json::from_str(
                 r#"{"file_pattern":"**/*.md","path":"/Users/amit/code-forge","regex":"cat"}"#,
@@ -404,11 +404,11 @@ mod tests {
 
     #[test]
     fn test_parse_new_tool_call_format() {
-        let input = r#"<forge_tool_call><tool_forge_fs_search><path>/test/path</path><regex>test</regex></tool_forge_fs_search></forge_tool_call>"#;
+        let input = r#"<forge_tool_call><forge_tool_fs_search><path>/test/path</path><regex>test</regex></forge_tool_fs_search></forge_tool_call>"#;
 
         let action = parse(input).unwrap();
         let expected = vec![ToolCallFull {
-            name: ToolName::new("tool_forge_fs_search"),
+            name: ToolName::new("forge_tool_fs_search"),
             call_id: None,
             arguments: serde_json::from_str(r#"{"path":"/test/path","regex":"test"}"#).unwrap(),
         }];

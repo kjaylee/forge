@@ -156,11 +156,11 @@ mod tests {
 
     #[test]
     fn test_extract_tag_names_with_prefix() {
-        let fixture = "<tool>Something</tool> <forge_tool_call>Content</forge_tool_call> <other>More</other>";
+        let fixture = "<forge_tool>Something</forge_tool> <forge_tool_call>Content</forge_tool_call> <other>More</other>";
         let actual = remove_tag_with_prefix(fixture, "forge");
         // Check that both tool tags have been removed, leaving only <other> tag
         assert!(actual.contains("<other>More</other>"));
-        assert!(!actual.contains("<tool>"));
+        assert!(!actual.contains("<forge_tool>"));
         assert!(!actual.contains("<forge_tool_call>"));
     }
 
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_extract_tag_names_with_prefix_nested() {
-        let fixture = "<parent><tool>Inner</tool><forge_tool_call>Nested</forge_tool_call></parent>";
+        let fixture = "<parent><forge_tool>Inner</forge_tool><forge_tool_call>Nested</forge_tool_call></parent>";
         let actual = remove_tag_with_prefix(fixture, "forge");
         let expected = "<parent></parent>";
         assert_eq!(actual, expected);
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_extract_tag_names_with_prefix_duplicates() {
-        let fixture = "<tool>First</tool><other>Middle</other><tool>Second</tool>";
+        let fixture = "<forge_tool>First</forge_tool><other>Middle</other><forge_tool>Second</forge_tool>";
         let actual = remove_tag_with_prefix(fixture, "forge");
         let expected = "<other>Middle</other>";
         assert_eq!(actual, expected);
@@ -191,11 +191,11 @@ mod tests {
     #[test]
     fn test_extract_tag_names_with_prefix_attributes() {
         let fixture =
-            "<tool id=\"1\">Content</tool> <tool_call class=\"important\">More</forge_tool_call>";
+            "<forge_tool id=\"1\">Content</forge_tool> <forge_tool_call class=\"important\">More</forge_tool_call>";
         let actual = remove_tag_with_prefix(fixture, "forge");
         // Check that both tool tags have been removed
-        assert!(!actual.contains("<tool"));
-        assert!(!actual.contains("<tool_call"));
+        assert!(!actual.contains("<forge_tool"));
+        assert!(!actual.contains("<forge_tool_call"));
         assert!(!actual.contains("Content"));
         assert!(!actual.contains("More"));
     }

@@ -218,7 +218,7 @@ async fn retrieve_file_paths(dir: &Path) -> anyhow::Result<HashSet<std::path::Pa
 
 impl<F> NamedTool for FSFind<F> {
     fn tool_name() -> ToolName {
-        ToolName::new("tool_forge_fs_search")
+        ToolName::new("forge_tool_fs_search")
     }
 }
 
