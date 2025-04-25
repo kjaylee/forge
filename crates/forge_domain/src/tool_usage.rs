@@ -74,10 +74,8 @@ impl Display for ToolUsagePrompt<'_> {
 
 #[cfg(test)]
 mod tests {
-    
 
     use insta::assert_snapshot;
-    
     use schemars::JsonSchema;
     use serde::Deserialize;
 
