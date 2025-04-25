@@ -14,7 +14,6 @@ Tool Use Formatting Rules:
 Here's a correct example structure:
 
 ```
-
 <forge_tool_call>
 <forge_tool_fs_read>
 <path>/path/to/file</path>
@@ -23,48 +22,12 @@ Here's a correct example structure:
 </forge_tool_call>
 ```
 
-Example of correct multi-step tool usage:
-
-```
-First message to read file_a:
-<forge_tool_call>
-<forge_tool_fs_read>
-<path>/path/to/file_a</path>
-</forge_tool_fs_read>
-</forge_tool_call>
-
-User response for the first message:
-<forge_tool_result>
-<forge_tool_fs_create>  
-<success>[success message]</success>
-</forge_tool_fs_create>
-<forge_tool_result>
-
-
-Second request to read file_b:
-<forge_tool_call>
-<forge_tool_fs_create>
-<path>/path/to/file_b</path>
-<content>New content</content>
-</forge_tool_fs_create>
-</forge_tool_call>
-
-User response for the second message:
-<forge_tool_result>
-<forge_tool_fs_create>  
-<success>[success message]</success>
-</forge_tool_fs_create>
-<forge_tool_result>
-```
-
 Important:
 
 - ALWAYS use XML format, even for multiple operations
 - Do NOT use JSON format (e.g., `tool_name({"param": "value"})`)
 - Do NOT mix formats in the same message
 - If you need to make multiple tool calls, send them in separate messages
-- Tool results will be wrapped in a `tool_result` tag by the user
-- Do not assume a tool call succeeded without a tool_result
 
 Before using a tool, ensure all required parameters are available. 
 If any required parameters are missing, do not attempt to use the tool.
