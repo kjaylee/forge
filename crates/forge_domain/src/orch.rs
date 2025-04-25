@@ -250,7 +250,7 @@ impl<A: Services> Orchestrator<A> {
                 content.truncate(i + right.len());
 
                 // Add a comment for the assistant to signal interruption
-                content.push_str("\n");
+                content.push('\n');
                 content.push_str("<forge_feedback>");
                 content.push_str(
                     "Response interrupted by tool result. Use only one tool at the end of the message",
