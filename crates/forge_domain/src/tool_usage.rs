@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashSet, fmt::Display};
 
 use crate::ToolDefinition;
 
@@ -16,11 +16,15 @@ impl Display for ToolUsagePrompt<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (i, tool) in self.tools.iter().enumerate() {
             writeln!(f, "{}. {}:", i + 1, tool.name.as_str())?;
-            writeln!(f, "{}", &tool.description)?;
-
-            writeln!(f, "\n\nUsage:")?;
-            writeln!(f, "<forge_tool_call>")?;
-            writeln!(f, "<{}>", tool.name.as_str())?;
+            writeln!(f, "Description: {}", &tool.description)?;
+            let required = tool
+                .input_schema
+                .schema
+                .clone()
+                .object
+                .iter()
+                .flat_map(|object| object.required.clone().into_iter())
+                .collect::<HashSet<_>>();
 
             let parameters = tool
                 .input_schema
@@ -28,10 +32,35 @@ impl Display for ToolUsagePrompt<'_> {
                 .object
                 .clone()
                 .into_iter()
-                .flat_map(|object| object.properties.into_keys());
+                .flat_map(|object| dbg!(object.properties).into_iter())
+                .flat_map(|(name, props)| {
+                    props
+                        .into_object()
+                        .metadata
+                        .into_iter()
+                        .map(move |meta| (name.clone(), meta))
+                })
+                .flat_map(|(name, meta)| {
+                    meta.description
+                        .into_iter()
+                        .map(move |desc| (name.clone(), desc))
+                })
+                .collect::<Vec<_>>();
 
-            for parameter in parameters {
-                writeln!(f, "<{parameter}>...</{parameter}>")?;
+            writeln!(f, "Usage:")?;
+            writeln!(f, "<forge_tool_call>")?;
+            writeln!(f, "<{}>", tool.name.as_str())?;
+
+            for (parameter, desc) in parameters {
+                writeln!(f, "<{parameter}>")?;
+
+                if required.contains(&parameter) {
+                    writeln!(f, "<!-- required -->")?;
+                }
+
+                writeln!(f, "<!-- {desc} -->")?;
+
+                writeln!(f, "</{parameter}>")?;
             }
 
             writeln!(f, "</{}>", tool.name.as_str())?;
@@ -44,111 +73,61 @@ impl Display for ToolUsagePrompt<'_> {
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::assert_eq;
-    use schemars::schema::{
-        InstanceType, ObjectValidation, RootSchema, Schema, SchemaObject, SingleOrVec,
+    use insta::assert_snapshot;
+    use schemars::{
+        schema::{InstanceType, ObjectValidation, RootSchema, Schema, SchemaObject, SingleOrVec},
+        JsonSchema,
     };
+    use serde::Deserialize;
     use std::collections::BTreeMap;
 
-    use crate::{ToolDefinition, ToolName};
+    use crate::{
+        ExecutableTool, NamedTool, ToolCallContext, ToolDefinition, ToolDescription, ToolName,
+    };
 
     use super::*;
 
-    /// Create a test tool definition with specified parameters
-    fn create_tool_definition(
-        name: &str,
-        description: &str,
-        parameters: &[&str],
-    ) -> ToolDefinition {
-        // Create a schema object with the specified parameters
-        let mut properties = BTreeMap::new();
-        for param in parameters {
-            let schema_obj = SchemaObject {
-                instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::String))),
-                ..Default::default()
-            };
-            properties.insert(param.to_string(), Schema::Object(schema_obj));
+    #[derive(Default)]
+    pub struct MangoTool;
+
+    #[derive(JsonSchema, Deserialize)]
+    pub struct ToolInput {
+        /// This is parameter 1
+        param1: String,
+
+        /// This is parameter 2
+        param2: Option<String>,
+    }
+
+    impl ToolDescription for MangoTool {
+        fn description(&self) -> String {
+            "This is a mango tool".to_string()
         }
+    }
 
-        let obj_validation = ObjectValidation {
-            properties,
-            ..Default::default()
-        };
+    impl NamedTool for MangoTool {
+        fn tool_name() -> ToolName {
+            ToolName::new("forge_tool_mango")
+        }
+    }
 
-        let schema_obj = SchemaObject {
-            instance_type: Some(SingleOrVec::Single(Box::new(InstanceType::Object))),
-            object: Some(Box::new(obj_validation)),
-            ..Default::default()
-        };
+    #[async_trait::async_trait]
+    impl ExecutableTool for MangoTool {
+        type Input = ToolInput;
 
-        let root_schema = RootSchema {
-            schema: schema_obj,
-            ..Default::default()
-        };
-
-        ToolDefinition {
-            name: ToolName::new(name),
-            description: description.to_string(),
-            input_schema: root_schema,
-            output_schema: None,
+        async fn call(
+            &self,
+            context: ToolCallContext,
+            input: Self::Input,
+        ) -> anyhow::Result<String> {
+            Ok("Completed".to_string())
         }
     }
 
     #[test]
     fn test_tool_usage_prompt_to_string() {
-        // Create test tools with different parameters
-        let tool1 = create_tool_definition(
-            "forge_tool_test",
-            "Test tool description for testing purposes.",
-            &["param1", "param2"],
-        );
-
-        let tool2 = create_tool_definition(
-            "forge_tool_another",
-            "Another tool description with different parameters.",
-            &["path", "content", "option"],
-        );
-
-        // Create a vector of tool definitions
-        let tools = vec![tool1, tool2];
-
-        // Create the ToolUsagePrompt
+        let tools = vec![ToolDefinition::from(&MangoTool::default())];
         let prompt = ToolUsagePrompt::from(&tools);
-
-        // Convert to string
-        let actual = prompt.to_string();
-
-        // Define expected output
-        let expected = r#"1. forge_tool_test:
-Test tool description for testing purposes.
-
-
-Usage:
-<forge_tool_call>
-<forge_tool_test>
-<param1>...</param1>
-<param2>...</param2>
-</forge_tool_test>
-</forge_tool_call>
-
-
-2. forge_tool_another:
-Another tool description with different parameters.
-
-
-Usage:
-<forge_tool_call>
-<forge_tool_another>
-<content>...</content>
-<option>...</option>
-<path>...</path>
-</forge_tool_another>
-</forge_tool_call>
-
-
-"#;
-
-        // Assert the output matches expected
-        assert_eq!(actual, expected);
+        assert_snapshot!(prompt);
     }
 }
