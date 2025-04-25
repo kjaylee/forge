@@ -185,22 +185,51 @@ impl<A: Services> Orchestrator<A> {
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
+        let mut content = String::new();
+        let mut xml_tool_calls = None;
+        let mut tool_interrupted = false;
+
+        // Only interrupt the loop for XML tool calls if tool_supported is false
+        let should_interrupt_for_xml = !agent.tool_supported.unwrap_or_default();
 
         while let Some(message) = response.next().await {
             let message = message?;
             messages.push(message.clone());
-            if let Some(content) = message.content {
+
+            // Process content
+            if let Some(content_part) = message.content.clone() {
+                let content_part = content_part.as_str().to_string();
+
+                content.push_str(&content_part);
+
+                // Send partial content to the client
                 self.send(
                     agent,
-                    ChatResponse::Text {
-                        text: content.as_str().to_string(),
-                        is_complete: false,
-                        is_md: false,
-                    },
+                    ChatResponse::Text { text: content_part, is_complete: false, is_md: false },
                 )
                 .await?;
+
+                // Check for XML tool calls in the content, but only interrupt if tool_supported
+                // is false
+                if should_interrupt_for_xml {
+                    // Use match instead of ? to avoid propagating errors
+                    if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
+                        .ok()
+                        .into_iter()
+                        .flatten()
+                        .next()
+                    {
+                        xml_tool_calls = Some(tool_call);
+                        tool_interrupted = true;
+
+                        // Break the loop since we found an XML tool call and tool_supported is
+                        // false
+                        break;
+                    }
+                }
             }
 
+            // Process usage information
             if let Some(usage) = message.usage {
                 request_usage = Some(usage.clone());
                 debug!(usage = ?usage, "Usage");
@@ -208,13 +237,7 @@ impl<A: Services> Orchestrator<A> {
             }
         }
 
-        let content = messages
-            .iter()
-            .flat_map(|m| m.content.iter())
-            .map(|content| content.as_str())
-            .collect::<Vec<_>>()
-            .join("");
-
+        // Send the complete message
         self.send(
             agent,
             ChatResponse::Text {
@@ -226,6 +249,20 @@ impl<A: Services> Orchestrator<A> {
             },
         )
         .await?;
+
+        // Get the full content from all messages
+        let mut content = messages
+            .iter()
+            .flat_map(|m| m.content.iter())
+            .map(|content| content.as_str())
+            .collect::<Vec<_>>()
+            .join("");
+
+        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>") {
+            content.push_str(
+             "\n[Response interrupted by tool result. Use only one tool at the end of the message]",
+          );
+        }
 
         // Extract all tool calls in a fully declarative way with combined sources
         // Start with complete tool calls (for non-streaming mode)
@@ -245,9 +282,6 @@ impl<A: Services> Orchestrator<A> {
         // Process partial tool calls
         let partial_tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)
             .with_context(|| format!("Failed to parse tool call: {tool_call_parts:?}"))?;
-
-        // Process XML tool calls
-        let xml_tool_calls = ToolCallFull::try_from_xml(&content)?;
 
         // Combine all sources of tool calls
         let tool_calls: Vec<ToolCallFull> = initial_tool_calls
@@ -494,4 +528,3 @@ fn is_parse_error(error: &anyhow::Error) -> bool {
 
     check
 }
-
