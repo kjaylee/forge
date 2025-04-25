@@ -28,14 +28,14 @@ impl Display for ToolUsagePrompt<'_> {
                 .object
                 .clone()
                 .into_iter()
-                .flat_map(|object| object.properties.into_iter().map(|(name, _)| name));
+                .flat_map(|object| object.properties.into_keys());
 
             for parameter in parameters {
                 writeln!(f, "<{parameter}>...</{parameter}>")?;
             }
 
             writeln!(f, "</{}>", tool.name.as_str())?;
-            writeln!(f, "{}", "</tool_call>")?;
+            writeln!(f, "</tool_call>")?;
         }
 
         Ok(())
