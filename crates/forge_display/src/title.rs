@@ -61,7 +61,7 @@ impl TitleFormat {
             use chrono::Local;
 
             buf.push_str(
-                format!("[{}] ", Local::now().format("%H:%M:%S.%3f").to_string())
+                format!("[{}] ", Local::now().format("%H:%M:%S.%3f"))
                     .dimmed()
                     .to_string()
                     .as_str(),
