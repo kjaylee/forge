@@ -33,7 +33,7 @@ impl Display for ToolUsagePrompt<'_> {
                 .object
                 .clone()
                 .into_iter()
-                .flat_map(|object| dbg!(object.properties).into_iter())
+                .flat_map(|object| object.properties.into_iter())
                 .flat_map(|(name, props)| {
                     props
                         .into_object()
