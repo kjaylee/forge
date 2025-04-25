@@ -258,10 +258,14 @@ impl<A: Services> Orchestrator<A> {
             .collect::<Vec<_>>()
             .join("");
 
-        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>") {
-            content.push_str(
-             "\n[Response interrupted by tool result. Use only one tool at the end of the message]",
-          );
+        if tool_interrupted {
+            if let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
+                content.truncate(i + right.len());
+
+                content.push_str(
+                    "\n[Response interrupted by tool result. Use only one tool at the end of the message]",
+                 );
+            }
         }
 
         // Extract all tool calls in a fully declarative way with combined sources
