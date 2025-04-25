@@ -34,6 +34,11 @@ const THINKING_TAGS: &[&str] = &[
     "creation",
     "review",
     "tool_call",
+    "implementation_steps",
+    "quality_assurance",
+    "solution_strategy",
+    "task_analysis",
+    "forge_planning",
 ];
 
 #[derive(Debug, Clone)]
