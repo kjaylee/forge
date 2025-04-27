@@ -43,7 +43,7 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
                 .cwd
                 .join(path)
         }
-        let read = self.infra.file_read_service().read(path.as_path()).await?;
+        let file_content = self.infra.file_read_service().read(path.as_path()).await?;
         let path = path.to_string_lossy().to_string();
         if let Some(img_extension) = extension.and_then(|ext| match ext.as_str() {
             "jpeg" | "jpg" => Some("jpeg"),
@@ -51,12 +51,15 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
             "webp" => Some("webp"),
             _ => None,
         }) {
-            let base_64_encoded = base64::engine::general_purpose::STANDARD.encode(read);
+            // For image files, we need to convert the string back to bytes for base64
+            // encoding
+            let bytes = file_content.as_bytes();
+            let base_64_encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
             let content = format!("data:image/{img_extension};base64,{base_64_encoded}");
             Ok(Attachment { content, path, content_type: ContentType::Image })
         } else {
-            let content = String::from_utf8(read.to_vec())?;
-            Ok(Attachment { content, path, content_type: ContentType::Text })
+            // For text files, we can use the content directly
+            Ok(Attachment { content: file_content, path, content_type: ContentType::Text })
         }
     }
 }
@@ -141,10 +144,14 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl FsReadService for MockFileService {
-        async fn read(&self, path: &Path) -> anyhow::Result<Bytes> {
+        async fn read(&self, path: &Path) -> anyhow::Result<String> {
             let files = self.files.lock().unwrap();
             match files.iter().find(|v| v.0 == path) {
-                Some((_, content)) => Ok(content.clone()),
+                Some((_, content)) => {
+                    let bytes = content.clone();
+                    String::from_utf8(bytes.to_vec())
+                        .map_err(|e| anyhow::anyhow!("Invalid UTF-8 in file: {:?}: {}", path, e))
+                }
                 None => Err(anyhow::anyhow!("File not found: {:?}", path)),
             }
         }
