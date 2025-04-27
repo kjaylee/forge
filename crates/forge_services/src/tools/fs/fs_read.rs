@@ -61,20 +61,12 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         assert_absolute_path(path)?;
 
         // Use the infrastructure to read the file
-        let bytes = self
+        let content = self
             .0
             .file_read_service()
             .read(path)
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
-
-        // Convert bytes to string
-        let content = String::from_utf8(bytes.to_vec()).with_context(|| {
-            format!(
-                "Failed to convert file content to UTF-8 from {}",
-                input.path
-            )
-        })?;
 
         // Display a message about the file being read
         let title = "Read";

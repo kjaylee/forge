@@ -14,7 +14,8 @@ use forge_snaps::Snapshot;
 #[async_trait::async_trait]
 pub trait FsReadService: Send + Sync {
     /// Reads the content of a file at the specified path.
-    async fn read(&self, path: &Path) -> anyhow::Result<Bytes>;
+    /// Returns the file content as a UTF-8 string.
+    async fn read(&self, path: &Path) -> anyhow::Result<String>;
 }
 
 #[async_trait::async_trait]
