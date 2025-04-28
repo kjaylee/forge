@@ -15,7 +15,6 @@ mod file_size;
 mod meta;
 mod read;
 mod read_range;
-mod utf8_boundary;
 mod write;
 
 pub use crate::error::ForgeFileError;

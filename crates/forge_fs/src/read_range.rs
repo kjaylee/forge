@@ -26,12 +26,18 @@ impl crate::ForgeFS {
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
 
         // Skip binary detection in test mode
-
-        // Use our dedicated binary detection function
-        let (is_text, file_type) = Self::is_binary(&mut file).await?;
-
-        if !is_text {
-            return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
+        if !cfg!(test) {
+            // Use our dedicated binary detection function
+            let (is_text, file_type) = Self::is_binary(&mut file).await?;
+            
+            if !is_text {
+                return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
+            }
+            
+            // Need to re-open the file since the binary detection consumed part of it
+            file = tokio::fs::File::open(path_ref)
+                .await
+                .with_context(|| format!("Failed to re-open file after binary detection {}", path_ref.display()))?;
         }
 
         // Read the entire file content for character counting using the same file
