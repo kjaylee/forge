@@ -95,8 +95,8 @@ pub mod tests {
         async fn range_read(
             &self,
             _path: &Path,
-            _start_byte: Option<u64>,
-            _end_byte: Option<u64>,
+            _start_char: u64,
+            _end_char: u64,
         ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
             unimplemented!()
         }

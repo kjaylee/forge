@@ -21,8 +21,9 @@ pub trait FsReadService: Send + Sync {
     /// Returns the file content within the range as a UTF-8 string along with
     /// metadata.
     ///
-    /// - If start_char is None, reading starts from the beginning of the file.
-    /// - If end_char is None, reading continues until the end of the file.
+    /// - start_char specifies the starting character position (0-based,
+    ///   inclusive).
+    /// - end_char specifies the ending character position (inclusive).
     /// - Both start_char and end_char are inclusive bounds.
     /// - Binary files are automatically detected and rejected.
     ///
@@ -34,8 +35,8 @@ pub trait FsReadService: Send + Sync {
     async fn range_read(
         &self,
         path: &Path,
-        start_char: Option<u64>,
-        end_char: Option<u64>,
+        start_char: u64,
+        end_char: u64,
     ) -> anyhow::Result<(String, forge_fs::FileInfo)>;
 }
 

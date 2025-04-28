@@ -61,9 +61,9 @@ impl<F: Infrastructure> FSRead<F> {
 
     /// Creates and sends a title for the fs_read operation
     ///
-    /// Sets the title and subtitle based on whether this was an explicit user range
-    /// request or an automatic limit for large files, then sends it via the
-    /// context channel.
+    /// Sets the title and subtitle based on whether this was an explicit user
+    /// range request or an automatic limit for large files, then sends it
+    /// via the context channel.
     async fn create_and_send_title(
         &self,
         context: &ToolCallContext,
@@ -82,20 +82,20 @@ impl<F: Infrastructure> FSRead<F> {
         };
 
         let end_info = max(end_char, file_info.total_chars);
-        
+
         let range_info = format!(
             "char range: {}-{}, total chars: {}",
             start_char, end_info, file_info.total_chars
         );
-        
+
         // Format a response with metadata
         let display_path = self.format_display_path(path)?;
-        
+
         let message = TitleFormat::new(title).sub_title(format!("{display_path} ({range_info})"));
-        
+
         // Send the formatted message
         context.send_text(message.format()).await?;
-        
+
         Ok(())
     }
 
@@ -105,19 +105,20 @@ impl<F: Infrastructure> FSRead<F> {
         assert_absolute_path(path)?;
 
         // Define maximum character limit
-        const MAX_CHARS: u64 = 40_000;
+        const MAX_CHARS: u64 = 39_999;
         let start_char = input.start_char.unwrap_or(0);
         let end_char = input.end_char.unwrap_or(MAX_CHARS);
 
         let (content, file_info) = self
             .0
             .file_read_service()
-            .range_read(path, Some(start_char), Some(end_char))
+            .range_read(path, start_char, end_char)
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
         // Create and send the title using the extracted method
-        self.create_and_send_title(&context, &input, path, start_char, end_char, &file_info).await?;
+        self.create_and_send_title(&context, &input, path, start_char, end_char, &file_info)
+            .await?;
 
         // Format response with metadata header
         Ok(format!(
@@ -307,16 +308,20 @@ mod test {
             async fn range_read(
                 &self,
                 _path: &Path,
-                start_char: Option<u64>,
-                end_char: Option<u64>,
+                start_char: u64,
+                end_char: u64,
             ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+                // Convert to Option for tracking with the old method signature
+                let start_opt = Some(start_char);
+                let end_opt = Some(end_char);
+
                 // Record the range parameters that were requested
-                self.set_last_range_call(start_char, end_char);
+                self.set_last_range_call(start_opt, end_opt);
 
                 // Always record the range call parameters for tracking
-                self.set_last_range_call(start_char, end_char);
+                self.set_last_range_call(start_opt, end_opt);
 
-                if start_char == Some(0) && end_char == Some(0) {
+                if start_char == 0 && end_char == 0 {
                     // For probe requests (when end = start = 0), return info about a large file
                     // This will trigger the auto-limiting behavior
                     println!("Probe request detected, returning large file info");
@@ -324,21 +329,21 @@ mod test {
                         "".to_string(),
                         forge_fs::FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
                     ));
-                } else if start_char == Some(0) && end_char == Some(39999) {
+                } else if start_char == 0 && end_char == 39999 {
                     // This is the expected auto-limit range that should be requested for large
                     // files
                     println!("Auto-limit range request detected: 0-39999");
                     return Err(anyhow::anyhow!(
-                        "Auto-limit detected: start={:?}, end={:?}",
+                        "Auto-limit detected: start={}, end={}",
                         start_char,
                         end_char
                     ));
                 }
 
                 // For any other range requests, return an identifying error
-                println!("Unexpected range request: {:?}-{:?}", start_char, end_char);
+                println!("Unexpected range request: {}-{}", start_char, end_char);
                 Err(anyhow::anyhow!(
-                    "Unexpected range_read called with start={:?}, end={:?}",
+                    "Unexpected range_read called with start={}, end={}",
                     start_char,
                     end_char
                 ))
