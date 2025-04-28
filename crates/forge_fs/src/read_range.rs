@@ -29,7 +29,7 @@ impl crate::ForgeFS {
         if !cfg!(test) {
             // Check if the file is binary
             let (is_text, file_type) = Self::is_binary(&mut file).await?;
-            
+
             if !is_text {
                 return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
             }
@@ -43,7 +43,7 @@ impl crate::ForgeFS {
         let total_chars = content.chars().count() as u64;
 
         // Validate and normalize the character range
-        let (start_pos, end_pos) = 
+        let (start_pos, end_pos) =
             Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
 
         // If the range is empty, return an empty result
