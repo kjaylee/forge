@@ -33,9 +33,9 @@ pub struct FSReadInput {
 /// Read-only with no file modifications.
 ///
 /// Files larger than 40,000 characters will automatically be read using range
-/// functionality, returning only the first 40,000 characters by default. For large
-/// files, you can specify custom ranges using start_char and end_char parameters.
-/// Binary files are automatically detected and rejected.
+/// functionality, returning only the first 40,000 characters by default. For
+/// large files, you can specify custom ranges using start_char and end_char
+/// parameters. Binary files are automatically detected and rejected.
 #[derive(ToolDescription)]
 pub struct FSRead<F>(Arc<F>);
 
@@ -57,7 +57,7 @@ impl<F: Infrastructure> FSRead<F> {
         // Use the shared utility function
         format_display_path(path, cwd)
     }
-    
+
     /// Helper function to read a file with range constraints
     async fn read_file_with_range(
         &self,
@@ -69,15 +69,15 @@ impl<F: Infrastructure> FSRead<F> {
         is_user_requested: bool,
     ) -> anyhow::Result<String> {
         let fs_service = self.0.file_read_service();
-        
+
         let (content, file_info) = fs_service
             .range_read(path, start_char, end_char)
             .await
-            .with_context(|| format!("Failed to read file content from {}", path_str))?;
+            .with_context(|| format!("Failed to read file content from {path_str}"))?;
 
         // Format a response with metadata
         let display_path = self.format_display_path(path)?;
-        
+
         // Set the title based on whether this was an explicit user range request
         // or an automatic limit for large files
         let title = if is_user_requested {
@@ -108,26 +108,23 @@ impl<F: Infrastructure> FSRead<F> {
         // Format response with metadata header
         Ok(format!(
             "---\n\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
-            file_info.start_char,
-            file_info.end_char,
-            file_info.total_chars,
-            content
+            file_info.start_char, file_info.end_char, file_info.total_chars, content
         ))
     }
 
     /// Helper function to read a complete file
     async fn read_full_file(
-        &self, 
+        &self,
         context: &ToolCallContext,
         path: &Path,
         path_str: &str,
     ) -> anyhow::Result<String> {
         let fs_service = self.0.file_read_service();
-        
+
         let content = fs_service
             .read(path)
             .await
-            .with_context(|| format!("Failed to read file content from {}", path_str))?;
+            .with_context(|| format!("Failed to read file content from {path_str}"))?;
 
         // Display a message about the file being read
         let title = "Read";
@@ -158,26 +155,43 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
 
         // Check if we need to use range-based reading
         let need_range_read = input.start_char.is_some() || input.end_char.is_some();
-        
+
         // If explicit range is specified, use it directly
         if need_range_read {
             // Use range-read with the provided values
-            return self.read_file_with_range(&context, path, &input.path, input.start_char, input.end_char, true).await;
+            return self
+                .read_file_with_range(
+                    &context,
+                    path,
+                    &input.path,
+                    input.start_char,
+                    input.end_char,
+                    true,
+                )
+                .await;
         }
-        
+
         // No range is specified, so we need to check if the file is large
         // For this, we'll do a small range read at position 0 to examine the file info
         let fs_service = self.0.file_read_service();
-        
-        // Try to read just metadata by requesting a very small amount (just the first character)
-        // This gets us the file info without reading the entire file
+
+        // Try to read just metadata by requesting a very small amount (just the first
+        // character) This gets us the file info without reading the entire file
         let result = fs_service.range_read(path, Some(0), Some(0)).await;
-        
+
         match result {
             Ok((_, file_info)) => {
                 if file_info.total_chars > MAX_CHARS {
                     // File is too large, use range-limited read
-                    self.read_file_with_range(&context, path, &input.path, Some(0), Some(MAX_CHARS - 1), false).await
+                    self.read_file_with_range(
+                        &context,
+                        path,
+                        &input.path,
+                        Some(0),
+                        Some(MAX_CHARS - 1),
+                        false,
+                    )
+                    .await
                 } else {
                     // File is small enough to read completely
                     self.read_full_file(&context, path, &input.path).await
@@ -365,21 +379,22 @@ mod test {
 
                 // Always record the range call parameters for tracking
                 self.set_last_range_call(start_char, end_char);
-                
+
                 if start_char == Some(0) && end_char == Some(0) {
                     // For probe requests (when end = start = 0), return info about a large file
                     // This will trigger the auto-limiting behavior
                     println!("Probe request detected, returning large file info");
                     return Ok((
-                        "".to_string(), 
+                        "".to_string(),
                         forge_fs::FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
                     ));
                 } else if start_char == Some(0) && end_char == Some(39999) {
-                    // This is the expected auto-limit range that should be requested for large files
+                    // This is the expected auto-limit range that should be requested for large
+                    // files
                     println!("Auto-limit range request detected: 0-39999");
                     return Err(anyhow::anyhow!(
                         "Auto-limit detected: start={:?}, end={:?}",
-                        start_char, 
+                        start_char,
                         end_char
                     ));
                 }
@@ -388,7 +403,7 @@ mod test {
                 println!("Unexpected range request: {:?}-{:?}", start_char, end_char);
                 Err(anyhow::anyhow!(
                     "Unexpected range_read called with start={:?}, end={:?}",
-                    start_char, 
+                    start_char,
                     end_char
                 ))
             }
@@ -456,19 +471,20 @@ mod test {
             )
             .await;
 
-        // Since our mock returns an error for the actual file read, we expect the call to fail
+        // Since our mock returns an error for the actual file read, we expect the call
+        // to fail
         assert!(result.is_err());
 
         // Print the error message for debugging purposes
         let err_msg = result.unwrap_err().to_string();
-        println!("Error message: {}", err_msg);
-        
+        println!("Error message: {err_msg}");
+
         // Verify that our auto-limit was applied (should be 0-39999)
         let range_call = tracking_infra.get_last_range_call();
         assert!(range_call.is_some(), "Range read should have been called");
 
         if let Some((start, end)) = range_call {
-            println!("Tracked range call: {:?} to {:?}", start, end);
+            println!("Tracked range call: {start:?} to {end:?}");
             assert_eq!(start, Some(0), "Auto-limit should start at character 0");
             assert_eq!(
                 end,
