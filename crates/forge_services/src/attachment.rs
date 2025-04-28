@@ -44,7 +44,11 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
                 .join(path)
         }
         // Use range_read to get both content and file info
-        let (file_content, _) = self.infra.file_read_service().range_read(path.as_path(), 0, u64::MAX).await?;
+        let (file_content, _) = self
+            .infra
+            .file_read_service()
+            .range_read(path.as_path(), 0, u64::MAX)
+            .await?;
         let path = path.to_string_lossy().to_string();
         if let Some(img_extension) = extension.and_then(|ext| match ext.as_str() {
             "jpeg" | "jpg" => Some("jpeg"),
@@ -166,9 +170,12 @@ pub mod tests {
             // For tests, we'll just read the entire file and return it
             let content = self.read(path).await?;
             let total_chars = content.len() as u64;
-            
+
             // Return the entire content for simplicity in tests
-            Ok((content, forge_fs::FileInfo::new(0, total_chars, total_chars)))
+            Ok((
+                content,
+                forge_fs::FileInfo::new(0, total_chars, total_chars),
+            ))
         }
     }
 

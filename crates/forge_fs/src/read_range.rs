@@ -19,33 +19,29 @@ impl crate::ForgeFS {
         end_char: u64,
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
-        
+
         // Open the file once to get a handle
-        let file = tokio::fs::File::open(path_ref)
+        let mut file = tokio::fs::File::open(path_ref)
             .await
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
-            
+
         // Skip binary detection in test mode
-        if !cfg!(test) {
-            // Create a clone of the file handle for binary detection
-            let mut file_clone = file.try_clone().await
-                .with_context(|| format!("Failed to clone file handle for {}", path_ref.display()))?;
-            
-            // Use our dedicated binary detection function
-            let (is_text, file_type) = Self::is_binary_file_with_handle(&mut file_clone, path_ref).await?;
-            
-            if !is_text {
-                return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
-            }
+
+        // Use our dedicated binary detection function
+        let (is_text, file_type) = Self::is_binary(&mut file).await?;
+
+        if !is_text {
+            return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
         }
-        
-        // Read the entire file content for character counting using the same file handle
+
+        // Read the entire file content for character counting using the same file
+        // handle
         let mut content = String::new();
         let mut file_reader = tokio::io::BufReader::new(file);
         tokio::io::AsyncReadExt::read_to_string(&mut file_reader, &mut content)
             .await
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
-            
+
         let total_chars = content.chars().count() as u64;
 
         // Validate and normalize the character range
