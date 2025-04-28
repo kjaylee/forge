@@ -37,9 +37,10 @@ impl crate::ForgeFS {
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
 
         let total_chars = content.chars().count() as u64;
-        
+
         // Validate and normalize the character range
-        let (start_pos, end_pos) = Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
+        let (start_pos, end_pos) =
+            Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
         let info = FileInfo::new(start_pos, end_pos, total_chars);
 
         // Return empty result for empty ranges
@@ -49,7 +50,7 @@ impl crate::ForgeFS {
 
         // Extract the requested character range
         let result_content = if start_pos == 0 && end_pos == total_chars {
-            content  // Return the full content if requesting the entire file
+            content // Return the full content if requesting the entire file
         } else {
             content
                 .chars()
@@ -61,7 +62,8 @@ impl crate::ForgeFS {
         Ok((result_content, info))
     }
 
-    // Validate the requested range and ensure it falls within the file's character count
+    // Validate the requested range and ensure it falls within the file's character
+    // count
     fn validate_char_range_bounds(
         total_chars: u64,
         start_pos: u64,
@@ -69,11 +71,7 @@ impl crate::ForgeFS {
     ) -> Result<(u64, u64)> {
         // Check if start is beyond file size
         if start_pos > total_chars {
-            return Err(Error::StartBeyondFileSize {
-                start: start_pos,
-                total: total_chars,
-            }
-            .into());
+            return Err(Error::StartBeyondFileSize { start: start_pos, total: total_chars }.into());
         }
 
         // Cap end position at file size
@@ -81,11 +79,7 @@ impl crate::ForgeFS {
 
         // Check if start is greater than end
         if start_pos > end_pos {
-            return Err(Error::StartGreaterThanEnd {
-                start: start_pos,
-                end: end_pos,
-            }
-            .into());
+            return Err(Error::StartGreaterThanEnd { start: start_pos, end: end_pos }.into());
         }
 
         Ok((start_pos, end_pos))
