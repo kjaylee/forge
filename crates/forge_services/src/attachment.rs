@@ -155,6 +155,37 @@ pub mod tests {
                 None => Err(anyhow::anyhow!("File not found: {:?}", path)),
             }
         }
+        
+        async fn range_read(
+            &self,
+            path: &Path,
+            start_byte: Option<u64>,
+            end_byte: Option<u64>,
+        ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+            let content = self.read(path).await?;
+            let total_size = content.len() as u64;
+            
+            // Default to reading the whole file if no range is specified
+            let start = start_byte.unwrap_or(0);
+            if start > total_size {
+                return Err(anyhow::anyhow!("Start position exceeds file size"));
+            }
+            
+            let end = end_byte.unwrap_or(total_size).min(total_size);
+            if start > end {
+                return Err(anyhow::anyhow!("Invalid range: start > end"));
+            }
+            
+            // Extract the requested range
+            let range_content = if start < total_size {
+                // Using chars() to respect UTF-8 boundaries
+                content.chars().skip(start as usize).take((end - start) as usize).collect()
+            } else {
+                String::new()
+            };
+            
+            Ok((range_content, forge_fs::FileInfo::new(start, end, total_size)))
+        }
     }
 
     #[derive(Debug, Clone)]
