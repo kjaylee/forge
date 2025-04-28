@@ -20,38 +20,30 @@ impl crate::ForgeFS {
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
 
-        // Open the file once to get a handle
+        // Open the file
         let mut file = tokio::fs::File::open(path_ref)
             .await
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
 
         // Skip binary detection in test mode
         if !cfg!(test) {
-            // Use our dedicated binary detection function
+            // Check if the file is binary
             let (is_text, file_type) = Self::is_binary(&mut file).await?;
             
             if !is_text {
                 return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
             }
-            
-            // Need to re-open the file since the binary detection consumed part of it
-            file = tokio::fs::File::open(path_ref)
-                .await
-                .with_context(|| format!("Failed to re-open file after binary detection {}", path_ref.display()))?;
         }
 
-        // Read the entire file content for character counting using the same file
-        // handle
-        let mut content = String::new();
-        let mut file_reader = tokio::io::BufReader::new(file);
-        tokio::io::AsyncReadExt::read_to_string(&mut file_reader, &mut content)
+        // Read the file content
+        let content = tokio::fs::read_to_string(path_ref)
             .await
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
 
         let total_chars = content.chars().count() as u64;
 
         // Validate and normalize the character range
-        let (start_pos, end_pos) =
+        let (start_pos, end_pos) = 
             Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
 
         // If the range is empty, return an empty result
@@ -60,32 +52,17 @@ impl crate::ForgeFS {
             return Ok((String::new(), info));
         }
 
-        // Extract the content based on character positions
+        // Extract the requested character range
         let result_content = if start_pos == 0 && end_pos == total_chars {
-            // If requesting the entire file, just return the full content
+            // If requesting the entire file, return the full content
             content
         } else {
-            // For a subset of characters, find the corresponding substring
-            let mut char_positions = Vec::new();
-            // Create a mapping of character indices
-            for (idx, _) in content.char_indices() {
-                char_positions.push(idx);
-            }
-
-            // Get the start and end character indices in the string
-            let start_idx = if start_pos < char_positions.len() as u64 {
-                char_positions[start_pos as usize]
-            } else {
-                content.len() // Default to end if out of bounds
-            };
-
-            let end_idx = if end_pos < char_positions.len() as u64 {
-                char_positions[end_pos as usize]
-            } else {
-                content.len() // Default to end if out of bounds
-            };
-
-            content[start_idx..end_idx].to_string()
+            // Extract the character range using iterator slicing
+            content
+                .chars()
+                .skip(start_pos as usize)
+                .take((end_pos - start_pos) as usize)
+                .collect()
         };
 
         // Create file info and return results
@@ -93,8 +70,6 @@ impl crate::ForgeFS {
 
         Ok((result_content, info))
     }
-
-    // Helper functions for binary detection are now inlined in read_range_utf8
 
     // Helper: Validate the requested range and ensure it falls within the file's
     // character count
