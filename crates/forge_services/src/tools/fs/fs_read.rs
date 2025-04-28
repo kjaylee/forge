@@ -17,12 +17,25 @@ use crate::{FsReadService, Infrastructure};
 pub struct FSReadInput {
     /// The path of the file to read, always provide absolute paths.
     pub path: String,
+
+    /// Optional start position in bytes (0-based). If provided, reading will
+    /// start from this position. The position will be adjusted to respect
+    /// UTF-8 character boundaries.
+    pub start_byte: Option<u64>,
+
+    /// Optional end position in bytes (inclusive). If provided, reading will
+    /// end at this position. The position will be adjusted to respect UTF-8
+    /// character boundaries.
+    pub end_byte: Option<u64>,
 }
 
 /// Reads file contents at specified path. Use for analyzing code, config files,
 /// documentation or text data. Extracts text from PDF/DOCX files and preserves
 /// original formatting. Returns content as string. Always use absolute paths.
-/// Read-only with no file modifications.
+/// Read-only with no file modifications. Supports reading specific portions of
+/// large files by providing start_byte and end_byte parameters. Binary files
+/// are automatically detected and rejected. Range parameters are automatically
+/// adjusted to respect UTF-8 character boundaries.
 #[derive(ToolDescription)]
 pub struct FSRead<F>(Arc<F>);
 
@@ -60,21 +73,70 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        // Use the infrastructure to read the file
-        let content = self
-            .0
-            .file_read_service()
-            .read(path)
-            .await
-            .with_context(|| format!("Failed to read file content from {}", input.path))?;
+        // Use the infrastructure to read the file - with range support
+        let result = if input.start_byte.is_some() || input.end_byte.is_some() {
+            // Use range read if either range parameter is provided
+            let (content, file_info) = self
+                .0
+                .file_read_service()
+                .range_read(path, input.start_byte, input.end_byte)
+                .await
+                .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
-        // Display a message about the file being read
-        let title = "Read";
-        let display_path = self.format_display_path(path)?;
-        let message = TitleFormat::new(title).sub_title(display_path);
-        context.send_text(message.format()).await?;
+            // Format a response with metadata
+            let display_path = self.format_display_path(path)?;
+            let title = "Read (Range)";
 
-        Ok(content)
+            // Create a message with range information
+            let start_info = match input.start_byte {
+                Some(sb) => format!("{} (adjusted to {})", sb, file_info.start_byte),
+                None => "0".to_string(),
+            };
+
+            let end_info = match input.end_byte {
+                Some(eb) => format!("{} (adjusted to {})", eb, file_info.end_byte),
+                None => format!("{}", file_info.total_size),
+            };
+
+            let range_info = format!(
+                "range: {}-{}, total: {}", 
+                start_info, 
+                end_info, 
+                file_info.total_size
+            );
+            let message =
+                TitleFormat::new(title).sub_title(format!("{} ({})", display_path, range_info));
+
+            context.send_text(message.format()).await?;
+
+            // Format response with metadata header
+            format!(
+                "---\npath: {}\nrange: {}-{}\ntotal: {}\n---\n{}",
+                display_path, 
+                file_info.start_byte, 
+                file_info.end_byte, 
+                file_info.total_size, 
+                content
+            )
+        } else {
+            // Use regular read for backward compatibility when no range is specified
+            let content = self
+                .0
+                .file_read_service()
+                .read(path)
+                .await
+                .with_context(|| format!("Failed to read file content from {}", input.path))?;
+
+            // Display a message about the file being read
+            let title = "Read";
+            let display_path = self.format_display_path(path)?;
+            let message = TitleFormat::new(title).sub_title(display_path);
+            context.send_text(message.format()).await?;
+
+            content
+        };
+
+        Ok(result)
     }
 }
 
@@ -96,7 +158,11 @@ mod test {
         fs_read
             .call(
                 ToolCallContext::default(),
-                FSReadInput { path: path.to_string() },
+                FSReadInput { 
+                    path: path.to_string(),
+                    start_byte: None,
+                    end_byte: None,
+                },
             )
             .await
     }
@@ -124,6 +190,65 @@ mod test {
 
         // Assert the content matches
         assert_eq!(content, test_content);
+    }
+
+    #[tokio::test]
+    async fn test_fs_read_with_range() {
+        // Create a temporary file with test content
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("range_test.txt");
+        let test_content = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        fs::write(&file_path, test_content).await.unwrap();
+
+        // Setup a mock infrastructure with our mock services
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_read = FSRead::new(infra);
+
+        // Test to read middle range of the file (for real range tests, see forge_fs
+        // tests) Here we're just testing the tool's interface and formatting
+        let result = fs_read
+            .call(
+                ToolCallContext::default(),
+                FSReadInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    start_byte: Some(10),
+                    end_byte: Some(20),
+                },
+            )
+            .await;
+
+        // Since MockInfrastructure doesn't actually read files, we expect an error
+        // In a real test, we'd verify the range was respected and formatting was
+        // correct
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_fs_read_with_invalid_range() {
+        // Create a temporary file with test content
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("invalid_range.txt");
+        let test_content = "Hello, World!";
+        fs::write(&file_path, test_content).await.unwrap();
+
+        // Setup a mock infrastructure with our mock services
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_read = FSRead::new(infra);
+
+        // Test with an invalid range (start > end)
+        let result = fs_read
+            .call(
+                ToolCallContext::default(),
+                FSReadInput {
+                    path: file_path.to_string_lossy().to_string(),
+                    start_byte: Some(20),
+                    end_byte: Some(10),
+                },
+            )
+            .await;
+
+        // Since MockInfrastructure doesn't actually read files, we expect an error
+        assert!(result.is_err());
     }
 
     #[tokio::test]

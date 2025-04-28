@@ -91,6 +91,15 @@ pub mod tests {
         async fn read(&self, _path: &Path) -> anyhow::Result<String> {
             unimplemented!()
         }
+        
+        async fn range_read(
+            &self,
+            _path: &Path,
+            _start_byte: Option<u64>,
+            _end_byte: Option<u64>,
+        ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+            unimplemented!()
+        }
     }
 
     #[async_trait::async_trait]
