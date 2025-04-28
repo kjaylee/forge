@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::error::ForgeFileError;
 use crate::file_info::FileInfo;
@@ -35,6 +35,8 @@ impl crate::ForgeFS {
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
 
         // Adjusted start position for UTF-8 safety
+        // Note: For additional UTF-8 safety, we could call Self::adjust_start_boundary
+        //       from utf8_boundary.rs here
         let adjusted_start = start_pos;
 
         // Compute actual bytes to read
@@ -47,17 +49,20 @@ impl crate::ForgeFS {
         }
 
         // Seek to the start position
-        tokio::io::AsyncSeekExt::seek(&mut file, std::io::SeekFrom::Start(adjusted_start))
+        file.seek(std::io::SeekFrom::Start(adjusted_start))
             .await
             .with_context(|| format!("Failed to seek to position {}", adjusted_start))?;
 
-        // Read the requested content
-        let mut buffer = Vec::with_capacity(bytes_to_read as usize);
-        let bytes_read = file
-            .take(bytes_to_read)
-            .read_to_end(&mut buffer)
+        // Create a buffer to hold the content
+        let mut buffer = vec![0u8; bytes_to_read as usize];
+        
+        // Read the content into the buffer
+        let bytes_read = file.read(&mut buffer)
             .await
             .with_context(|| format!("Failed to read from file {}", path_ref.display()))?;
+            
+        // Truncate the buffer to the actual number of bytes read
+        buffer.truncate(bytes_read);
 
         // Convert bytes to UTF-8 string
         let content = String::from_utf8(buffer)
@@ -128,49 +133,48 @@ mod test {
         let file = create_test_file(content).await?;
 
         // Test reading a range of bytes
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), Some(10), Some(20)).await?;
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), Some(10), Some(20)).await?;
         
-        assert_eq!(result, "ABCDEFGHIJ");
+        assert_eq!(result, "ABCDEFGHIJ", "Range 10-20 should be ABCDEFGHIJ");
         assert_eq!(info.start_byte, 10);
         assert_eq!(info.end_byte, 20);
         assert_eq!(info.total_size, content.len() as u64);
         
         // Test reading from start
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), None, Some(5)).await?;
-        assert_eq!(result, "01234");
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), None, Some(5)).await?;
+        
+        assert_eq!(result, "01234", "Range 0-5 should be 01234");
         assert_eq!(info.start_byte, 0);
         assert_eq!(info.end_byte, 5);
 
         // Test reading to end
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), Some(50), None).await?;
-        assert_eq!(result, "rstuvwxyz");
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), Some(50), None).await?;
+        
+        assert_eq!(result, "opqrstuvwxyz", "Range 50-end should be opqrstuvwxyz");
         assert_eq!(info.start_byte, 50);
         assert_eq!(info.end_byte, info.total_size);
 
         // Test reading entire file
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), None, None).await?;
-        assert_eq!(result, content);
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), None, None).await?;
+        
+        assert_eq!(result, content, "Reading entire file should match original content");
         assert_eq!(info.start_byte, 0);
         assert_eq!(info.end_byte, info.total_size);
 
         // Test empty range
-        let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), Some(10), Some(10)).await?;
-        assert_eq!(result, "");
+        let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), Some(10), Some(10)).await?;
+        
+        assert_eq!(result, "", "Empty range should return empty string");
         assert_eq!(info.start_byte, 10);
         assert_eq!(info.end_byte, 10);
 
         // Test invalid ranges
         assert!(crate::ForgeFS::read_range_utf8(file.path(), Some(20), Some(10))
             .await
-            .is_err());
+            .is_err(), "Start > end should error");
         assert!(crate::ForgeFS::read_range_utf8(file.path(), Some(1000), None)
             .await
-            .is_err());
+            .is_err(), "Start beyond file size should error");
 
         Ok(())
     }
