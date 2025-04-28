@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -58,81 +59,71 @@ impl<F: Infrastructure> FSRead<F> {
         format_display_path(path, cwd)
     }
 
-    /// Helper function to read a file with range constraints
-    async fn read_file_with_range(
+    /// Creates and sends a title for the fs_read operation
+    ///
+    /// Sets the title and subtitle based on whether this was an explicit user range
+    /// request or an automatic limit for large files, then sends it via the
+    /// context channel.
+    async fn create_and_send_title(
         &self,
         context: &ToolCallContext,
+        input: &FSReadInput,
         path: &Path,
-        path_str: &str,
-        start_char: Option<u64>,
-        end_char: Option<u64>,
-        is_user_requested: bool,
-    ) -> anyhow::Result<String> {
-        let fs_service = self.0.file_read_service();
-
-        let (content, file_info) = fs_service
-            .range_read(path, start_char, end_char)
-            .await
-            .with_context(|| format!("Failed to read file content from {path_str}"))?;
-
-        // Format a response with metadata
-        let display_path = self.format_display_path(path)?;
-
+        start_char: u64,
+        end_char: u64,
+        file_info: &forge_fs::FileInfo,
+    ) -> anyhow::Result<()> {
         // Set the title based on whether this was an explicit user range request
         // or an automatic limit for large files
-        let title = if is_user_requested {
+        let title = if input.start_char.is_some() | input.end_char.is_some() {
             "Read (Range)"
         } else {
             "Read (Auto-Limited)"
         };
 
-        // Create a message with range information
-        let start_info = match start_char {
-            Some(sc) => format!("{sc}"),
-            None => "0".to_string(),
-        };
-
-        let end_info = match end_char {
-            Some(ec) => format!("{ec}"),
-            None => format!("{}", file_info.total_chars),
-        };
-
+        let end_info = max(end_char, file_info.total_chars);
+        
         let range_info = format!(
             "char range: {}-{}, total chars: {}",
-            start_info, end_info, file_info.total_chars
+            start_char, end_info, file_info.total_chars
         );
+        
+        // Format a response with metadata
+        let display_path = self.format_display_path(path)?;
+        
         let message = TitleFormat::new(title).sub_title(format!("{display_path} ({range_info})"));
-
+        
+        // Send the formatted message
         context.send_text(message.format()).await?;
+        
+        Ok(())
+    }
+
+    /// Helper function to read a file with range constraints
+    async fn call(&self, context: ToolCallContext, input: FSReadInput) -> anyhow::Result<String> {
+        let path = Path::new(&input.path);
+        assert_absolute_path(path)?;
+
+        // Define maximum character limit
+        const MAX_CHARS: u64 = 40_000;
+        let start_char = input.start_char.unwrap_or(0);
+        let end_char = input.end_char.unwrap_or(MAX_CHARS);
+
+        let (content, file_info) = self
+            .0
+            .file_read_service()
+            .range_read(path, Some(start_char), Some(end_char))
+            .await
+            .with_context(|| format!("Failed to read file content from {}", input.path))?;
+
+        // Create and send the title using the extracted method
+        self.create_and_send_title(&context, &input, path, start_char, end_char, &file_info).await?;
 
         // Format response with metadata header
         Ok(format!(
             "---\n\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
             file_info.start_char, file_info.end_char, file_info.total_chars, content
         ))
-    }
-
-    /// Helper function to read a complete file
-    async fn read_full_file(
-        &self,
-        context: &ToolCallContext,
-        path: &Path,
-        path_str: &str,
-    ) -> anyhow::Result<String> {
-        let fs_service = self.0.file_read_service();
-
-        let content = fs_service
-            .read(path)
-            .await
-            .with_context(|| format!("Failed to read file content from {path_str}"))?;
-
-        // Display a message about the file being read
-        let title = "Read";
-        let display_path = self.format_display_path(path)?;
-        let message = TitleFormat::new(title).sub_title(display_path);
-        context.send_text(message.format()).await?;
-
-        Ok(content)
     }
 }
 
@@ -147,62 +138,7 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
     type Input = FSReadInput;
 
     async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
-        let path = Path::new(&input.path);
-        assert_absolute_path(path)?;
-
-        // Define maximum character limit
-        const MAX_CHARS: u64 = 40_000;
-
-        // Check if we need to use range-based reading
-        let need_range_read = input.start_char.is_some() || input.end_char.is_some();
-
-        // If explicit range is specified, use it directly
-        if need_range_read {
-            // Use range-read with the provided values
-            return self
-                .read_file_with_range(
-                    &context,
-                    path,
-                    &input.path,
-                    input.start_char,
-                    input.end_char,
-                    true,
-                )
-                .await;
-        }
-
-        // No range is specified, so we need to check if the file is large
-        // For this, we'll do a small range read at position 0 to examine the file info
-        let fs_service = self.0.file_read_service();
-
-        // Try to read just metadata by requesting a very small amount (just the first
-        // character) This gets us the file info without reading the entire file
-        let result = fs_service.range_read(path, Some(0), Some(0)).await;
-
-        match result {
-            Ok((_, file_info)) => {
-                if file_info.total_chars > MAX_CHARS {
-                    // File is too large, use range-limited read
-                    self.read_file_with_range(
-                        &context,
-                        path,
-                        &input.path,
-                        Some(0),
-                        Some(MAX_CHARS - 1),
-                        false,
-                    )
-                    .await
-                } else {
-                    // File is small enough to read completely
-                    self.read_full_file(&context, path, &input.path).await
-                }
-            }
-            Err(_) => {
-                // If range info retrieval failed, try regular read
-                // This handles cases where range_read isn't supported by some implementations
-                self.read_full_file(&context, path, &input.path).await
-            }
-        }
+        self.call(context, input).await
     }
 }
 
