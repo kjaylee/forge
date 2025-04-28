@@ -20,18 +20,15 @@ impl crate::ForgeFS {
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
 
-        // Skip binary detection in test mode
-        if !cfg!(test) {
-            // Open the file for binary check
-            let mut file = tokio::fs::File::open(path_ref)
-                .await
-                .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
+        // Open the file for binary check
+        let mut file = tokio::fs::File::open(path_ref)
+            .await
+            .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
 
-            // Check if the file is binary
-            let (is_text, file_type) = Self::is_binary(&mut file).await?;
-            if !is_text {
-                return Err(Error::BinaryFileNotSupported(file_type).into());
-            }
+        // Check if the file is binary
+        let (is_text, file_type) = Self::is_binary(&mut file).await?;
+        if !is_text {
+            return Err(Error::BinaryFileNotSupported(file_type).into());
         }
 
         // Read the file content
