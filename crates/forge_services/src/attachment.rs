@@ -6,7 +6,6 @@ use base64::Engine;
 use forge_domain::{Attachment, AttachmentService, ContentType, EnvironmentService};
 
 use crate::{FsReadService, Infrastructure};
-// TODO: bring pdf support, pdf is just a collection of images.
 
 #[derive(Clone)]
 pub struct ForgeChatRequest<F> {
@@ -35,37 +34,47 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
 
     async fn populate_attachments(&self, mut path: PathBuf) -> anyhow::Result<Attachment> {
         let extension = path.extension().map(|v| v.to_string_lossy().to_string());
+
         if !path.is_absolute() {
             path = self
                 .infra
                 .environment_service()
                 .get_environment()
                 .cwd
-                .join(path)
+                .join(path);
         }
-        // Use range_read to get both content and file info
-        let (file_content, _) = self
+
+        let (file_content, file_info) = self
             .infra
             .file_read_service()
             .range_read(path.as_path(), 0, u64::MAX)
             .await?;
-        let path = path.to_string_lossy().to_string();
-        if let Some(img_extension) = extension.and_then(|ext| match ext.as_str() {
+
+        let path_str = path.to_string_lossy().to_string();
+        let content_type;
+        let content;
+
+        // Handle image files
+        if let Some(img_format) = extension.and_then(|ext| match ext.as_str() {
             "jpeg" | "jpg" => Some("jpeg"),
             "png" => Some("png"),
             "webp" => Some("webp"),
             _ => None,
         }) {
-            // For image files, we need to convert the string back to bytes for base64
-            // encoding
-            let bytes = file_content.as_bytes();
-            let base_64_encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
-            let content = format!("data:image/{img_extension};base64,{base_64_encoded}");
-            Ok(Attachment { content, path, content_type: ContentType::Image })
+            content_type = ContentType::Image;
+            let base64_encoded =
+                base64::engine::general_purpose::STANDARD.encode(file_content.as_bytes());
+            content = format!("data:image/{img_format};base64,{base64_encoded}");
         } else {
-            // For text files, we can use the content directly
-            Ok(Attachment { content: file_content, path, content_type: ContentType::Text })
+            // Handle text files
+            content_type = ContentType::Text;
+            content = format!(
+                "---\n\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
+                file_info.start_char, file_info.end_char, file_info.total_chars, file_content
+            );
         }
+
+        Ok(Attachment { content, path: path_str, content_type })
     }
 }
 
@@ -441,7 +450,11 @@ pub mod tests {
         let attachment = attachments.first().unwrap();
         assert_eq!(attachment.path, "/test/file1.txt");
         assert_eq!(attachment.content_type, ContentType::Text);
-        assert_eq!(attachment.content, "This is a text file content");
+
+        // Check that the content contains our original text and has range information
+        assert!(attachment.content.contains("This is a text file content"));
+        assert!(attachment.content.contains("char_range:"));
+        assert!(attachment.content.contains("total_chars:"));
     }
 
     #[tokio::test]
@@ -594,6 +607,10 @@ pub mod tests {
         let attachment = attachments.first().unwrap();
         assert_eq!(attachment.path, "/test/unknown.xyz");
         assert_eq!(attachment.content_type, ContentType::Text);
-        assert_eq!(attachment.content, "Some content");
+
+        // Check that the content contains our original text and has range information
+        assert!(attachment.content.contains("Some content"));
+        assert!(attachment.content.contains("char_range:"));
+        assert!(attachment.content.contains("total_chars:"));
     }
 }
