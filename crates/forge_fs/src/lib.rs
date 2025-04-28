@@ -17,7 +17,7 @@ mod read;
 mod read_range;
 mod write;
 
-pub use crate::error::ForgeFileError;
+pub use crate::error::Error;
 pub use crate::file_info::FileInfo;
 
 /// ForgeFS provides a standardized interface for file system operations

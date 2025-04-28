@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::error::ForgeFileError;
+use crate::error::Error;
 use crate::file_info::FileInfo;
 
 impl crate::ForgeFS {
@@ -20,18 +20,17 @@ impl crate::ForgeFS {
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
 
-        // Open the file
-        let mut file = tokio::fs::File::open(path_ref)
-            .await
-            .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
-
         // Skip binary detection in test mode
         if !cfg!(test) {
+            // Open the file for binary check
+            let mut file = tokio::fs::File::open(path_ref)
+                .await
+                .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
+
             // Check if the file is binary
             let (is_text, file_type) = Self::is_binary(&mut file).await?;
-
             if !is_text {
-                return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
+                return Err(Error::BinaryFileNotSupported(file_type).into());
             }
         }
 
@@ -41,23 +40,20 @@ impl crate::ForgeFS {
             .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
 
         let total_chars = content.chars().count() as u64;
-
+        
         // Validate and normalize the character range
-        let (start_pos, end_pos) =
-            Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
+        let (start_pos, end_pos) = Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
+        let info = FileInfo::new(start_pos, end_pos, total_chars);
 
-        // If the range is empty, return an empty result
+        // Return empty result for empty ranges
         if start_pos == end_pos {
-            let info = FileInfo::new(start_pos, start_pos, total_chars);
             return Ok((String::new(), info));
         }
 
         // Extract the requested character range
         let result_content = if start_pos == 0 && end_pos == total_chars {
-            // If requesting the entire file, return the full content
-            content
+            content  // Return the full content if requesting the entire file
         } else {
-            // Extract the character range using iterator slicing
             content
                 .chars()
                 .skip(start_pos as usize)
@@ -65,32 +61,33 @@ impl crate::ForgeFS {
                 .collect()
         };
 
-        // Create file info and return results
-        let info = FileInfo::new(start_pos, end_pos, total_chars);
-
         Ok((result_content, info))
     }
 
-    // Helper: Validate the requested range and ensure it falls within the file's
-    // character count
+    // Validate the requested range and ensure it falls within the file's character count
     fn validate_char_range_bounds(
         total_chars: u64,
         start_pos: u64,
         end_pos: u64,
     ) -> Result<(u64, u64)> {
+        // Check if start is beyond file size
         if start_pos > total_chars {
-            return Err(ForgeFileError::InvalidRange(format!(
-                "Start position {start_pos} is beyond the file size of {total_chars} characters"
-            ))
+            return Err(Error::StartBeyondFileSize {
+                start: start_pos,
+                total: total_chars,
+            }
             .into());
         }
 
+        // Cap end position at file size
         let end_pos = cmp::min(end_pos, total_chars);
 
+        // Check if start is greater than end
         if start_pos > end_pos {
-            return Err(ForgeFileError::InvalidRange(format!(
-                "Start position {start_pos} is greater than end position {end_pos}"
-            ))
+            return Err(Error::StartGreaterThanEnd {
+                start: start_pos,
+                end: end_pos,
+            }
             .into());
         }
 
