@@ -18,24 +18,21 @@ pub struct FSReadInput {
     /// The path of the file to read, always provide absolute paths.
     pub path: String,
 
-    /// Optional start position in bytes (0-based). If provided, reading will
-    /// start from this position. The position will be adjusted to respect
-    /// UTF-8 character boundaries.
-    pub start_byte: Option<u64>,
+    /// Optional start position in characters (0-based). If provided, reading will
+    /// start from this character position.
+    pub start_char: Option<u64>,
 
-    /// Optional end position in bytes (inclusive). If provided, reading will
-    /// end at this position. The position will be adjusted to respect UTF-8
-    /// character boundaries.
-    pub end_byte: Option<u64>,
+    /// Optional end position in characters (inclusive). If provided, reading will
+    /// end at this character position.
+    pub end_char: Option<u64>,
 }
 
 /// Reads file contents at specified path. Use for analyzing code, config files,
 /// documentation or text data. Extracts text from PDF/DOCX files and preserves
 /// original formatting. Returns content as string. Always use absolute paths.
 /// Read-only with no file modifications. Supports reading specific portions of
-/// large files by providing start_byte and end_byte parameters. Binary files
-/// are automatically detected and rejected. Range parameters are automatically
-/// adjusted to respect UTF-8 character boundaries.
+/// large files by providing start_char and end_char parameters. Binary files
+/// are automatically detected and rejected.
 #[derive(ToolDescription)]
 pub struct FSRead<F>(Arc<F>);
 
@@ -74,12 +71,12 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         assert_absolute_path(path)?;
 
         // Use the infrastructure to read the file - with range support
-        let result = if input.start_byte.is_some() || input.end_byte.is_some() {
+        let result = if input.start_char.is_some() || input.end_char.is_some() {
             // Use range read if either range parameter is provided
             let (content, file_info) = self
                 .0
                 .file_read_service()
-                .range_read(path, input.start_byte, input.end_byte)
+                .range_read(path, input.start_char, input.end_char)
                 .await
                 .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
@@ -88,21 +85,21 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
             let title = "Read (Range)";
 
             // Create a message with range information
-            let start_info = match input.start_byte {
-                Some(sb) => format!("{} (adjusted to {})", sb, file_info.start_byte),
+            let start_info = match input.start_char {
+                Some(sc) => format!("{}", sc),
                 None => "0".to_string(),
             };
 
-            let end_info = match input.end_byte {
-                Some(eb) => format!("{} (adjusted to {})", eb, file_info.end_byte),
-                None => format!("{}", file_info.total_size),
+            let end_info = match input.end_char {
+                Some(ec) => format!("{}", ec),
+                None => format!("{}", file_info.total_chars),
             };
 
             let range_info = format!(
-                "range: {}-{}, total: {}", 
+                "char range: {}-{}, total chars: {}", 
                 start_info, 
                 end_info, 
-                file_info.total_size
+                file_info.total_chars
             );
             let message =
                 TitleFormat::new(title).sub_title(format!("{} ({})", display_path, range_info));
@@ -111,11 +108,11 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
 
             // Format response with metadata header
             format!(
-                "---\npath: {}\nrange: {}-{}\ntotal: {}\n---\n{}",
+                "---\npath: {}\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
                 display_path, 
-                file_info.start_byte, 
-                file_info.end_byte, 
-                file_info.total_size, 
+                file_info.start_char, 
+                file_info.end_char, 
+                file_info.total_chars,
                 content
             )
         } else {
@@ -160,8 +157,8 @@ mod test {
                 ToolCallContext::default(),
                 FSReadInput { 
                     path: path.to_string(),
-                    start_byte: None,
-                    end_byte: None,
+                    start_char: None,
+                    end_char: None,
                 },
             )
             .await
@@ -204,15 +201,14 @@ mod test {
         let infra = Arc::new(MockInfrastructure::new());
         let fs_read = FSRead::new(infra);
 
-        // Test to read middle range of the file (for real range tests, see forge_fs
-        // tests) Here we're just testing the tool's interface and formatting
+        // Test to read middle range of the file
         let result = fs_read
             .call(
                 ToolCallContext::default(),
                 FSReadInput {
                     path: file_path.to_string_lossy().to_string(),
-                    start_byte: Some(10),
-                    end_byte: Some(20),
+                    start_char: Some(10),
+                    end_char: Some(20),
                 },
             )
             .await;
@@ -241,8 +237,8 @@ mod test {
                 ToolCallContext::default(),
                 FSReadInput {
                     path: file_path.to_string_lossy().to_string(),
-                    start_byte: Some(20),
-                    end_byte: Some(10),
+                    start_char: Some(20),
+                    end_char: Some(10),
                 },
             )
             .await;

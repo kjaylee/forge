@@ -9,68 +9,64 @@ use crate::error::ForgeFileError;
 use crate::file_info::FileInfo;
 
 impl crate::ForgeFS {
-    /// Reads a specific range of bytes from a file, respecting UTF-8 boundaries.
+    /// Reads a specific range of characters from a file.
     ///
     /// Returns a tuple containing:
     /// - The file content as a UTF-8 string.
-    /// - FileInfo containing metadata about the read operation
-    ///   (start_byte, end_byte, total_size).
+    /// - FileInfo containing metadata about the read operation including character positions.
     pub async fn read_range_utf8<T: AsRef<Path>>(
         path: T,
-        start_byte: Option<u64>,
-        end_byte: Option<u64>,
+        start_char: Option<u64>,
+        end_char: Option<u64>,
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
 
-        // Ensure the file is not binary and get its size
+        // Ensure the file is not binary
         Self::ensure_not_binary(path_ref).await?;
-        let file_size = Self::get_file_size(path_ref).await?;
-
-        // Validate and normalize the requested range
-        let (start_pos, end_pos) = Self::validate_range_bounds(file_size, start_byte, end_byte)?;
-
-        // Open the file for reading
-        let mut file = File::open(path_ref)
-            .await
-            .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
-
-        // Adjusted start position for UTF-8 safety
-        // Note: For additional UTF-8 safety, we could call Self::adjust_start_boundary
-        //       from utf8_boundary.rs here
-        let adjusted_start = start_pos;
-
-        // Compute actual bytes to read
-        let bytes_to_read = end_pos.saturating_sub(adjusted_start);
-
-        // If the range is empty, return an empty result immediately
-        if bytes_to_read == 0 {
-            let info = FileInfo::new(adjusted_start, adjusted_start, file_size);
+        
+        // Read the entire file content for character counting
+        let full_content = Self::read_utf8(path_ref).await?;
+        let total_chars = full_content.chars().count() as u64;
+        
+        // Validate and normalize the character range
+        let (start_pos, end_pos) = Self::validate_char_range_bounds(total_chars, start_char, end_char)?;
+        
+        // If the range is empty, return an empty result
+        if start_pos == end_pos {
+            let info = FileInfo::new(start_pos, start_pos, total_chars);
             return Ok((String::new(), info));
         }
-
-        // Seek to the start position
-        file.seek(std::io::SeekFrom::Start(adjusted_start))
-            .await
-            .with_context(|| format!("Failed to seek to position {}", adjusted_start))?;
-
-        // Create a buffer to hold the content
-        let mut buffer = vec![0u8; bytes_to_read as usize];
         
-        // Read the content into the buffer
-        let bytes_read = file.read(&mut buffer)
-            .await
-            .with_context(|| format!("Failed to read from file {}", path_ref.display()))?;
+        // Extract the content based on character positions
+        let content = if start_pos == 0 && end_pos == total_chars {
+            // If requesting the entire file, just return the full content
+            full_content
+        } else {
+            // For a subset of characters, find the corresponding substring
+            let mut char_positions = Vec::new();
+            // Create a mapping of character indices
+            for (idx, _) in full_content.char_indices() {
+                char_positions.push(idx);
+            }
             
-        // Truncate the buffer to the actual number of bytes read
-        buffer.truncate(bytes_read);
-
-        // Convert bytes to UTF-8 string
-        let content = String::from_utf8(buffer)
-            .map_err(|e| ForgeFileError::Utf8ValidationFailed(e))?;
-
+            // Get the start and end character indices in the string
+            let start_idx = if start_pos < char_positions.len() as u64 {
+                char_positions[start_pos as usize]
+            } else {
+                full_content.len() // Default to end if out of bounds
+            };
+            
+            let end_idx = if end_pos < char_positions.len() as u64 {
+                char_positions[end_pos as usize]
+            } else {
+                full_content.len() // Default to end if out of bounds
+            };
+            
+            full_content[start_idx..end_idx].to_string()
+        };
+        
         // Create file info and return results
-        let adjusted_end = adjusted_start + bytes_read as u64;
-        let info = FileInfo::new(adjusted_start, adjusted_end, file_size);
+        let info = FileInfo::new(start_pos, end_pos, total_chars);
         
         Ok((content, info))
     }
@@ -85,22 +81,22 @@ impl crate::ForgeFS {
         }
     }
 
-    // Helper: Validate the requested range and ensure it falls within the file
-    fn validate_range_bounds(
-        file_size: u64,
-        start_byte: Option<u64>,
-        end_byte: Option<u64>,
+    // Helper: Validate the requested range and ensure it falls within the file's character count
+    fn validate_char_range_bounds(
+        total_chars: u64,
+        start_char: Option<u64>,
+        end_char: Option<u64>,
     ) -> Result<(u64, u64)> {
-        let start_pos = start_byte.unwrap_or(0);
-        if start_pos > file_size {
+        let start_pos = start_char.unwrap_or(0);
+        if start_pos > total_chars {
             return Err(ForgeFileError::InvalidRange(format!(
-                "Start position {} is beyond the file size {}",
-                start_pos, file_size
+                "Start position {} is beyond the file size of {} characters",
+                start_pos, total_chars
             ))
             .into());
         }
 
-        let end_pos = end_byte.map_or(file_size, |e| cmp::min(e, file_size));
+        let end_pos = end_char.map_or(total_chars, |e| cmp::min(e, total_chars));
 
         if start_pos > end_pos {
             return Err(ForgeFileError::InvalidRange(format!(
@@ -132,41 +128,41 @@ mod test {
         let content = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
         let file = create_test_file(content).await?;
 
-        // Test reading a range of bytes
+        // Test reading a range of characters
         let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), Some(10), Some(20)).await?;
         
         assert_eq!(result, "ABCDEFGHIJ", "Range 10-20 should be ABCDEFGHIJ");
-        assert_eq!(info.start_byte, 10);
-        assert_eq!(info.end_byte, 20);
-        assert_eq!(info.total_size, content.len() as u64);
+        assert_eq!(info.start_char, 10);
+        assert_eq!(info.end_char, 20);
+        assert_eq!(info.total_chars, content.len() as u64);
         
         // Test reading from start
         let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), None, Some(5)).await?;
         
         assert_eq!(result, "01234", "Range 0-5 should be 01234");
-        assert_eq!(info.start_byte, 0);
-        assert_eq!(info.end_byte, 5);
+        assert_eq!(info.start_char, 0);
+        assert_eq!(info.end_char, 5);
 
         // Test reading to end
         let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), Some(50), None).await?;
         
         assert_eq!(result, "opqrstuvwxyz", "Range 50-end should be opqrstuvwxyz");
-        assert_eq!(info.start_byte, 50);
-        assert_eq!(info.end_byte, info.total_size);
+        assert_eq!(info.start_char, 50);
+        assert_eq!(info.end_char, info.total_chars);
 
         // Test reading entire file
         let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), None, None).await?;
         
         assert_eq!(result, content, "Reading entire file should match original content");
-        assert_eq!(info.start_byte, 0);
-        assert_eq!(info.end_byte, info.total_size);
+        assert_eq!(info.start_char, 0);
+        assert_eq!(info.end_char, info.total_chars);
 
         // Test empty range
         let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), Some(10), Some(10)).await?;
         
         assert_eq!(result, "", "Empty range should return empty string");
-        assert_eq!(info.start_byte, 10);
-        assert_eq!(info.end_byte, 10);
+        assert_eq!(info.start_char, 10);
+        assert_eq!(info.end_char, 10);
 
         // Test invalid ranges
         assert!(crate::ForgeFS::read_range_utf8(file.path(), Some(20), Some(10))
@@ -180,21 +176,18 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore] // Temporarily ignore this test until we properly handle multi-byte characters
-    async fn test_utf8_boundary_in_range() -> Result<()> {
+    async fn test_utf8_boundary_handling() -> Result<()> {
         let content = "Hello 世界! こんにちは! Привет!";
         let file = create_test_file(content).await?;
 
         // Test reading a range that includes multi-byte characters
         let (result, info) =
-            crate::ForgeFS::read_range_utf8(file.path(), Some(6), Some(15)).await?;
+            crate::ForgeFS::read_range_utf8(file.path(), Some(6), Some(8)).await?;
         
-        // The implementation should adjust to UTF-8 boundaries
-        assert_eq!(info.start_byte, 6); // Start at the beginning of 世 (assuming 6 is the byte position)
-        assert!(
-            result.starts_with("世界"),
-            "Result doesn't start with expected character"
-        );
+        // Character-based indexing should handle multi-byte characters correctly
+        assert_eq!(result, "世界", "Should read exactly the multi-byte characters");
+        assert_eq!(info.start_char, 6);
+        assert_eq!(info.end_char, 8);
 
         Ok(())
     }
