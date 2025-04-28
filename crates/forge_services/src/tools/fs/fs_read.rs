@@ -271,10 +271,15 @@ mod test {
     #[tokio::test]
     async fn test_fs_read_auto_limit() {
         #[derive(Clone)]
+        // Type aliases to simplify the complex type
+        type RangePoint = Option<u64>;
+        type RangeBounds = Option<(RangePoint, RangePoint)>;
+        type RangeTracker = Arc<std::sync::Mutex<RangeBounds>>;
+        
         struct RangeTrackingMockInfra {
             inner: crate::attachment::tests::MockInfrastructure,
             // Track the start and end character positions used in range requests
-            last_range_call: Arc<std::sync::Mutex<Option<(Option<u64>, Option<u64>)>>>,
+            last_range_call: RangeTracker,
         }
 
         impl RangeTrackingMockInfra {
