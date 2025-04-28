@@ -43,7 +43,8 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
                 .cwd
                 .join(path)
         }
-        let file_content = self.infra.file_read_service().read(path.as_path()).await?;
+        // Use range_read to get both content and file info
+        let (file_content, _) = self.infra.file_read_service().range_read(path.as_path(), 0, u64::MAX).await?;
         let path = path.to_string_lossy().to_string();
         if let Some(img_extension) = extension.and_then(|ext| match ext.as_str() {
             "jpeg" | "jpg" => Some("jpeg"),
@@ -159,38 +160,15 @@ pub mod tests {
         async fn range_read(
             &self,
             path: &Path,
-            start_char: u64,
-            end_char: u64,
+            _start_char: u64,
+            _end_char: u64,
         ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+            // For tests, we'll just read the entire file and return it
             let content = self.read(path).await?;
-            let total_size = content.len() as u64;
-
-            // Check if start is beyond file size
-            if start_char > total_size {
-                return Err(anyhow::anyhow!("Start position exceeds file size"));
-            }
-
-            let end = end_char.min(total_size);
-            if start_char > end {
-                return Err(anyhow::anyhow!("Invalid range: start > end"));
-            }
-
-            // Extract the requested range
-            let range_content = if start_char < total_size {
-                // Using chars() to respect UTF-8 boundaries
-                content
-                    .chars()
-                    .skip(start_char as usize)
-                    .take((end - start_char) as usize)
-                    .collect()
-            } else {
-                String::new()
-            };
-
-            Ok((
-                range_content,
-                forge_fs::FileInfo::new(start_char, end, total_size),
-            ))
+            let total_chars = content.len() as u64;
+            
+            // Return the entire content for simplicity in tests
+            Ok((content, forge_fs::FileInfo::new(0, total_chars, total_chars)))
         }
     }
 

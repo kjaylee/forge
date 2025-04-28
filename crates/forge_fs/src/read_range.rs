@@ -1,7 +1,7 @@
 use std::cmp;
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::error::ForgeFileError;
 use crate::file_info::FileInfo;
@@ -19,16 +19,34 @@ impl crate::ForgeFS {
         end_char: u64,
     ) -> Result<(String, FileInfo)> {
         let path_ref = path.as_ref();
-
+        
+        // Open the file once to get a handle
+        let file = tokio::fs::File::open(path_ref)
+            .await
+            .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
+            
         // Skip binary detection in test mode
         if !cfg!(test) {
-            // Ensure the file is not binary
-            Self::ensure_not_binary(path_ref).await?;
+            // Create a clone of the file handle for binary detection
+            let mut file_clone = file.try_clone().await
+                .with_context(|| format!("Failed to clone file handle for {}", path_ref.display()))?;
+            
+            // Use our dedicated binary detection function
+            let (is_text, file_type) = Self::is_binary_file_with_handle(&mut file_clone, path_ref).await?;
+            
+            if !is_text {
+                return Err(ForgeFileError::BinaryFileNotSupported(file_type).into());
+            }
         }
-
-        // Read the entire file content for character counting
-        let full_content = Self::read_utf8(path_ref).await?;
-        let total_chars = full_content.chars().count() as u64;
+        
+        // Read the entire file content for character counting using the same file handle
+        let mut content = String::new();
+        let mut file_reader = tokio::io::BufReader::new(file);
+        tokio::io::AsyncReadExt::read_to_string(&mut file_reader, &mut content)
+            .await
+            .with_context(|| format!("Failed to read file content from {}", path_ref.display()))?;
+            
+        let total_chars = content.chars().count() as u64;
 
         // Validate and normalize the character range
         let (start_pos, end_pos) =
@@ -41,14 +59,14 @@ impl crate::ForgeFS {
         }
 
         // Extract the content based on character positions
-        let content = if start_pos == 0 && end_pos == total_chars {
+        let result_content = if start_pos == 0 && end_pos == total_chars {
             // If requesting the entire file, just return the full content
-            full_content
+            content
         } else {
             // For a subset of characters, find the corresponding substring
             let mut char_positions = Vec::new();
             // Create a mapping of character indices
-            for (idx, _) in full_content.char_indices() {
+            for (idx, _) in content.char_indices() {
                 char_positions.push(idx);
             }
 
@@ -56,38 +74,25 @@ impl crate::ForgeFS {
             let start_idx = if start_pos < char_positions.len() as u64 {
                 char_positions[start_pos as usize]
             } else {
-                full_content.len() // Default to end if out of bounds
+                content.len() // Default to end if out of bounds
             };
 
             let end_idx = if end_pos < char_positions.len() as u64 {
                 char_positions[end_pos as usize]
             } else {
-                full_content.len() // Default to end if out of bounds
+                content.len() // Default to end if out of bounds
             };
 
-            full_content[start_idx..end_idx].to_string()
+            content[start_idx..end_idx].to_string()
         };
 
         // Create file info and return results
         let info = FileInfo::new(start_pos, end_pos, total_chars);
 
-        Ok((content, info))
+        Ok((result_content, info))
     }
 
-    // Helper: Ensure the file is not detected as binary
-    async fn ensure_not_binary(path: &Path) -> Result<()> {
-        // In test environments, we can skip binary checking for test files
-        if cfg!(test) && path.to_string_lossy().contains("tempfile") {
-            return Ok(());
-        }
-
-        let (is_binary, binary_type) = Self::is_binary_file(path).await?;
-        if is_binary {
-            Err(ForgeFileError::BinaryFileNotSupported(binary_type).into())
-        } else {
-            Ok(())
-        }
-    }
+    // Helper functions for binary detection are now inlined in read_range_utf8
 
     // Helper: Validate the requested range and ensure it falls within the file's
     // character count

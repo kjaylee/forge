@@ -5,18 +5,28 @@ use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
 impl crate::ForgeFS {
+    /// Checks if a file is binary by examining its content.
+    /// This version takes a path and opens the file itself.
     pub async fn is_binary_file<T: AsRef<Path>>(path: T) -> Result<(bool, String)> {
         let path_ref = path.as_ref();
         let mut file = File::open(path_ref)
             .await
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
-
+            
+        Self::is_binary_file_with_handle(&mut file, path_ref).await
+    }
+    
+    /// Checks if a file is binary by examining its content.
+    /// This version takes an already opened file handle, allowing for reuse
+    /// of the same file handle across multiple operations.
+    /// This is a crate-private implementation detail.
+    pub(crate) async fn is_binary_file_with_handle(file: &mut File, path: &Path) -> Result<(bool, String)> {
         // Read sample data
         let mut sample = vec![0; 8192];
         let bytes_read = file
             .read(&mut sample)
             .await
-            .with_context(|| format!("Failed to read sample from file {}", path_ref.display()))?;
+            .with_context(|| format!("Failed to read sample from file {}", path.display()))?;
         sample.truncate(bytes_read);
 
         // Handle empty files
