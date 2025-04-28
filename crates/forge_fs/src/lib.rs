@@ -8,7 +8,7 @@
 //! the format "Failed to [operation] [path]", ensuring uniform error reporting
 //! throughout the application while preserving the original error cause.
 
-mod binary_detection;
+mod is_binary;
 mod error;
 mod file_info;
 mod file_size;
