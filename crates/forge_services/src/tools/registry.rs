@@ -91,7 +91,7 @@ pub mod tests {
         async fn read(&self, _path: &Path) -> anyhow::Result<String> {
             unimplemented!()
         }
-        
+
         async fn range_read(
             &self,
             _path: &Path,

@@ -18,21 +18,24 @@ pub struct FSReadInput {
     /// The path of the file to read, always provide absolute paths.
     pub path: String,
 
-    /// Optional start position in characters (0-based). If provided, reading will
-    /// start from this character position.
+    /// Optional start position in characters (0-based). If provided, reading
+    /// will start from this character position.
     pub start_char: Option<u64>,
 
-    /// Optional end position in characters (inclusive). If provided, reading will
-    /// end at this character position.
+    /// Optional end position in characters (inclusive). If provided, reading
+    /// will end at this character position.
     pub end_char: Option<u64>,
 }
 
 /// Reads file contents at specified path. Use for analyzing code, config files,
 /// documentation or text data. Extracts text from PDF/DOCX files and preserves
 /// original formatting. Returns content as string. Always use absolute paths.
-/// Read-only with no file modifications. Supports reading specific portions of
-/// large files by providing start_char and end_char parameters. Binary files
-/// are automatically detected and rejected.
+/// Read-only with no file modifications.
+///
+/// Files larger than 40,000 characters will automatically be read using range
+/// functionality, returning only the first 40,000 characters by default. For large
+/// files, you can specify custom ranges using start_char and end_char parameters.
+/// Binary files are automatically detected and rejected.
 #[derive(ToolDescription)]
 pub struct FSRead<F>(Arc<F>);
 
@@ -54,6 +57,86 @@ impl<F: Infrastructure> FSRead<F> {
         // Use the shared utility function
         format_display_path(path, cwd)
     }
+    
+    /// Helper function to read a file with range constraints
+    async fn read_file_with_range(
+        &self,
+        context: &ToolCallContext,
+        path: &Path,
+        path_str: &str,
+        start_char: Option<u64>,
+        end_char: Option<u64>,
+        is_user_requested: bool,
+    ) -> anyhow::Result<String> {
+        let fs_service = self.0.file_read_service();
+        
+        let (content, file_info) = fs_service
+            .range_read(path, start_char, end_char)
+            .await
+            .with_context(|| format!("Failed to read file content from {}", path_str))?;
+
+        // Format a response with metadata
+        let display_path = self.format_display_path(path)?;
+        
+        // Set the title based on whether this was an explicit user range request
+        // or an automatic limit for large files
+        let title = if is_user_requested {
+            "Read (Range)"
+        } else {
+            "Read (Auto-Limited)"
+        };
+
+        // Create a message with range information
+        let start_info = match start_char {
+            Some(sc) => format!("{sc}"),
+            None => "0".to_string(),
+        };
+
+        let end_info = match end_char {
+            Some(ec) => format!("{ec}"),
+            None => format!("{}", file_info.total_chars),
+        };
+
+        let range_info = format!(
+            "char range: {}-{}, total chars: {}",
+            start_info, end_info, file_info.total_chars
+        );
+        let message = TitleFormat::new(title).sub_title(format!("{display_path} ({range_info})"));
+
+        context.send_text(message.format()).await?;
+
+        // Format response with metadata header
+        Ok(format!(
+            "---\n\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
+            file_info.start_char,
+            file_info.end_char,
+            file_info.total_chars,
+            content
+        ))
+    }
+
+    /// Helper function to read a complete file
+    async fn read_full_file(
+        &self, 
+        context: &ToolCallContext,
+        path: &Path,
+        path_str: &str,
+    ) -> anyhow::Result<String> {
+        let fs_service = self.0.file_read_service();
+        
+        let content = fs_service
+            .read(path)
+            .await
+            .with_context(|| format!("Failed to read file content from {}", path_str))?;
+
+        // Display a message about the file being read
+        let title = "Read";
+        let display_path = self.format_display_path(path)?;
+        let message = TitleFormat::new(title).sub_title(display_path);
+        context.send_text(message.format()).await?;
+
+        Ok(content)
+    }
 }
 
 impl<F> NamedTool for FSRead<F> {
@@ -70,70 +153,42 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
-        // Use the infrastructure to read the file - with range support
-        let result = if input.start_char.is_some() || input.end_char.is_some() {
-            // Use range read if either range parameter is provided
-            let (content, file_info) = self
-                .0
-                .file_read_service()
-                .range_read(path, input.start_char, input.end_char)
-                .await
-                .with_context(|| format!("Failed to read file content from {}", input.path))?;
+        // Define maximum character limit
+        const MAX_CHARS: u64 = 40_000;
 
-            // Format a response with metadata
-            let display_path = self.format_display_path(path)?;
-            let title = "Read (Range)";
-
-            // Create a message with range information
-            let start_info = match input.start_char {
-                Some(sc) => format!("{}", sc),
-                None => "0".to_string(),
-            };
-
-            let end_info = match input.end_char {
-                Some(ec) => format!("{}", ec),
-                None => format!("{}", file_info.total_chars),
-            };
-
-            let range_info = format!(
-                "char range: {}-{}, total chars: {}", 
-                start_info, 
-                end_info, 
-                file_info.total_chars
-            );
-            let message =
-                TitleFormat::new(title).sub_title(format!("{} ({})", display_path, range_info));
-
-            context.send_text(message.format()).await?;
-
-            // Format response with metadata header
-            format!(
-                "---\npath: {}\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
-                display_path, 
-                file_info.start_char, 
-                file_info.end_char, 
-                file_info.total_chars,
-                content
-            )
-        } else {
-            // Use regular read for backward compatibility when no range is specified
-            let content = self
-                .0
-                .file_read_service()
-                .read(path)
-                .await
-                .with_context(|| format!("Failed to read file content from {}", input.path))?;
-
-            // Display a message about the file being read
-            let title = "Read";
-            let display_path = self.format_display_path(path)?;
-            let message = TitleFormat::new(title).sub_title(display_path);
-            context.send_text(message.format()).await?;
-
-            content
-        };
-
-        Ok(result)
+        // Check if we need to use range-based reading
+        let need_range_read = input.start_char.is_some() || input.end_char.is_some();
+        
+        // If explicit range is specified, use it directly
+        if need_range_read {
+            // Use range-read with the provided values
+            return self.read_file_with_range(&context, path, &input.path, input.start_char, input.end_char, true).await;
+        }
+        
+        // No range is specified, so we need to check if the file is large
+        // For this, we'll do a small range read at position 0 to examine the file info
+        let fs_service = self.0.file_read_service();
+        
+        // Try to read just metadata by requesting a very small amount (just the first character)
+        // This gets us the file info without reading the entire file
+        let result = fs_service.range_read(path, Some(0), Some(0)).await;
+        
+        match result {
+            Ok((_, file_info)) => {
+                if file_info.total_chars > MAX_CHARS {
+                    // File is too large, use range-limited read
+                    self.read_file_with_range(&context, path, &input.path, Some(0), Some(MAX_CHARS - 1), false).await
+                } else {
+                    // File is small enough to read completely
+                    self.read_full_file(&context, path, &input.path).await
+                }
+            }
+            Err(_) => {
+                // If range info retrieval failed, try regular read
+                // This handles cases where range_read isn't supported by some implementations
+                self.read_full_file(&context, path, &input.path).await
+            }
+        }
     }
 }
 
@@ -155,11 +210,7 @@ mod test {
         fs_read
             .call(
                 ToolCallContext::default(),
-                FSReadInput { 
-                    path: path.to_string(),
-                    start_char: None,
-                    end_char: None,
-                },
+                FSReadInput { path: path.to_string(), start_char: None, end_char: None },
             )
             .await
     }
@@ -266,6 +317,167 @@ mod test {
         assert_eq!(content, "");
     }
 
+    #[tokio::test]
+    async fn test_fs_read_auto_limit() {
+        #[derive(Clone)]
+        struct RangeTrackingMockInfra {
+            inner: crate::attachment::tests::MockInfrastructure,
+            // Track the start and end character positions used in range requests
+            last_range_call: Arc<std::sync::Mutex<Option<(Option<u64>, Option<u64>)>>>,
+        }
+
+        impl RangeTrackingMockInfra {
+            fn new() -> Self {
+                Self {
+                    inner: crate::attachment::tests::MockInfrastructure::new(),
+                    last_range_call: Arc::new(std::sync::Mutex::new(None)),
+                }
+            }
+
+            // Track the range parameters that were used
+            fn set_last_range_call(&self, start: Option<u64>, end: Option<u64>) {
+                let mut last_call = self.last_range_call.lock().unwrap();
+                *last_call = Some((start, end));
+            }
+
+            fn get_last_range_call(&self) -> Option<(Option<u64>, Option<u64>)> {
+                let last_call = self.last_range_call.lock().unwrap();
+                *last_call
+            }
+        }
+
+        // Implement FsReadService for our custom tracking infrastructure
+        #[async_trait::async_trait]
+        impl FsReadService for RangeTrackingMockInfra {
+            async fn read(&self, path: &Path) -> anyhow::Result<String> {
+                // Delegate to inner mock implementation
+                self.inner.file_read_service().read(path).await
+            }
+
+            async fn range_read(
+                &self,
+                _path: &Path,
+                start_char: Option<u64>,
+                end_char: Option<u64>,
+            ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+                // Record the range parameters that were requested
+                self.set_last_range_call(start_char, end_char);
+
+                // Always record the range call parameters for tracking
+                self.set_last_range_call(start_char, end_char);
+                
+                if start_char == Some(0) && end_char == Some(0) {
+                    // For probe requests (when end = start = 0), return info about a large file
+                    // This will trigger the auto-limiting behavior
+                    println!("Probe request detected, returning large file info");
+                    return Ok((
+                        "".to_string(), 
+                        forge_fs::FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
+                    ));
+                } else if start_char == Some(0) && end_char == Some(39999) {
+                    // This is the expected auto-limit range that should be requested for large files
+                    println!("Auto-limit range request detected: 0-39999");
+                    return Err(anyhow::anyhow!(
+                        "Auto-limit detected: start={:?}, end={:?}",
+                        start_char, 
+                        end_char
+                    ));
+                }
+
+                // For any other range requests, return an identifying error
+                println!("Unexpected range request: {:?}-{:?}", start_char, end_char);
+                Err(anyhow::anyhow!(
+                    "Unexpected range_read called with start={:?}, end={:?}",
+                    start_char, 
+                    end_char
+                ))
+            }
+        }
+
+        // Implement Infrastructure trait
+        impl Infrastructure for RangeTrackingMockInfra {
+            type EnvironmentService = crate::attachment::tests::MockEnvironmentService;
+            type FsReadService = Self; // This struct will handle read operations
+            type FsWriteService = crate::attachment::tests::MockFileService;
+            type FsMetaService = crate::attachment::tests::MockFileService;
+            type FsCreateDirsService = crate::attachment::tests::MockFileService;
+            type FsRemoveService = crate::attachment::tests::MockFileService;
+            type FsSnapshotService = crate::attachment::tests::MockSnapService;
+            type CommandExecutorService = ();
+
+            fn environment_service(&self) -> &Self::EnvironmentService {
+                self.inner.environment_service()
+            }
+
+            fn file_read_service(&self) -> &Self::FsReadService {
+                self // Return self to handle read operations
+            }
+
+            fn file_write_service(&self) -> &Self::FsWriteService {
+                self.inner.file_write_service()
+            }
+
+            fn file_meta_service(&self) -> &Self::FsMetaService {
+                self.inner.file_meta_service()
+            }
+
+            fn file_remove_service(&self) -> &Self::FsRemoveService {
+                self.inner.file_remove_service()
+            }
+
+            fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+                self.inner.create_dirs_service()
+            }
+
+            fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
+                self.inner.file_snapshot_service()
+            }
+
+            fn command_executor_service(&self) -> &Self::CommandExecutorService {
+                self.inner.command_executor_service()
+            }
+        }
+
+        // Create our custom tracking infrastructure
+        let tracking_infra = Arc::new(RangeTrackingMockInfra::new());
+
+        // Initialize the FSRead tool with our tracking infrastructure
+        let fs_read = FSRead::new(tracking_infra.clone());
+
+        // Call with a path but no explicit range parameters
+        let result = fs_read
+            .call(
+                ToolCallContext::default(),
+                FSReadInput {
+                    path: "/test/large_file.txt".to_string(),
+                    start_char: None,
+                    end_char: None,
+                },
+            )
+            .await;
+
+        // Since our mock returns an error for the actual file read, we expect the call to fail
+        assert!(result.is_err());
+
+        // Print the error message for debugging purposes
+        let err_msg = result.unwrap_err().to_string();
+        println!("Error message: {}", err_msg);
+        
+        // Verify that our auto-limit was applied (should be 0-39999)
+        let range_call = tracking_infra.get_last_range_call();
+        assert!(range_call.is_some(), "Range read should have been called");
+
+        if let Some((start, end)) = range_call {
+            println!("Tracked range call: {:?} to {:?}", start, end);
+            assert_eq!(start, Some(0), "Auto-limit should start at character 0");
+            assert_eq!(
+                end,
+                Some(39999),
+                "Auto-limit should end at character 39999 (40k-1)"
+            );
+        }
+    }
+
     #[test]
     fn test_description() {
         let infra = Arc::new(MockInfrastructure::new());
@@ -282,6 +494,7 @@ mod test {
             .to_string()
             .contains("Path must be absolute"));
     }
+
     #[tokio::test]
     async fn test_format_display_path() {
         let temp_dir = TempDir::new().unwrap();

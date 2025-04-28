@@ -6,23 +6,15 @@ pub struct FileInfo {
 
     /// Ending character position of the read operation
     pub end_char: u64,
-    
+
     /// Total number of characters in the file
     pub total_chars: u64,
 }
 
 impl FileInfo {
     /// Creates a new FileInfo with the specified parameters
-    pub fn new(
-        start_char: u64, 
-        end_char: u64, 
-        total_chars: u64
-    ) -> Self {
-        Self { 
-            start_char, 
-            end_char, 
-            total_chars
-        }
+    pub fn new(start_char: u64, end_char: u64, total_chars: u64) -> Self {
+        Self { start_char, end_char, total_chars }
     }
 
     /// Returns true if this represents a partial file read

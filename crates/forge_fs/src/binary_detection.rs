@@ -8,7 +8,7 @@ use tokio::io::AsyncReadExt;
 impl crate::ForgeFS {
     /// Checks if a file is binary using the infer crate and additional
     /// heuristics.
-    /// 
+    ///
     /// Returns a tuple containing:
     /// - A boolean indicating if the file is binary
     /// - A string describing the detected file type (if binary)
@@ -19,7 +19,7 @@ impl crate::ForgeFS {
     /// 3. Validate UTF-8 encoding as a final check
     pub async fn is_binary_file<T: AsRef<Path>>(path: T) -> Result<(bool, String)> {
         let path_ref = path.as_ref();
-        
+
         // Read a sample from the beginning of the file to detect its type
         // The infer crate typically needs less than 8KB for detection
         let mut file = File::open(path_ref)
@@ -28,9 +28,10 @@ impl crate::ForgeFS {
 
         // Read up to 8KB for file type detection
         let mut sample = vec![0; 8192];
-        let bytes_read = file.read(&mut sample).await.with_context(|| {
-            format!("Failed to read sample from file {}", path_ref.display())
-        })?;
+        let bytes_read = file
+            .read(&mut sample)
+            .await
+            .with_context(|| format!("Failed to read sample from file {}", path_ref.display()))?;
         sample.truncate(bytes_read);
 
         // Empty files are not binary
@@ -45,8 +46,8 @@ impl crate::ForgeFS {
                 // Plain text formats and documents are considered non-binary
                 infer::MatcherType::Text | infer::MatcherType::Doc => {
                     return Ok((false, file_type.mime_type().to_string()));
-                },
-                
+                }
+
                 // Any other type is considered binary (images, audio, video, archives, etc.)
                 _ => {
                     return Ok((true, file_type.mime_type().to_string()));
@@ -61,10 +62,11 @@ impl crate::ForgeFS {
             .iter()
             .filter(|&&b| {
                 // Consider control characters (except common whitespace) as binary indicators
-                b == 0 || (b < 32 && b != b'\n' && b != b'\r' && b != b'\t' && b != 12) // 12 is form feed
+                b == 0 || (b < 32 && b != b'\n' && b != b'\r' && b != b'\t' && b != 12)
+                // 12 is form feed
             })
             .count();
-        
+
         let binary_ratio = if bytes_read > 0 {
             binary_chars as f64 / bytes_read as f64
         } else {
@@ -72,7 +74,13 @@ impl crate::ForgeFS {
         };
 
         if binary_ratio > binary_threshold {
-            return Ok((true, format!("Binary data (statistical detection: {}% binary characters)", (binary_ratio * 100.0) as u8)));
+            return Ok((
+                true,
+                format!(
+                    "Binary data (statistical detection: {}% binary characters)",
+                    (binary_ratio * 100.0) as u8
+                ),
+            ));
         }
 
         // STEP 3: Attempt UTF-8 validation as a final check
@@ -81,7 +89,10 @@ impl crate::ForgeFS {
         }
 
         // If we've made it here, the file is likely text-based
-        Ok((false, String::from("Text file (no specific format detected)")))
+        Ok((
+            false,
+            String::from("Text file (no specific format detected)"),
+        ))
     }
 }
 
@@ -109,7 +120,10 @@ mod test {
         let binary_file = create_test_file(&binary_content).await?;
         let (is_binary, file_type) = crate::ForgeFS::is_binary_file(binary_file.path()).await?;
         assert!(is_binary, "Binary file not correctly identified");
-        assert!(file_type.contains("Binary data"), "Binary file type description not correct");
+        assert!(
+            file_type.contains("Binary data"),
+            "Binary file type description not correct"
+        );
 
         // Create a simple PNG image file (with valid PNG header)
         let png_header = [
@@ -123,7 +137,10 @@ mod test {
         let png_file = create_test_file(&png_header).await?;
         let (is_binary, file_type) = crate::ForgeFS::is_binary_file(png_file.path()).await?;
         assert!(is_binary, "PNG file not identified as binary");
-        assert!(file_type.contains("image/png"), "PNG file type not correctly identified");
+        assert!(
+            file_type.contains("image/png"),
+            "PNG file type not correctly identified"
+        );
 
         // Test with empty file
         let empty_file = create_test_file(&[]).await?;
