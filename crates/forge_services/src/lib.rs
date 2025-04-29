@@ -3,6 +3,7 @@ mod compaction;
 mod conversation;
 mod forge_services;
 mod infra;
+mod loader;
 mod provider;
 mod template;
 mod tool_service;

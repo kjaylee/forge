@@ -2,9 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::Workflow;
-use forge_services::{FsReadService, Infrastructure};
+use forge_domain::{Workflow, LoaderService};
 use merge::Merge;
+
+use crate::{FsReadService, Infrastructure};
 
 /// Represents the possible sources of a workflow configuration
 enum WorkflowSource<'a> {
@@ -65,5 +66,12 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
         let mut merged_workflow = Workflow::default();
         merged_workflow.merge(custom_workflow);
         Ok(merged_workflow)
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: Infrastructure> LoaderService for ForgeLoaderService<F> {
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        self.load(path).await
     }
 }

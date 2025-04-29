@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use serde_json::Value;
 
 use crate::{
@@ -76,6 +78,11 @@ pub trait EnvironmentService: Send + Sync {
     fn get_environment(&self) -> Environment;
 }
 
+#[async_trait::async_trait]
+pub trait LoaderService {
+    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -87,6 +94,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
     type CompactionService: CompactionService;
+    type LoaderService: LoaderService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
@@ -95,4 +103,5 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn compaction_service(&self) -> &Self::CompactionService;
+    fn loader_service(&self) -> &Self::LoaderService;
 }

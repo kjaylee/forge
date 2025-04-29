@@ -9,14 +9,12 @@ use forge_stream::MpscStream;
 use serde_json::Value;
 
 use crate::executor::ForgeExecutorService;
-use crate::loader::ForgeLoaderService;
 use crate::suggestion::ForgeSuggestionService;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
     executor_service: ForgeExecutorService<F>,
     suggestion_service: ForgeSuggestionService<F>,
-    loader: ForgeLoaderService<F>,
 }
 
 impl<F: Services + Infrastructure> ForgeAPI<F> {
@@ -25,7 +23,6 @@ impl<F: Services + Infrastructure> ForgeAPI<F> {
             app: app.clone(),
             executor_service: ForgeExecutorService::new(app.clone()),
             suggestion_service: ForgeSuggestionService::new(app.clone()),
-            loader: ForgeLoaderService::new(app.clone()),
         }
     }
 }
@@ -90,8 +87,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        let workflow = self.loader.load(path).await?;
-        Ok(workflow)
+        self.app.loader_service().load(path).await
     }
 
     async fn conversation(

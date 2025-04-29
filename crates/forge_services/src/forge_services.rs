@@ -5,6 +5,7 @@ use forge_domain::Services;
 use crate::attachment::ForgeChatRequest;
 use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
+use crate::loader::ForgeLoaderService;
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
@@ -29,6 +30,7 @@ pub struct ForgeServices<F> {
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
     compaction_service: Arc<ForgeCompactionService<ForgeTemplateService, ForgeProviderService>>,
+    loader_service: Arc<ForgeLoaderService<F>>,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
@@ -44,6 +46,8 @@ impl<F: Infrastructure> ForgeServices<F> {
 
         let conversation_service =
             Arc::new(ForgeConversationService::new(compaction_service.clone()));
+
+        let loader_service = Arc::new(ForgeLoaderService::new(infra.clone()));
         Self {
             infra,
             conversation_service,
@@ -52,6 +56,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             compaction_service,
             provider_service,
             template_service,
+            loader_service,
         }
     }
 }
@@ -64,6 +69,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
     type CompactionService = ForgeCompactionService<Self::TemplateService, Self::ProviderService>;
+    type LoaderService = ForgeLoaderService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -91,6 +97,10 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn compaction_service(&self) -> &Self::CompactionService {
         self.compaction_service.as_ref()
+    }
+
+    fn loader_service(&self) -> &Self::LoaderService {
+        self.loader_service.as_ref()
     }
 }
 
