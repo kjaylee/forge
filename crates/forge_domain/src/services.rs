@@ -1,6 +1,5 @@
 use std::path::Path;
 
-
 use crate::{
     Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
     ConversationId, Environment, Model, ModelId, ResultStream, SuggestionService, ToolCallContext,
