@@ -9,11 +9,13 @@ use crate::{FsReadService, Infrastructure};
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
-pub struct ForgeWorkflowService<F>(Arc<F>);
+pub struct ForgeWorkflowService<F> {
+    infra: Arc<F>,
+}
 
 impl<F> ForgeWorkflowService<F> {
-    pub fn new(app: Arc<F>) -> Self {
-        Self(app)
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { infra }
     }
 }
 
@@ -49,7 +51,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
     /// default workflow
     async fn load_and_merge_workflow(&self, path: &Path) -> anyhow::Result<Workflow> {
         // Load the custom workflow
-        let content = self.0.file_read_service().read(path).await?;
+        let content = self.infra.file_read_service().read(path).await?;
         let custom_workflow: Workflow = serde_yml::from_str(&content)
             .with_context(|| format!("Failed to parse workflow from {}", path.display()))?;
 
