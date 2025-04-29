@@ -28,15 +28,18 @@ pub trait API: Sync + Send {
     fn environment(&self) -> Environment;
 
     /// Creates a new conversation with the given workflow configuration
-    async fn init<W: Into<Workflow> + Send + Sync>(&self, config: W) -> Result<Conversation>;
+    async fn init_conversation<W: Into<Workflow> + Send + Sync>(
+        &self,
+        config: W,
+    ) -> Result<Conversation>;
 
     /// Adds a new conversation to the conversation store
     async fn upsert_conversation(&self, conversation: Conversation) -> Result<()>;
 
-    /// Loads a workflow configuration from the given path, current directory's
+    /// Initializes a workflow configuration from the given path, current directory's
     /// forge.yaml, or embedded default configuration in that order of
     /// precedence
-    async fn load(&self, path: Option<&Path>) -> Result<Workflow>;
+    async fn init_workflow(&self, path: Option<&Path>) -> Result<Workflow>;
 
     /// Returns the conversation with the given ID
     async fn conversation(&self, conversation_id: &ConversationId) -> Result<Option<Conversation>>;

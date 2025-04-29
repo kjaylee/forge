@@ -347,7 +347,7 @@ impl<F: API> UI<F> {
         match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
-                let config = self.api.load(self.cli.workflow.as_deref()).await?;
+                let config = self.api.init_workflow(self.cli.workflow.as_deref()).await?;
 
                 // Get the mode from the config
                 let mode = config
@@ -373,7 +373,7 @@ impl<F: API> UI<F> {
                     self.api.upsert_conversation(conversation).await?;
                     Ok(conversation_id)
                 } else {
-                    let conversation = self.api.init(config.clone()).await?;
+                    let conversation = self.api.init_conversation(config.clone()).await?;
                     self.state.model = Some(conversation.main_model()?);
                     self.state.conversation_id = Some(conversation.id.clone());
                     Ok(conversation.id)

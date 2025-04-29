@@ -65,7 +65,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         }))
     }
 
-    async fn init<W: Into<Workflow> + Send + Sync>(
+    async fn init_conversation<W: Into<Workflow> + Send + Sync>(
         &self,
         workflow: W,
     ) -> anyhow::Result<Conversation> {
@@ -95,7 +95,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .clone()
     }
 
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+    async fn init_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         self.app.loader_service().load(path).await
     }
 
