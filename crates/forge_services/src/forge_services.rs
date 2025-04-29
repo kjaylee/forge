@@ -5,11 +5,11 @@ use forge_domain::Services;
 use crate::attachment::ForgeChatRequest;
 use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
-use crate::workflow::ForgeWorkflowService;
 use crate::provider::ForgeProviderService;
 use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
+use crate::workflow::ForgeWorkflowService;
 use crate::Infrastructure;
 
 /// ForgeApp is the main application container that implements the App trait.
@@ -107,7 +107,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     fn loader_service(&self) -> &Self::WorkflowService {
         self.loader_service.as_ref()
     }
-    
+
     fn suggestion_service(&self) -> &Self::SuggestionService {
         self.suggestion_service.as_ref()
     }

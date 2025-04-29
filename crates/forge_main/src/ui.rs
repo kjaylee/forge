@@ -88,13 +88,11 @@ impl<F: API> UI<F> {
         // Override the mode that was reset by the conversation
         self.state.mode = mode.clone();
 
-        self.api
-            .set_variable(
-                &conversation_id,
-                "mode".to_string(),
-                Value::from(mode.to_string()),
-            )
-            .await?;
+        // Retrieve the conversation, update it, and save it back
+        if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
+            conversation.set_variable("mode".to_string(), Value::from(mode.to_string()));
+            self.api.upsert_conversation(conversation).await?;
+        }
 
         println!(
             "{}",

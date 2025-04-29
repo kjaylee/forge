@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use serde_json::Value;
 
 use crate::{
     Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
@@ -37,16 +36,6 @@ pub trait ConversationService: Send + Sync {
     async fn upsert(&self, conversation: Conversation) -> anyhow::Result<()>;
 
     async fn create(&self, workflow: Workflow) -> anyhow::Result<Conversation>;
-
-    async fn get_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<Option<Value>>;
-
-    async fn set_variable(
-        &self,
-        id: &ConversationId,
-        key: String,
-        value: Value,
-    ) -> anyhow::Result<()>;
-    async fn delete_variable(&self, id: &ConversationId, key: &str) -> anyhow::Result<bool>;
 
     /// This is useful when you want to perform several operations on a
     /// conversation atomically.
