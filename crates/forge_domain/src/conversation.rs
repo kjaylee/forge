@@ -2,6 +2,7 @@ use std::collections::{HashMap, VecDeque};
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
+use merge::Merge;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
@@ -80,32 +81,36 @@ impl Conversation {
     }
 
     pub fn new(id: ConversationId, workflow: Workflow) -> Self {
+        // Merge the workflow with the default workflow
+        let mut flow = Workflow::default();
+        flow.merge(workflow);
+
         let mut agents = Vec::new();
 
-        for mut agent in workflow.agents.into_iter() {
-            if let Some(custom_rules) = workflow.custom_rules.clone() {
+        for mut agent in flow.agents.into_iter() {
+            if let Some(custom_rules) = flow.custom_rules.clone() {
                 agent.custom_rules = Some(custom_rules);
             }
 
-            if let Some(max_walker_depth) = workflow.max_walker_depth {
+            if let Some(max_walker_depth) = flow.max_walker_depth {
                 agent.max_walker_depth = Some(max_walker_depth);
             }
 
-            if let Some(temperature) = workflow.temperature {
+            if let Some(temperature) = flow.temperature {
                 agent.temperature = Some(temperature);
             }
 
-            if let Some(model) = workflow.model.clone() {
+            if let Some(model) = flow.model.clone() {
                 agent.model = Some(model);
             }
 
-            if let Some(tool_supported) = workflow.tool_supported {
+            if let Some(tool_supported) = flow.tool_supported {
                 agent.tool_supported = Some(tool_supported);
             }
 
             // Subscribe the main agent to all commands
             if agent.id.as_str() == Conversation::MAIN_AGENT_NAME {
-                let commands = workflow
+                let commands = flow
                     .commands
                     .iter()
                     .map(|c| c.name.clone())
@@ -124,7 +129,7 @@ impl Conversation {
             id,
             archived: false,
             state: Default::default(),
-            variables: workflow.variables.clone(),
+            variables: flow.variables.clone(),
             agents,
             events: Default::default(),
         }

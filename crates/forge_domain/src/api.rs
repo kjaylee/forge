@@ -36,10 +36,13 @@ pub trait API: Sync + Send {
     /// Adds a new conversation to the conversation store
     async fn upsert_conversation(&self, conversation: Conversation) -> Result<()>;
 
-    /// Initializes a workflow configuration from the given path, current directory's
-    /// forge.yaml, or embedded default configuration in that order of
-    /// precedence
-    async fn init_workflow(&self, path: Option<&Path>) -> Result<Workflow>;
+    /// Initializes a workflow configuration from the given path
+    /// The workflow at the specified path is merged with the default
+    /// configuration
+    async fn read_workflow(&self, path: &Path) -> Result<Workflow>;
+
+    /// Writes the given workflow to the specified path
+    async fn write_workflow(&self, path: &Path, workflow: &Workflow) -> Result<()>;
 
     /// Returns the conversation with the given ID
     async fn conversation(&self, conversation_id: &ConversationId) -> Result<Option<Conversation>>;

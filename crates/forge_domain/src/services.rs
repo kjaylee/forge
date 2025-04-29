@@ -68,7 +68,11 @@ pub trait EnvironmentService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait WorkflowService {
-    async fn init(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
+    /// Reads the workflow from the given path
+    async fn read(&self, path: &Path) -> anyhow::Result<Workflow>;
+
+    /// Writes the given workflow to the specified path
+    async fn write(&self, path: &Path, workflow: &Workflow) -> anyhow::Result<()>;
 }
 
 /// Core app trait providing access to services and repositories.

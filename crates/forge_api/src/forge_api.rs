@@ -95,8 +95,12 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .clone()
     }
 
-    async fn init_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.app.workflow_service().init(path).await
+    async fn read_workflow(&self, path: &Path) -> anyhow::Result<Workflow> {
+        self.app.workflow_service().read(path).await
+    }
+
+    async fn write_workflow(&self, path: &Path, workflow: &Workflow) -> anyhow::Result<()> {
+        self.app.workflow_service().write(path, workflow).await
     }
 
     async fn conversation(

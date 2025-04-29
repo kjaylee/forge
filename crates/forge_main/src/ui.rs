@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -269,8 +270,10 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    // Helper method to handle model selection and update the conversation
-    async fn handle_model_selection(&mut self) -> Result<()> {
+    /// Select a model from the available models
+    /// Returns Some(ModelId) if a model was selected, or None if selection was
+    /// canceled
+    async fn select_model(&mut self) -> Result<Option<ModelId>> {
         // Fetch available models
         let models = self.get_models().await?;
 
@@ -292,17 +295,30 @@ impl<F: API> UI<F> {
             .unwrap_or(0);
 
         // Use inquire to select a model, with the current model pre-selected
-        let model = match Select::new("Select a model:", model_ids)
+        match Select::new("Select a model:", model_ids)
             .with_help_message("Use arrow keys to navigate and Enter to select")
             .with_render_config(render_config)
             .with_starting_cursor(starting_cursor)
             .prompt()
         {
-            Ok(model) => model,
+            Ok(model) => Ok(Some(model)),
             Err(InquireError::OperationCanceled | InquireError::OperationInterrupted) => {
-                return Ok(())
+                // Return None if selection was canceled
+                Ok(None)
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    // Helper method to handle model selection and update the conversation
+    async fn handle_model_selection(&mut self) -> Result<()> {
+        // Select a model
+        let model_option = self.select_model().await?;
+
+        // If no model was selected (user canceled), return early
+        let model = match model_option {
+            Some(model) => model,
+            None => return Ok(()),
         };
 
         // Get the conversation to update
@@ -347,10 +363,19 @@ impl<F: API> UI<F> {
         match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
-                let config = self.api.init_workflow(self.cli.workflow.as_deref()).await?;
+                let mut workflow = self.api.read_workflow(&self.workflow_path()).await?;
+
+                // Select a model if workflow doesn't have one
+                while workflow.model.is_none() {
+                    let model = self.select_model().await?;
+                    workflow.model = model;
+                    self.api
+                        .write_workflow(&self.workflow_path(), &workflow)
+                        .await?;
+                }
 
                 // Get the mode from the config
-                let mode = config
+                let mode = workflow
                     .variables
                     .get("mode")
                     .cloned()
@@ -358,7 +383,7 @@ impl<F: API> UI<F> {
                     .unwrap_or(Mode::Act);
 
                 self.state = UIState::new(mode);
-                self.command.register_all(&config);
+                self.command.register_all(&workflow);
 
                 // We need to try and get the conversation ID first before fetching the model
                 if let Some(ref path) = self.cli.conversation {
@@ -373,13 +398,23 @@ impl<F: API> UI<F> {
                     self.api.upsert_conversation(conversation).await?;
                     Ok(conversation_id)
                 } else {
-                    let conversation = self.api.init_conversation(config.clone()).await?;
+                    let conversation = self.api.init_conversation(workflow.clone()).await?;
                     self.state.model = Some(conversation.main_model()?);
                     self.state.conversation_id = Some(conversation.id.clone());
                     Ok(conversation.id)
                 }
             }
         }
+    }
+
+    fn workflow_path(&self) -> PathBuf {
+        let path: PathBuf = self
+            .cli
+            .workflow
+            .as_ref()
+            .unwrap_or(&PathBuf::from("forge.yaml"))
+            .clone();
+        path
     }
 
     async fn chat(&mut self, content: String) -> Result<()> {
