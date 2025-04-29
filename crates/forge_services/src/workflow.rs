@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{WorkflowService, Workflow};
+use forge_domain::{Workflow, WorkflowService};
 use merge::Merge;
 
 use crate::{FsReadService, Infrastructure};
@@ -28,10 +28,20 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
     /// When merging, the custom workflow values take precedence over defaults.
     pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         // Determine the workflow source
+
         match path {
+            // Path was provided
             Some(path) => self.load_and_merge_workflow(path).await,
-            None if Path::new("forge.yaml").exists() => Ok(Workflow::default()),
-            None => self.load_and_merge_workflow(Path::new("forge.yaml")).await,
+
+            // No path provided and no local forge.yaml exists
+            None => {
+                let path = Path::new("forge.yaml");
+                if path.exists() {
+                    self.load_and_merge_workflow(path).await
+                } else {
+                    Ok(Workflow::default())
+                }
+            }
         }
     }
 
