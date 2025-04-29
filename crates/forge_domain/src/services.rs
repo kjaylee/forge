@@ -92,6 +92,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn compaction_service(&self) -> &Self::CompactionService;
-    fn loader_service(&self) -> &Self::WorkflowService;
+    fn workflow_service(&self) -> &Self::WorkflowService;
     fn suggestion_service(&self) -> &Self::SuggestionService;
 }

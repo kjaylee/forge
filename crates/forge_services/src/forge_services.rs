@@ -104,7 +104,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
         self.compaction_service.as_ref()
     }
 
-    fn loader_service(&self) -> &Self::WorkflowService {
+    fn workflow_service(&self) -> &Self::WorkflowService {
         self.loader_service.as_ref()
     }
 

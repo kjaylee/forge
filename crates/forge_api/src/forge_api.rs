@@ -96,7 +96,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     }
 
     async fn init_workflow(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.app.loader_service().load(path).await
+        self.app.workflow_service().load(path).await
     }
 
     async fn conversation(
