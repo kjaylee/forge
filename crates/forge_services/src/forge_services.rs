@@ -5,7 +5,7 @@ use forge_domain::Services;
 use crate::attachment::ForgeChatRequest;
 use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
-use crate::loader::ForgeLoaderService;
+use crate::loader::ForgeWorkflowService;
 use crate::provider::ForgeProviderService;
 use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
@@ -31,7 +31,7 @@ pub struct ForgeServices<F> {
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
     compaction_service: Arc<ForgeCompactionService<ForgeTemplateService, ForgeProviderService>>,
-    loader_service: Arc<ForgeLoaderService<F>>,
+    loader_service: Arc<ForgeWorkflowService<F>>,
     suggestion_service: Arc<ForgeSuggestionService<F>>,
 }
 
@@ -49,7 +49,7 @@ impl<F: Infrastructure> ForgeServices<F> {
         let conversation_service =
             Arc::new(ForgeConversationService::new(compaction_service.clone()));
 
-        let loader_service = Arc::new(ForgeLoaderService::new(infra.clone()));
+        let loader_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
         let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
         Self {
             infra,
@@ -73,7 +73,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
     type CompactionService = ForgeCompactionService<Self::TemplateService, Self::ProviderService>;
-    type LoaderService = ForgeLoaderService<F>;
+    type WorkflowService = ForgeWorkflowService<F>;
     type SuggestionService = ForgeSuggestionService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
@@ -104,7 +104,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
         self.compaction_service.as_ref()
     }
 
-    fn loader_service(&self) -> &Self::LoaderService {
+    fn loader_service(&self) -> &Self::WorkflowService {
         self.loader_service.as_ref()
     }
     

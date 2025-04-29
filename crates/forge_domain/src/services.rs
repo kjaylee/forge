@@ -4,8 +4,8 @@ use serde_json::Value;
 
 use crate::{
     Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
-    ConversationId, Environment, Model, ModelId, ResultStream, SuggestionService, ToolCallContext, ToolCallFull,
-    ToolDefinition, ToolResult, Workflow,
+    ConversationId, Environment, Model, ModelId, ResultStream, SuggestionService, ToolCallContext,
+    ToolCallFull, ToolDefinition, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -79,7 +79,7 @@ pub trait EnvironmentService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait LoaderService {
+pub trait WorkflowService {
     async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
 }
 
@@ -94,7 +94,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
     type CompactionService: CompactionService;
-    type LoaderService: LoaderService;
+    type WorkflowService: WorkflowService;
     type SuggestionService: SuggestionService;
 
     fn tool_service(&self) -> &Self::ToolService;
@@ -104,6 +104,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn compaction_service(&self) -> &Self::CompactionService;
-    fn loader_service(&self) -> &Self::LoaderService;
+    fn loader_service(&self) -> &Self::WorkflowService;
     fn suggestion_service(&self) -> &Self::SuggestionService;
 }

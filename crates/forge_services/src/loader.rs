@@ -2,22 +2,22 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{LoaderService, Workflow};
+use forge_domain::{WorkflowService, Workflow};
 use merge::Merge;
 
 use crate::{FsReadService, Infrastructure};
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
-pub struct ForgeLoaderService<F>(Arc<F>);
+pub struct ForgeWorkflowService<F>(Arc<F>);
 
-impl<F> ForgeLoaderService<F> {
+impl<F> ForgeWorkflowService<F> {
     pub fn new(app: Arc<F>) -> Self {
         Self(app)
     }
 }
 
-impl<F: Infrastructure> ForgeLoaderService<F> {
+impl<F: Infrastructure> ForgeWorkflowService<F> {
     /// Loads the workflow from the given path.
     /// If a path is provided, uses that workflow and merges with defaults
     /// If no path is provided:
@@ -51,7 +51,7 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> LoaderService for ForgeLoaderService<F> {
+impl<F: Infrastructure> WorkflowService for ForgeWorkflowService<F> {
     async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         self.load(path).await
     }
