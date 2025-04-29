@@ -5,9 +5,11 @@ mod forge_services;
 mod infra;
 mod loader;
 mod provider;
+mod suggestion;
 mod template;
 mod tool_service;
 mod tools;
 
 pub use forge_services::*;
 pub use infra::*;
+pub use suggestion::*;

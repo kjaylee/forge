@@ -2,20 +2,10 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{Workflow, LoaderService};
+use forge_domain::{LoaderService, Workflow};
 use merge::Merge;
 
 use crate::{FsReadService, Infrastructure};
-
-/// Represents the possible sources of a workflow configuration
-enum WorkflowSource<'a> {
-    /// Explicitly provided path
-    ExplicitPath(&'a Path),
-    /// Default configuration embedded in the binary
-    Default,
-    /// Project-specific configuration in the current directory
-    ProjectConfig,
-}
 
 /// A workflow loader to load the workflow from the given path.
 /// It also resolves the internal paths specified in the workflow.
@@ -38,19 +28,10 @@ impl<F: Infrastructure> ForgeLoaderService<F> {
     /// When merging, the custom workflow values take precedence over defaults.
     pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         // Determine the workflow source
-        let source = match path {
-            Some(path) => WorkflowSource::ExplicitPath(path),
-            None if Path::new("forge.yaml").exists() => WorkflowSource::ProjectConfig,
-            None => WorkflowSource::Default,
-        };
-
-        // Load the workflow based on its source
-        match source {
-            WorkflowSource::ExplicitPath(path) => self.load_and_merge_workflow(path).await,
-            WorkflowSource::Default => Ok(Workflow::default()),
-            WorkflowSource::ProjectConfig => {
-                self.load_and_merge_workflow(Path::new("forge.yaml")).await
-            }
+        match path {
+            Some(path) => self.load_and_merge_workflow(path).await,
+            None if Path::new("forge.yaml").exists() => Ok(Workflow::default()),
+            None => self.load_and_merge_workflow(Path::new("forge.yaml")).await,
         }
     }
 

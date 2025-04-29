@@ -9,7 +9,7 @@ use crate::*;
 pub trait API: Sync + Send {
     /// Provides a list of files in the current working directory for auto
     /// completion
-    async fn suggestions(&self) -> anyhow::Result<Vec<File>>;
+    async fn suggestions(&self) -> anyhow::Result<Vec<crate::File>>;
 
     /// Provides information about the tools available in the current
     /// environment

@@ -7,6 +7,7 @@ use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
 use crate::loader::ForgeLoaderService;
 use crate::provider::ForgeProviderService;
+use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::Infrastructure;
@@ -31,6 +32,7 @@ pub struct ForgeServices<F> {
     attachment_service: Arc<ForgeChatRequest<F>>,
     compaction_service: Arc<ForgeCompactionService<ForgeTemplateService, ForgeProviderService>>,
     loader_service: Arc<ForgeLoaderService<F>>,
+    suggestion_service: Arc<ForgeSuggestionService<F>>,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
@@ -48,6 +50,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             Arc::new(ForgeConversationService::new(compaction_service.clone()));
 
         let loader_service = Arc::new(ForgeLoaderService::new(infra.clone()));
+        let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
         Self {
             infra,
             conversation_service,
@@ -57,6 +60,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             provider_service,
             template_service,
             loader_service,
+            suggestion_service,
         }
     }
 }
@@ -70,6 +74,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type EnvironmentService = F::EnvironmentService;
     type CompactionService = ForgeCompactionService<Self::TemplateService, Self::ProviderService>;
     type LoaderService = ForgeLoaderService<F>;
+    type SuggestionService = ForgeSuggestionService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -101,6 +106,10 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn loader_service(&self) -> &Self::LoaderService {
         self.loader_service.as_ref()
+    }
+    
+    fn suggestion_service(&self) -> &Self::SuggestionService {
+        self.suggestion_service.as_ref()
     }
 }
 

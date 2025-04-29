@@ -9,12 +9,10 @@ use forge_stream::MpscStream;
 use serde_json::Value;
 
 use crate::executor::ForgeExecutorService;
-use crate::suggestion::ForgeSuggestionService;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
     executor_service: ForgeExecutorService<F>,
-    suggestion_service: ForgeSuggestionService<F>,
 }
 
 impl<F: Services + Infrastructure> ForgeAPI<F> {
@@ -22,7 +20,6 @@ impl<F: Services + Infrastructure> ForgeAPI<F> {
         Self {
             app: app.clone(),
             executor_service: ForgeExecutorService::new(app.clone()),
-            suggestion_service: ForgeSuggestionService::new(app.clone()),
         }
     }
 }
@@ -38,7 +35,7 @@ impl ForgeAPI<ForgeServices<ForgeInfra>> {
 #[async_trait::async_trait]
 impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     async fn suggestions(&self) -> Result<Vec<File>> {
-        self.suggestion_service.suggestions().await
+        self.app.suggestion_service().suggestions().await
     }
 
     async fn tools(&self) -> Vec<ToolDefinition> {
