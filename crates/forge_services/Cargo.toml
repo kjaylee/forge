@@ -21,6 +21,7 @@ derive_setters.workspace = true
 tokio-stream.workspace = true
 handlebars.workspace = true
 forge_domain.workspace = true
+forge_fs.workspace = true
 moka2.workspace = true
 schemars.workspace = true
 anyhow.workspace = true
@@ -48,6 +49,7 @@ base64.workspace = true
 strum_macros.workspace = true
 strum.workspace = true
 bytes.workspace = true
+console.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

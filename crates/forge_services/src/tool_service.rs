@@ -92,22 +92,6 @@ impl ToolService for ForgeToolService {
 
         tools
     }
-
-    fn usage_prompt(&self) -> String {
-        let mut tools: Vec<_> = self.tools.values().collect();
-        tools.sort_by(|a, b| a.definition.name.as_str().cmp(b.definition.name.as_str()));
-
-        tools
-            .iter()
-            .enumerate()
-            .fold("".to_string(), |mut acc, (i, tool)| {
-                acc.push('\n');
-                acc.push_str((i + 1).to_string().as_str());
-                acc.push_str(". ");
-                acc.push_str(tool.definition.usage_prompt().to_string().as_str());
-                acc
-            })
-    }
 }
 
 #[cfg(test)]
@@ -130,7 +114,7 @@ mod test {
             _context: ToolCallContext,
             input: Self::Input,
         ) -> anyhow::Result<String> {
-            Ok(format!("Success with input: {}", input))
+            Ok(format!("Success with input: {input}"))
         }
     }
 

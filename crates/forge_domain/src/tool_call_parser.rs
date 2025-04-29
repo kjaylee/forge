@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use nom::bytes::complete::{tag, take_until, take_while1};
 use nom::character::complete::multispace0;
@@ -12,7 +12,7 @@ use crate::{Error, ToolName};
 #[derive(Debug, PartialEq)]
 pub struct ToolCallParsed {
     pub name: String,
-    pub args: HashMap<String, String>,
+    pub args: BTreeMap<String, String>,
 }
 
 // Allow alphanumeric and underscore characters
@@ -25,21 +25,18 @@ fn parse_identifier(input: &str) -> IResult<&str, &str> {
 }
 
 fn parse_arg(input: &str) -> IResult<&str, (&str, &str)> {
-    let (input, _) = multispace0(input)?;
-    let (input, _) = tag("<").parse(input)?;
+    let (input, _) = take_until("<").and(tag("<")).parse(input)?;
     let (input, key) = parse_identifier(input)?;
     let (input, _) = tag(">").parse(input)?;
-    let (input, value) = take_until("</").parse(input)?;
-    let (input, _) = tag("</").parse(input)?;
-    let (input, _) = tag(key).parse(input)?;
-    let (input, _) = tag(">").parse(input)?;
-    let (input, _) = multispace0(input)?;
+    let close = format!("</{key}>");
+    let (input, value) = take_until(close.as_str()).parse(input)?;
+    let (input, _) = tag(close.as_str()).parse(input)?;
     Ok((input, (key, value)))
 }
 
 fn parse_args(input: &str) -> IResult<&str, HashMap<String, String>> {
-    let mut arg_parser = many0(parse_arg);
-    let (input, args) = arg_parser.parse(input)?;
+    let (input, args) = many0(parse_arg).parse(input)?;
+
     let mut map = HashMap::new();
     for (key, value) in args {
         map.insert(key.to_string(), value.to_string());
@@ -49,33 +46,28 @@ fn parse_args(input: &str) -> IResult<&str, HashMap<String, String>> {
 
 fn parse_tool_call(input: &str) -> IResult<&str, ToolCallParsed> {
     let (input, _) = multispace0(input)?; // Handle leading whitespace and newlines
-    let (input, _) = tag("<tool_call>").parse(input)?;
-    let (input, _) = multispace0(input)?; // Handle whitespace after <tool_call>
+    let (input, _) = tag("<forge_tool_call>").parse(input)?;
+    let (input, _) = multispace0(input)?; // Handle whitespace after <forge_tool_call>
 
-    // Match the tool name tags: <tool_name>
+    // Match the tool name tags: <forge_tool_name>
     let (input, _) = tag("<").parse(input)?;
-    let (input, name) = parse_identifier(input)?;
+    let (input, tool_name) = parse_identifier(input)?;
     let (input, _) = tag(">").parse(input)?;
     let (input, _) = multispace0(input)?;
 
     // Match all the arguments with whitespace
     let (input, args) = parse_args(input)?;
 
-    // Match closing tags: </tool_name>
-    let (input, _) = multispace0(input)?; // Handle whitespace before closing tag
-    let (input, _) = tag("</").parse(input)?;
-    let (input, _) = tag(name).parse(input)?;
-    let (input, _) = tag(">").parse(input)?;
-    let (input, _) = multispace0(input)?; // Handle whitespace after closing tag
-
-    // Match </tool_call> and any whitespace
-    let (input, _) = tag("</tool_call>").parse(input)?;
-    let (input, _) = multispace0(input)?; // Handle trailing whitespace and newlines
+    // Match closing tag
+    let (input, _) = multispace0(input)?;
+    let (input, _) = tag(format!("</{tool_name}>").as_str()).parse(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, _) = tag("</forge_tool_call>").parse(input)?;
 
     Ok((
         input,
         ToolCallParsed {
-            name: name.to_string(),
+            name: tool_name.to_string(),
             args: args.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
         },
     ))
@@ -83,7 +75,7 @@ fn parse_tool_call(input: &str) -> IResult<&str, ToolCallParsed> {
 
 fn find_next_tool_call(input: &str) -> IResult<&str, &str> {
     // Find the next occurrence of a tool call opening tag
-    let (remaining, _) = take_until("<tool_call>").parse(input)?;
+    let (remaining, _) = take_until("<forge_tool_call>").parse(input)?;
     Ok((remaining, ""))
 }
 
@@ -166,6 +158,8 @@ pub fn parse(input: &str) -> Result<Vec<ToolCallFull>, Error> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -174,12 +168,12 @@ mod tests {
     // Test helpers
     struct ToolCallBuilder {
         name: String,
-        args: HashMap<String, String>,
+        args: BTreeMap<String, String>,
     }
 
     impl ToolCallBuilder {
         fn new(name: &str) -> Self {
-            Self { name: name.to_string(), args: HashMap::new() }
+            Self { name: name.to_string(), args: Default::default() }
         }
 
         fn arg(mut self, key: &str, value: &str) -> Self {
@@ -188,7 +182,7 @@ mod tests {
         }
 
         fn build_xml(&self) -> String {
-            let mut xml = String::from("<tool_call>");
+            let mut xml = String::from("<forge_tool_call>");
             xml.push_str(&format!("<{}>", self.name));
             let args: Vec<_> = self.args.iter().collect();
             for (idx, (key, value)) in args.iter().enumerate() {
@@ -200,7 +194,7 @@ mod tests {
                     if idx < args.len() - 1 { " " } else { "" }
                 ));
             }
-            xml.push_str(&format!("</{}></tool_call>", self.name));
+            xml.push_str(&format!("</{}></forge_tool_call>", self.name));
             xml
         }
 
@@ -243,31 +237,28 @@ mod tests {
     #[test]
     fn test_actual_llm_respone() {
         // Test with real LLM response including newlines and indentation
-        let str = r#"To find the cat hidden in the codebase, I will use the `tool_forge_fs_search` to grep for the string "cat" in all markdown files except those in the `docs` directory.
+        let str = r#"To find the cat hidden in the codebase, I will use the `forge_tool_fs_search` to grep for the string "cat" in all markdown files except those in the `docs` directory.
                 <analysis>
                 Files Read: */*.md
                 Git Status: Not applicable, as we are not dealing with version control changes.
                 Compilation Status: Not applicable, as this is a text search.
                 Test Status: Not applicable, as this is a text search.
                 </analysis>
+                Let's check the implementation in the fs_read.rs file:
 
-                <tool_call>
-                <tool_forge_fs_search>
-                <file_pattern>**/*.md</file_pattern>
-                <path>/Users/amit/code-forge</path>
-                <regex>cat</regex>
-                </tool_forge_fs_search>
-                </tool_call>"#;
+                <forge_tool_call>
+                <forge_tool_fs_read>
+                <path>/a/b/c.txt</path>
+                </forge_tool_fs_read>
+                </forge_tool_call>
+                "#;
 
         let action = parse(str).unwrap();
 
         let expected = vec![ToolCallFull {
-            name: ToolName::new("tool_forge_fs_search"),
+            name: ToolName::new("forge_tool_fs_read"),
             call_id: None,
-            arguments: serde_json::from_str(
-                r#"{"file_pattern":"**/*.md","path":"/Users/amit/code-forge","regex":"cat"}"#,
-            )
-            .unwrap(),
+            arguments: serde_json::from_str(r#"{"path":"/a/b/c.txt"}"#).unwrap(),
         }];
         assert_eq!(action, expected);
     }
@@ -416,11 +407,11 @@ mod tests {
 
     #[test]
     fn test_parse_new_tool_call_format() {
-        let input = r#"<tool_call><tool_forge_fs_search><path>/test/path</path><regex>test</regex></tool_forge_fs_search></tool_call>"#;
+        let input = r#"<forge_tool_call><forge_tool_fs_search><path>/test/path</path><regex>test</regex></forge_tool_fs_search></forge_tool_call>"#;
 
         let action = parse(input).unwrap();
         let expected = vec![ToolCallFull {
-            name: ToolName::new("tool_forge_fs_search"),
+            name: ToolName::new("forge_tool_fs_search"),
             call_id: None,
             arguments: serde_json::from_str(r#"{"path":"/test/path","regex":"test"}"#).unwrap(),
         }];
@@ -429,7 +420,12 @@ mod tests {
 
     #[test]
     fn test_parse_with_newlines() {
-        let input = ["<tool_call><foo><p1>", "abc", "</p1></foo></tool_call>"].join("\n");
+        let input = [
+            "<forge_tool_call><foo><p1>",
+            "abc",
+            "</p1></foo></forge_tool_call>",
+        ]
+        .join("\n");
 
         let action = parse(&input).unwrap();
         let expected = vec![ToolCallFull {
