@@ -103,6 +103,13 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         self.app.workflow_service().write(path, workflow).await
     }
 
+    async fn update_workflow<T>(&self, path: &Path, f: T) -> anyhow::Result<Workflow>
+    where
+        T: FnOnce(&mut Workflow) + Send,
+    {
+        self.app.workflow_service().update_workflow(path, f).await
+    }
+
     async fn conversation(
         &self,
         conversation_id: &ConversationId,

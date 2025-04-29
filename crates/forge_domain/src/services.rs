@@ -73,6 +73,15 @@ pub trait WorkflowService {
 
     /// Writes the given workflow to the specified path
     async fn write(&self, path: &Path, workflow: &Workflow) -> anyhow::Result<()>;
+
+    /// Updates the workflow at the given path using the provided closure
+    ///
+    /// The closure receives a mutable reference to the workflow, which can be
+    /// modified. After the closure completes, the updated workflow is
+    /// written back to the same path.
+    async fn update_workflow<F>(&self, path: &Path, f: F) -> anyhow::Result<Workflow>
+    where
+        F: FnOnce(&mut Workflow) + Send;
 }
 
 /// Core app trait providing access to services and repositories.

@@ -321,6 +321,12 @@ impl<F: API> UI<F> {
             None => return Ok(()),
         };
 
+        self.api
+            .update_workflow(&self.workflow_path(), |workflow| {
+                workflow.model = Some(model.clone());
+            })
+            .await?;
+
         // Get the conversation to update
         let conversation_id = self.init_conversation().await?;
 
@@ -363,16 +369,18 @@ impl<F: API> UI<F> {
         match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
-                let mut workflow = self.api.read_workflow(&self.workflow_path()).await?;
-
                 // Select a model if workflow doesn't have one
-                while workflow.model.is_none() {
-                    let model = self.select_model().await?;
-                    workflow.model = model;
-                    self.api
-                        .write_workflow(&self.workflow_path(), &workflow)
-                        .await?;
+                let mut model = None;
+                while model.is_none() {
+                    model = self.select_model().await?;
                 }
+
+                let workflow = self
+                    .api
+                    .update_workflow(&self.workflow_path(), |workflow| {
+                        workflow.model = model;
+                    })
+                    .await?;
 
                 // Get the mode from the config
                 let mode = workflow

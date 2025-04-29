@@ -53,4 +53,20 @@ impl<F: Infrastructure> WorkflowService for ForgeWorkflowService<F> {
             .write(path, content.into())
             .await
     }
+
+    async fn update_workflow<Func>(&self, path: &Path, f: Func) -> anyhow::Result<Workflow>
+    where
+        Func: FnOnce(&mut Workflow) + Send,
+    {
+        // Read the current workflow
+        let mut workflow = self.read(path).await?;
+
+        // Apply the closure to update the workflow
+        f(&mut workflow);
+
+        // Write the updated workflow back
+        self.write(path, &workflow).await?;
+
+        Ok(workflow)
+    }
 }

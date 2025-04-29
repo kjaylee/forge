@@ -44,6 +44,11 @@ pub trait API: Sync + Send {
     /// Writes the given workflow to the specified path
     async fn write_workflow(&self, path: &Path, workflow: &Workflow) -> Result<()>;
 
+    /// Updates the workflow at the given path using the provided closure
+    async fn update_workflow<F>(&self, path: &Path, f: F) -> Result<Workflow>
+    where
+        F: FnOnce(&mut Workflow) + Send;
+
     /// Returns the conversation with the given ID
     async fn conversation(&self, conversation_id: &ConversationId) -> Result<Option<Conversation>>;
 
