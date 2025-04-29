@@ -26,7 +26,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
     ///   - Falls back to embedded default if forge.yaml doesn't exist
     ///
     /// When merging, the custom workflow values take precedence over defaults.
-    pub async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+    pub async fn init(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
         // Determine the workflow source
 
         match path {
@@ -62,7 +62,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
 
 #[async_trait::async_trait]
 impl<F: Infrastructure> WorkflowService for ForgeWorkflowService<F> {
-    async fn load(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
-        self.load(path).await
+    async fn init(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        self.init(path).await
     }
 }
