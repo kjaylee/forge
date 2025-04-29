@@ -7,20 +7,15 @@ use forge_infra::ForgeInfra;
 use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
 use serde_json::Value;
-
-use crate::executor::ForgeExecutorService;
+use tracing::error;
 
 pub struct ForgeAPI<F> {
     app: Arc<F>,
-    executor_service: ForgeExecutorService<F>,
 }
 
 impl<F: Services + Infrastructure> ForgeAPI<F> {
     pub fn new(app: Arc<F>) -> Self {
-        Self {
-            app: app.clone(),
-            executor_service: ForgeExecutorService::new(app.clone()),
-        }
+        Self { app: app.clone() }
     }
 }
 
@@ -50,7 +45,25 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         &self,
         chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
-        Ok(self.executor_service.chat(chat).await?)
+        let app = self.app.clone();
+        let conversation = app
+            .conversation_service()
+            .find(&chat.conversation_id)
+            .await
+            .unwrap_or_default()
+            .expect("conversation for the request should've been created at this point.");
+
+        Ok(MpscStream::spawn(move |tx| async move {
+            let tx = Arc::new(tx);
+
+            let orch = Orchestrator::new(app, conversation, Some(tx.clone()));
+
+            if let Err(err) = orch.dispatch(chat.event).await {
+                if let Err(e) = tx.send(Err(err)).await {
+                    error!("Failed to send error to stream: {:#?}", e);
+                }
+            }
+        }))
     }
 
     async fn init<W: Into<Workflow> + Send + Sync>(
