@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
@@ -12,8 +15,6 @@ use inquire::Select;
 use merge::Merge;
 use serde::Deserialize;
 use serde_json::Value;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tokio_stream::StreamExt;
 use tracing::error;
 

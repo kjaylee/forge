@@ -45,13 +45,12 @@ async fn update_forge() -> Result<()> {
     } else {
         return Ok(());
     }
-    return Err(anyhow::anyhow!("Update failed"));
+    Err(anyhow::anyhow!("Update failed"))
 }
 
 async fn confirm_update(version: Version) {
     let answer = inquire::Confirm::new(&format!(
-        "Forge Update Available\nCurrent version: v{}   Latest: {}\n\nWould you like to update now?",
-        VERSION, version
+        "Forge Update Available\nCurrent version: v{VERSION}   Latest: {version}\n\nWould you like to update now?"
     ))
     .with_default(true)
     .with_error_message("Invalid response!")
@@ -74,7 +73,8 @@ async fn confirm_update(version: Version) {
 
 /// Checks if there is an update available
 pub async fn check_for_update(frequency: Option<UpdateFrequency>) {
-    // Check if version is development version, in which case we skip the update check
+    // Check if version is development version, in which case we skip the update
+    // check
     if VERSION.contains("dev") || VERSION == "0.1.0" {
         // Skip update for development version 0.1.0
         return;
