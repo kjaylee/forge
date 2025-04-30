@@ -65,7 +65,9 @@ impl<F: API> UI<F> {
         if let Some(models) = &self.state.cached_models {
             Ok(models.clone())
         } else {
+            self.spinner.start(Some("Loading Models"))?;
             let models = self.api.models().await?;
+            self.spinner.stop(None)?;
             self.state.cached_models = Some(models.clone());
             Ok(models)
         }
@@ -150,7 +152,21 @@ impl<F: API> UI<F> {
         self.console.prompt(Some(self.state.clone().into())).await
     }
 
-    pub async fn run(&mut self) -> Result<()> {
+    pub async fn run(&mut self) {
+        match self.run_inner().await {
+            Ok(_) => {}
+            Err(error) => {
+                println!(
+                    "{}",
+                    TitleFormat::action("Error")
+                        .error(format!("{error:?}"))
+                        .format()
+                );
+            }
+        }
+    }
+
+    async fn run_inner(&mut self) -> Result<()> {
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
             return self.handle_dispatch(dispatch_json).await;
@@ -164,8 +180,8 @@ impl<F: API> UI<F> {
         }
 
         // Display the banner in dimmed colors since we're in interactive mode
-        self.init_conversation().await?;
         banner::display()?;
+        self.init_conversation().await?;
 
         // Get initial input from file or prompt
         let mut input = match &self.cli.command {
@@ -176,7 +192,7 @@ impl<F: API> UI<F> {
         loop {
             match input {
                 Command::Compact => {
-                    self.spinner.start()?;
+                    self.spinner.start(Some("Compacting"))?;
                     let conversation_id = self.init_conversation().await?;
                     let compaction_result = self.api.compact_conversation(&conversation_id).await?;
 
@@ -201,7 +217,7 @@ impl<F: API> UI<F> {
                     println!("{info}");
                 }
                 Command::Message(ref content) => {
-                    self.spinner.start()?;
+                    self.spinner.start(None)?;
                     let chat_result = self.chat(content.clone()).await;
                     if let Err(err) = chat_result {
                         tokio::spawn(
@@ -370,15 +386,15 @@ impl<F: API> UI<F> {
             Some(ref id) => Ok(id.clone()),
             None => {
                 // Select a model if workflow doesn't have one
-                let mut model = None;
-                while model.is_none() {
-                    model = self.select_model().await?;
-                }
+                let model = self
+                    .select_model()
+                    .await?
+                    .ok_or(anyhow::anyhow!("Model selection is required to continue"))?;
 
                 let workflow = self
                     .api
                     .update_workflow(&self.workflow_path(), |workflow| {
-                        workflow.model = model;
+                        workflow.model = Some(model);
                     })
                     .await?;
 
@@ -543,7 +559,7 @@ impl<F: API> UI<F> {
                 self.spinner.stop(None)?;
             }
             ChatResponse::ToolCallEnd(_) => {
-                self.spinner.start()?;
+                self.spinner.start(None)?;
                 if !self.cli.verbose {
                     return Ok(());
                 }

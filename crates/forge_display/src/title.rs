@@ -68,11 +68,13 @@ impl TitleFormat {
             );
         }
 
-        let mut title = self.title.dimmed();
-
-        if self.error.is_some() {
-            title = title.red().bold();
-        }
+        let title = if self.error.is_some() {
+            self.title.red().bold()
+        } else if self.is_user_action {
+            self.title.dimmed()
+        } else {
+            self.title.dimmed()
+        };
 
         buf.push_str(&format!("{title}"));
 
