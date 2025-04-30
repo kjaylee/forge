@@ -1,6 +1,7 @@
 use derive_setters::Setters;
 use regex::Regex;
-use termimad::{crossterm::style::Color, gray, CompoundStyle, LineStyle, MadSkin};
+use termimad::crossterm::style::Color;
+use termimad::{gray, CompoundStyle, LineStyle, MadSkin};
 
 /// MarkdownFormat provides functionality for formatting markdown text for
 /// terminal display.
