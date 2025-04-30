@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use forge_spinner::SpinnerManager;
 use forge_tracker::{EventKind, VERSION};
 use serde::Deserialize;
 use tokio::process::Command;
@@ -79,6 +80,9 @@ pub async fn check_for_update(frequency: Option<UpdateFrequency>) {
         // Skip update for development version 0.1.0
         return;
     }
+    let mut spinner = SpinnerManager::new();
+
+    let _ = spinner.start(Some("Checking for updates..."));
     let informer = update_informer::new(registry::Npm, "@antinomyhq/forge", VERSION).interval(
         match frequency {
             Some(frequency) => match frequency {
@@ -88,7 +92,7 @@ pub async fn check_for_update(frequency: Option<UpdateFrequency>) {
             None => Duration::ZERO,
         },
     );
-
+    let _ = spinner.stop(None);
     if let Some(version) = informer.check_version().ok().flatten() {
         confirm_update(version).await;
     }

@@ -84,6 +84,8 @@ impl<F: API> UI<F> {
                 .get("check_frequency")
                 .cloned()
                 .unwrap()
+                .as_str()
+                .unwrap()
                 .to_string()
                 .into(),
             auto_update: workflow
@@ -192,6 +194,7 @@ impl<F: API> UI<F> {
     async fn run_inner(&mut self) -> Result<()> {
         if let Ok(config) = self.get_update_configuration().await {
             if config.auto_update {
+                // Recurring update check.
                 check_for_update(Some(config.check_frequency)).await;
             }
         }
@@ -279,6 +282,7 @@ impl<F: API> UI<F> {
                     println!("{output}");
                 }
                 Command::Update => {
+                    // One time update check
                     check_for_update(None).await;
                 }
                 Command::Exit => {
