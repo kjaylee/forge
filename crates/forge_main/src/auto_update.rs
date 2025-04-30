@@ -1,17 +1,18 @@
-use std::process::Stdio;
+use std::time::Duration;
 
 use anyhow::Result;
 use forge_tracker::{EventKind, VERSION};
 use tokio::process::Command;
+use update_informer::{registry, Check, Version};
 
 use crate::TRACKER;
 
 /// Runs npm update in the background, failing silently
-pub async fn update_forge() {
+pub async fn update_forge() -> Result<()> {
     // Check if version is development version, in which case we skip the update
     if VERSION.contains("dev") || VERSION == "0.1.0" {
         // Skip update for development version 0.1.0
-        return;
+        return Ok(());
     }
 
     // Spawn a new task that won't block the main application
@@ -19,6 +20,48 @@ pub async fn update_forge() {
         // Send an event to the tracker on failure
         // We don't need to handle this result since we're failing silently
         let _ = send_update_failure_event(&format!("Auto update failed: {err}")).await;
+    } else {
+        return Ok(());
+    }
+    return Err(anyhow::anyhow!("Update failed"));
+}
+
+async fn confirm_update(version: Version) {
+    let answer = inquire::Confirm::new(&format!(
+        "Forge Update Available\nCurrent version: v{}   Latest: {}\n\nWould you like to update now?",
+        VERSION, version
+    ))
+    .with_default(true)
+    .with_error_message("Invalid response!")
+    .prompt();
+
+    if answer.is_ok() && answer.unwrap() {
+        let result = update_forge().await;
+
+        if result.is_ok() {
+            let answer = inquire::Confirm::new("Restart forge to apply the update?")
+                .with_default(true)
+                .with_error_message("Invalid response!")
+                .prompt();
+            if answer.is_ok() && answer.unwrap() {
+                std::process::exit(0);
+            }
+        }
+    }
+}
+
+/// Checks if there is an update available
+pub async fn check_for_update() {
+    // Check if version is development version, in which case we skip the update check
+    if VERSION.contains("dev") || VERSION == "0.1.0" {
+        // Skip update for development version 0.1.0
+        return;
+    }
+    let informer =
+        update_informer::new(registry::Npm, "@antinomyhq/forge", VERSION).interval(Duration::ZERO);
+
+    if let Some(version) = informer.check_version().ok().flatten() {
+        confirm_update(version).await;
     }
 }
 
@@ -27,8 +70,6 @@ async fn perform_update() -> Result<()> {
     // Run npm install command with stdio set to null to avoid any output
     let status = Command::new("npm")
         .args(["update", "-g", "@antinomyhq/forge"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
         .status()
         .await?;
 

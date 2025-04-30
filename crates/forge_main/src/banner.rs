@@ -1,17 +1,21 @@
 use std::io;
 
 use colored::Colorize;
+use forge_tracker::VERSION;
 
 const BANNER: &str = include_str!("banner");
 
 pub fn display() -> io::Result<()> {
     let mut banner = BANNER.to_string();
 
+    banner.push_str(&format!("\n Forge version: {}\n\n", VERSION.dimmed()));
+
     // Define the labels as tuples of (key, value)
     let labels = [
         ("New conversation:", "/new"),
         ("Get started:", "/info, /help"),
         ("Switch mode:", "/plan or /act"),
+        ("Update forge:", "/update"),
         ("Quit:", "/exit or <CTRL+D>"),
     ];
 

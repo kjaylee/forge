@@ -17,13 +17,12 @@ use serde_json::Value;
 use tokio_stream::StreamExt;
 use tracing::error;
 
-use crate::auto_update::update_forge;
 use crate::cli::Cli;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
 use crate::state::{Mode, UIState};
-use crate::{banner, TRACKER};
+use crate::{banner, check_for_update, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -153,6 +152,8 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) {
+        check_for_update().await;
+
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
@@ -249,9 +250,10 @@ impl<F: API> UI<F> {
                     let output = format_tools(&tools);
                     println!("{output}");
                 }
+                Command::Update => {
+                    check_for_update().await;
+                }
                 Command::Exit => {
-                    update_forge().await;
-
                     break;
                 }
 
