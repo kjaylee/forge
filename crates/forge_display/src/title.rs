@@ -70,8 +70,6 @@ impl TitleFormat {
 
         let title = if self.error.is_some() {
             self.title.red().bold()
-        } else if self.is_user_action {
-            self.title.dimmed()
         } else {
             self.title.dimmed()
         };
