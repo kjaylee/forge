@@ -31,7 +31,7 @@ pub struct ForgeServices<F> {
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
     compaction_service: Arc<ForgeCompactionService<ForgeTemplateService, ForgeProviderService>>,
-    loader_service: Arc<ForgeWorkflowService<F>>,
+    workflow_service: Arc<ForgeWorkflowService<F>>,
     suggestion_service: Arc<ForgeSuggestionService<F>>,
 }
 
@@ -49,7 +49,7 @@ impl<F: Infrastructure> ForgeServices<F> {
         let conversation_service =
             Arc::new(ForgeConversationService::new(compaction_service.clone()));
 
-        let loader_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
+        let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
         let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
         Self {
             infra,
@@ -59,7 +59,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             compaction_service,
             provider_service,
             template_service,
-            loader_service,
+            workflow_service,
             suggestion_service,
         }
     }
@@ -105,7 +105,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     }
 
     fn workflow_service(&self) -> &Self::WorkflowService {
-        self.loader_service.as_ref()
+        self.workflow_service.as_ref()
     }
 
     fn suggestion_service(&self) -> &Self::SuggestionService {
