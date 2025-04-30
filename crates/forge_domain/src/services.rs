@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::{
     Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
-    ConversationId, Environment, Model, ModelId, ResultStream, SuggestionService, ToolCallContext,
-    ToolCallFull, ToolDefinition, ToolResult, Workflow,
+    ConversationId, Environment, File, Model, ModelId, ResultStream, ToolCallContext, ToolCallFull,
+    ToolDefinition, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -82,6 +82,11 @@ pub trait WorkflowService {
     async fn update_workflow<F>(&self, path: &Path, f: F) -> anyhow::Result<Workflow>
     where
         F: FnOnce(&mut Workflow) + Send;
+}
+
+#[async_trait::async_trait]
+pub trait SuggestionService: Send + Sync {
+    async fn suggestions(&self) -> anyhow::Result<Vec<File>>;
 }
 
 /// Core app trait providing access to services and repositories.
