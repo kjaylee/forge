@@ -1,10 +1,7 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use anyhow::{Context, Result};
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    API,
+    Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -12,8 +9,11 @@ use forge_spinner::SpinnerManager;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
+use merge::Merge;
 use serde::Deserialize;
 use serde_json::Value;
+use std::path::PathBuf;
+use std::sync::Arc;
 use tokio_stream::StreamExt;
 use tracing::error;
 
@@ -22,7 +22,7 @@ use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
 use crate::state::{Mode, UIState};
-use crate::{banner, check_for_update, TRACKER};
+use crate::{banner, check_for_update, UpdateConfiguration, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -70,6 +70,29 @@ impl<F: API> UI<F> {
             self.state.cached_models = Some(models.clone());
             Ok(models)
         }
+    }
+
+    async fn get_update_configuration(&self) -> Result<UpdateConfiguration> {
+        let mut workflow = Workflow::default();
+        let user_workflow = self.api.read_workflow(&self.workflow_path()).await?;
+        workflow.merge(user_workflow);
+
+        Ok(UpdateConfiguration {
+            check_frequency: workflow
+                .updates
+                .get("check_frequency")
+                .cloned()
+                .unwrap()
+                .to_string()
+                .into(),
+            auto_update: workflow
+                .updates
+                .get("auto_update")
+                .cloned()
+                .unwrap()
+                .as_bool()
+                .unwrap(),
+        })
     }
 
     // Handle creating a new conversation
@@ -152,8 +175,6 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) {
-        check_for_update().await;
-
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
@@ -168,6 +189,12 @@ impl<F: API> UI<F> {
     }
 
     async fn run_inner(&mut self) -> Result<()> {
+        if let Ok(config) = self.get_update_configuration().await {
+            if config.auto_update {
+                check_for_update(Some(config.check_frequency)).await;
+            }
+        }
+
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
             return self.handle_dispatch(dispatch_json).await;
@@ -251,7 +278,7 @@ impl<F: API> UI<F> {
                     println!("{output}");
                 }
                 Command::Update => {
-                    check_for_update().await;
+                    check_for_update(None).await;
                 }
                 Command::Exit => {
                     break;

@@ -23,6 +23,11 @@ pub struct Workflow {
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub variables: HashMap<String, Value>,
 
+    /// configurations that can be used to update forge
+    #[merge(strategy = crate::merge::hashmap)]
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub updates: HashMap<String, Value>,
+
     /// Commands that can be used to interact with the workflow
     #[merge(strategy = crate::merge::vec::append)]
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -102,6 +107,7 @@ impl Workflow {
             custom_rules: None,
             temperature: None,
             tool_supported: None,
+            updates: HashMap::new(),
         }
     }
 

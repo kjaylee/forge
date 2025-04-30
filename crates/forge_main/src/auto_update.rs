@@ -2,13 +2,35 @@ use std::time::Duration;
 
 use anyhow::Result;
 use forge_tracker::{EventKind, VERSION};
+use serde::Deserialize;
 use tokio::process::Command;
 use update_informer::{registry, Check, Version};
 
 use crate::TRACKER;
 
+#[derive(Debug, Clone, Deserialize)]
+pub enum UpdateFrequency {
+    Daily,
+    Weekly,
+}
+
+impl From<String> for UpdateFrequency {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "daily" => UpdateFrequency::Daily,
+            "weekly" | _ => UpdateFrequency::Weekly,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct UpdateConfiguration {
+    pub check_frequency: UpdateFrequency,
+    pub auto_update: bool,
+}
+
 /// Runs npm update in the background, failing silently
-pub async fn update_forge() -> Result<()> {
+async fn update_forge() -> Result<()> {
     // Check if version is development version, in which case we skip the update
     if VERSION.contains("dev") || VERSION == "0.1.0" {
         // Skip update for development version 0.1.0
@@ -51,14 +73,21 @@ async fn confirm_update(version: Version) {
 }
 
 /// Checks if there is an update available
-pub async fn check_for_update() {
+pub async fn check_for_update(frequency: Option<UpdateFrequency>) {
     // Check if version is development version, in which case we skip the update check
     if VERSION.contains("dev") || VERSION == "0.1.0" {
         // Skip update for development version 0.1.0
         return;
     }
-    let informer =
-        update_informer::new(registry::Npm, "@antinomyhq/forge", VERSION).interval(Duration::ZERO);
+    let informer = update_informer::new(registry::Npm, "@antinomyhq/forge", VERSION).interval(
+        match frequency {
+            Some(frequency) => match frequency {
+                UpdateFrequency::Daily => Duration::from_secs(60 * 60 * 24), // 1 day
+                UpdateFrequency::Weekly => Duration::from_secs(60 * 60 * 24 * 7), // 1 week,
+            },
+            None => Duration::ZERO,
+        },
+    );
 
     if let Some(version) = informer.check_version().ok().flatten() {
         confirm_update(version).await;
