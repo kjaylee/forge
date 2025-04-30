@@ -386,16 +386,17 @@ impl<F: API> UI<F> {
             Some(ref id) => Ok(id.clone()),
             None => {
                 // Select a model if workflow doesn't have one
-                let model = self
-                    .select_model()
-                    .await?
-                    .ok_or(anyhow::anyhow!("Model selection is required to continue"))?;
+                let mut workflow = self.api.read_workflow(&self.workflow_path()).await?;
+                if workflow.model.is_none() {
+                    workflow.model = Some(
+                        self.select_model()
+                            .await?
+                            .ok_or(anyhow::anyhow!("Model selection is required to continue"))?,
+                    );
+                }
 
-                let workflow = self
-                    .api
-                    .update_workflow(&self.workflow_path(), |workflow| {
-                        workflow.model = Some(model);
-                    })
+                self.api
+                    .write_workflow(&self.workflow_path(), &workflow)
                     .await?;
 
                 // Get the mode from the config
