@@ -137,7 +137,7 @@ impl<F: Infrastructure> FSRead<F> {
         let (content, file_info) = self
             .0
             .file_read_service()
-            .range_read(path, start_char, end_char)
+            .range_read_utf8(path, start_char, end_char)
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
@@ -353,12 +353,17 @@ mod test {
         // Implement FsReadService for our custom tracking infrastructure
         #[async_trait::async_trait]
         impl FsReadService for RangeTrackingMockInfra {
-            async fn read(&self, path: &Path) -> anyhow::Result<String> {
+            async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
+                // Delegate to inner mock implementation
+                self.inner.file_read_service().read_utf8(path).await
+            }
+
+            async fn read(&self, path: &Path) -> anyhow::Result<Vec<u8>> {
                 // Delegate to inner mock implementation
                 self.inner.file_read_service().read(path).await
             }
 
-            async fn range_read(
+            async fn range_read_utf8(
                 &self,
                 _path: &Path,
                 start_char: u64,
