@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use forge_spinner::SpinnerManager;
 use forge_tracker::{EventKind, VERSION};
 use serde::Deserialize;
 use tokio::process::Command;
@@ -13,13 +12,15 @@ use crate::TRACKER;
 pub enum UpdateFrequency {
     Daily,
     Weekly,
+    Never,
 }
 
 impl From<String> for UpdateFrequency {
     fn from(value: String) -> Self {
         match value.as_str() {
             "daily" => UpdateFrequency::Daily,
-            "weekly" | _ => UpdateFrequency::Weekly,
+            "weekly" => UpdateFrequency::Weekly,
+            _ => UpdateFrequency::Never,
         }
     }
 }
@@ -31,11 +32,11 @@ pub struct UpdateConfiguration {
 }
 
 /// Runs npm update in the background, failing silently
-async fn update_forge() -> Result<()> {
+async fn update_forge() {
     // Check if version is development version, in which case we skip the update
     if VERSION.contains("dev") || VERSION == "0.1.0" {
         // Skip update for development version 0.1.0
-        return Ok(());
+        return;
     }
 
     // Spawn a new task that won't block the main application
@@ -44,9 +45,14 @@ async fn update_forge() -> Result<()> {
         // We don't need to handle this result since we're failing silently
         let _ = send_update_failure_event(&format!("Auto update failed: {err}")).await;
     } else {
-        return Ok(());
+        let answer = inquire::Confirm::new("Restart forge to apply the update?")
+            .with_default(true)
+            .with_error_message("Invalid response!")
+            .prompt();
+        if answer.is_ok() && answer.unwrap() {
+            std::process::exit(0);
+        }
     }
-    Err(anyhow::anyhow!("Update failed"))
 }
 
 async fn confirm_update(version: Version) {
@@ -58,43 +64,33 @@ async fn confirm_update(version: Version) {
     .prompt();
 
     if answer.is_ok() && answer.unwrap() {
-        let result = update_forge().await;
-
-        if result.is_ok() {
-            let answer = inquire::Confirm::new("Restart forge to apply the update?")
-                .with_default(true)
-                .with_error_message("Invalid response!")
-                .prompt();
-            if answer.is_ok() && answer.unwrap() {
-                std::process::exit(0);
-            }
-        }
+        update_forge().await;
     }
 }
 
 /// Checks if there is an update available
-pub async fn check_for_update(frequency: Option<UpdateFrequency>) {
+pub async fn check_for_update(frequency: UpdateFrequency, auto_update: bool) {
     // Check if version is development version, in which case we skip the update
     // check
     if VERSION.contains("dev") || VERSION == "0.1.0" {
         // Skip update for development version 0.1.0
         return;
     }
-    let mut spinner = SpinnerManager::new();
 
-    let _ = spinner.start(Some("Checking for updates..."));
     let informer = update_informer::new(registry::Npm, "@antinomyhq/forge", VERSION).interval(
         match frequency {
-            Some(frequency) => match frequency {
-                UpdateFrequency::Daily => Duration::from_secs(60 * 60 * 24), // 1 day
-                UpdateFrequency::Weekly => Duration::from_secs(60 * 60 * 24 * 7), // 1 week,
-            },
-            None => Duration::ZERO,
+            UpdateFrequency::Daily => Duration::from_secs(60 * 60 * 24), // 1 day
+            UpdateFrequency::Weekly => Duration::from_secs(60 * 60 * 24 * 7), // 1 week
+            UpdateFrequency::Never => Duration::ZERO,                    // one time,
         },
     );
-    let _ = spinner.stop(None);
+
     if let Some(version) = informer.check_version().ok().flatten() {
-        confirm_update(version).await;
+        if auto_update {
+            update_forge().await;
+        } else {
+            confirm_update(version).await;
+        }
     }
 }
 

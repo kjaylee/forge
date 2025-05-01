@@ -23,7 +23,7 @@ use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
 use crate::state::{Mode, UIState};
-use crate::{banner, check_for_update, UpdateConfiguration, TRACKER};
+use crate::{banner, check_for_update, UpdateConfiguration, UpdateFrequency, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -193,10 +193,8 @@ impl<F: API> UI<F> {
 
     async fn run_inner(&mut self) -> Result<()> {
         if let Ok(config) = self.get_update_configuration().await {
-            if config.auto_update {
-                // Recurring update check.
-                check_for_update(Some(config.check_frequency)).await;
-            }
+            // Recurring update check.
+            check_for_update(config.check_frequency, config.auto_update).await;
         }
 
         // Check for dispatch flag first
@@ -283,7 +281,7 @@ impl<F: API> UI<F> {
                 }
                 Command::Update => {
                     // One time update check
-                    check_for_update(None).await;
+                    check_for_update(UpdateFrequency::Never, false).await;
                 }
                 Command::Exit => {
                     break;
