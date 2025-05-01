@@ -150,7 +150,7 @@ pub mod tests {
             }
         }
 
-        fn add_file(&self, path: PathBuf, content: String) {
+        pub fn add_file(&self, path: PathBuf, content: String) {
             let mut files = self.files.lock().unwrap();
             files.push((path, Bytes::from_owner(content)));
         }
@@ -290,11 +290,11 @@ pub mod tests {
             if command == "echo 'Hello, World!'" {
                 // When the test_shell_echo looks for this specific command
                 // It's expecting to see "Mock command executed successfully"
-                return Ok(CommandOutput {
-                    stdout: "Mock command executed successfully\n".to_string(),
-                    stderr: "".to_string(),
-                    success: true,
-                });
+                return Ok(CommandOutput::new(
+                    "Mock command executed successfully\n".to_string(),
+                    "".to_string(),
+                    true,
+                ));
             } else if command.contains("echo") {
                 if command.contains(">") && command.contains(">&2") {
                     // Commands with both stdout and stderr
@@ -308,20 +308,20 @@ pub mod tests {
                     } else {
                         "stderr output\n"
                     };
-                    return Ok(CommandOutput {
-                        stdout: stdout.to_string(),
-                        stderr: stderr.to_string(),
-                        success: true,
-                    });
+                    return Ok(CommandOutput::new(
+                        stdout.to_string(),
+                        stderr.to_string(),
+                        true,
+                    ));
                 } else if command.contains(">&2") {
                     // Command with only stderr
                     let content = command.split("echo").nth(1).unwrap_or("").trim();
                     let content = content.trim_matches(|c| c == '\'' || c == '"');
-                    return Ok(CommandOutput {
-                        stdout: "".to_string(),
-                        stderr: format!("{content}\n"),
-                        success: true,
-                    });
+                    return Ok(CommandOutput::new(
+                        "".to_string(),
+                        format!("{content}\n"),
+                        true,
+                    ));
                 } else {
                     // Standard echo command
                     let content = if command == "echo ''" {
@@ -344,48 +344,48 @@ pub mod tests {
                         }
                     };
 
-                    return Ok(CommandOutput {
-                        stdout: content,
-                        stderr: "".to_string(),
-                        success: true,
-                    });
+                    return Ok(CommandOutput::new(
+                        content,
+                        "".to_string(),
+                        true,
+                    ));
                 }
             } else if command == "pwd" || command == "cd" {
                 // Return working directory for pwd/cd commands
-                return Ok(CommandOutput {
-                    stdout: format!("{working_dir}\n", working_dir = working_dir.display()),
-                    stderr: "".to_string(),
-                    success: true,
-                });
+                return Ok(CommandOutput::new(
+                    format!("{working_dir}\n", working_dir = working_dir.display()),
+                    "".to_string(),
+                    true,
+                ));
             } else if command == "true" {
                 // true command returns success with no output
-                return Ok(CommandOutput {
-                    stdout: "".to_string(),
-                    stderr: "".to_string(),
-                    success: true,
-                });
+                return Ok(CommandOutput::new(
+                    "".to_string(),
+                    "".to_string(),
+                    true,
+                ));
             } else if command.starts_with("/bin/ls") || command.contains("whoami") {
                 // Full path commands
-                return Ok(CommandOutput {
-                    stdout: "user\n".to_string(),
-                    stderr: "".to_string(),
-                    success: true,
-                });
+                return Ok(CommandOutput::new(
+                    "user\n".to_string(),
+                    "".to_string(),
+                    true,
+                ));
             } else if command == "non_existent_command" {
                 // Command not found
-                return Ok(CommandOutput {
-                    stdout: "".to_string(),
-                    stderr: "command not found: non_existent_command\n".to_string(),
-                    success: false,
-                });
+                return Ok(CommandOutput::new(
+                    "".to_string(),
+                    "command not found: non_existent_command\n".to_string(),
+                    false,
+                ));
             }
 
             // Default response for other commands
-            Ok(CommandOutput {
-                stdout: "Mock command executed successfully\n".to_string(),
-                stderr: "".to_string(),
-                success: true,
-            })
+            Ok(CommandOutput::new(
+                "Mock command executed successfully\n".to_string(),
+                "".to_string(),
+                true,
+            ))
         }
     }
 

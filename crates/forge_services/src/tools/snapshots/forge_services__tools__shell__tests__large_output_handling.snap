@@ -1,0 +1,8 @@
+---
+source: crates/forge_services/src/tools/shell.rs
+expression: truncated_sample
+snapshot_kind: text
+---
+First 20 chars: AAAAAAAAAAAAAAAAAAAA
+Middle section contains marker: true
+Last 20 chars: AAAAAAAAAAAAAAAAAAAA

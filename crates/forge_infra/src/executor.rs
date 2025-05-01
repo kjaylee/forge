@@ -96,11 +96,11 @@ impl ForgeCommandExecutorService {
         drop(stderr_pipe);
         drop(ready);
 
-        Ok(CommandOutput {
-            stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
-            stderr: String::from_utf8_lossy(&stderr_buffer).into_owned(),
-            success: status.success(),
-        })
+        Ok(CommandOutput::new(
+            String::from_utf8_lossy(&stdout_buffer).into_owned(),
+            String::from_utf8_lossy(&stderr_buffer).into_owned(),
+            status.success(),
+        ))
     }
 }
 
@@ -169,11 +169,11 @@ mod tests {
             .await
             .unwrap();
 
-        let expected = CommandOutput {
-            stdout: "hello world\n".to_string(),
-            stderr: "".to_string(),
-            success: true,
-        };
+        let expected = CommandOutput::new(
+            "hello world\n".to_string(),
+            "".to_string(),
+            true,
+        );
 
         assert_eq!(actual.stdout.trim(), expected.stdout.trim());
         assert_eq!(actual.stderr, expected.stderr);

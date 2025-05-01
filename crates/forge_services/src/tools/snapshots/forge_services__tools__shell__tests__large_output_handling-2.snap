@@ -1,0 +1,10 @@
+---
+source: crates/forge_services/src/tools/shell.rs
+expression: output_structure
+snapshot_kind: text
+---
+Contains stdout tag: true
+Contains truncation marker: true
+Contains original size: true
+Shows size: true
+Contains '20,000 characters': true
