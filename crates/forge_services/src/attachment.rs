@@ -77,12 +77,12 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
 
         let (content, content_type) = match img_format {
             Some(format) => (
-                Self::generate_image_content(&path, &format, &*self.infra.file_read_service())
+                Self::generate_image_content(&path, &format, self.infra.file_read_service())
                     .await?,
                 ContentType::Image,
             ),
             None => (
-                Self::generate_text_content(&path, &*self.infra.file_read_service()).await?,
+                Self::generate_text_content(&path, self.infra.file_read_service()).await?,
                 ContentType::Text,
             ),
         };

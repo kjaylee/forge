@@ -60,7 +60,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
     /// the specified path (in the current directory).
     pub async fn read(&self, path: &Path) -> anyhow::Result<Workflow> {
         // First, try to find the config file in parent directories if needed
-        let path = self.resolve_path(Some(path.into())).await;
+        let path = &self.resolve_path(Some(path.into())).await;
 
         if !path.exists() {
             let workflow = Workflow::new();
