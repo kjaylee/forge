@@ -344,11 +344,7 @@ pub mod tests {
                         }
                     };
 
-                    return Ok(CommandOutput::new(
-                        content,
-                        "".to_string(),
-                        true,
-                    ));
+                    return Ok(CommandOutput::new(content, "".to_string(), true));
                 }
             } else if command == "pwd" || command == "cd" {
                 // Return working directory for pwd/cd commands
@@ -359,11 +355,7 @@ pub mod tests {
                 ));
             } else if command == "true" {
                 // true command returns success with no output
-                return Ok(CommandOutput::new(
-                    "".to_string(),
-                    "".to_string(),
-                    true,
-                ));
+                return Ok(CommandOutput::new("".to_string(), "".to_string(), true));
             } else if command.starts_with("/bin/ls") || command.contains("whoami") {
                 // Full path commands
                 return Ok(CommandOutput::new(

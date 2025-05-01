@@ -24,14 +24,14 @@ pub struct ShellInput {
     pub cwd: PathBuf,
 }
 
-/// Formats regular command output by wrapping non-empty stdout/stderr in XML tags.
-/// stderr is commonly used for warnings and progress info, so success is
+/// Formats regular command output by wrapping non-empty stdout/stderr in XML
+/// tags. stderr is commonly used for warnings and progress info, so success is
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
 /// empty.
 fn format_output(output: CommandOutput) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
-    
+
     // Add stdout content if not empty
     if !output.stdout.trim().is_empty() {
         formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
@@ -64,7 +64,7 @@ fn format_output(output: CommandOutput) -> anyhow::Result<String> {
 /// Formats truncated command output with information about the truncation.
 fn format_truncated_output(output: TruncatedCommandOutput) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
-    
+
     // Add stdout content if not empty
     if !output.stdout.trim().is_empty() {
         formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
@@ -77,21 +77,30 @@ fn format_truncated_output(output: TruncatedCommandOutput) -> anyhow::Result<Str
         }
         formatted_output.push_str(&format!("<stderr>{}</stderr>", output.stderr));
     }
-    
-    // Add truncation information 
+
+    // Add truncation information
     if !formatted_output.is_empty() {
         formatted_output.push_str("\n\n");
     }
     formatted_output.push_str("Note: The output has been truncated.\n");
-    formatted_output.push_str(&format!("Original stdout size: {} characters\n", output.stdout_size()));
+    formatted_output.push_str(&format!(
+        "Original stdout size: {} characters\n",
+        output.stdout_size()
+    ));
     if output.stderr_size() > 0 {
-        formatted_output.push_str(&format!("Original stderr size: {} characters\n", output.stderr_size()));
+        formatted_output.push_str(&format!(
+            "Original stderr size: {} characters\n",
+            output.stderr_size()
+        ));
     }
     formatted_output.push_str("Showing first and last 20,000 characters of large outputs.\n");
-    
+
     // Add information about the temp file if one exists
     if let Some(temp_path) = output.temp_file_path() {
-        formatted_output.push_str(&format!("\nFull output saved to: {}\n", temp_path.display()));
+        formatted_output.push_str(&format!(
+            "\nFull output saved to: {}\n",
+            temp_path.display()
+        ));
     }
 
     // If no formatted output yet, provide a status message
@@ -129,20 +138,20 @@ impl<I: Infrastructure> Shell<I> {
         let env = infra.environment_service().get_environment();
         Self { env, infra }
     }
-    
+
     /// Truncates large text output, keeping first and last portions
     fn truncate_large_text(&self, text: &str) -> (String, bool) {
         const KEEP_CHARS: usize = 20_000; // Keep 20k chars from each end
         const MAX_OUTPUT_CHARS: usize = KEEP_CHARS * 2; // 40k chars total max
-        
+
         // If the text isn't large enough to truncate, just return it
         if text.len() <= MAX_OUTPUT_CHARS {
             return (text.to_string(), false);
         }
-        
+
         // Text is large, so we need to truncate
         let mut result = String::with_capacity(MAX_OUTPUT_CHARS + 100); // Extra space for joining string
-        
+
         // Get first KEEP_CHARS characters
         result.push_str(&text[..KEEP_CHARS]);
         // Add divider
@@ -150,16 +159,16 @@ impl<I: Infrastructure> Shell<I> {
         // Get last KEEP_CHARS characters
         let start_of_last = text.len().saturating_sub(KEEP_CHARS);
         result.push_str(&text[start_of_last..]);
-        
+
         (result, true)
     }
-    
+
     /// Checks if output is large enough to warrant truncation
     fn is_large_output(&self, stdout: &str, stderr: &str) -> bool {
         const SIZE_THRESHOLD: usize = 40_000; // 40k chars threshold
         (stdout.len() + stderr.len()) > SIZE_THRESHOLD
     }
-    
+
     /// Creates a path for a temporary file to store the full output
     fn create_temp_file_path(&self, command: &str) -> PathBuf {
         // Get a timestamp to use in the filename
@@ -167,27 +176,33 @@ impl<I: Infrastructure> Shell<I> {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         // Create a safe filename from the command
         let safe_command = command
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect::<String>();
-        
+
         // Truncate if the command is too long
         let safe_command = if safe_command.len() > 30 {
             safe_command[..30].to_string()
         } else {
             safe_command
         };
-        
+
         // Create the filename using the timestamp and command
-        let filename = format!("forge_shell_{}_{}.txt", timestamp, safe_command);
-        
+        let filename = format!("forge_shell_{timestamp}_{safe_command}.txt");
+
         // Return the full path
         self.env.base_path.join("temp_files").join(filename)
     }
-    
+
     /// Writes the full output to a temporary file
     fn write_to_temp_file(&self, output: &CommandOutput, command: &str) -> anyhow::Result<PathBuf> {
         // Create a temporary file path
@@ -195,38 +210,58 @@ impl<I: Infrastructure> Shell<I> {
         if !temp_dir.exists() {
             fs::create_dir_all(&temp_dir)?;
         }
-        
+
         let temp_path = self.create_temp_file_path(command);
-        
+
         // Write the full output to the temporary file
         let mut file = fs::File::create(&temp_path)?;
-        
+
         // Write metadata
         writeln!(file, "--- COMMAND EXECUTION OUTPUT ---")?;
-        writeln!(file, "Command: {}", command)?;
-        writeln!(file, "Exit Code: {}", if output.success { "0 (Success)" } else { "Non-zero (Failure)" })?;
+        writeln!(file, "Command: {command}")?;
+        writeln!(
+            file,
+            "Exit Code: {}",
+            if output.success {
+                "0 (Success)"
+            } else {
+                "Non-zero (Failure)"
+            }
+        )?;
         writeln!(file, "Timestamp: {}", chrono::Local::now().to_rfc3339())?;
-        writeln!(file, "\n--- STDOUT ({} characters) ---", output.stdout.len())?;
+        writeln!(
+            file,
+            "\n--- STDOUT ({} characters) ---",
+            output.stdout.len()
+        )?;
         write!(file, "{}", output.stdout)?;
-        writeln!(file, "\n\n--- STDERR ({} characters) ---", output.stderr.len())?;
+        writeln!(
+            file,
+            "\n\n--- STDERR ({} characters) ---",
+            output.stderr.len()
+        )?;
         write!(file, "{}", output.stderr)?;
-        
+
         Ok(temp_path)
     }
-    
+
     /// Truncates large command output and writes the full output to a temp file
-    fn truncate_command_output(&self, output: CommandOutput, command: &str) -> anyhow::Result<TruncatedCommandOutput> {
+    fn truncate_command_output(
+        &self,
+        output: CommandOutput,
+        command: &str,
+    ) -> anyhow::Result<TruncatedCommandOutput> {
         // Get the stdout and stderr lengths before we move the output
         let stdout_len = output.stdout.len();
         let stderr_len = output.stderr.len();
-        
+
         // Write the full output to a temporary file
         let temp_path = self.write_to_temp_file(&output, command)?;
-        
+
         // Truncate stdout and stderr
         let (truncated_stdout, _) = self.truncate_large_text(&output.stdout);
         let (truncated_stderr, _) = self.truncate_large_text(&output.stderr);
-        
+
         // Create new truncated output
         Ok(output.into_truncated(
             truncated_stdout,
@@ -264,14 +299,14 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
             .command_executor_service()
             .execute_command(input.command.clone(), input.cwd)
             .await?;
-        
+
         // Check if the output is large enough to warrant truncation
         if self.is_large_output(&output.stdout, &output.stderr) {
             // Truncate the large output and write to temp file
             let truncated_output = self.truncate_command_output(output, &input.command)?;
             return format_truncated_output(truncated_output);
         }
-        
+
         // For regular size outputs, just format the original output
         format_output(output)
     }
@@ -441,112 +476,116 @@ mod tests {
                 > 100
         )
     }
-    
+
     #[tokio::test]
     async fn test_format_output_with_truncation() {
         // Create a test truncated output
-        let truncated_stdout = "A".repeat(20_000) + "\n\n[...truncated...]\n\n" + &"A".repeat(20_000);
-        
+        let truncated_stdout =
+            "A".repeat(20_000) + "\n\n[...truncated...]\n\n" + &"A".repeat(20_000);
+
         let output = TruncatedCommandOutput::new(
             truncated_stdout,
             String::new(), // No stderr
-            true, // Success
-            50_000, // Original stdout size
-            0, // Original stderr size
-            None, // No temp file
+            true,          // Success
+            50_000,        // Original stdout size
+            0,             // Original stderr size
+            None,          // No temp file
         );
-        
+
         // Format the output
         let result = format_truncated_output(output).unwrap();
-        
+
         // Check that the output contains the expected information
         assert!(result.contains("<stdout>"));
         assert!(result.contains("Original stdout size: 50000 characters"));
         assert!(result.contains("Showing first and last 20,000 characters"));
     }
-    
+
     #[tokio::test]
     async fn test_format_output_with_temp_file() {
         // Create a test truncated output with a temp file path
-        let truncated_stdout = "A".repeat(20_000) + "\n\n[...truncated...]\n\n" + &"A".repeat(20_000);
+        let truncated_stdout =
+            "A".repeat(20_000) + "\n\n[...truncated...]\n\n" + &"A".repeat(20_000);
         let temp_path = PathBuf::from("/tmp/test_output.txt");
-        
+
         let output = TruncatedCommandOutput::new(
             truncated_stdout,
-            String::new(), // No stderr
-            true, // Success
-            50_000, // Original stdout size
-            0, // Original stderr size
+            String::new(),   // No stderr
+            true,            // Success
+            50_000,          // Original stdout size
+            0,               // Original stderr size
             Some(temp_path), // With temp file
         );
-        
+
         // Format the output
         let result = format_truncated_output(output).unwrap();
-        
+
         // Check that the temp file path is included in the output
         assert!(result.contains("Full output saved to: /tmp/test_output.txt"));
     }
-    
+
     #[tokio::test]
     async fn test_large_output_handling() {
         let shell = Shell::new(Arc::new(MockInfrastructure::new()));
-        
+
         // Test truncation
         let text = "A".repeat(50_000); // 50k chars
         let (truncated, was_truncated) = shell.truncate_large_text(&text);
-        
+
         assert!(was_truncated);
-        
+
         // Check the truncated text pattern
         assert!(truncated.contains("[...truncated...]"));
         // Truncated size should be 40k chars + divider (\n\n[...truncated...]\n\n)
         assert_eq!(truncated.len(), 40_000 + "\n\n[...truncated...]\n\n".len());
-        
+
         // Test with text below truncation threshold
         let small_text = "A".repeat(30_000);
         let (result, was_truncated) = shell.truncate_large_text(&small_text);
         assert!(!was_truncated);
         assert_eq!(result, small_text);
-        
+
         // Test size threshold logic
         const TEST_THRESHOLD: usize = 40_000; // 40k chars threshold
-        
+
         // Small output (below threshold)
         let small_output = "A".repeat(TEST_THRESHOLD - 1);
         assert!(!shell.is_large_output(&small_output, ""));
-        
+
         // Large output (just above threshold)
         let large_output = "A".repeat(TEST_THRESHOLD + 1);
         assert!(shell.is_large_output(&large_output, ""));
-        
+
         // Combined output crossing threshold
         let part1 = "A".repeat(TEST_THRESHOLD / 2);
         let part2 = "B".repeat(TEST_THRESHOLD / 2 + 1);
         assert!(shell.is_large_output(&part1, &part2));
     }
-    
+
     #[tokio::test]
     async fn test_temp_file_path_generation() {
         let shell = Shell::new(Arc::new(MockInfrastructure::new()));
-        
+
         // Test with a normal command
         let path1 = shell.create_temp_file_path("ls -la");
         assert!(path1.to_string_lossy().contains("forge_shell_"));
-        
+
         let filename = path1.file_name().unwrap().to_string_lossy();
         assert!(filename.contains("forge_shell_"));
-        
-        // Note: spaces are converted to underscores, so "ls -la" becomes "ls_-la" in the filename
-        // We're just verifying it contains the command part in some form
+
+        // Note: spaces are converted to underscores, so "ls -la" becomes "ls_-la" in
+        // the filename We're just verifying it contains the command part in
+        // some form
         assert!(filename.contains("ls_"));
-        
+
         // Test with a long command that should be truncated
-        let long_command = "this_is_a_very_long_command_that_should_be_truncated_to_30_characters_at_most";
+        let long_command =
+            "this_is_a_very_long_command_that_should_be_truncated_to_30_characters_at_most";
         let path2 = shell.create_temp_file_path(long_command);
         let filename = path2.file_name().unwrap().to_string_lossy();
         // The command part should be truncated to 30 chars
         assert!(filename.len() < long_command.len() + 20); // Add some buffer for the timestamp
-        
+
         // The path should use the base_path and temp_files directory
         assert!(path1.starts_with(&shell.env.base_path));
         assert!(path1.to_string_lossy().contains("temp_files"));

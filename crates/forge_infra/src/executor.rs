@@ -169,11 +169,7 @@ mod tests {
             .await
             .unwrap();
 
-        let expected = CommandOutput::new(
-            "hello world\n".to_string(),
-            "".to_string(),
-            true,
-        );
+        let expected = CommandOutput::new("hello world\n".to_string(), "".to_string(), true);
 
         assert_eq!(actual.stdout.trim(), expected.stdout.trim());
         assert_eq!(actual.stderr, expected.stderr);
