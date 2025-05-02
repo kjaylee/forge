@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
+use colored::Colorize;
 use forge_tracker::{EventKind, VERSION};
 use serde::Deserialize;
 use tokio::process::Command;
@@ -57,7 +58,9 @@ async fn update_forge() {
 
 async fn confirm_update(version: Version) {
     let answer = inquire::Confirm::new(&format!(
-        "Forge Update Available\nCurrent version: v{VERSION}   Latest: {version}\n\nWould you like to update now?"
+        "Confirm upgrade from {} -> {} (latest)?",
+        format!("v{}", VERSION).bold().white(),
+        version.to_string().bold().white()
     ))
     .with_default(true)
     .with_error_message("Invalid response!")
