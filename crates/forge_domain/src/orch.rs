@@ -360,16 +360,16 @@ impl<A: Services> Orchestrator<A> {
     }
 
     fn is_toolcall_interupted(&self, toolcall_records: &[ToolCallRecord]) -> bool {
+        let interruption_errors = vec![
+            "Operation was interrupted by the user",
+            "Operation was canceled by the user",
+        ];
+
         toolcall_records.iter().any(|tool| {
             tool.tool_result.is_error
-                && (tool
-                    .tool_result
-                    .content
-                    .contains("Operation was interrupted by the user")
-                    || tool
-                        .tool_result
-                        .content
-                        .contains("Operation was canceled by the user"))
+                && interruption_errors
+                    .iter()
+                    .any(|error| tool.tool_result.content.contains(error))
         })
     }
 
