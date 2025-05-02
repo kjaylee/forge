@@ -418,7 +418,10 @@ impl<A: Services> Orchestrator<A> {
             });
 
         self.set_context(&agent.id, context.clone()).await?;
-        loop {
+
+        let mut is_complete = false;
+
+        while !is_complete {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
 
@@ -459,20 +462,32 @@ impl<A: Services> Orchestrator<A> {
                 tool_call_count
             );
 
+            let tool_records = self.get_all_tool_results(agent, &tool_calls).await?;
+
+            // Check if task is complete or not.
+            is_complete = tool_records
+                .iter()
+                .any(|record| record.tool_result.is_complete);
+
             // Process tool calls and update context
             context = context.append_message(
                 content,
-                self.get_all_tool_results(agent, &tool_calls).await?,
+                tool_records,
                 agent.tool_supported.unwrap_or_default(),
             );
+
+            if tool_call_count && !is_complete {
+                // No tool calls present, which doesn't mean task is complete so reprompt the agent to ensure the task complete.
+                let content = self
+                    .services
+                    .template_service()
+                    .render("{{> partial-tool-required.hbs}}", &())?;
+                context = context.add_message(ContextMessage::user(content));
+            }
 
             // Update context in the conversation
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
-
-            if tool_call_count {
-                break;
-            }
         }
 
         self.complete_turn(&agent.id).await?;
