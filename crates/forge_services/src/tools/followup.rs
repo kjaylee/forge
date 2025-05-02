@@ -61,7 +61,7 @@ pub struct SelectInput {
 impl<F: Infrastructure> ExecutableTool for Followup<F> {
     type Input = SelectInput;
 
-    async fn call(&self, _: ToolCallContext, input: Self::Input) -> Result<String> {
+    async fn call(&self, context: ToolCallContext, input: Self::Input) -> Result<String> {
         let options = vec![
             input.option1,
             input.option2,
@@ -76,30 +76,50 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
 
         // Options are empty means question requires descriptive answer.
         let result = if options.is_empty() {
-            self.infra
+            match self
+                .infra
                 .inquire_service()
                 .prompt_question(&input.question)
                 .await?
+            {
+                Some(answer) => answer,
+                None => {
+                    context.set_complete().await;
+                    "User interrupted the prompt".to_string()
+                }
+            }
         } else {
             // Use the select service to get user selection
             if input.multiple.unwrap_or_default() {
-                let selected = self
+                match self
                     .infra
                     .inquire_service()
                     .select_many(&input.question, options)
-                    .await?;
-                format!(
-                    "User selected {} option(s): {}",
-                    selected.len(),
-                    selected.join(", ")
-                )
+                    .await?
+                {
+                    Some(selected) => format!(
+                        "User selected {} option(s): {}",
+                        selected.len(),
+                        selected.join(", ")
+                    ),
+                    None => {
+                        context.set_complete().await;
+                        "User interrupted the selection".to_string()
+                    }
+                }
             } else {
-                let selected = self
+                match self
                     .infra
                     .inquire_service()
                     .select_one(&input.question, options)
-                    .await?;
-                format!("User selected: {selected}")
+                    .await?
+                {
+                    Some(selected) => format!("User selected: {selected}"),
+                    None => {
+                        context.set_complete().await;
+                        "User interrupted the selection".to_string()
+                    }
+                }
             }
         };
 

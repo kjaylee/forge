@@ -25,7 +25,7 @@ impl ForgeInquire {
 
 #[async_trait::async_trait]
 impl InquireService for ForgeInquire {
-    async fn prompt_question(&self, question: &str) -> anyhow::Result<String> {
+    async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
         let question_owned = question.to_string();
         let answer = tokio::task::spawn_blocking(move || {
             inquire::Text::new(&question_owned)
@@ -34,12 +34,18 @@ impl InquireService for ForgeInquire {
                 .prompt()
         })
         .await
-        .map_err(|e| anyhow!("Failed to spawn blocking task for prompt_question: {}", e))??;
+        .map_err(|e| anyhow!("Failed to spawn blocking task for prompt_question: {}", e))?;
 
-        Ok(answer)
+        // Handle user interruption (inquire returns Err with
+        // inquire::InquireError::OperationCanceled)
+        match answer {
+            Ok(text) => Ok(Some(text)),
+            Err(inquire::InquireError::OperationCanceled) => Ok(None),
+            Err(e) => Err(anyhow!(e)),
+        }
     }
 
-    async fn select_one(&self, message: &str, options: Vec<String>) -> Result<String> {
+    async fn select_one(&self, message: &str, options: Vec<String>) -> Result<Option<String>> {
         // We need to use tokio::task::spawn_blocking because inquire is blocking
         // and we're in an async context
         let message_owned = message.to_string();
@@ -50,12 +56,21 @@ impl InquireService for ForgeInquire {
                 .prompt()
         })
         .await
-        .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))??;
+        .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))?;
 
-        Ok(selected)
+        // Handle user interruption
+        match selected {
+            Ok(selection) => Ok(Some(selection)),
+            Err(inquire::InquireError::OperationCanceled) => Ok(None),
+            Err(e) => Err(anyhow!(e)),
+        }
     }
 
-    async fn select_many(&self, message: &str, options: Vec<String>) -> Result<Vec<String>> {
+    async fn select_many(
+        &self,
+        message: &str,
+        options: Vec<String>,
+    ) -> Result<Option<Vec<String>>> {
         let message_owned = message.to_string();
         let selected = tokio::task::spawn_blocking(move || {
             inquire::MultiSelect::new(&message_owned, options)
@@ -66,8 +81,13 @@ impl InquireService for ForgeInquire {
                 .prompt()
         })
         .await
-        .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))??;
+        .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))?;
 
-        Ok(selected)
+        // Handle user interruption
+        match selected {
+            Ok(selections) => Ok(Some(selections)),
+            Err(inquire::InquireError::OperationCanceled) => Ok(None),
+            Err(e) => Err(anyhow!(e)),
+        }
     }
 }

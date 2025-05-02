@@ -163,27 +163,35 @@ pub mod tests {
     #[async_trait::async_trait]
     impl InquireService for Stub {
         /// Prompts the user with question
-        async fn prompt_question(&self, question: &str) -> anyhow::Result<String> {
+        async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
             // For testing, we can just return the question as the answer
-            Ok(question.to_string())
+            Ok(Some(question.to_string()))
         }
 
         /// Prompts the user to select a single option from a list
-        async fn select_one(&self, _: &str, options: Vec<String>) -> anyhow::Result<String> {
+        async fn select_one(
+            &self,
+            _: &str,
+            options: Vec<String>,
+        ) -> anyhow::Result<Option<String>> {
             // For testing, we can just return the first option
             if options.is_empty() {
                 return Err(anyhow::anyhow!("No options provided"));
             }
-            Ok(options[0].clone())
+            Ok(Some(options[0].clone()))
         }
 
         /// Prompts the user to select multiple options from a list
-        async fn select_many(&self, _: &str, options: Vec<String>) -> anyhow::Result<Vec<String>> {
+        async fn select_many(
+            &self,
+            _: &str,
+            options: Vec<String>,
+        ) -> anyhow::Result<Option<Vec<String>>> {
             // For testing, we can just return all options
             if options.is_empty() {
                 return Err(anyhow::anyhow!("No options provided"));
             }
-            Ok(options)
+            Ok(Some(options))
         }
     }
 

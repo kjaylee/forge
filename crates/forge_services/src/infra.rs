@@ -91,14 +91,24 @@ pub trait CommandExecutorService: Send + Sync {
 #[async_trait::async_trait]
 pub trait InquireService: Send + Sync {
     /// Prompts the user with question
-    async fn prompt_question(&self, question: &str) -> anyhow::Result<String>;
+    /// Returns None if the user interrupts the prompt
+    async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>>;
 
     /// Prompts the user to select a single option from a list
-    async fn select_one(&self, message: &str, options: Vec<String>) -> anyhow::Result<String>;
+    /// Returns None if the user interrupts the selection
+    async fn select_one(
+        &self,
+        message: &str,
+        options: Vec<String>,
+    ) -> anyhow::Result<Option<String>>;
 
     /// Prompts the user to select multiple options from a list
-    async fn select_many(&self, message: &str, options: Vec<String>)
-        -> anyhow::Result<Vec<String>>;
+    /// Returns None if the user interrupts the selection
+    async fn select_many(
+        &self,
+        message: &str,
+        options: Vec<String>,
+    ) -> anyhow::Result<Option<Vec<String>>>;
 }
 
 pub trait Infrastructure: Send + Sync + Clone + 'static {
