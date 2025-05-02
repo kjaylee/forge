@@ -480,7 +480,7 @@ impl<A: Services> Orchestrator<A> {
 
             // Check if any tool call was interrupted.
             let is_toolcall_interupted = self.is_toolcall_interupted(&tool_records);
-            
+
             // Check if task is complete or not.
             is_complete = tool_records
                 .iter()
