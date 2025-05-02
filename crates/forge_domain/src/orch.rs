@@ -468,17 +468,14 @@ impl<A: Services> Orchestrator<A> {
 
             // Get tool records
             let tool_context = self.get_tool_call_context(&agent.id);
-            let tool_records = self
-                .get_all_tool_results(agent, &tool_calls, tool_context.clone())
-                .await?;
-
             // Check if task is complete based on the tool call contexts
             is_complete = tool_context.get_complete().await;
 
             // Process tool calls and update context
             context = context.append_message(
                 content,
-                tool_records,
+                self.get_all_tool_results(agent, &tool_calls, tool_context.clone())
+                    .await?,
                 agent.tool_supported.unwrap_or_default(),
             );
 
@@ -495,11 +492,6 @@ impl<A: Services> Orchestrator<A> {
             // Update context in the conversation
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
-
-            if is_complete {
-                // since on-going tool call is interrupted, we break out of the agentic loop.
-                break;
-            }
         }
 
         self.complete_turn(&agent.id).await?;
