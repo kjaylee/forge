@@ -48,8 +48,6 @@ impl ToolService for ForgeToolService {
             .map(|name| name.as_str())
             .collect::<Vec<_>>();
 
-        let is_completion_tool_called = context.is_complete.clone();
-
         available_tools.sort();
         let output = match self.tools.get(&name) {
             Some(tool) => {
@@ -71,9 +69,7 @@ impl ToolService for ForgeToolService {
         };
 
         let result = match output {
-            Ok(output) => ToolResult::from(call)
-                .success(output)
-                .is_complete(*is_completion_tool_called.read().await),
+            Ok(output) => ToolResult::from(call).success(output),
             Err(output) => {
                 error!(error = ?output, "Tool call failed");
                 ToolResult::from(call).failure(output)

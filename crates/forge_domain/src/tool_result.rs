@@ -12,8 +12,6 @@ pub struct ToolResult {
     pub content: String,
     #[setters(skip)]
     pub is_error: bool,
-    #[serde(skip)]
-    pub is_complete: bool,
 }
 
 impl ToolResult {
@@ -23,7 +21,6 @@ impl ToolResult {
             call_id: None,
             content: String::default(),
             is_error: false,
-            is_complete: false,
         }
     }
 
@@ -54,7 +51,6 @@ impl From<ToolCallFull> for ToolResult {
             call_id: value.call_id,
             content: String::default(),
             is_error: false,
-            is_complete: false,
         }
     }
 }

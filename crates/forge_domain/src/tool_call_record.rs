@@ -1,17 +1,20 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use crate::{ToolCallFull, ToolResult};
 
 /// Represents a complete tool invocation cycle, containing both the original
 /// call and its corresponding result.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Serialize, Setters)]
 #[setters(strip_option, into)]
 pub struct ToolCallRecord {
     pub tool_call: ToolCallFull,
     pub tool_result: ToolResult,
+    #[serde(skip)]
+    pub completion_tool_call_tracker: Arc<RwLock<bool>>,
 }
 
 /// Formats the CallRecord as XML with tool name, arguments, and result
@@ -41,8 +44,8 @@ impl Display for ToolCallRecord {
 
 impl ToolCallRecord {
     /// Creates a new CallRecord from a tool call and its result
-    pub fn new(call: ToolCallFull, result: ToolResult) -> Self {
-        Self { tool_call: call, tool_result: result }
+    pub fn new(call: ToolCallFull, result: ToolResult, is_completion: Arc<RwLock<bool>>) -> Self {
+        Self { tool_call: call, tool_result: result, completion_tool_call_tracker: is_completion }
     }
 
     /// Returns true if the tool execution was successful

@@ -84,16 +84,17 @@ impl<A: Services> Orchestrator<A> {
             self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
 
+            let tool_call_context = ToolCallContext::default()
+                .sender(self.sender.clone())
+                .agent_id(agent.id.clone());
+
+            let completion_tool_call_tracker = tool_call_context.is_complete.clone();
+
             // Execute the tool
             let tool_result = self
                 .services
                 .tool_service()
-                .call(
-                    ToolCallContext::default()
-                        .sender(self.sender.clone())
-                        .agent_id(agent.id.clone()),
-                    tool_call.clone(),
-                )
+                .call(tool_call_context, tool_call.clone())
                 .await;
 
             // Send the end notification
@@ -101,7 +102,11 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Add the result to our collection
-            tool_call_records.push(ToolCallRecord { tool_call: tool_call.clone(), tool_result });
+            tool_call_records.push(ToolCallRecord {
+                tool_call: tool_call.clone(),
+                tool_result,
+                completion_tool_call_tracker,
+            });
         }
 
         Ok(tool_call_records)
@@ -482,9 +487,12 @@ impl<A: Services> Orchestrator<A> {
             let is_interrupted = self.is_interrupted(&tool_records);
 
             // Check if task is complete or not.
-            is_complete = tool_records
-                .iter()
-                .any(|record| record.tool_result.is_complete);
+            for tool_record in tool_records.iter() {
+                is_complete = *tool_record.completion_tool_call_tracker.read().await;
+                if is_complete {
+                    break;
+                }
+            }
 
             // Process tool calls and update context
             context = context.append_message(
