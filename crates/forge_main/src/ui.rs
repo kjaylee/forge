@@ -540,11 +540,16 @@ impl<F: API> UI<F> {
 
     fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
-            ChatResponse::Text { mut text, is_complete, is_md } => {
+            ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
                 if is_complete && !text.trim().is_empty() {
                     if is_md {
                         text = self.markdown.render(&text);
                     }
+
+                    if is_summary {
+                        text = TitleFormat::action(text).to_string();
+                    }
+
                     self.spinner.stop(Some(text))?;
                 }
             }

@@ -29,7 +29,7 @@ impl ExecutableTool for Completion {
 
     async fn call(&self, context: ToolCallContext, input: Self::Input) -> Result<String> {
         // Log the completion event
-        context.send_text(input.message.clone()).await?;
+        context.send_summary(input.message.clone()).await?;
 
         // Set the completion flag to true
         context.set_complete().await;

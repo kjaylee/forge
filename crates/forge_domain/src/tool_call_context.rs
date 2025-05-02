@@ -50,6 +50,23 @@ impl ToolCallContext {
         Ok(())
     }
 
+    pub async fn send_summary(&self, content: String) -> anyhow::Result<()> {
+        if let Some(agent_id) = &self.agent_id {
+            self.send(AgentMessage::new(
+                agent_id.clone(),
+                ChatResponse::Text {
+                    text: content.as_str().to_string(),
+                    is_complete: true,
+                    is_md: false,
+                    is_summary: true,
+                },
+            ))
+            .await
+        } else {
+            Ok(())
+        }
+    }
+
     pub async fn send_text(&self, content: String) -> anyhow::Result<()> {
         if let Some(agent_id) = &self.agent_id {
             self.send(AgentMessage::new(
@@ -58,6 +75,7 @@ impl ToolCallContext {
                     text: content.as_str().to_string(),
                     is_complete: true,
                     is_md: false,
+                    is_summary: false,
                 },
             ))
             .await

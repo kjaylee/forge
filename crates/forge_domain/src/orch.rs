@@ -202,7 +202,12 @@ impl<A: Services> Orchestrator<A> {
                 // Send partial content to the client
                 self.send(
                     agent,
-                    ChatResponse::Text { text: content_part, is_complete: false, is_md: false },
+                    ChatResponse::Text {
+                        text: content_part,
+                        is_complete: false,
+                        is_md: false,
+                        is_summary: false,
+                    },
                 )
                 .await?;
 
@@ -269,6 +274,7 @@ impl<A: Services> Orchestrator<A> {
                     .to_string(),
                 is_complete: true,
                 is_md: true,
+                is_summary: false,
             },
         )
         .await?;
@@ -488,7 +494,7 @@ impl<A: Services> Orchestrator<A> {
                 empty_tool_call_count += 1;
 
                 if empty_tool_call_count > 3 {
-                    bail!("Unable to follow instructions. Consider retrying or switching to a bigger model");
+                    bail!("Model is unable to follow instructions. Consider retrying or switching to a bigger model");
                 }
             }
 
