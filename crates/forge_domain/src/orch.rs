@@ -423,9 +423,10 @@ impl<A: Services> Orchestrator<A> {
 
         self.set_context(&agent.id, context.clone()).await?;
 
-        let mut is_complete = false;
+        // Get tool records
+        let tool_context = self.get_tool_call_context(&agent.id);
 
-        while !is_complete {
+        while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
 
@@ -465,11 +466,6 @@ impl<A: Services> Orchestrator<A> {
                 "Tool call count: {}",
                 tool_call_count
             );
-
-            // Get tool records
-            let tool_context = self.get_tool_call_context(&agent.id);
-            // Check if task is complete based on the tool call contexts
-            is_complete = tool_context.get_complete().await;
 
             // Process tool calls and update context
             context = context.append_message(
