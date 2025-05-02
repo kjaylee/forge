@@ -2,35 +2,12 @@ use std::time::Duration;
 
 use anyhow::Result;
 use colored::Colorize;
+use forge_api::UpdateFrequency;
 use forge_tracker::{EventKind, VERSION};
-use serde::Deserialize;
 use tokio::process::Command;
 use update_informer::{registry, Check, Version};
 
 use crate::TRACKER;
-
-#[derive(Debug, Clone, Deserialize)]
-pub enum UpdateFrequency {
-    Daily,
-    Weekly,
-    Never,
-}
-
-impl From<String> for UpdateFrequency {
-    fn from(value: String) -> Self {
-        match value.as_str() {
-            "daily" => UpdateFrequency::Daily,
-            "weekly" => UpdateFrequency::Weekly,
-            _ => UpdateFrequency::Never,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct UpdateConfiguration {
-    pub check_frequency: UpdateFrequency,
-    pub auto_update: bool,
-}
 
 /// Runs npm update in the background, failing silently
 async fn update_forge() {

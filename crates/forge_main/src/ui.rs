@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    Workflow, API,
+    Update, UpdateFrequency, Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -23,7 +23,7 @@ use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
 use crate::state::{Mode, UIState};
-use crate::{banner, check_for_update, UpdateConfiguration, UpdateFrequency, TRACKER};
+use crate::{banner, check_for_update, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -73,29 +73,14 @@ impl<F: API> UI<F> {
         }
     }
 
-    async fn get_update_configuration(&self) -> Result<UpdateConfiguration> {
+    async fn get_update_configuration(&self) -> Result<Update> {
         let mut workflow = Workflow::default();
-        let user_workflow = self.api.read_workflow(&self.workflow_path()).await?;
+        let user_workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
         workflow.merge(user_workflow);
 
-        Ok(UpdateConfiguration {
-            check_frequency: workflow
-                .updates
-                .get("check_frequency")
-                .cloned()
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string()
-                .into(),
-            auto_update: workflow
-                .updates
-                .get("auto_update")
-                .cloned()
-                .unwrap()
-                .as_bool()
-                .unwrap(),
-        })
+        workflow
+            .updates
+            .ok_or(anyhow!("Update configuration not found"))
     }
 
     // Handle creating a new conversation
@@ -194,7 +179,7 @@ impl<F: API> UI<F> {
     async fn run_inner(&mut self) -> Result<()> {
         if let Ok(config) = self.get_update_configuration().await {
             // Recurring update check.
-            check_for_update(config.check_frequency, config.auto_update).await;
+            check_for_update(config.check_frequency.unwrap(), config.auto_update.unwrap()).await;
         }
 
         // Check for dispatch flag first

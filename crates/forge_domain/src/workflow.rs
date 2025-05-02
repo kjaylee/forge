@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::temperature::Temperature;
+use crate::update::Update;
 use crate::{Agent, AgentId, ModelId};
 
 /// Configuration for a workflow that contains all settings
@@ -24,9 +25,9 @@ pub struct Workflow {
     pub variables: HashMap<String, Value>,
 
     /// configurations that can be used to update forge
-    #[merge(strategy = crate::merge::hashmap)]
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub updates: HashMap<String, Value>,
+    #[merge(strategy = crate::update::update_config)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updates: Option<Update>,
 
     /// Commands that can be used to interact with the workflow
     #[merge(strategy = crate::merge::vec::append)]
@@ -107,7 +108,7 @@ impl Workflow {
             custom_rules: None,
             temperature: None,
             tool_supported: None,
-            updates: HashMap::new(),
+            updates: None,
         }
     }
 

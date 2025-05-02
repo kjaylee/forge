@@ -3,7 +3,7 @@ variables:
 
 updates:
   check_frequency: "daily"
-  auto_update: false
+  auto_update: true
 
 # Define model anchors with simpler, purpose-based names
 models:
