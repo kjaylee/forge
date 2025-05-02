@@ -359,13 +359,13 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    fn is_toolcall_interupted(&self, toolcall_records: &[ToolCallRecord]) -> bool {
+    fn is_interrupted(&self, records: &[ToolCallRecord]) -> bool {
         let interruption_errors = [
             "Operation was interrupted by the user",
             "Operation was canceled by the user",
         ];
 
-        toolcall_records.iter().any(|tool| {
+        records.iter().any(|tool| {
             tool.tool_result.is_error
                 && interruption_errors
                     .iter()
@@ -479,7 +479,7 @@ impl<A: Services> Orchestrator<A> {
             let tool_records = self.get_all_tool_results(agent, &tool_calls).await?;
 
             // Check if any tool call was interrupted.
-            let is_toolcall_interupted = self.is_toolcall_interupted(&tool_records);
+            let is_interrupted = self.is_interrupted(&tool_records);
 
             // Check if task is complete or not.
             is_complete = tool_records
@@ -507,7 +507,7 @@ impl<A: Services> Orchestrator<A> {
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
 
-            if is_toolcall_interupted {
+            if is_interrupted {
                 // since on-going tool call is interrupted, we break out of the agentic loop.
                 break;
             }
