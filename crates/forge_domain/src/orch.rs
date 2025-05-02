@@ -488,7 +488,7 @@ impl<A: Services> Orchestrator<A> {
                 empty_tool_call_count += 1;
 
                 if empty_tool_call_count > 3 {
-                    bail!("Invalid tool call (Consider retrying or switching to a bigger model)");
+                    bail!("Unable to follow instructions. Consider retrying or switching to a bigger model");
                 }
             }
 

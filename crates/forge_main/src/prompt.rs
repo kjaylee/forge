@@ -90,7 +90,7 @@ impl Prompt for ForgePrompt {
             .usage
             .as_ref()
             .unwrap_or(&Usage::default())
-            .total_tokens;
+            .prompt_tokens;
 
         let estimated = self
             .usage
