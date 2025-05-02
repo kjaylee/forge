@@ -46,19 +46,19 @@ impl From<Name> for String {
 pub struct ToolCallPayload {
     tool_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    is_error: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     cause: Option<String>,
 }
 
 impl ToolCallPayload {
     pub fn new(tool_name: String) -> Self {
-        Self { tool_name, is_error: None, cause: None }
+        Self {
+            tool_name,
+            cause: None,
+        }
     }
 
     pub fn with_cause(mut self, cause: String) -> Self {
         self.cause = Some(cause);
-        self.is_error = Some(true);
         self
     }
 }
