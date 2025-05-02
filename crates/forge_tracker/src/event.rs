@@ -53,11 +53,7 @@ pub struct ToolCallPayload {
 
 impl ToolCallPayload {
     pub fn new(tool_name: String) -> Self {
-        Self {
-            tool_name,
-            is_error: None,
-            cause: None,
-        }
+        Self { tool_name, is_error: None, cause: None }
     }
 
     pub fn with_cause(mut self, cause: String) -> Self {
@@ -66,7 +62,6 @@ impl ToolCallPayload {
         self
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub enum EventKind {
