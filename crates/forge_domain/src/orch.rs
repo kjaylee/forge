@@ -493,7 +493,7 @@ impl<A: Services> Orchestrator<A> {
                 agent.tool_supported.unwrap_or_default(),
             );
 
-            if tool_call_count && !is_complete {
+            if tool_call_count {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.
                 let content = self
