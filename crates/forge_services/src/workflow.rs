@@ -66,7 +66,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
             let workflow = Workflow::new();
             self.infra
                 .file_write_service()
-                .write(&path, serde_yml::to_string(&workflow)?.into())
+                .write(path, serde_yml::to_string(&workflow)?.into())
                 .await?;
 
             Ok(workflow)
