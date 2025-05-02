@@ -1,4 +1,5 @@
 mod completion;
+mod followup;
 mod fetch;
 mod fs;
 mod patch;

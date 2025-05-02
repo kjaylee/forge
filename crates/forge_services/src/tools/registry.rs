@@ -7,6 +7,7 @@ use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
+use crate::tools::followup::Followup;
 use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
@@ -32,6 +33,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Shell::new(self.infra.clone()).into(),
             Fetch::default().into(),
             Completion.into(),
+            Followup::new(self.infra.clone()).into(),
         ]
     }
 }
