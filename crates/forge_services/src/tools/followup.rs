@@ -77,7 +77,7 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
         .flatten()
         .collect::<Vec<_>>();
 
-        // Options are empty means, question required descriptive answer.
+        // Options are empty means question required descriptive answer.
         let result = if options.is_empty() {
             self.infra
                 .inquire_service()
