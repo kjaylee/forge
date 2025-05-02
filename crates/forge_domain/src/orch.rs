@@ -477,7 +477,8 @@ impl<A: Services> Orchestrator<A> {
             );
 
             if tool_call_count && !is_complete {
-                // No tool calls present, which doesn't mean task is complete so reprompt the agent to ensure the task complete.
+                // No tool calls present, which doesn't mean task is complete so reprompt the
+                // agent to ensure the task complete.
                 let content = self
                     .services
                     .template_service()
