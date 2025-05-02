@@ -90,6 +90,9 @@ pub trait CommandExecutorService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait InquireService: Send + Sync {
+    /// Prompts the user with question
+    async fn prompt_question(&self, question: &str) -> anyhow::Result<String>;
+
     /// Prompts the user to select a single option from a list
     async fn select_one(&self, message: &str, options: Vec<String>) -> anyhow::Result<String>;
 

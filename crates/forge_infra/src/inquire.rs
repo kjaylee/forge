@@ -25,6 +25,20 @@ impl ForgeInquire {
 
 #[async_trait::async_trait]
 impl InquireService for ForgeInquire {
+    async fn prompt_question(&self, question: &str) -> anyhow::Result<String> {
+        let question_owned = question.to_string();
+        let answer = tokio::task::spawn_blocking(move || {
+            inquire::Text::new(&question_owned)
+                .with_render_config(Self::render_config())
+                .with_help_message("Press Enter to submit")
+                .prompt()
+        })
+        .await
+        .map_err(|e| anyhow!("Failed to spawn blocking task for prompt_question: {}", e))??;
+
+        Ok(answer)
+    }
+
     async fn select_one(&self, message: &str, options: Vec<String>) -> Result<String> {
         // We need to use tokio::task::spawn_blocking because inquire is blocking
         // and we're in an async context
