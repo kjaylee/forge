@@ -75,6 +75,7 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
+        tool_context: ToolCallContext,
     ) -> anyhow::Result<Vec<ToolCallRecord>> {
         // Always process tool calls sequentially
         let mut tool_call_records = Vec::with_capacity(tool_calls.len());
@@ -84,17 +85,11 @@ impl<A: Services> Orchestrator<A> {
             self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
 
-            let tool_call_context = ToolCallContext::default()
-                .sender(self.sender.clone())
-                .agent_id(agent.id.clone());
-
-            let completion_tool_call_tracker = tool_call_context.completion_tool_call_tracker.clone();
-
             // Execute the tool
             let tool_result = self
                 .services
                 .tool_service()
-                .call(tool_call_context, tool_call.clone())
+                .call(tool_context.clone(), tool_call.clone())
                 .await;
 
             // Send the end notification
@@ -102,11 +97,7 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Add the result to our collection
-            tool_call_records.push(ToolCallRecord {
-                tool_call: tool_call.clone(),
-                tool_result,
-                completion_tool_call_tracker,
-            });
+            tool_call_records.push(ToolCallRecord { tool_call: tool_call.clone(), tool_result });
         }
 
         Ok(tool_call_records)
@@ -364,18 +355,12 @@ impl<A: Services> Orchestrator<A> {
         Ok(())
     }
 
-    fn is_interrupted(&self, records: &[ToolCallRecord]) -> bool {
-        let interruption_errors = [
-            "Operation was interrupted by the user",
-            "Operation was canceled by the user",
-        ];
-
-        records.iter().any(|tool| {
-            tool.tool_result.is_error
-                && interruption_errors
-                    .iter()
-                    .any(|error| tool.tool_result.content.contains(error))
-        })
+    // Get the ToolCallContext for an agent
+    fn get_tool_call_context(&self, agent_id: &AgentId) -> ToolCallContext {
+        // Create a new ToolCallContext with the agent ID
+        ToolCallContext::default()
+            .agent_id(agent_id.clone())
+            .sender(self.sender.clone())
     }
 
     // Create a helper method with the core functionality
@@ -481,18 +466,14 @@ impl<A: Services> Orchestrator<A> {
                 tool_call_count
             );
 
-            let tool_records = self.get_all_tool_results(agent, &tool_calls).await?;
+            // Get tool records
+            let tool_context = self.get_tool_call_context(&agent.id);
+            let tool_records = self
+                .get_all_tool_results(agent, &tool_calls, tool_context.clone())
+                .await?;
 
-            // Check if any tool call was interrupted.
-            let is_interrupted = self.is_interrupted(&tool_records);
-
-            // Check if task is complete or not.
-            for tool_record in tool_records.iter() {
-                is_complete = *tool_record.completion_tool_call_tracker.read().await;
-                if is_complete {
-                    break;
-                }
-            }
+            // Check if task is complete based on the tool call contexts
+            is_complete = tool_context.get_complete().await;
 
             // Process tool calls and update context
             context = context.append_message(
@@ -515,7 +496,7 @@ impl<A: Services> Orchestrator<A> {
             self.set_context(&agent.id, context.clone()).await?;
             self.sync_conversation().await?;
 
-            if is_interrupted {
+            if is_complete {
                 // since on-going tool call is interrupted, we break out of the agentic loop.
                 break;
             }

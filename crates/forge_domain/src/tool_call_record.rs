@@ -1,8 +1,7 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
-use tokio::sync::RwLock;
 
 use crate::{ToolCallFull, ToolResult};
 
@@ -13,8 +12,6 @@ use crate::{ToolCallFull, ToolResult};
 pub struct ToolCallRecord {
     pub tool_call: ToolCallFull,
     pub tool_result: ToolResult,
-    #[serde(skip)]
-    pub completion_tool_call_tracker: Arc<RwLock<bool>>,
 }
 
 /// Formats the CallRecord as XML with tool name, arguments, and result
@@ -44,8 +41,8 @@ impl Display for ToolCallRecord {
 
 impl ToolCallRecord {
     /// Creates a new CallRecord from a tool call and its result
-    pub fn new(call: ToolCallFull, result: ToolResult, is_completion: Arc<RwLock<bool>>) -> Self {
-        Self { tool_call: call, tool_result: result, completion_tool_call_tracker: is_completion }
+    pub fn new(call: ToolCallFull, result: ToolResult) -> Self {
+        Self { tool_call: call, tool_result: result }
     }
 
     /// Returns true if the tool execution was successful

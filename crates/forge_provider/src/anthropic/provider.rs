@@ -242,7 +242,6 @@ mod tests {
                 call_id: Some(ToolCallId::new("math-1")),
                 content: serde_json::json!({"result": 4}).to_string(),
                 is_error: false,
-                is_complete: false,
             }])
             .tool_choice(ToolChoice::Call(ToolName::new("math")));
         let request = Request::try_from(context)
