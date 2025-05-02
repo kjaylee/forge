@@ -95,6 +95,8 @@ impl From<&UIState> for Info {
         let usage = &value.usage;
         let estimated = usage.estimated_tokens.unwrap_or(0);
 
+        info = info.add_title("Usage".to_string());
+
         if estimated > usage.prompt_tokens {
             info = info.add_key_value("Prompt", format!("~{estimated}"));
         } else {
@@ -102,11 +104,6 @@ impl From<&UIState> for Info {
         }
 
         info = info
-            .add_title("Usage".to_string())
-            .add_key_value(
-                "Prompt",
-                max(usage.prompt_tokens, usage.estimated_tokens.unwrap_or(0)),
-            )
             .add_key_value("Completion", usage.completion_tokens)
             .add_key_value("Total", usage.total_tokens);
 
