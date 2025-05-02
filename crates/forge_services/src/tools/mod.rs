@@ -1,6 +1,6 @@
 mod completion;
-mod followup;
 mod fetch;
+mod followup;
 mod fs;
 mod patch;
 mod registry;

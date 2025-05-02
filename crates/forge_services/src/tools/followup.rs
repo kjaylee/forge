@@ -102,7 +102,7 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
                     .inquire_service()
                     .select_one(&input.question, options)
                     .await?;
-                format!("User selected: {}", selected)
+                format!("User selected: {selected}")
             }
         };
 

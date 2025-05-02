@@ -432,11 +432,7 @@ pub mod tests {
         }
 
         /// Prompts the user to select multiple options from a list
-        async fn select_many(
-            &self,
-            _: &str,
-            options: Vec<String>,
-        ) -> anyhow::Result<Vec<String>> {
+        async fn select_many(&self, _: &str, options: Vec<String>) -> anyhow::Result<Vec<String>> {
             // For testing, we can just return all options
             if options.is_empty() {
                 return Err(anyhow::anyhow!("No options provided"));
