@@ -32,6 +32,7 @@ impl ExecutableTool for Completion {
 
         // Log the completion event
         context.send_text(result_message.clone()).await?;
+        *context.is_complete.write().await = true;
 
         // Return success with the message and completion flag set to true
         Ok(result_message)

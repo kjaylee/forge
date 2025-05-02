@@ -2,13 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    NamedTool, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult,
-    ToolService,
+    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
 };
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
-use crate::tools::{Completion, ToolRegistry};
+use crate::tools::ToolRegistry;
 use crate::Infrastructure;
 
 // Timeout duration for tool calls
@@ -49,6 +48,8 @@ impl ToolService for ForgeToolService {
             .map(|name| name.as_str())
             .collect::<Vec<_>>();
 
+        let is_completion_tool_called = context.is_complete.clone();
+
         available_tools.sort();
         let output = match self.tools.get(&name) {
             Some(tool) => {
@@ -72,7 +73,7 @@ impl ToolService for ForgeToolService {
         let result = match output {
             Ok(output) => ToolResult::from(call)
                 .success(output)
-                .is_complete(name == Completion::tool_name()),
+                .is_complete(*is_completion_tool_called.read().await),
             Err(output) => {
                 error!(error = ?output, "Tool call failed");
                 ToolResult::from(call).failure(output)

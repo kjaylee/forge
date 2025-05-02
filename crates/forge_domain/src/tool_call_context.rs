@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use derive_setters::Setters;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::{mpsc::Sender, RwLock};
 
 use crate::{AgentId, AgentMessage, ChatResponse};
 
@@ -15,6 +15,7 @@ pub struct ToolCallContext {
     #[setters(strip_option)]
     pub agent_id: Option<AgentId>,
     pub sender: Option<ArcSender>,
+    pub is_complete: Arc<RwLock<bool>>,
 }
 
 impl ToolCallContext {
