@@ -51,8 +51,8 @@ pub struct SelectInput {
     /// Fifth option to choose from
     pub option5: Option<String>,
 
-    /// If true, allows selecting multiple options; if false (default), only one option
-    /// can be selected
+    /// If true, allows selecting multiple options; if false (default), only one
+    /// option can be selected
     #[schemars(default)]
     pub multiple: Option<bool>,
 }
