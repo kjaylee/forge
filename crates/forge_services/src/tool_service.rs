@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use forge_domain::{
-    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+    NamedTool, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService
 };
 use tokio::time::{timeout, Duration};
 use tracing::{debug, error};
 
 use crate::tools::ToolRegistry;
 use crate::Infrastructure;
+use crate::tools::Completion;
 
 // Timeout duration for tool calls
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
@@ -73,7 +74,7 @@ impl ToolService for ForgeToolService {
                 // FIXME: we can't have hardcoded check like this, figure out a better way.
                 ToolResult::from(call)
                     .success(output)
-                    .is_complete(name == ToolName::new("tool_forge_attempt_completion"))
+                    .is_complete(name == Completion::tool_name())
             }
             Err(output) => {
                 error!(error = ?output, "Tool call failed");

@@ -8,4 +8,5 @@ mod shell;
 mod syn;
 mod utils;
 
+pub use completion::Completion;
 pub use registry::ToolRegistry;
