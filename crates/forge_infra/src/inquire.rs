@@ -1,9 +1,7 @@
 use anyhow::{anyhow, Result};
 use forge_services::InquireService;
-use inquire::{
-    ui::{RenderConfig, Styled},
-    InquireError, MultiSelect, Select, Text,
-};
+use inquire::ui::{RenderConfig, Styled};
+use inquire::{InquireError, MultiSelect, Select, Text};
 
 pub struct ForgeInquire;
 
@@ -66,7 +64,11 @@ impl InquireService for ForgeInquire {
         .await
     }
 
-    async fn select_many(&self, message: &str, options: Vec<String>) -> Result<Option<Vec<String>>> {
+    async fn select_many(
+        &self,
+        message: &str,
+        options: Vec<String>,
+    ) -> Result<Option<Vec<String>>> {
         let message = message.to_string();
         self.prompt(move || {
             MultiSelect::new(&message, options)
