@@ -28,16 +28,14 @@ impl ExecutableTool for Completion {
     type Input = AttemptCompletionInput;
 
     async fn call(&self, context: ToolCallContext, input: Self::Input) -> Result<String> {
-        let result_message = format!("Task completed: {}", input.message);
+        // Log the completion event
+        context.send_text(input.message.clone()).await?;
 
         // Set the completion flag to true
         context.set_complete().await;
 
-        // Log the completion event
-        context.send_text(result_message.clone()).await?;
-
         // Return success with the message
-        Ok(result_message)
+        Ok(input.message)
     }
 }
 
