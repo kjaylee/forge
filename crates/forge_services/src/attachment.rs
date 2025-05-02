@@ -118,7 +118,7 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, Infrastructure,
+        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService,
     };
 
     #[derive(Debug)]
@@ -414,6 +414,37 @@ pub mod tests {
         }
     }
 
+    #[async_trait::async_trait]
+    impl InquireService for () {
+        /// Prompts the user with question
+        async fn prompt_question(&self, question: &str) -> anyhow::Result<String> {
+            // For testing, we can just return the question as the answer
+            Ok(question.to_string())
+        }
+
+        /// Prompts the user to select a single option from a list
+        async fn select_one(&self, _: &str, options: Vec<String>) -> anyhow::Result<String> {
+            // For testing, we can just return the first option
+            if options.is_empty() {
+                return Err(anyhow::anyhow!("No options provided"));
+            }
+            Ok(options[0].clone())
+        }
+
+        /// Prompts the user to select multiple options from a list
+        async fn select_many(
+            &self,
+            _: &str,
+            options: Vec<String>,
+        ) -> anyhow::Result<Vec<String>> {
+            // For testing, we can just return all options
+            if options.is_empty() {
+                return Err(anyhow::anyhow!("No options provided"));
+            }
+            Ok(options)
+        }
+    }
+
     impl Infrastructure for MockInfrastructure {
         type EnvironmentService = MockEnvironmentService;
         type FsReadService = MockFileService;
@@ -423,6 +454,7 @@ pub mod tests {
         type FsCreateDirsService = MockFileService;
         type FsSnapshotService = MockSnapService;
         type CommandExecutorService = ();
+        type InquireService = ();
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -453,6 +485,10 @@ pub mod tests {
         }
 
         fn command_executor_service(&self) -> &Self::CommandExecutorService {
+            &()
+        }
+
+        fn inquire_service(&self) -> &Self::InquireService {
             &()
         }
     }

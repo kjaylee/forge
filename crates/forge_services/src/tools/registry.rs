@@ -49,7 +49,7 @@ pub mod tests {
     use super::*;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService,
+        FsReadService, FsSnapshotService, FsWriteService, InquireService,
     };
 
     /// Create a default test environment
@@ -161,6 +161,33 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl InquireService for Stub {
+        /// Prompts the user with question
+        async fn prompt_question(&self, question: &str) -> anyhow::Result<String> {
+            // For testing, we can just return the question as the answer
+            Ok(question.to_string())
+        }
+
+        /// Prompts the user to select a single option from a list
+        async fn select_one(&self, _: &str, options: Vec<String>) -> anyhow::Result<String> {
+            // For testing, we can just return the first option
+            if options.is_empty() {
+                return Err(anyhow::anyhow!("No options provided"));
+            }
+            Ok(options[0].clone())
+        }
+
+        /// Prompts the user to select multiple options from a list
+        async fn select_many(&self, _: &str, options: Vec<String>) -> anyhow::Result<Vec<String>> {
+            // For testing, we can just return all options
+            if options.is_empty() {
+                return Err(anyhow::anyhow!("No options provided"));
+            }
+            Ok(options)
+        }
+    }
+
+    #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FsReadService = Stub;
@@ -170,6 +197,7 @@ pub mod tests {
         type FsSnapshotService = Stub;
         type FsCreateDirsService = Stub;
         type CommandExecutorService = Stub;
+        type InquireService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -200,6 +228,10 @@ pub mod tests {
         }
 
         fn command_executor_service(&self) -> &Self::CommandExecutorService {
+            self
+        }
+
+        fn inquire_service(&self) -> &Self::InquireService {
             self
         }
     }
