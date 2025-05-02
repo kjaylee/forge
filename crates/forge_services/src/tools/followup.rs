@@ -79,8 +79,10 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
 
         // Options are empty means, question required descriptive answer.
         let result = if options.is_empty() {
-            // TODO: Use the inquire service to get user input.
-            "".into()
+            self.infra
+                .inquire_service()
+                .prompt_question(&input.question)
+                .await?
         } else {
             // Use the select service to get user selection
             if input.multiple {
