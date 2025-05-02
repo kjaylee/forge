@@ -65,7 +65,7 @@ pub struct FSReadInput {
 /// functionality, returning only the first 40,000 characters by default. For
 /// large files, you can specify custom ranges using start_char and end_char
 /// parameters. The total range must not exceed 40,000 characters (an error will
-/// be thrown if end_char - start_char > 40,000). Binary files are automatically
+/// be thrown if (end_char - start_char + 1) > 40,000). Binary files are automatically
 /// detected and rejected.
 #[derive(ToolDescription)]
 pub struct FSRead<F>(Arc<F>);
