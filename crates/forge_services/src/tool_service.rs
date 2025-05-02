@@ -70,12 +70,9 @@ impl ToolService for ForgeToolService {
         };
 
         let result = match output {
-            Ok(output) => {
-                // FIXME: we can't have hardcoded check like this, figure out a better way.
-                ToolResult::from(call)
-                    .success(output)
-                    .is_complete(name == Completion::tool_name())
-            }
+            Ok(output) => ToolResult::from(call)
+                .success(output)
+                .is_complete(name == Completion::tool_name()),
             Err(output) => {
                 error!(error = ?output, "Tool call failed");
                 ToolResult::from(call).failure(output)
