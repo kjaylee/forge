@@ -68,6 +68,11 @@ pub trait EnvironmentService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait WorkflowService {
+    /// Find a forge.yaml config file by traversing parent directories.
+    /// Returns the path to the first found config file, or the original path if
+    /// none is found.
+    async fn resolve(&self, path: Option<std::path::PathBuf>) -> std::path::PathBuf;
+
     /// Reads the workflow from the given path
     async fn read(&self, path: &Path) -> anyhow::Result<Workflow>;
 
