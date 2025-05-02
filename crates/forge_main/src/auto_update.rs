@@ -36,7 +36,7 @@ async fn update_forge() {
 async fn confirm_update(version: Version) {
     let answer = inquire::Confirm::new(&format!(
         "Confirm upgrade from {} -> {} (latest)?",
-        format!("v{}", VERSION).bold().white(),
+        format!("v{VERSION}").bold().white(),
         version.to_string().bold().white()
     ))
     .with_default(true)
