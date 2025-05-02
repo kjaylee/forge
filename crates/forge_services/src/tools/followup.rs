@@ -70,59 +70,35 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
             input.option5,
         ]
         .into_iter()
-        .filter(|opt| opt.is_some())
         .flatten()
         .collect::<Vec<_>>();
 
-        // Options are empty means question requires descriptive answer.
-        let result = if options.is_empty() {
-            match self
-                .infra
-                .inquire_service()
-                .prompt_question(&input.question)
+        let inquire = self.infra.inquire_service();
+
+        let result = match (options.is_empty(), input.multiple.unwrap_or_default()) {
+            (true, _) => inquire.prompt_question(&input.question).await?,
+            (false, true) => inquire
+                .select_many(&input.question, options)
                 .await?
-            {
-                Some(answer) => answer,
-                None => {
-                    context.set_complete().await;
-                    "User interrupted the prompt".to_string()
-                }
-            }
-        } else {
-            // Use the select service to get user selection
-            if input.multiple.unwrap_or_default() {
-                match self
-                    .infra
-                    .inquire_service()
-                    .select_many(&input.question, options)
-                    .await?
-                {
-                    Some(selected) => format!(
+                .map(|selected| {
+                    format!(
                         "User selected {} option(s): {}",
                         selected.len(),
                         selected.join(", ")
-                    ),
-                    None => {
-                        context.set_complete().await;
-                        "User interrupted the selection".to_string()
-                    }
-                }
-            } else {
-                match self
-                    .infra
-                    .inquire_service()
-                    .select_one(&input.question, options)
-                    .await?
-                {
-                    Some(selected) => format!("User selected: {selected}"),
-                    None => {
-                        context.set_complete().await;
-                        "User interrupted the selection".to_string()
-                    }
-                }
-            }
+                    )
+                }),
+            (false, false) => inquire
+                .select_one(&input.question, options)
+                .await?
+                .map(|selected| format!("User selected: {selected}")),
         };
 
-        Ok(result)
+        match result {
+            Some(answer) => Ok(answer),
+            None => {
+                context.set_complete().await;
+                Ok("User interrupted the selection".to_string())
+            }
+        }
     }
 }
