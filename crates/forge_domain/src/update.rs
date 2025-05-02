@@ -11,16 +11,6 @@ pub enum UpdateFrequency {
     Never,
 }
 
-impl From<String> for UpdateFrequency {
-    fn from(value: String) -> Self {
-        match value.as_str() {
-            "daily" => UpdateFrequency::Daily,
-            "weekly" => UpdateFrequency::Weekly,
-            _ => UpdateFrequency::Never,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Default)]
 pub struct Update {
     pub check_frequency: Option<UpdateFrequency>,
