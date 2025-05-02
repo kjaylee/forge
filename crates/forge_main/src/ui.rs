@@ -567,10 +567,7 @@ impl<F: API> UI<F> {
                 }
             }
             ChatResponse::Usage(u) => {
-                self.state.usage = u.clone();
-                if let Some(estimated) = u.estimated_tokens {
-                    self.state.estimated_usage = Some(estimated);
-                }
+                self.state.usage = u;
             }
         }
         Ok(())
