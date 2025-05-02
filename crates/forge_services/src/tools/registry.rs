@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::Tool;
 
+use super::completion::Completion;
 use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
@@ -30,6 +31,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             ApplyPatchJson::new(self.infra.clone()).into(),
             Shell::new(self.infra.clone()).into(),
             Fetch::default().into(),
+            Completion::default().into(),
         ]
     }
 }
