@@ -15,7 +15,7 @@ pub struct ToolCallContext {
     #[setters(strip_option)]
     pub agent_id: Option<AgentId>,
     pub sender: Option<ArcSender>,
-    pub is_complete: Arc<RwLock<bool>>,
+    pub completion_tool_call_tracker: Arc<RwLock<bool>>,
 }
 
 impl ToolCallContext {

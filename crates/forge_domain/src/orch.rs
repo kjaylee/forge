@@ -88,7 +88,7 @@ impl<A: Services> Orchestrator<A> {
                 .sender(self.sender.clone())
                 .agent_id(agent.id.clone());
 
-            let completion_tool_call_tracker = tool_call_context.is_complete.clone();
+            let completion_tool_call_tracker = tool_call_context.completion_tool_call_tracker.clone();
 
             // Execute the tool
             let tool_result = self
