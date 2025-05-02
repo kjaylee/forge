@@ -73,18 +73,24 @@ pub trait WorkflowService {
     /// none is found.
     async fn resolve(&self, path: Option<std::path::PathBuf>) -> std::path::PathBuf;
 
-    /// Reads the workflow from the given path
-    async fn read(&self, path: &Path) -> anyhow::Result<Workflow>;
+    /// Reads the workflow from the given path.
+    /// If no path is provided, it will try to find forge.yaml in the current
+    /// directory or its parent directories.
+    async fn read(&self, path: Option<&Path>) -> anyhow::Result<Workflow>;
 
-    /// Writes the given workflow to the specified path
-    async fn write(&self, path: &Path, workflow: &Workflow) -> anyhow::Result<()>;
+    /// Writes the given workflow to the specified path.
+    /// If no path is provided, it will try to find forge.yaml in the current
+    /// directory or its parent directories.
+    async fn write(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()>;
 
-    /// Updates the workflow at the given path using the provided closure
+    /// Updates the workflow at the given path using the provided closure.
+    /// If no path is provided, it will try to find forge.yaml in the current
+    /// directory or its parent directories.
     ///
     /// The closure receives a mutable reference to the workflow, which can be
     /// modified. After the closure completes, the updated workflow is
     /// written back to the same path.
-    async fn update_workflow<F>(&self, path: &Path, f: F) -> anyhow::Result<Workflow>
+    async fn update_workflow<F>(&self, path: Option<&Path>, f: F) -> anyhow::Result<Workflow>
     where
         F: FnOnce(&mut Workflow) + Send;
 }

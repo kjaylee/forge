@@ -22,7 +22,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
     /// Find a forge.yaml config file by traversing parent directories.
     /// Returns the path to the first found config file, or the original path if
     /// none is found.
-    pub async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
+    pub async fn resolve_path(&self, path: Option<PathBuf>) -> PathBuf {
         let path = path.unwrap_or(PathBuf::from("."));
         // If the path exists or this is an explicitly provided path, return it as is
         if path.exists() || path.to_string_lossy() != "forge.yaml" {
@@ -60,7 +60,7 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
     /// the specified path (in the current directory).
     pub async fn read(&self, path: &Path) -> anyhow::Result<Workflow> {
         // First, try to find the config file in parent directories if needed
-        let path = self.resolve(Some(path.into())).await;
+        let path = self.resolve_path(Some(path.into())).await;
 
         if !path.exists() {
             let workflow = Workflow::new();
@@ -82,30 +82,36 @@ impl<F: Infrastructure> ForgeWorkflowService<F> {
 #[async_trait::async_trait]
 impl<F: Infrastructure> WorkflowService for ForgeWorkflowService<F> {
     async fn resolve(&self, path: Option<PathBuf>) -> PathBuf {
-        self.resolve(path).await
+        self.resolve_path(path).await
     }
 
-    async fn read(&self, path: &Path) -> anyhow::Result<Workflow> {
-        self.read(path).await
+    async fn read(&self, path: Option<&Path>) -> anyhow::Result<Workflow> {
+        let path_to_use = path.unwrap_or_else(|| Path::new("forge.yaml"));
+        self.read(path_to_use).await
     }
 
-    async fn write(&self, path: &Path, workflow: &Workflow) -> anyhow::Result<()> {
+    async fn write(&self, path: Option<&Path>, workflow: &Workflow) -> anyhow::Result<()> {
         // First, try to find the config file in parent directories if needed
-        let path = self.resolve(Some(path.into())).await;
+        let path_buf = match path {
+            Some(p) => p.to_path_buf(),
+            None => PathBuf::from("forge.yaml"),
+        };
+        let resolved_path = self.resolve_path(Some(path_buf)).await;
 
         let content = serde_yml::to_string(workflow)?;
         self.infra
             .file_write_service()
-            .write(&path, content.into())
+            .write(&resolved_path, content.into())
             .await
     }
 
-    async fn update_workflow<Func>(&self, path: &Path, f: Func) -> anyhow::Result<Workflow>
+    async fn update_workflow<Func>(&self, path: Option<&Path>, f: Func) -> anyhow::Result<Workflow>
     where
         Func: FnOnce(&mut Workflow) + Send,
     {
         // Read the current workflow
-        let mut workflow = self.read(path).await?;
+        let path_to_use = path.unwrap_or_else(|| Path::new("forge.yaml"));
+        let mut workflow = self.read(path_to_use).await?;
 
         // Apply the closure to update the workflow
         f(&mut workflow);
