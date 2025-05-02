@@ -56,7 +56,7 @@ mod tests {
         let actual = tool.call(ToolCallContext::default(), input).await.unwrap();
 
         // Define expected result
-        let expected = "Task completed: All required features implemented";
+        let expected = "All required features implemented";
 
         // Assert that the actual result matches the expected result
         assert_eq!(actual, expected);

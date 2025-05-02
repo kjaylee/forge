@@ -28,9 +28,7 @@ impl ForgeInquire {
         F: FnOnce() -> std::result::Result<T, InquireError> + Send + 'static,
         T: Send + 'static,
     {
-        let result = tokio::task::spawn_blocking(f)
-            .await
-            .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))?;
+        let result = tokio::task::spawn_blocking(f).await?;
 
         match result {
             Ok(value) => Ok(Some(value)),
