@@ -9,13 +9,10 @@ use serde::Deserialize;
 use crate::infra::InquireService;
 use crate::Infrastructure;
 
-/// Ask the user a question to gather additional information needed to complete
-/// the task. This tool should be used when you encounter ambiguities, need
-/// clarification, or require more details to proceed effectively. It allows for
-/// interactive problem-solving by enabling direct communication with the user,
-/// either through selecting from up to 5 predefined options or providing a
-/// descriptive answer. Use this tool judiciously to maintain a balance between
-/// gathering necessary information and avoiding excessive back-and-forth.
+/// Use this tool when you encounter ambiguities, need clarification, or require
+/// more details to proceed effectively. Use this tool judiciously to maintain a
+/// balance between gathering necessary information and avoiding excessive
+/// back-and-forth.
 #[derive(Debug, ToolDescription)]
 pub struct Followup<F> {
     infra: Arc<F>,
@@ -54,10 +51,10 @@ pub struct SelectInput {
     /// Fifth option to choose from
     pub option5: Option<String>,
 
-    /// If true, allows selecting multiple options; if false, only one option
+    /// If true, allows selecting multiple options; if false (default), only one option
     /// can be selected
     #[schemars(default)]
-    pub multiple: bool,
+    pub multiple: Option<bool>,
 }
 
 #[async_trait::async_trait]
@@ -85,7 +82,7 @@ impl<F: Infrastructure> ExecutableTool for Followup<F> {
                 .await?
         } else {
             // Use the select service to get user selection
-            if input.multiple {
+            if input.multiple.unwrap_or_default() {
                 let selected = self
                     .infra
                     .inquire_service()
