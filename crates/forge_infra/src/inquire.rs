@@ -30,7 +30,7 @@ impl InquireService for ForgeInquire {
         let answer = tokio::task::spawn_blocking(move || {
             inquire::Text::new(&question_owned)
                 .with_render_config(Self::render_config())
-                .with_help_message("Press Enter to submit")
+                .with_help_message("Press Enter to submit, ESC to cancel")
                 .prompt()
         })
         .await
@@ -46,7 +46,7 @@ impl InquireService for ForgeInquire {
         let selected = tokio::task::spawn_blocking(move || {
             inquire::Select::new(&message_owned, options)
                 .with_render_config(Self::render_config())
-                .with_help_message("Use arrow keys to navigate, Enter to select")
+                .with_help_message("Use arrow keys to navigate, Enter to select, ESC to cancel")
                 .prompt()
         })
         .await
@@ -61,7 +61,7 @@ impl InquireService for ForgeInquire {
             inquire::MultiSelect::new(&message_owned, options)
                 .with_render_config(Self::render_config())
                 .with_help_message(
-                    "Use arrow keys to navigate, Space to select/deselect, Enter to confirm",
+                    "Use arrow keys to navigate, Space to select/deselect, Enter to confirm, ESC to cancel",
                 )
                 .prompt()
         })
