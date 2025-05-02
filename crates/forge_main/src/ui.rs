@@ -566,8 +566,8 @@ impl<F: API> UI<F> {
                     return Ok(());
                 }
             }
-            ChatResponse::Usage(u) => {
-                self.state.usage = u;
+            ChatResponse::Usage(usage) => {
+                self.state.usage = usage;
             }
         }
         Ok(())

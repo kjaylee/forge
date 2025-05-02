@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::Context as AnyhowContext;
+use anyhow::{bail, Context as AnyhowContext};
 use async_recursion::async_recursion;
 use chrono::Local;
 use forge_walker::Walker;
@@ -423,8 +423,9 @@ impl<A: Services> Orchestrator<A> {
 
         self.set_context(&agent.id, context.clone()).await?;
 
-        // Get tool records
         let tool_context = self.get_tool_call_context(&agent.id);
+
+        let mut empty_tool_call_count = 0;
 
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
@@ -458,13 +459,13 @@ impl<A: Services> Orchestrator<A> {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
 
-            let tool_call_count = tool_calls.is_empty();
+            let empty_tool_calls = tool_calls.is_empty();
 
             debug!(
                 agent_id = %agent.id,
-                tool_call_count = tool_call_count,
+                tool_call_count = empty_tool_calls,
                 "Tool call count: {}",
-                tool_call_count
+                empty_tool_calls
             );
 
             // Process tool calls and update context
@@ -475,7 +476,7 @@ impl<A: Services> Orchestrator<A> {
                 agent.tool_supported.unwrap_or_default(),
             );
 
-            if tool_call_count {
+            if empty_tool_calls {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.
                 let content = self
@@ -483,6 +484,12 @@ impl<A: Services> Orchestrator<A> {
                     .template_service()
                     .render("{{> partial-tool-required.hbs}}", &())?;
                 context = context.add_message(ContextMessage::user(content));
+
+                empty_tool_call_count += 1;
+
+                if empty_tool_call_count > 3 {
+                    bail!("Invalid tool call (Consider retrying or switching to a bigger model)");
+                }
             }
 
             // Update context in the conversation
@@ -531,8 +538,7 @@ impl<A: Services> Orchestrator<A> {
                 || self.init_agent(agent_id, &event),
                 is_parse_error,
             )
-            .await
-            .with_context(|| format!("Failed to initialize agent {}", *agent_id))?;
+            .await?;
         }
 
         Ok(())
