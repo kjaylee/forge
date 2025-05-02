@@ -1,6 +1,9 @@
 use anyhow::{anyhow, Result};
 use forge_services::InquireService;
-use inquire::ui::{RenderConfig, Styled};
+use inquire::{
+    ui::{RenderConfig, Styled},
+    InquireError, MultiSelect, Select, Text,
+};
 
 pub struct ForgeInquire;
 
@@ -21,73 +24,56 @@ impl ForgeInquire {
             .with_scroll_down_prefix(Styled::new("⇣"))
             .with_highlighted_option_prefix(Styled::new("➤"))
     }
+
+    async fn prompt<T, F>(&self, f: F) -> Result<Option<T>>
+    where
+        F: FnOnce() -> std::result::Result<T, InquireError> + Send + 'static,
+        T: Send + 'static,
+    {
+        let result = tokio::task::spawn_blocking(f)
+            .await
+            .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))?;
+
+        match result {
+            Ok(value) => Ok(Some(value)),
+            Err(InquireError::OperationCanceled | InquireError::OperationInterrupted) => Ok(None),
+            Err(e) => Err(anyhow!(e)),
+        }
+    }
 }
 
 #[async_trait::async_trait]
 impl InquireService for ForgeInquire {
-    async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
-        let question_owned = question.to_string();
-        let answer = tokio::task::spawn_blocking(move || {
-            inquire::Text::new(&question_owned)
+    async fn prompt_question(&self, question: &str) -> Result<Option<String>> {
+        let question = question.to_string();
+        self.prompt(move || {
+            Text::new(&question)
                 .with_render_config(Self::render_config())
                 .with_help_message("Press Enter to submit, ESC to cancel")
                 .prompt()
         })
         .await
-        .map_err(|e| anyhow!("Failed to spawn blocking task for prompt_question: {}", e))?;
-
-        // Handle user interruption (inquire returns Err with
-        // inquire::InquireError::OperationCanceled)
-        match answer {
-            Ok(text) => Ok(Some(text)),
-            Err(inquire::InquireError::OperationCanceled) => Ok(None),
-            Err(e) => Err(anyhow!(e)),
-        }
     }
 
     async fn select_one(&self, message: &str, options: Vec<String>) -> Result<Option<String>> {
-        // We need to use tokio::task::spawn_blocking because inquire is blocking
-        // and we're in an async context
-        let message_owned = message.to_string();
-        let selected = tokio::task::spawn_blocking(move || {
-            inquire::Select::new(&message_owned, options)
+        let message = message.to_string();
+        self.prompt(move || {
+            Select::new(&message, options)
                 .with_render_config(Self::render_config())
                 .with_help_message("Use arrow keys to navigate, Enter to select, ESC to cancel")
                 .prompt()
         })
         .await
-        .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))?;
-
-        // Handle user interruption
-        match selected {
-            Ok(selection) => Ok(Some(selection)),
-            Err(inquire::InquireError::OperationCanceled) => Ok(None),
-            Err(e) => Err(anyhow!(e)),
-        }
     }
 
-    async fn select_many(
-        &self,
-        message: &str,
-        options: Vec<String>,
-    ) -> Result<Option<Vec<String>>> {
-        let message_owned = message.to_string();
-        let selected = tokio::task::spawn_blocking(move || {
-            inquire::MultiSelect::new(&message_owned, options)
+    async fn select_many(&self, message: &str, options: Vec<String>) -> Result<Option<Vec<String>>> {
+        let message = message.to_string();
+        self.prompt(move || {
+            MultiSelect::new(&message, options)
                 .with_render_config(Self::render_config())
-                .with_help_message(
-                    "Use arrow keys to navigate, Space to select/deselect, Enter to confirm, ESC to cancel",
-                )
+                .with_help_message("Use arrow keys to navigate, Space to select/deselect, Enter to confirm, ESC to cancel")
                 .prompt()
         })
         .await
-        .map_err(|e| anyhow!("Failed to spawn blocking task: {}", e))?;
-
-        // Handle user interruption
-        match selected {
-            Ok(selections) => Ok(Some(selections)),
-            Err(inquire::InquireError::OperationCanceled) => Ok(None),
-            Err(e) => Err(anyhow!(e)),
-        }
     }
 }
