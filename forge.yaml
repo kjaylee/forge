@@ -9,7 +9,7 @@ commands:
     - Understand the current PR deeply using the GH CLI and update the PR title and description
     - Make sure the title follows conventional commits standard
     - Top-level summary should contain 2-3 lines about the core functionality improvements
-model: google/gemini-2.5-flash-preview
+model: anthropic/claude-3.7-sonnet
 max_walker_depth: 1024
 custom_rules: |-
   Handling Errors:

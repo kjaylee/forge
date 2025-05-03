@@ -146,7 +146,7 @@ impl<F: Infrastructure> FSRead<F> {
             subtitle.push_str(&format!(" ({range_info})"));
         }
 
-        let message = TitleFormat::new(title).sub_title(subtitle);
+        let message = TitleFormat::info(title).sub_title(subtitle);
 
         // Send the formatted message
         context.send_text(message.format()).await?;
@@ -263,7 +263,7 @@ mod test {
 
         // Display a message - just for testing
         let title = "Read";
-        let message = TitleFormat::new(title).sub_title(path.display().to_string());
+        let message = TitleFormat::info(title).sub_title(path.display().to_string());
         println!("{message}");
 
         // Assert the content matches

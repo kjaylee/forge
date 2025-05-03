@@ -156,12 +156,7 @@ impl<F: API> UI<F> {
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
-                println!(
-                    "{}",
-                    TitleFormat::action("Error")
-                        .error(format!("{error:?}"))
-                        .format()
-                );
+                println!("{}", TitleFormat::error(format!("{error:?}")).format());
             }
         }
     }
@@ -225,12 +220,7 @@ impl<F: API> UI<F> {
                         );
                         error!(error = ?err, "Chat request failed");
 
-                        println!(
-                            "{}",
-                            TitleFormat::action("Error")
-                                .error(format!("{err:?}"))
-                                .format()
-                        );
+                        println!("{}", TitleFormat::error(format!("{err:?}")).format());
                     }
                 }
                 Command::Act => {
@@ -259,9 +249,8 @@ impl<F: API> UI<F> {
                     if let Err(e) = self.dispatch_event(event.into()).await {
                         println!(
                             "{}",
-                            TitleFormat::action("Failed to execute the command")
-                                .sub_title("Command Execution")
-                                .error(e.to_string())
+                            TitleFormat::error("Failed to execute the command")
+                                .sub_title(e.to_string())
                                 .format()
                         );
                     }
@@ -528,9 +517,8 @@ impl<F: API> UI<F> {
             } else {
                 println!(
                     "{}",
-                    TitleFormat::action("Could not create dump")
-                        .error("Conversation not found")
-                        .sub_title(format!("conversation_id: {conversation_id}"))
+                    TitleFormat::error("Could not create dump")
+                        .sub_title(format!("Conversation: {conversation_id} was not found"))
                         .format()
                 );
             }
@@ -547,7 +535,7 @@ impl<F: API> UI<F> {
                     }
 
                     if is_summary {
-                        text = TitleFormat::action(text).to_string();
+                        text = TitleFormat::debug(text).to_string();
                     }
 
                     self.spinner.stop(Some(text))?;
