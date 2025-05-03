@@ -12,7 +12,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strip_ansi_escapes::strip;
 
-use crate::{CommandExecutorService, Infrastructure};
+use crate::{metadata::Metadata, CommandExecutorService, Infrastructure, TempWriter, Truncator};
+
+/// Number of characters to keep at the start of truncated output
+const PREFIX_CHARS: usize = 20_000;
+
+/// Number of characters to keep at the end of truncated output
+const SUFFIX_CHARS: usize = 20_000;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
@@ -37,7 +43,11 @@ fn strip_ansi(content: String) -> String {
 /// determined by exit status, not stderr presence. Returns Ok(output) on
 /// success or Err(output) on failure, with a status message if both streams are
 /// empty.
-fn format_output(mut output: CommandOutput, keep_ansi: bool) -> anyhow::Result<String> {
+async fn format_output<F: Infrastructure>(
+    infra: &Arc<F>,
+    mut output: CommandOutput,
+    keep_ansi: bool,
+) -> anyhow::Result<String> {
     let mut formatted_output = String::new();
 
     if !keep_ansi {
@@ -45,32 +55,97 @@ fn format_output(mut output: CommandOutput, keep_ansi: bool) -> anyhow::Result<S
         output.stdout = strip_ansi(output.stdout);
     }
 
+    // Create metadata
+    let mut metadata = Metadata::default()
+        .add("command", &output.command)
+        .add("exit_code", if output.success { 0 } else { 1 });
+
+    let mut is_truncated = false;
+
+    // Format stdout if not empty
     if !output.stdout.trim().is_empty() {
-        formatted_output.push_str(&format!("<stdout>{}</stdout>", output.stdout));
+        if format_truncated_output(&mut formatted_output, "stdout", &output.stdout) {
+            metadata = metadata.add("total_stdout_chars", output.stdout.len());
+            is_truncated = true;
+        }
     }
 
+    // Format stderr if not empty
     if !output.stderr.trim().is_empty() {
         if !formatted_output.is_empty() {
             formatted_output.push('\n');
         }
-        formatted_output.push_str(&format!("<stderr>{}</stderr>", output.stderr));
+        if format_truncated_output(&mut formatted_output, "stderr", &output.stderr) {
+            metadata = metadata
+                .add("total_stderr_chars", output.stderr.len())
+            is_truncated = true;
+        }
     }
 
-    let result = if formatted_output.is_empty() {
+    // Handle empty outputs
+    if formatted_output.is_empty() {
         if output.success {
-            "Command executed successfully with no output.".to_string()
+            formatted_output.push_str("Command executed successfully with no output.");
         } else {
-            "Command failed with no output.".to_string()
+            formatted_output.push_str("Command failed with no output.");
         }
-    } else {
-        formatted_output
-    };
+    }
+
+    // Add temp file path if output is truncated
+    if is_truncated {
+        let path = TempWriter::new(infra.clone())
+            .write(
+                "forge_shell_",
+                &format!(
+                    "<stdout>{}</stdout>\n<stderr>{}</stderr>",
+                    output.stdout, output.stderr
+                ),
+            )
+            .await?;
+        metadata = metadata.add("temp_file", path.display()).add("truncated", "true");
+        formatted_output.push_str(&format!(
+            "<truncate>content is truncated, remaining content can be read from path:{}</truncate>",
+            path.display()
+        ));
+    }
 
     if output.success {
-        Ok(result)
+        Ok(format!("{metadata}{formatted_output}"))
     } else {
-        Err(anyhow::anyhow!(result))
+        bail!(format!("{metadata}{formatted_output}"))
     }
+}
+
+/// Helper function to format potentially truncated output for stdout or stderr
+fn format_truncated_output(formatted_output: &mut String, tag: &str, content: &str) -> bool {
+    let result = Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS, content);
+    match (result.prefix, result.suffix) {
+        (Some(prefix), Some(suffix)) => {
+            // Calculate actual character counts and ranges
+            let content_len = content.len();
+            let prefix_len = prefix.len();
+            let suffix_len = suffix.len();
+            let truncated_chars = content_len - prefix_len - suffix_len;
+            let suffix_start = content_len - suffix_len;
+
+            formatted_output.push_str(&format!(
+                "<{} chars=\"0-{}\">{}</{}>",
+                tag, prefix_len, prefix, tag
+            ));
+            formatted_output.push_str(&format!(
+                "<truncated>...{} truncated ({} characters not shown)...</truncated>",
+                tag, truncated_chars
+            ));
+            formatted_output.push_str(&format!(
+                "<{} chars=\"{}-{}\">{}</{}>",
+                tag, suffix_start, content_len, suffix, tag
+            ));
+            return true;
+        }
+        _ => formatted_output.push_str(&format!("<{}>{}</{}>", tag, content, tag)),
+    }
+
+    return false;
 }
 
 /// Executes shell commands with safety measures using restricted bash (rbash).
@@ -120,7 +195,7 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
             .execute_command(input.command, input.cwd)
             .await?;
 
-        format_output(output, input.keep_ansi)
+        format_output(&self.infra, output, input.keep_ansi).await
     }
 }
 
@@ -427,15 +502,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_format_output_ansi_handling() {
+    #[tokio::test]
+    async fn test_format_output_ansi_handling() {
+        let infra = Arc::new(MockInfrastructure::new());
         // Test with keep_ansi = true (should preserve ANSI codes)
         let ansi_output = CommandOutput {
             stdout: "\x1b[32mSuccess\x1b[0m".to_string(),
             stderr: "\x1b[31mWarning\x1b[0m".to_string(),
             success: true,
+            command: "ls -la".into(),
         };
-        let preserved = format_output(ansi_output, true).unwrap();
+        let preserved = format_output(&infra, ansi_output, true).await.unwrap();
         assert_eq!(
             preserved,
             "<stdout>\x1b[32mSuccess\x1b[0m</stdout>\n<stderr>\x1b[31mWarning\x1b[0m</stderr>"
@@ -446,8 +523,9 @@ mod tests {
             stdout: "\x1b[32mSuccess\x1b[0m".to_string(),
             stderr: "\x1b[31mWarning\x1b[0m".to_string(),
             success: true,
+            command: "ls -la".into(),
         };
-        let stripped = format_output(ansi_output, false).unwrap();
+        let stripped = format_output(&infra, ansi_output, false).await.unwrap();
         assert_eq!(
             stripped,
             "<stdout>Success</stdout>\n<stderr>Warning</stderr>"

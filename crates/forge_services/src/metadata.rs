@@ -31,4 +31,12 @@ impl Metadata {
             None => self,
         }
     }
+
+    /// Get a value from metadata by key
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.0
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, v)| v.as_str())
+    }
 }

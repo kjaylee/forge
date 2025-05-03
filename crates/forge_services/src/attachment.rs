@@ -319,6 +319,7 @@ pub mod tests {
                     stdout: "Mock command executed successfully\n".to_string(),
                     stderr: "".to_string(),
                     success: true,
+                    command,
                 });
             } else if command.contains("echo") {
                 if command.contains(">") && command.contains(">&2") {
@@ -337,6 +338,7 @@ pub mod tests {
                         stdout: stdout.to_string(),
                         stderr: stderr.to_string(),
                         success: true,
+                        command,
                     });
                 } else if command.contains(">&2") {
                     // Command with only stderr
@@ -346,6 +348,7 @@ pub mod tests {
                         stdout: "".to_string(),
                         stderr: format!("{content}\n"),
                         success: true,
+                        command,
                     });
                 } else {
                     // Standard echo command
@@ -373,6 +376,7 @@ pub mod tests {
                         stdout: content,
                         stderr: "".to_string(),
                         success: true,
+                        command,
                     });
                 }
             } else if command == "pwd" || command == "cd" {
@@ -381,6 +385,7 @@ pub mod tests {
                     stdout: format!("{working_dir}\n", working_dir = working_dir.display()),
                     stderr: "".to_string(),
                     success: true,
+                    command,
                 });
             } else if command == "true" {
                 // true command returns success with no output
@@ -388,6 +393,7 @@ pub mod tests {
                     stdout: "".to_string(),
                     stderr: "".to_string(),
                     success: true,
+                    command,
                 });
             } else if command.starts_with("/bin/ls") || command.contains("whoami") {
                 // Full path commands
@@ -395,6 +401,7 @@ pub mod tests {
                     stdout: "user\n".to_string(),
                     stderr: "".to_string(),
                     success: true,
+                    command,
                 });
             } else if command == "non_existent_command" {
                 // Command not found
@@ -402,6 +409,7 @@ pub mod tests {
                     stdout: "".to_string(),
                     stderr: "command not found: non_existent_command\n".to_string(),
                     success: false,
+                    command,
                 });
             }
 
@@ -410,6 +418,7 @@ pub mod tests {
                 stdout: "Mock command executed successfully\n".to_string(),
                 stderr: "".to_string(),
                 success: true,
+                command,
             })
         }
     }
