@@ -90,15 +90,6 @@ async fn format_output<F: Infrastructure>(
         format_tag(result, "stderr", &output.stderr, &mut formatted_output);
     }
 
-    // Handle empty outputs
-    if formatted_output.is_empty() {
-        if output.success {
-            formatted_output.push_str("Command executed successfully with no output.");
-        } else {
-            formatted_output.push_str("Command failed with no output.");
-        }
-    }
-
     // Add temp file path if output is truncated
     if is_truncated {
         let path = TempWriter::new(infra.clone())
@@ -119,10 +110,21 @@ async fn format_output<F: Infrastructure>(
         ));
     }
 
-    if output.success {
-        Ok(format!("{metadata}{formatted_output}"))
+    // Handle empty outputs
+    let result = if formatted_output.is_empty() {
+        if output.success {
+            "Command executed successfully with no output.".to_string()
+        } else {
+            "Command failed with no output.".to_string()
+        }
     } else {
-        bail!(format!("{metadata}{formatted_output}"))
+        formatted_output
+    };
+
+    if output.success {
+        Ok(format!("{metadata}{result}"))
+    } else {
+        bail!(format!("{metadata}{result}"))
     }
 }
 
