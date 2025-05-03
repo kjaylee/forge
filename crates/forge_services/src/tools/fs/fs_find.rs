@@ -105,7 +105,7 @@ impl<F: Infrastructure> FSFind<F> {
             (None, None) => format!("at {formatted_dir}"),
         };
 
-        Ok(TitleFormat::info(title))
+        Ok(TitleFormat::debug(title))
     }
 
     async fn call(&self, context: ToolCallContext, input: FSFindInput) -> anyhow::Result<String> {
