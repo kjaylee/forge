@@ -138,19 +138,19 @@ fn format_tag(result: TruncationResult, tag: &str, content: &str, formatted_outp
             let suffix_start = content_len - suffix_len;
 
             formatted_output.push_str(&format!(
-                "<{} chars=\"0-{}\">{}</{}>",
+                "<{} chars=\"0-{}\">\n{}\n</{}>\n",
                 tag, prefix_len, prefix, tag
             ));
             formatted_output.push_str(&format!(
-                "<truncated>...{} truncated ({} characters not shown)...</truncated>",
+                "<truncated>...{} truncated ({} characters not shown)...</truncated>\n",
                 tag, truncated_chars
             ));
             formatted_output.push_str(&format!(
-                "<{} chars=\"{}-{}\">{}</{}>",
+                "<{} chars=\"{}-{}\">\n{}\n</{}>\n",
                 tag, suffix_start, content_len, suffix, tag
             ));
         }
-        _ => formatted_output.push_str(&format!("<{}>{}</{}>", tag, content, tag)),
+        _ => formatted_output.push_str(&format!("<{}>\n{}\n</{}>", tag, content, tag)),
     }
 }
 
@@ -536,5 +536,19 @@ mod tests {
             stripped,
             "<stdout>Success</stdout>\n<stderr>Warning</stderr>"
         );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_with_large_command_output() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Test with keep_ansi = true (should preserve ANSI codes)
+        let ansi_output = CommandOutput {
+            stdout: "\x1b[32mSuccess\x1b[0m".repeat(40_050),
+            stderr: "\x1b[31mWarning\x1b[0m".repeat(40_050),
+            success: true,
+            command: "ls -la".into(),
+        };
+        let preserved = format_output(&infra, ansi_output, false).await.unwrap();
+        insta::assert_snapshot!(preserved);
     }
 }
