@@ -4,7 +4,6 @@ use std::fmt::Display;
 #[derive(Default)]
 pub struct Metadata(Vec<(&'static str, String)>);
 
-
 impl Display for Metadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "---")?;
