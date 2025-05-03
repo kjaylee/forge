@@ -19,7 +19,9 @@ impl MarkdownFormat {
         let compound_style =
             CompoundStyle::new(Some(Color::Black), Some(gray(17)), Default::default());
         skin.inline_code = compound_style.clone();
-        skin.code_block = LineStyle::new(compound_style, Default::default());
+        // Code blocks: NO BG, CYAN FG
+        let codeblock_style = CompoundStyle::new(Some(Color::Cyan), None, Default::default());
+        skin.code_block = LineStyle::new(codeblock_style, Default::default());
 
         Self { skin, max_consecutive_newlines: 2 }
     }
