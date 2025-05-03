@@ -167,7 +167,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         // Create temp file only if content was truncated
         let temp_file_path = if truncated.is_truncated() {
             let temp_writer = TempWriter::new(self.infra.clone());
-            Some(temp_writer.write(&content).await?)
+            Some(temp_writer.write("forge_fetch_", &content).await?)
         } else {
             None
         };

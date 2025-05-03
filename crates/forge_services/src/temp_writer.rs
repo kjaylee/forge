@@ -14,11 +14,12 @@ impl<F: Infrastructure> TempWriter<F> {
     /// Writes the content to temp file and returns the path of file.
     pub async fn write<S: AsRef<str>>(
         &self,
+        prefix: S,
         content: S,
     ) -> anyhow::Result<PathBuf> {
         let path = tempfile::Builder::new()
             .keep(true)
-            .prefix("forge_")
+            .prefix(prefix.as_ref())
             .suffix(".txt")
             .tempfile()?
             .into_temp_path()
