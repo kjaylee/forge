@@ -8,7 +8,7 @@ use reqwest::{Client, Url};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::{truncator::Truncator, FsWriteService, Infrastructure};
+use crate::{metadata::Metadata, truncator::Truncator, ContentManager, Infrastructure};
 
 /// Fetch tool returns the content of MAX_LENGTH.
 const MAX_LENGTH: usize = 40_000;
@@ -144,20 +144,6 @@ impl<F: Infrastructure> Fetch<F> {
             ))
         }
     }
-
-    fn temp_file_path(&self, url: &str) -> std::path::PathBuf {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        // Create a hash of the URL for a safe filename
-        let mut hasher = DefaultHasher::new();
-        url.hash(&mut hasher);
-        let url_hash = hasher.finish();
-
-        let timestamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S").to_string();
-        let filename = format!("forge_fetch_{}_{:x}.md", timestamp, url_hash);
-        std::env::temp_dir().join(filename)
-    }
 }
 
 #[async_trait::async_trait]
@@ -174,42 +160,49 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
 
         let original_length = content.len();
         let end = MAX_LENGTH.min(original_length);
-        let mut metadata: Vec<(String, String)> = vec![
-            ("URL".into(), url.to_string()),
-            ("total_chars".into(), original_length.to_string()),
-            ("start_char".into(), "0".into()),
-            ("end_char".into(), end.to_string()),
-        ];
 
-        let truncation_result = Truncator::from_start(MAX_LENGTH).apply(&content);
-        let output = if let Some(truncated) = truncation_result.prefix.as_ref() {
-            truncated.to_owned()
-        } else {
-            content.clone()
+        // If content exceeds the threshold, then it's written to truncated and written to temp file for future use.
+        let result = ContentManager::new(self.infra.clone(), Truncator::from_start(MAX_LENGTH))
+            .process(&content)
+            .await?;
+
+        // Build metadata with all required fields in a single fluent chain
+        let metadata = Metadata::default()
+            .add("URL", url)
+            .add("total_chars", original_length)
+            .add("start_char", "0")
+            .add("end_char", end)
+            .add_optional(
+                "temp_file",
+                result
+                    .temp_file_path
+                    .as_ref()
+                    .map(|p| p.display().to_string()),
+            );
+
+        // Determine output. ie. if truncated then use truncated else the actual.
+        let output = result
+            .truncated
+            .prefix
+            .as_ref()
+            .map_or_else(|| content.clone(), |truncated| truncated.clone());
+
+        // Create truncation tag only if content was actually truncated and stored in a temp file
+        let truncation_tag = match result.temp_file_path.as_ref() {
+            Some(path) if result.truncated.is_truncated() => {
+                format!("\n<truncation>content is truncated to {MAX_LENGTH}, remaining content can be read from path:{}</truncation>", 
+                       path.to_string_lossy())
+            }
+            _ => String::new(),
         };
 
-        let truncation_tag = if truncation_result.is_truncated() {
-            let path = self.temp_file_path(&input.url);
-            self.infra
-                .file_write_service()
-                .write(&path, content.into())
-                .await?;
-            metadata.push(("temp_file".into(), path.to_string_lossy().to_string()));
-
-            format!("<truncation>content is truncated to {MAX_LENGTH}, remaining content can be read from path:{}</truncation>", path.to_string_lossy())
-        } else {
-            "".into()
-        };
-
-        // Create an Header
-        let mut header = String::new();
-        header.push_str("---\n");
-        for (k, v) in metadata {
-            header.push_str(&format!("{}: {}\n", k, v));
-        }
-        header.push_str("---\n");
-
-        Ok(format!("{prefix}{header}{output}{truncation_tag}"))
+        Ok(format!(
+            "{}{}{}{}",
+            prefix,
+            metadata.to_string(),
+            output,
+            truncation_tag
+        ))
     }
 }
 
@@ -230,8 +223,22 @@ mod tests {
     }
 
     fn normalize_port(content: String) -> String {
-        let re = Regex::new(r"http://127\.0\.0\.1:\d+").unwrap();
-        re.replace_all(&content, "http://127.0.0.1:PORT")
+        // Normalize server port in URLs
+        let port_re = Regex::new(r"http://127\.0\.0\.1:\d+").unwrap();
+        let content = port_re
+            .replace_all(&content, "http://127.0.0.1:PORT")
+            .to_string();
+
+        // Normalize temporary file paths in truncation tags
+        let path_re = Regex::new(r"path:(/[^\s<>]+/[^\s<>]+)").unwrap();
+        let content = path_re
+            .replace_all(&content, "path:/tmp/normalized_test_path.txt")
+            .to_string();
+
+        // Normalize temporary file paths in metadata
+        let path_re = Regex::new(r"temp_file: (/[^\s<>]+/[^\s<>]+)").unwrap();
+        path_re
+            .replace_all(&content, "temp_file: /tmp/normalized_test_path.txt")
             .to_string()
     }
 
@@ -378,17 +385,10 @@ mod tests {
         let input = FetchInput { url: format!("{}/large.txt", server.url()), raw: Some(true) };
 
         // Use a regex to replace the timestamp in the result
-        let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
+        let result: String = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
 
-        // Replace the timestamp pattern with a fixed string for snapshot testing
-        let timestamp_regex =
-            Regex::new(r"forge_fetch_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_[0-9a-f]+").unwrap();
-        let fixed_result = timestamp_regex
-            .replace_all(&normalized_result, "forge_fetch_TIMESTAMP_HASH")
-            .to_string();
-
-        insta::assert_snapshot!(fixed_result);
+        insta::assert_snapshot!(normalized_result);
     }
 
     #[test]

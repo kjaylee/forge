@@ -87,7 +87,6 @@ impl Truncator {
             Truncator::Prefix(limit) => self.apply_prefix(content, char_count, limit),
             Truncator::Suffix(limit) => self.apply_suffix(content, char_count, limit),
             Truncator::PrefixSuffix(prefix_limit, suffix_limit) => {
-                // TODO: why can't we use already existing methods. (apply_prefix, apply_suffix).
                 self.apply_prefix_suffix(content, char_count, prefix_limit, suffix_limit)
             }
         }
@@ -138,18 +137,16 @@ impl Truncator {
             return TruncationResult { prefix: None, suffix: None, actual: content.to_string() };
         }
 
-        // Get the prefix portion
-        let prefix = content.chars().take(prefix_limit).collect::<String>();
-
-        // Get the suffix portion
-        let suffix = content
-            .chars()
-            .skip(char_count - suffix_limit)
-            .collect::<String>();
-
+        // Get prefix result using existing method
+        let prefix_result = self.apply_prefix(content, char_count, prefix_limit);
+        
+        // Get suffix result using existing method
+        let suffix_result = self.apply_suffix(content, char_count, suffix_limit);
+        
+        // Combine the results
         TruncationResult {
-            prefix: Some(prefix),
-            suffix: Some(suffix),
+            prefix: prefix_result.prefix,
+            suffix: suffix_result.suffix,
             actual: content.to_string(),
         }
     }
