@@ -203,7 +203,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         Ok(format!(
             "{}{}{}{}",
             prefix,
-            metadata.to_string(),
+            metadata,
             output,
             truncation_tag
         ))
