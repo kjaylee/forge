@@ -27,7 +27,7 @@ pub struct Workflow {
     /// configurations that can be used to update forge
     #[merge(strategy = crate::update::update_config)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updates: Option<Update>,
+    pub update: Option<Update>,
 
     /// Commands that can be used to interact with the workflow
     #[merge(strategy = crate::merge::vec::append)]
@@ -108,7 +108,7 @@ impl Workflow {
             custom_rules: None,
             temperature: None,
             tool_supported: None,
-            updates: None,
+            update: None,
         }
     }
 

@@ -79,7 +79,7 @@ impl<F: API> UI<F> {
         workflow.merge(user_workflow);
 
         workflow
-            .updates
+            .update
             .ok_or(anyhow!("Update configuration not found"))
     }
 
