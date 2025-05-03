@@ -71,9 +71,9 @@ impl TitleFormat {
         let mut buf = String::new();
 
         let icon = match self.category {
-            Category::Action => "⏺".red(),
-            Category::Info => "⏺".red(),
-            Category::Debug => "⏺".red(),
+            Category::Action => "⏺".yellow(),
+            Category::Info => "⏺".white(),
+            Category::Debug => "⏺".cyan(),
             Category::Error => "⏺".red(),
         };
 
