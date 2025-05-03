@@ -12,7 +12,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strip_ansi_escapes::strip;
 
-use crate::{metadata::Metadata, CommandExecutorService, Infrastructure, TempWriter, Truncator};
+use crate::{
+    metadata::Metadata, CommandExecutorService, Infrastructure, TempWriter, TruncationResult,
+    Truncator,
+};
 
 /// Number of characters to keep at the start of truncated output
 const PREFIX_CHARS: usize = 20_000;
@@ -64,10 +67,13 @@ async fn format_output<F: Infrastructure>(
 
     // Format stdout if not empty
     if !output.stdout.trim().is_empty() {
-        if format_truncated_output(&mut formatted_output, "stdout", &output.stdout) {
+        let result = Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS, &output.stdout);
+
+        if result.is_truncated() {
             metadata = metadata.add("total_stdout_chars", output.stdout.len());
             is_truncated = true;
         }
+        format_tag(result, "stdout", &output.stdout, &mut formatted_output);
     }
 
     // Format stderr if not empty
@@ -75,11 +81,13 @@ async fn format_output<F: Infrastructure>(
         if !formatted_output.is_empty() {
             formatted_output.push('\n');
         }
-        if format_truncated_output(&mut formatted_output, "stderr", &output.stderr) {
-            metadata = metadata
-                .add("total_stderr_chars", output.stderr.len());
+        let result = Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS, &output.stdout);
+
+        if result.is_truncated() {
+            metadata = metadata.add("total_stderr_chars", output.stderr.len());
             is_truncated = true;
         }
+        format_tag(result, "stderr", &output.stderr, &mut formatted_output);
     }
 
     // Handle empty outputs
@@ -102,7 +110,9 @@ async fn format_output<F: Infrastructure>(
                 ),
             )
             .await?;
-        metadata = metadata.add("temp_file", path.display()).add("truncated", "true");
+        metadata = metadata
+            .add("temp_file", path.display())
+            .add("truncated", "true");
         formatted_output.push_str(&format!(
             "<truncate>content is truncated, remaining content can be read from path:{}</truncate>",
             path.display()
@@ -117,8 +127,7 @@ async fn format_output<F: Infrastructure>(
 }
 
 /// Helper function to format potentially truncated output for stdout or stderr
-fn format_truncated_output(formatted_output: &mut String, tag: &str, content: &str) -> bool {
-    let result = Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS, content);
+fn format_tag(result: TruncationResult, tag: &str, content: &str, formatted_output: &mut String) {
     match (result.prefix, result.suffix) {
         (Some(prefix), Some(suffix)) => {
             // Calculate actual character counts and ranges
@@ -140,12 +149,9 @@ fn format_truncated_output(formatted_output: &mut String, tag: &str, content: &s
                 "<{} chars=\"{}-{}\">{}</{}>",
                 tag, suffix_start, content_len, suffix, tag
             ));
-            return true;
         }
         _ => formatted_output.push_str(&format!("<{}>{}</{}>", tag, content, tag)),
     }
-
-    return false;
 }
 
 /// Executes shell commands with safety measures using restricted bash (rbash).
