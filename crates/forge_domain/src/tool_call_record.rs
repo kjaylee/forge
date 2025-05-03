@@ -20,7 +20,7 @@ impl Display for ToolCallRecord {
         let tool_name = self.tool_call.name.as_str();
 
         writeln!(f, "---")?;
-        writeln!(f, "tool_name: {}", tool_name)?;
+        writeln!(f, "tool_name: {tool_name}")?;
         if self.tool_result.is_error {
             writeln!(f, "status: Failure")?;
         } else {
