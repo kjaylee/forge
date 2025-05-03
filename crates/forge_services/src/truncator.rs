@@ -49,20 +49,20 @@ impl Default for Truncator {
 impl Truncator {
     /// Creates a truncator that keeps the prefix (beginning) of the content
     /// up to the specified number of characters
-    pub fn from_start(prefix_chars: usize) -> Self {
-        Self::Prefix(prefix_chars)
+    pub fn from_start<T: AsRef<str>>(prefix_chars: usize, content: T) -> TruncationResult {
+        Self::Prefix(prefix_chars).apply(content)
     }
 
     /// Creates a truncator that keeps the suffix (end) of the content
     /// up to the specified number of characters
-    pub fn from_suffix(suffix_chars: usize) -> Self {
-        Self::Suffix(suffix_chars)
+    pub fn from_suffix<T: AsRef<str>>(suffix_chars: usize, content: T) -> TruncationResult {
+        Self::Suffix(suffix_chars).apply(content)
     }
 
     /// Creates a truncator that keeps both the beginning and end of the content
     /// with the specified character counts for each
-    pub fn from_prefix_suffix(prefix_chars: usize, suffix_chars: usize) -> Self {
-        Self::PrefixSuffix(prefix_chars, suffix_chars)
+    pub fn from_prefix_suffix<T: AsRef<str>>(prefix_chars: usize, suffix_chars: usize, content: T) -> TruncationResult {
+        Self::PrefixSuffix(prefix_chars, suffix_chars).apply(content)
     }
 
     /// Apply this truncation strategy to the given content
