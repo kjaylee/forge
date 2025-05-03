@@ -77,7 +77,7 @@ async fn format_output<F: Infrastructure>(
         }
         if format_truncated_output(&mut formatted_output, "stderr", &output.stderr) {
             metadata = metadata
-                .add("total_stderr_chars", output.stderr.len())
+                .add("total_stderr_chars", output.stderr.len());
             is_truncated = true;
         }
     }
