@@ -1,30 +1,12 @@
 {{#if (not tool_supported)}}
+<available_tools>
+{{tool_information}}
+</available_tools>
+
 Tool Usage Instructions:
 
 You have access to set of tools as described in the <available_tools> tag. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
 
-Tool Use Formatting Rules:
+{{> partial-tool-use-example.hbs }}
 
-1. You can only make one tool call per message.
-2. Each tool call must be wrapped in `<forge_tool_call>` tags.
-
-Here's a correct example structure:
-
-```
-<forge_tool_call>
-{"name": "forge_tool_fs_read", "arguments": {"path": "/a/b/c.txt"}}
-</forge_tool_call>
-```
-
-Important:
-
-- ALWAYS use JSON format inside `forge_tool_call`
-- If you need to make multiple tool calls, send them in separate messages
-
-Before using a tool, ensure all required arguments are available. 
-If any required arguments are missing, do not attempt to use the tool.
-
-<available_tools>
-{{tool_information}}
-</available_tools>
 {{/if}}
