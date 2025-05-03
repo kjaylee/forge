@@ -8,7 +8,10 @@ use reqwest::{Client, Url};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::{metadata::Metadata, temp_writer::TempWriter, truncator::Truncator, Infrastructure};
+use crate::metadata::Metadata;
+use crate::temp_writer::TempWriter;
+use crate::truncator::Truncator;
+use crate::Infrastructure;
 
 /// Fetch tool returns the content of MAX_LENGTH.
 const MAX_LENGTH: usize = 40_000;
@@ -19,9 +22,9 @@ const MAX_LENGTH: usize = 40_000;
 /// or retrieving specific online content. Handles HTTP/HTTPS and converts HTML
 /// to readable markdown by default. Cannot access private/restricted resources
 /// requiring authentication. Respects robots.txt and may be blocked by
-/// anti-scraping measures. For large pages, returns first 40,000 characters and store
-/// the fetched content in temporary file and if you want to fetch the remaining content
-/// then you read it from that temporary file.
+/// anti-scraping measures. For large pages, returns first 40,000 characters and
+/// store the fetched content in temporary file and if you want to fetch the
+/// remaining content then you read it from that temporary file.
 #[derive(Debug, ToolDescription)]
 pub struct Fetch<F> {
     client: Client,
@@ -189,7 +192,8 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             .as_ref()
             .map_or_else(|| content.clone(), |truncated| truncated.clone());
 
-        // Create truncation tag only if content was actually truncated and stored in a temp file
+        // Create truncation tag only if content was actually truncated and stored in a
+        // temp file
         let truncation_tag = match temp_file_path.as_ref() {
             Some(path) if truncated.is_truncated() => {
                 format!("\n<truncation>content is truncated to {MAX_LENGTH}, remaining content can be read from path:{}</truncation>", 
@@ -207,9 +211,8 @@ mod tests {
     use regex::Regex;
     use tokio::runtime::Runtime;
 
-    use crate::attachment::tests::MockInfrastructure;
-
     use super::*;
+    use crate::attachment::tests::MockInfrastructure;
 
     async fn setup() -> (Fetch<MockInfrastructure>, mockito::ServerGuard) {
         let server = mockito::Server::new_async().await;

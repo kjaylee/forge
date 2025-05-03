@@ -1,4 +1,5 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use crate::{FsWriteService, Infrastructure};
 
@@ -12,11 +13,7 @@ impl<F: Infrastructure> TempWriter<F> {
     }
 
     /// Writes the content to temp file and returns the path of file.
-    pub async fn write<S: AsRef<str>>(
-        &self,
-        prefix: S,
-        content: S,
-    ) -> anyhow::Result<PathBuf> {
+    pub async fn write<S: AsRef<str>>(&self, prefix: S, content: S) -> anyhow::Result<PathBuf> {
         let path = tempfile::Builder::new()
             .keep(true)
             .prefix(prefix.as_ref())

@@ -39,7 +39,8 @@ pub enum Truncator {
 }
 
 impl Default for Truncator {
-    /// Creates a default truncator that keeps the prefix up to MAX_LIMIT characters
+    /// Creates a default truncator that keeps the prefix up to MAX_LIMIT
+    /// characters
     fn default() -> Self {
         Self::Prefix(MAX_LIMIT)
     }
@@ -132,17 +133,18 @@ impl Truncator {
         prefix_limit: usize,
         suffix_limit: usize,
     ) -> TruncationResult {
-        // If the combined limits exceed or equal content length, return the whole content
+        // If the combined limits exceed or equal content length, return the whole
+        // content
         if prefix_limit + suffix_limit >= char_count {
             return TruncationResult { prefix: None, suffix: None, actual: content.to_string() };
         }
 
         // Get prefix result using existing method
         let prefix_result = self.apply_prefix(content, char_count, prefix_limit);
-        
+
         // Get suffix result using existing method
         let suffix_result = self.apply_suffix(content, char_count, suffix_limit);
-        
+
         // Combine the results
         TruncationResult {
             prefix: prefix_result.prefix,
@@ -216,7 +218,8 @@ mod tests {
 
         let result = strategy.apply(content);
 
-        // Should return the original content as the combined limits exceed content length
+        // Should return the original content as the combined limits exceed content
+        // length
         assert!(result.prefix.is_none());
         assert!(result.suffix.is_none());
         assert_eq!(result.actual, content);
