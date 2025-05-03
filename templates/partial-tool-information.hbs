@@ -5,31 +5,24 @@ You have access to set of tools as described in the <available_tools> tag. You c
 
 Tool Use Formatting Rules:
 
-1. Tool use is formatted using XML-style tags ONLY.
-2. You can only make one tool call per message.
-3. Each tool call must be wrapped in `<forge_tool_call>` tags.
-4. The actual tool name (e.g., forge_tool_fs_read) must be used as the enclosing tag.
-5. Each parameter must be enclosed within its own set of tags.
+1. You can only make one tool call per message.
+2. Each tool call must be wrapped in `<forge_tool_call>` tags.
+
 Here's a correct example structure:
 
 ```
 <forge_tool_call>
-<forge_tool_fs_read>
-<path>/path/to/file</path>
-<recursive>true</recursive>
-</forge_tool_fs_read>
+{"name": "forge_tool_fs_read", "arguments": {"path": "/a/b/c.txt"}}
 </forge_tool_call>
 ```
 
 Important:
 
-- ALWAYS use XML format, even for multiple operations
-- Do NOT use JSON format (e.g., `tool_name({"param": "value"})`)
-- Do NOT mix formats in the same message
+- ALWAYS use JSON format inside `forge_tool_call`
 - If you need to make multiple tool calls, send them in separate messages
 
-Before using a tool, ensure all required parameters are available. 
-If any required parameters are missing, do not attempt to use the tool.
+Before using a tool, ensure all required arguments are available. 
+If any required arguments are missing, do not attempt to use the tool.
 
 <available_tools>
 {{tool_information}}
