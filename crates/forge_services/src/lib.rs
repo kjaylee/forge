@@ -8,6 +8,7 @@ mod suggestion;
 mod template;
 mod tool_service;
 mod tools;
+mod truncator;
 mod workflow;
 
 pub use forge_services::*;

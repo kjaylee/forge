@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Context, Result};
 use forge_display::TitleFormat;
 use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription};
@@ -6,33 +8,36 @@ use reqwest::{Client, Url};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::{truncator::Truncator, FsWriteService, Infrastructure};
+
+/// Fetch tool returns the content of MAX_LENGTH.
+const MAX_LENGTH: usize = 40_000;
+
 /// Retrieves content from URLs as markdown or raw text. Enables access to
 /// current online information including websites, APIs and documentation. Use
 /// for obtaining up-to-date information beyond training data, verifying facts,
 /// or retrieving specific online content. Handles HTTP/HTTPS and converts HTML
 /// to readable markdown by default. Cannot access private/restricted resources
 /// requiring authentication. Respects robots.txt and may be blocked by
-/// anti-scraping measures. Large pages may require multiple requests with
-/// adjusted start_index.
+/// anti-scraping measures. For large pages, returns first 40,000 characters and store
+/// the fetched content in temporary file and if you want to fetch the remaining content
+/// then you read it from that temporary file.
 #[derive(Debug, ToolDescription)]
-pub struct Fetch {
+pub struct Fetch<F> {
     client: Client,
+    infra: Arc<F>,
 }
 
-impl NamedTool for Fetch {
+impl<F: Infrastructure> NamedTool for Fetch<F> {
     fn tool_name() -> forge_domain::ToolName {
         forge_domain::ToolName::new("forge_tool_net_fetch")
     }
 }
 
-impl Default for Fetch {
-    fn default() -> Self {
-        Self { client: Client::new() }
+impl<F: Infrastructure> Fetch<F> {
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { client: Client::new(), infra }
     }
-}
-
-fn default_start_index() -> Option<usize> {
-    Some(0)
 }
 
 fn default_raw() -> Option<bool> {
@@ -43,19 +48,12 @@ fn default_raw() -> Option<bool> {
 pub struct FetchInput {
     /// URL to fetch
     url: String,
-    /// Maximum number of characters to return (default: 40000)
-    max_length: Option<usize>,
-    /// Start content from this character index (default: 0),
-    /// On return output starting at this character index, useful if a previous
-    /// fetch was truncated and more context is required.
-    #[serde(default = "default_start_index")]
-    start_index: Option<usize>,
     /// Get raw content without any markdown conversion (default: false)
     #[serde(default = "default_raw")]
     raw: Option<bool>,
 }
 
-impl Fetch {
+impl<F: Infrastructure> Fetch<F> {
     async fn check_robots_txt(&self, url: &Url) -> Result<()> {
         let robots_url = format!("{}://{}/robots.txt", url.scheme(), url.authority());
         let robots_response = self.client.get(&robots_url).send().await;
@@ -146,10 +144,24 @@ impl Fetch {
             ))
         }
     }
+
+    fn temp_file_path(&self, url: &str) -> std::path::PathBuf {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        // Create a hash of the URL for a safe filename
+        let mut hasher = DefaultHasher::new();
+        url.hash(&mut hasher);
+        let url_hash = hasher.finish();
+
+        let timestamp = chrono::Local::now().format("%Y-%m-%dT%H-%M-%S").to_string();
+        let filename = format!("forge_fetch_{}_{:x}.md", timestamp, url_hash);
+        std::env::temp_dir().join(filename)
+    }
 }
 
 #[async_trait::async_trait]
-impl ExecutableTool for Fetch {
+impl<F: Infrastructure> ExecutableTool for Fetch<F> {
     type Input = FetchInput;
 
     async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
@@ -161,22 +173,43 @@ impl ExecutableTool for Fetch {
             .await?;
 
         let original_length = content.len();
-        let start_index = input.start_index.unwrap_or(0);
+        let end = MAX_LENGTH.min(original_length);
+        let mut metadata: Vec<(String, String)> = vec![
+            ("URL".into(), url.to_string()),
+            ("total_chars".into(), original_length.to_string()),
+            ("start_char".into(), "0".into()),
+            ("end_char".into(), end.to_string()),
+        ];
 
-        if start_index >= original_length {
-            return Ok("<error>No more content available.</error>".to_string());
+        let truncation_result = Truncator::from_start(MAX_LENGTH).apply(&content);
+        let output = if let Some(truncated) = truncation_result.prefix.as_ref() {
+            truncated.to_owned()
+        } else {
+            content.clone()
+        };
+
+        let truncation_tag = if truncation_result.is_truncated() {
+            let path = self.temp_file_path(&input.url);
+            self.infra
+                .file_write_service()
+                .write(&path, content.into())
+                .await?;
+            metadata.push(("temp_file".into(), path.to_string_lossy().to_string()));
+
+            format!("<truncation>content is truncated to {MAX_LENGTH}, remaining content can be read from path:{}</truncation>", path.to_string_lossy())
+        } else {
+            "".into()
+        };
+
+        // Create an Header
+        let mut header = String::new();
+        header.push_str("---\n");
+        for (k, v) in metadata {
+            header.push_str(&format!("{}: {}\n", k, v));
         }
+        header.push_str("---\n");
 
-        let max_length = input.max_length.unwrap_or(40000);
-        let end = (start_index + max_length).min(original_length);
-        let mut truncated = content[start_index..end].to_string();
-
-        if end < original_length {
-            truncated.push_str(&format!(
-                "\n\n<error>Content truncated. Call the fetch tool with a start_index of {end} to get more content.</error>"));
-        }
-
-        Ok(format!("{prefix}Contents of {url}:\n{truncated}"))
+        Ok(format!("{prefix}{header}{output}{truncation_tag}"))
     }
 }
 
@@ -185,11 +218,14 @@ mod tests {
     use regex::Regex;
     use tokio::runtime::Runtime;
 
+    use crate::attachment::tests::MockInfrastructure;
+
     use super::*;
 
-    async fn setup() -> (Fetch, mockito::ServerGuard) {
+    async fn setup() -> (Fetch<MockInfrastructure>, mockito::ServerGuard) {
         let server = mockito::Server::new_async().await;
-        let fetch = Fetch { client: Client::new() };
+        let infra = Arc::new(MockInfrastructure::new());
+        let fetch = Fetch { client: Client::new(), infra };
         (fetch, server)
     }
 
@@ -226,12 +262,7 @@ mod tests {
             .with_body("User-agent: *\nAllow: /")
             .create();
 
-        let input = FetchInput {
-            url: format!("{}/test.html", server.url()),
-            max_length: Some(1000),
-            start_index: Some(0),
-            raw: Some(false),
-        };
+        let input = FetchInput { url: format!("{}/test.html", server.url()), raw: Some(false) };
 
         let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
@@ -257,12 +288,7 @@ mod tests {
             .with_body("User-agent: *\nAllow: /")
             .create();
 
-        let input = FetchInput {
-            url: format!("{}/test.txt", server.url()),
-            max_length: Some(1000),
-            start_index: Some(0),
-            raw: Some(true),
-        };
+        let input = FetchInput { url: format!("{}/test.txt", server.url()), raw: Some(true) };
 
         let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
@@ -289,12 +315,7 @@ mod tests {
             .with_body("<html><body>Test page</body></html>")
             .create();
 
-        let input = FetchInput {
-            url: format!("{}/test/page.html", server.url()),
-            max_length: None,
-            start_index: None,
-            raw: None,
-        };
+        let input = FetchInput { url: format!("{}/test/page.html", server.url()), raw: None };
 
         let result = fetch.call(ToolCallContext::default(), input).await;
         assert!(result.is_err());
@@ -325,42 +346,60 @@ mod tests {
             .create();
 
         // First page
-        let input = FetchInput {
-            url: format!("{}/long.txt", server.url()),
-            max_length: Some(5000),
-            start_index: Some(0),
-            raw: Some(true),
-        };
+        let input = FetchInput { url: format!("{}/long.txt", server.url()), raw: Some(true) };
 
         let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
         assert!(normalized_result.contains("A".repeat(5000).as_str()));
-        assert!(normalized_result.contains("start_index of 5000"));
+        assert!(normalized_result.contains("B".repeat(5000).as_str()));
+    }
 
-        // Second page
-        let input = FetchInput {
-            url: format!("{}/long.txt", server.url()),
-            max_length: Some(5000),
-            start_index: Some(5000),
-            raw: Some(true),
-        };
+    #[tokio::test]
+    async fn test_fetch_large_content_temp_file() {
+        let (fetch, mut server) = setup().await;
 
+        // Create content larger than 40k chars
+        let large_content = "A".repeat(50000);
+
+        server
+            .mock("GET", "/large.txt")
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body(&large_content)
+            .create();
+
+        server
+            .mock("GET", "/robots.txt")
+            .with_status(200)
+            .with_header("content-type", "text/plain")
+            .with_body("User-agent: *\nAllow: /")
+            .create();
+
+        let input = FetchInput { url: format!("{}/large.txt", server.url()), raw: Some(true) };
+
+        // Use a regex to replace the timestamp in the result
         let result = fetch.call(ToolCallContext::default(), input).await.unwrap();
         let normalized_result = normalize_port(result);
-        assert!(normalized_result.contains("B".repeat(5000).as_str()));
+
+        // Replace the timestamp pattern with a fixed string for snapshot testing
+        let timestamp_regex =
+            Regex::new(r"forge_fetch_\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_[0-9a-f]+").unwrap();
+        let fixed_result = timestamp_regex
+            .replace_all(&normalized_result, "forge_fetch_TIMESTAMP_HASH")
+            .to_string();
+
+        insta::assert_snapshot!(fixed_result);
     }
 
     #[test]
     fn test_fetch_invalid_url() {
-        let fetch = Fetch::default();
+        let fetch = Fetch {
+            client: Client::new(),
+            infra: Arc::new(MockInfrastructure::new()),
+        };
         let rt = Runtime::new().unwrap();
 
-        let input = FetchInput {
-            url: "not a valid url".to_string(),
-            max_length: None,
-            start_index: None,
-            raw: None,
-        };
+        let input = FetchInput { url: "not a valid url".to_string(), raw: None };
 
         let result = rt.block_on(fetch.call(ToolCallContext::default(), input));
 
@@ -381,12 +420,7 @@ mod tests {
             .with_body("User-agent: *\nAllow: /")
             .create();
 
-        let input = FetchInput {
-            url: format!("{}/not-found", server.url()),
-            max_length: None,
-            start_index: None,
-            raw: None,
-        };
+        let input = FetchInput { url: format!("{}/not-found", server.url()), raw: None };
 
         let result = fetch.call(ToolCallContext::default(), input).await;
         assert!(result.is_err());
