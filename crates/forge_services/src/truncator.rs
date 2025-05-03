@@ -61,7 +61,11 @@ impl Truncator {
 
     /// Creates a truncator that keeps both the beginning and end of the content
     /// with the specified character counts for each
-    pub fn from_prefix_suffix<T: AsRef<str>>(prefix_chars: usize, suffix_chars: usize, content: T) -> TruncationResult {
+    pub fn from_prefix_suffix<T: AsRef<str>>(
+        prefix_chars: usize,
+        suffix_chars: usize,
+        content: T,
+    ) -> TruncationResult {
         Self::PrefixSuffix(prefix_chars, suffix_chars).apply(content)
     }
 
