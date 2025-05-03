@@ -531,7 +531,9 @@ impl<F: API> UI<F> {
                     self.writeln(text)?;
                 }
             }
-            ChatResponse::ToolCallStart(_) => {}
+            ChatResponse::ToolCallStart(_) => {
+                self.spinner.stop(None)?;
+            }
             ChatResponse::ToolCallEnd(toolcall_result) => {
                 // Only track toolcall name in case of success else track the error.
                 let payload = if toolcall_result.is_error {
