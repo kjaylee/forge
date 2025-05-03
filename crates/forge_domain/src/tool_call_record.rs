@@ -7,7 +7,7 @@ use crate::{ToolCallFull, ToolResult};
 
 /// Represents a complete tool invocation cycle, containing both the original
 /// call and its corresponding result.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Setters)]
+#[derive(Clone, Debug, Deserialize, Serialize, Setters)]
 #[setters(strip_option, into)]
 pub struct ToolCallRecord {
     pub tool_call: ToolCallFull,
@@ -19,14 +19,6 @@ impl Display for ToolCallRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let tool_name = self.tool_call.name.as_str();
         write!(f, "<forge_tool_result tool=\"{tool_name}\">")?;
-
-        if let Some(object) = self.tool_call.arguments.as_object() {
-            write!(f, "<arguments>")?;
-            for (key, value) in object.iter() {
-                write!(f, "<{key}>{value}</{key}>")?;
-            }
-            write!(f, "</arguments>")?;
-        }
 
         write!(f, "<result>")?;
 
