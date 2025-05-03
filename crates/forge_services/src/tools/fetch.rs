@@ -163,7 +163,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
 
         // Apply truncation directly
         let truncated = Truncator::from_start(MAX_LENGTH).apply(&content);
-        
+
         // Create temp file only if content was truncated
         let temp_file_path = if truncated.is_truncated() {
             let temp_writer = TempWriter::new(self.infra.clone());
@@ -180,9 +180,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             .add("end_char", end)
             .add_optional(
                 "temp_file",
-                temp_file_path
-                    .as_ref()
-                    .map(|p| p.display().to_string()),
+                temp_file_path.as_ref().map(|p| p.display().to_string()),
             );
 
         // Determine output. If truncated then use truncated content else the actual.
@@ -200,13 +198,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             _ => String::new(),
         };
 
-        Ok(format!(
-            "{}{}{}{}",
-            prefix,
-            metadata,
-            output,
-            truncation_tag
-        ))
+        Ok(format!("{prefix}{metadata}{output}{truncation_tag}",))
     }
 }
 
