@@ -149,7 +149,7 @@ impl<F: Infrastructure> FSRead<F> {
         let message = TitleFormat::debug(title).sub_title(subtitle);
 
         // Send the formatted message
-        context.send_text(message.format()).await?;
+        context.send_text(message).await?;
 
         Ok(())
     }

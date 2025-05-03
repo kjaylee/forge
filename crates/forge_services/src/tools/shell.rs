@@ -112,7 +112,7 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
         let title_format = TitleFormat::debug(format!("Execute [{}]", self.env.shell.as_str()))
             .sub_title(&input.command);
 
-        context.send_text(title_format.format()).await?;
+        context.send_text(title_format).await?;
 
         let output = self
             .infra

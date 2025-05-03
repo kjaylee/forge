@@ -67,7 +67,7 @@ impl TitleFormat {
         }
     }
 
-    pub fn format(&self) -> String {
+    fn format(&self) -> String {
         let mut buf = String::new();
 
         let icon = match self.category {
