@@ -14,7 +14,6 @@ use crate::{
 /// 3. Retrieving both the truncated view and information about the full content
 pub struct ContentManager<F> {
     temp_writer: TempWriter<F>,
-    truncator: Truncator,
 }
 
 /// Result of a content management operation
@@ -27,23 +26,21 @@ pub struct ManagedContent {
 }
 
 impl<F: Infrastructure> ContentManager<F> {
-    /// Creates a new ContentManager with the given infrastructure and truncation strategy
-    pub fn new(infra: Arc<F>, truncator: Truncator) -> Self {
-        Self { temp_writer: TempWriter::new(infra), truncator }
+    /// Creates a new ContentManager with the given infrastructure
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { temp_writer: TempWriter::new(infra) }
     }
 
-    /// Processes content by truncating it and storing the full version in a temporary file
-    ///
-    /// # Arguments
-    /// * `content` - The content to process
-    ///
-    /// # Returns
-    /// A ManagedContent containing both the truncated content and information about the full content
-    pub async fn process<S: AsRef<str>>(&self, content: S) -> anyhow::Result<ManagedContent> {
+    /// Processes content by truncating it and storing the full version in a temporary file if it's truncated
+    pub async fn process<S: AsRef<str>>(
+        &self,
+        truncator: Truncator,
+        content: S,
+    ) -> anyhow::Result<ManagedContent> {
         let content_str = content.as_ref();
 
         // Apply truncation
-        let truncated = self.truncator.clone().apply(content_str);
+        let truncated = truncator.apply(content_str);
 
         if truncated.is_truncated() {
             let temp_file_path = self.temp_writer.write(content_str).await?;

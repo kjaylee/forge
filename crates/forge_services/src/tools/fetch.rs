@@ -162,8 +162,8 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         let end = MAX_LENGTH.min(original_length);
 
         // If content exceeds the threshold, then it's written to truncated and written to temp file for future use.
-        let result = ContentManager::new(self.infra.clone(), Truncator::from_start(MAX_LENGTH))
-            .process(&content)
+        let result = ContentManager::new(self.infra.clone())
+            .process(Truncator::from_start(MAX_LENGTH), &content)
             .await?;
 
         // Build metadata with all required fields in a single fluent chain
