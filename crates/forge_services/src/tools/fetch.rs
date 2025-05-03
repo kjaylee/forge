@@ -8,7 +8,7 @@ use reqwest::{Client, Url};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::{metadata::Metadata, truncator::Truncator, ContentManager, Infrastructure};
+use crate::{metadata::Metadata, temp_writer::TempWriter, truncator::Truncator, Infrastructure};
 
 /// Fetch tool returns the content of MAX_LENGTH.
 const MAX_LENGTH: usize = 40_000;
@@ -161,10 +161,16 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         let original_length = content.len();
         let end = MAX_LENGTH.min(original_length);
 
-        // If content exceeds the threshold, then it's written to truncated and written to temp file for future use.
-        let result = ContentManager::new(self.infra.clone())
-            .process(Truncator::from_start(MAX_LENGTH), &content)
-            .await?;
+        // Apply truncation directly
+        let truncated = Truncator::from_start(MAX_LENGTH).apply(&content);
+        
+        // Create temp file only if content was truncated
+        let temp_file_path = if truncated.is_truncated() {
+            let temp_writer = TempWriter::new(self.infra.clone());
+            Some(temp_writer.write(&content).await?)
+        } else {
+            None
+        };
 
         // Build metadata with all required fields in a single fluent chain
         let metadata = Metadata::default()
@@ -174,22 +180,20 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             .add("end_char", end)
             .add_optional(
                 "temp_file",
-                result
-                    .temp_file_path
+                temp_file_path
                     .as_ref()
                     .map(|p| p.display().to_string()),
             );
 
-        // Determine output. ie. if truncated then use truncated else the actual.
-        let output = result
-            .truncated
+        // Determine output. If truncated then use truncated content else the actual.
+        let output = truncated
             .prefix
             .as_ref()
             .map_or_else(|| content.clone(), |truncated| truncated.clone());
 
         // Create truncation tag only if content was actually truncated and stored in a temp file
-        let truncation_tag = match result.temp_file_path.as_ref() {
-            Some(path) if result.truncated.is_truncated() => {
+        let truncation_tag = match temp_file_path.as_ref() {
+            Some(path) if truncated.is_truncated() => {
                 format!("\n<truncation>content is truncated to {MAX_LENGTH}, remaining content can be read from path:{}</truncation>", 
                        path.to_string_lossy())
             }

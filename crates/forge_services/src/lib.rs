@@ -11,12 +11,10 @@ mod tools;
 mod truncator;
 mod workflow;
 mod temp_writer;
-mod content_manager;
 mod metadata;
 
 pub use forge_services::*;
 pub use infra::*;
 pub use truncator::*;
 pub use temp_writer::*;
-pub use content_manager::*;
 pub use suggestion::*;
