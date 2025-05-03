@@ -8,7 +8,7 @@ impl Display for Metadata {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "---")?;
         for (k, v) in self.0.iter() {
-            writeln!(f, "{}", format!("{}: {}", k, v))?;
+            writeln!(f, "{}: {}", k, v)?;
         }
         writeln!(f, "---")
     }
