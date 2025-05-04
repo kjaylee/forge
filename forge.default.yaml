@@ -2,7 +2,7 @@ variables:
   mode: ACT
 
 updates:
-  check_frequency: "daily"
+  check_frequency: "weekly"
   auto_update: true
 
 # Define model anchors with simpler, purpose-based names

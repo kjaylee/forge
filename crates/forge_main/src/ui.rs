@@ -23,7 +23,7 @@ use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
 use crate::state::{Mode, UIState};
-use crate::{banner, check_for_update, TRACKER};
+use crate::{banner, force_update, TRACKER};
 
 // Event type constants moved to UI layer
 pub const EVENT_USER_TASK_INIT: &str = "user_task_init";
@@ -78,14 +78,27 @@ impl<F: API> UI<F> {
         }
     }
 
-    async fn get_update_configuration(&self) -> Result<Update> {
+    async fn attempt_update(&self) -> Result<Update> {
         let mut workflow = Workflow::default();
         let user_workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
         workflow.merge(user_workflow);
 
-        workflow
+        let update_config = workflow
             .updates
-            .ok_or(anyhow!("Update configuration not found"))
+            .ok_or(anyhow!("Update configuration not found"))?;
+
+        // Extract the values from the config using clone to avoid partial moves
+        let frequency = update_config
+            .check_frequency
+            .as_ref()
+            .unwrap_or(&UpdateFrequency::Daily)
+            .clone();
+        let auto_update = update_config.auto_update.unwrap_or(false);
+
+        // Perform update check using the configuration
+        force_update(frequency, auto_update).await;
+
+        Ok(update_config)
     }
 
     // Handle creating a new conversation
@@ -174,10 +187,7 @@ impl<F: API> UI<F> {
     }
 
     async fn run_inner(&mut self) -> Result<()> {
-        if let Ok(config) = self.get_update_configuration().await {
-            // Recurring update check.
-            check_for_update(config.check_frequency.unwrap(), config.auto_update.unwrap()).await;
-        }
+        self.attempt_update().await?;
 
         // Check for dispatch flag first
         if let Some(dispatch_json) = self.cli.event.clone() {
@@ -256,8 +266,9 @@ impl<F: API> UI<F> {
                     self.writeln(output)?;
                 }
                 Command::Update => {
-                    // One time update check
-                    check_for_update(UpdateFrequency::Never, false).await;
+                    // Force an update check with the 'Never' frequency to run it immediately
+                    // regardless of when it was last run
+                    force_update(UpdateFrequency::Always, false).await;
                 }
                 Command::Exit => {
                     break;

@@ -25,7 +25,7 @@ pub struct Workflow {
     pub variables: HashMap<String, Value>,
 
     /// configurations that can be used to update forge
-    #[merge(strategy = crate::update::update_config)]
+    #[merge(strategy = crate::merge::option)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updates: Option<Update>,
 

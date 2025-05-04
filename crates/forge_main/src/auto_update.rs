@@ -1,3 +1,4 @@
+use std::process::Stdio;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -49,7 +50,7 @@ async fn confirm_update(version: Version) {
 }
 
 /// Checks if there is an update available
-pub async fn check_for_update(frequency: UpdateFrequency, auto_update: bool) {
+pub async fn force_update(frequency: UpdateFrequency, auto_update: bool) {
     // Check if version is development version, in which case we skip the update
     // check
     if VERSION.contains("dev") || VERSION == "0.1.0" {
@@ -61,7 +62,7 @@ pub async fn check_for_update(frequency: UpdateFrequency, auto_update: bool) {
         match frequency {
             UpdateFrequency::Daily => Duration::from_secs(60 * 60 * 24), // 1 day
             UpdateFrequency::Weekly => Duration::from_secs(60 * 60 * 24 * 7), // 1 week
-            UpdateFrequency::Never => Duration::ZERO,                    // one time,
+            UpdateFrequency::Always => Duration::ZERO,                    // one time,
         },
     );
 
@@ -79,6 +80,8 @@ async fn perform_update() -> Result<()> {
     // Run npm install command with stdio set to null to avoid any output
     let status = Command::new("npm")
         .args(["update", "-g", "@antinomyhq/forge"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
         .status()
         .await?;
 
