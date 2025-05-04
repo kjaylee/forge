@@ -543,7 +543,6 @@ mod tests {
     #[tokio::test]
     async fn test_format_output_with_large_command_output() {
         let infra = Arc::new(MockInfrastructure::new());
-        // Test with keep_ansi = true (should preserve ANSI codes)
         let ansi_output = CommandOutput {
             stdout: "\x1b[32mSuccess\x1b[0m".repeat(40_050),
             stderr: "\x1b[31mWarning\x1b[0m".repeat(40_050),
