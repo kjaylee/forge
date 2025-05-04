@@ -174,6 +174,23 @@ impl<A: Services> Orchestrator<A> {
         })
     }
 
+    /// Process usage information from a chat completion message
+    async fn calculate_usage(
+        &self,
+        message: &ChatCompletionMessage,
+        context: &Context,
+        request_usage: Option<Usage>,
+        agent: &Agent,
+    ) -> anyhow::Result<Option<Usage>> {
+        // If usage information is provided by provider use that else depend on estimates.
+        let mut usage = message.usage.clone().unwrap_or_default();
+        usage.estimated_tokens = Some(context.estimate_token_count());
+
+        debug!(usage = ?usage, "Usage");
+        self.send(agent, ChatResponse::Usage(usage.clone())).await?;
+        Ok(request_usage.or(Some(usage)))
+    }
+
     async fn collect_messages(
         &self,
         agent: &Agent,
@@ -194,24 +211,9 @@ impl<A: Services> Orchestrator<A> {
             messages.push(message.clone());
 
             // Process usage information
-            if let Some(usage) = message.usage {
-                let mut usage = usage.clone();
-                // Calculate estimated tokens from context
-                let estimated = context.estimate_token_count();
-                usage.estimated_tokens = Some(estimated);
-                request_usage = Some(usage.clone());
-                debug!(usage = ?usage, "Usage");
-                self.send(agent, ChatResponse::Usage(usage)).await?;
-            } else {
-                // If provider doesn't provide usage, we can estimate it.
-                let mut usage = Usage::default();
-                usage.estimated_tokens = Some(context.estimate_token_count());
-                if request_usage.is_none() {
-                    request_usage = Some(usage.clone());
-                }
-                debug!(usage = ?usage, "Usage");
-                self.send(agent, ChatResponse::Usage(usage)).await?;
-            }
+            request_usage = self
+                .calculate_usage(&message, context, request_usage, agent)
+                .await?;
 
             // Process content
             if let Some(content_part) = message.content.clone() {
