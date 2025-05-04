@@ -49,24 +49,20 @@ impl Default for Truncator {
 impl Truncator {
     /// Creates a truncator that keeps the prefix (beginning) of the content
     /// up to the specified number of characters
-    pub fn from_start<T: AsRef<str>>(prefix_chars: usize, content: T) -> TruncationResult {
-        Self::Prefix(prefix_chars).apply(content)
+    pub fn from_start(prefix_chars: usize) -> Truncator {
+        Self::Prefix(prefix_chars)
     }
 
     /// Creates a truncator that keeps the suffix (end) of the content
     /// up to the specified number of characters
-    pub fn from_suffix<T: AsRef<str>>(suffix_chars: usize, content: T) -> TruncationResult {
-        Self::Suffix(suffix_chars).apply(content)
+    pub fn from_suffix(suffix_chars: usize) -> Truncator {
+        Self::Suffix(suffix_chars)
     }
 
     /// Creates a truncator that keeps both the beginning and end of the content
     /// with the specified character counts for each
-    pub fn from_prefix_suffix<T: AsRef<str>>(
-        prefix_chars: usize,
-        suffix_chars: usize,
-        content: T,
-    ) -> TruncationResult {
-        Self::PrefixSuffix(prefix_chars, suffix_chars).apply(content)
+    pub fn from_prefix_suffix(prefix_chars: usize, suffix_chars: usize) -> Truncator {
+        Self::PrefixSuffix(prefix_chars, suffix_chars)
     }
 
     /// Apply this truncation strategy to the given content
@@ -76,7 +72,7 @@ impl Truncator {
     ///
     /// # Returns
     /// A TruncationResult containing the truncated content
-    pub fn apply<T: AsRef<str>>(self, content: T) -> TruncationResult {
+    pub fn truncate<T: AsRef<str>>(self, content: T) -> TruncationResult {
         let content = content.as_ref();
 
         // If content is empty, return as is
@@ -167,7 +163,7 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
         let strategy = Truncator::Prefix(10);
 
-        let result = strategy.apply(content);
+        let result = strategy.truncate(content);
 
         // Should contain only the first 10 characters
         assert!(result.prefix.is_some());
@@ -180,7 +176,7 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
         let strategy = Truncator::Suffix(10);
 
-        let result = strategy.apply(content);
+        let result = strategy.truncate(content);
 
         // Should contain only the last 10 characters
         assert!(result.suffix.is_some());
@@ -193,7 +189,7 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
         let strategy = Truncator::PrefixSuffix(10, 10);
 
-        let result = strategy.apply(content);
+        let result = strategy.truncate(content);
 
         // Should contain first 10 and last 10 characters
         assert!(result.prefix.is_some());
@@ -207,7 +203,7 @@ mod tests {
         let content = "Short content";
         let strategy = Truncator::Prefix(100);
 
-        let result = strategy.apply(content);
+        let result = strategy.truncate(content);
 
         // Should return the original content as is
         assert!(result.prefix.is_none());
@@ -220,7 +216,7 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // 26 chars
         let strategy = Truncator::PrefixSuffix(15, 15);
 
-        let result = strategy.apply(content);
+        let result = strategy.truncate(content);
 
         // Should return the original content as the combined limits exceed content
         // length

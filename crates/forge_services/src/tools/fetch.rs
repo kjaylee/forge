@@ -164,7 +164,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         let end = MAX_LENGTH.min(original_length);
 
         // Apply truncation directly
-        let truncated = Truncator::from_start(MAX_LENGTH, &content);
+        let truncated = Truncator::from_start(MAX_LENGTH).truncate(&content);
 
         // Create temp file only if content was truncated
         let temp_file_path = if truncated.is_truncated() {
