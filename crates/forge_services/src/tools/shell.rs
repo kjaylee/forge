@@ -142,11 +142,13 @@ fn format_tag(result: TruncationResult, tag: &str, content: &str, formatted_outp
             let prefix_len = prefix.len();
             let suffix_len = suffix.len();
             let truncated_chars = content_len - prefix_len - suffix_len;
-            let suffix_start = content_len - suffix_len;
+
+            let prefix_content = &content[prefix.clone()];
+            let suffix_content = &content[suffix.clone()];
 
             formatted_output.push_str(&format!(
-                "<{} chars=\"0-{}\">\n{}\n</{}>\n",
-                tag, prefix_len, prefix, tag
+                "<{} chars=\"{}-{}\">\n{}\n</{}>\n",
+                tag, prefix.start, prefix.end, prefix_content, tag
             ));
             formatted_output.push_str(&format!(
                 "<truncated>...{} truncated ({} characters not shown)...</truncated>\n",
@@ -154,7 +156,7 @@ fn format_tag(result: TruncationResult, tag: &str, content: &str, formatted_outp
             ));
             formatted_output.push_str(&format!(
                 "<{} chars=\"{}-{}\">\n{}\n</{}>\n",
-                tag, suffix_start, content_len, suffix, tag
+                tag, suffix.start, suffix.end, suffix_content, tag
             ));
         }
         _ => formatted_output.push_str(&format!("<{}>\n{}\n</{}>", tag, content, tag)),
@@ -218,6 +220,7 @@ mod tests {
     use std::{env, fs};
 
     use pretty_assertions::assert_eq;
+    use regex::Regex;
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
@@ -274,11 +277,7 @@ mod tests {
             )
             .await
             .unwrap();
-
-        assert_eq!(
-            result,
-            "<stdout>to stdout\n</stdout>\n<stderr>to stderr\n</stderr>"
-        );
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -296,11 +295,7 @@ mod tests {
             )
             .await
             .unwrap();
-
-        assert_eq!(
-            result,
-            "<stdout>to stdout\n</stdout>\n<stderr>to stderr\n</stderr>"
-        );
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -324,7 +319,24 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(result, format!("<stdout>{}\n</stdout>", temp_dir.display()));
+
+        assert_eq!(
+            result,
+            format!(
+                "{}<stdout>\n{}\n\n</stdout>",
+                Metadata::default()
+                    .add(
+                        "command",
+                        if cfg!(target_os = "windows") {
+                            "cd"
+                        } else {
+                            "pwd"
+                        }
+                    )
+                    .add("exit_code", 0),
+                temp_dir.display()
+            )
+        );
     }
 
     #[tokio::test]
@@ -408,7 +420,21 @@ mod tests {
 
         assert_eq!(
             result,
-            format!("<stdout>{}\n</stdout>", current_dir.display())
+            format!(
+                "{}<stdout>\n{}\n\n</stdout>",
+                Metadata::default()
+                    .add(
+                        "command",
+                        if cfg!(target_os = "windows") {
+                            "cd"
+                        } else {
+                            "pwd"
+                        }
+                    )
+                    .add("exit_code", 0)
+                    .to_string(),
+                current_dir.display()
+            )
         );
     }
 
@@ -426,7 +452,7 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(result, format!("<stdout>first\nsecond\n</stdout>"));
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -528,7 +554,12 @@ mod tests {
         let preserved = format_output(&infra, ansi_output, true).await.unwrap();
         assert_eq!(
             preserved,
-            "<stdout>\x1b[32mSuccess\x1b[0m</stdout>\n<stderr>\x1b[31mWarning\x1b[0m</stderr>"
+            format!("{}<stdout>\n\x1b[32mSuccess\x1b[0m\n</stdout>\n<stderr>\n\x1b[31mWarning\x1b[0m\n</stderr>",
+                Metadata::default()
+                    .add("command", "ls -la")
+                    .add("exit_code", 0)
+                    .to_string()
+            )
         );
 
         // Test with keep_ansi = false (should strip ANSI codes)
@@ -541,8 +572,26 @@ mod tests {
         let stripped = format_output(&infra, ansi_output, false).await.unwrap();
         assert_eq!(
             stripped,
-            "<stdout>Success</stdout>\n<stderr>Warning</stderr>"
+            format!(
+                "{}<stdout>\nSuccess\n</stdout>\n<stderr>\nWarning\n</stderr>",
+                Metadata::default()
+                    .add("command", "ls -la")
+                    .add("exit_code", 0)
+                    .to_string()
+            )
         );
+    }
+
+    fn normalize_path(content: &str) -> String {
+        // normalize temp_file from header.
+        let path_re = Regex::new(r"temp_file: (/[^\s<>]+/[^\s<>]+)").unwrap();
+        let content = path_re.replace_all(content, "temp_file: /tmp/normalized_test_path.txt");
+
+        // Normalize temporary file paths in truncation tags
+        let path_re = Regex::new(r"path:(/[^\s<>]+/[^\s<>]+)").unwrap();
+        path_re
+            .replace_all(&content, "path:/tmp/normalized_test_path.txt")
+            .to_string()
     }
 
     #[tokio::test]
@@ -555,6 +604,6 @@ mod tests {
             command: "ls -la".into(),
         };
         let preserved = format_output(&infra, ansi_output, false).await.unwrap();
-        insta::assert_snapshot!(preserved);
+        insta::assert_snapshot!(normalize_path(&preserved));
     }
 }
