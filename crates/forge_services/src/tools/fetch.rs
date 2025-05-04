@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::metadata::Metadata;
 
 use crate::truncator::Truncator;
-use crate::Infrastructure;
+use crate::{FsWriteService, Infrastructure};
 
 /// Fetch tool returns the content of MAX_LENGTH.
 const MAX_LENGTH: usize = 40_000;
