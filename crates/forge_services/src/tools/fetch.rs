@@ -9,7 +9,6 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::metadata::Metadata;
-
 use crate::truncator::Truncator;
 use crate::{FsWriteService, Infrastructure};
 
@@ -196,7 +195,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         // temp file
         let truncation_tag = match temp_file_path.as_ref() {
             Some(path) if truncated.is_truncated() => {
-                format!("\n<truncation>content is truncated to {MAX_LENGTH}, remaining content can be read from path:{}</truncation>", 
+                format!("\n<truncation>content is truncated to {MAX_LENGTH} chars, remaining content can be read from path:{}</truncation>", 
                        path.to_string_lossy())
             }
             _ => String::new(),
