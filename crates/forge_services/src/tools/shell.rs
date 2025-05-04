@@ -61,7 +61,7 @@ async fn format_output<F: Infrastructure>(
     // Create metadata
     let mut metadata = Metadata::default()
         .add("command", &output.command)
-        .add("exit_code", if output.success { 0 } else { 1 });
+        .add_optional("exit_code", output.exit_code);
 
     let mut is_truncated = false;
 
@@ -117,7 +117,7 @@ async fn format_output<F: Infrastructure>(
 
     // Handle empty outputs
     let result = if formatted_output.is_empty() {
-        if output.success {
+        if output.success() {
             "Command executed successfully with no output.".to_string()
         } else {
             "Command failed with no output.".to_string()
@@ -126,7 +126,7 @@ async fn format_output<F: Infrastructure>(
         formatted_output
     };
 
-    if output.success {
+    if output.success() {
         Ok(format!("{metadata}{result}"))
     } else {
         bail!(format!("{metadata}{result}"))
@@ -548,8 +548,8 @@ mod tests {
         let ansi_output = CommandOutput {
             stdout: "\x1b[32mSuccess\x1b[0m".to_string(),
             stderr: "\x1b[31mWarning\x1b[0m".to_string(),
-            success: true,
             command: "ls -la".into(),
+            exit_code: Some(0),
         };
         let preserved = format_output(&infra, ansi_output, true).await.unwrap();
         assert_eq!(
@@ -566,8 +566,8 @@ mod tests {
         let ansi_output = CommandOutput {
             stdout: "\x1b[32mSuccess\x1b[0m".to_string(),
             stderr: "\x1b[31mWarning\x1b[0m".to_string(),
-            success: true,
             command: "ls -la".into(),
+            exit_code: Some(0),
         };
         let stripped = format_output(&infra, ansi_output, false).await.unwrap();
         assert_eq!(
@@ -600,8 +600,8 @@ mod tests {
         let ansi_output = CommandOutput {
             stdout: "\x1b[32mSuccess\x1b[0m".repeat(40_050),
             stderr: "\x1b[31mWarning\x1b[0m".repeat(40_050),
-            success: true,
             command: "ls -la".into(),
+            exit_code: Some(0),
         };
         let preserved = format_output(&infra, ansi_output, false).await.unwrap();
         insta::assert_snapshot!(normalize_path(&preserved));

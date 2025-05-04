@@ -99,7 +99,7 @@ impl ForgeCommandExecutorService {
         Ok(CommandOutput {
             stdout: String::from_utf8_lossy(&stdout_buffer).into_owned(),
             stderr: String::from_utf8_lossy(&stderr_buffer).into_owned(),
-            success: status.success(),
+            exit_code: status.code(),
             command: actual_command,
         })
     }
@@ -173,12 +173,12 @@ mod tests {
         let expected = CommandOutput {
             stdout: "hello world\n".to_string(),
             stderr: "".to_string(),
-            success: true,
             command: "echo \"hello world\"".into(),
+            exit_code: Some(0),
         };
 
         assert_eq!(actual.stdout.trim(), expected.stdout.trim());
         assert_eq!(actual.stderr, expected.stderr);
-        assert_eq!(actual.success, expected.success);
+        assert_eq!(actual.success(), expected.success());
     }
 }
