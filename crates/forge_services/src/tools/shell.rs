@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use strip_ansi_escapes::strip;
 
 use crate::{
-    metadata::Metadata, CommandExecutorService, Infrastructure, TempWriter, TruncationResult,
+    metadata::Metadata, CommandExecutorService, FsWriteService, Infrastructure, TruncationResult,
     Truncator,
 };
 
@@ -67,7 +67,8 @@ async fn format_output<F: Infrastructure>(
 
     // Format stdout if not empty
     if !output.stdout.trim().is_empty() {
-        let result = Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS, &output.stdout);
+        let result =
+            Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS).truncate(&output.stdout);
 
         if result.is_truncated() {
             metadata = metadata.add("total_stdout_chars", output.stdout.len());
@@ -81,7 +82,8 @@ async fn format_output<F: Infrastructure>(
         if !formatted_output.is_empty() {
             formatted_output.push('\n');
         }
-        let result = Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS, &output.stdout);
+        let result =
+            Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS).truncate(&output.stderr);
 
         if result.is_truncated() {
             metadata = metadata.add("total_stderr_chars", output.stderr.len());
@@ -92,15 +94,18 @@ async fn format_output<F: Infrastructure>(
 
     // Add temp file path if output is truncated
     if is_truncated {
-        let path = TempWriter::new(infra.clone())
-            .write(
+        let path = infra
+            .file_write_service()
+            .write_temp(
                 "forge_shell_",
+                "md",
                 &format!(
                     "<stdout>{}</stdout>\n<stderr>{}</stderr>",
                     output.stdout, output.stderr
                 ),
             )
             .await?;
+
         metadata = metadata
             .add("temp_file", path.display())
             .add("truncated", "true");
