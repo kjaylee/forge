@@ -179,7 +179,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             .add("URL", url)
             .add("total_chars", original_length)
             .add("start_char", "0")
-            .add("end_char", end)
+            .add("end_char", end.to_string())
             .add_optional(
                 "temp_file",
                 temp_file_path.as_ref().map(|p| p.display().to_string()),
@@ -187,9 +187,8 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
 
         // Determine output. If truncated then use truncated content else the actual.
         let output = truncated
-            .prefix
-            .as_ref()
-            .map_or_else(|| content.clone(), |truncated| truncated.clone());
+            .prefix_content()
+            .unwrap_or_else(|| content.as_str());
 
         // Create truncation tag only if content was actually truncated and stored in a
         // temp file
