@@ -182,7 +182,8 @@ impl<A: Services> Orchestrator<A> {
         request_usage: Option<Usage>,
         agent: &Agent,
     ) -> anyhow::Result<Option<Usage>> {
-        // If usage information is provided by provider use that else depend on estimates.
+        // If usage information is provided by provider use that else depend on
+        // estimates.
         let mut usage = message.usage.clone().unwrap_or_default();
         usage.estimated_tokens = Some(context.estimate_token_count());
 
