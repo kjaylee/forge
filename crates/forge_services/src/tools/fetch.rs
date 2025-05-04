@@ -186,9 +186,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             );
 
         // Determine output. If truncated then use truncated content else the actual.
-        let output = truncated
-            .prefix_content()
-            .unwrap_or(content.as_str());
+        let output = truncated.prefix_content().unwrap_or(content.as_str());
 
         // Create truncation tag only if content was actually truncated and stored in a
         // temp file
