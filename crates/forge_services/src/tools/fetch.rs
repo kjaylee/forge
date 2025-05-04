@@ -22,9 +22,8 @@ const MAX_LENGTH: usize = 40_000;
 /// or retrieving specific online content. Handles HTTP/HTTPS and converts HTML
 /// to readable markdown by default. Cannot access private/restricted resources
 /// requiring authentication. Respects robots.txt and may be blocked by
-/// anti-scraping measures. For large pages, returns first 40,000 characters and
-/// store the fetched content in temporary file and if you want to fetch the
-/// remaining content then you read it from that temporary file.
+/// anti-scraping measures. For large pages, returns the first 40,000 characters
+/// and stores the complete content in a temporary file for subsequent access.
 #[derive(Debug, ToolDescription)]
 pub struct Fetch<F> {
     client: Client,
