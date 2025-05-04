@@ -9,7 +9,6 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::metadata::Metadata;
-
 use crate::truncator::Truncator;
 use crate::{FsWriteService, Infrastructure};
 
@@ -172,7 +171,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
                 self.infra
                     .file_write_service()
                     .write_temp("forge_fetch_", ".txt", &content)
-                    .await?
+                    .await?,
             )
         } else {
             None
