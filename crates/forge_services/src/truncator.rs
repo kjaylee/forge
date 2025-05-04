@@ -1,22 +1,38 @@
 #![allow(dead_code)]
+
+use std::ops::Range;
 /// Maximum character limit for truncation
 const MAX_LIMIT: usize = 40_000;
 
 /// Result of a truncation operation
 #[derive(Debug, Clone, PartialEq)]
-pub struct TruncationResult {
+pub struct TruncationResult<'a> {
     /// The actual content passed for truncation.
-    pub actual: String,
+    pub actual: &'a str,
     /// The prefix portion of the truncated content (if applicable)
-    pub prefix: Option<String>,
+    pub prefix: Option<Range<usize>>,
     /// The suffix portion of the truncated content (if applicable)
-    pub suffix: Option<String>,
+    pub suffix: Option<Range<usize>>,
 }
 
-impl TruncationResult {
+impl TruncationResult<'_> {
     /// Check if this result represents truncated content
     pub fn is_truncated(&self) -> bool {
         self.prefix.is_some() || self.suffix.is_some()
+    }
+
+    /// Get the prefix content if it exists
+    pub fn prefix_content(&self) -> Option<&str> {
+        self.prefix
+            .as_ref()
+            .map(|range| &self.actual[range.clone()])
+    }
+
+    /// Get the suffix content if it exists
+    pub fn suffix_content(&self) -> Option<&str> {
+        self.suffix
+            .as_ref()
+            .map(|range| &self.actual[range.clone()])
     }
 }
 
@@ -72,12 +88,11 @@ impl Truncator {
     ///
     /// # Returns
     /// A TruncationResult containing the truncated content
-    pub fn truncate<T: AsRef<str>>(self, content: T) -> TruncationResult {
-        let content = content.as_ref();
+    pub fn truncate<'a>(self, content: &'a str) -> TruncationResult<'a> {
 
         // If content is empty, return as is
         if content.is_empty() {
-            return TruncationResult { prefix: None, suffix: None, actual: content.to_string() };
+            return TruncationResult { prefix: None, suffix: None, actual: content };
         }
 
         // Get character count (not byte count)
@@ -94,62 +109,79 @@ impl Truncator {
     }
 
     /// Helper method to truncate content from the beginning
-    fn apply_prefix(&self, content: &str, char_count: usize, limit: usize) -> TruncationResult {
+    fn apply_prefix<'a>(
+        &self,
+        content: &'a str,
+        char_count: usize,
+        limit: usize,
+    ) -> TruncationResult<'a> {
         if char_count <= limit {
-            return TruncationResult { prefix: None, suffix: None, actual: content.to_string() };
+            return TruncationResult { prefix: None, suffix: None, actual: content };
         }
 
         // Find the byte index corresponding to the character limit
-        let truncated = content.chars().take(limit).collect::<String>();
+        let byte_idx = content
+            .char_indices()
+            .nth(limit)
+            .map_or(content.len(), |(idx, _)| idx);
 
-        TruncationResult {
-            prefix: Some(truncated),
-            suffix: None,
-            actual: content.to_string(),
-        }
+        TruncationResult { prefix: Some(0..byte_idx), suffix: None, actual: content }
     }
 
     /// Helper method to truncate content from the end
-    fn apply_suffix(&self, content: &str, char_count: usize, limit: usize) -> TruncationResult {
+    fn apply_suffix<'a>(
+        &self,
+        content: &'a str,
+        char_count: usize,
+        limit: usize,
+    ) -> TruncationResult<'a> {
         if char_count <= limit {
-            return TruncationResult { prefix: None, suffix: None, actual: content.to_string() };
+            return TruncationResult { prefix: None, suffix: None, actual: content };
         }
 
-        // Skip to the start of the suffix
-        let truncated = content.chars().skip(char_count - limit).collect::<String>();
+        // Find the byte index corresponding to where the suffix starts
+        let start_idx = content
+            .char_indices()
+            .nth(char_count - limit)
+            .map_or(0, |(idx, _)| idx);
 
         TruncationResult {
             prefix: None,
-            suffix: Some(truncated),
-            actual: content.to_string(),
+            suffix: Some(start_idx..content.len()),
+            actual: content,
         }
     }
 
     /// Helper method to truncate content from both prefix and suffix
-    fn apply_prefix_suffix(
+    fn apply_prefix_suffix<'a>(
         &self,
-        content: &str,
+        content: &'a str,
         char_count: usize,
         prefix_limit: usize,
         suffix_limit: usize,
-    ) -> TruncationResult {
+    ) -> TruncationResult<'a> {
         // If the combined limits exceed or equal content length, return the whole
         // content
         if prefix_limit + suffix_limit >= char_count {
-            return TruncationResult { prefix: None, suffix: None, actual: content.to_string() };
+            return TruncationResult { prefix: None, suffix: None, actual: content };
         }
 
-        // Get prefix result using existing method
-        let prefix_result = self.apply_prefix(content, char_count, prefix_limit);
+        // Find the byte index for prefix
+        let prefix_end_idx = content
+            .char_indices()
+            .nth(prefix_limit)
+            .map_or(content.len(), |(idx, _)| idx);
 
-        // Get suffix result using existing method
-        let suffix_result = self.apply_suffix(content, char_count, suffix_limit);
+        // Find the byte index for suffix
+        let suffix_start_idx = content
+            .char_indices()
+            .nth(char_count - suffix_limit)
+            .map_or(0, |(idx, _)| idx);
 
-        // Combine the results
         TruncationResult {
-            prefix: prefix_result.prefix,
-            suffix: suffix_result.suffix,
-            actual: content.to_string(),
+            prefix: Some(0..prefix_end_idx),
+            suffix: Some(suffix_start_idx..content.len()),
+            actual: content,
         }
     }
 }
@@ -163,11 +195,12 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
         let strategy = Truncator::Prefix(10);
 
-        let result = strategy.truncate(content);
+        let result = strategy.truncate(&content);
 
         // Should contain only the first 10 characters
         assert!(result.prefix.is_some());
-        assert!(result.prefix.as_ref().unwrap().starts_with("ABCDEFGHIJ"));
+        let range = result.prefix.unwrap();
+        assert_eq!(&content[range], "ABCDEFGHIJ");
         assert!(result.suffix.is_none());
     }
 
@@ -176,11 +209,12 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
         let strategy = Truncator::Suffix(10);
 
-        let result = strategy.truncate(content);
+        let result = strategy.truncate(&content);
 
         // Should contain only the last 10 characters
         assert!(result.suffix.is_some());
-        assert!(result.suffix.as_ref().unwrap().contains("QRSTUVWXYZ"));
+        let range = result.suffix.unwrap();
+        assert_eq!(&content[range], "QRSTUVWXYZ");
         assert!(result.prefix.is_none());
     }
 
@@ -189,13 +223,15 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
         let strategy = Truncator::PrefixSuffix(10, 10);
 
-        let result = strategy.truncate(content);
+        let result = strategy.truncate(&content);
 
         // Should contain first 10 and last 10 characters
         assert!(result.prefix.is_some());
         assert!(result.suffix.is_some());
-        assert!(result.prefix.as_ref().unwrap().starts_with("ABCDEFGHIJ"));
-        assert!(result.suffix.as_ref().unwrap().contains("QRSTUVWXYZ"));
+        let prefix_range = result.prefix.unwrap();
+        let suffix_range = result.suffix.unwrap();
+        assert_eq!(&content[prefix_range], "ABCDEFGHIJ");
+        assert_eq!(&content[suffix_range], "QRSTUVWXYZ");
     }
 
     #[test]
@@ -203,7 +239,7 @@ mod tests {
         let content = "Short content";
         let strategy = Truncator::Prefix(100);
 
-        let result = strategy.truncate(content);
+        let result = strategy.truncate(&content);
 
         // Should return the original content as is
         assert!(result.prefix.is_none());
@@ -216,7 +252,7 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // 26 chars
         let strategy = Truncator::PrefixSuffix(15, 15);
 
-        let result = strategy.truncate(content);
+        let result = strategy.truncate(&content);
 
         // Should return the original content as the combined limits exceed content
         // length
