@@ -193,6 +193,26 @@ impl<A: Services> Orchestrator<A> {
             let message = message?;
             messages.push(message.clone());
 
+            // Process usage information
+            if let Some(usage) = message.usage {
+                let mut usage = usage.clone();
+                // Calculate estimated tokens from context
+                let estimated = context.estimate_token_count();
+                usage.estimated_tokens = Some(estimated);
+                request_usage = Some(usage.clone());
+                debug!(usage = ?usage, "Usage");
+                self.send(agent, ChatResponse::Usage(usage)).await?;
+            } else {
+                // If provider doesn't provide usage, we can estimate it.
+                let mut usage = Usage::default();
+                usage.estimated_tokens = Some(context.estimate_token_count());
+                if request_usage.is_none() {
+                    request_usage = Some(usage.clone());
+                }
+                debug!(usage = ?usage, "Usage");
+                self.send(agent, ChatResponse::Usage(usage)).await?;
+            }
+
             // Process content
             if let Some(content_part) = message.content.clone() {
                 let content_part = content_part.as_str().to_string();
@@ -229,17 +249,6 @@ impl<A: Services> Orchestrator<A> {
                         break;
                     }
                 }
-            }
-
-            // Process usage information
-            if let Some(usage) = message.usage {
-                let mut usage = usage.clone();
-                // Calculate estimated tokens from context
-                let estimated = context.estimate_token_count();
-                usage.estimated_tokens = Some(estimated);
-                request_usage = Some(usage.clone());
-                debug!(usage = ?usage, "Usage");
-                self.send(agent, ChatResponse::Usage(usage)).await?;
             }
         }
 
