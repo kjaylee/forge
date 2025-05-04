@@ -337,7 +337,6 @@ pub mod tests {
                     return Ok(CommandOutput {
                         stdout: stdout.to_string(),
                         stderr: stderr.to_string(),
-
                         command,
                         exit_code: Some(0),
                     });
@@ -348,7 +347,6 @@ pub mod tests {
                     return Ok(CommandOutput {
                         stdout: "".to_string(),
                         stderr: format!("{content}\n"),
-
                         command,
                         exit_code: Some(0),
                     });
@@ -377,7 +375,6 @@ pub mod tests {
                     return Ok(CommandOutput {
                         stdout: content,
                         stderr: "".to_string(),
-
                         command,
                         exit_code: Some(0),
                     });
@@ -412,7 +409,7 @@ pub mod tests {
                     stdout: "".to_string(),
                     stderr: "command not found: non_existent_command\n".to_string(),
                     command,
-                    exit_code: Some(0),
+                    exit_code: Some(-1),
                 });
             }
 
