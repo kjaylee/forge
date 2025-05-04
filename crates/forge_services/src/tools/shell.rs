@@ -98,7 +98,7 @@ async fn format_output<F: Infrastructure>(
             .file_write_service()
             .write_temp(
                 "forge_shell_",
-                "md",
+                ".md",
                 &format!(
                     "<stdout>{}</stdout>\n<stderr>{}</stderr>",
                     output.stdout, output.stderr
