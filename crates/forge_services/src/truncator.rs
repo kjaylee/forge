@@ -89,7 +89,6 @@ impl Truncator {
     /// # Returns
     /// A TruncationResult containing the truncated content
     pub fn truncate<'a>(self, content: &'a str) -> TruncationResult<'a> {
-
         // If content is empty, return as is
         if content.is_empty() {
             return TruncationResult { prefix: None, suffix: None, actual: content };
@@ -239,7 +238,7 @@ mod tests {
         let content = "Short content";
         let strategy = Truncator::Prefix(100);
 
-        let result = strategy.truncate(&content);
+        let result = strategy.truncate(content);
 
         // Should return the original content as is
         assert!(result.prefix.is_none());
@@ -252,7 +251,7 @@ mod tests {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // 26 chars
         let strategy = Truncator::PrefixSuffix(15, 15);
 
-        let result = strategy.truncate(&content);
+        let result = strategy.truncate(content);
 
         // Should return the original content as the combined limits exceed content
         // length
