@@ -554,4 +554,37 @@ mod test {
         assert!(display_path.is_ok());
         assert_eq!(display_path.unwrap(), file_path.display().to_string());
     }
+
+    #[tokio::test]
+    async fn test_fs_search_on_file_name() {
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("test1.txt"), "Hello test world")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("test2.txt"), "Another test case")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("other.txt"), "No match here")
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("best.txt"), "")
+            .await
+            .unwrap();
+
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
+        let result = fs_search
+            .call(
+                ToolCallContext::default(),
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: None,
+                    file_pattern: Some("*best*".into()),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(!result.contains("No matches found."));
+    }
 }
