@@ -586,5 +586,6 @@ mod test {
             .await
             .unwrap();
         assert!(!result.contains("No matches found."));
+        assert!(result  == temp_dir.path().join("best.txt").display().to_string());
     }
 }
