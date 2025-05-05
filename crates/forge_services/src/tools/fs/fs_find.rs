@@ -13,8 +13,11 @@ use regex::Regex;
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::metadata::Metadata;
 use crate::tools::utils::{assert_absolute_path, format_display_path};
-use crate::Infrastructure;
+use crate::{FsWriteService, Infrastructure, Truncator};
+
+const MAX_SEARCH_CHAR_LIMIT: usize = 40_000;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct FSFindInput {
@@ -70,7 +73,8 @@ impl FSFindInput {
 /// (when regex omitted). Uses case-insensitive Rust regex syntax. Requires
 /// absolute paths. Avoids binary files and excluded directories. Best for code
 /// exploration, API usage discovery, configuration settings, or finding
-/// patterns across projects.
+/// patterns across projects. For large pages, returns the first 40,000 characters
+/// and stores the complete content in a temporary file for subsequent access.
 #[derive(ToolDescription)]
 pub struct FSFind<F>(Arc<F>);
 
@@ -198,7 +202,35 @@ impl<F: Infrastructure> FSFind<F> {
         }
 
         context.send_text(formatted_output.format()).await?;
-        Ok(matches.join("\n"))
+
+        let matches = matches.join("\n");
+        let metadata = Metadata::default()
+            .add("path", input.path)
+            .add_optional("regex", input.regex)
+            .add_optional("file_pattern", input.file_pattern)
+            .add("total_chars", matches.len())
+            .add("start_char", 0);
+
+        let truncated_result = Truncator::from_start(MAX_SEARCH_CHAR_LIMIT).truncate(&matches);
+        if let Some(truncated) = truncated_result.prefix_content() {
+            let path = self
+                .0
+                .file_write_service()
+                .write_temp("forge_find_", ".md", &matches)
+                .await?;
+
+            let metadata = metadata
+                .add("end_char", matches.len())
+                .add("temp_file", path.display());
+
+            let truncation_tag = format!("\n<truncation>content is truncated to {} chars, remaining content can be read from path:{}</truncation>", 
+            MAX_SEARCH_CHAR_LIMIT,path.to_string_lossy());
+
+            Ok(format!("{metadata}{truncated}{truncation_tag}"))
+        } else {
+            let metadata = metadata.add("end_char", matches.len());
+            Ok(format!("{metadata}{matches}"))
+        }
     }
 }
 
