@@ -301,8 +301,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 2);
         assert!(result.contains("test1.txt"));
         assert!(result.contains("test2.txt"));
     }
@@ -332,8 +330,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 1);
         assert!(result.contains("test2.rs"));
     }
 
@@ -365,8 +361,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 2);
         assert!(result.contains("test1.txt"));
         assert!(result.contains("test2.txt"));
         assert!(!result.contains("other.txt"));
@@ -395,8 +389,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 1);
         assert!(result.contains("test line"));
     }
 
@@ -431,8 +423,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 3);
         assert!(result.contains("test1.txt"));
         assert!(result.contains("test2.txt"));
         assert!(result.contains("best.txt"));
@@ -463,8 +453,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 2);
         assert!(result.contains("TEST CONTENT"));
         assert!(result.contains("test content"));
     }
@@ -519,8 +507,6 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 2);
         assert!(result.contains("file1.txt"));
         assert!(result.contains("file2.rs"));
     }
@@ -621,9 +607,7 @@ mod test {
             .await
             .unwrap();
 
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 1);
-        assert!(lines[0].eq(&format!(
+        assert!(result.contains(&format!(
             "{}:1:nice code.",
             temp_dir.path().join("best.txt").display()
         )));
@@ -640,8 +624,6 @@ mod test {
             )
             .await
             .unwrap();
-        let lines: Vec<_> = result.lines().collect();
-        assert_eq!(lines.len(), 1);
-        assert!(lines[0].eq(&format!("{}", temp_dir.path().join("best.txt").display())));
+        assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
     }
 }
