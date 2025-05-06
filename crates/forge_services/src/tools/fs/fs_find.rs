@@ -15,7 +15,7 @@ use serde::Deserialize;
 
 use crate::metadata::Metadata;
 use crate::tools::utils::{assert_absolute_path, format_display_path};
-use crate::{FsWriteService, Infrastructure, Truncator};
+use crate::{Clipper, FsWriteService, Infrastructure};
 
 const MAX_SEARCH_CHAR_LIMIT: usize = 40_000;
 
@@ -211,7 +211,7 @@ impl<F: Infrastructure> FSFind<F> {
             .add("total_chars", matches.len())
             .add("start_char", 0);
 
-        let truncated_result = Truncator::from_start(MAX_SEARCH_CHAR_LIMIT).truncate(&matches);
+        let truncated_result = Clipper::from_start(MAX_SEARCH_CHAR_LIMIT).clip(&matches);
         if let Some(truncated) = truncated_result.prefix_content() {
             let path = self
                 .0
