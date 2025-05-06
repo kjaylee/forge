@@ -454,17 +454,16 @@ impl<F: API> UI<F> {
         &mut self,
         conversation_id: &ConversationId,
     ) -> Result<Option<CompactionResult>> {
-        let mut compaction_future = self.api.compact_conversation(conversation_id);
-        loop {
-            tokio::select! {
-                _ = tokio::signal::ctrl_c() => {
-                    self.spinner.stop(None)?;
-                    return Ok(None);
-                }
-                result = &mut compaction_future => {
-                    self.spinner.stop(None)?;
-                    return result.map(Some);
-                }
+        let compaction_future = self.api.compact_conversation(conversation_id);
+        
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                self.spinner.stop(None)?;
+                Ok(None)
+            }
+            result = compaction_future => {
+                self.spinner.stop(None)?;
+                result.map(|res| Some(res))
             }
         }
     }
