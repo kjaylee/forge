@@ -221,7 +221,7 @@ impl<F: Infrastructure> FSFind<F> {
                 .await?;
 
             let metadata = metadata
-                .add("end_char", matches.len())
+                .add("end_char", truncated.len())
                 .add("temp_file", path.display());
 
             let truncation_tag = format!("\n<truncation>content is truncated to {} chars, remaining content can be read from path:{}</truncation>", 
@@ -235,18 +235,25 @@ impl<F: Infrastructure> FSFind<F> {
     }
 }
 
-async fn retrieve_file_paths(dir: &Path) -> anyhow::Result<HashSet<std::path::PathBuf>> {
+async fn retrieve_file_paths(dir: &Path) -> anyhow::Result<Vec<std::path::PathBuf>> {
     if dir.is_dir() {
-        Ok(Walker::max_all()
+        let mut paths = Walker::max_all()
             .cwd(dir.to_path_buf())
             .get()
             .await
             .with_context(|| format!("Failed to walk directory '{}'", dir.display()))?
             .into_iter()
             .map(|file| dir.join(file.path))
-            .collect::<HashSet<_>>())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        #[cfg(test)]
+        paths.sort();
+
+        Ok(paths)
     } else {
-        Ok(HashSet::from_iter([dir.to_path_buf()]))
+        Ok(Vec::from_iter([dir.to_path_buf()]))
     }
 }
 
@@ -273,6 +280,7 @@ mod test {
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
+    use insta::assert_snapshot;
 
     #[tokio::test]
     async fn test_fs_search_content() {
@@ -626,5 +634,41 @@ mod test {
             .await
             .unwrap();
         assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
+    }
+
+    #[tokio::test]
+    async fn test_fs_search_with_clipper() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create a large number of files with searchable content to trigger clipper
+        for i in 0..100 {
+            let content = format!("This is file with searchable test content\n");
+            // Add repeated content to make the file larger
+            let repeated_content = content.repeat(20);
+            fs::write(
+                temp_dir.path().join(format!("file_{}.txt", i)),
+                repeated_content,
+            )
+            .await
+            .unwrap();
+        }
+
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
+
+        // Search for a term that will be in all files
+        let result = fs_search
+            .call(
+                ToolCallContext::default(),
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("test".to_string()),
+                    file_pattern: Some("*.txt".to_string()),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_snapshot!(TempDir::normalize(&result));
     }
 }
