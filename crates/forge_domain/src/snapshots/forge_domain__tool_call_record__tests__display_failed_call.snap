@@ -3,5 +3,7 @@ source: crates/forge_domain/src/tool_call_record.rs
 expression: record.to_string()
 snapshot_kind: text
 ---
+<forge_tool_result tool_name="fs_write" status="ERROR">
 ERROR:
 Caused by: Permission denied
+</forge_tool_result>
