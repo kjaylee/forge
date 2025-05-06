@@ -116,12 +116,7 @@ pub mod tests {
             unimplemented!()
         }
 
-        async fn write_temp(
-            &self,
-            _: &str,
-            _: &str,
-            _: &str,
-        ) -> anyhow::Result<PathBuf> {
+        async fn write_temp(&self, _: &str, _: &str, _: &str) -> anyhow::Result<PathBuf> {
             unimplemented!()
         }
     }

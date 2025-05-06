@@ -232,7 +232,10 @@ mod tests {
         let small_result = format_output(&infra, small_output, false, 5, 5)
             .await
             .unwrap();
-        insta::assert_snapshot!("format_output_small_truncation", TempDir::normalize(&small_result));
+        insta::assert_snapshot!(
+            "format_output_small_truncation",
+            TempDir::normalize(&small_result)
+        );
 
         // Test with large values that won't cause truncation
         let large_output = CommandOutput {
@@ -244,7 +247,10 @@ mod tests {
         let large_result = format_output(&infra, large_output, false, 100, 100)
             .await
             .unwrap();
-        insta::assert_snapshot!("format_output_no_truncation", TempDir::normalize(&large_result));
+        insta::assert_snapshot!(
+            "format_output_no_truncation",
+            TempDir::normalize(&large_result)
+        );
     }
     use std::sync::Arc;
     use std::{env, fs};
@@ -350,7 +356,10 @@ mod tests {
             .await
             .unwrap();
 
-        insta::assert_snapshot!("format_output_working_directory", TempDir::normalize(&result));
+        insta::assert_snapshot!(
+            "format_output_working_directory",
+            TempDir::normalize(&result)
+        );
     }
 
     #[tokio::test]
@@ -607,6 +616,9 @@ mod tests {
             .await
             .unwrap();
         // Use a specific name for the snapshot instead of auto-generated name
-        insta::assert_snapshot!("format_output_large_command", TempDir::normalize(&preserved));
+        insta::assert_snapshot!(
+            "format_output_large_command",
+            TempDir::normalize(&preserved)
+        );
     }
 }
