@@ -123,6 +123,7 @@ impl SpinnerManager {
         }
 
         // Tracker task will be dropped here.
+        self.tracker.take().map(|tracker| drop(tracker));
         self.tracker = None;
         self.start_time = None;
         self.message = None;
