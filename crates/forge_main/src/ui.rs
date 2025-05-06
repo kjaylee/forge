@@ -455,7 +455,7 @@ impl<F: API> UI<F> {
         conversation_id: &ConversationId,
     ) -> Result<Option<CompactionResult>> {
         let compaction_future = self.api.compact_conversation(conversation_id);
-        
+
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {
                 self.spinner.stop(None)?;
@@ -463,7 +463,7 @@ impl<F: API> UI<F> {
             }
             result = compaction_future => {
                 self.spinner.stop(None)?;
-                result.map(|res| Some(res))
+                result.map(Some)
             }
         }
     }
