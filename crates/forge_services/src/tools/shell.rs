@@ -576,15 +576,9 @@ mod tests {
     }
 
     fn normalize_path(content: &str) -> String {
-        // normalize temp_file from header.
-        let path_re = Regex::new(r"temp_file: (/[^\s<>]+/[^\s<>]+)").unwrap();
-        let content = path_re.replace_all(content, "temp_file: /tmp/normalized_test_path.txt");
-
         // Normalize temporary file paths in truncation tags
-        let path_re = Regex::new(r"path:(/[^\s<>]+/[^\s<>]+)").unwrap();
-        path_re
-            .replace_all(&content, "path:/tmp/normalized_test_path.txt")
-            .to_string()
+        let path_re = Regex::new(r"(/[^\s<>]+/[^\s<>]+)").unwrap();
+        path_re.replace_all(&content, "[TEMP_DIR]").to_string()
     }
 
     #[tokio::test]
