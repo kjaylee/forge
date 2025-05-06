@@ -17,17 +17,7 @@ pub struct ToolCallRecord {
 /// Formats the CallRecord as XML with tool name, arguments, and result
 impl Display for ToolCallRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let tool_name = self.tool_call.name.as_str();
-
-        writeln!(f, "---")?;
-        writeln!(f, "tool_name: {tool_name}")?;
-        if self.tool_result.is_error {
-            writeln!(f, "status: Failure")?;
-        }
-        writeln!(f, "---")?;
-
         writeln!(f, "{}", self.tool_result.content)?;
-
         Ok(())
     }
 }
