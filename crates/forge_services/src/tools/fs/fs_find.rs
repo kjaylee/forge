@@ -73,8 +73,9 @@ impl FSFindInput {
 /// (when regex omitted). Uses case-insensitive Rust regex syntax. Requires
 /// absolute paths. Avoids binary files and excluded directories. Best for code
 /// exploration, API usage discovery, configuration settings, or finding
-/// patterns across projects. For large pages, returns the first 40,000 characters
-/// and stores the complete content in a temporary file for subsequent access.
+/// patterns across projects. For large pages, returns the first 40,000
+/// characters and stores the complete content in a temporary file for
+/// subsequent access.
 #[derive(ToolDescription)]
 pub struct FSFind<F>(Arc<F>);
 
