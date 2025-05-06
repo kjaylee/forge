@@ -528,7 +528,8 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("This is a text file content"));
-        assert!(attachment.content.contains("char_range:"));
+        assert!(attachment.content.contains("char_start:"));
+        assert!(attachment.content.contains("char_end:"));
         assert!(attachment.content.contains("total_chars:"));
     }
 
@@ -685,7 +686,8 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("Some content"));
-        assert!(attachment.content.contains("char_range:"));
+        assert!(attachment.content.contains("char_start:"));
+        assert!(attachment.content.contains("char_end:"));
         assert!(attachment.content.contains("total_chars:"));
     }
 }
