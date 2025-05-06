@@ -463,7 +463,7 @@ impl<F: API> UI<F> {
                 }
                 result = &mut compaction_future => {
                     self.spinner.stop(None)?;
-                    return result.map(|res| Some(res));
+                    return result.map(Some);
                 }
             }
         }
