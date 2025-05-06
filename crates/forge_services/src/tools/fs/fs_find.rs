@@ -638,16 +638,6 @@ mod test {
         assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
     }
 
-    fn normalize_path(content: &str) -> String {
-        // normalize temp_file from header.
-        let path_re = Regex::new(r"temp_file: (/[^\s<>]+/[^\s<>]+)").unwrap();
-        let content = path_re.replace_all(content, "[TEMP_DIR]");
-
-        // Normalize temporary file paths in truncation tags
-        let path_re = Regex::new(r"path:(/[^\s<>]+/[^\s<>]+)").unwrap();
-        path_re.replace_all(&content, "[TEMP_DIR]").to_string()
-    }
-
     #[tokio::test]
     async fn test_fs_search_with_clipper() {
         let temp_dir = TempDir::new().unwrap();
@@ -681,6 +671,6 @@ mod test {
             .await
             .unwrap();
 
-        assert_snapshot!(normalize_path(&TempDir::normalize(&result)));
+        assert_snapshot!(TempDir::normalize(&result));
     }
 }

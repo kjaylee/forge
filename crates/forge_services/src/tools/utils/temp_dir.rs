@@ -41,6 +41,13 @@ impl TempDir {
         );
         let pattern = regex::Regex::new(&pattern).unwrap();
         let content = pattern.replace_all(input, "[TEMP_DIR]");
+
+        // match all the temp paths.
+        let path_re = regex::Regex::new(r"(/[^\s<>]+/[^\s<>]+)").unwrap();
+        let content = path_re
+            .replace_all(&content, "[TEMP_DIR]")
+            .to_string();
+
         content.to_string()
     }
 }
