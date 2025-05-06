@@ -1,10 +1,10 @@
 use std::time::Instant;
-use tokio::task::JoinHandle;
 
 use anyhow::Result;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use rand::seq::SliceRandom;
+use tokio::task::JoinHandle;
 
 /// Manages spinner functionality for the UI
 #[derive(Default)]
@@ -123,7 +123,7 @@ impl SpinnerManager {
         }
 
         // Tracker task will be dropped here.
-        self.tracker.take().map(|tracker| drop(tracker));
+        if let Some(a) = self.tracker.take() { drop(a) }
         self.tracker = None;
         self.start_time = None;
         self.message = None;
