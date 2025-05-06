@@ -649,9 +649,12 @@ mod test {
 
         // Create a large number of files with searchable content to trigger clipper
         let repeated_content = "This is file with searchable test content\n".repeat(290);
-        fs::write(temp_dir.path().join("file.txt".to_string()), repeated_content)
-            .await
-            .unwrap();
+        fs::write(
+            temp_dir.path().join("file.txt"),
+            repeated_content,
+        )
+        .await
+        .unwrap();
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
