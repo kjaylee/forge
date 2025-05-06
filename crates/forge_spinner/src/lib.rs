@@ -123,7 +123,9 @@ impl SpinnerManager {
         }
 
         // Tracker task will be dropped here.
-        if let Some(a) = self.tracker.take() { drop(a) }
+        if let Some(a) = self.tracker.take() {
+            drop(a)
+        }
         self.tracker = None;
         self.start_time = None;
         self.message = None;
