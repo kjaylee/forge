@@ -8,6 +8,6 @@ pub struct CommandOutput {
 
 impl CommandOutput {
     pub fn success(&self) -> bool {
-        self.exit_code.map_or(true, |code| code >= 0)
+        self.exit_code.is_none_or(|code| code >= 0)
     }
 }

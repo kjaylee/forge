@@ -12,10 +12,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use strip_ansi_escapes::strip;
 
-use crate::{
-    metadata::Metadata, Clipper, ClipperResult, CommandExecutorService, FsWriteService,
-    Infrastructure,
-};
+use crate::metadata::Metadata;
+use crate::{Clipper, ClipperResult, CommandExecutorService, FsWriteService, Infrastructure};
 
 /// Number of characters to keep at the start of truncated output
 const PREFIX_CHARS: usize = 20_000;
@@ -149,15 +147,14 @@ fn format_tag(result: ClipperResult, tag: &str, content: &str, formatted_output:
                 tag, prefix.start, prefix.end, prefix_content, tag
             ));
             formatted_output.push_str(&format!(
-                "<truncated>...{} truncated ({} characters not shown)...</truncated>\n",
-                tag, truncated_chars
+                "<truncated>...{tag} truncated ({truncated_chars} characters not shown)...</truncated>\n"
             ));
             formatted_output.push_str(&format!(
                 "<{} chars=\"{}-{}\">\n{}\n</{}>\n",
                 tag, suffix.start, suffix.end, suffix_content, tag
             ));
         }
-        _ => formatted_output.push_str(&format!("<{}>\n{}\n</{}>", tag, content, tag)),
+        _ => formatted_output.push_str(&format!("<{tag}>\n{content}\n</{tag}>")),
     }
 }
 
