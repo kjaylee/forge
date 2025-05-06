@@ -578,7 +578,7 @@ mod tests {
     fn normalize_path(content: &str) -> String {
         // Normalize temporary file paths in truncation tags
         let path_re = Regex::new(r"(/[^\s<>]+/[^\s<>]+)").unwrap();
-        path_re.replace_all(&content, "[TEMP_DIR]").to_string()
+        path_re.replace_all(content, "[TEMP_DIR]").to_string()
     }
 
     #[tokio::test]
