@@ -7,7 +7,7 @@ use serde::Deserialize;
 /// After each tool use, the user will respond with the result of that tool use,
 /// i.e. if it succeeded or failed, along with any reasons for failure.
 /// Once you've received the results of tool uses and can confirm that the task
-/// is complete, use this tool to present the result of your work to the user.
+/// is complete, use this tool to present the summary of your work to the user.
 /// The user may respond with feedback if they are not satisfied with the
 /// result, which you can use to make improvements and try again.
 /// IMPORTANT NOTE: This tool CANNOT be used until you've confirmed from the
@@ -27,7 +27,7 @@ impl NamedTool for Completion {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct AttemptCompletionInput {
-    /// Summary message describing the completed task
+    /// Summary message presenting the summary of your work to the user.
     message: String,
 }
 
