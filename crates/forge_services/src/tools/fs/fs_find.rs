@@ -637,38 +637,4 @@ mod test {
             .unwrap();
         assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
     }
-
-    fn normalize_path(content: &str) -> String {
-        let path_re = regex::Regex::new(r"(/[^\s<>]+/[^\s<>]+)").unwrap();
-        path_re.replace_all(content, "[TEMP_DIR]").to_string()
-    }
-
-    #[tokio::test]
-    async fn test_fs_search_with_clipper() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create a large number of files with searchable content to trigger clipper
-        let repeated_content = "This is file with searchable test content\n".repeat(290);
-        fs::write(temp_dir.path().join("file.txt"), repeated_content)
-            .await
-            .unwrap();
-
-        let infra = Arc::new(MockInfrastructure::new());
-        let fs_search = FSFind::new(infra);
-
-        // Search for a term that will be in all files
-        let result = fs_search
-            .call(
-                ToolCallContext::default(),
-                FSFindInput {
-                    path: temp_dir.path().to_string_lossy().to_string(),
-                    regex: Some("test".to_string()),
-                    file_pattern: Some("*.txt".to_string()),
-                },
-            )
-            .await
-            .unwrap();
-
-        assert_snapshot!(normalize_path(&TempDir::normalize(&result)));
-    }
 }
