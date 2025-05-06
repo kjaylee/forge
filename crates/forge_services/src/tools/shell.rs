@@ -71,7 +71,7 @@ async fn format_output<F: Infrastructure>(
             metadata = metadata.add("total_stdout_chars", output.stdout.len());
             is_truncated = true;
         }
-        format_tag(result, "stdout", &output.stdout, &mut formatted_output);
+        formatted_output.push_str(&format_tag(result, "stdout", &output.stdout));
     }
 
     // Format stderr if not empty
@@ -85,7 +85,7 @@ async fn format_output<F: Infrastructure>(
             metadata = metadata.add("total_stderr_chars", output.stderr.len());
             is_truncated = true;
         }
-        format_tag(result, "stderr", &output.stderr, &mut formatted_output);
+        formatted_output.push_str(&format_tag(result, "stderr", &output.stderr));
     }
 
     // Add temp file path if output is truncated
@@ -96,8 +96,8 @@ async fn format_output<F: Infrastructure>(
                 "forge_shell_",
                 ".md",
                 &format!(
-                    "<stdout>{}</stdout>\n<stderr>{}</stderr>",
-                    output.stdout, output.stderr
+                    "command:{}\n<stdout>{}</stdout>\n<stderr>{}</stderr>",
+                    output.command, output.stdout, output.stderr
                 ),
             )
             .await?;
@@ -130,15 +130,11 @@ async fn format_output<F: Infrastructure>(
 }
 
 /// Helper function to format potentially truncated output for stdout or stderr
-fn format_tag(result: ClipperResult, tag: &str, content: &str, formatted_output: &mut String) {
+fn format_tag(result: ClipperResult, tag: &str, content: &str) -> String {
+    let mut formatted_output = String::default();
     match (result.prefix, result.suffix) {
         (Some(prefix), Some(suffix)) => {
-            // Calculate actual character counts and ranges
-            let content_len = content.len();
-            let prefix_len = prefix.len();
-            let suffix_len = suffix.len();
-            let truncated_chars = content_len - prefix_len - suffix_len;
-
+            let truncated_chars = content.len() - prefix.len() - suffix.len();
             let prefix_content = &content[prefix.clone()];
             let suffix_content = &content[suffix.clone()];
 
@@ -156,6 +152,8 @@ fn format_tag(result: ClipperResult, tag: &str, content: &str, formatted_output:
         }
         _ => formatted_output.push_str(&format!("<{tag}>\n{content}\n</{tag}>")),
     }
+
+    formatted_output
 }
 
 /// Executes shell commands with safety measures using restricted bash (rbash).
