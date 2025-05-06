@@ -1,4 +1,5 @@
 mod attachment;
+mod clipper;
 mod compaction;
 mod conversation;
 mod forge_services;
@@ -9,10 +10,9 @@ mod suggestion;
 mod template;
 mod tool_service;
 mod tools;
-mod truncator;
 mod workflow;
 
+pub use clipper::*;
 pub use forge_services::*;
 pub use infra::*;
 pub use suggestion::*;
-pub use truncator::*;

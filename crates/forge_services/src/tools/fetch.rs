@@ -8,8 +8,8 @@ use reqwest::{Client, Url};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use crate::clipper::Clipper;
 use crate::metadata::Metadata;
-use crate::truncator::Truncator;
 use crate::{FsWriteService, Infrastructure};
 
 /// Fetch tool returns the content of MAX_LENGTH.
@@ -163,7 +163,7 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         let end = MAX_LENGTH.min(original_length);
 
         // Apply truncation directly
-        let truncated = Truncator::from_start(MAX_LENGTH).truncate(&content);
+        let truncated = Clipper::from_start(MAX_LENGTH).clip(&content);
 
         // Create temp file only if content was truncated
         let temp_file_path = if truncated.is_truncated() {

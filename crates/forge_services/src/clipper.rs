@@ -6,7 +6,7 @@ const MAX_LIMIT: usize = 40_000;
 
 /// Result of a truncation operation
 #[derive(Debug, Clone, PartialEq)]
-pub struct TruncationResult<'a> {
+pub struct ClipperResult<'a> {
     /// The actual content passed for truncation.
     pub actual: &'a str,
     /// The prefix portion of the truncated content (if applicable)
@@ -15,7 +15,7 @@ pub struct TruncationResult<'a> {
     pub suffix: Option<Range<usize>>,
 }
 
-impl TruncationResult<'_> {
+impl ClipperResult<'_> {
     /// Check if this result represents truncated content
     pub fn is_truncated(&self) -> bool {
         self.prefix.is_some() || self.suffix.is_some()
@@ -41,7 +41,7 @@ impl TruncationResult<'_> {
 /// This enum provides different ways to truncate text while preserving
 /// meaningful portions of the content based on the specific use case.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Truncator {
+pub enum Clipper {
     /// Retains data from the beginning up to the specified character count
     Prefix(usize),
 
@@ -54,31 +54,31 @@ pub enum Truncator {
     Suffix(usize),
 }
 
-impl Default for Truncator {
-    /// Creates a default truncator that keeps the prefix up to MAX_LIMIT
+impl Default for Clipper {
+    /// Creates a default Clipper that keeps the prefix up to MAX_LIMIT
     /// characters
     fn default() -> Self {
         Self::Prefix(MAX_LIMIT)
     }
 }
 
-impl Truncator {
-    /// Creates a truncator that keeps the prefix (beginning) of the content
+impl Clipper {
+    /// Creates a Clipper that keeps the prefix (beginning) of the content
     /// up to the specified number of characters
-    pub fn from_start(prefix_chars: usize) -> Truncator {
+    pub fn from_start(prefix_chars: usize) -> Clipper {
         Self::Prefix(prefix_chars)
     }
 
-    /// Creates a truncator that keeps the suffix (end) of the content
+    /// Creates a Clipper that keeps the suffix (end) of the content
     /// up to the specified number of characters
-    pub fn from_suffix(suffix_chars: usize) -> Truncator {
+    pub fn from_end(suffix_chars: usize) -> Clipper {
         Self::Suffix(suffix_chars)
     }
 
-    /// Creates a truncator that keeps both the beginning and end of the content
+    /// Creates a Clipper that keeps both the beginning and end of the content
     /// with the specified character counts for each
-    pub fn from_prefix_suffix(prefix_chars: usize, suffix_chars: usize) -> Truncator {
-        Self::PrefixSuffix(prefix_chars, suffix_chars)
+    pub fn from_start_end(start: usize, end: usize) -> Clipper {
+        Self::PrefixSuffix(start, end)
     }
 
     /// Apply this truncation strategy to the given content
@@ -88,10 +88,10 @@ impl Truncator {
     ///
     /// # Returns
     /// A TruncationResult containing the truncated content
-    pub fn truncate<'a>(self, content: &'a str) -> TruncationResult<'a> {
+    pub fn clip<'a>(self, content: &'a str) -> ClipperResult<'a> {
         // If content is empty, return as is
         if content.is_empty() {
-            return TruncationResult { prefix: None, suffix: None, actual: content };
+            return ClipperResult { prefix: None, suffix: None, actual: content };
         }
 
         // Get character count (not byte count)
@@ -99,9 +99,9 @@ impl Truncator {
 
         // Apply the truncation strategy
         match self {
-            Truncator::Prefix(limit) => self.apply_prefix(content, char_count, limit),
-            Truncator::Suffix(limit) => self.apply_suffix(content, char_count, limit),
-            Truncator::PrefixSuffix(prefix_limit, suffix_limit) => {
+            Clipper::Prefix(limit) => self.apply_prefix(content, char_count, limit),
+            Clipper::Suffix(limit) => self.apply_suffix(content, char_count, limit),
+            Clipper::PrefixSuffix(prefix_limit, suffix_limit) => {
                 self.apply_prefix_suffix(content, char_count, prefix_limit, suffix_limit)
             }
         }
@@ -113,9 +113,9 @@ impl Truncator {
         content: &'a str,
         char_count: usize,
         limit: usize,
-    ) -> TruncationResult<'a> {
+    ) -> ClipperResult<'a> {
         if char_count <= limit {
-            return TruncationResult { prefix: None, suffix: None, actual: content };
+            return ClipperResult { prefix: None, suffix: None, actual: content };
         }
 
         // Find the byte index corresponding to the character limit
@@ -124,7 +124,7 @@ impl Truncator {
             .nth(limit)
             .map_or(content.len(), |(idx, _)| idx);
 
-        TruncationResult { prefix: Some(0..byte_idx), suffix: None, actual: content }
+        ClipperResult { prefix: Some(0..byte_idx), suffix: None, actual: content }
     }
 
     /// Helper method to truncate content from the end
@@ -133,9 +133,9 @@ impl Truncator {
         content: &'a str,
         char_count: usize,
         limit: usize,
-    ) -> TruncationResult<'a> {
+    ) -> ClipperResult<'a> {
         if char_count <= limit {
-            return TruncationResult { prefix: None, suffix: None, actual: content };
+            return ClipperResult { prefix: None, suffix: None, actual: content };
         }
 
         // Find the byte index corresponding to where the suffix starts
@@ -144,7 +144,7 @@ impl Truncator {
             .nth(char_count - limit)
             .map_or(0, |(idx, _)| idx);
 
-        TruncationResult {
+        ClipperResult {
             prefix: None,
             suffix: Some(start_idx..content.len()),
             actual: content,
@@ -158,11 +158,11 @@ impl Truncator {
         char_count: usize,
         prefix_limit: usize,
         suffix_limit: usize,
-    ) -> TruncationResult<'a> {
+    ) -> ClipperResult<'a> {
         // If the combined limits exceed or equal content length, return the whole
         // content
         if prefix_limit + suffix_limit >= char_count {
-            return TruncationResult { prefix: None, suffix: None, actual: content };
+            return ClipperResult { prefix: None, suffix: None, actual: content };
         }
 
         // Find the byte index for prefix
@@ -177,7 +177,7 @@ impl Truncator {
             .nth(char_count - suffix_limit)
             .map_or(0, |(idx, _)| idx);
 
-        TruncationResult {
+        ClipperResult {
             prefix: Some(0..prefix_end_idx),
             suffix: Some(suffix_start_idx..content.len()),
             actual: content,
@@ -192,9 +192,9 @@ mod tests {
     #[test]
     fn test_truncate_strategy_start() {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
-        let strategy = Truncator::Prefix(10);
+        let strategy = Clipper::Prefix(10);
 
-        let result = strategy.truncate(&content);
+        let result = strategy.clip(&content);
 
         // Should contain only the first 10 characters
         assert!(result.prefix.is_some());
@@ -206,9 +206,9 @@ mod tests {
     #[test]
     fn test_truncate_strategy_end() {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
-        let strategy = Truncator::Suffix(10);
+        let strategy = Clipper::Suffix(10);
 
-        let result = strategy.truncate(&content);
+        let result = strategy.clip(&content);
 
         // Should contain only the last 10 characters
         assert!(result.suffix.is_some());
@@ -220,9 +220,9 @@ mod tests {
     #[test]
     fn test_truncate_strategy_both() {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(10); // 260 chars
-        let strategy = Truncator::PrefixSuffix(10, 10);
+        let strategy = Clipper::PrefixSuffix(10, 10);
 
-        let result = strategy.truncate(&content);
+        let result = strategy.clip(&content);
 
         // Should contain first 10 and last 10 characters
         assert!(result.prefix.is_some());
@@ -236,9 +236,9 @@ mod tests {
     #[test]
     fn test_truncate_within_limit() {
         let content = "Short content";
-        let strategy = Truncator::Prefix(100);
+        let strategy = Clipper::Prefix(100);
 
-        let result = strategy.truncate(content);
+        let result = strategy.clip(content);
 
         // Should return the original content as is
         assert!(result.prefix.is_none());
@@ -249,9 +249,9 @@ mod tests {
     #[test]
     fn test_truncate_strategy_both_overlapping() {
         let content = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // 26 chars
-        let strategy = Truncator::PrefixSuffix(15, 15);
+        let strategy = Clipper::PrefixSuffix(15, 15);
 
-        let result = strategy.truncate(content);
+        let result = strategy.clip(content);
 
         // Should return the original content as the combined limits exceed content
         // length
