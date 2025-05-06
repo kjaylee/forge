@@ -365,15 +365,16 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_large_content_temp_file() {
         let (fetch, mut server) = setup().await;
-        
+
         // Instead of using a very large content (50,000 chars), use just 102 chars
         // This still tests the truncation functionality but with a much smaller dataset
-        let test_content = "A".repeat(100) + "BC";  // 102 chars total
-        
-        // We need to modify both the test content and simulate truncation with a smaller limit
-        // For this test, use a tiny limit to force truncation behavior with minimal data
-        const TEST_LIMIT: usize = 100;  // Only keep first 100 chars
-        
+        let test_content = "A".repeat(100) + "BC"; // 102 chars total
+
+        // We need to modify both the test content and simulate truncation with a
+        // smaller limit For this test, use a tiny limit to force truncation
+        // behavior with minimal data
+        const TEST_LIMIT: usize = 100; // Only keep first 100 chars
+
         server
             .mock("GET", "/large.txt")
             .with_status(200)
@@ -393,19 +394,20 @@ mod tests {
         // Execute the fetch
         let context = ToolCallContext::default();
         let result: String = fetch.call(context, input).await.unwrap();
-        
-        // For testing purposes, we can modify the result to simulate the truncation that
-        // would happen with a smaller limit
+
+        // For testing purposes, we can modify the result to simulate the truncation
+        // that would happen with a smaller limit
         let result_lines: Vec<&str> = result.lines().collect();
-        
+
         // Extract metadata and content parts
-        let metadata_lines: Vec<&str> = result_lines.iter()
+        let metadata_lines: Vec<&str> = result_lines
+            .iter()
             .take_while(|line| !line.starts_with("A"))
             .cloned()
             .collect();
-        
+
         let content = test_content.chars().take(TEST_LIMIT).collect::<String>();
-        
+
         // Reconstruct with simulated truncation
         let simulated_truncation = format!(
             "{}\n{}\n\n<truncation>content is truncated to {} chars, remaining content can be read from path: /tmp/normalized_test_path.txt</truncation>",
@@ -413,9 +415,9 @@ mod tests {
             content,
             TEST_LIMIT
         );
-        
+
         let normalized_result = normalize_port(simulated_truncation);
-        
+
         // Use a specific snapshot name for this minimal test case
         insta::assert_snapshot!("fetch_large_content_minimal", normalized_result);
     }

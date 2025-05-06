@@ -131,7 +131,6 @@ async fn format_output<F: Infrastructure>(
     }
 }
 
-
 /// Helper function to format potentially truncated output for stdout or stderr
 fn tag_output(result: ClipperResult, tag: &str, content: &str) -> String {
     let mut formatted_output = String::default();
@@ -206,7 +205,14 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
             .execute_command(input.command, input.cwd)
             .await?;
 
-        format_output(&self.infra, output, input.keep_ansi, PREFIX_CHARS, SUFFIX_CHARS).await
+        format_output(
+            &self.infra,
+            output,
+            input.keep_ansi,
+            PREFIX_CHARS,
+            SUFFIX_CHARS,
+        )
+        .await
     }
 }
 
@@ -215,7 +221,7 @@ mod tests {
     #[tokio::test]
     async fn test_format_output_with_different_max_chars() {
         let infra = Arc::new(MockInfrastructure::new());
-        
+
         // Test with small truncation values that will truncate the string
         let small_output = CommandOutput {
             stdout: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string(),
@@ -223,9 +229,11 @@ mod tests {
             command: "echo".into(),
             exit_code: Some(0),
         };
-        let small_result = format_output(&infra, small_output, false, 5, 5).await.unwrap();
+        let small_result = format_output(&infra, small_output, false, 5, 5)
+            .await
+            .unwrap();
         insta::assert_snapshot!("format_output_small_truncation", small_result);
-        
+
         // Test with large values that won't cause truncation
         let large_output = CommandOutput {
             stdout: "ABCDEFGHIJKLMNOPQRSTUVWXYZ".to_string(),
@@ -233,7 +241,9 @@ mod tests {
             command: "echo".into(),
             exit_code: Some(0),
         };
-        let large_result = format_output(&infra, large_output, false, 100, 100).await.unwrap();
+        let large_result = format_output(&infra, large_output, false, 100, 100)
+            .await
+            .unwrap();
         insta::assert_snapshot!("format_output_no_truncation", large_result);
     }
     use std::sync::Arc;
@@ -555,7 +565,9 @@ mod tests {
             command: "ls -la".into(),
             exit_code: Some(0),
         };
-        let preserved = format_output(&infra, ansi_output, true, PREFIX_CHARS, SUFFIX_CHARS).await.unwrap();
+        let preserved = format_output(&infra, ansi_output, true, PREFIX_CHARS, SUFFIX_CHARS)
+            .await
+            .unwrap();
         insta::assert_snapshot!("format_output_ansi_preserved", preserved);
 
         // Test with keep_ansi = false (should strip ANSI codes)
@@ -565,7 +577,9 @@ mod tests {
             command: "ls -la".into(),
             exit_code: Some(0),
         };
-        let stripped = format_output(&infra, ansi_output, false, PREFIX_CHARS, SUFFIX_CHARS).await.unwrap();
+        let stripped = format_output(&infra, ansi_output, false, PREFIX_CHARS, SUFFIX_CHARS)
+            .await
+            .unwrap();
         insta::assert_snapshot!("format_output_ansi_stripped", stripped);
     }
 
@@ -578,22 +592,26 @@ mod tests {
     #[tokio::test]
     async fn test_format_output_with_large_command_output() {
         let infra = Arc::new(MockInfrastructure::new());
-        // Using tiny PREFIX_CHARS and SUFFIX_CHARS values (30) to test truncation with minimal content
-        // This creates very small snapshots while still testing the truncation logic
+        // Using tiny PREFIX_CHARS and SUFFIX_CHARS values (30) to test truncation with
+        // minimal content This creates very small snapshots while still testing
+        // the truncation logic
         const TINY_PREFIX: usize = 30;
         const TINY_SUFFIX: usize = 30;
-        
-        // Create a test string just long enough to trigger truncation with our small prefix/suffix values
+
+        // Create a test string just long enough to trigger truncation with our small
+        // prefix/suffix values
         let test_string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".repeat(4); // 104 characters
-        
+
         let ansi_output = CommandOutput {
             stdout: test_string.clone(),
             stderr: test_string,
             command: "ls -la".into(),
             exit_code: Some(0),
         };
-        
-        let preserved = format_output(&infra, ansi_output, false, TINY_PREFIX, TINY_SUFFIX).await.unwrap();
+
+        let preserved = format_output(&infra, ansi_output, false, TINY_PREFIX, TINY_SUFFIX)
+            .await
+            .unwrap();
         // Use a specific name for the snapshot instead of auto-generated name
         insta::assert_snapshot!("format_output_large_command", normalize_path(&preserved));
     }
