@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::fmt::Write;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -189,18 +190,18 @@ impl<F: Infrastructure> FSRead<F> {
         // Use a buffer to build the response text conditionally
         let mut response = String::new();
 
-        response.push_str("---\n");
-        response.push_str(&format!("path: {}\n", path.display()));
+        writeln!(response, "---")?;
+        writeln!(response, "path: {}", path.display())?;
         if is_range_relevant {
-            response.push_str(&format!("char_start: {}\n", file_info.start_char));
-            response.push_str(&format!("char_end: {}\n", file_info.end_char));
-            response.push_str(&format!("total_chars: {}\n", file_info.total_chars));
+            writeln!(response, "char_start: {}", file_info.start_char)?;
+            writeln!(response, "char_end: {}", file_info.end_char)?;
+            writeln!(response, "total_chars: {}", file_info.total_chars)?;
         }
 
-        response.push_str("---\n");
+        writeln!(response, "---")?;
 
         // Always include the content
-        response.push_str(&content);
+        writeln!(response, "{}", &content);
 
         Ok(response)
     }
