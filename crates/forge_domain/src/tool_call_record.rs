@@ -25,7 +25,7 @@ impl Display for ToolCallRecord {
         let content = &self.tool_result.content;
         let tool_name = self.tool_call.name.as_str();
         writeln!(f, r#"<forge_tool_result tool_name="{tool_name}">"#,)?;
-        writeln!(f, r#"<{tag}>{content}</{tag}>"#,)?;
+        writeln!(f, r#"<{tag}>\n{content}\n</{tag}>"#,)?;
         writeln!(f, r#"</forge_tool_result>"#,)?;
         Ok(())
     }
