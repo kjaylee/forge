@@ -1,3 +1,7 @@
+use std::fmt::Write;
+use std::path::Path;
+use std::sync::Arc;
+
 use anyhow::Context;
 use bytes::Bytes;
 use console::strip_ansi_codes;
@@ -8,9 +12,6 @@ use forge_domain::{
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use std::fmt::Write;
-use std::path::Path;
-use std::sync::Arc;
 
 use crate::tools::syn;
 use crate::tools::utils::{assert_absolute_path, format_display_path};
