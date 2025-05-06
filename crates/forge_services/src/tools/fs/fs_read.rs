@@ -189,16 +189,15 @@ impl<F: Infrastructure> FSRead<F> {
         // Use a buffer to build the response text conditionally
         let mut response = String::new();
 
+        response.push_str("---\n");
+        response.push_str(&format!("path: {}\n", path));
         if is_range_relevant {
-            // Add metadata header for explicit ranges or truncated files
-            response.push_str("---\n\n");
-            response.push_str(&format!(
-                "char_range: {}-{}\n",
-                file_info.start_char, file_info.end_char
-            ));
+            response.push_str(&format!("char_start: {}\n", file_info.start_char));
+            response.push_str(&format!("char_end: {}\n", file_info.end_char));
             response.push_str(&format!("total_chars: {}\n", file_info.total_chars));
-            response.push_str("---\n");
         }
+
+        response.push_str("---\n");
 
         // Always include the content
         response.push_str(&content);
