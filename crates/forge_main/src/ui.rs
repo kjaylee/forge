@@ -192,16 +192,25 @@ impl<F: API> UI<F> {
                     self.spinner.start(Some("Compacting"))?;
                     let conversation_id = self.init_conversation().await?;
 
-                    if let Ok(compaction_result) = self.handle_compaction(&conversation_id).await {
-                        // Calculate percentage reduction
-                        let token_reduction = compaction_result.token_reduction_percentage();
-                        let message_reduction = compaction_result.message_reduction_percentage();
+                    match self.handle_compaction(&conversation_id).await {
+                        Ok(Some(compaction_result)) => {
+                            // Calculate percentage reduction
+                            let token_reduction = compaction_result.token_reduction_percentage();
+                            let message_reduction =
+                                compaction_result.message_reduction_percentage();
 
-                        let content = TitleFormat::action(format!(
+                            let content = TitleFormat::action(format!(
 "Context size reduced by {token_reduction:.1}% (tokens), {message_reduction:.1}% (messages)"
 ))
-                        .to_string();
-                        self.writeln(content)?;
+                            .to_string();
+                            self.writeln(content)?;
+                        }
+                        Ok(None) => {
+                            // interrupted by user so no-op.
+                        }
+                        Err(err) => {
+                            return Err(err);
+                        }
                     }
                 }
                 Command::Dump(format) => {
@@ -444,17 +453,17 @@ impl<F: API> UI<F> {
     async fn handle_compaction(
         &mut self,
         conversation_id: &ConversationId,
-    ) -> Result<CompactionResult> {
+    ) -> Result<Option<CompactionResult>> {
         let mut compaction_future = self.api.compact_conversation(conversation_id);
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
                     self.spinner.stop(None)?;
-                    return Err(anyhow::anyhow!("Compaction interrupted"));
+                    return Ok(None);
                 }
                 result = &mut compaction_future => {
                     self.spinner.stop(None)?;
-                    return result;
+                    return result.map(|res| Some(res));
                 }
             }
         }
