@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use strip_ansi_escapes::strip;
 
 use crate::{
-    metadata::Metadata, CommandExecutorService, FsWriteService, Infrastructure, TruncationResult,
-    Truncator,
+    metadata::Metadata, Clipper, ClipperResult, CommandExecutorService, FsWriteService,
+    Infrastructure,
 };
 
 /// Number of characters to keep at the start of truncated output
@@ -67,8 +67,7 @@ async fn format_output<F: Infrastructure>(
 
     // Format stdout if not empty
     if !output.stdout.trim().is_empty() {
-        let result =
-            Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS).truncate(&output.stdout);
+        let result = Clipper::from_start_end(PREFIX_CHARS, SUFFIX_CHARS).clip(&output.stdout);
 
         if result.is_truncated() {
             metadata = metadata.add("total_stdout_chars", output.stdout.len());
@@ -82,8 +81,7 @@ async fn format_output<F: Infrastructure>(
         if !formatted_output.is_empty() {
             formatted_output.push('\n');
         }
-        let result =
-            Truncator::from_prefix_suffix(PREFIX_CHARS, SUFFIX_CHARS).truncate(&output.stderr);
+        let result = Clipper::from_start_end(PREFIX_CHARS, SUFFIX_CHARS).clip(&output.stderr);
 
         if result.is_truncated() {
             metadata = metadata.add("total_stderr_chars", output.stderr.len());
@@ -134,7 +132,7 @@ async fn format_output<F: Infrastructure>(
 }
 
 /// Helper function to format potentially truncated output for stdout or stderr
-fn format_tag(result: TruncationResult, tag: &str, content: &str, formatted_output: &mut String) {
+fn format_tag(result: ClipperResult, tag: &str, content: &str, formatted_output: &mut String) {
     match (result.prefix, result.suffix) {
         (Some(prefix), Some(suffix)) => {
             // Calculate actual character counts and ranges
