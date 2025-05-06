@@ -31,8 +31,8 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         const MAX_CHARS: u64 = 40_000;
         let (file_content, file_info) = infra.range_read_utf8(path, 0, MAX_CHARS).await?;
         Ok(format!(
-            "---\n\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
-            file_info.start_char, file_info.end_char, file_info.total_chars, file_content
+            "---\n\npath:{}\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
+            path, file_info.start_char, file_info.end_char, file_info.total_chars, file_content
         ))
     }
 
