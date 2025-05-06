@@ -141,7 +141,7 @@ impl<F: Infrastructure> Fetch<F> {
             Ok((
                 page_raw,
                 format!(
-                    "Content type {content_type} cannot be simplified to markdown, but here is the raw content:\n"),
+                    "Content type {content_type} cannot be simplified to markdown; Raw content provided instead"),
             ))
         }
     }
@@ -183,9 +183,12 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
             .add("total_chars", original_length)
             .add("start_char", "0")
             .add("end_char", end.to_string())
+            .add("context", prefix)
             .add_optional(
-                "temp_file",
-                temp_file_path.as_ref().map(|p| p.display().to_string()),
+                "truncation",
+                 temp_file_path.as_ref()
+                 .map(|p| p.display())
+                 .map(|path| format!("Content is truncated to {MAX_LENGTH} chars; Remaining content can be read from path: {path}"))
             );
 
         // Determine output. If truncated then use truncated content else the actual.
@@ -195,13 +198,13 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         // temp file
         let truncation_tag = match temp_file_path.as_ref() {
             Some(path) if truncated.is_truncated() => {
-                format!("\n<truncation>content is truncated to {MAX_LENGTH} chars, remaining content can be read from path:{}</truncation>", 
+                format!("\n<truncation>content is truncated to {MAX_LENGTH} chars, remaining content can be read from path: {}</truncation>", 
                        path.to_string_lossy())
             }
             _ => String::new(),
         };
 
-        Ok(format!("{prefix}{metadata}{output}{truncation_tag}",))
+        Ok(format!("{metadata}{output}{truncation_tag}",))
     }
 }
 
