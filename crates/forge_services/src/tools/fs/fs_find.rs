@@ -638,6 +638,11 @@ mod test {
         assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
     }
 
+    fn normalize_path(content: &str) -> String {
+        let path_re = regex::Regex::new(r"(/[^\s<>]+/[^\s<>]+)").unwrap();
+        path_re.replace_all(content, "[TEMP_DIR]").to_string()
+    }
+
     #[tokio::test]
     async fn test_fs_search_with_clipper() {
         let temp_dir = TempDir::new().unwrap();
@@ -671,6 +676,6 @@ mod test {
             .await
             .unwrap();
 
-        assert_snapshot!(TempDir::normalize(&result));
+        assert_snapshot!(normalize_path(&TempDir::normalize(&result)));
     }
 }
