@@ -71,7 +71,7 @@ async fn format_output<F: Infrastructure>(
             metadata = metadata.add("total_stdout_chars", output.stdout.len());
             is_truncated = true;
         }
-        formatted_output.push_str(&format_tag(result, "stdout", &output.stdout));
+        formatted_output.push_str(&tag_output(result, "stdout", &output.stdout));
     }
 
     // Format stderr if not empty
@@ -85,7 +85,7 @@ async fn format_output<F: Infrastructure>(
             metadata = metadata.add("total_stderr_chars", output.stderr.len());
             is_truncated = true;
         }
-        formatted_output.push_str(&format_tag(result, "stderr", &output.stderr));
+        formatted_output.push_str(&tag_output(result, "stderr", &output.stderr));
     }
 
     // Add temp file path if output is truncated
@@ -130,7 +130,7 @@ async fn format_output<F: Infrastructure>(
 }
 
 /// Helper function to format potentially truncated output for stdout or stderr
-fn format_tag(result: ClipperResult, tag: &str, content: &str) -> String {
+fn tag_output(result: ClipperResult, tag: &str, content: &str) -> String {
     let mut formatted_output = String::default();
     match (result.prefix, result.suffix) {
         (Some(prefix), Some(suffix)) => {
