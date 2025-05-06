@@ -118,7 +118,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         let mut result = String::new();
 
         writeln!(result, "---")?;
-        writeln!(result, "path: {}", file_exists)?;
+        writeln!(result, "path: {file_exists}")?;
         if file_exists {
             writeln!(result, "operation: OVERWRITE")?;
         } else {

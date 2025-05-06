@@ -283,7 +283,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
 
         // Check for syntax errors
         if let Some(warning) = syn::validate(path, &current_content).map(|e| e.to_string()) {
-            writeln!(result, "warning:{}", warning)?;
+            writeln!(result, "warning:{warning}")?;
         }
 
         writeln!(result, "---")?;
