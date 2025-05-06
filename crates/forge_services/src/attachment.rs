@@ -41,8 +41,7 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
 
         writeln!(response, "---")?;
 
-        // Always include the content
-        writeln!(response, "{}", &content);
+        writeln!(response, "{}", &content)?;
 
         Ok(response)
     }
