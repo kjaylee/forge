@@ -35,8 +35,8 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         writeln!(response, "---")?;
         writeln!(response, "path: {}", path.display())?;
 
-        writeln!(response, "char_start: {}", file_info.start_char)?;
-        writeln!(response, "char_end: {}", file_info.end_char)?;
+        writeln!(response, "start_char: {}", file_info.start_char)?;
+        writeln!(response, "end_char: {}", file_info.end_char)?;
         writeln!(response, "total_chars: {}", file_info.total_chars)?;
 
         writeln!(response, "---")?;
@@ -528,8 +528,8 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("This is a text file content"));
-        assert!(attachment.content.contains("char_start:"));
-        assert!(attachment.content.contains("char_end:"));
+        assert!(attachment.content.contains("start_char:"));
+        assert!(attachment.content.contains("end_char:"));
         assert!(attachment.content.contains("total_chars:"));
     }
 
@@ -686,8 +686,8 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("Some content"));
-        assert!(attachment.content.contains("char_start:"));
-        assert!(attachment.content.contains("char_end:"));
+        assert!(attachment.content.contains("start_char:"));
+        assert!(attachment.content.contains("end_char:"));
         assert!(attachment.content.contains("total_chars:"));
     }
 }

@@ -193,8 +193,8 @@ impl<F: Infrastructure> FSRead<F> {
         writeln!(response, "---")?;
         writeln!(response, "path: {}", path.display())?;
         if is_range_relevant {
-            writeln!(response, "char_start: {}", file_info.start_char)?;
-            writeln!(response, "char_end: {}", file_info.end_char)?;
+            writeln!(response, "start_char: {}", file_info.start_char)?;
+            writeln!(response, "end_char: {}", file_info.end_char)?;
             writeln!(response, "total_chars: {}", file_info.total_chars)?;
         }
 
