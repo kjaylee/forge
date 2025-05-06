@@ -232,7 +232,7 @@ mod tests {
         let small_result = format_output(&infra, small_output, false, 5, 5)
             .await
             .unwrap();
-        insta::assert_snapshot!("format_output_small_truncation", small_result);
+        insta::assert_snapshot!("format_output_small_truncation", TempDir::normalize(&small_result));
 
         // Test with large values that won't cause truncation
         let large_output = CommandOutput {
@@ -244,16 +244,16 @@ mod tests {
         let large_result = format_output(&infra, large_output, false, 100, 100)
             .await
             .unwrap();
-        insta::assert_snapshot!("format_output_no_truncation", large_result);
+        insta::assert_snapshot!("format_output_no_truncation", TempDir::normalize(&large_result));
     }
     use std::sync::Arc;
     use std::{env, fs};
 
     use pretty_assertions::assert_eq;
-    use regex::Regex;
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
+    use crate::tools::utils::TempDir;
 
     /// Platform-specific error message patterns for command not found errors
     #[cfg(target_os = "windows")]
@@ -350,7 +350,7 @@ mod tests {
             .await
             .unwrap();
 
-        insta::assert_snapshot!("format_output_working_directory", result);
+        insta::assert_snapshot!("format_output_working_directory", TempDir::normalize(&result));
     }
 
     #[tokio::test]
@@ -583,12 +583,6 @@ mod tests {
         insta::assert_snapshot!("format_output_ansi_stripped", stripped);
     }
 
-    fn normalize_path(content: &str) -> String {
-        // Normalize temporary file paths in truncation tags
-        let path_re = Regex::new(r"(/[^\s<>]+/[^\s<>]+)").unwrap();
-        path_re.replace_all(content, "[TEMP_DIR]").to_string()
-    }
-
     #[tokio::test]
     async fn test_format_output_with_large_command_output() {
         let infra = Arc::new(MockInfrastructure::new());
@@ -613,6 +607,6 @@ mod tests {
             .await
             .unwrap();
         // Use a specific name for the snapshot instead of auto-generated name
-        insta::assert_snapshot!("format_output_large_command", normalize_path(&preserved));
+        insta::assert_snapshot!("format_output_large_command", TempDir::normalize(&preserved));
     }
 }

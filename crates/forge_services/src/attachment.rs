@@ -128,7 +128,7 @@ pub mod tests {
     use crate::attachment::ForgeChatRequest;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService,
+        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService, TempDir,
     };
 
     #[derive(Debug)]
@@ -279,6 +279,15 @@ pub mod tests {
                 .unwrap()
                 .push((path.to_path_buf(), contents));
             Ok(())
+        }
+
+        async fn write_temp(&self, _: &str, _: &str, content: &str) -> anyhow::Result<PathBuf> {
+            let temp_dir = TempDir::new().unwrap();
+            let path = temp_dir.path();
+
+            self.write(&path, content.to_string().into()).await?;
+
+            Ok(path)
         }
     }
 

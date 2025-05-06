@@ -12,6 +12,9 @@ mod tool_service;
 mod tools;
 mod workflow;
 
+#[cfg(test)]
+pub use tools::TempDir;
+
 pub use clipper::*;
 pub use forge_services::*;
 pub use infra::*;

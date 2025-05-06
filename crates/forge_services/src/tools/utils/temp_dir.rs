@@ -1,9 +1,17 @@
-use std::path::PathBuf;
+use std::{ops::Deref, path::PathBuf};
 
 use anyhow::Context;
 
 pub struct TempDir {
     temp_dir: tempfile::TempDir,
+}
+
+impl Deref for TempDir {
+    type Target = tempfile::TempDir;
+
+    fn deref(&self) -> &Self::Target {
+        &self.temp_dir
+    }
 }
 
 impl TempDir {
