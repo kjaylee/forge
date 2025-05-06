@@ -276,13 +276,13 @@ impl<F: Infrastructure> ExecutableTool for FSFind<F> {
 
 #[cfg(test)]
 mod test {
+    use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use tokio::fs;
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
     use crate::tools::utils::TempDir;
-    use insta::assert_snapshot;
 
     #[tokio::test]
     async fn test_fs_search_content() {
@@ -645,9 +645,7 @@ mod test {
 
         // Normalize temporary file paths in truncation tags
         let path_re = Regex::new(r"path:(/[^\s<>]+/[^\s<>]+)").unwrap();
-        path_re
-            .replace_all(&content, "[TEMP_DIR]")
-            .to_string()
+        path_re.replace_all(&content, "[TEMP_DIR]").to_string()
     }
 
     #[tokio::test]
@@ -656,11 +654,11 @@ mod test {
 
         // Create a large number of files with searchable content to trigger clipper
         for i in 0..100 {
-            let content = format!("This is file with searchable test content\n");
+            let content = "This is file with searchable test content\n".to_string();
             // Add repeated content to make the file larger
             let repeated_content = content.repeat(20);
             fs::write(
-                temp_dir.path().join(format!("file_{}.txt", i)),
+                temp_dir.path().join(format!("file_{i}.txt")),
                 repeated_content,
             )
             .await
