@@ -190,7 +190,7 @@ impl<F: Infrastructure> FSRead<F> {
         let mut response = String::new();
 
         response.push_str("---\n");
-        response.push_str(&format!("path: {}\n", path));
+        response.push_str(&format!("path: {}\n", path.display()));
         if is_range_relevant {
             response.push_str(&format!("char_start: {}\n", file_info.start_char));
             response.push_str(&format!("char_end: {}\n", file_info.end_char));

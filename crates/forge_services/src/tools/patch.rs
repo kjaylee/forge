@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use forge_display::DiffFormat;
+use forge_display::{DiffFormat, TitleFormat};
 use forge_domain::{
     EnvironmentService, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
 };
@@ -281,12 +281,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
         let display_path = self.format_display_path(path)?;
 
         // Generate diff between old and new content
-        let diff = DiffFormat::format(
-            "Patch",
-            PathBuf::from(display_path),
-            &old_content,
-            &current_content,
-        );
+        let diff = DiffFormat::format(&old_content, &current_content);
 
         // Write final content to file after all patches are applied
         self.0
@@ -303,6 +298,13 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
             console::strip_ansi_codes(&diff).as_ref(),
             warning.as_deref(),
         );
+
+        context
+            .send_text(format!(
+                "{}",
+                TitleFormat::debug("Patch").sub_title(display_path)
+            ))
+            .await?;
 
         // Output diff either to sender or println
         context.send_text(diff).await?;

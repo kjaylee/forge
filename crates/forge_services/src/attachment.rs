@@ -32,7 +32,11 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         let (file_content, file_info) = infra.range_read_utf8(path, 0, MAX_CHARS).await?;
         Ok(format!(
             "---\n\npath:{}\nchar_range: {}-{}\ntotal_chars: {}\n---\n{}",
-            path, file_info.start_char, file_info.end_char, file_info.total_chars, file_content
+            path.display(),
+            file_info.start_char,
+            file_info.end_char,
+            file_info.total_chars,
+            file_content
         ))
     }
 

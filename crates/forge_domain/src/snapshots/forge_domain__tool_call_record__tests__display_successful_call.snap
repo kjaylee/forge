@@ -3,7 +3,4 @@ source: crates/forge_domain/src/tool_call_record.rs
 expression: record.to_string()
 snapshot_kind: text
 ---
----
-tool_name: fs_read
----
 Contents of the file
