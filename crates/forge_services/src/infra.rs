@@ -49,9 +49,10 @@ pub trait FsWriteService: Send + Sync {
     /// Writes the content of a file at the specified path.
     async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()>;
 
-    /// Writes content to a temporary file with the given prefix and extension, and returns its path.
-    /// The file will be kept (not deleted) after creation.
-    /// 
+    /// Writes content to a temporary file with the given prefix and extension,
+    /// and returns its path. The file will be kept (not deleted) after
+    /// creation.
+    ///
     /// # Arguments
     /// * `prefix` - Prefix for the temporary file name
     /// * `ext` - File extension (e.g. ".txt", ".md")
