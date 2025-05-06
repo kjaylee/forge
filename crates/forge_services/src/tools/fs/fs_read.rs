@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::cmp::min;
 use std::fmt::Write;
 use std::path::Path;
 use std::sync::Arc;
@@ -125,7 +125,7 @@ impl<F: Infrastructure> FSRead<F> {
             "Read"
         };
 
-        let end_info = max(end_char, file_info.total_chars);
+        let end_info = min(end_char, file_info.total_chars);
 
         let range_info = format!(
             "char range: {}-{}, total chars: {}",
