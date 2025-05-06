@@ -252,8 +252,8 @@ mod tests {
             TempDir::normalize(&large_result)
         );
     }
+    use std::env;
     use std::sync::Arc;
-    use std::{env, fs};
 
     use pretty_assertions::assert_eq;
 
@@ -338,7 +338,7 @@ mod tests {
     async fn test_shell_with_working_directory() {
         let infra = Arc::new(MockInfrastructure::new());
         let shell = Shell::new(infra);
-        let temp_dir = fs::canonicalize(env::temp_dir()).unwrap();
+        let temp_dir = TempDir::new().unwrap().path();
 
         let result = shell
             .call(
@@ -355,7 +355,6 @@ mod tests {
             )
             .await
             .unwrap();
-
         insta::assert_snapshot!(
             "format_output_working_directory",
             TempDir::normalize(&result)
