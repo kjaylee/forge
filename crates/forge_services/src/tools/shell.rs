@@ -16,10 +16,10 @@ use crate::metadata::Metadata;
 use crate::{Clipper, ClipperResult, CommandExecutorService, FsWriteService, Infrastructure};
 
 /// Number of characters to keep at the start of truncated output
-const PREFIX_CHARS: usize = 20_000;
+const PREFIX_CHARS: usize = 10_000;
 
 /// Number of characters to keep at the end of truncated output
-const SUFFIX_CHARS: usize = 20_000;
+const SUFFIX_CHARS: usize = 10_000;
 
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct ShellInput {
