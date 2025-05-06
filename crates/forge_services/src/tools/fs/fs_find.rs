@@ -237,6 +237,8 @@ impl<F: Infrastructure> FSFind<F> {
 
 async fn retrieve_file_paths(dir: &Path) -> anyhow::Result<Vec<std::path::PathBuf>> {
     if dir.is_dir() {
+        // note: Paths needs mutable to avoid flaky tests.
+        #[allow(unused_mut)]
         let mut paths = Walker::max_all()
             .cwd(dir.to_path_buf())
             .get()
