@@ -3,6 +3,7 @@ mod clipper;
 mod compaction;
 mod conversation;
 mod feedback;
+mod feedback_settings;
 mod forge_services;
 mod infra;
 mod metadata;

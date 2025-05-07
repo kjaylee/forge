@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
-use forge_domain::{FeedbackService, FeedbackSettings};
+use forge_domain::FeedbackService;
 use forge_fs::ForgeFS;
 use tracing::warn;
+
+use crate::feedback_settings::FeedbackSettings;
 
 pub struct ForgeFeedbackService {
     settings_path: PathBuf,
