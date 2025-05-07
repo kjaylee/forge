@@ -101,11 +101,11 @@ impl<F: Infrastructure> FSFind<F> {
         // note: it's possible that paths could be different depending on machine so for testing purpose
         // make the paths consistent.
         #[cfg(test)]
-        if let Ok(_) = path.as_ref() {
+        if path.as_ref().is_ok() {
             if let Some(file_name) = input_path.file_name() {
                 path = Ok(format!("[TEMP_DIR]/{}", file_name.to_string_lossy()));
             } else {
-                path = Ok(format!("[TEMP_DIR]"))
+                path = Ok("[TEMP_DIR]".to_string())
             }
         }
 
@@ -667,10 +667,7 @@ mod test {
             )
             .await
             .unwrap();
-        assert!(result.contains(&format!(
-            "{}",
-            TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string())
-        )));
+        assert!(result.contains(&TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string()).to_string()));
     }
 
     #[tokio::test]
