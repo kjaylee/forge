@@ -95,7 +95,16 @@ impl<F: Infrastructure> FSFind<F> {
         let cwd = env.cwd.as_path();
 
         // Use the shared utility function
-        format_display_path(path, cwd)
+        #[allow(unused_mut)]
+        let mut path = format_display_path(path, cwd);
+        #[cfg(test)]
+        if let Ok(path_inner) = path.as_ref() {
+            path = Ok(crate::tools::utils::TempDir::normalize_entire_path(
+                &path_inner,
+            ));
+        }
+
+        path
     }
 
     fn create_title(&self, input: &FSFindInput) -> anyhow::Result<TitleFormat> {
@@ -657,7 +666,7 @@ mod test {
     async fn test_fs_large_result() {
         let temp_dir = TempDir::new().unwrap();
 
-        let content = "content".repeat(10);
+        let content = "content".repeat(20);
         fs::write(temp_dir.path().join("file1.txt"), &content)
             .await
             .unwrap();
