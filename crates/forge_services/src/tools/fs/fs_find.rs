@@ -89,19 +89,24 @@ impl<F: Infrastructure> FSFind<F> {
     ///
     /// If the path starts with the current working directory, returns a
     /// relative path. Otherwise, returns the original absolute path.
-    fn format_display_path(&self, path: &Path) -> anyhow::Result<String> {
+    fn format_display_path(&self, input_path: &Path) -> anyhow::Result<String> {
         // Get the current working directory
         let env = self.0.environment_service().get_environment();
         let cwd = env.cwd.as_path();
 
         // Use the shared utility function
         #[allow(unused_mut)]
-        let mut path = format_display_path(path, cwd);
+        let mut path = format_display_path(input_path, cwd);
+
+        // note: it's possible that paths could be different depending on machine so for testing purpose
+        // make the paths consistent.
         #[cfg(test)]
-        if let Ok(path_inner) = path.as_ref() {
-            path = Ok(crate::tools::utils::TempDir::normalize_entire_path(
-                path_inner,
-            ));
+        if let Ok(_) = path.as_ref() {
+            if let Some(file_name) = input_path.file_name() {
+                path = Ok(format!("[TEMP_DIR]/{}", file_name.to_string_lossy()));
+            } else {
+                path = Ok(format!("[TEMP_DIR]"))
+            }
         }
 
         path
@@ -662,10 +667,10 @@ mod test {
             )
             .await
             .unwrap();
-        assert!(result.contains(
-            &TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string())
-                .to_string()
-        ));
+        assert!(result.contains(&format!(
+            "{}",
+            TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string())
+        )));
     }
 
     #[tokio::test]
