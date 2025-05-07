@@ -606,7 +606,7 @@ mod test {
         // Since MockInfrastructure has a fixed cwd of "/test",
         // and our temp path won't start with that, we expect the full path
         assert!(display_path.is_ok());
-        assert_eq!(display_path.unwrap(), file_path.display().to_string());
+        assert_eq!(display_path.unwrap(), TempDir::normalize(&file_path.display().to_string()));
     }
 
     #[tokio::test]
@@ -644,7 +644,7 @@ mod test {
 
         assert!(result.contains(&format!(
             "{}:1:nice code.",
-            temp_dir.path().join("best.txt").display()
+            TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string())
         )));
 
         // case 2: check if file is present or not by using search tool.
@@ -659,7 +659,7 @@ mod test {
             )
             .await
             .unwrap();
-        assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
+        assert!(result.contains(&format!("{}", TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string()))));
     }
 
     #[tokio::test]
