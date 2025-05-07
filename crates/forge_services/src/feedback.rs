@@ -38,7 +38,7 @@ impl ForgeFeedbackService {
 
     /// Save the provided settings to disk
     async fn save_settings(&self, settings: &FeedbackSettings) -> anyhow::Result<()> {
-        let content =  serde_json::to_string_pretty(settings)?; 
+        let content = serde_json::to_string_pretty(settings)?;
         if let Some(parent) = self.settings_path.parent() {
             if !ForgeFS::exists(parent) {
                 ForgeFS::create_dir_all(parent).await?
