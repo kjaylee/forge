@@ -555,9 +555,8 @@ impl<F: API> UI<F> {
                         TitleFormat::action("Feedback request".to_string())
                             .sub_title("Please provide feedback on your experience https://lake-may-569.notion.site/1e9b1c02dfca802885f3da28612cdc69".to_string()),
                     )?;
-
                 }
-            },
+            }
         }
         Ok(())
     }

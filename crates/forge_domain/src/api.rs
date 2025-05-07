@@ -76,5 +76,4 @@ pub trait API: Sync + Send {
 
     /// Update the last shown timestamp to current time
     async fn update_last_shown(&self) -> anyhow::Result<()>;
-
 }
