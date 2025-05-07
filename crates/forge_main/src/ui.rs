@@ -15,7 +15,6 @@ use inquire::Select;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
-use tracing::error;
 
 use crate::auto_update::update_forge;
 use crate::cli::Cli;
@@ -88,7 +87,7 @@ impl<F: API> UI<F> {
     }
 
     // Set the current mode and update conversation variable
-    async fn handle_mode_change(&mut self, mode: Mode) -> Result<()> {
+    async fn on_mode_change(&mut self, mode: Mode) -> Result<()> {
         self.handle_new().await?;
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
@@ -172,7 +171,7 @@ impl<F: API> UI<F> {
         // Handle direct prompt if provided
         let prompt = self.cli.prompt.clone();
         if let Some(prompt) = prompt {
-            self.chat(prompt).await?;
+            self.on_message(prompt).await?;
             return Ok(());
         }
 
@@ -189,7 +188,17 @@ impl<F: API> UI<F> {
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {}
-                _ = self.on_command(command) => {}
+                result = self.on_command(command) => {
+                    match result {
+                        Ok(exit) => if exit {return Ok(())},
+                        Err(error) => {
+                            tokio::spawn(
+                                TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{error:?}"))),
+                            );
+                            self.writeln(TitleFormat::error(format!("{error:?}")))?;
+                        },
+                    }
+                }
             }
 
             self.spinner.stop(None)?;
@@ -199,7 +208,7 @@ impl<F: API> UI<F> {
         }
     }
 
-    async fn on_command(&mut self, command: Command) -> anyhow::Result<()> {
+    async fn on_command(&mut self, command: Command) -> anyhow::Result<bool> {
         match command {
             Command::Compact => {
                 self.handle_compaction().await?;
@@ -215,22 +224,13 @@ impl<F: API> UI<F> {
                 self.writeln(info)?;
             }
             Command::Message(ref content) => {
-                self.spinner.start(None)?;
-                let chat_result = self.chat(content.clone()).await;
-                if let Err(err) = chat_result {
-                    tokio::spawn(
-                        TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{err:?}"))),
-                    );
-                    error!(error = ?err, "Chat request failed");
-
-                    self.writeln(TitleFormat::error(format!("{err:?}")))?;
-                }
+                self.on_message(content.clone()).await?;
             }
             Command::Act => {
-                self.handle_mode_change(Mode::Act).await?;
+                self.on_mode_change(Mode::Act).await?;
             }
             Command::Plan => {
-                self.handle_mode_change(Mode::Plan).await?;
+                self.on_mode_change(Mode::Plan).await?;
             }
             Command::Help => {
                 let info = Info::from(self.command.as_ref());
@@ -244,17 +244,11 @@ impl<F: API> UI<F> {
             }
             Command::Exit => {
                 update_forge().await;
-
-                return Ok(());
+                return Ok(true);
             }
 
             Command::Custom(event) => {
-                if let Err(e) = self.dispatch_event(event.into()).await {
-                    self.writeln(
-                        TitleFormat::error("Failed to execute the command")
-                            .sub_title(e.to_string()),
-                    )?;
-                }
+                self.dispatch_event(event.into()).await?;
             }
             Command::Model => {
                 self.handle_model_selection().await?;
@@ -269,7 +263,7 @@ impl<F: API> UI<F> {
             }
         }
 
-        Ok(())
+        Ok(false)
     }
 
     async fn handle_compaction(&mut self) -> Result<(), anyhow::Error> {
@@ -428,7 +422,8 @@ impl<F: API> UI<F> {
         }
     }
 
-    async fn chat(&mut self, content: String) -> Result<()> {
+    async fn on_message(&mut self, content: String) -> Result<()> {
+        self.spinner.start(None)?;
         let conversation_id = self.init_conversation().await?;
 
         // Create a ChatRequest with the appropriate event type
@@ -499,10 +494,8 @@ impl<F: API> UI<F> {
                     )?;
                 }
             } else {
-                self.writeln(
-                    TitleFormat::error("Could not create dump")
-                        .sub_title(format!("Conversation: {conversation_id} was not found")),
-                )?;
+                return Err(anyhow::anyhow!("Could not create dump"))
+                    .context(format!("Conversation: {conversation_id} was not found"));
             }
         }
         Ok(())
