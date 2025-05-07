@@ -34,7 +34,7 @@ impl TempDir {
         // Super simple: just replace any path with [TEMP_DIR] and keep the filename
         if let Some(last_slash) = input.rfind('/') {
             let file_part = &input[last_slash..];
-            return format!("[TEMP_DIR]{}", file_part);
+            return format!("[TEMP_DIR]{file_part}");
         }
         input.to_string()
     }
@@ -67,7 +67,7 @@ mod tests {
             TempDir::normalize_entire_path(&path.display().to_string()),
             "[TEMP_DIR]/file.txt"
         );
-        
+
         // Test with a path that includes line number
         let path_with_line = format!("{}/file.txt:1:", TempDir::temp_dir().unwrap().display());
         assert_eq!(

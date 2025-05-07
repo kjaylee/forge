@@ -100,7 +100,7 @@ impl<F: Infrastructure> FSFind<F> {
         #[cfg(test)]
         if let Ok(path_inner) = path.as_ref() {
             path = Ok(crate::tools::utils::TempDir::normalize_entire_path(
-                &path_inner,
+                path_inner,
             ));
         }
 
