@@ -43,7 +43,7 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider};
+    use forge_domain::{CommandOutput, Environment, EnvironmentService, FeedbackService, Provider};
     use forge_snaps::Snapshot;
 
     use super::*;
@@ -68,6 +68,7 @@ pub mod tests {
                 pid: std::process::id(),
                 provider: Provider::anthropic("test-key"),
                 retry_config: Default::default(),
+                feedback_settings: Default::default(),
             },
         }
     }
@@ -200,6 +201,17 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl FeedbackService for Stub {
+        async fn should_show_feedback(&self) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+
+        async fn update_last_shown(&self) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FsReadService = Stub;
@@ -210,6 +222,7 @@ pub mod tests {
         type FsCreateDirsService = Stub;
         type CommandExecutorService = Stub;
         type InquireService = Stub;
+        type FeedbackService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -244,6 +257,10 @@ pub mod tests {
         }
 
         fn inquire_service(&self) -> &Self::InquireService {
+            self
+        }
+
+        fn feedback_service(&self) -> &Self::FeedbackService {
             self
         }
     }

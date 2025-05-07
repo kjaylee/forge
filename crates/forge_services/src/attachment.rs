@@ -121,7 +121,8 @@ pub mod tests {
     use base64::Engine;
     use bytes::Bytes;
     use forge_domain::{
-        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider,
+        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService,
+        FeedbackService, Provider,
     };
     use forge_snaps::Snapshot;
 
@@ -146,6 +147,7 @@ pub mod tests {
                 base_path: PathBuf::from("/base"),
                 provider: Provider::open_router("test-key"),
                 retry_config: Default::default(),
+                feedback_settings: Default::default(),
             }
         }
     }
@@ -224,10 +226,25 @@ pub mod tests {
     }
 
     #[derive(Debug, Clone)]
+    pub struct MockFeedbackService;
+
+    #[async_trait::async_trait]
+    impl FeedbackService for MockFeedbackService {
+        async fn should_show_feedback(&self) -> anyhow::Result<bool> {
+            Ok(false)
+        }
+
+        async fn update_last_shown(&self) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Clone)]
     pub struct MockInfrastructure {
         env_service: Arc<MockEnvironmentService>,
         file_service: Arc<MockFileService>,
         file_snapshot_service: Arc<MockSnapService>,
+        feedback_service: Arc<MockFeedbackService>,
     }
 
     impl MockInfrastructure {
@@ -236,6 +253,7 @@ pub mod tests {
                 env_service: Arc::new(MockEnvironmentService {}),
                 file_service: Arc::new(MockFileService::new()),
                 file_snapshot_service: Arc::new(MockSnapService),
+                feedback_service: Arc::new(MockFeedbackService),
             }
         }
     }
@@ -487,6 +505,7 @@ pub mod tests {
         type FsSnapshotService = MockSnapService;
         type CommandExecutorService = ();
         type InquireService = ();
+        type FeedbackService = MockFeedbackService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -522,6 +541,10 @@ pub mod tests {
 
         fn inquire_service(&self) -> &Self::InquireService {
             &()
+        }
+
+        fn feedback_service(&self) -> &Self::FeedbackService {
+            &self.feedback_service
         }
     }
 

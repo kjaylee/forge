@@ -460,7 +460,7 @@ impl<F: API> UI<F> {
                 }
                 maybe_message = stream.next() => {
                     match maybe_message {
-                        Some(Ok(message)) => self.handle_chat_response(message)?,
+                        Some(Ok(message)) => self.handle_chat_response(message).await?,
                         Some(Err(err)) => {
                             self.spinner.stop(None)?;
                             return Err(err);
@@ -516,7 +516,7 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
+    async fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
             ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
                 if is_complete && !text.trim().is_empty() {
@@ -548,6 +548,16 @@ impl<F: API> UI<F> {
             ChatResponse::Usage(usage) => {
                 self.state.usage = usage;
             }
+            ChatResponse::CompletionSuccess => {
+                if self.api.should_show_feedback().await? {
+                    self.api.update_last_shown().await?;
+                    self.writeln(
+                        TitleFormat::action("Feedback request".to_string())
+                            .sub_title("Please provide feedback on your experience https://lake-may-569.notion.site/1e9b1c02dfca802885f3da28612cdc69".to_string()),
+                    )?;
+
+                }
+            },
         }
         Ok(())
     }

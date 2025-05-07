@@ -2,6 +2,7 @@ mod attachment;
 mod clipper;
 mod compaction;
 mod conversation;
+mod feedback;
 mod forge_services;
 mod infra;
 mod metadata;
@@ -13,6 +14,7 @@ mod tools;
 mod workflow;
 
 pub use clipper::*;
+pub use feedback::*;
 pub use forge_services::*;
 pub use infra::*;
 pub use suggestion::*;

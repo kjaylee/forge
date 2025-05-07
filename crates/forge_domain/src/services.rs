@@ -100,6 +100,16 @@ pub trait SuggestionService: Send + Sync {
     async fn suggestions(&self) -> anyhow::Result<Vec<File>>;
 }
 
+/// Service for managing feedback prompts to users
+#[async_trait::async_trait]
+pub trait FeedbackService: Send + Sync {
+    /// Check if feedback form should be shown to the user
+    async fn should_show_feedback(&self) -> anyhow::Result<bool>;
+
+    /// Update the last shown timestamp to current time
+    async fn update_last_shown(&self) -> anyhow::Result<()>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.

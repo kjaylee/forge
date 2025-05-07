@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
-use crate::{Provider, RetryConfig};
+use crate::{FeedbackSettings, Provider, RetryConfig};
 
 #[derive(Debug, Setters, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +26,8 @@ pub struct Environment {
     pub provider: Provider,
     /// Configuration for the retry mechanism
     pub retry_config: RetryConfig,
+    /// Feedback settings for managing user prompts
+    pub feedback_settings: FeedbackSettings,
 }
 
 impl Environment {
