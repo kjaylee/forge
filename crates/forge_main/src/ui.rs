@@ -78,7 +78,7 @@ impl<F: API> UI<F> {
     }
 
     // Handle creating a new conversation
-    async fn handle_new(&mut self) -> Result<()> {
+    async fn on_new(&mut self) -> Result<()> {
         self.state = UIState::default();
         self.init_conversation().await?;
         banner::display()?;
@@ -88,7 +88,7 @@ impl<F: API> UI<F> {
 
     // Set the current mode and update conversation variable
     async fn on_mode_change(&mut self, mode: Mode) -> Result<()> {
-        self.handle_new().await?;
+        self.on_new().await?;
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
 
@@ -211,13 +211,13 @@ impl<F: API> UI<F> {
     async fn on_command(&mut self, command: Command) -> anyhow::Result<bool> {
         match command {
             Command::Compact => {
-                self.handle_compaction().await?;
+                self.on_compaction().await?;
             }
             Command::Dump(format) => {
-                self.handle_dump(format).await?;
+                self.on_dump(format).await?;
             }
             Command::New => {
-                self.handle_new().await?;
+                self.on_new().await?;
             }
             Command::Info => {
                 let info = Info::from(&self.state).extend(Info::from(&self.api.environment()));
@@ -248,10 +248,10 @@ impl<F: API> UI<F> {
             }
 
             Command::Custom(event) => {
-                self.dispatch_event(event.into()).await?;
+                self.on_custom_event(event.into()).await?;
             }
             Command::Model => {
-                self.handle_model_selection().await?;
+                self.on_model_selection().await?;
             }
             Command::Shell(ref command) => {
                 // Execute the shell command using the existing infrastructure
@@ -266,7 +266,7 @@ impl<F: API> UI<F> {
         Ok(false)
     }
 
-    async fn handle_compaction(&mut self) -> Result<(), anyhow::Error> {
+    async fn on_compaction(&mut self) -> Result<(), anyhow::Error> {
         self.spinner.start(Some("Compacting"))?;
         let conversation_id = self.init_conversation().await?;
         let compaction_result = self.api.compact_conversation(&conversation_id).await?;
@@ -320,7 +320,7 @@ impl<F: API> UI<F> {
     }
 
     // Helper method to handle model selection and update the conversation
-    async fn handle_model_selection(&mut self) -> Result<()> {
+    async fn on_model_selection(&mut self) -> Result<()> {
         // Select a model
         let model_option = self.select_model().await?;
 
@@ -463,7 +463,7 @@ impl<F: API> UI<F> {
     }
 
     /// Modified version of handle_dump that supports HTML format
-    async fn handle_dump(&mut self, format: Option<String>) -> Result<()> {
+    async fn on_dump(&mut self, format: Option<String>) -> Result<()> {
         if let Some(conversation_id) = self.state.conversation_id.clone() {
             let conversation = self.api.conversation(&conversation_id).await?;
             if let Some(conversation) = conversation {
@@ -537,7 +537,7 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    async fn dispatch_event(&mut self, event: Event) -> Result<()> {
+    async fn on_custom_event(&mut self, event: Event) -> Result<()> {
         let conversation_id = self.init_conversation().await?;
         let chat = ChatRequest::new(event, conversation_id);
         match self.api.chat(chat).await {
