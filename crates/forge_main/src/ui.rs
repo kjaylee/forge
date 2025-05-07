@@ -537,8 +537,13 @@ impl<F: API> UI<F> {
                 if self.api.should_show_feedback().await? {
                     self.api.update_last_shown().await?;
                     self.writeln(
-                        TitleFormat::action("Please provide feedback on your experience".to_string())
-                            .sub_title("https://lake-may-569.notion.site/1e9b1c02dfca802885f3da28612cdc69".to_string()),
+                        TitleFormat::action(
+                            "Please provide feedback on your experience".to_string(),
+                        )
+                        .sub_title(
+                            "https://lake-may-569.notion.site/1e9b1c02dfca802885f3da28612cdc69"
+                                .to_string(),
+                        ),
                     )?;
                 }
             }
