@@ -1,7 +1,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use forge_domain::{ExecutableTool, FSRemoveInput, NamedTool, ToolCallContext, ToolDescription, ToolName};
+use forge_domain::{
+    ExecutableTool, FSRemoveInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
+};
 use forge_tool_macros::ToolDescription;
 
 use crate::tools::utils::assert_absolute_path;

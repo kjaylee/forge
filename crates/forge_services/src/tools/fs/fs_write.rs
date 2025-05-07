@@ -7,7 +7,8 @@ use bytes::Bytes;
 use console::strip_ansi_codes;
 use forge_display::{DiffFormat, TitleFormat};
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    EnvironmentService, ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription,
+    ToolName,
 };
 use forge_tool_macros::ToolDescription;
 
