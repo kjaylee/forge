@@ -662,7 +662,10 @@ mod test {
             )
             .await
             .unwrap();
-        assert!(result.contains(&TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string()).to_string()));
+        assert!(result.contains(
+            &TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string())
+                .to_string()
+        ));
     }
 
     #[tokio::test]
