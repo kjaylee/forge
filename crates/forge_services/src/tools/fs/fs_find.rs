@@ -658,13 +658,13 @@ mod test {
                 ToolCallContext::default(),
                 FSFindInput {
                     path: temp_dir.path().to_string_lossy().to_string(),
-                    regex: Some("content*".into()),
+                    regex: Some("content".into()),
                     file_pattern: None,
                 },
                 100,
             )
             .await
             .unwrap();
-        assert!(result.contains("content is truncated to 100 chars"))
+        insta::assert_snapshot!(TempDir::normalize(&result));
     }
 }
