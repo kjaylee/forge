@@ -646,10 +646,11 @@ mod test {
     async fn test_fs_large_result() {
         let temp_dir = TempDir::new().unwrap();
 
-        fs::write(temp_dir.path().join("file1.txt"), "content".repeat(100))
+        let content = "content\ncontent";
+        fs::write(temp_dir.path().join("file1.txt"), &content)
             .await
             .unwrap();
-        fs::write(temp_dir.path().join("file2.rs"), "content1".repeat(100))
+        fs::write(temp_dir.path().join("file2.rs"), &content)
             .await
             .unwrap();
 
@@ -663,11 +664,11 @@ mod test {
                     regex: Some("content*".into()),
                     file_pattern: None,
                 },
-                150,
+                100,
             )
             .await
             .unwrap();
-
+        println!("{}", TempDir::normalize(&result));
         insta::assert_snapshot!(TempDir::normalize(&result));
     }
 }
