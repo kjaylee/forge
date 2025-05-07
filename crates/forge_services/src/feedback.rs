@@ -11,12 +11,11 @@ pub struct ForgeFeedbackService {
 impl ForgeFeedbackService {
     pub fn new(base_path: PathBuf) -> Self {
         let settings_path = base_path.join("settings").join("feedback.json");
-        Self {
-            settings_path,
-        }
+        Self { settings_path }
     }
 
-    /// Load feedback settings from the file, returning default settings if any error occurs
+    /// Load feedback settings from the file, returning default settings if any
+    /// error occurs
     async fn load_settings(&self) -> FeedbackSettings {
         if !ForgeFS::exists(&self.settings_path) {
             return FeedbackSettings::default();
@@ -46,14 +45,14 @@ impl ForgeFeedbackService {
                 return Err(anyhow!("Failed to serialize feedback settings: {}", e));
             }
         };
-        
+
         // Ensure parent directory exists
         if let Some(parent) = self.settings_path.parent() {
             if !ForgeFS::exists(parent) {
                 ForgeFS::create_dir_all(parent).await?
             }
         }
-        
+
         // Write the file
         ForgeFS::write(&self.settings_path, content).await
     }
@@ -68,7 +67,7 @@ impl FeedbackService for ForgeFeedbackService {
     async fn should_show_feedback(&self) -> anyhow::Result<bool> {
         // Read settings from disk
         let settings = self.load_settings().await;
-        
+
         // Return whether feedback should be shown
         Ok(settings.should_show_feedback())
     }
@@ -77,10 +76,10 @@ impl FeedbackService for ForgeFeedbackService {
     async fn update_last_shown(&self) -> anyhow::Result<()> {
         // Load current settings from disk
         let mut settings = self.load_settings().await;
-        
+
         // Update the timestamp
         settings.update_last_shown();
-        
+
         // Save the updated settings back to disk
         self.save_settings(&settings).await
     }
