@@ -650,9 +650,6 @@ mod test {
         fs::write(temp_dir.path().join("file1.txt"), &content)
             .await
             .unwrap();
-        fs::write(temp_dir.path().join("file2.rs"), &content)
-            .await
-            .unwrap();
 
         let infra = Arc::new(MockInfrastructure::new());
         let fs_search = FSFind::new(infra);
