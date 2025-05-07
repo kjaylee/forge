@@ -5,12 +5,9 @@ use std::sync::Arc;
 use bytes::Bytes;
 use forge_display::{DiffFormat, TitleFormat};
 use forge_domain::{
-    EnvironmentService, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    EnvironmentService, ExecutableTool, FSPatchInput, NamedTool, PatchOperation, ToolCallContext, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use strum_macros::AsRefStr;
 use thiserror::Error;
 use tokio::fs;
 
@@ -74,20 +71,20 @@ enum Error {
 fn apply_replacement(
     source: String,
     search: &str,
-    operation: &Operation,
+    operation: &PatchOperation,
     content: &str,
 ) -> Result<String, Error> {
     // Handle empty search string - only certain operations make sense here
     if search.is_empty() {
         return match operation {
             // Append to the end of the file
-            Operation::Append => Ok(format!("{source}{content}")),
+            PatchOperation::Append => Ok(format!("{source}{content}")),
             // Prepend to the beginning of the file
-            Operation::Prepend => Ok(format!("{content}{source}")),
+            PatchOperation::Prepend => Ok(format!("{content}{source}")),
             // Replace is equivalent to completely replacing the file
-            Operation::Replace => Ok(content.to_string()),
+            PatchOperation::Replace => Ok(content.to_string()),
             // Swap doesn't make sense with empty search - keep source unchanged
-            Operation::Swap => Ok(source),
+            PatchOperation::Swap => Ok(source),
         };
     }
 
@@ -98,7 +95,7 @@ fn apply_replacement(
     // Apply the operation based on its type
     match operation {
         // Prepend content before the matched text
-        Operation::Prepend => Ok(format!(
+        PatchOperation::Prepend => Ok(format!(
             "{}{}{}",
             &source[..patch.start],
             content,
@@ -106,7 +103,7 @@ fn apply_replacement(
         )),
 
         // Append content after the matched text
-        Operation::Append => Ok(format!(
+        PatchOperation::Append => Ok(format!(
             "{}{}{}",
             &source[..patch.end()],
             content,
@@ -114,7 +111,7 @@ fn apply_replacement(
         )),
 
         // Replace matched text with new content
-        Operation::Replace => Ok(format!(
+        PatchOperation::Replace => Ok(format!(
             "{}{}{}",
             &source[..patch.start],
             content,
@@ -122,7 +119,7 @@ fn apply_replacement(
         )),
 
         // Swap with another text in the source
-        Operation::Swap => {
+        PatchOperation::Swap => {
             // Find the target text to swap with
             let target_patch = Range::find_exact(&source, content)
                 .ok_or_else(|| Error::NoSwapTarget(content.to_string()))?;
@@ -166,42 +163,9 @@ fn apply_replacement(
     }
 }
 
-/// Operation types that can be performed on matched text
-#[derive(Deserialize, Serialize, JsonSchema, Debug, Clone, PartialEq, AsRefStr)]
-#[serde(rename_all = "snake_case")]
-pub enum Operation {
-    /// Prepend content before the matched text
-    Prepend,
+// Using PatchOperation from forge_domain
 
-    /// Append content after the matched text
-    Append,
-
-    /// Replace the matched text with new content
-    Replace,
-
-    /// Swap the matched text with another text (search for the second text and
-    /// swap them)
-    Swap,
-}
-
-#[derive(Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct Input {
-    /// The path to the file to modify
-    pub path: String,
-
-    /// The text to search for in the source. If empty, operation applies to the
-    /// end of the file.
-    pub search: String,
-
-    /// The operation to perform on the matched text. Possible options are only
-    /// 'prepend', 'append', 'replace', and 'swap'.
-    pub operation: Operation,
-
-    /// The content to use for the operation (replacement text, text to
-    /// prepend/append, or target text for swap operations)
-    pub content: String,
-}
+// Using FSPatchInput from forge_domain
 
 /// Modifies files with targeted text operations on matched patterns. Supports
 /// prepend, append, replace, swap, delete operations on first pattern
@@ -241,7 +205,7 @@ impl<F: Infrastructure> ApplyPatchJson<F> {
 
 #[async_trait::async_trait]
 impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
-    type Input = Input;
+    type Input = FSPatchInput;
 
     async fn call(&self, context: ToolCallContext, patch: Self::Input) -> anyhow::Result<String> {
         let path = Path::new(&patch.path);
@@ -329,7 +293,7 @@ mod test {
     #[derive(Debug)]
     struct PatchOperation {
         search: String,
-        operation: Operation,
+        operation: forge_domain::PatchOperation,
         content: String,
     }
 
@@ -344,7 +308,7 @@ mod test {
         fn replace(mut self, search: impl ToString, content: impl ToString) -> Self {
             let operation = PatchOperation {
                 search: search.to_string(),
-                operation: Operation::Replace,
+                operation: forge_domain::PatchOperation::Replace,
                 content: content.to_string(),
             };
             self.patches.push(Patch {
@@ -358,7 +322,7 @@ mod test {
         fn prepend(mut self, search: impl ToString, content: impl ToString) -> Self {
             let operation = PatchOperation {
                 search: search.to_string(),
-                operation: Operation::Prepend,
+                operation: forge_domain::PatchOperation::Prepend,
                 content: content.to_string(),
             };
             self.patches.push(Patch {
@@ -372,7 +336,7 @@ mod test {
         fn append(mut self, search: impl ToString, content: impl ToString) -> Self {
             let operation = PatchOperation {
                 search: search.to_string(),
-                operation: Operation::Append,
+                operation: forge_domain::PatchOperation::Append,
                 content: content.to_string(),
             };
             self.patches.push(Patch {
@@ -386,7 +350,7 @@ mod test {
         fn swap(mut self, search: impl ToString, target: impl ToString) -> Self {
             let operation = PatchOperation {
                 search: search.to_string(),
-                operation: Operation::Swap,
+                operation: forge_domain::PatchOperation::Swap,
                 content: target.to_string(),
             };
             self.patches.push(Patch {
