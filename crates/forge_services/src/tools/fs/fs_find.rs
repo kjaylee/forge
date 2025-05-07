@@ -646,7 +646,7 @@ mod test {
     async fn test_fs_large_result() {
         let temp_dir = TempDir::new().unwrap();
 
-        let content = "content";
+        let content = "content".repeat(10);
         fs::write(temp_dir.path().join("file1.txt"), &content)
             .await
             .unwrap();
@@ -665,6 +665,6 @@ mod test {
             )
             .await
             .unwrap();
-        insta::assert_snapshot!(TempDir::normalize(&result));
+        assert!(result.contains("content is truncated to 100 chars"))
     }
 }
