@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use anyhow::anyhow;
 use forge_domain::{FeedbackService, FeedbackSettings};
 use forge_fs::ForgeFS;
+use tracing::warn;
 
 pub struct ForgeFeedbackService {
     settings_path: PathBuf,
@@ -25,12 +25,12 @@ impl ForgeFeedbackService {
             Ok(content) => match serde_json::from_str(&content) {
                 Ok(settings) => settings,
                 Err(e) => {
-                    eprintln!("Failed to parse feedback settings: {e}");
+                    warn!(error = %e, "Failed to parse feedback settings");
                     FeedbackSettings::default()
                 }
             },
             Err(e) => {
-                eprintln!("Failed to read feedback settings: {e}");
+                warn!(error = %e, "Failed to read feedback settings");
                 FeedbackSettings::default()
             }
         }
@@ -38,15 +38,7 @@ impl ForgeFeedbackService {
 
     /// Save the provided settings to disk
     async fn save_settings(&self, settings: &FeedbackSettings) -> anyhow::Result<()> {
-        // Serialize the settings
-        let content = match serde_json::to_string_pretty(settings) {
-            Ok(content) => content,
-            Err(e) => {
-                return Err(anyhow!("Failed to serialize feedback settings: {}", e));
-            }
-        };
-
-        // Ensure parent directory exists
+        let content =  serde_json::to_string_pretty(settings)?; 
         if let Some(parent) = self.settings_path.parent() {
             if !ForgeFS::exists(parent) {
                 ForgeFS::create_dir_all(parent).await?
@@ -56,8 +48,6 @@ impl ForgeFeedbackService {
         // Write the file
         ForgeFS::write(&self.settings_path, content).await
     }
-
-    // Methods below are now inlined directly in the FeedbackService implementation
 }
 
 // Implement the FeedbackService trait for our async service
@@ -74,7 +64,6 @@ impl FeedbackService for ForgeFeedbackService {
 
     // Update the last shown timestamp
     async fn update_last_shown(&self) -> anyhow::Result<()> {
-        // Load current settings from disk
         let mut settings = self.load_settings().await;
 
         // Update the timestamp
