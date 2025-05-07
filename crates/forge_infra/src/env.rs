@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use forge_domain::{Environment, FeedbackSettings, Provider, RetryConfig};
+use forge_domain::{Environment, Provider, RetryConfig};
 
 pub struct ForgeEnvironmentService {
     restricted: bool,
@@ -125,7 +125,6 @@ impl ForgeEnvironmentService {
             home: dirs::home_dir(),
             provider,
             retry_config,
-            feedback_settings: FeedbackSettings::default(),
         }
     }
 }

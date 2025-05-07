@@ -68,7 +68,6 @@ pub mod tests {
                 pid: std::process::id(),
                 provider: Provider::anthropic("test-key"),
                 retry_config: Default::default(),
-                feedback_settings: Default::default(),
             },
         }
     }

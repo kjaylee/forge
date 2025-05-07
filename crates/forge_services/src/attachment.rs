@@ -147,7 +147,6 @@ pub mod tests {
                 base_path: PathBuf::from("/base"),
                 provider: Provider::open_router("test-key"),
                 retry_config: Default::default(),
-                feedback_settings: Default::default(),
             }
         }
     }
