@@ -98,8 +98,8 @@ impl<F: Infrastructure> FSFind<F> {
         #[allow(unused_mut)]
         let mut path = format_display_path(input_path, cwd);
 
-        // note: it's possible that paths could be different depending on machine so for testing purpose
-        // make the paths consistent.
+        // note: it's possible that paths could be different depending on machine so for
+        // testing purpose make the paths consistent.
         #[cfg(test)]
         if path.as_ref().is_ok() {
             if let Some(file_name) = input_path.file_name() {
@@ -667,7 +667,10 @@ mod test {
             )
             .await
             .unwrap();
-        assert!(result.contains(&TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string()).to_string()));
+        assert!(result.contains(
+            &TempDir::normalize(&temp_dir.path().join("best.txt").display().to_string())
+                .to_string()
+        ));
     }
 
     #[tokio::test]

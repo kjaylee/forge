@@ -29,7 +29,7 @@ impl TempDir {
     fn temp_dir() -> anyhow::Result<PathBuf> {
         Ok(std::env::temp_dir().canonicalize()?)
     }
-   
+
     /// Use this function to remove the temporary directory path from the
     /// content
     pub fn normalize(input: &str) -> String {
