@@ -114,7 +114,12 @@ impl<F: Infrastructure> FSFind<F> {
         Ok(TitleFormat::debug(title))
     }
 
-    async fn call(&self, context: ToolCallContext, input: FSFindInput) -> anyhow::Result<String> {
+    async fn call_inner(
+        &self,
+        context: ToolCallContext,
+        input: FSFindInput,
+        max_char_limit: usize,
+    ) -> anyhow::Result<String> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -212,7 +217,7 @@ impl<F: Infrastructure> FSFind<F> {
             .add("total_chars", matches.len())
             .add("start_char", 0);
 
-        let truncated_result = Clipper::from_start(MAX_SEARCH_CHAR_LIMIT).clip(&matches);
+        let truncated_result = Clipper::from_start(max_char_limit).clip(&matches);
         if let Some(truncated) = truncated_result.prefix_content() {
             let path = self
                 .0
@@ -225,7 +230,7 @@ impl<F: Infrastructure> FSFind<F> {
                 .add("temp_file", path.display());
 
             let truncation_tag = format!("\n<truncation>content is truncated to {} chars, remaining content can be read from path:{}</truncation>", 
-            MAX_SEARCH_CHAR_LIMIT,path.to_string_lossy());
+            max_char_limit,path.to_string_lossy());
 
             Ok(format!("{metadata}{truncated}{truncation_tag}"))
         } else {
@@ -270,7 +275,7 @@ impl<F: Infrastructure> ExecutableTool for FSFind<F> {
     type Input = FSFindInput;
 
     async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
-        self.call(context, input).await
+        self.call_inner(context, input, MAX_SEARCH_CHAR_LIMIT).await
     }
 }
 
@@ -635,5 +640,34 @@ mod test {
             .await
             .unwrap();
         assert!(result.contains(&format!("{}", temp_dir.path().join("best.txt").display())));
+    }
+
+    #[tokio::test]
+    async fn test_fs_large_result() {
+        let temp_dir = TempDir::new().unwrap();
+
+        fs::write(temp_dir.path().join("file1.txt"), "content".repeat(100))
+            .await
+            .unwrap();
+        fs::write(temp_dir.path().join("file2.rs"), "content1".repeat(100))
+            .await
+            .unwrap();
+
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_search = FSFind::new(infra);
+        let result = fs_search
+            .call_inner(
+                ToolCallContext::default(),
+                FSFindInput {
+                    path: temp_dir.path().to_string_lossy().to_string(),
+                    regex: Some("content*".into()),
+                    file_pattern: None,
+                },
+                150,
+            )
+            .await
+            .unwrap();
+
+        insta::assert_snapshot!(TempDir::normalize(&result));
     }
 }
