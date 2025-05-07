@@ -32,7 +32,7 @@ impl ForgeInfra {
         let environment_service = Arc::new(ForgeEnvironmentService::new(restricted));
         let env = environment_service.get_environment();
         let file_snapshot_service = Arc::new(ForgeFileSnapshotService::new(env.clone()));
-        let feedback_service = ForgeFeedbackService::new_or_default(env.base_path.clone());
+        let feedback_service = ForgeFeedbackService::new(env.base_path.clone());
         Self {
             file_read_service: Arc::new(ForgeFileReadService::new()),
             file_write_service: Arc::new(ForgeFileWriteService::new(file_snapshot_service.clone())),
