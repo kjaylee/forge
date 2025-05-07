@@ -646,7 +646,7 @@ mod test {
     async fn test_fs_large_result() {
         let temp_dir = TempDir::new().unwrap();
 
-        let content = "content\ncontent";
+        let content = "content";
         fs::write(temp_dir.path().join("file1.txt"), &content)
             .await
             .unwrap();
@@ -668,7 +668,6 @@ mod test {
             )
             .await
             .unwrap();
-        println!("{}", TempDir::normalize(&result));
         insta::assert_snapshot!(TempDir::normalize(&result));
     }
 }

@@ -5,7 +5,7 @@ expression: "TempDir::normalize(&result)"
 ---
 path: [TEMP_DIR]
 regex: content*
-total_chars: 413
+total_chars: 206
 start_char: 0
 end_char: 100
 temp_file: [TEMP_DIR]
