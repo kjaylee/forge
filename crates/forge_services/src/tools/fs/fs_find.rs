@@ -217,10 +217,18 @@ impl<F: Infrastructure> FSFind<F> {
             .add("total_chars", matches.len())
             .add("start_char", 0);
 
-        println!("===================== Pre-Clipper: {matches}\n");
+        println!(
+            "===================== Pre-Clipper: {} -> {}\n",
+            matches.len(),
+            matches
+        );
         let truncated_result = Clipper::from_start(max_char_limit).clip(&matches);
         if let Some(truncated) = truncated_result.prefix_content() {
-            println!("===================== Post-Clipper: {matches}\n");
+            println!(
+                "===================== Post-Clipper: {} -> {}\n",
+                truncated.len(),
+                truncated
+            );
 
             let path = self
                 .0
