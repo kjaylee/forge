@@ -217,8 +217,11 @@ impl<F: Infrastructure> FSFind<F> {
             .add("total_chars", matches.len())
             .add("start_char", 0);
 
+        println!("===================== Pre-Clipper: {}\n", matches);
         let truncated_result = Clipper::from_start(max_char_limit).clip(&matches);
         if let Some(truncated) = truncated_result.prefix_content() {
+            println!("===================== Post-Clipper: {}\n", matches);
+
             let path = self
                 .0
                 .file_write_service()
