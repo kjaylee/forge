@@ -262,7 +262,7 @@ impl<F: API> UI<F> {
                 let _ = self.api.execute_shell_command(command, cwd).await;
             }
             Command::Tasks => {
-                match self
+                let _ = self
                     .api
                     .call_tool(
                         ToolCallFull::new(ToolName::new("forge_tool_task_list")).arguments(
@@ -271,19 +271,12 @@ impl<F: API> UI<F> {
                             }),
                         ),
                     )
-                    .await
-                {
-                    Ok(_) => {
-                        // note: tool creates a markdown format file.
-                        let cwd = self.api.environment().cwd.join("task_list.md");
-                        let content = tokio::fs::read_to_string(&cwd).await?;
-                        let text = self.markdown.render(&content);
-                        self.writeln(text)?;
-                    }
-                    Err(e) => {
-                        self.writeln(TitleFormat::error(e.to_string()))?;
-                    }
-                }
+                    .await?;
+                // note: tool creates a markdown format file, so read that to display tasklist.
+                let cwd = self.api.environment().cwd.join("task_list.md");
+                let content = tokio::fs::read_to_string(&cwd).await?;
+                let text = self.markdown.render(&content);
+                self.writeln(text)?;
             }
         }
 
