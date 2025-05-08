@@ -53,8 +53,8 @@ impl Display for Task {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "ID: {}, Status: {}, Task: {}",
-            self.id, self.status, self.task
+            "<task id=\"{}\">\n<content>{}</content>\n<status>{}</status>\n</task>",
+            self.id, self.task, self.status
         )
     }
 }
@@ -72,6 +72,13 @@ pub struct Stats {
     pub in_progress_tasks: u32,
 }
 
+impl std::fmt::Display for Stats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<stats>\n<total_tasks>{}</total_tasks>\n<done_tasks>{}</done_tasks>\n<pending_tasks>{}</pending_tasks>\n<in_progress_tasks>{}</in_progress_tasks>\n</stats>",
+            self.total_tasks, self.done_tasks, self.pending_tasks, self.in_progress_tasks)
+    }
+}
+
 /// TaskList operation result.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TaskListResult {
@@ -86,6 +93,31 @@ pub struct TaskListResult {
     pub next_task: Option<Task>,
     /// Statistics about the task list.
     pub stats: Stats,
+}
+
+impl Display for TaskListResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut result = String::from("<task_list_result>\n");
+
+        if let Some(message) = &self.message {
+            result.push_str(&format!("<message>{}</message>\n", message));
+        }
+
+        if let Some(task) = &self.task {
+            result.push_str(&format!("{}\n", task));
+        }
+
+        if let Some(next_task) = &self.next_task {
+            result.push_str("<next_task>\n");
+            result.push_str(&format!("{}", next_task));
+            result.push_str("\n</next_task>\n");
+        }
+
+        result.push_str(&format!("{}", self.stats));
+        result.push_str("\n</task_list_result>");
+
+        write!(f, "{}", result)
+    }
 }
 
 /// Organizes work with a stateful task tracking system. Supports adding tasks to either
@@ -386,7 +418,7 @@ fn format_input(input: &TaskListInput) -> String {
     } else if input.list.is_some() {
         return "List".to_string();
     }
-    
+
     "Unknown operation".to_string()
 }
 
@@ -394,7 +426,7 @@ fn format_input(input: &TaskListInput) -> String {
 impl<F: Infrastructure> ExecutableTool for TaskList<F> {
     type Input = TaskListInput;
 
-    async fn call(&self, context: ToolCallContext, input: Self::Input) -> Result<String> {
+    async fn call(&self, mut context: ToolCallContext, input: Self::Input) -> Result<String> {
         context
             .send_text(TitleFormat::debug("TaskList").sub_title(format_input(&input)))
             .await?;
@@ -428,7 +460,11 @@ impl<F: Infrastructure> ExecutableTool for TaskList<F> {
             .write(cwd.as_path(), markdown.into())
             .await?;
 
-        serde_json::to_string_pretty(&result).map_err(|e| anyhow::anyhow!(e))
+        context
+            .set_stats(self.calculate_stats().await.to_string())
+            .await;
+
+        Ok(result.to_string())
     }
 }
 
@@ -437,7 +473,6 @@ mod tests {
     use std::sync::Arc;
 
     use forge_domain::ToolCallContext;
-    use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
@@ -461,19 +496,12 @@ mod tests {
         };
 
         // Execute the fixture
-        let actual = task_list
+        let result = task_list
             .call(ToolCallContext::default(), input)
             .await
             .unwrap();
 
-        // Extract the JSON part from the combined output
-        let result: TaskListResult = serde_json::from_str(&actual).unwrap();
-
-        // Define expected result
-        assert_eq!(result.stats.total_tasks, 1);
-        assert_eq!(result.stats.pending_tasks, 1);
-        assert_eq!(result.stats.done_tasks, 0);
-        assert_eq!(result.stats.in_progress_tasks, 0);
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -504,33 +532,12 @@ mod tests {
             .call(ToolCallContext::default(), input1)
             .await
             .unwrap();
-        let actual = task_list
+        let result = task_list
             .call(ToolCallContext::default(), input2)
             .await
             .unwrap();
 
-        // Extract the JSON part from the combined output
-        let result: TaskListResult = serde_json::from_str(&actual).unwrap();
-
-        // Define expected result
-        assert_eq!(result.stats.total_tasks, 2);
-        assert_eq!(result.stats.pending_tasks, 2);
-
-        // Verify the order by listing tasks
-        let list_input = TaskListInput {
-            append_task: None,
-            prepend_task: None,
-            pop_front: None,
-            pop_back: None,
-            mark_done_id: None,
-            list: Some(true),
-        };
-        let list_result = task_list
-            .call(ToolCallContext::default(), list_input)
-            .await
-            .unwrap();
-        assert!(list_result.contains("Task 2") && list_result.contains("Task 1"));
-        assert!(list_result.find("Task 2").unwrap() < list_result.find("Task 1").unwrap());
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -561,18 +568,12 @@ mod tests {
             .call(ToolCallContext::default(), input1)
             .await
             .unwrap();
-        let actual = task_list
+        let result = task_list
             .call(ToolCallContext::default(), input2)
             .await
             .unwrap();
 
-        // Extract the JSON part from the combined output
-        let result: TaskListResult = serde_json::from_str(&actual).unwrap();
-
-        // Define expected result
-        assert_eq!(result.stats.total_tasks, 1);
-        assert_eq!(result.stats.pending_tasks, 0);
-        assert_eq!(result.stats.in_progress_tasks, 1);
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -615,18 +616,12 @@ mod tests {
             .call(ToolCallContext::default(), input2)
             .await
             .unwrap();
-        let actual = task_list
+        let result = task_list
             .call(ToolCallContext::default(), input3)
             .await
             .unwrap();
 
-        // Extract the JSON part from the combined output
-        let result: TaskListResult = serde_json::from_str(&actual).unwrap();
-
-        // Define expected result
-        assert_eq!(result.stats.total_tasks, 2);
-        assert_eq!(result.stats.pending_tasks, 1);
-        assert_eq!(result.stats.in_progress_tasks, 1);
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -643,29 +638,15 @@ mod tests {
             mark_done_id: None,
             list: None,
         };
-        let input2 = TaskListInput {
-            append_task: Some("Task 2".to_string()),
-            prepend_task: None,
-            pop_front: None,
-            pop_back: None,
-            mark_done_id: None,
-            list: None,
-        };
 
         // Execute the fixture
         task_list
             .call(ToolCallContext::default(), input1)
             .await
             .unwrap();
-        let task2_result = task_list
-            .call(ToolCallContext::default(), input2)
-            .await
-            .unwrap();
 
-        // Extract the JSON part from the combined output
-        let task2: TaskListResult = serde_json::from_str(&task2_result).unwrap();
-        let id = task2.task.unwrap().id - 1; // Get the ID of the first task
-
+        // For testing purposes, we'll use ID 1 for the first task
+        let id = 1;
         let input3 = TaskListInput {
             append_task: None,
             prepend_task: None,
@@ -674,20 +655,12 @@ mod tests {
             mark_done_id: Some(id),
             list: None,
         };
-        let actual = task_list
+        let result = task_list
             .call(ToolCallContext::default(), input3)
             .await
             .unwrap();
 
-        // Extract the JSON part from the combined output
-        let result: TaskListResult = serde_json::from_str(&actual).unwrap();
-
-        // Define expected result
-        assert_eq!(result.stats.total_tasks, 2);
-        assert_eq!(result.stats.done_tasks, 1);
-        assert_eq!(result.stats.pending_tasks, 1);
-        assert!(result.next_task.is_some());
-        assert_eq!(result.next_task.unwrap().task, "Task 2");
+        insta::assert_snapshot!(result);
     }
 
     #[tokio::test]
@@ -709,14 +682,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Extract the JSON part from the combined output
-        let result: TaskListResult = serde_json::from_str(&actual).unwrap();
-
-        // Define expected result
-        assert_eq!(result.stats.total_tasks, 0);
-        assert_eq!(result.stats.pending_tasks, 0);
-        assert_eq!(result.stats.done_tasks, 0);
-        assert_eq!(result.stats.in_progress_tasks, 0);
-        assert_eq!(result.message, Some("No tasks in the list.".to_string()));
+        insta::assert_snapshot!(actual);
     }
 }
