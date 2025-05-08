@@ -167,7 +167,7 @@ impl<F: Infrastructure> TaskList<F> {
             let formatted_task = match task.status {
                 TaskStatus::Done => format!("- {} {}", checkbox, task.task),
                 TaskStatus::Pending => format!("- {} {}", checkbox, task.task),
-                TaskStatus::InProgress => format!("- {} **{} (In Progress)**", checkbox, task.task),
+                TaskStatus::InProgress => format!("- {} __{} (In Progress)__ ", checkbox, task.task),
             };
 
             markdown.push_str(&formatted_task);

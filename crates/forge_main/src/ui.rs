@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    API,
+    ToolCallFull, ToolName, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -260,6 +260,30 @@ impl<F: API> UI<F> {
 
                 // Execute the command
                 let _ = self.api.execute_shell_command(command, cwd).await;
+            }
+            Command::Tasks => {
+                match self
+                    .api
+                    .call_tool(
+                        ToolCallFull::new(ToolName::new("forge_tool_task_list")).arguments(
+                            serde_json::json!({
+                                "list": true
+                            }),
+                        ),
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        // note: tool creates a markdown format file.
+                        let cwd = self.api.environment().cwd.join("task_list.md");
+                        let content = tokio::fs::read_to_string(&cwd).await?;
+                        let text = self.markdown.render(&content);
+                        self.writeln(text)?;
+                    }
+                    Err(e) => {
+                        self.writeln(TitleFormat::error(e.to_string()))?;
+                    }
+                }
             }
         }
 
