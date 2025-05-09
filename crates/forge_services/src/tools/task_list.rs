@@ -132,12 +132,11 @@ impl Display for TaskListResult {
     }
 }
 
-/// Organizes work with a stateful task tracking system. Supports adding tasks to either
-/// end or start(append/prepend), marking tasks as in-progress (pop_front/pop_back), completing
-/// tasks (mark_done), and viewing the current state (list). Automatically suggests the
-/// next pending task when completing items. Returns statistics on completion status.
-/// Tasks cannot be edited or reordered after creation. Use for tracking sequential workflows,
-/// organizing project steps, or maintaining action items during complex operations.
+/// A stateful task management tool that maintains an ordered list of tasks with status tracking.
+/// Provides operations to add tasks (append/prepend), mark tasks as in-progress (pop_front/pop_back),
+/// complete tasks (mark_done), and view the current state (list). Automatically identifies
+/// the next pending task when completing items and provides detailed statistics on task status.
+/// Ideal for sequential workflows, project planning, and tracking multi-step processes.
 #[derive(Debug, ToolDescription)]
 pub struct TaskList<F> {
     infra: Arc<F>,
