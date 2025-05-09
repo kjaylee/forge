@@ -245,14 +245,17 @@ pub struct TaskListInput {
     pub prepend_task: Option<String>,
 
     /// Remove and return the first task from the list and set its status to InProgress.
+    /// This operation can only be called in ACT mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pop_front: Option<bool>,
 
     /// Remove and return the last task from the list and set its status to InProgress.
+    /// This operation can only be called in ACT mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pop_back: Option<bool>,
 
     /// Mark a task as Done and return the next pending task.
+    /// This operation can only be called in ACT mode.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mark_done_id: Option<u32>,
 

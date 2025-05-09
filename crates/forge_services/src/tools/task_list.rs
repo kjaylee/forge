@@ -17,7 +17,6 @@ use crate::{FsWriteService, Infrastructure};
 
 /// Represents the status of a task in the TaskList.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TaskStatus {
     /// Task is waiting to be started.
     Pending,
@@ -93,6 +92,8 @@ pub struct TaskListResult {
     pub next_task: Option<Task>,
     /// Statistics about the task list.
     pub stats: Stats,
+    /// List of tasks
+    pub tasks: Option<Vec<Task>>,
 }
 
 impl Display for TaskListResult {
@@ -114,6 +115,17 @@ impl Display for TaskListResult {
         }
 
         result.push_str(&format!("{}", self.stats));
+
+        if let Some(tasks) = &self.tasks {
+            if !tasks.is_empty() {
+                result.push_str("<tasks_list>\n");
+                for task in tasks {
+                    result.push_str(&format!("{}\n", task));
+                }
+                result.push_str("\n</tasks_list>\n");
+            }
+        }
+
         result.push_str("\n</task_list_result>");
 
         write!(f, "{}", result)
@@ -167,7 +179,9 @@ impl<F: Infrastructure> TaskList<F> {
             let formatted_task = match task.status {
                 TaskStatus::Done => format!("- {} {}", checkbox, task.task),
                 TaskStatus::Pending => format!("- {} {}", checkbox, task.task),
-                TaskStatus::InProgress => format!("- {} __{} (In Progress)__ ", checkbox, task.task),
+                TaskStatus::InProgress => {
+                    format!("- {} __{} (In Progress)__ ", checkbox, task.task)
+                }
             };
 
             markdown.push_str(&formatted_task);
@@ -234,6 +248,7 @@ impl<F: Infrastructure> TaskList<F> {
             task: Some(task),
             next_task: None,
             stats,
+            tasks: None,
         })
     }
 
@@ -258,6 +273,7 @@ impl<F: Infrastructure> TaskList<F> {
             task: None,
             next_task: None,
             stats,
+            tasks: None,
         })
     }
 
@@ -285,13 +301,20 @@ impl<F: Infrastructure> TaskList<F> {
         let stats = self.calculate_stats().await;
 
         if let Some(task) = task_option {
-            Ok(TaskListResult { message: None, task: Some(task), next_task: None, stats })
+            Ok(TaskListResult {
+                message: None,
+                task: Some(task),
+                next_task: None,
+                stats,
+                tasks: None,
+            })
         } else {
             Ok(TaskListResult {
                 message: Some("No pending tasks found.".to_string()),
                 task: None,
                 next_task: None,
                 stats: self.calculate_stats().await,
+                tasks: None,
             })
         }
     }
@@ -320,13 +343,20 @@ impl<F: Infrastructure> TaskList<F> {
         let stats = self.calculate_stats().await;
 
         if let Some(task) = task_option {
-            Ok(TaskListResult { message: None, task: Some(task), next_task: None, stats })
+            Ok(TaskListResult {
+                message: None,
+                task: Some(task),
+                next_task: None,
+                stats,
+                tasks: None,
+            })
         } else {
             Ok(TaskListResult {
                 message: Some("No pending tasks found.".to_string()),
                 task: None,
                 next_task: None,
                 stats,
+                tasks: None,
             })
         }
     }
@@ -355,6 +385,7 @@ impl<F: Infrastructure> TaskList<F> {
                 task: None,
                 next_task: None,
                 stats: self.calculate_stats().await,
+                tasks: None,
             });
         }
 
@@ -377,24 +408,21 @@ impl<F: Infrastructure> TaskList<F> {
             task: None,
             next_task,
             stats,
+            tasks: None,
         })
     }
 
     /// Handle the list operation, returning all tasks in the list.
     async fn list(&self) -> Result<TaskListResult> {
         let stats = self.calculate_stats().await;
-
-        let tasks_str = {
-            let tasks = self.tasks.lock().await;
-            if tasks.is_empty() {
-                Some("No tasks in the list.".to_string())
-            } else {
-                let task_strs: Vec<String> = tasks.iter().map(|task| task.to_string()).collect();
-                Some(task_strs.join("\n"))
-            }
-        };
-
-        Ok(TaskListResult { message: tasks_str, task: None, next_task: None, stats })
+        let tasks = self.tasks.lock().await;
+        Ok(TaskListResult {
+            message: None,
+            task: None,
+            next_task: None,
+            stats,
+            tasks: Some(tasks.clone()),
+        })
     }
 }
 
