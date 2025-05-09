@@ -401,9 +401,7 @@ impl<F: Infrastructure> TaskList<F> {
                     next_task.as_ref().unwrap().id
                 ))
             } else {
-                Some(format!(
-                    "Task {id} marked as done. No more pending tasks."
-                ))
+                Some(format!("Task {id} marked as done. No more pending tasks."))
             },
             task: None,
             next_task,
