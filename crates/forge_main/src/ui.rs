@@ -12,6 +12,7 @@ use forge_tracker::ToolCallPayload;
 use inquire::error::InquireError;
 use inquire::ui::{RenderConfig, Styled};
 use inquire::Select;
+use merge::Merge;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
@@ -393,7 +394,6 @@ impl<F: API> UI<F> {
             Some(ref id) => Ok(id.clone()),
             None => {
                 // Select a model if workflow doesn't have one
-                use merge::Merge;
                 let mut base_workflow = Workflow::default();
                 let workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
                 base_workflow.merge(workflow.clone());
