@@ -177,13 +177,15 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                         ContextMessage::ContentMessage(content_message) => {
                             // Convert role to lowercase for the class
                             let role_lowercase = content_message.role.to_string().to_lowercase();
+                            let model_id = content_message.model.as_str();
 
                             let message_div = Element::new(format!(
                                 "details.message-card.message-{role_lowercase}"
                             ))
                             .append(
                                 Element::new("summary")
-                                    .text(format!("{} Message", content_message.role)),
+                                    .text(format!("{} Message", content_message.role))
+                                    .append(Element::new("span").text(format!(" ({})", model_id))),
                             )
                             .append(Element::new("pre").text(&content_message.content));
 
