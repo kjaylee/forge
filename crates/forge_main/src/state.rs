@@ -23,8 +23,7 @@ impl<'de> Deserialize<'de> for Mode {
             "plan" => Ok(Mode::Plan),
             "act" => Ok(Mode::Act),
             _ => Err(serde::de::Error::custom(format!(
-                "Unknown Mode variant: {}, expected to be one of 'plan', 'act'",
-                s
+                "Unknown Mode variant: {s}, expected to be one of 'plan', 'act'"
             ))),
         }
     }
