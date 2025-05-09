@@ -81,7 +81,8 @@ impl ForgeCommandManager {
         let mut guard = self.commands.lock().unwrap();
         let mut commands = Self::default_commands();
 
-        // Add Tasks command only if `forge_tool_task_list` is configured in any of the agents
+        // Add Tasks command only if `forge_tool_task_list` is configured in any of the
+        // agents
         let has_task_list_tool = workflow.agents.iter().any(|agent| {
             if let Some(tools) = &agent.tools {
                 tools
@@ -190,8 +191,7 @@ impl ForgeCommandManager {
             .lock()
             .unwrap()
             .iter()
-            .find(|c| c.name == command)
-            .is_some();
+            .any(|c| c.name == command);
 
         if !valid_command {
             return Err(anyhow::anyhow!("{} is not valid", command));

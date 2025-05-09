@@ -101,16 +101,16 @@ impl Display for TaskListResult {
         let mut result = String::from("<task_list_result>\n");
 
         if let Some(message) = &self.message {
-            result.push_str(&format!("<message>{}</message>\n", message));
+            result.push_str(&format!("<message>{message}</message>\n"));
         }
 
         if let Some(task) = &self.task {
-            result.push_str(&format!("{}\n", task));
+            result.push_str(&format!("{task}\n"));
         }
 
         if let Some(next_task) = &self.next_task {
             result.push_str("<next_task>\n");
-            result.push_str(&format!("{}", next_task));
+            result.push_str(&format!("{next_task}"));
             result.push_str("\n</next_task>\n");
         }
 
@@ -120,7 +120,7 @@ impl Display for TaskListResult {
             if !tasks.is_empty() {
                 result.push_str("<tasks_list>\n");
                 for task in tasks {
-                    result.push_str(&format!("{}\n", task));
+                    result.push_str(&format!("{task}\n"));
                 }
                 result.push_str("</tasks_list>\n");
             }
@@ -128,15 +128,17 @@ impl Display for TaskListResult {
 
         result.push_str("</task_list_result>");
 
-        write!(f, "{}", result)
+        write!(f, "{result}")
     }
 }
 
-/// A stateful task management tool that maintains an ordered list of tasks with status tracking.
-/// Provides operations to add tasks (append/prepend), mark tasks as in-progress (pop_front/pop_back),
-/// complete tasks (mark_done), and view the current state (list). Automatically identifies
-/// the next pending task when completing items and provides detailed statistics on task status.
-/// Ideal for sequential workflows, project planning, and tracking multi-step processes.
+/// A stateful task management tool that maintains an ordered list of tasks with
+/// status tracking. Provides operations to add tasks (append/prepend), mark
+/// tasks as in-progress (pop_front/pop_back), complete tasks (mark_done), and
+/// view the current state (list). Automatically identifies the next pending
+/// task when completing items and provides detailed statistics on task status.
+/// Ideal for sequential workflows, project planning, and tracking multi-step
+/// processes.
 #[derive(Debug, ToolDescription)]
 pub struct TaskList<F> {
     infra: Arc<F>,
@@ -380,7 +382,7 @@ impl<F: Infrastructure> TaskList<F> {
 
         if !found {
             return Ok(TaskListResult {
-                message: Some(format!("No task found with ID {}.", id)),
+                message: Some(format!("No task found with ID {id}.")),
                 task: None,
                 next_task: None,
                 stats: self.calculate_stats().await,
@@ -400,8 +402,7 @@ impl<F: Infrastructure> TaskList<F> {
                 ))
             } else {
                 Some(format!(
-                    "Task {} marked as done. No more pending tasks.",
-                    id
+                    "Task {id} marked as done. No more pending tasks."
                 ))
             },
             task: None,
@@ -433,15 +434,15 @@ impl<F> NamedTool for TaskList<F> {
 
 fn format_input(input: &TaskListInput) -> String {
     if let Some(task) = &input.append_task {
-        return format!("Append: {}", task);
+        return format!("Append: {task}");
     } else if let Some(task) = &input.prepend_task {
-        return format!("Prepend: {}", task);
+        return format!("Prepend: {task}");
     } else if input.pop_front.is_some() {
         return "PopFront".to_string();
     } else if input.pop_back.is_some() {
         return "PopBack".to_string();
     } else if let Some(id) = input.mark_done_id {
-        return format!("MarkDone: {}", id);
+        return format!("MarkDone: {id}");
     } else if input.list.is_some() {
         return "List".to_string();
     }
