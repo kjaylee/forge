@@ -4,7 +4,7 @@ mod compaction;
 mod conversation;
 mod forge_services;
 mod infra;
-mod mcp_tool_service;
+mod mcp_service;
 mod metadata;
 mod provider;
 mod suggestion;
