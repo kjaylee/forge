@@ -433,10 +433,13 @@ impl<A: Services> Orchestrator<A> {
         context = attachments
             .into_iter()
             .fold(context.clone(), |ctx, attachment| {
-                ctx.add_message(match attachment.content_type {
-                    ContentType::Image => ContextMessage::Image(attachment.content),
-                    ContentType::Text => ContextMessage::user(attachment.content),
-                }, model_id.clone())
+                ctx.add_message(
+                    match attachment.content_type {
+                        ContentType::Image => ContextMessage::Image(attachment.content),
+                        ContentType::Text => ContextMessage::user(attachment.content),
+                    },
+                    model_id.clone(),
+                )
             });
 
         self.set_context(&agent.id, context.clone()).await?;
