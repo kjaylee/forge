@@ -114,7 +114,7 @@ impl Display for TaskListResult {
             result.push_str("\n</next_task>\n");
         }
 
-        result.push_str(&format!("{}", self.stats));
+        result.push_str(&format!("{}\n", self.stats));
 
         if let Some(tasks) = &self.tasks {
             if !tasks.is_empty() {
@@ -122,11 +122,11 @@ impl Display for TaskListResult {
                 for task in tasks {
                     result.push_str(&format!("{}\n", task));
                 }
-                result.push_str("\n</tasks_list>\n");
+                result.push_str("</tasks_list>\n");
             }
         }
 
-        result.push_str("\n</task_list_result>");
+        result.push_str("</task_list_result>");
 
         write!(f, "{}", result)
     }
