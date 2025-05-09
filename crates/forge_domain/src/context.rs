@@ -5,7 +5,7 @@ use tracing::debug;
 
 use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
-use crate::{ToolChoice, ToolDefinition};
+use crate::{ToolCallRecord, ToolChoice, ToolDefinition};
 
 /// Represents a message being sent to the LLM provider
 /// NOTE: ToolResults message are part of the larger Request object and not part
@@ -176,7 +176,7 @@ impl Context {
                     if let Some(tool_calls) = &message.tool_calls {
                         for call in tool_calls {
                             lines.push_str(&format!(
-                                "<tool_call name=\"{}\"><![CDATA[{}]]></tool_call>",
+                                "<forge_tool_call name=\"{}\"><![CDATA[{}]]></forge_tool_call>",
                                 call.name.as_str(),
                                 serde_json::to_string(&call.arguments).unwrap()
                             ));
@@ -189,19 +189,73 @@ impl Context {
                     lines.push_str("<message role=\"tool\">");
 
                     lines.push_str(&format!(
-                        "<tool_result name=\"{}\"><![CDATA[{}]]></tool_result>",
+                        "<forge_tool_result name=\"{}\"><![CDATA[{}]]></forge_tool_result>",
                         result.name.as_str(),
                         serde_json::to_string(&result.content).unwrap()
                     ));
                     lines.push_str("</message>");
                 }
                 ContextMessage::Image(url) => {
-                    lines.push_str(format!("<file_attachment path=\"{}\">", url).as_str());
+                    lines.push_str(format!("<file_attachment path=\"{url}\">").as_str());
                 }
             }
         }
 
-        format!("<chat_history>{}</chat_history>", lines)
+        format!("<chat_history>{lines}</chat_history>")
+    }
+
+    /// Estimates the token count for this context using a simple approximation
+    ///
+    /// This method uses a basic character-to-token ratio to approximate tokens.
+    /// For more accurate token counts, a proper model-specific tokenizer should
+    /// be used.
+    pub fn estimate_token_count(&self) -> u64 {
+        // Call the standalone function from agent.rs with the text representation of
+        // this context
+        crate::estimate_token_count(&self.to_text())
+    }
+
+    /// Will append a message to the context. If the model supports tools, it
+    /// will append the tool calls and results to the message. If the model
+    /// does not support tools, it will append the tool calls and results as
+    /// separate messages.
+    pub fn append_message(
+        mut self,
+        content: impl ToString,
+        tool_records: Vec<ToolCallRecord>,
+        tool_supported: bool,
+    ) -> Self {
+        if tool_supported {
+            self.add_message(ContextMessage::assistant(
+                content,
+                Some(
+                    tool_records
+                        .iter()
+                        .map(|record| record.tool_call.clone())
+                        .collect::<Vec<_>>(),
+                ),
+            ))
+            .add_tool_results(
+                tool_records
+                    .iter()
+                    .map(|record| record.tool_result.clone())
+                    .collect::<Vec<_>>(),
+            )
+        } else {
+            self = self.add_message(ContextMessage::assistant(content, None));
+            if tool_records.is_empty() {
+                return self;
+            }
+            let content = tool_records.iter().fold(String::new(), |mut acc, result| {
+                if !acc.is_empty() {
+                    acc.push_str("\n\n");
+                }
+                acc.push_str(result.to_string().as_str());
+                acc
+            });
+
+            self.add_message(ContextMessage::user(content))
+        }
     }
 }
 
@@ -243,5 +297,21 @@ mod tests {
             request.messages[0],
             ContextMessage::system("A system message")
         );
+    }
+
+    #[test]
+    fn test_estimate_token_count() {
+        // Create a context with some messages
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message"))
+            .add_message(ContextMessage::assistant("Assistant message", None));
+
+        // Get the token count
+        let token_count = context.estimate_token_count();
+
+        // Validate the token count is reasonable
+        // The exact value will depend on the implementation of estimate_token_count
+        assert!(token_count > 0, "Token count should be greater than 0");
     }
 }

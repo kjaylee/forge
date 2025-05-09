@@ -14,13 +14,8 @@ use crate::tools::utils::{assert_absolute_path, format_display_path};
 use crate::Infrastructure;
 
 /// Reverts the most recent file operation (create/modify/delete) on a specific
-/// file. Use this tool when you need to recover from mistaken file changes or
-/// undesired modifications. It restores the file to its state before the last
-/// operation performed by another tool_forge_fs_* tool. The tool ONLY undoes
-/// changes made by Forge tools and can't revert changes made outside Forge or
-/// multiple operations at once. Each call undoes only the most recent change
-/// for the specified file. Returns a success message on completion or an error
-/// if no previous snapshot exists or if the path is invalid.
+/// file. Use this tool when you need to recover from incorrect file changes or
+/// if a revert is requested by the user.
 #[derive(Default, ToolDescription)]
 pub struct FsUndo<F>(Arc<F>);
 
@@ -48,7 +43,7 @@ impl<F: Infrastructure> FsUndo<F> {
 
 impl<F> NamedTool for FsUndo<F> {
     fn tool_name() -> ToolName {
-        ToolName::new("tool_forge_fs_undo")
+        ToolName::new("forge_tool_fs_undo")
     }
 }
 
@@ -75,12 +70,11 @@ impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
         let display_path = self.format_display_path(path)?;
 
         // Display a message about the file being undone
-        let message = TitleFormat::success("undo").sub_title(display_path.clone());
-        context.send_text(message.format()).await?;
+        let message = TitleFormat::debug("Undo").sub_title(display_path.clone());
+        context.send_text(message).await?;
 
         Ok(format!(
-            "Successfully undid last operation on path: {}",
-            display_path
+            "Successfully undid last operation on path: {display_path}"
         ))
     }
 }
@@ -127,7 +121,7 @@ mod tests {
     async fn test_tool_name() {
         assert_eq!(
             FsUndo::<Stub>::tool_name().as_str(),
-            "tool_forge_fs_undo",
+            "forge_tool_fs_undo",
             "Tool name should match expected value"
         );
     }

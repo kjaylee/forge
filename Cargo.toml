@@ -18,6 +18,7 @@ chrono = { version = "0.4.39", features = ["serde"] }
 clap = { version = "4.5.23", features = ["derive"] }
 colored = "3.0.0"
 console = "0.15.7"
+inquire = "0.6.2"
 convert_case = "0.7.1"
 derive_builder = "0.20.2"
 derive_more = { version = "2.0.1", features = ["full"] }
@@ -26,7 +27,7 @@ dirs = "6.0.0"
 dissimilar = "1.0.9"
 dotenv = "0.15.0"
 futures = "0.3.31"
-gh-workflow-tailcall = "0.5.1"
+gh-workflow-tailcall = "0.5.2"
 glob = "0.3.2"
 handlebars = { version = "6.2.0", features = ["rust-embed"] }
 html2md = "0.2.15"
@@ -44,17 +45,20 @@ posthog-rs = { git = "https://github.com/PostHog/posthog-rs.git", rev = "a006a81
 pretty_assertions = "1.4.1"
 proc-macro2 = "1.0"
 quote = "1.0"
-reedline = "0.38.0"
+reedline = "0.40.0"
 regex = "1.11.1"
-reqwest = { version = "0.12.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12.12", features = [
+    "json",
+    "rustls-tls",
+], default-features = false }
 reqwest-eventsource = "0.6.0"
 rust-embed = "8.5.0"
 schemars = "0.8.21"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
-serde_yaml = "0.9.34"
+serde_yml = "0.0.12"
 similar = { version = "2.4", features = ["inline"] }
-strip-ansi-escapes = "0.2.0"
+strip-ansi-escapes = "0.2.1"
 strum = "0.27.1"
 strum_macros = "0.27.1"
 syn = { version = "2.0.98", features = ["full"] }
@@ -79,10 +83,15 @@ tree-sitter-cpp = "0.23"
 tree-sitter-ruby = "0.23"
 url = { version = "2.5.4", features = ["serde"] }
 tokio-retry = "0.3.0"
-uuid = { version = "1.11.0", features = ["v4", "fast-rng", "macro-diagnostics", "serde"] }
+uuid = { version = "1.11.0", features = [
+    "v4",
+    "fast-rng",
+    "macro-diagnostics",
+    "serde",
+] }
 whoami = "1.5.2"
 fnv_rs = "0.4.3"
-merge = {version = "0.1", features = ["derive"]}
+merge = { version = "0.1", features = ["derive"] }
 
 # Internal crates
 forge_api = { path = "crates/forge_api" }
@@ -97,3 +106,5 @@ forge_tracker = { path = "crates/forge_tracker" }
 forge_walker = { path = "crates/forge_walker" }
 forge_fs = { path = "crates/forge_fs" }
 forge_snaps = { path = "crates/forge_snaps" }
+forge_spinner = { path = "crates/forge_spinner" }
+forge_template = { path = "crates/forge_template" }

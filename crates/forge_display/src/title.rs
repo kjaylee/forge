@@ -4,37 +4,20 @@ use colored::Colorize;
 use derive_setters::Setters;
 
 #[derive(Clone)]
-pub enum Kind {
-    Execute,
-    Success,
-    Failed,
-}
-
-impl Kind {
-    fn icon(&self) -> &'static str {
-        match self {
-            Kind::Execute => "⚙",
-            Kind::Success => "✓",
-            Kind::Failed => "✗",
-        }
-    }
-
-    fn label(&self) -> &'static str {
-        match self {
-            Kind::Execute => "execute",
-            Kind::Success => "success",
-            Kind::Failed => "error",
-        }
-    }
+pub enum Category {
+    Action,
+    Info,
+    Debug,
+    Error,
+    Completion,
 }
 
 #[derive(Clone, Setters)]
 #[setters(into, strip_option)]
 pub struct TitleFormat {
-    pub kind: Kind,
     pub title: String,
     pub sub_title: Option<String>,
-    pub error: Option<String>,
+    pub category: Category,
 }
 
 pub trait TitleExt {
@@ -52,82 +35,88 @@ where
 
 impl TitleFormat {
     /// Create a status for executing a tool
-    pub fn execute(message: impl Into<String>) -> Self {
+    pub fn info(message: impl Into<String>) -> Self {
         Self {
-            kind: Kind::Execute,
             title: message.into(),
-            error: None,
-            sub_title: Default::default(),
+            sub_title: None,
+            category: Category::Info,
         }
     }
 
-    /// Create a success status
-    pub fn success(message: impl Into<String>) -> Self {
+    /// Create a status for executing a tool
+    pub fn action(message: impl Into<String>) -> Self {
         Self {
-            kind: Kind::Success,
             title: message.into(),
-            error: None,
-            sub_title: Default::default(),
+            sub_title: None,
+            category: Category::Action,
         }
     }
 
-    /// Create a failure status
-    pub fn failed(message: impl Into<String>) -> Self {
+    pub fn error(message: impl Into<String>) -> Self {
         Self {
-            kind: Kind::Failed,
             title: message.into(),
-            error: None,
-            sub_title: Default::default(),
+            sub_title: None,
+            category: Category::Error,
         }
     }
 
-    pub fn format(&self) -> String {
-        let (icon, label, message) = match self.kind {
-            Kind::Execute => (
-                self.icon().cyan(),
-                self.label().bold().cyan(),
-                self.title.to_string(),
-            ),
-            Kind::Success => (
-                self.icon().green(),
-                self.label().bold().green(),
-                self.title.to_string(),
-            ),
-            Kind::Failed => {
-                let error_suffix = self
-                    .error
-                    .as_ref()
-                    .map(|e| format!(" ({})", e))
-                    .unwrap_or_default();
-                (
-                    self.icon().red(),
-                    self.label().bold().red(),
-                    format!("{}{}", self.title, error_suffix.red()),
-                )
-            }
+    pub fn debug(message: impl Into<String>) -> Self {
+        Self {
+            title: message.into(),
+            sub_title: None,
+            category: Category::Debug,
+        }
+    }
+
+    pub fn completion(message: impl Into<String>) -> Self {
+        Self {
+            title: message.into(),
+            sub_title: None,
+            category: Category::Completion,
+        }
+    }
+
+    fn format(&self) -> String {
+        let mut buf = String::new();
+
+        let icon = match self.category {
+            Category::Action => "⏺".yellow(),
+            Category::Info => "⏺".white(),
+            Category::Debug => "⏺".cyan(),
+            Category::Error => "⏺".red(),
+            Category::Completion => "⏺".yellow(),
         };
 
-        let timestamp = if cfg!(test) {
-            // Use a fixed timestamp for tests to ensure snapshot consistency
-            "10:00:00.000"
-        } else {
-            &chrono::Local::now().format("%H:%M:%S%.3f").to_string()
+        buf.push_str(format!("{icon} ").as_str());
+
+        // Add timestamp at the beginning if this is not a user action
+        #[cfg(not(test))]
+        {
+            use chrono::Local;
+
+            buf.push_str(
+                format!("[{}] ", Local::now().format("%H:%M:%S.%3f"))
+                    .dimmed()
+                    .to_string()
+                    .as_str(),
+            );
+        }
+
+        let title = match self.category {
+            Category::Action => self.title.white(),
+            Category::Info => self.title.white(),
+            Category::Debug => self.title.dimmed(),
+            Category::Error => format!("{} {}", "ERROR:".bold(), self.title).red(),
+            Category::Completion => self.title.white().bold(),
         };
-        let mut result = format!("{} {} {} {}", timestamp.dimmed(), icon, label, message);
+
+        buf.push_str(title.to_string().as_str());
 
         if let Some(ref sub_title) = self.sub_title {
-            result.push_str(&format!(" {}", sub_title).dimmed().to_string());
+            buf.push_str(&format!(" {}", sub_title.dimmed()).to_string());
         }
 
-        result
-    }
-
-    fn icon(&self) -> &'static str {
-        self.kind.icon()
-    }
-
-    fn label(&self) -> &'static str {
-        self.kind.label()
+        buf
     }
 }
 

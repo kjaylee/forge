@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use forge_domain::{EnvironmentService, Tool};
+use forge_domain::Tool;
 
+use super::completion::Completion;
 use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
-use super::show_user::ShowUser;
+use crate::tools::followup::Followup;
 use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
@@ -20,19 +21,19 @@ impl<F: Infrastructure> ToolRegistry<F> {
 
     /// Returns all available tools configured with the given infrastructure
     pub fn tools(&self) -> Vec<Tool> {
-        let env = self.infra.environment_service().get_environment();
         vec![
             FSRead::new(self.infra.clone()).into(),
             FSWrite::new(self.infra.clone()).into(),
             FSRemove::new(self.infra.clone()).into(),
             FSList::default().into(),
             FSFind::new(self.infra.clone()).into(),
-            FSFileInfo.into(),
+            FSFileInfo::new(self.infra.clone()).into(),
             FsUndo::new(self.infra.clone()).into(),
             ApplyPatchJson::new(self.infra.clone()).into(),
-            Shell::new(env.clone()).into(),
-            Fetch::default().into(),
-            ShowUser.into(),
+            Shell::new(self.infra.clone()).into(),
+            Completion.into(),
+            Followup::new(self.infra.clone()).into(),
+            Fetch::new(self.infra.clone()).into(),
         ]
     }
 }
@@ -42,13 +43,13 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{Environment, Provider};
+    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider};
     use forge_snaps::Snapshot;
 
     use super::*;
     use crate::{
-        FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
-        FsWriteService,
+        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
+        FsReadService, FsSnapshotService, FsWriteService, InquireService,
     };
 
     /// Create a default test environment
@@ -91,7 +92,20 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl FsReadService for Stub {
-        async fn read(&self, _path: &Path) -> anyhow::Result<Bytes> {
+        async fn read_utf8(&self, _path: &Path) -> anyhow::Result<String> {
+            unimplemented!()
+        }
+
+        async fn read(&self, _path: &Path) -> anyhow::Result<Vec<u8>> {
+            unimplemented!()
+        }
+
+        async fn range_read_utf8(
+            &self,
+            _path: &Path,
+            _start_char: u64,
+            _end_char: u64,
+        ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
             unimplemented!()
         }
     }
@@ -99,6 +113,10 @@ pub mod tests {
     #[async_trait::async_trait]
     impl FsWriteService for Stub {
         async fn write(&self, _: &Path, _: Bytes) -> anyhow::Result<()> {
+            unimplemented!()
+        }
+
+        async fn write_temp(&self, _: &str, _: &str, _: &str) -> anyhow::Result<PathBuf> {
             unimplemented!()
         }
     }
@@ -140,6 +158,48 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl CommandExecutorService for Stub {
+        async fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<CommandOutput> {
+            unimplemented!()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl InquireService for Stub {
+        /// Prompts the user with question
+        async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
+            // For testing, we can just return the question as the answer
+            Ok(Some(question.to_string()))
+        }
+
+        /// Prompts the user to select a single option from a list
+        async fn select_one(
+            &self,
+            _: &str,
+            options: Vec<String>,
+        ) -> anyhow::Result<Option<String>> {
+            // For testing, we can just return the first option
+            if options.is_empty() {
+                return Err(anyhow::anyhow!("No options provided"));
+            }
+            Ok(Some(options[0].clone()))
+        }
+
+        /// Prompts the user to select multiple options from a list
+        async fn select_many(
+            &self,
+            _: &str,
+            options: Vec<String>,
+        ) -> anyhow::Result<Option<Vec<String>>> {
+            // For testing, we can just return all options
+            if options.is_empty() {
+                return Err(anyhow::anyhow!("No options provided"));
+            }
+            Ok(Some(options))
+        }
+    }
+
+    #[async_trait::async_trait]
     impl Infrastructure for Stub {
         type EnvironmentService = Stub;
         type FsReadService = Stub;
@@ -148,6 +208,8 @@ pub mod tests {
         type FsMetaService = Stub;
         type FsSnapshotService = Stub;
         type FsCreateDirsService = Stub;
+        type CommandExecutorService = Stub;
+        type InquireService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -174,6 +236,14 @@ pub mod tests {
         }
 
         fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+            self
+        }
+
+        fn command_executor_service(&self) -> &Self::CommandExecutorService {
+            self
+        }
+
+        fn inquire_service(&self) -> &Self::InquireService {
             self
         }
     }
@@ -207,8 +277,7 @@ pub mod tests {
 
         assert!(
             !any_exceeded,
-            "One or more tools exceed the maximum description length of {}",
-            MAX_DESCRIPTION_LENGTH
+            "One or more tools exceed the maximum description length of {MAX_DESCRIPTION_LENGTH}"
         );
     }
 }

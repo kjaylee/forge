@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::collections::HashSet;
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
@@ -10,7 +11,8 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition, ToolName,
+    Context, Error, Event, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition,
+    ToolName,
 };
 
 // Unique identifier for an agent
@@ -116,7 +118,7 @@ impl Compact {
     pub fn should_compact(&self, context: &Context, prompt_tokens: Option<usize>) -> bool {
         // Check if any of the thresholds have been exceeded
         if let Some(token_threshold) = self.token_threshold {
-            let estimate_token_count = estimate_token_count(&context.to_text());
+            let estimate_token_count = context.estimate_token_count();
             debug!(tokens = ?prompt_tokens, estimated = estimate_token_count, "Token count");
             // use provided prompt_tokens if available, otherwise estimate token count
             let token_count = prompt_tokens
@@ -291,6 +293,38 @@ impl Agent {
         Ok(ToolDefinition::new(self.id.as_str().to_string())
             .description(self.description.clone().unwrap()))
     }
+    /// Checks if compaction should be applied
+    pub fn should_compact(&self, context: &Context, prompt_tokens: Option<usize>) -> bool {
+        // Return false if compaction is not configured
+        if let Some(compact) = &self.compact {
+            compact.should_compact(context, prompt_tokens)
+        } else {
+            false
+        }
+    }
+
+    pub async fn init_context(&self, mut forge_tools: Vec<ToolDefinition>) -> Result<Context> {
+        let allowed = self.tools.iter().flatten().collect::<HashSet<_>>();
+
+        // Adding Event tool to the list of tool definitions
+        forge_tools.push(Event::tool_definition());
+
+        let tool_defs = forge_tools
+            .into_iter()
+            .filter(|tool| allowed.contains(&tool.name))
+            .collect::<Vec<_>>();
+
+        // Use the agent's tool_supported flag directly instead of querying the provider
+        let tool_supported = self.tool_supported.unwrap_or_default();
+
+        let context = Context::default();
+
+        Ok(context.extend_tools(if tool_supported {
+            tool_defs
+        } else {
+            Vec::new()
+        }))
+    }
 }
 
 impl Key for Agent {
@@ -306,10 +340,12 @@ impl Key for Agent {
 /// Estimates the token count from a string representation
 /// This is a simple estimation that should be replaced with a more accurate
 /// tokenizer
-fn estimate_token_count(text: &str) -> u64 {
+/// Estimates token count from a string representation
+/// Re-exported for compaction reporting
+pub fn estimate_token_count(text: &str) -> u64 {
     // A very rough estimation that assumes ~4 characters per token on average
     // In a real implementation, this should use a proper LLM-specific tokenizer
-    text.len() as u64 / 5
+    text.len() as u64 / 4
 }
 
 // The Transform enum has been removed
@@ -462,11 +498,7 @@ mod tests {
             });
 
             let agent: std::result::Result<Agent, serde_json::Error> = serde_json::from_value(json);
-            assert!(
-                agent.is_ok(),
-                "Valid temperature {} should deserialize",
-                temp
-            );
+            assert!(agent.is_ok(), "Valid temperature {temp} should deserialize");
             assert_eq!(agent.unwrap().temperature.unwrap().value(), temp);
         }
 
@@ -481,14 +513,12 @@ mod tests {
             let agent: std::result::Result<Agent, serde_json::Error> = serde_json::from_value(json);
             assert!(
                 agent.is_err(),
-                "Invalid temperature {} should fail deserialization",
-                temp
+                "Invalid temperature {temp} should fail deserialization"
             );
             let err = agent.unwrap_err().to_string();
             assert!(
                 err.contains("temperature must be between 0.0 and 2.0"),
-                "Error should mention valid range: {}",
-                err
+                "Error should mention valid range: {err}"
             );
         }
 

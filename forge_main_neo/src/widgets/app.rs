@@ -51,15 +51,14 @@ impl App {
                 self.attempt_conversation(commands);
             }
             Message::Chat(message) => match message.message {
-                ChatResponse::Text { text, is_complete } => {
+                ChatResponse::Text { text, is_complete, is_md: _, is_summary: _ } => {
                     if !is_complete {
                         self.state.messages.push_str(text.as_str());
                     }
                 }
-                ChatResponse::ToolCallStart(tool_call_full) => {}
-                ChatResponse::ToolCallEnd(tool_result) => {}
-                ChatResponse::Usage(usage) => {}
-                ChatResponse::Event(event) => {}
+                ChatResponse::ToolCallStart(_tool_call_full) => {}
+                ChatResponse::ToolCallEnd(_tool_result) => {}
+                ChatResponse::Usage(_usage) => {}
             },
             _ => {}
         }

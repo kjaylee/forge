@@ -45,6 +45,17 @@ pub struct Usage {
     pub output_tokens: Option<u64>,
 }
 
+impl From<Usage> for forge_domain::Usage {
+    fn from(usage: Usage) -> Self {
+        forge_domain::Usage {
+            prompt_tokens: usage.input_tokens.unwrap_or(0),
+            completion_tokens: usage.output_tokens.unwrap_or(0),
+            total_tokens: usage.input_tokens.unwrap_or(0) + usage.output_tokens.unwrap_or(0),
+            estimated_tokens: None,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum StopReason {
@@ -111,7 +122,7 @@ pub enum ErrorData {
 impl Display for ErrorData {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorData::OverloadedError { message } => write!(f, "OverloadedError: {}", message),
+            ErrorData::OverloadedError { message } => write!(f, "OverloadedError: {message}"),
         }
     }
 }
@@ -294,7 +305,7 @@ mod tests {
         ];
         for (name, input, expected) in tests {
             let actual: Event = serde_json::from_str(input).unwrap();
-            assert_eq!(actual, expected, "test failed for event data: {}", name);
+            assert_eq!(actual, expected, "test failed for event data: {name}");
         }
     }
 

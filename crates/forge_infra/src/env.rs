@@ -66,7 +66,7 @@ impl ForgeEnvironmentService {
                     provider
                 })
             })
-            .unwrap_or_else(|| panic!("No API key found. Please set one of: {}", env_variables))
+            .unwrap_or_else(|| panic!("No API key found. Please set one of: {env_variables}"))
     }
 
     /// Resolves retry configuration from environment variables or returns
@@ -119,9 +119,9 @@ impl ForgeEnvironmentService {
             pid: std::process::id(),
             cwd,
             shell: self.get_shell_path(),
-            base_path: dirs::config_dir()
+            base_path: dirs::home_dir()
                 .map(|a| a.join("forge"))
-                .unwrap_or(PathBuf::from(".").join(".forge")),
+                .unwrap_or(PathBuf::from(".").join("forge")),
             home: dirs::home_dir(),
             provider,
             retry_config,

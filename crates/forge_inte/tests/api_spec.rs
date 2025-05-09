@@ -12,7 +12,7 @@ const MAX_RETRIES: usize = 5;
 /// Check if API tests should run based on environment variable
 fn should_run_api_tests() -> bool {
     dotenv::dotenv().ok();
-    dbg!(env::var("RUN_API_TESTS")).is_ok()
+    env::var("RUN_API_TESTS").is_ok()
 }
 
 /// Test fixture for API testing that supports parallel model validation
@@ -48,7 +48,7 @@ impl Fixture {
         });
 
         // initialize the conversation by storing the workflow.
-        let conversation_id = api.init(workflow).await.unwrap();
+        let conversation_id = api.init_conversation(workflow).await.unwrap().id;
         let request = ChatRequest::new(
             Event::new(
                 "user_task_init",

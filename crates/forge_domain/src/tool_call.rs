@@ -3,8 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::tool_call_parser::parse;
-use crate::{Error, Result, ToolName};
+use crate::{extract_tag_content, Error, Result, ToolName};
 
 /// Unique identifier for a using a tool
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -128,7 +127,12 @@ impl ToolCallFull {
 
     /// Parse multiple tool calls from XML format.
     pub fn try_from_xml(input: &str) -> std::result::Result<Vec<Self>, Error> {
-        parse(input)
+        match extract_tag_content(input, "forge_tool_call") {
+            None => Ok(Default::default()),
+            Some(content) => Ok(vec![
+                serde_json::from_str(content).map_err(Error::ToolCallArgument)?
+            ]),
+        }
     }
 }
 
@@ -141,18 +145,18 @@ mod tests {
         let input = [
             ToolCallPart {
                 call_id: Some(ToolCallId("call_1".to_string())),
-                name: Some(ToolName::new("tool_forge_fs_read")),
+                name: Some(ToolName::new("forge_tool_fs_read")),
                 arguments_part: "{\"path\": \"crates/forge_services/src/fixtures/mascot.md\"}"
                     .to_string(),
             },
             ToolCallPart {
                 call_id: Some(ToolCallId("call_2".to_string())),
-                name: Some(ToolName::new("tool_forge_fs_read")),
+                name: Some(ToolName::new("forge_tool_fs_read")),
                 arguments_part: "{\"path\": \"docs/onboarding.md\"}".to_string(),
             },
             ToolCallPart {
                 call_id: Some(ToolCallId("call_3".to_string())),
-                name: Some(ToolName::new("tool_forge_fs_read")),
+                name: Some(ToolName::new("forge_tool_fs_read")),
                 arguments_part: "{\"path\": \"crates/forge_services/src/service/service.md\"}"
                     .to_string(),
             },
@@ -162,17 +166,17 @@ mod tests {
 
         let expected = vec![
             ToolCallFull {
-                name: ToolName::new("tool_forge_fs_read"),
+                name: ToolName::new("forge_tool_fs_read"),
                 call_id: Some(ToolCallId("call_1".to_string())),
                 arguments: serde_json::json!({"path": "crates/forge_services/src/fixtures/mascot.md"}),
             },
             ToolCallFull {
-                name: ToolName::new("tool_forge_fs_read"),
+                name: ToolName::new("forge_tool_fs_read"),
                 call_id: Some(ToolCallId("call_2".to_string())),
                 arguments: serde_json::json!({"path": "docs/onboarding.md"}),
             },
             ToolCallFull {
-                name: ToolName::new("tool_forge_fs_read"),
+                name: ToolName::new("forge_tool_fs_read"),
                 call_id: Some(ToolCallId("call_3".to_string())),
                 arguments: serde_json::json!({"path": "crates/forge_services/src/service/service.md"}),
             },
@@ -185,14 +189,14 @@ mod tests {
     fn test_single_tool_call() {
         let input = [ToolCallPart {
             call_id: Some(ToolCallId("call_1".to_string())),
-            name: Some(ToolName::new("tool_forge_fs_read")),
+            name: Some(ToolName::new("forge_tool_fs_read")),
             arguments_part: "{\"path\": \"docs/onboarding.md\"}".to_string(),
         }];
 
         let actual = ToolCallFull::try_from_parts(&input).unwrap();
         let expected = vec![ToolCallFull {
             call_id: Some(ToolCallId("call_1".to_string())),
-            name: ToolName::new("tool_forge_fs_read"),
+            name: ToolName::new("forge_tool_fs_read"),
             arguments: serde_json::json!({"path": "docs/onboarding.md"}),
         }];
 
@@ -205,5 +209,14 @@ mod tests {
         let expected = vec![];
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_real_example() {
+        let message = include_str!("./fixtures/tool_call_01.md");
+        let tool_call = ToolCallFull::try_from_xml(message).unwrap();
+        let actual = tool_call.first().unwrap().name.as_str();
+        let expected = "forge_tool_attempt_completion";
+        assert_eq!(actual, expected)
     }
 }

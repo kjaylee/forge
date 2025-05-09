@@ -1,55 +1,144 @@
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::Display;
 
-#[derive(Debug)]
-pub struct UsagePrompt {
-    pub tool_name: String,
-    pub input_parameters: Vec<UsageParameterPrompt>,
-    pub description: String,
+use schemars::schema::{InstanceType, SingleOrVec};
+use serde::Serialize;
+
+use crate::ToolDefinition;
+
+pub struct ToolUsagePrompt<'a> {
+    tools: &'a Vec<ToolDefinition>,
 }
 
-impl Display for UsagePrompt {
+impl<'a> From<&'a Vec<ToolDefinition>> for ToolUsagePrompt<'a> {
+    fn from(value: &'a Vec<ToolDefinition>) -> Self {
+        Self { tools: value }
+    }
+}
+
+impl Display for ToolUsagePrompt<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.tool_name)?;
-        f.write_str("\n")?;
-        f.write_str(&self.description)?;
+        for tool in self.tools.iter() {
+            let required = tool
+                .input_schema
+                .schema
+                .clone()
+                .object
+                .iter()
+                .flat_map(|object| object.required.clone().into_iter())
+                .collect::<HashSet<_>>();
 
-        f.write_str("\n\nUsage:\n")?;
-        f.write_str("<tool_call>\n")?;
-        f.write_str("<")?;
-        f.write_str(&self.tool_name)?;
-        f.write_str(">")?;
+            let parameters = tool
+                .input_schema
+                .schema
+                .object
+                .clone()
+                .into_iter()
+                .flat_map(|object| object.properties.into_iter())
+                .flat_map(|(name, props)| {
+                    let object = props.into_object();
+                    let instance = object.instance_type.clone();
+                    object
+                        .metadata
+                        .into_iter()
+                        .map(move |meta| (name.clone(), meta, instance.clone()))
+                })
+                .flat_map(|(name, meta, instance)| {
+                    meta.description
+                        .into_iter()
+                        .map(move |desc| (name.clone(), desc, instance.clone()))
+                })
+                .map(|(name, desc, instance)| {
+                    let parameter = Parameter {
+                        description: desc,
+                        type_of: instance,
+                        is_required: required.contains(&name),
+                    };
 
-        for parameter in self.input_parameters.iter() {
-            f.write_str("\n")?;
-            parameter.fmt(f)?;
+                    (name, parameter)
+                })
+                .collect::<BTreeMap<_, _>>();
+
+            let schema = Schema { name: tool.name.as_str().to_string(), arguments: parameters };
+
+            writeln!(f, "{schema}")?;
         }
-
-        f.write_str("\n")?;
-        f.write_str("</")?;
-        f.write_str(&self.tool_name)?;
-        f.write_str(">\n")?;
-        f.write_str("</tool_call>\n")?;
 
         Ok(())
     }
 }
 
-#[derive(Debug)]
-pub struct UsageParameterPrompt {
-    pub parameter_name: String,
-    pub parameter_type: String,
+#[derive(Serialize)]
+struct Schema {
+    name: String,
+    arguments: BTreeMap<String, Parameter>,
 }
 
-impl Display for UsageParameterPrompt {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("<")?;
-        f.write_str(&self.parameter_name)?;
-        f.write_str(">")?;
-        f.write_str(&self.parameter_type)?;
-        f.write_str("</")?;
-        f.write_str(&self.parameter_name)?;
-        f.write_str(">")?;
+#[derive(Serialize)]
+struct Parameter {
+    description: String,
+    #[serde(rename = "type")]
+    type_of: Option<SingleOrVec<InstanceType>>,
+    is_required: bool,
+}
 
-        Ok(())
+impl Display for Schema {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use insta::assert_snapshot;
+    use schemars::JsonSchema;
+    use serde::Deserialize;
+
+    use super::*;
+    use crate::{
+        ExecutableTool, NamedTool, ToolCallContext, ToolDefinition, ToolDescription, ToolName,
+    };
+
+    #[derive(Default)]
+    pub struct MangoTool;
+
+    #[derive(JsonSchema, Deserialize)]
+    pub struct ToolInput {
+        /// This is parameter 1
+        #[allow(dead_code)]
+        param1: String,
+
+        /// This is parameter 2
+        #[allow(dead_code)]
+        param2: Option<String>,
+    }
+
+    impl ToolDescription for MangoTool {
+        fn description(&self) -> String {
+            "This is a mango tool".to_string()
+        }
+    }
+
+    impl NamedTool for MangoTool {
+        fn tool_name() -> ToolName {
+            ToolName::new("forge_tool_mango")
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ExecutableTool for MangoTool {
+        type Input = ToolInput;
+
+        async fn call(&self, _: ToolCallContext, _: Self::Input) -> anyhow::Result<String> {
+            Ok("Completed".to_string())
+        }
+    }
+
+    #[test]
+    fn test_tool_usage_prompt_to_string() {
+        let tools = vec![ToolDefinition::from(&MangoTool)];
+        let prompt = ToolUsagePrompt::from(&tools);
+        assert_snapshot!(prompt);
     }
 }

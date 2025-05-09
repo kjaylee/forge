@@ -29,9 +29,9 @@ impl<A: API + Send + Sync + 'static> CommandExecutor for ForgeCommandExecutor<A>
                 }
             }
             Command::InitConversation => {
-                let workflow = self.api.load(None).await?;
-                let conversation_id = self.api.init(workflow).await?;
-                tx.send(Message::ConversationId(conversation_id)).await?
+                let workflow = self.api.read_workflow(None).await?;
+                let conversation = self.api.init_conversation(workflow).await?;
+                tx.send(Message::ConversationId(conversation.id)).await?
             }
             Command::Exit => {}
         }
