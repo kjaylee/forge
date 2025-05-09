@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_domain::EnvironmentService;
-use forge_services::{ForgeFeedbackService, Infrastructure};
+use forge_services::Infrastructure;
 
 use crate::env::ForgeEnvironmentService;
 use crate::executor::ForgeCommandExecutorService;
@@ -24,7 +24,6 @@ pub struct ForgeInfra {
     create_dirs_service: Arc<ForgeCreateDirsService>,
     command_executor_service: Arc<ForgeCommandExecutorService>,
     inquire_service: Arc<ForgeInquire>,
-    feedback_service: Arc<ForgeFeedbackService>,
 }
 
 impl ForgeInfra {
@@ -32,7 +31,6 @@ impl ForgeInfra {
         let environment_service = Arc::new(ForgeEnvironmentService::new(restricted));
         let env = environment_service.get_environment();
         let file_snapshot_service = Arc::new(ForgeFileSnapshotService::new(env.clone()));
-        let feedback_service = ForgeFeedbackService::new(env.base_path.clone());
         Self {
             file_read_service: Arc::new(ForgeFileReadService::new()),
             file_write_service: Arc::new(ForgeFileWriteService::new(file_snapshot_service.clone())),
@@ -48,7 +46,6 @@ impl ForgeInfra {
                 env.clone(),
             )),
             inquire_service: Arc::new(ForgeInquire::new()),
-            feedback_service: Arc::new(feedback_service),
         }
     }
 }
@@ -63,7 +60,6 @@ impl Infrastructure for ForgeInfra {
     type FsCreateDirsService = ForgeCreateDirsService;
     type CommandExecutorService = ForgeCommandExecutorService;
     type InquireService = ForgeInquire;
-    type FeedbackService = ForgeFeedbackService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -99,9 +95,5 @@ impl Infrastructure for ForgeInfra {
 
     fn inquire_service(&self) -> &Self::InquireService {
         &self.inquire_service
-    }
-
-    fn feedback_service(&self) -> &Self::FeedbackService {
-        &self.feedback_service
     }
 }

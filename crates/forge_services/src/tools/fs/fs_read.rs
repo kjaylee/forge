@@ -434,7 +434,6 @@ mod test {
             type FsMetaService = crate::attachment::tests::MockFileService;
             type FsCreateDirsService = crate::attachment::tests::MockFileService;
             type FsRemoveService = crate::attachment::tests::MockFileService;
-            type FeedbackService = crate::attachment::tests::MockFeedbackService;
             type FsSnapshotService = crate::attachment::tests::MockSnapService;
             type CommandExecutorService = ();
             type InquireService = ();
@@ -473,10 +472,6 @@ mod test {
 
             fn inquire_service(&self) -> &Self::InquireService {
                 self.inner.inquire_service()
-            }
-
-            fn feedback_service(&self) -> &Self::FeedbackService {
-                self.inner.feedback_service()
             }
         }
 

@@ -123,6 +123,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type CompactionService: CompactionService;
     type WorkflowService: WorkflowService;
     type SuggestionService: SuggestionService;
+    type FeedbackService: FeedbackService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
@@ -133,4 +134,5 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn compaction_service(&self) -> &Self::CompactionService;
     fn workflow_service(&self) -> &Self::WorkflowService;
     fn suggestion_service(&self) -> &Self::SuggestionService;
+    fn feedback_service(&self) -> &Self::FeedbackService;
 }

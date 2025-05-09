@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::{CommandOutput, EnvironmentService, FeedbackService};
+use forge_domain::{CommandOutput, EnvironmentService};
 use forge_snaps::Snapshot;
 
 /// Repository for accessing system environment information
@@ -131,7 +131,6 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     type FsCreateDirsService: FsCreateDirsService;
     type CommandExecutorService: CommandExecutorService;
     type InquireService: InquireService;
-    type FeedbackService: FeedbackService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FsMetaService;
@@ -142,5 +141,4 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
     fn command_executor_service(&self) -> &Self::CommandExecutorService;
     fn inquire_service(&self) -> &Self::InquireService;
-    fn feedback_service(&self) -> &Self::FeedbackService;
 }

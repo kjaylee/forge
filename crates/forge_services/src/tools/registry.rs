@@ -221,8 +221,6 @@ pub mod tests {
         type FsCreateDirsService = Stub;
         type CommandExecutorService = Stub;
         type InquireService = Stub;
-        type FeedbackService = Stub;
-
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
         }
@@ -256,10 +254,6 @@ pub mod tests {
         }
 
         fn inquire_service(&self) -> &Self::InquireService {
-            self
-        }
-
-        fn feedback_service(&self) -> &Self::FeedbackService {
             self
         }
     }

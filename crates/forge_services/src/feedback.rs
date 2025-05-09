@@ -1,29 +1,45 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use bytes::Bytes;
 use forge_domain::FeedbackService;
 use forge_fs::ForgeFS;
 use tracing::warn;
 
 use crate::feedback_settings::FeedbackSettings;
+use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
 
-pub struct ForgeFeedbackService {
+pub struct ForgeFeedbackService<F> {
     settings_path: PathBuf,
+    infra: Arc<F>,
 }
 
-impl ForgeFeedbackService {
-    pub fn new(base_path: PathBuf) -> Self {
+impl<F: Infrastructure> ForgeFeedbackService<F> {
+    pub fn new(base_path: PathBuf, infra: Arc<F>) -> Self {
         let settings_path = base_path.join("settings").join("feedback.json");
-        Self { settings_path }
+        Self { settings_path, infra }
     }
 
     /// Load feedback settings from the file, returning default settings if any
     /// error occurs
     async fn load_settings(&self) -> FeedbackSettings {
-        if !ForgeFS::exists(&self.settings_path) {
-            return FeedbackSettings::default();
+        if let Ok(exist) = self
+            .infra
+            .file_meta_service()
+            .exists(&self.settings_path)
+            .await
+        {
+            if !exist {
+                return FeedbackSettings::default();
+            }
         }
-
-        match ForgeFS::read_to_string(&self.settings_path).await {
+        // Read the settings file
+        match self
+            .infra
+            .file_read_service()
+            .read_utf8(&self.settings_path)
+            .await
+        {
             Ok(content) => match serde_json::from_str(&content) {
                 Ok(settings) => settings,
                 Err(e) => {
@@ -42,19 +58,24 @@ impl ForgeFeedbackService {
     async fn save_settings(&self, settings: &FeedbackSettings) -> anyhow::Result<()> {
         let content = serde_json::to_string_pretty(settings)?;
         if let Some(parent) = self.settings_path.parent() {
-            if !ForgeFS::exists(parent) {
-                ForgeFS::create_dir_all(parent).await?
+            if let Ok(exist) = self.infra.file_meta_service().exists(parent).await {
+                if !exist {
+                    ForgeFS::create_dir_all(parent).await?
+                }
             }
         }
-
-        // Write the file
-        ForgeFS::write(&self.settings_path, content).await
+        let content = content.as_bytes();
+        let bytes = Bytes::copy_from_slice(content);
+        self.infra
+            .file_write_service()
+            .write(&self.settings_path, bytes)
+            .await
     }
 }
 
 // Implement the FeedbackService trait for our async service
 #[async_trait::async_trait]
-impl FeedbackService for ForgeFeedbackService {
+impl<F: Infrastructure> FeedbackService for ForgeFeedbackService<F> {
     // Check if feedback should be shown - always reads from disk
     async fn should_show_feedback(&self) -> anyhow::Result<bool> {
         // Read settings from disk
