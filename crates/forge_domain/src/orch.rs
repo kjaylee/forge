@@ -168,7 +168,10 @@ impl<A: Services> Orchestrator<A> {
                 .template_service()
                 .render(system_prompt.template.as_str(), &ctx)?;
 
-            let model_id = agent.model.clone().context("Model should've been set at this point.")?;
+            let model_id = agent
+                .model
+                .clone()
+                .context("Model should've been set at this point.")?;
             context.set_first_system_message(system_message, model_id)
         } else {
             context
@@ -393,7 +396,10 @@ impl<A: Services> Orchestrator<A> {
             "Initializing agent"
         );
         let agent = conversation.get_agent(agent_id)?;
-        let model_id = agent.model.clone().context("Model should've been set at this point.")?;
+        let model_id = agent
+            .model
+            .clone()
+            .context("Model should've been set at this point.")?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
             agent.init_context(self.get_allowed_tools(agent)).await?
@@ -429,8 +435,8 @@ impl<A: Services> Orchestrator<A> {
             .fold(context.clone(), |ctx, attachment| {
                 ctx.add_message(match attachment.content_type {
                     ContentType::Image => ContextMessage::Image(attachment.content),
-                    ContentType::Text => ContextMessage::user(attachment.content, model_id.clone()),
-                })
+                    ContentType::Text => ContextMessage::user(attachment.content),
+                }, model_id.clone())
             });
 
         self.set_context(&agent.id, context.clone()).await?;
@@ -439,16 +445,16 @@ impl<A: Services> Orchestrator<A> {
 
         let mut empty_tool_call_count = 0;
 
+        // Determine which model to use - prefer workflow model if available, fallback
+        // to agent model
+        let model_id = agent
+            .model
+            .as_ref()
+            .ok_or(Error::MissingModel(agent.id.clone()))?;
+
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
-
-            // Determine which model to use - prefer workflow model if available, fallback
-            // to agent model
-            let model_id = agent
-                .model
-                .as_ref()
-                .ok_or(Error::MissingModel(agent.id.clone()))?;
 
             let response = self
                 .services
@@ -496,7 +502,7 @@ impl<A: Services> Orchestrator<A> {
                     .services
                     .template_service()
                     .render("{{> partial-tool-required.hbs}}", &())?;
-                context = context.add_message(ContextMessage::user(content, model_id.clone()));
+                context = context.add_message(ContextMessage::user(content), model_id.clone());
 
                 empty_tool_call_count += 1;
                 let model = agent
@@ -539,8 +545,11 @@ impl<A: Services> Orchestrator<A> {
         };
 
         if !content.is_empty() {
-            let model_id = agent.model.clone().context("Model should've been set at this point.")?;
-            context = context.add_message(ContextMessage::user(content, model_id));
+            let model_id = agent
+                .model
+                .clone()
+                .context("Model should've been set at this point.")?;
+            context = context.add_message(ContextMessage::user(content), model_id);
         }
 
         Ok(context)
