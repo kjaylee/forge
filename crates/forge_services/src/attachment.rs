@@ -487,7 +487,7 @@ pub mod tests {
         type FsSnapshotService = MockSnapService;
         type CommandExecutorService = ();
         type InquireService = ();
-        
+
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
         }
