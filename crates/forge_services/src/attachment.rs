@@ -121,8 +121,7 @@ pub mod tests {
     use base64::Engine;
     use bytes::Bytes;
     use forge_domain::{
-        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService,
-         Provider,
+        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider,
     };
     use forge_snaps::Snapshot;
 
