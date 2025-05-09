@@ -354,7 +354,7 @@ mod tests {
     fn test_insert_system_message() {
         let model = ModelId::new("test-model");
         let request = Context::default()
-            .add_message(ContextMessage::user("Do something"),model.clone())
+            .add_message(ContextMessage::user("Do something"), model.clone())
             .set_first_system_message("A system message", model.clone());
 
         assert_eq!(
@@ -373,7 +373,10 @@ mod tests {
         let context = Context::default()
             .add_message(ContextMessage::system("System message"), model.clone())
             .add_message(ContextMessage::user("User message"), model.clone())
-            .add_message(ContextMessage::assistant("Assistant message", None), model.clone());
+            .add_message(
+                ContextMessage::assistant("Assistant message", None),
+                model.clone(),
+            );
 
         // Get the token count
         let token_count = context.estimate_token_count();

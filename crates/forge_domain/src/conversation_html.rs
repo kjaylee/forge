@@ -189,7 +189,7 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                                     Element::new("summary")
                                         .text(format!("{} Message", content_message.role))
                                         .append(
-                                            Element::new("span").text(format!(" ({})", ctx_model)),
+                                            Element::new("span").text(format!(" ({ctx_model})")),
                                         ),
                                 )
                                 .append(Element::new("pre").text(&content_message.content));

@@ -836,7 +836,10 @@ mod tests {
                 model_id.clone(),
             ) // 1
             .add_message(
-                ContextMessage::assistant("Assistant response with tool call", Some(vec![tool_call.clone()])),
+                ContextMessage::assistant(
+                    "Assistant response with tool call",
+                    Some(vec![tool_call.clone()]),
+                ),
                 model_id.clone(),
             ) // 2
             .add_message(
@@ -850,7 +853,10 @@ mod tests {
             ) // 5
             .add_message(ContextMessage::user("Another question"), model_id.clone()) // 6
             .add_message(
-                ContextMessage::assistant("Another assistant response with tool call", Some(vec![tool_call])),
+                ContextMessage::assistant(
+                    "Another assistant response with tool call",
+                    Some(vec![tool_call]),
+                ),
                 model_id.clone(),
             ) // 7
             .add_message(
