@@ -1,6 +1,14 @@
-use forge_domain::{ToolCallContext, ToolCallFull, ToolDefinition, ToolResult, ToolService};
+use forge_domain::{
+    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, ToolService,
+};
 
 pub struct McpToolService {}
+
+impl McpToolService {
+    pub fn new() -> McpToolService {
+        McpToolService {}
+    }
+}
 
 #[async_trait::async_trait]
 impl ToolService for McpToolService {
@@ -8,6 +16,9 @@ impl ToolService for McpToolService {
         todo!()
     }
     fn list(&self) -> Vec<ToolDefinition> {
+        todo!()
+    }
+    fn find(&self, _: &ToolName) -> Option<Tool> {
         todo!()
     }
 }
