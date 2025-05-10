@@ -16,7 +16,9 @@ const MAX_RETRY_ATTEMPTS: usize = 5;
 // 507 - Insufficient Storage
 // 509 - Bandwidth Limit Exceeded
 // 520-526 - Cloudflare errors
-const RETRY_STATUS_CODES: &[u16] = &[408, 425, 429, 500, 502, 503, 504, 507, 509, 520, 521, 522, 523, 524, 525, 526];
+const RETRY_STATUS_CODES: &[u16] = &[
+    408, 425, 429, 500, 502, 503, 504, 507, 509, 520, 521, 522, 523, 524, 525, 526,
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq)]
 #[setters(into)]

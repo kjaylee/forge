@@ -546,7 +546,7 @@ impl<F: API> UI<F> {
     }
 
     async fn show_feedback(&mut self) -> Result<(), anyhow::Error> {
-        Ok(if self.api.should_show_feedback().await? {
+        if self.api.should_show_feedback().await? {
             self.api.update_last_shown().await?;
 
             let feedback_url = "https://shorturl.at/LheIj";
@@ -562,7 +562,8 @@ impl<F: API> UI<F> {
             let banner = format!("\n{star} {title} {star}\n{message}\n{link}\n");
 
             self.writeln(banner)?;
-        })
+        };
+        Ok(())
     }
 
     fn update_model(&mut self, model: ModelId) {
