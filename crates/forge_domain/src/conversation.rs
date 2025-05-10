@@ -37,7 +37,7 @@ pub struct Conversation {
     pub variables: HashMap<String, Value>,
     pub agents: Vec<Agent>,
     pub events: Vec<Event>,
-    pub workflow: Workflow
+    pub workflow: Workflow,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -137,7 +137,7 @@ impl Conversation {
             variables: workflow.variables.clone(),
             agents,
             events: Default::default(),
-            workflow
+            workflow,
         }
     }
 

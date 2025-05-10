@@ -35,6 +35,12 @@ impl<M: McpManagementService> ToolService for ForgeMcpExecutorService<M> {
 impl<M: McpManagementService> McpExecutorService for ForgeMcpExecutorService<M> {}
 
 pub struct ForgeMcpManagementService;
+impl Default for ForgeMcpManagementService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForgeMcpManagementService {
     pub fn new() -> Self {
         ForgeMcpManagementService
