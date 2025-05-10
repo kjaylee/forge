@@ -1,7 +1,5 @@
 use anyhow::Result;
-use forge_domain::{
-    AgentMessage, ChatResponse, ExecutableTool, NamedTool, ToolCallContext, ToolDescription,
-};
+use forge_domain::{ExecutableTool, NamedTool, ToolCallContext, ToolDescription};
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -46,16 +44,6 @@ impl ExecutableTool for Completion {
 
         // Set the completion flag to true
         context.set_complete().await;
-
-        // Emit a completion success event
-        if let Some(agent_id) = &context.agent_id {
-            context
-                .send(AgentMessage::new(
-                    agent_id.clone(),
-                    ChatResponse::CompletionSuccess,
-                ))
-                .await?;
-        }
 
         // Return success with the message
         Ok(input.result)

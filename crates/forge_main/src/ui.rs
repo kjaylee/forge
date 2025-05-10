@@ -455,7 +455,7 @@ impl<F: API> UI<F> {
     ) -> Result<()> {
         while let Some(message) = stream.next().await {
             match message {
-                Ok(message) => self.handle_chat_response(message).await?,
+                Ok(message) => self.handle_chat_response(message)?,
                 Err(err) => {
                     self.spinner.stop(None)?;
                     return Err(err);
@@ -464,6 +464,8 @@ impl<F: API> UI<F> {
         }
 
         self.spinner.stop(None)?;
+
+        self.show_feedback().await?;
 
         Ok(())
     }
@@ -507,7 +509,7 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    async fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
+    fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
         match message.message {
             ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
                 if is_complete && !text.trim().is_empty() {
@@ -539,28 +541,28 @@ impl<F: API> UI<F> {
             ChatResponse::Usage(usage) => {
                 self.state.usage = usage;
             }
-            ChatResponse::CompletionSuccess => {
-                if self.api.should_show_feedback().await? {
-                    self.api.update_last_shown().await?;
-
-                    let feedback_url = "https://shorturl.at/LheIj";
-
-                    let star = "★".yellow().bold();
-                    let title = "Thank you for using Forge!".white().bold();
-                    let message =
-                        "  Your feedback helps us improve. We'd love to hear your thoughts!"
-                            .white();
-                    let link = format!("Click to share feedback: {feedback_url}")
-                        .cyan()
-                        .underline();
-
-                    let banner = format!("\n{star} {title} {star}\n{message}\n{link}\n");
-
-                    self.writeln(banner)?;
-                }
-            }
         }
         Ok(())
+    }
+
+    async fn show_feedback(&mut self) -> Result<(), anyhow::Error> {
+        Ok(if self.api.should_show_feedback().await? {
+            self.api.update_last_shown().await?;
+
+            let feedback_url = "https://shorturl.at/LheIj";
+
+            let star = "★".yellow().bold();
+            let title = "Thank you for using Forge!".white().bold();
+            let message =
+                "  Your feedback helps us improve. We'd love to hear your thoughts!".white();
+            let link = format!("Click to share feedback: {feedback_url}")
+                .cyan()
+                .underline();
+
+            let banner = format!("\n{star} {title} {star}\n{message}\n{link}\n");
+
+            self.writeln(banner)?;
+        })
     }
 
     fn update_model(&mut self, model: ModelId) {
