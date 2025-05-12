@@ -4,10 +4,8 @@ use anyhow::Error;
 use forge_domain::RetryConfig;
 use reqwest_eventsource::retry::RetryPolicy;
 use reqwest_eventsource::Error as EventSourceError;
-use tokio_retry::{
-    strategy::{jitter, ExponentialBackoff},
-    RetryIf,
-};
+use tokio_retry::strategy::{jitter, ExponentialBackoff};
+use tokio_retry::RetryIf;
 use tracing::debug;
 
 use crate::utils::is_tls_handshake_eof;
