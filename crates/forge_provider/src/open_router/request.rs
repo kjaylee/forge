@@ -232,7 +232,8 @@ impl From<Context> for OpenRouterRequest {
         OpenRouterRequest {
             messages: {
                 let messages = request
-                    .messages_iter().cloned()
+                    .messages_iter()
+                    .cloned()
                     .map(OpenRouterMessage::from)
                     .collect::<Vec<_>>();
 

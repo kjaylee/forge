@@ -57,7 +57,8 @@ impl TryFrom<forge_domain::Context> for Request {
                     } else {
                         true
                     }
-                }).cloned()
+                })
+                .cloned()
                 .map(Message::try_from)
                 .collect::<std::result::Result<Vec<_>, _>>()?,
             tools: request
