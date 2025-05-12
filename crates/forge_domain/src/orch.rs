@@ -448,13 +448,6 @@ impl<A: Services> Orchestrator<A> {
 
         let mut empty_tool_call_count = 0;
 
-        // Determine which model to use - prefer workflow model if available, fallback
-        // to agent model
-        let model_id = agent
-            .model
-            .as_ref()
-            .ok_or(Error::MissingModel(agent.id.clone()))?;
-
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
@@ -462,7 +455,7 @@ impl<A: Services> Orchestrator<A> {
             let response = self
                 .services
                 .provider_service()
-                .chat(model_id, context.clone())
+                .chat(&model_id, context.clone())
                 .await?;
 
             let ChatCompletionResult { tool_calls, content, usage } =
