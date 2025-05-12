@@ -36,7 +36,7 @@ pub struct TopProvider {
     pub is_moderated: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
+#[derive(Debug, Deserialize, Clone, Serialize, Default)]
 pub struct ListModelResponse {
     pub data: Vec<OpenRouterModel>,
 }

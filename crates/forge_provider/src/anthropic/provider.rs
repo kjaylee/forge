@@ -139,8 +139,18 @@ impl ProviderService for Anthropic {
                             Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {status_code}" ))))
                         }
                         error => {
-                            debug!(error = %error, "Failed to receive chat completion event");
-                            Some(Err(error.into()))
+                            // Check if this is a TLS handshake EOF error
+                            let is_tls_eof = crate::utils::is_tls_handshake_eof(&error);
+                        
+                            if is_tls_eof {
+                                // For TLS handshake EOF errors, return None to gracefully end the stream
+                                // as per Rustls documentation, we should handle this like a normal EOF
+                                debug!("TLS handshake EOF detected - treating as end of stream");
+                                None
+                            } else {
+                                debug!(error = %error, "Failed to receive chat completion event");
+                                Some(Err(error.into()))
+                            }
                         }
                     },
                 }
@@ -166,11 +176,17 @@ impl ProviderService for Anthropic {
 
         match result {
             Err(err) => {
-                debug!(error = %err, "Failed to fetch models");
-                let ctx_msg = format_http_context(err.status(), "GET", &url);
-                Err(anyhow::anyhow!(err))
-                    .context(ctx_msg)
-                    .context("Failed to fetch models")
+                let is_tls_eof = crate::utils::is_tls_handshake_eof(&err);
+                if is_tls_eof {
+                    debug!("TLS handshake EOF detected - treating as empty response");
+                    Ok(Vec::new())
+                } else {
+                    debug!(error = %err, "Failed to fetch models");
+                    let ctx_msg = format_http_context(err.status(), "GET", &url);
+                    Err(anyhow::anyhow!(err))
+                        .context(ctx_msg)
+                        .context("Failed to fetch models")
+                }
             }
             Ok(response) => match response.error_for_status() {
                 Ok(response) => {
@@ -182,16 +198,29 @@ impl ProviderService for Anthropic {
                                 .context("Failed to deserialize models response")?;
                             Ok(response.data.into_iter().map(Into::into).collect())
                         }
-                        Err(err) => Err(anyhow::anyhow!(err))
+                        Err(err) => {
+                            let is_tls_eof = crate::utils::is_tls_handshake_eof(&err);
+                            if is_tls_eof {
+                                Ok(Vec::new())
+                            } else {
+                                Err(anyhow::anyhow!(err))
                             .context(ctx_msg)
-                            .context("Failed to decode response into text"),
+                            .context("Failed to decode response into text")
+                            }
+                        },
                     }
                 }
                 Err(err) => {
-                    let ctx_msg = format_http_context(err.status(), "GET", &url);
-                    Err(anyhow::anyhow!(err))
-                        .context(ctx_msg)
-                        .context("Failed because of a non 200 status code".to_string())
+                    let is_tls_eof = crate::utils::is_tls_handshake_eof(&err);
+                    if is_tls_eof {
+                        Ok(Vec::new())
+                    }else{
+                        let ctx_msg = format_http_context(err.status(), "GET", &url);
+                        Err(anyhow::anyhow!(err))
+                            .context(ctx_msg)
+                            .context("Failed because of a non 200 status code".to_string())
+                    
+                    }
                 }
             },
         }

@@ -1,4 +1,5 @@
 use reqwest::StatusCode;
+use std::error::Error;
 
 /// Helper function to format HTTP request/response context for logging and
 /// error reporting
@@ -12,4 +13,29 @@ pub(crate) fn format_http_context<U: AsRef<str>>(
     } else {
         format!("{} {}", method, url.as_ref())
     }
+}
+
+/// Utility function to detect if an error is a TLS handshake EOF error
+/// Returns true if the error contains std::io::ErrorKind::UnexpectedEof
+/// ref: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof
+pub(crate) fn is_tls_handshake_eof(err: &(dyn Error + 'static)) -> bool {
+    // Check if the error itself is an UnexpectedEof
+    if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+        if io_err.kind() == std::io::ErrorKind::UnexpectedEof {
+            return true;
+        }
+    }
+    
+    // Then recursively check the error chain
+    let mut source = err.source();
+    while let Some(err) = source {
+        if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+            if io_err.kind() == std::io::ErrorKind::UnexpectedEof {
+                return true;
+            }
+        }
+        source = err.source();
+    }
+    
+    false
 }
