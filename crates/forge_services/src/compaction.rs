@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     extract_tag_content, Agent, ChatCompletionMessage, Compact, CompactionService, Context,
-    ContextMessage, ContextMessageWrapper, ProviderService, Role, TemplateService,
+    ContextMessage, ProviderService, Role, TemplateService,
 };
 use futures::StreamExt;
 use tracing::{debug, info};
@@ -85,10 +85,13 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         // This removes the sequence and inserts the summary message in-place
         context.messages.splice(
             start..=end,
-            std::iter::once(ContextMessageWrapper::new(
-                ContextMessage::assistant(summary, None),
-                compact.model.clone(),
-            )),
+            std::iter::once(
+                (
+                    ContextMessage::assistant(summary, None),
+                    compact.model.clone(),
+                )
+                    .into(),
+            ),
         );
 
         Ok(context)
