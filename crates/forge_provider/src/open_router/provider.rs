@@ -17,6 +17,7 @@ use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use crate::open_router::transformers::{ProviderPipeline, Transformer};
 use crate::retry::StatusCodeRetryPolicy;
+use crate::retry_utils::RetryHandler;
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
@@ -202,35 +203,19 @@ impl OpenRouter {
                         .context(ctx_message)
                         .context("Failed to decode response into text")?),
                     Err(err) => {
-                        // Check if this is a TLS handshake EOF error
-                        if crate::utils::is_tls_handshake_eof(&err) {
-                            debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
-                            Ok(serde_json::to_string(&ListModelResponse::default())
-                                .context("Failed to serialize empty response")
-                                .map_err(|err| anyhow::anyhow!(err))?)
-                        } else {
-                            // For other errors, propagate with context
-                            let ctx_msg = format_http_context(err.status(), "GET", &url);
-                            Err(anyhow::anyhow!(err)
-                                .context(ctx_msg)
-                                .context("Failed to fetch the models"))
-                        }
+                        // For other errors, propagate with context
+                        let ctx_msg = format_http_context(err.status(), "GET", &url);
+                        Err(anyhow::anyhow!(err)
+                            .context(ctx_msg)
+                            .context("Failed to fetch the models"))
                     }
                 }
             }
             Err(err) => {
-                if crate::utils::is_tls_handshake_eof(&err) {
-                    debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
-                    Ok(serde_json::to_string(&ListModelResponse::default())
-                        .context("Failed to serialize empty response")
-                        .map_err(|err| anyhow::anyhow!(err))?)
-                } else {
-                    // For other errors, propagate with context
-                    let ctx_msg = format_http_context(err.status(), "GET", &url);
-                    Err(anyhow::anyhow!(err)
-                        .context(ctx_msg)
-                        .context("Failed to fetch the models"))
-                }
+                let ctx_msg = format_http_context(err.status(), "GET", &url);
+                Err(anyhow::anyhow!(err)
+                    .context(ctx_msg)
+                    .context("Failed to fetch the models"))
             }
         }
     }
@@ -247,7 +232,9 @@ impl ProviderService for OpenRouter {
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        self.inner_models().await
+        RetryHandler::new(self.retry_config.clone())
+            .retry(|| async { self.inner_models().await })
+            .await
     }
 }
 
@@ -298,11 +285,16 @@ mod tests {
         let running = Arc::new(Mutex::new(true));
         let running_clone = Arc::clone(&running);
 
+        let retry_attemp = Arc::new(Mutex::new(0));
+        let retry_attemp_clone = Arc::clone(&retry_attemp);
+
         // Spawn a thread to handle connections
         std::thread::spawn(move || {
             while *running_clone.lock().unwrap() {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        let mut retry_attemp_clone = retry_attemp_clone.lock().unwrap();
+                        *retry_attemp_clone += 1;
                         // Read the initial TLS handshake data but don't respond
                         let _ = stream.set_nonblocking(false);
                         let mut buffer = [0u8; 1024];
@@ -332,7 +324,8 @@ mod tests {
         let open_router = OpenRouter { client, provider, retry_config: RetryConfig::default() };
         let result = open_router.models().await;
 
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        assert_eq!(*retry_attemp.lock().unwrap(), 6);
 
         // Clean up
         let mut running_guard = running.lock().unwrap();
