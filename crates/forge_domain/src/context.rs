@@ -10,11 +10,17 @@ use crate::temperature::Temperature;
 use crate::{ModelId, ToolCallRecord, ToolChoice, ToolDefinition};
 
 // Note: Wrapper struct used to allow us to store meta fields.
-#[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ContextMessageWrapper {
     pub message: ContextMessage,
     // only used to track the model used to generate the response to this message.
     pub model: ModelId,
+}
+
+impl From<(ContextMessage, ModelId)> for ContextMessageWrapper {
+    fn from(value: (ContextMessage, ModelId)) -> Self {
+        Self { message: value.0, model: value.1 }
+    }
 }
 
 impl ContextMessageWrapper {
