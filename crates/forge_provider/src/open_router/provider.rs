@@ -148,12 +148,7 @@ impl OpenRouter {
                             Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {}", status_code))))
                         }
                         error => {
-                            // Check if this is a TLS handshake EOF error
-                            let is_tls_eof = crate::utils::is_tls_handshake_eof(&error);
-                            
-                            if is_tls_eof {
-                                // For TLS handshake EOF errors, return None to gracefully end the stream
-                                // as per Rustls documentation, we should handle this like a normal EOF
+                            if crate::utils::is_tls_handshake_eof(&error) {
                                 debug!("TLS handshake EOF detected - treating as end of stream");
                                 None
                             } else {
@@ -208,11 +203,7 @@ impl OpenRouter {
                         .context("Failed to decode response into text")?),
                     Err(err) => {
                         // Check if this is a TLS handshake EOF error
-                        let is_tls_eof = crate::utils::is_tls_handshake_eof(&err);
-                        
-                        if is_tls_eof {
-                            // For TLS handshake EOF errors, return an empty list of models
-                            // as per Rustls documentation, we should handle this like a normal EOF
+                        if crate::utils::is_tls_handshake_eof(&err) {
                             debug!("TLS handshake EOF detected - treating as empty response");
                             Ok(serde_json::to_string(&ListModelResponse::default())
                                 .context("Failed to serialize empty response")
@@ -228,14 +219,11 @@ impl OpenRouter {
                 }
             }
             Err(err) => {
-                // Check if this is a TLS handshake EOF error
-                let is_tls_eof = crate::utils::is_tls_handshake_eof(&err);
-                
-                if is_tls_eof {
-                    // For TLS handshake EOF errors, return an empty list of models
-                    // as per Rustls documentation, we should handle this like a normal EOF
+                if crate::utils::is_tls_handshake_eof(&err) {
                     debug!("TLS handshake EOF detected - treating as empty response");
-                    Ok("{\"data\": []}".to_string())
+                    Ok(serde_json::to_string(&ListModelResponse::default())
+                                .context("Failed to serialize empty response")
+                                .map_err(|err| anyhow::anyhow!(err))?)
                 } else {
                     // For other errors, propagate with context
                     let ctx_msg = format_http_context(err.status(), "GET", &url);
