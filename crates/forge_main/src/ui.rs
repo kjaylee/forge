@@ -379,8 +379,6 @@ impl<F: API> UI<F> {
                 // Select a model if workflow doesn't have one
                 let mut base_workflow = Workflow::default();
                 let mut workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
-                base_workflow.merge(workflow.clone());
-
                 if workflow.model.is_none() {
                     workflow.model = Some(
                         self.select_model()
@@ -388,6 +386,7 @@ impl<F: API> UI<F> {
                             .ok_or(anyhow::anyhow!("Model selection is required to continue"))?,
                     );
                 }
+                base_workflow.merge(workflow.clone());
 
                 self.api
                     .write_workflow(self.cli.workflow.as_deref(), &workflow)
