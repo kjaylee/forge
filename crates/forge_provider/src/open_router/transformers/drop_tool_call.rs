@@ -50,15 +50,16 @@ mod tests {
 
         let context = Context {
             messages: vec![
-                    ContextMessage::ContentMessage(ContentMessage {
-                        role: Role::Assistant,
-                        content: "Using tool".to_string(),
-                        tool_calls: Some(vec![tool_call]),
-                    }),
-                    ContextMessage::ToolMessage(tool_result),
-            ].into_iter()
-                .map(|m| (m, ModelId::new("gpt-4")).into())
-                .collect(),
+                ContextMessage::ContentMessage(ContentMessage {
+                    role: Role::Assistant,
+                    content: "Using tool".to_string(),
+                    tool_calls: Some(vec![tool_call]),
+                }),
+                ContextMessage::ToolMessage(tool_result),
+            ]
+            .into_iter()
+            .map(|m| (m, ModelId::new("gpt-4")).into())
+            .collect(),
             tools: vec![],
             tool_choice: None,
             max_tokens: None,
