@@ -9,10 +9,11 @@ use super::{ToolCallFull, ToolResult};
 use crate::temperature::Temperature;
 use crate::{ModelId, ToolCallRecord, ToolChoice, ToolDefinition};
 
+// Note: Wrapper struct used to allow us to store meta fields.
 #[derive(Clone, Debug, Deserialize, From, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
 pub struct ContextMessageWrapper {
     pub message: ContextMessage,
+    // only used to track the model used to generate the response to this message.
     pub model: ModelId,
 }
 
@@ -140,6 +141,10 @@ pub struct Context {
 }
 
 impl Context {
+    pub fn messages_iter(&self) -> impl Iterator<Item = &ContextMessage> {
+        self.messages.iter().map(|message| &message.message)
+    }
+
     pub fn add_url(mut self, url: &str, model: ModelId) -> Self {
         self.messages
             .push(ContextMessageWrapper { message: ContextMessage::Image(url.to_string()), model });
