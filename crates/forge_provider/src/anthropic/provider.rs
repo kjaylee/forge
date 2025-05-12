@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use anyhow::Context as _;
 use derive_builder::Builder;
 use forge_domain::{
@@ -86,14 +84,9 @@ impl ProviderService for Anthropic {
             .json(&request)
             .eventsource()
             .context(format_http_context(None, "POST", &url))?;
-        let status_codes = self.retry_config.retry_status_codes.clone();
 
         es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
-            Duration::from_millis(self.retry_config.initial_backoff_ms),
-            self.retry_config.backoff_factor as f64,
-            None, // No maximum duration
-            Some(self.retry_config.max_retry_attempts),
-            status_codes.clone(),
+            self.retry_config.clone(),
         )));
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -160,8 +153,8 @@ impl ProviderService for Anthropic {
         Ok(Box::pin(stream.filter_map(|x| x)))
     }
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
-        RetryHandler::new(self.retry_config.clone())
-            .retry(|| async {
+        StatusCodeRetryPolicy::new(self.retry_config.clone())
+            .retry_with_fn(|| async {
                 let url = self.url("models")?;
                 debug!(url = %url, "Fetching models");
 

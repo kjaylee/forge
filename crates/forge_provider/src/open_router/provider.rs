@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use anyhow::{Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
@@ -17,7 +15,6 @@ use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
 use crate::open_router::transformers::{ProviderPipeline, Transformer};
 use crate::retry::StatusCodeRetryPolicy;
-use crate::retry_utils::RetryHandler;
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
@@ -98,14 +95,9 @@ impl OpenRouter {
             .json(&request)
             .eventsource()
             .context(format_http_context(None, "POST", &url))?;
-        let status_codes = self.retry_config.retry_status_codes.clone();
 
         es.set_retry_policy(Box::new(StatusCodeRetryPolicy::new(
-            Duration::from_millis(self.retry_config.initial_backoff_ms),
-            self.retry_config.backoff_factor as f64,
-            None, // No maximum duration
-            Some(self.retry_config.max_retry_attempts),
-            status_codes.clone(),
+            self.retry_config.clone(),
         )));
 
         let stream = es
@@ -232,8 +224,8 @@ impl ProviderService for OpenRouter {
     }
 
     async fn models(&self) -> Result<Vec<Model>> {
-        RetryHandler::new(self.retry_config.clone())
-            .retry(|| async { self.inner_models().await })
+        StatusCodeRetryPolicy::new(self.retry_config.clone())
+            .retry_with_fn(|| async { self.inner_models().await })
             .await
     }
 }
@@ -254,6 +246,7 @@ mod tests {
     use std::io::Read;
     use std::net::TcpListener;
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     use anyhow::Context;
 
