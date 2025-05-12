@@ -45,7 +45,7 @@ pub(crate) fn is_tls_handshake_eof(err: &(dyn Error + 'static)) -> bool {
                 }
             }
         }
-        
+
         // Move to the next error in the chain
         source = current_err.source();
     }
