@@ -3,7 +3,7 @@ use merge::Merge;
 use serde::{Deserialize, Serialize};
 
 // Maximum number of retry attempts for retryable operations
-const MAX_RETRY_ATTEMPTS: usize = 3;
+const MAX_RETRY_ATTEMPTS: usize = 5;
 
 const RETRY_STATUS_CODES: &[u16] = &[429, 500, 502, 503, 504];
 
