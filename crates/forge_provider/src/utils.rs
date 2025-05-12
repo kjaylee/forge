@@ -29,22 +29,25 @@ pub(crate) fn is_tls_handshake_eof(err: &(dyn Error + 'static)) -> bool {
 
     // Then recursively check the error chain
     let mut source = err.source();
-    while let Some(err) = source {
-        if let Some(io_err) = err.downcast_ref::<std::io::Error>() {
+    while let Some(current_err) = source {
+        // Check for UnexpectedEof in the current error
+        if let Some(io_err) = current_err.downcast_ref::<std::io::Error>() {
             if io_err.kind() == std::io::ErrorKind::UnexpectedEof {
                 return true;
             }
+
+            // Check for nested UnexpectedEof in custom error sources
             if let Some(custom) = io_err.get_ref() {
-                if let Some(t_ref) = custom.downcast_ref::<std::io::Error>() {
-                    if t_ref.kind() == std::io::ErrorKind::UnexpectedEof {
+                if let Some(nested_err) = custom.downcast_ref::<std::io::Error>() {
+                    if nested_err.kind() == std::io::ErrorKind::UnexpectedEof {
                         return true;
                     }
                 }
             }
-            source = err.source();
-        } else {
-            source = err.source();
         }
+        
+        // Move to the next error in the chain
+        source = current_err.source();
     }
 
     false
