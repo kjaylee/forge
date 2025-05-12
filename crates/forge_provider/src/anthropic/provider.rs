@@ -14,8 +14,8 @@ use tracing::{debug, error};
 use super::request::Request;
 use super::response::{EventData, ListModelResponse};
 use crate::retry::StatusCodeRetryPolicy;
-use crate::utils::format_http_context;
 use crate::retry_utils::RetryHandler;
+use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
 pub struct Anthropic {
@@ -161,67 +161,50 @@ impl ProviderService for Anthropic {
     }
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
         RetryHandler::new(self.retry_config.clone())
-        .retry(|| async {
-            let url = self.url("models")?;
-            debug!(url = %url, "Fetching models");
-    
-            let result = self
-                .client
-                .get(url.clone())
-                .headers(self.headers())
-                .send()
-                .await;
-    
-            match result {
-                Err(err) => {
-                    if crate::utils::is_tls_handshake_eof(&err) {
-                        debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
-                        Ok(Vec::new())
-                    } else {
+            .retry(|| async {
+                let url = self.url("models")?;
+                debug!(url = %url, "Fetching models");
+
+                let result = self
+                    .client
+                    .get(url.clone())
+                    .headers(self.headers())
+                    .send()
+                    .await;
+
+                match result {
+                    Err(err) => {
                         debug!(error = %err, "Failed to fetch models");
                         let ctx_msg = format_http_context(err.status(), "GET", &url);
                         Err(anyhow::anyhow!(err))
                             .context(ctx_msg)
                             .context("Failed to fetch models")
                     }
-                }
-                Ok(response) => match response.error_for_status() {
-                    Ok(response) => {
-                        let ctx_msg = format_http_context(Some(response.status()), "GET", &url);
-                        match response.text().await {
-                            Ok(text) => {
-                                let response: ListModelResponse = serde_json::from_str(&text)
-                                    .context(ctx_msg)
-                                    .context("Failed to deserialize models response")?;
-                                Ok(response.data.into_iter().map(Into::into).collect())
-                            }
-                            Err(err) => {
-                                if crate::utils::is_tls_handshake_eof(&err) {
-                                    debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
-                                    Ok(Vec::new())
-                                } else {
-                                    Err(anyhow::anyhow!(err))
+                    Ok(response) => match response.error_for_status() {
+                        Ok(response) => {
+                            let ctx_msg = format_http_context(Some(response.status()), "GET", &url);
+                            match response.text().await {
+                                Ok(text) => {
+                                    let response: ListModelResponse = serde_json::from_str(&text)
                                         .context(ctx_msg)
-                                        .context("Failed to decode response into text")
+                                        .context("Failed to deserialize models response")?;
+                                    Ok(response.data.into_iter().map(Into::into).collect())
                                 }
+                                Err(err) => Err(anyhow::anyhow!(err))
+                                    .context(ctx_msg)
+                                    .context("Failed to decode response into text"),
                             }
                         }
-                    }
-                    Err(err) => {
-                        if crate::utils::is_tls_handshake_eof(&err) {
-                            debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
-                            Ok(Vec::new())
-                        } else {
+                        Err(err) => {
                             let ctx_msg = format_http_context(err.status(), "GET", &url);
                             Err(anyhow::anyhow!(err))
                                 .context(ctx_msg)
                                 .context("Failed because of a non 200 status code".to_string())
                         }
-                    }
-                },
-            }
-         })
-        .await
+                    },
+                }
+            })
+            .await
     }
 }
 
