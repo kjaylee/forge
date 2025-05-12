@@ -222,8 +222,8 @@ impl OpenRouter {
                 if crate::utils::is_tls_handshake_eof(&err) {
                     debug!("TLS handshake EOF detected - treating as empty response");
                     Ok(serde_json::to_string(&ListModelResponse::default())
-                                .context("Failed to serialize empty response")
-                                .map_err(|err| anyhow::anyhow!(err))?)
+                        .context("Failed to serialize empty response")
+                        .map_err(|err| anyhow::anyhow!(err))?)
                 } else {
                     // For other errors, propagate with context
                     let ctx_msg = format_http_context(err.status(), "GET", &url);
@@ -264,6 +264,12 @@ impl From<OpenRouterModel> for Model {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        io::Read,
+        net::TcpListener,
+        sync::{Arc, Mutex},
+    };
+
     use anyhow::Context;
 
     use super::*;
@@ -283,5 +289,55 @@ mod tests {
 
         assert!(message.is_err());
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_open_router_models_tls_handshake_eof() {
+        // Create and start a simple TCP server that will simulate TLS handshake EOF
+        let listener = TcpListener::bind("127.0.0.1:9443").unwrap();
+        listener.set_nonblocking(true).unwrap();
+
+        let running = Arc::new(Mutex::new(true));
+        let running_clone = Arc::clone(&running);
+
+        // Spawn a thread to handle connections
+        std::thread::spawn(move || {
+            while *running_clone.lock().unwrap() {
+                match listener.accept() {
+                    Ok((mut stream, _)) => {
+                        // Read the initial TLS handshake data but don't respond
+                        let _ = stream.set_nonblocking(false);
+                        let mut buffer = [0u8; 1024];
+                        let _ = stream.read(&mut buffer);
+                        // Drop the connection without completing the handshake
+                        drop(stream);
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        std::thread::sleep(Duration::from_millis(10));
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+
+        // Create a reqwest client
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .context("Failed to build client")
+            .unwrap();
+
+        // Create an OpenRouter instance that points to our mock server
+        let mut provider = Provider::open_router("dummy");
+        provider.open_ai_url("https://127.0.0.1:9443".into());
+
+        let open_router = OpenRouter { client, provider, retry_config: RetryConfig::default() };
+        let result = open_router.models().await;
+
+        assert!(result.is_ok());
+
+        // Clean up
+        let mut running_guard = running.lock().unwrap();
+        *running_guard = false;
     }
 }
