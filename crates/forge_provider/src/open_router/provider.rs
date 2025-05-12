@@ -145,7 +145,7 @@ impl OpenRouter {
                         reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                             let status_code = response.status();
                             debug!(response = ?response, "Invalid content type");
-                            Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {}", status_code))))
+                            Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {status_code}"))))
                         }
                         error => {
                             if crate::utils::is_tls_handshake_eof(&error) {
@@ -264,11 +264,9 @@ impl From<OpenRouterModel> for Model {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        io::Read,
-        net::TcpListener,
-        sync::{Arc, Mutex},
-    };
+    use std::io::Read;
+    use std::net::TcpListener;
+    use std::sync::{Arc, Mutex};
 
     use anyhow::Context;
 

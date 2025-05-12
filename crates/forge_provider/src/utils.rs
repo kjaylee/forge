@@ -1,5 +1,6 @@
-use reqwest::StatusCode;
 use std::error::Error;
+
+use reqwest::StatusCode;
 
 /// Helper function to format HTTP request/response context for logging and
 /// error reporting

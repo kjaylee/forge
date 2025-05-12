@@ -197,21 +197,20 @@ impl ProviderService for Anthropic {
                                 Ok(Vec::new())
                             } else {
                                 Err(anyhow::anyhow!(err))
-                            .context(ctx_msg)
-                            .context("Failed to decode response into text")
+                                    .context(ctx_msg)
+                                    .context("Failed to decode response into text")
                             }
-                        },
+                        }
                     }
                 }
                 Err(err) => {
                     if crate::utils::is_tls_handshake_eof(&err) {
                         Ok(Vec::new())
-                    }else{
+                    } else {
                         let ctx_msg = format_http_context(err.status(), "GET", &url);
                         Err(anyhow::anyhow!(err))
                             .context(ctx_msg)
                             .context("Failed because of a non 200 status code".to_string())
-                    
                     }
                 }
             },
