@@ -50,7 +50,10 @@ impl RetryHandler {
                     }
 
                     // Retry on network errors (like TLS handshake EOF)
-                    if reqwest_err.is_connect() || reqwest_err.is_timeout() || is_tls_handshake_eof(reqwest_err) {
+                    if reqwest_err.is_connect()
+                        || reqwest_err.is_timeout()
+                        || is_tls_handshake_eof(reqwest_err)
+                    {
                         debug!("Retrying due to network error");
                         return true;
                     }
