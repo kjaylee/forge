@@ -285,8 +285,8 @@ mod tests {
         let running = Arc::new(Mutex::new(true));
         let running_clone = Arc::clone(&running);
 
-        let retry_attemp = Arc::new(Mutex::new(0));
-        let retry_attemp_clone = Arc::clone(&retry_attemp);
+        let retry_attempt = Arc::new(Mutex::new(0));
+        let retry_attemp_clone = Arc::clone(&retry_attempt);
 
         // Spawn a thread to handle connections
         std::thread::spawn(move || {
@@ -321,11 +321,12 @@ mod tests {
         let mut provider = Provider::open_router("dummy");
         provider.open_ai_url("https://127.0.0.1:9443".into());
 
-        let open_router = OpenRouter { client, provider, retry_config: RetryConfig::default() };
+        let retry_config = RetryConfig::default().max_retry_attempts(2usize);
+        let open_router = OpenRouter { client, provider, retry_config };
         let result = open_router.models().await;
 
         assert!(result.is_err());
-        assert_eq!(*retry_attemp.lock().unwrap(), 6);
+        assert_eq!(*retry_attempt.lock().unwrap(), 3);
 
         // Clean up
         let mut running_guard = running.lock().unwrap();
