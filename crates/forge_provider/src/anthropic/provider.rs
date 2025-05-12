@@ -12,7 +12,6 @@ use tracing::{debug, error};
 use super::request::Request;
 use super::response::{EventData, ListModelResponse};
 use crate::retry::StatusCodeRetryPolicy;
-use crate::retry_utils::RetryHandler;
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
