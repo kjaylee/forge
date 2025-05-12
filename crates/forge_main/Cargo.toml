@@ -42,7 +42,6 @@ update-informer = { version = "1.2.0", default-features = false, features = [
     "ureq",
     "rustls-tls",
 ] }
-merge.workspace = true
 
 
 [dev-dependencies]
