@@ -149,7 +149,7 @@ impl OpenRouter {
                         }
                         error => {
                             if crate::utils::is_tls_handshake_eof(&error) {
-                                debug!("TLS handshake EOF detected - treating as end of stream");
+                                debug!(error = %error, "TLS handshake EOF detected - treating as end of stream");
                                 None
                             } else {
                                 debug!(error = %error, "Failed to receive chat completion event");
@@ -204,7 +204,7 @@ impl OpenRouter {
                     Err(err) => {
                         // Check if this is a TLS handshake EOF error
                         if crate::utils::is_tls_handshake_eof(&err) {
-                            debug!("TLS handshake EOF detected - treating as empty response");
+                            debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
                             Ok(serde_json::to_string(&ListModelResponse::default())
                                 .context("Failed to serialize empty response")
                                 .map_err(|err| anyhow::anyhow!(err))?)
@@ -220,7 +220,7 @@ impl OpenRouter {
             }
             Err(err) => {
                 if crate::utils::is_tls_handshake_eof(&err) {
-                    debug!("TLS handshake EOF detected - treating as empty response");
+                    debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
                     Ok(serde_json::to_string(&ListModelResponse::default())
                         .context("Failed to serialize empty response")
                         .map_err(|err| anyhow::anyhow!(err))?)

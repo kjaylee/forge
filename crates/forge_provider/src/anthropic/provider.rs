@@ -140,7 +140,7 @@ impl ProviderService for Anthropic {
                         }
                         error => {
                             if crate::utils::is_tls_handshake_eof(&error) {
-                                debug!("TLS handshake EOF detected - treating as end of stream");
+                                debug!(error = %error, "TLS handshake EOF detected - treating as end of stream");
                                 None
                             } else {
                                 debug!(error = %error, "Failed to receive chat completion event");
@@ -172,7 +172,7 @@ impl ProviderService for Anthropic {
         match result {
             Err(err) => {
                 if crate::utils::is_tls_handshake_eof(&err) {
-                    debug!("TLS handshake EOF detected - treating as empty response");
+                    debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
                     Ok(Vec::new())
                 } else {
                     debug!(error = %err, "Failed to fetch models");
@@ -194,6 +194,7 @@ impl ProviderService for Anthropic {
                         }
                         Err(err) => {
                             if crate::utils::is_tls_handshake_eof(&err) {
+                                debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
                                 Ok(Vec::new())
                             } else {
                                 Err(anyhow::anyhow!(err))
@@ -205,6 +206,7 @@ impl ProviderService for Anthropic {
                 }
                 Err(err) => {
                     if crate::utils::is_tls_handshake_eof(&err) {
+                        debug!(error = %err, "TLS handshake EOF detected - treating as empty response");
                         Ok(Vec::new())
                     } else {
                         let ctx_msg = format_http_context(err.status(), "GET", &url);
