@@ -122,6 +122,17 @@ impl Context {
         self
     }
 
+    // returns the last model set for user message.
+    pub fn model(&self) -> Option<ModelId> {
+        self.messages.iter().rev().find_map(|message| {
+            if let ContextMessage::ContentMessage(message) = message {
+                message.model.clone()
+            } else {
+                None
+            }
+        })
+    }
+
     pub fn add_tool(mut self, tool: impl Into<ToolDefinition>) -> Self {
         let tool: ToolDefinition = tool.into();
         self.tools.push(tool);
@@ -322,5 +333,24 @@ mod tests {
         // Validate the token count is reasonable
         // The exact value will depend on the implementation of estimate_token_count
         assert!(token_count > 0, "Token count should be greater than 0");
+    }
+
+    #[test]
+    fn test_last_user_set_model() {
+        let model = ModelId::new("test-model");
+        let context = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message", model.clone().into()))
+            .add_message(ContextMessage::assistant("Assistant message", None))
+            .add_message(ContextMessage::user(
+                "User message",
+                ModelId::new("gpt-4").into(),
+            ));
+
+        assert_eq!(
+            context.model(),
+            Some(ModelId::new("gpt-4")),
+            "The last user message should have the model set"
+        );
     }
 }
