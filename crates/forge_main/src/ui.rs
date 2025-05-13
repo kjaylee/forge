@@ -102,6 +102,13 @@ impl<F: API> UI<F> {
             self.api.upsert_conversation(conversation).await?;
         }
 
+        // Update the workflow with the new mode
+        self.api
+            .update_workflow(self.cli.workflow.as_deref(), |workflow| {
+                workflow.variables.insert("mode".to_string(), Value::from(mode.to_string()));
+            })
+            .await?;
+
         self.writeln(TitleFormat::action(format!(
             "Switched to '{}' mode (context cleared)",
             self.state.mode
