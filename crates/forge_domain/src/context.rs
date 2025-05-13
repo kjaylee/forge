@@ -24,7 +24,7 @@ impl ContextMessage {
             role: Role::User,
             content: content.to_string(),
             tool_calls: None,
-            model: model,
+            model,
         }
         .into()
     }
@@ -144,11 +144,8 @@ impl Context {
     pub fn add_tool_results(mut self, results: Vec<ToolResult>) -> Self {
         if !results.is_empty() {
             debug!(results = ?results, "Adding tool results to context");
-            self.messages.extend(
-                results
-                    .into_iter()
-                    .map(ContextMessage::tool_result),
-            );
+            self.messages
+                .extend(results.into_iter().map(ContextMessage::tool_result));
         }
 
         self
