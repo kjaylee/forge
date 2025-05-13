@@ -396,7 +396,7 @@ impl<A: Services> Orchestrator<A> {
             .model
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
-        
+
         let mut context = if agent.ephemeral.unwrap_or_default() {
             agent.init_context(self.get_allowed_tools(agent)).await?
         } else {
