@@ -3,7 +3,6 @@ use serde_json::to_string_pretty;
 
 use crate::context::ContextMessage;
 use crate::conversation::Conversation;
-use crate::ModelId;
 
 pub fn render_conversation_html(conversation: &Conversation) -> String {
     let html = Element::new("html")
@@ -180,21 +179,19 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                                 // Convert role to lowercase for the class
                                 let role_lowercase =
                                     content_message.role.to_string().to_lowercase();
-                                let ctx_model = content_message
-                                    .model
-                                    .clone()
-                                    .unwrap_or(ModelId::new("unknown"));
+
+                                let mut header = Element::new("summary")
+                                    .text(format!("{} Message", content_message.role));
+
+                                if let Some(model) = &content_message.model {
+                                    header = header
+                                        .append(Element::new("span").text(format!(" ({model})")));
+                                }
 
                                 let message_div = Element::new(format!(
                                     "details.message-card.message-{role_lowercase}"
                                 ))
-                                .append(
-                                    Element::new("summary")
-                                        .text(format!("{} Message", content_message.role))
-                                        .append(
-                                            Element::new("span").text(format!(" ({ctx_model})")),
-                                        ),
-                                )
+                                .append(header)
                                 .append(Element::new("pre").text(&content_message.content));
 
                                 // Add tool calls if any
