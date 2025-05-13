@@ -1,32 +1,15 @@
 use derive_setters::Setters;
 use forge_api::{ConversationId, Model, ModelId, Provider, Usage};
-use serde::Deserialize;
+use strum_macros::EnumString;
 
 use crate::prompt::ForgePrompt;
 
-// TODO: convert to a new type
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, EnumString)]
+#[strum(ascii_case_insensitive)]
 pub enum Mode {
     Plan,
     #[default]
     Act,
-}
-
-// Implement a custom deserializer for case-insensitive matching
-impl<'de> Deserialize<'de> for Mode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?.to_lowercase();
-        match s.as_str() {
-            "plan" => Ok(Mode::Plan),
-            "act" => Ok(Mode::Act),
-            _ => Err(serde::de::Error::custom(format!(
-                "Unknown Mode variant: {s}, expected to be one of 'plan', 'act'"
-            ))),
-        }
-    }
 }
 
 impl std::fmt::Display for Mode {
