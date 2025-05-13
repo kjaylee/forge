@@ -105,7 +105,9 @@ impl<F: API> UI<F> {
         // Update the workflow with the new mode
         self.api
             .update_workflow(self.cli.workflow.as_deref(), |workflow| {
-                workflow.variables.insert("mode".to_string(), Value::from(mode.to_string()));
+                workflow
+                    .variables
+                    .insert("mode".to_string(), Value::from(mode.to_string()));
             })
             .await?;
 
