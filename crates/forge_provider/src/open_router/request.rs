@@ -230,7 +230,7 @@ impl From<ToolDefinition> for OpenRouterTool {
 impl From<Context> for OpenRouterRequest {
     fn from(request: Context) -> Self {
         OpenRouterRequest {
-            model: request.model().map(|m| m.into()),
+            model: request.model(),
             messages: {
                 let messages = request
                     .messages
