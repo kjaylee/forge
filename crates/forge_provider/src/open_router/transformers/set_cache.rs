@@ -47,31 +47,29 @@ mod tests {
 
     fn create_test_context(message: impl ToString) -> String {
         let context = Context {
-            messages: message
-                .to_string()
-                .chars()
-                .map(|c| match c {
-                    's' => ContextMessage::ContentMessage(ContentMessage {
-                        role: Role::System,
-                        content: c.to_string(),
-                        tool_calls: None,
-                    }),
-                    'u' => ContextMessage::ContentMessage(ContentMessage {
-                        role: Role::User,
-                        content: c.to_string(),
-                        tool_calls: None,
-                    }),
-                    'a' => ContextMessage::ContentMessage(ContentMessage {
-                        role: Role::Assistant,
-                        content: c.to_string(),
-                        tool_calls: None,
-                    }),
-                    _ => {
-                        panic!("Invalid character in test message");
-                    }
-                })
-                .map(|msg| (msg, ModelId::new("gpt-4")).into())
-                .collect::<Vec<_>>(),
+            messages: message.to_string().chars().map(|c| match c {
+                's' => ContextMessage::ContentMessage(ContentMessage {
+                    role: Role::System,
+                    content: c.to_string(),
+                    tool_calls: None,
+                    model: None,
+                }),
+                'u' => ContextMessage::ContentMessage(ContentMessage {
+                    role: Role::User,
+                    content: c.to_string(),
+                    tool_calls: None,
+                    model: ModelId::new("gpt-4").into(),
+                }),
+                'a' => ContextMessage::ContentMessage(ContentMessage {
+                    role: Role::Assistant,
+                    content: c.to_string(),
+                    tool_calls: None,
+                    model: None,
+                }),
+                _ => {
+                    panic!("Invalid character in test message");
+                }
+            }).collect(),
             tools: vec![],
             tool_choice: None,
             max_tokens: None,

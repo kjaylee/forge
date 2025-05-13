@@ -60,7 +60,7 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         // Extract the sequence to summarize
         let sequence_messages = &context.messages[start..=end]
             .iter()
-            .map(|msg| msg.message.clone())
+            .cloned()
             .collect::<Vec<_>>();
 
         // Generate summary for this sequence
@@ -85,13 +85,7 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         // This removes the sequence and inserts the summary message in-place
         context.messages.splice(
             start..=end,
-            std::iter::once(
-                (
-                    ContextMessage::assistant(summary, None),
-                    compact.model.clone(),
-                )
-                    .into(),
-            ),
+            std::iter::once(ContextMessage::assistant(summary, None)),
         );
 
         Ok(context)
@@ -104,9 +98,9 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         messages: &[ContextMessage],
     ) -> Result<String> {
         // Create a temporary context with just the sequence for summarization
-        let sequence_context = messages.iter().fold(Context::default(), |ctx, msg| {
-            ctx.add_message(msg.clone(), compact.model.clone())
-        });
+        let sequence_context = messages
+            .iter()
+            .fold(Context::default(), |ctx, msg| ctx.add_message(msg.clone()));
 
         // Render the summarization prompt
         let summary_tag = compact.summary_tag.as_ref().cloned().unwrap_or_default();
@@ -124,8 +118,8 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         )?;
 
         // Create a new context
-        let mut context =
-            Context::default().add_message(ContextMessage::user(prompt), compact.model.clone());
+        let mut context = Context::default()
+            .add_message(ContextMessage::user(prompt, compact.model.clone().into()));
 
         // Set max_tokens for summary
         if let Some(max_token) = compact.max_tokens {
@@ -260,25 +254,16 @@ mod tests {
         let model_id = ModelId::new("gpt-4");
         // Create a context with a sequence of assistant messages
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant message 1", None),
-                model_id.clone(),
-            )
-            .add_message(
-                ContextMessage::assistant("Assistant message 2", None),
-                model_id.clone(),
-            )
-            .add_message(
-                ContextMessage::assistant("Assistant message 3", None),
-                model_id.clone(),
-            )
-            .add_message(ContextMessage::user("User message 2"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant message 4", None),
-                model_id,
-            );
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant("Assistant message 1", None))
+            .add_message(ContextMessage::assistant("Assistant message 2", None))
+            .add_message(ContextMessage::assistant("Assistant message 3", None))
+            .add_message(ContextMessage::user("User message 2", model_id.into()))
+            .add_message(ContextMessage::assistant("Assistant message 4", None));
 
         // With the new logic, we compact from the first assistant message (index 2)
         // through the end (respecting preservation window)
@@ -294,12 +279,12 @@ mod tests {
         let model_id = ModelId::new("gpt-4");
         // Create a context with only single messages - not enough for compaction
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant message", None),
-                model_id,
-            );
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user(
+                "User message",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant("Assistant message", None));
 
         // With the updated compaction logic, we need at least two messages after
         // an assistant message to create a compressible sequence
@@ -312,21 +297,18 @@ mod tests {
         let model_id = ModelId::new("gpt-4");
         // Create a context with a sequence at the end
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(ContextMessage::user("User message 1"), model_id.clone()) // 1
-            .add_message(
-                ContextMessage::assistant("Assistant message 1", None),
-                model_id.clone(),
-            ) // 2
-            .add_message(ContextMessage::user("User message 2"), model_id.clone()) // 3
-            .add_message(
-                ContextMessage::assistant("Assistant message 2", None),
-                model_id.clone(),
-            ) // 4
-            .add_message(
-                ContextMessage::assistant("Assistant message 3", None),
-                model_id.clone(),
-            ); // 5
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            )) // 1
+            .add_message(ContextMessage::assistant("Assistant message 1", None)) // 2
+            .add_message(ContextMessage::user(
+                "User message 2",
+                model_id.clone().into(),
+            )) // 3
+            .add_message(ContextMessage::assistant("Assistant message 2", None)) // 4
+            .add_message(ContextMessage::assistant("Assistant message 3", None)); // 5
 
         // With the updated logic, we start from the first assistant message (index 2)
         // and include everything to the end
@@ -348,23 +330,20 @@ mod tests {
         };
 
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call.clone()]),
-                ),
-                model_id.clone(),
-            )
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with another tool call",
-                    Some(vec![tool_call.clone()]),
-                ),
-                model_id.clone(),
-            )
-            .add_message(ContextMessage::user("User message 2"), model_id);
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call.clone()]),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with another tool call",
+                Some(vec![tool_call.clone()]),
+            ))
+            .add_message(ContextMessage::user("User message 2", model_id.into()));
 
         // With the updated logic, the sequence is from index 2 to index 4 (all messages
         // from first assistant)
@@ -391,25 +370,22 @@ mod tests {
             .success(json!({"content": "File content"}).to_string());
 
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call]),
-                ),
-                model_id.clone(),
-            )
-            .add_message(ContextMessage::tool_result(tool_result), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant follow-up message", None),
-                model_id.clone(),
-            )
-            .add_message(
-                ContextMessage::assistant("Another assistant message", None),
-                model_id.clone(),
-            )
-            .add_message(ContextMessage::user("User message 2"), model_id.clone());
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call]),
+            ))
+            .add_message(ContextMessage::tool_result(tool_result))
+            .add_message(ContextMessage::assistant(
+                "Assistant follow-up message",
+                None,
+            ))
+            .add_message(ContextMessage::assistant("Another assistant message", None))
+            .add_message(ContextMessage::user("User message 2", model_id.into()));
 
         // With the updated logic, we include all messages from the first assistant
         // (index 2) through to the end (index 6)
@@ -446,28 +422,25 @@ mod tests {
 
         // Create a context where we have a mix of assistant and tool messages
         let context = Context::default()
-            .add_message(ContextMessage::user("User message 1"), model_id.clone()) // 0
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call1]),
-                ),
-                model_id.clone(),
-            ) // 1
-            .add_message(ContextMessage::tool_result(tool_result1), model_id.clone()) // 2
-            .add_message(
-                ContextMessage::user("User follow-up question"),
-                model_id.clone(),
-            ) // 3
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant with another tool call",
-                    Some(vec![tool_call2]),
-                ),
-                model_id.clone(),
-            ) // 4
-            .add_message(ContextMessage::tool_result(tool_result2), model_id.clone()) // 5
-            .add_message(ContextMessage::user("User message 2"), model_id.clone()); // 6
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            )) // 0
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call1]),
+            )) // 1
+            .add_message(ContextMessage::tool_result(tool_result1)) // 2
+            .add_message(ContextMessage::user(
+                "User follow-up question",
+                model_id.clone().into(),
+            )) // 3
+            .add_message(ContextMessage::assistant(
+                "Assistant with another tool call",
+                Some(vec![tool_call2]),
+            )) // 4
+            .add_message(ContextMessage::tool_result(tool_result2)) // 5
+            .add_message(ContextMessage::user("User message 2", model_id.into())); // 6
 
         // With the updated compaction logic, we include all messages starting from
         // the first assistant message through the end of the context
@@ -505,28 +478,22 @@ mod tests {
             .success(json!({"matches": ["match1", "match2"]}).to_string());
 
         let context = Context::default()
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call1.clone()]),
-                ),
-                model_id.clone(),
-            )
-            .add_message(
-                ContextMessage::assistant(
-                    "Another assistant message",
-                    Some(vec![tool_call2.clone()]),
-                ),
-                model_id.clone(),
-            )
-            .add_message(
-                ContextMessage::assistant("Third assistant message", None),
-                model_id.clone(),
-            )
-            .add_message(ContextMessage::tool_result(tool_result1), model_id.clone())
-            .add_message(ContextMessage::tool_result(tool_result2), model_id.clone())
-            .add_message(ContextMessage::user("User message 2"), model_id.clone());
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call1.clone()]),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Another assistant message",
+                Some(vec![tool_call2.clone()]),
+            ))
+            .add_message(ContextMessage::assistant("Third assistant message", None))
+            .add_message(ContextMessage::tool_result(tool_result1))
+            .add_message(ContextMessage::tool_result(tool_result2))
+            .add_message(ContextMessage::user("User message 2", model_id.into()));
 
         // With the updated logic, we include all messages from first assistant through
         // the end
@@ -551,10 +518,13 @@ mod tests {
             .success(json!({"matches": ["match1", "match2"]}).to_string());
 
         let context = Context::default()
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(ContextMessage::tool_result(tool_result1), model_id.clone())
-            .add_message(ContextMessage::tool_result(tool_result2), model_id.clone())
-            .add_message(ContextMessage::user("User message 2"), model_id.clone());
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::tool_result(tool_result1))
+            .add_message(ContextMessage::tool_result(tool_result2))
+            .add_message(ContextMessage::user("User message 2", model_id.into()));
 
         // With the updated logic, tool results by themselves are not valid for
         // compaction since they don't start with an assistant message
@@ -578,20 +548,20 @@ mod tests {
             .success(json!({"content": "File content 1"}).to_string());
 
         let context = Context::default()
-            .add_message(ContextMessage::user("User message 1"), model_id.clone()) // 0
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call]),
-                ),
-                model_id.clone(),
-            ) // 1
-            .add_message(
-                ContextMessage::user("User intermediate message"),
-                model_id.clone(),
-            ) // 2
-            .add_message(ContextMessage::tool_result(tool_result), model_id.clone()) // 3
-            .add_message(ContextMessage::user("User message 2"), model_id.clone()); // 4
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            )) // 0
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call]),
+            )) // 1
+            .add_message(ContextMessage::user(
+                "User intermediate message",
+                model_id.clone().into(),
+            )) // 2
+            .add_message(ContextMessage::tool_result(tool_result)) // 3
+            .add_message(ContextMessage::user("User message 2", model_id.into())); // 4
 
         // With the updated compaction logic, we need 2+ messages after the first
         // assistant message This test has 4 messages after the first assistant
@@ -607,29 +577,20 @@ mod tests {
         let model_id = ModelId::new("gpt-4");
         // Create a context with multiple sequences that could be compressed
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant message 1", None),
-                model_id.clone(),
-            ) // 2
-            .add_message(
-                ContextMessage::assistant("Assistant message 2", None),
-                model_id.clone(),
-            ) // 3
-            .add_message(
-                ContextMessage::assistant("Assistant message 3", None),
-                model_id.clone(),
-            ) // 4
-            .add_message(ContextMessage::user("User message 2"), model_id.clone()) // 5
-            .add_message(
-                ContextMessage::assistant("Assistant message 4", None),
-                model_id.clone(),
-            ) // 6
-            .add_message(
-                ContextMessage::assistant("Assistant message 5", None),
-                model_id.clone(),
-            ); // 7
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant("Assistant message 1", None)) // 2
+            .add_message(ContextMessage::assistant("Assistant message 2", None)) // 3
+            .add_message(ContextMessage::assistant("Assistant message 3", None)) // 4
+            .add_message(ContextMessage::user(
+                "User message 2",
+                model_id.clone().into(),
+            )) // 5
+            .add_message(ContextMessage::assistant("Assistant message 4", None)) // 6
+            .add_message(ContextMessage::assistant("Assistant message 5", None)); // 7
 
         // With the updated logic, we should compact from the first assistant message
         // through the end of the context (respecting preservation window)
@@ -661,25 +622,16 @@ mod tests {
         let model_id = ModelId::new("gpt-4");
         // Create a context with a sequence at the end
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(ContextMessage::user("User message 1"), model_id.clone()) // 1
-            .add_message(
-                ContextMessage::assistant("Assistant message 1", None),
-                model_id.clone(),
-            ) // 2
-            .add_message(ContextMessage::user("User message 2"), model_id.clone()) // 3
-            .add_message(
-                ContextMessage::assistant("Assistant message 2", None),
-                model_id.clone(),
-            ) // 4
-            .add_message(
-                ContextMessage::assistant("Assistant message 3", None),
-                model_id.clone(),
-            ) // 5
-            .add_message(
-                ContextMessage::assistant("Assistant message 4", None),
-                model_id.clone(),
-            ); // 6
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            )) // 1
+            .add_message(ContextMessage::assistant("Assistant message 1", None)) // 2
+            .add_message(ContextMessage::user("User message 2", model_id.into())) // 3
+            .add_message(ContextMessage::assistant("Assistant message 2", None)) // 4
+            .add_message(ContextMessage::assistant("Assistant message 3", None)) // 5
+            .add_message(ContextMessage::assistant("Assistant message 4", None)); // 6
 
         // With the updated logic, we should compact from the first assistant message
         // through the end (respecting preservation window)
@@ -719,28 +671,28 @@ mod tests {
 
         // Create a context with a sequence at the end
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(ContextMessage::user("User Message 1"), model_id.clone()) // 1
-            .add_message(
-                ContextMessage::assistant("Assistant Message 1", tool_calls.clone()),
-                model_id.clone(),
-            ) // 2
-            .add_tool_results(tool_results.clone(), model_id.clone()) // 3
-            .add_message(
-                ContextMessage::assistant("Assistant Message 2", tool_calls.clone()),
-                model_id.clone(),
-            ) // 4
-            .add_tool_results(tool_results.clone(), model_id.clone()) // 5
-            .add_message(
-                ContextMessage::assistant("Assistant Message 3", tool_calls.clone()),
-                model_id.clone(),
-            ) // 6
-            .add_tool_results(tool_results.clone(), model_id.clone()) // 7
-            .add_message(
-                ContextMessage::assistant("Assistant Message 4", tool_calls.clone()),
-                model_id.clone(),
-            ) // 8
-            .add_tool_results(tool_results.clone(), model_id); // 9
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user("User Message 1", model_id.into())) // 1
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 1",
+                tool_calls.clone(),
+            )) // 2
+            .add_tool_results(tool_results.clone()) // 3
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 2",
+                tool_calls.clone(),
+            )) // 4
+            .add_tool_results(tool_results.clone()) // 5
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 3",
+                tool_calls.clone(),
+            )) // 6
+            .add_tool_results(tool_results.clone()) // 7
+            .add_message(ContextMessage::assistant(
+                "Assistant Message 4",
+                tool_calls.clone(),
+            )) // 8
+            .add_tool_results(tool_results); // 9
 
         // All the messages should be considered
         let sequence = find_sequence(&context, 0).unwrap();
@@ -760,39 +712,24 @@ mod tests {
         // Create a context with a mixed conversation including user and assistant
         // messages
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(
-                ContextMessage::user("Initial user request"),
-                model_id.clone(),
-            ) // 1
-            .add_message(
-                ContextMessage::assistant("Assistant response 1", None),
-                model_id.clone(),
-            ) // 2
-            .add_message(
-                ContextMessage::user("User follow-up question"),
-                model_id.clone(),
-            ) // 3
-            .add_message(
-                ContextMessage::assistant("Assistant response 2", None),
-                model_id.clone(),
-            ) // 4
-            .add_message(
-                ContextMessage::user("Another user question"),
-                model_id.clone(),
-            ) // 5
-            .add_message(
-                ContextMessage::assistant("Assistant response 3", None),
-                model_id.clone(),
-            ) // 6
-            .add_message(
-                ContextMessage::user("Final user question"),
-                model_id.clone(),
-            ) // 7
-            .add_message(
-                ContextMessage::assistant("Assistant response 4", None),
-                model_id.clone(),
-            ); // 8
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user(
+                "Initial user request",
+                model_id.clone().into(),
+            )) // 1
+            .add_message(ContextMessage::assistant("Assistant response 1", None)) // 2
+            .add_message(ContextMessage::user(
+                "User follow-up question",
+                model_id.clone().into(),
+            )) // 3
+            .add_message(ContextMessage::assistant("Assistant response 2", None)) // 4
+            .add_message(ContextMessage::user(
+                "Another user question",
+                model_id.clone().into(),
+            )) // 5
+            .add_message(ContextMessage::assistant("Assistant response 3", None)) // 6
+            .add_message(ContextMessage::user("Final user question", model_id.into())) // 7
+            .add_message(ContextMessage::assistant("Assistant response 4", None)); // 8
 
         // With no preservation, we should compact from the first assistant message
         // (index 2) to the last message (index 8)
@@ -833,39 +770,27 @@ mod tests {
             .success(json!({"content": "File content"}).to_string());
 
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(
-                ContextMessage::user("Initial user request"),
-                model_id.clone(),
-            ) // 1
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant response with tool call",
-                    Some(vec![tool_call.clone()]),
-                ),
-                model_id.clone(),
-            ) // 2
-            .add_message(
-                ContextMessage::tool_result(tool_result.clone()),
-                model_id.clone(),
-            ) // 3
-            .add_message(ContextMessage::user("User follow-up"), model_id.clone()) // 4
-            .add_message(
-                ContextMessage::assistant("Assistant response", None),
-                model_id.clone(),
-            ) // 5
-            .add_message(ContextMessage::user("Another question"), model_id.clone()) // 6
-            .add_message(
-                ContextMessage::assistant(
-                    "Another assistant response with tool call",
-                    Some(vec![tool_call]),
-                ),
-                model_id.clone(),
-            ) // 7
-            .add_message(
-                ContextMessage::tool_result(tool_result.clone()),
-                model_id.clone(),
-            ); // 8
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user(
+                "Initial user request",
+                model_id.clone().into(),
+            )) // 1
+            .add_message(ContextMessage::assistant(
+                "Assistant response with tool call",
+                Some(vec![tool_call.clone()]),
+            )) // 2
+            .add_message(ContextMessage::tool_result(tool_result.clone())) // 3
+            .add_message(ContextMessage::user(
+                "User follow-up",
+                model_id.clone().into(),
+            )) // 4
+            .add_message(ContextMessage::assistant("Assistant response", None)) // 5
+            .add_message(ContextMessage::user("Another question", model_id.into())) // 6
+            .add_message(ContextMessage::assistant(
+                "Another assistant response with tool call",
+                Some(vec![tool_call]),
+            )) // 7
+            .add_message(ContextMessage::tool_result(tool_result.clone())); // 8
 
         // With no preservation, we should compact from the first assistant message
         // (index 2) to the last message (index 8)
@@ -888,16 +813,10 @@ mod tests {
         // Test case where the first message is from the assistant (after system
         // message)
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(
-                ContextMessage::assistant("First assistant message", None),
-                model_id.clone(),
-            ) // 1
-            .add_message(ContextMessage::user("User response"), model_id.clone()) // 2
-            .add_message(
-                ContextMessage::assistant("Second assistant message", None),
-                model_id.clone(),
-            ); // 3
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::assistant("First assistant message", None)) // 1
+            .add_message(ContextMessage::user("User response", model_id.into())) // 2
+            .add_message(ContextMessage::assistant("Second assistant message", None)); // 3
 
         // With no preservation, we should compact from index 1 to index 3
         let sequence = find_sequence(&context, 0);
@@ -917,23 +836,20 @@ mod tests {
         };
 
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone()) // 0
-            .add_message(
-                ContextMessage::user("Initial user request"),
-                model_id.clone(),
-            ) // 1
-            .add_message(
-                ContextMessage::assistant("First assistant message", None),
-                model_id.clone(),
-            ) // 2
-            .add_message(ContextMessage::user("User follow-up"), model_id.clone()) // 3
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant response with tool call",
-                    Some(vec![tool_call.clone()]),
-                ),
-                model_id.clone(),
-            ); // 4
+            .add_message(ContextMessage::system("System message")) // 0
+            .add_message(ContextMessage::user(
+                "Initial user request",
+                model_id.clone().into(),
+            )) // 1
+            .add_message(ContextMessage::assistant("First assistant message", None)) // 2
+            .add_message(ContextMessage::user(
+                "User follow-up",
+                model_id.clone().into(),
+            )) // 3
+            .add_message(ContextMessage::assistant(
+                "Assistant response with tool call",
+                Some(vec![tool_call.clone()]),
+            )); // 4
 
         // With no preservation, we should get a compaction range but exclude the tool
         // call message since it wouldn't have a corresponding tool result
@@ -952,10 +868,8 @@ mod tests {
 
     #[test]
     fn test_single_message_context() {
-        let model_id = ModelId::new("gpt-4");
         // Test edge case: context with only one message
-        let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone());
+        let context = Context::default().add_message(ContextMessage::system("System message"));
         let result = find_sequence(&context, 0);
         assert!(result.is_none());
     }
@@ -965,12 +879,9 @@ mod tests {
         let model_id = ModelId::new("gpt-4");
         // Test edge case: preservation window equals message count
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant message", None),
-                model_id.clone(),
-            );
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message", model_id.into()))
+            .add_message(ContextMessage::assistant("Assistant message", None));
 
         // Context has 3 messages, preserve_last_n = 3
         let result = find_sequence(&context, 3);
@@ -988,14 +899,14 @@ mod tests {
         };
 
         let context = Context::default()
-            .add_message(ContextMessage::user("User message"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call]),
-                ),
-                model_id.clone(),
-            );
+            .add_message(ContextMessage::user(
+                "User message",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call]),
+            ));
 
         // With preserve_last_n = 0, max_len = 2, but after tool call adjustment it
         // could become 1 which might lead to underflow in some parts of the
@@ -1011,10 +922,16 @@ mod tests {
         // Create a context with only system and user messages (no assistant messages)
         // which would result in empty start/end position vectors
         let context = Context::default()
-            .add_message(ContextMessage::system("System message"), model_id.clone())
-            .add_message(ContextMessage::user("User message 1"), model_id.clone())
-            .add_message(ContextMessage::user("User message 2"), model_id.clone())
-            .add_message(ContextMessage::user("User message 3"), model_id.clone());
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user(
+                "User message 1",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::user(
+                "User message 2",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::user("User message 3", model_id.into()));
 
         let result = find_sequence(&context, 0);
         assert!(result.is_none());
@@ -1034,14 +951,14 @@ mod tests {
         };
 
         let context = Context::default()
-            .add_message(ContextMessage::user("User message"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant(
-                    "Assistant message with tool call",
-                    Some(vec![tool_call]),
-                ),
-                model_id.clone(),
-            );
+            .add_message(ContextMessage::user(
+                "User message",
+                model_id.clone().into(),
+            ))
+            .add_message(ContextMessage::assistant(
+                "Assistant message with tool call",
+                Some(vec![tool_call]),
+            ));
 
         // With preserve_last_n = 1, max_len = 2-1 = 1,
         // then if we try to check messages[max_len-1] this could cause underflow if not
@@ -1051,11 +968,8 @@ mod tests {
 
         // Case 2: Context with exactly 2 messages (user, assistant)
         let context = Context::default()
-            .add_message(ContextMessage::user("User message"), model_id.clone())
-            .add_message(
-                ContextMessage::assistant("Assistant message", None),
-                model_id.clone(),
-            );
+            .add_message(ContextMessage::user("User message", model_id.into()))
+            .add_message(ContextMessage::assistant("Assistant message", None));
 
         // With preserve_last_n = 0, max_len = 2, but we need at least 3 messages for
         // compression

@@ -168,11 +168,7 @@ impl<A: Services> Orchestrator<A> {
                 .template_service()
                 .render(system_prompt.template.as_str(), &ctx)?;
 
-            let model_id = agent
-                .model
-                .clone()
-                .context("Model should've been set at this point.")?;
-            context.set_first_system_message(system_message, model_id)
+            context.set_first_system_message(system_message)
         } else {
             context
         })
@@ -436,9 +432,8 @@ impl<A: Services> Orchestrator<A> {
                 ctx.add_message(
                     match attachment.content_type {
                         ContentType::Image => ContextMessage::Image(attachment.content),
-                        ContentType::Text => ContextMessage::user(attachment.content),
+                        ContentType::Text => ContextMessage::user(attachment.content, model_id.clone().into()),
                     },
-                    model_id.clone(),
                 )
             });
 
@@ -498,7 +493,7 @@ impl<A: Services> Orchestrator<A> {
                     .services
                     .template_service()
                     .render("{{> partial-tool-required.hbs}}", &())?;
-                context = context.add_message(ContextMessage::user(content), model_id.clone());
+                context = context.add_message(ContextMessage::user(content,model_id.clone().into()));
 
                 empty_tool_call_count += 1;
                 let model = agent
@@ -545,7 +540,7 @@ impl<A: Services> Orchestrator<A> {
                 .model
                 .clone()
                 .context("Model should've been set at this point.")?;
-            context = context.add_message(ContextMessage::user(content), model_id);
+            context = context.add_message(ContextMessage::user(content,model_id.into()));
         }
 
         Ok(context)
