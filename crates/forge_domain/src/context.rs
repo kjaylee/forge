@@ -24,7 +24,7 @@ impl ContextMessage {
             role: Role::User,
             content: content.to_string(),
             tool_calls: None,
-            model: model.into(),
+            model: model,
         }
         .into()
     }
@@ -147,7 +147,7 @@ impl Context {
             self.messages.extend(
                 results
                     .into_iter()
-                    .map(|result| ContextMessage::tool_result(result)),
+                    .map(ContextMessage::tool_result),
             );
         }
 

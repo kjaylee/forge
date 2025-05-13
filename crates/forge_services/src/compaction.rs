@@ -58,10 +58,7 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         let (start, end) = sequence;
 
         // Extract the sequence to summarize
-        let sequence_messages = &context.messages[start..=end]
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>();
+        let sequence_messages = &context.messages[start..=end].to_vec();
 
         // Generate summary for this sequence
         let summary = self
