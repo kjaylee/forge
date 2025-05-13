@@ -1,7 +1,7 @@
 use generate::Generate;
 use gh_workflow_tailcall::*;
 
-use crate::jobs::{build, draft_release};
+use crate::jobs;
 
 /// Generate the main CI workflow
 pub fn generate_ci_workflow() {
@@ -17,14 +17,14 @@ pub fn generate_ci_workflow() {
 
     // Get the jobs
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
-    let draft_release_job = draft_release::create_draft_release_job();
+    let draft_release_job = jobs::create_draft_release_job();
 
     // Add jobs to the workflow
     workflow = workflow.add_job("draft_release", draft_release_job.clone());
-    workflow = workflow.add_job("build-release-pr", build::create_build_release_pr_job());
+    workflow = workflow.add_job("build-release-pr", jobs::create_build_release_pr_job());
     workflow = workflow.add_job(
         "build-release",
-        build::create_build_release_main_job(&build_job, &draft_release_job),
+        jobs::create_build_release_main_job(&build_job, &draft_release_job),
     );
 
     workflow.generate().unwrap();
@@ -32,7 +32,7 @@ pub fn generate_ci_workflow() {
 
 /// Generate homebrew release workflow
 pub fn generate_homebrew_workflow() {
-    let homebrew_workflow = crate::jobs::homebrew::create_homebrew_workflow();
+    let homebrew_workflow = jobs::create_homebrew_workflow();
 
     Generate::new(homebrew_workflow)
         .name("homebrew-release.yml")
@@ -42,7 +42,7 @@ pub fn generate_homebrew_workflow() {
 
 /// Generate npm release workflow
 pub fn generate_npm_workflow() {
-    let npm_workflow = crate::jobs::npm::create_npm_workflow();
+    let npm_workflow = jobs::create_npm_workflow();
 
     Generate::new(npm_workflow)
         .name("npm-release.yml")
@@ -52,7 +52,7 @@ pub fn generate_npm_workflow() {
 
 /// Generate release drafter workflow
 pub fn generate_release_drafter_workflow() {
-    let release_drafter_workflow = crate::jobs::release_drafter::create_release_drafter_workflow();
+    let release_drafter_workflow = jobs::create_release_drafter_workflow();
 
     Generate::new(release_drafter_workflow)
         .name("release-drafter.yml")

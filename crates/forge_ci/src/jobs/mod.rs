@@ -1,7 +1,13 @@
 //! Jobs for CI workflows
 
-pub mod build;
-pub mod draft_release;
-pub mod homebrew;
-pub mod npm;
-pub mod release_drafter;
+mod build;
+mod draft_release;
+mod homebrew;
+mod npm;
+mod release_drafter;
+
+pub use build::*;
+pub use draft_release::*;
+pub use homebrew::*;
+pub use npm::*;
+pub use release_drafter::*;
