@@ -538,7 +538,7 @@ impl<A: Services> Orchestrator<A> {
 
         if !content.is_empty() {
             context =
-                context.add_message(ContextMessage::user(content, agent.model.clone().into()));
+                context.add_message(ContextMessage::user(content, agent.model.clone()));
         }
 
         Ok(context)
