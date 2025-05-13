@@ -1,7 +1,7 @@
+use forge_ci::matrix;
 use generate::Generate;
 use gh_workflow_tailcall::*;
 use indexmap::indexmap;
-use serde::Serialize;
 
 /// Helper function to generate an apt-get install command for multiple packages
 ///
@@ -21,16 +21,6 @@ fn apt_get_install(packages: &[&str]) -> String {
     )
 }
 
-/// Matrix entry for build targets
-#[derive(Serialize, Clone)]
-struct MatrixEntry {
-    os: &'static str,
-    target: &'static str,
-    binary_name: &'static str,
-    binary_path: &'static str,
-    cross: &'static str,
-}
-
 #[test]
 fn generate() {
     let mut workflow = StandardWorkflow::default()
@@ -43,70 +33,8 @@ fn generate() {
         })
         .add_env(("OPENROUTER_API_KEY", "${{secrets.OPENROUTER_API_KEY}}"));
 
-    // Set up the build matrix for all platforms using a struct
-    let matrix_entries = vec![
-        MatrixEntry {
-            os: "ubuntu-latest",
-            target: "x86_64-unknown-linux-musl",
-            binary_name: "forge-x86_64-unknown-linux-musl",
-            binary_path: "target/x86_64-unknown-linux-musl/release/forge",
-            cross: "false",
-        },
-        MatrixEntry {
-            os: "ubuntu-latest",
-            target: "aarch64-unknown-linux-musl",
-            binary_name: "forge-aarch64-unknown-linux-musl",
-            binary_path: "target/aarch64-unknown-linux-musl/release/forge",
-            cross: "false",
-        },
-        MatrixEntry {
-            os: "ubuntu-latest",
-            target: "x86_64-unknown-linux-gnu",
-            binary_name: "forge-x86_64-unknown-linux-gnu",
-            binary_path: "target/x86_64-unknown-linux-gnu/release/forge",
-            cross: "false",
-        },
-        MatrixEntry {
-            os: "ubuntu-latest",
-            target: "aarch64-unknown-linux-gnu",
-            binary_name: "forge-aarch64-unknown-linux-gnu",
-            binary_path: "target/aarch64-unknown-linux-gnu/release/forge",
-            cross: "true",
-        },
-        MatrixEntry {
-            os: "macos-latest",
-            target: "x86_64-apple-darwin",
-            binary_name: "forge-x86_64-apple-darwin",
-            binary_path: "target/x86_64-apple-darwin/release/forge",
-            cross: "false",
-        },
-        MatrixEntry {
-            os: "macos-latest",
-            target: "aarch64-apple-darwin",
-            binary_name: "forge-aarch64-apple-darwin",
-            binary_path: "target/aarch64-apple-darwin/release/forge",
-            cross: "false",
-        },
-        MatrixEntry {
-            os: "windows-latest",
-            target: "x86_64-pc-windows-msvc",
-            binary_name: "forge-x86_64-pc-windows-msvc.exe",
-            binary_path: "target/x86_64-pc-windows-msvc/release/forge.exe",
-            cross: "false",
-        },
-        MatrixEntry {
-            os: "windows-latest",
-            target: "aarch64-pc-windows-msvc",
-            binary_name: "forge-aarch64-pc-windows-msvc.exe",
-            binary_path: "target/aarch64-pc-windows-msvc/release/forge.exe",
-            cross: "false",
-        },
-    ];
-
-    // Create matrix from entries
-    let matrix = serde_json::json!({
-        "include": matrix_entries
-    });
+    // Get the matrix from the dedicated module
+    let matrix = matrix::create_matrix();
 
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
 
@@ -307,7 +235,7 @@ fn test_homebrew_workflow() {
                 Step::uses("actions", "checkout", "v4")
                     .add_with(("repository", "antinomyhq/homebrew-code-forge"))
                     .add_with(("ref", "main"))
-                    .add_with(("token", "${{ secrets.HOMEBREW_ACCESS }}"))
+                    .add_with(("token", "${{ secrets.HOMEBREW_ACCESS }}")),
             )
             // Make script executable and run it with token
             .add_step(
