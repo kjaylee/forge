@@ -21,7 +21,6 @@ pub fn generate_ci_workflow() {
 
     // Add jobs to the workflow
     workflow = workflow.add_job("draft_release", draft_release_job.clone());
-    workflow = workflow.add_job("build-release-pr", jobs::create_build_release_pr_job());
     workflow = workflow.add_job(
         "build-release",
         jobs::create_build_release_main_job(&build_job, &draft_release_job),
