@@ -100,14 +100,19 @@ fn generate() {
     let main_cond =
         Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
 
-    // Tag-based condition for release workflows
-    let tag_cond =
-        Expression::new("github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')");
+    // Release event condition
+    let release_cond =
+        Expression::new("github.event_name == 'release' && github.event.action == 'published'");
+
+    // Combined condition for build-release to run on main or release
+    let build_release_cond =
+        Expression::new("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
 
     // Add draft release job
     let draft_release_job = Job::new("draft_release")
             .runs_on("ubuntu-latest")
             .cond(main_cond.clone())
+            // This job only runs on push to main, not needed for release events
             .permissions(
                 Permissions::default()
                     .contents(Level::Write)
@@ -179,7 +184,7 @@ fn generate() {
                 .add_env(("POSTHOG_API_SECRET", "${{secrets.POSTHOG_API_SECRET}}"))
                 .add_env((
                     "APP_VERSION",
-                    "${{ needs.draft_release.outputs.create_release_name }}",
+                    "${{ github.event_name == 'release' && github.event.release.tag_name || needs.draft_release.outputs.create_release_name }}",
                 )),
         );
     let label_cond = Expression::new("github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-all-targets')");
@@ -192,7 +197,7 @@ fn generate() {
         build_release_job
             .add_needs(build_job.clone())
             .add_needs(draft_release_job.clone())
-            .cond(main_cond)
+            .cond(build_release_cond.clone())
             // Rename binary to target name
             .add_step(Step::run(
                 "cp ${{ matrix.binary_path }} ${{ matrix.binary_name }}",
@@ -208,50 +213,12 @@ fn generate() {
                     .add_with(("overwrite", "true")),
             ),
     );
-    // Store reference to build-release job
-    let build_release_job = workflow
-        .jobs
-        .clone()
-        .unwrap()
-        .get("build-release")
-        .unwrap()
-        .clone();
-
-    // Add semantic release job to publish the release
-    let semantic_release_job = Job::new("semantic_release")
-        .add_needs(draft_release_job.clone())
-        .add_needs(build_release_job.clone())
-        .cond(tag_cond.clone())
-        .permissions(
-            Permissions::default()
-                .contents(Level::Write)
-                .pull_requests(Level::Write),
-        )
-        .runs_on("ubuntu-latest")
-        .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
-        .env((
-            "APP_VERSION",
-            "${{ needs.draft_release.outputs.create_release_name }}",
-        ))
-        .add_step(
-            Step::uses("test-room-7", "action-publish-release-drafts", "v0")
-                .env(("GITHUB_TOKEN", "${{ secrets.GITHUB_TOKEN }}"))
-                .add_with(("github-token", "${{ secrets.GITHUB_TOKEN }}"))
-                .add_with((
-                    "tag-name",
-                    "${{ needs.draft_release.outputs.create_release_name }}",
-                )),
-        );
-    workflow = workflow.add_job("semantic_release", semantic_release_job.clone());
 
     // Homebrew release job
     workflow = workflow.add_job(
         "homebrew_release",
         Job::new("homebrew_release")
-            .add_needs(draft_release_job.clone())
-            .add_needs(build_release_job.clone())
-            .add_needs(semantic_release_job.clone())
-            .cond(tag_cond.clone())
+            .cond(release_cond.clone())
             .permissions(
                 Permissions::default()
                     .contents(Level::Write)
@@ -266,7 +233,7 @@ fn generate() {
             )
             // Make script executable and run it with token
             .add_step(
-                Step::run("GITHUB_TOKEN=\"${{ secrets.HOMEBREW_ACCESS }}\" ./update-formula.sh ${{needs.draft_release.outputs.create_release_name }}"),
+                Step::run("GITHUB_TOKEN=\"${{ secrets.HOMEBREW_ACCESS }}\" ./update-formula.sh ${{ github.event.release.tag_name }}"),
             ),
     );
 
@@ -274,10 +241,7 @@ fn generate() {
     workflow = workflow.add_job(
         "npm_release",
         Job::new("npm_release")
-            .add_needs(draft_release_job.clone())
-            .add_needs(build_release_job.clone())
-            .add_needs(semantic_release_job.clone())
-            .cond(tag_cond.clone())
+            .cond(release_cond.clone())
             .permissions(
                 Permissions::default()
                     .contents(Level::Write)
@@ -292,12 +256,10 @@ fn generate() {
             )
             // Make script executable and run it with token
             .add_step(
-                Step::run(
-                    "./update-package.sh ${{needs.draft_release.outputs.create_release_name}}",
-                )
-                .add_env(("AUTO_PUSH", "true"))
-                .add_env(("CI", "true"))
-                .add_env(("NPM_TOKEN", "${{ secrets.NPM_TOKEN }}")),
+                Step::run("./update-package.sh ${{ github.event.release.tag_name }}")
+                    .add_env(("AUTO_PUSH", "true"))
+                    .add_env(("CI", "true"))
+                    .add_env(("NPM_TOKEN", "${{ secrets.NPM_TOKEN }}")),
             ),
     );
 
