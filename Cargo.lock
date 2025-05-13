@@ -4378,7 +4378,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53813bf5d5f0d8430794f8cc48e99521cc9e298066958d16383ccb8b39d182a7"
 dependencies = [
  "etcetera",
- "reqwest 0.12.12",
+ "reqwest 0.12.15",
  "semver",
  "serde",
  "serde_json",
@@ -4395,12 +4395,12 @@ dependencies = [
  "flate2",
  "log",
  "once_cell",
- "rustls 0.23.21",
+ "rustls 0.23.27",
  "rustls-pki-types",
  "serde",
  "serde_json",
  "url",
- "webpki-roots 0.26.7",
+ "webpki-roots 0.26.11",
 ]
 
 [[package]]
