@@ -1,7 +1,7 @@
 use generate::Generate;
 use gh_workflow_tailcall::*;
 use indexmap::indexmap;
-use serde_json::json;
+use serde::Serialize;
 
 /// Helper function to generate an apt-get install command for multiple packages
 ///
@@ -21,6 +21,16 @@ fn apt_get_install(packages: &[&str]) -> String {
     )
 }
 
+/// Matrix entry for build targets
+#[derive(Serialize, Clone)]
+struct MatrixEntry {
+    os: &'static str,
+    target: &'static str,
+    binary_name: &'static str,
+    binary_path: &'static str,
+    cross: &'static str,
+}
+
 #[test]
 fn generate() {
     let mut workflow = StandardWorkflow::default()
@@ -33,66 +43,69 @@ fn generate() {
         })
         .add_env(("OPENROUTER_API_KEY", "${{secrets.OPENROUTER_API_KEY}}"));
 
-    // Set up the build matrix for all platforms
-    let matrix = json!({
-        "include": [
-            {
-                "os": "ubuntu-latest",
-                "target": "x86_64-unknown-linux-musl",
-                "binary_name": "forge-x86_64-unknown-linux-musl",
-                "binary_path": "target/x86_64-unknown-linux-musl/release/forge",
-                "cross": "false"
-            },
-            {
-                "os": "ubuntu-latest",
-                "target": "aarch64-unknown-linux-musl",
-                "binary_name": "forge-aarch64-unknown-linux-musl",
-                "binary_path": "target/aarch64-unknown-linux-musl/release/forge",
-                "cross": "false"
-            },
-            {
-                "os": "ubuntu-latest",
-                "target": "x86_64-unknown-linux-gnu",
-                "binary_name": "forge-x86_64-unknown-linux-gnu",
-                "binary_path": "target/x86_64-unknown-linux-gnu/release/forge",
-                "cross": "false"
-            },
-            {
-                "os": "ubuntu-latest",
-                "target": "aarch64-unknown-linux-gnu",
-                "binary_name": "forge-aarch64-unknown-linux-gnu",
-                "binary_path": "target/aarch64-unknown-linux-gnu/release/forge",
-                "cross": "true"
-            },
-            {
-                "os": "macos-latest",
-                "target": "x86_64-apple-darwin",
-                "binary_name": "forge-x86_64-apple-darwin",
-                "binary_path": "target/x86_64-apple-darwin/release/forge",
-                "cross": "false"
-            },
-            {
-                "os": "macos-latest",
-                "target": "aarch64-apple-darwin",
-                "binary_name": "forge-aarch64-apple-darwin",
-                "binary_path": "target/aarch64-apple-darwin/release/forge",
-                "cross": "false"
-            },
-            {
-                "os": "windows-latest",
-                "target": "x86_64-pc-windows-msvc",
-                "binary_name": "forge-x86_64-pc-windows-msvc.exe",
-                "binary_path": "target/x86_64-pc-windows-msvc/release/forge.exe",
-                "cross": "false"
-            },
-            {
-                "os": "windows-latest",
-                "target": "aarch64-pc-windows-msvc",
-                "binary_name": "forge-aarch64-pc-windows-msvc.exe",
-                "binary_path": "target/aarch64-pc-windows-msvc/release/forge.exe",
-                "cross": "false"
-            }
-        ]
+    // Set up the build matrix for all platforms using a struct
+    let matrix_entries = vec![
+        MatrixEntry {
+            os: "ubuntu-latest",
+            target: "x86_64-unknown-linux-musl",
+            binary_name: "forge-x86_64-unknown-linux-musl",
+            binary_path: "target/x86_64-unknown-linux-musl/release/forge",
+            cross: "false",
+        },
+        MatrixEntry {
+            os: "ubuntu-latest",
+            target: "aarch64-unknown-linux-musl",
+            binary_name: "forge-aarch64-unknown-linux-musl",
+            binary_path: "target/aarch64-unknown-linux-musl/release/forge",
+            cross: "false",
+        },
+        MatrixEntry {
+            os: "ubuntu-latest",
+            target: "x86_64-unknown-linux-gnu",
+            binary_name: "forge-x86_64-unknown-linux-gnu",
+            binary_path: "target/x86_64-unknown-linux-gnu/release/forge",
+            cross: "false",
+        },
+        MatrixEntry {
+            os: "ubuntu-latest",
+            target: "aarch64-unknown-linux-gnu",
+            binary_name: "forge-aarch64-unknown-linux-gnu",
+            binary_path: "target/aarch64-unknown-linux-gnu/release/forge",
+            cross: "true",
+        },
+        MatrixEntry {
+            os: "macos-latest",
+            target: "x86_64-apple-darwin",
+            binary_name: "forge-x86_64-apple-darwin",
+            binary_path: "target/x86_64-apple-darwin/release/forge",
+            cross: "false",
+        },
+        MatrixEntry {
+            os: "macos-latest",
+            target: "aarch64-apple-darwin",
+            binary_name: "forge-aarch64-apple-darwin",
+            binary_path: "target/aarch64-apple-darwin/release/forge",
+            cross: "false",
+        },
+        MatrixEntry {
+            os: "windows-latest",
+            target: "x86_64-pc-windows-msvc",
+            binary_name: "forge-x86_64-pc-windows-msvc.exe",
+            binary_path: "target/x86_64-pc-windows-msvc/release/forge.exe",
+            cross: "false",
+        },
+        MatrixEntry {
+            os: "windows-latest",
+            target: "aarch64-pc-windows-msvc",
+            binary_name: "forge-aarch64-pc-windows-msvc.exe",
+            binary_path: "target/aarch64-pc-windows-msvc/release/forge.exe",
+            cross: "false",
+        },
+    ];
+
+    // Create matrix from entries
+    let matrix = serde_json::json!({
+        "include": matrix_entries
     });
 
     let build_job = workflow.jobs.clone().unwrap().get("build").unwrap().clone();
@@ -100,8 +113,8 @@ fn generate() {
     let main_cond =
         Expression::new("github.event_name == 'push' && github.ref == 'refs/heads/main'");
 
-    // Release event condition
-    let release_cond =
+    // Release event condition - used in other test functions
+    let _release_cond =
         Expression::new("github.event_name == 'release' && github.event.action == 'published'");
 
     // Combined condition for build-release to run on main or release
@@ -214,57 +227,11 @@ fn generate() {
             ),
     );
 
-    // Homebrew release job
-    workflow = workflow.add_job(
-        "homebrew_release",
-        Job::new("homebrew_release")
-            .cond(release_cond.clone())
-            .permissions(
-                Permissions::default()
-                    .contents(Level::Write)
-                    .pull_requests(Level::Write),
-            )
-            .runs_on("ubuntu-latest")
-            .add_step(
-                Step::uses("actions", "checkout", "v4")
-                    .add_with(("repository", "antinomyhq/homebrew-code-forge"))
-                    .add_with(("ref", "main"))
-                    .add_with(("token", "${{ secrets.HOMEBREW_ACCESS }}")),
-            )
-            // Make script executable and run it with token
-            .add_step(
-                Step::run("GITHUB_TOKEN=\"${{ secrets.HOMEBREW_ACCESS }}\" ./update-formula.sh ${{ github.event.release.tag_name }}"),
-            ),
-    );
-
-    // npm release job
-    workflow = workflow.add_job(
-        "npm_release",
-        Job::new("npm_release")
-            .cond(release_cond.clone())
-            .permissions(
-                Permissions::default()
-                    .contents(Level::Write)
-                    .pull_requests(Level::Write),
-            )
-            .runs_on("ubuntu-latest")
-            .add_step(
-                Step::uses("actions", "checkout", "v4")
-                    .add_with(("repository", "antinomyhq/npm-code-forge"))
-                    .add_with(("ref", "main"))
-                    .add_with(("token", "${{ secrets.NPM_ACCESS }}")),
-            )
-            // Make script executable and run it with token
-            .add_step(
-                Step::run("./update-package.sh ${{ github.event.release.tag_name }}")
-                    .add_env(("AUTO_PUSH", "true"))
-                    .add_env(("CI", "true"))
-                    .add_env(("NPM_TOKEN", "${{ secrets.NPM_TOKEN }}")),
-            ),
-    );
+    // Removed homebrew_release and npm_release jobs from main workflow
 
     workflow.generate().unwrap();
 }
+
 #[test]
 fn test_apt_get_install() {
     let packages = &["pkg1", "pkg2", "pkg3"];
@@ -311,6 +278,87 @@ fn test_release_drafter() {
     release_drafter = release_drafter.name("Release Drafter");
     Generate::new(release_drafter)
         .name("release-drafter.yml")
+        .generate()
+        .unwrap();
+}
+
+#[test]
+fn test_homebrew_workflow() {
+    // Generate Homebrew release workflow
+    let mut homebrew_workflow = Workflow::default()
+        .name("Homebrew Release")
+        .on(Event {
+            release: Some(Release { types: vec![ReleaseType::Published] }),
+            ..Event::default()
+        })
+        .permissions(
+            Permissions::default()
+                .contents(Level::Write)
+                .pull_requests(Level::Write),
+        );
+
+    // No need to define release condition since it's already in the Event setup
+
+    homebrew_workflow = homebrew_workflow.add_job(
+        "homebrew_release",
+        Job::new("homebrew_release")
+            .runs_on("ubuntu-latest")
+            .add_step(
+                Step::uses("actions", "checkout", "v4")
+                    .add_with(("repository", "antinomyhq/homebrew-code-forge"))
+                    .add_with(("ref", "main"))
+                    .add_with(("token", "${{ secrets.HOMEBREW_ACCESS }}"))
+            )
+            // Make script executable and run it with token
+            .add_step(
+                Step::run("GITHUB_TOKEN=\"${{ secrets.HOMEBREW_ACCESS }}\" ./update-formula.sh ${{ github.event.release.tag_name }}"),
+            ),
+    );
+
+    Generate::new(homebrew_workflow)
+        .name("homebrew-release.yml")
+        .generate()
+        .unwrap();
+}
+
+#[test]
+fn test_npm_workflow() {
+    // Generate npm release workflow
+    let mut npm_workflow = Workflow::default()
+        .name("NPM Release")
+        .on(Event {
+            release: Some(Release { types: vec![ReleaseType::Published] }),
+            ..Event::default()
+        })
+        .permissions(
+            Permissions::default()
+                .contents(Level::Write)
+                .pull_requests(Level::Write),
+        );
+
+    // No need to define release condition since it's already in the Event setup
+
+    npm_workflow = npm_workflow.add_job(
+        "npm_release",
+        Job::new("npm_release")
+            .runs_on("ubuntu-latest")
+            .add_step(
+                Step::uses("actions", "checkout", "v4")
+                    .add_with(("repository", "antinomyhq/npm-code-forge"))
+                    .add_with(("ref", "main"))
+                    .add_with(("token", "${{ secrets.NPM_ACCESS }}")),
+            )
+            // Make script executable and run it with token
+            .add_step(
+                Step::run("./update-package.sh ${{ github.event.release.tag_name }}")
+                    .add_env(("AUTO_PUSH", "true"))
+                    .add_env(("CI", "true"))
+                    .add_env(("NPM_TOKEN", "${{ secrets.NPM_TOKEN }}")),
+            ),
+    );
+
+    Generate::new(npm_workflow)
+        .name("npm-release.yml")
         .generate()
         .unwrap();
 }

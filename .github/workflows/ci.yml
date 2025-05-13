@@ -252,37 +252,5 @@ jobs:
         release_id: ${{ needs.draft_release.outputs.create_release_id }}
         file: ${{ matrix.binary_name }}
         overwrite: 'true'
-  homebrew_release:
-    if: github.event_name == 'release' && github.event.action == 'published'
-    name: homebrew_release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: antinomyhq/homebrew-code-forge
-        ref: main
-        token: ${{ secrets.HOMEBREW_ACCESS }}
-    - run: GITHUB_TOKEN="${{ secrets.HOMEBREW_ACCESS }}" ./update-formula.sh ${{ github.event.release.tag_name }}
-  npm_release:
-    if: github.event_name == 'release' && github.event.action == 'published'
-    name: npm_release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: antinomyhq/npm-code-forge
-        ref: main
-        token: ${{ secrets.NPM_ACCESS }}
-    - run: ./update-package.sh ${{ github.event.release.tag_name }}
-      env:
-        AUTO_PUSH: 'true'
-        CI: 'true'
-        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
