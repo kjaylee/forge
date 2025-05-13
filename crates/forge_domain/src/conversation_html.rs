@@ -3,6 +3,7 @@ use serde_json::to_string_pretty;
 
 use crate::context::ContextMessage;
 use crate::conversation::Conversation;
+use crate::ModelId;
 
 pub fn render_conversation_html(conversation: &Conversation) -> String {
     let html = Element::new("html")
@@ -174,13 +175,15 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
             if let Some(context) = &state.context {
                 let context_messages = Element::new("div.context-section").append(
                     context.messages.iter().map(|message| {
-                        let ctx_message = &message.message;
-                        let ctx_model = &message.model;
-                        match ctx_message {
+                        match message {
                             ContextMessage::ContentMessage(content_message) => {
                                 // Convert role to lowercase for the class
                                 let role_lowercase =
                                     content_message.role.to_string().to_lowercase();
+                                let ctx_model = content_message
+                                    .model
+                                    .clone()
+                                    .unwrap_or(ModelId::new("unknown"));
 
                                 let message_div = Element::new(format!(
                                     "details.message-card.message-{role_lowercase}"
@@ -241,7 +244,6 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                                         Element::new("summary")
                                             .append(Element::new("strong").text("Tool Result: "))
                                             .append(Element::span(tool_result.name.as_str()))
-                                            .append(Element::span(format!(" ({ctx_model})"))),
                                     )
                                     .append(Element::new("pre").text(&tool_result.content))
                             }
@@ -251,7 +253,6 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                                     .append(
                                         Element::new("strong")
                                             .text("Image Attachment")
-                                            .append(Element::span(format!(" ({ctx_model})"))),
                                     )
                                     .append(Element::new("p").text(format!("URL: {url}")))
                             }

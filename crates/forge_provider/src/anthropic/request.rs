@@ -35,7 +35,7 @@ impl TryFrom<forge_domain::Context> for Request {
         // note: Anthropic only supports 1 system message in context, so from the
         // context we pick the first system message available.
         // ref: https://docs.anthropic.com/en/api/messages#body-system
-        let system = request.messages_iter().find_map(|message| {
+        let system = request.messages.iter().find_map(|message| {
             if let ContextMessage::ContentMessage(chat_message) = message {
                 if chat_message.role == forge_domain::Role::System {
                     Some(chat_message.content.clone())
@@ -49,7 +49,8 @@ impl TryFrom<forge_domain::Context> for Request {
 
         Ok(Self {
             messages: request
-                .messages_iter()
+                .messages
+                .into_iter()
                 .filter(|message| {
                     // note: Anthropic does not support system messages in message field.
                     if let ContextMessage::ContentMessage(chat_message) = message {
@@ -58,7 +59,6 @@ impl TryFrom<forge_domain::Context> for Request {
                         true
                     }
                 })
-                .cloned()
                 .map(Message::try_from)
                 .collect::<std::result::Result<Vec<_>, _>>()?,
             tools: request
