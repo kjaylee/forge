@@ -537,11 +537,8 @@ impl<A: Services> Orchestrator<A> {
         };
 
         if !content.is_empty() {
-            let model_id = agent
-                .model
-                .clone()
-                .context("Model should've been set at this point.")?;
-            context = context.add_message(ContextMessage::user(content, model_id.into()));
+            context =
+                context.add_message(ContextMessage::user(content, agent.model.clone().into()));
         }
 
         Ok(context)
