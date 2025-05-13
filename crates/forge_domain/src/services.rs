@@ -2,17 +2,13 @@ use std::path::Path;
 
 use crate::{
     Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
-    ConversationId, Environment, File, Model, ModelId, ResultStream, ToolCallContext, ToolCallFull,
+    ConversationId, Environment, File, Model, ResultStream, ToolCallContext, ToolCallFull,
     ToolDefinition, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {
-    async fn chat(
-        &self,
-        id: &ModelId,
-        context: Context,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
+    async fn chat(&self, context: Context) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
     async fn models(&self) -> anyhow::Result<Vec<Model>>;
 }
 

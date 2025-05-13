@@ -124,7 +124,7 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         }
 
         // Get summary from the provider
-        let response = self.provider.chat(&compact.model, context).await?;
+        let response = self.provider.chat(context).await?;
 
         self.collect_completion_stream_content(compact, response)
             .await

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context as ChatContext, EnvironmentService, Model, ModelId,
-    ProviderService, ResultStream,
+    ChatCompletionMessage, Context as ChatContext, EnvironmentService, Model, ProviderService,
+    ResultStream,
 };
 use forge_provider::Client;
 
@@ -31,13 +31,13 @@ impl ForgeProviderService {
 impl ProviderService for ForgeProviderService {
     async fn chat(
         &self,
-        model: &ModelId,
         request: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
+        let model = request.model();
         self.client
-            .chat(model, request)
+            .chat(request)
             .await
-            .with_context(|| format!("Failed to chat with model: {model}"))
+            .with_context(|| format!("Failed to chat with model: {:?}", model))
     }
 
     async fn models(&self) -> Result<Vec<Model>> {

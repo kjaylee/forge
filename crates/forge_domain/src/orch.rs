@@ -396,7 +396,7 @@ impl<A: Services> Orchestrator<A> {
             .model
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
-        
+
         let mut context = if agent.ephemeral.unwrap_or_default() {
             agent.init_context(self.get_allowed_tools(agent)).await?
         } else {
@@ -450,7 +450,7 @@ impl<A: Services> Orchestrator<A> {
             let response = self
                 .services
                 .provider_service()
-                .chat(&model_id, context.clone())
+                .chat(context.clone())
                 .await?;
 
             let ChatCompletionResult { tool_calls, content, usage } =

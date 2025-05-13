@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::Context as _;
 use derive_builder::Builder;
 use forge_domain::{
-    ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream, RetryConfig,
+    ChatCompletionMessage, Context, Model, ProviderService, ResultStream, RetryConfig,
 };
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
@@ -65,18 +65,18 @@ impl Anthropic {
 
 #[async_trait::async_trait]
 impl ProviderService for Anthropic {
-    async fn chat(
-        &self,
-        model: &ModelId,
-        context: Context,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
+    async fn chat(&self, context: Context) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let max_tokens = context.max_tokens.unwrap_or(4000);
         let request = Request::try_from(context)?
-            .model(model.as_str().to_string())
             .stream(true)
             .max_tokens(max_tokens as u64);
 
         let url = self.url("/messages")?;
+        let model = request
+            .model
+            .clone()
+            .expect("Model must be set at this point");
+
         debug!(url = %url, model = %model, "Connecting Upstream");
         let mut es = self
             .client
@@ -201,7 +201,8 @@ impl ProviderService for Anthropic {
 #[cfg(test)]
 mod tests {
     use forge_domain::{
-        Context, ContextMessage, ToolCallFull, ToolCallId, ToolChoice, ToolName, ToolResult,
+        Context, ContextMessage, ModelId, ToolCallFull, ToolCallId, ToolChoice, ToolName,
+        ToolResult,
     };
 
     use super::*;
@@ -224,7 +225,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_request_conversion() {
-        let model_id = ModelId::new("gpt-4");
+        let model_id = ModelId::new("sonnet-3.5");
         let context = Context::default()
             .add_message(ContextMessage::system(
                 "You're expert at math, so you should resolve all user queries.",
@@ -250,7 +251,6 @@ mod tests {
             .tool_choice(ToolChoice::Call(ToolName::new("math")));
         let request = Request::try_from(context)
             .unwrap()
-            .model("sonnet-3.5".to_string())
             .stream(true)
             .max_tokens(4000u64);
         insta::assert_snapshot!(serde_json::to_string_pretty(&request).unwrap());

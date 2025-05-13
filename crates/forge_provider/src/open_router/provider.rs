@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::{Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
-    self, ChatCompletionMessage, Context as ChatContext, Model, ModelId, Provider, ProviderService,
+    self, ChatCompletionMessage, Context as ChatContext, Model, Provider, ProviderService,
     ResultStream, RetryConfig,
 };
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
@@ -72,15 +72,17 @@ impl OpenRouter {
 
     async fn inner_chat(
         &self,
-        model: &ModelId,
         context: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let mut request = OpenRouterRequest::from(context)
-            .model(model.clone())
-            .stream(true);
+        let mut request = OpenRouterRequest::from(context).stream(true);
         request = ProviderPipeline::new(&self.provider).transform(request);
 
         let url = self.url("chat/completions")?;
+
+        let model = request
+            .model
+            .clone()
+            .expect("Model must be set at this point");
 
         debug!(
             url = %url,
@@ -216,10 +218,9 @@ impl OpenRouter {
 impl ProviderService for OpenRouter {
     async fn chat(
         &self,
-        model: &ModelId,
         context: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        self.inner_chat(model, context).await
+        self.inner_chat(context).await
     }
 
     async fn models(&self) -> Result<Vec<Model>> {

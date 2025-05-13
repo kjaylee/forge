@@ -1,5 +1,5 @@
 use derive_setters::Setters;
-use forge_domain::ContextMessage;
+use forge_domain::{ContextMessage, ModelId};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Request {
     max_tokens: u64,
     messages: Vec<Message>,
-    model: String,
+    pub model: Option<ModelId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<Metadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -48,6 +48,7 @@ impl TryFrom<forge_domain::Context> for Request {
         });
 
         Ok(Self {
+            model: request.model(),
             messages: request
                 .messages
                 .into_iter()

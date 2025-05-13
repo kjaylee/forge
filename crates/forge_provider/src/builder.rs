@@ -2,8 +2,7 @@
 
 use anyhow::{Context as _, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
-    RetryConfig,
+    ChatCompletionMessage, Context, Model, Provider, ProviderService, ResultStream, RetryConfig,
 };
 use reqwest::redirect::Policy;
 
@@ -51,14 +50,10 @@ impl Client {
 
 #[async_trait::async_trait]
 impl ProviderService for Client {
-    async fn chat(
-        &self,
-        model: &ModelId,
-        context: Context,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
+    async fn chat(&self, context: Context) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         match self {
-            Client::OpenAICompat(provider) => provider.chat(model, context).await,
-            Client::Anthropic(provider) => provider.chat(model, context).await,
+            Client::OpenAICompat(provider) => provider.chat(context).await,
+            Client::Anthropic(provider) => provider.chat(context).await,
         }
     }
 
