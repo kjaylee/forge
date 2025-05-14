@@ -271,6 +271,11 @@ impl<F: API> UI<F> {
                 if let Some(command) = s.next() {
                     let args = s.collect::<Vec<_>>();
                     self.api.execute_shell_command_raw(command, &args).await?;
+                } else {
+                    self.writeln(
+                        TitleFormat::error("Invalid shell command format")
+                            .sub_title(" Usage: !<command> [args...] (e.g., !ls -la)"),
+                    )?;
                 }
             }
         }
