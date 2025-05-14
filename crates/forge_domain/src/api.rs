@@ -72,7 +72,7 @@ pub trait API: Sync + Send {
         working_dir: PathBuf,
     ) -> Result<CommandOutput>;
 
-    /// Executes the shell commnad on present stdio.
+    /// Executes the shell command on present stdio.
     async fn execute_shell_command_raw(
         &self,
         command: &str,
