@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    ToolCallFull, ToolName, Workflow, API,
+   Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -277,23 +277,6 @@ impl<F: API> UI<F> {
                     ))
                     .context("Empty shell command.");
                 }
-            }
-            Command::Tasks => {
-                let _ = self
-                    .api
-                    .call_tool(
-                        ToolCallFull::new(ToolName::new("forge_tool_task_list")).arguments(
-                            serde_json::json!({
-                                "list": true
-                            }),
-                        ),
-                    )
-                    .await?;
-                // note: tool creates a markdown format file, so read that to display tasklist.
-                let cwd = self.api.environment().cwd.join("task_list.md");
-                let content = tokio::fs::read_to_string(&cwd).await?;
-                let text = self.markdown.render(&content);
-                self.writeln(text)?;
             }
         }
 

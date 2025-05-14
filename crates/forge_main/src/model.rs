@@ -193,7 +193,6 @@ impl ForgeCommandManager {
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
-            "/tasks" => Ok(Command::Tasks),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -275,9 +274,6 @@ pub enum Command {
     /// This can be triggered with commands starting with '!' character.
     #[strum(props(usage = "Execute a native shell command"))]
     Shell(String),
-    /// List all the tasks from tasklist
-    #[strum(props(usage = "List all the tasks from tasklist"))]
-    Tasks,
 }
 
 impl Command {
@@ -296,7 +292,6 @@ impl Command {
             Command::Model => "/model",
             Command::Tools => "/tools",
             Command::Shell(_) => "!shell",
-            Command::Tasks => "/tasks",
             Command::Custom(event) => &event.name,
         }
     }

@@ -78,7 +78,4 @@ pub trait API: Sync + Send {
         command: &str,
         args: &[&str],
     ) -> Result<std::process::ExitStatus>;
-
-    /// Calls a tool with the given input and returns the output
-    async fn call_tool(&self, input: ToolCallFull) -> Result<ToolResult>;
 }
