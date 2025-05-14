@@ -4,7 +4,6 @@ use anyhow::Result;
 use bytes::Bytes;
 use forge_domain::{CommandOutput, EnvironmentService};
 use forge_snaps::Snapshot;
-use tokio::process::Command;
 
 /// Repository for accessing system environment information
 /// This uses the EnvironmentService trait from forge_domain
@@ -103,13 +102,7 @@ pub trait CommandExecutorService: Send + Sync {
         &self,
         command: &str,
         args: &[&str],
-    ) -> anyhow::Result<std::process::ExitStatus> {
-        let mut tokio_cmd = Command::new(command);
-        tokio_cmd.args(args);
-        tokio_cmd.kill_on_drop(true);
-
-        Ok(tokio_cmd.spawn()?.wait().await?)
-    }
+    ) -> anyhow::Result<std::process::ExitStatus>;
 }
 
 #[async_trait::async_trait]
