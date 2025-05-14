@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    Workflow, API,
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Mode, Model, ModelId, Workflow, API
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -22,7 +21,7 @@ use crate::cli::Cli;
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
-use crate::state::{Mode, UIState};
+use crate::state::UIState;
 use crate::update::on_update;
 use crate::{banner, TRACKER};
 
