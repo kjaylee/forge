@@ -13,10 +13,7 @@ async fn handle_update_error<S: AsRef<str>>(error: S) {
         "{} Could not update Forge automatically.",
         "Update Failed:".bold().red()
     );
-    println!(
-        "{} Run this command:",
-        "Manual Update:".bold().yellow()
-    );
+    println!("{} Run this command:", "Manual Update:".bold().yellow());
     println!("   {}", "npm i update -g @antinomyhq/forge".bold().cyan());
     let _ = send_update_failure_event(error.as_ref()).await;
 }
