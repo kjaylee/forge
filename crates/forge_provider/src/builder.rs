@@ -5,6 +5,7 @@ use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
     RetryConfig,
 };
+use reqwest::redirect::Policy;
 
 use crate::anthropic::Anthropic;
 use crate::open_router::OpenRouter;
@@ -17,8 +18,10 @@ pub enum Client {
 impl Client {
     pub fn new(provider: Provider, retry_config: RetryConfig) -> Result<Self> {
         let client = reqwest::Client::builder()
+            .read_timeout(std::time::Duration::from_secs(60))
             .pool_idle_timeout(std::time::Duration::from_secs(90))
             .pool_max_idle_per_host(5)
+            .redirect(Policy::limited(10))
             .build()?;
 
         match &provider {

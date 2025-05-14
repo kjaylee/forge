@@ -128,7 +128,18 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .await
     }
 
-    async fn call_tool(&self, input: ToolCallFull) -> anyhow::Result<ToolResult> {
+    async fn execute_shell_command_raw(
+        &self,
+        command: &str,
+        args: &[&str],
+    ) -> anyhow::Result<std::process::ExitStatus> {
+        self.app
+            .command_executor_service()
+            .execute_command_raw(command, args)
+            .await
+    }
+
+     async fn call_tool(&self, input: ToolCallFull) -> anyhow::Result<ToolResult> {
         let result = self
             .app
             .tool_service()
@@ -136,5 +147,5 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .await;
 
         Ok(result)
-    }
+     }
 }
