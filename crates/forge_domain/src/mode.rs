@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use strum_macros::EnumString;
 
-#[derive(Debug, Clone, Default, EnumString)]
+#[derive(Debug, Clone, Default, EnumString, Serialize, Deserialize)]
 #[strum(ascii_case_insensitive)]
 pub enum Mode {
     Plan,

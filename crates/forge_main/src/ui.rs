@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Mode, Model, ModelId, Workflow, API
+    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Mode, Model,
+    ModelId, Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
@@ -120,25 +121,11 @@ impl<F: API> UI<F> {
     }
     // Helper functions for creating events with the specific event names
     fn create_task_init_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(
-            format!(
-                "{}/{}",
-                self.state.mode.to_string().to_lowercase(),
-                EVENT_USER_TASK_INIT
-            ),
-            content,
-        )
+        Event::new(format!("{}", EVENT_USER_TASK_INIT), content)
     }
 
     fn create_task_update_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(
-            format!(
-                "{}/{}",
-                self.state.mode.to_string().to_lowercase(),
-                EVENT_USER_TASK_UPDATE
-            ),
-            content,
-        )
+        Event::new(format!("{}", EVENT_USER_TASK_UPDATE), content)
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -380,7 +367,7 @@ impl<F: API> UI<F> {
         let event: PartialEvent = serde_json::from_str(&json)?;
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(event.into(), conversation_id);
+        let chat = ChatRequest::new(event.into(), conversation_id, self.state.mode.clone());
 
         // Process the event
         let mut stream = self.api.chat(chat).await?;
@@ -456,7 +443,7 @@ impl<F: API> UI<F> {
         };
 
         // Create the chat request with the event
-        let chat = ChatRequest::new(event, conversation_id);
+        let chat = ChatRequest::new(event, conversation_id, self.state.mode.clone());
 
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
@@ -565,7 +552,7 @@ impl<F: API> UI<F> {
 
     async fn on_custom_event(&mut self, event: Event) -> Result<()> {
         let conversation_id = self.init_conversation().await?;
-        let chat = ChatRequest::new(event, conversation_id);
+        let chat = ChatRequest::new(event, conversation_id, self.state.mode.clone());
         match self.api.chat(chat).await {
             Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
             Err(err) => Err(err),
