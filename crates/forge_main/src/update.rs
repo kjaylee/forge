@@ -14,7 +14,6 @@ async fn execute_update_command(api: Arc<impl API>) {
         .execute_shell_command("npm i update -g @antinomyhq/forge", api.environment().cwd)
         .await;
 
-
     match output {
         Err(err) => {
             // Send an event to the tracker on failure
@@ -45,7 +44,7 @@ async fn execute_update_command(api: Arc<impl API>) {
 async fn confirm_update(version: Version) -> bool {
     let answer = inquire::Confirm::new(&format!(
         "Confirm upgrade from {} -> {} (latest)?",
-        format!("{VERSION}").bold().white(),
+        VERSION.to_string().bold().white(),
         version.to_string().bold().white()
     ))
     .with_default(true)
