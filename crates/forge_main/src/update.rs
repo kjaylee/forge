@@ -14,19 +14,30 @@ async fn execute_update_command(api: Arc<impl API>) {
         .execute_shell_command("npm i update -g @antinomyhq/forge", api.environment().cwd)
         .await;
 
-    if let Err(err) = output {
-        // Send an event to the tracker on failure
-        // We don't need to handle this result since we're failing silently
-        let _ = send_update_failure_event(&format!("Auto update failed: {err}")).await;
-    } else {
-        let answer = inquire::Confirm::new(
-            "You need to close forge to complete update. Do you want to close it now?",
-        )
-        .with_default(true)
-        .with_error_message("Invalid response!")
-        .prompt();
-        if answer.unwrap_or_default() {
-            std::process::exit(0);
+
+    match output {
+        Err(err) => {
+            // Send an event to the tracker on failure
+            // We don't need to handle this result since we're failing silently
+            let _ = send_update_failure_event(&format!("Auto update failed: {err}")).await;
+        }
+        Ok(output) => {
+            if output.stderr.is_empty() {
+                let answer = inquire::Confirm::new(
+                    "You need to close forge to complete update. Do you want to close it now?",
+                )
+                .with_default(true)
+                .with_error_message("Invalid response!")
+                .prompt();
+                if answer.unwrap_or_default() {
+                    std::process::exit(0);
+                }
+            } else {
+                // TODO: ask user to manually update the forge.
+                let _ =
+                    send_update_failure_event(&format!("Auto update failed: {}", output.stderr))
+                        .await;
+            }
         }
     }
 }
@@ -34,7 +45,7 @@ async fn execute_update_command(api: Arc<impl API>) {
 async fn confirm_update(version: Version) -> bool {
     let answer = inquire::Confirm::new(&format!(
         "Confirm upgrade from {} -> {} (latest)?",
-        format!("v{VERSION}").bold().white(),
+        format!("{VERSION}").bold().white(),
         version.to_string().bold().white()
     ))
     .with_default(true)
