@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use forge_api::{
     AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-   Workflow, API,
+    Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_fs::ForgeFS;
