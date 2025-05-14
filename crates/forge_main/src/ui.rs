@@ -112,7 +112,7 @@ impl<F: API> UI<F> {
             .await?;
 
         self.writeln(TitleFormat::action(format!(
-            "Switched to '{}' mode (context cleared)",
+            "Switched to '{}' mode",
             self.state.mode
         )))?;
 
