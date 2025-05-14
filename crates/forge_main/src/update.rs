@@ -8,6 +8,14 @@ use update_informer::{registry, Check, Version};
 
 use crate::TRACKER;
 
+/// Displays a formatted error message for manual update
+async fn handle_update_error<S: AsRef<str>>(error: S) {
+    println!("{} {}", "Update Failed:".bold().red(), "Could not update Forge automatically.");
+    println!("{} {}", "Manual Update:".bold().yellow(), "Run this command:");
+    println!("   {}", "npm i update -g @antinomyhq/forge".bold().cyan());
+    let _ = send_update_failure_event(error.as_ref()).await;
+}
+
 /// Runs npm update in the background, failing silently
 async fn execute_update_command(api: Arc<impl API>) {
     // Spawn a new task that won't block the main application
@@ -25,7 +33,7 @@ async fn execute_update_command(api: Arc<impl API>) {
         Err(err) => {
             // Send an event to the tracker on failure
             // We don't need to handle this result since we're failing silently
-            let _ = send_update_failure_event(&format!("Auto update failed: {err}")).await;
+            handle_update_error(err.to_string()).await;
         }
         Ok(output) => {
             if output.stderr.is_empty() {
@@ -39,10 +47,7 @@ async fn execute_update_command(api: Arc<impl API>) {
                     std::process::exit(0);
                 }
             } else {
-                // TODO: ask user to manually update the forge.
-                let _ =
-                    send_update_failure_event(&format!("Auto update failed: {}", output.stderr))
-                        .await;
+                handle_update_error(format!("Auto update failed: {}", output.stderr)).await;
             }
         }
     }
