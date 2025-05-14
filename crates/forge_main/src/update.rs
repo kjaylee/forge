@@ -18,7 +18,7 @@ async fn execute_update_command(api: Arc<impl API>) {
         Err(err) => {
             // Send an event to the tracker on failure
             // We don't need to handle this result since we're failing silently
-            let _ = send_update_failure_event(&format!("Auto update failed {}", err)).await;
+            let _ = send_update_failure_event(&format!("Auto update failed {err}")).await;
         }
         Ok(output) => {
             if output.success() {
@@ -33,10 +33,10 @@ async fn execute_update_command(api: Arc<impl API>) {
                 }
             } else {
                 let exit_output = match output.code() {
-                    Some(code) => format!("Process exited with code: {}", code),
-                    None => format!("Process exited without code"),
+                    Some(code) => format!("Process exited with code: {code}"),
+                    None => "Process exited without code".to_string(),
                 };
-                let _ = send_update_failure_event(&format!("Auto update failed, {}", exit_output,))
+                let _ = send_update_failure_event(&format!("Auto update failed, {exit_output}",))
                     .await;
             }
         }

@@ -1,6 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
@@ -103,17 +101,14 @@ pub trait CommandExecutorService: Send + Sync {
     /// execute the shell command on present stdio.
     async fn execute_command_raw(
         &self,
-         command: &str,
+        command: &str,
         args: &[&str],
     ) -> anyhow::Result<std::process::ExitStatus> {
         let mut tokio_cmd = Command::new(command);
         tokio_cmd.args(args);
         tokio_cmd.kill_on_drop(true);
 
-        Ok(tokio_cmd
-            .spawn()?
-            .wait()
-            .await?)
+        Ok(tokio_cmd.spawn()?.wait().await?)
     }
 }
 
