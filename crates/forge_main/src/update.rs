@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use colored::Colorize;
 use forge_api::{Update, API};
+use forge_spinner::SpinnerManager;
 use forge_tracker::{EventKind, VERSION};
 use update_informer::{registry, Check, Version};
 
@@ -10,9 +11,15 @@ use crate::TRACKER;
 /// Runs npm update in the background, failing silently
 async fn execute_update_command(api: Arc<impl API>) {
     // Spawn a new task that won't block the main application
+    let mut spinner = SpinnerManager::new();
+
+    let _ = spinner.start(Some("Updating forge..."));
+
     let output = api
         .execute_shell_command("npm i update -g @antinomyhq/forge", api.environment().cwd)
         .await;
+
+    let _ = spinner.stop(None);
 
     match output {
         Err(err) => {
