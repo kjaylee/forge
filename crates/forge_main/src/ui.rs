@@ -121,11 +121,11 @@ impl<F: API> UI<F> {
     }
     // Helper functions for creating events with the specific event names
     fn create_task_init_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(format!("{}", EVENT_USER_TASK_INIT), content)
+        Event::new(EVENT_USER_TASK_INIT.to_string(), content)
     }
 
     fn create_task_update_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(format!("{}", EVENT_USER_TASK_UPDATE), content)
+        Event::new(EVENT_USER_TASK_UPDATE.to_string(), content)
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
