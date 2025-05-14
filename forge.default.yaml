@@ -23,7 +23,7 @@ agents:
     tool_supported: false
     model: *advanced_model
     system_prompt: |-
-      {{> system-prompt-engineer-act.hbs }}
+      {{> system-prompt.hbs }}
     user_prompt: |-
       <task>{{event.value}}</task>
     ephemeral: false
