@@ -86,9 +86,6 @@ pub struct TaskListResult {
     pub message: Option<String>,
     /// The task that was affected by the operation, if applicable.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub task: Option<Task>,
-    /// The next task in the list, if applicable.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub next_task: Option<Task>,
     /// Statistics about the task list.
     pub stats: Stats,
@@ -104,13 +101,9 @@ impl Display for TaskListResult {
             result.push_str(&format!("<message>{message}</message>\n"));
         }
 
-        if let Some(task) = &self.task {
-            result.push_str(&format!("{task}\n"));
-        }
-
-        if let Some(next_task) = &self.next_task {
+        if let Some(task) = &self.next_task {
             result.push_str("<next_task>\n");
-            result.push_str(&format!("{next_task}"));
+            result.push_str(&format!("{task}\n"));
             result.push_str("\n</next_task>\n");
         }
 
@@ -246,7 +239,6 @@ impl<F: Infrastructure> TaskList<F> {
 
         Ok(TaskListResult {
             message: Some("Task added to the end of the list.".to_string()),
-            task: Some(task),
             next_task: None,
             stats,
             tasks: None,
@@ -271,7 +263,6 @@ impl<F: Infrastructure> TaskList<F> {
 
         Ok(TaskListResult {
             message: Some("Task added to the beginning of the list.".to_string()),
-            task: None,
             next_task: None,
             stats,
             tasks: None,
@@ -302,17 +293,10 @@ impl<F: Infrastructure> TaskList<F> {
         let stats = self.calculate_stats().await;
 
         if let Some(task) = task_option {
-            Ok(TaskListResult {
-                message: None,
-                task: Some(task),
-                next_task: None,
-                stats,
-                tasks: None,
-            })
+            Ok(TaskListResult { message: None, next_task: Some(task), stats, tasks: None })
         } else {
             Ok(TaskListResult {
                 message: Some("No pending tasks found.".to_string()),
-                task: None,
                 next_task: None,
                 stats: self.calculate_stats().await,
                 tasks: None,
@@ -344,17 +328,10 @@ impl<F: Infrastructure> TaskList<F> {
         let stats = self.calculate_stats().await;
 
         if let Some(task) = task_option {
-            Ok(TaskListResult {
-                message: None,
-                task: Some(task),
-                next_task: None,
-                stats,
-                tasks: None,
-            })
+            Ok(TaskListResult { message: None, next_task: Some(task), stats, tasks: None })
         } else {
             Ok(TaskListResult {
                 message: Some("No pending tasks found.".to_string()),
-                task: None,
                 next_task: None,
                 stats,
                 tasks: None,
@@ -383,7 +360,6 @@ impl<F: Infrastructure> TaskList<F> {
         if !found {
             return Ok(TaskListResult {
                 message: Some(format!("No task found with ID {id}.")),
-                task: None,
                 next_task: None,
                 stats: self.calculate_stats().await,
                 tasks: None,
@@ -403,7 +379,6 @@ impl<F: Infrastructure> TaskList<F> {
             } else {
                 Some(format!("Task {id} marked as done. No more pending tasks."))
             },
-            task: None,
             next_task,
             stats,
             tasks: None,
@@ -416,7 +391,6 @@ impl<F: Infrastructure> TaskList<F> {
         let tasks = self.tasks.lock().await;
         Ok(TaskListResult {
             message: None,
-            task: None,
             next_task: None,
             stats,
             tasks: Some(tasks.clone()),
