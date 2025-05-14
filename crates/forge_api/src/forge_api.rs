@@ -139,7 +139,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .await
     }
 
-     async fn call_tool(&self, input: ToolCallFull) -> anyhow::Result<ToolResult> {
+    async fn call_tool(&self, input: ToolCallFull) -> anyhow::Result<ToolResult> {
         let result = self
             .app
             .tool_service()
@@ -147,5 +147,5 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .await;
 
         Ok(result)
-     }
+    }
 }
