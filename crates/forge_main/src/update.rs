@@ -36,8 +36,8 @@ async fn execute_update_command(api: Arc<impl API>) {
                     Some(code) => format!("Process exited with code: {code}"),
                     None => "Process exited without code".to_string(),
                 };
-                let _ = send_update_failure_event(&format!("Auto update failed, {exit_output}",))
-                    .await;
+                let _ =
+                    send_update_failure_event(&format!("Auto update failed, {exit_output}",)).await;
             }
         }
     }
