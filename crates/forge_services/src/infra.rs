@@ -1,9 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use bytes::Bytes;
 use forge_domain::{CommandOutput, EnvironmentService};
 use forge_snaps::Snapshot;
+use tokio::process::Command;
 
 /// Repository for accessing system environment information
 /// This uses the EnvironmentService trait from forge_domain
@@ -96,6 +99,22 @@ pub trait CommandExecutorService: Send + Sync {
         command: String,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput>;
+
+    /// execute the shell command on present stdio.
+    async fn execute_command_raw(
+        &self,
+         command: &str,
+        args: &[&str],
+    ) -> anyhow::Result<std::process::ExitStatus> {
+        let mut tokio_cmd = Command::new(command);
+        tokio_cmd.args(args);
+        tokio_cmd.kill_on_drop(true);
+
+        Ok(tokio_cmd
+            .spawn()?
+            .wait()
+            .await?)
+    }
 }
 
 #[async_trait::async_trait]

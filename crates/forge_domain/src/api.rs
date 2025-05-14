@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}};
 
 use anyhow::Result;
 use forge_stream::MpscStream;
@@ -71,4 +71,11 @@ pub trait API: Sync + Send {
         command: &str,
         working_dir: PathBuf,
     ) -> Result<CommandOutput>;
+
+    /// Executes the shell commnad on present stdio.
+    async fn execute_shell_command_raw(
+        &self,
+        command: &str,
+        args: &[&str],
+    ) -> Result<std::process::ExitStatus>;
 }
