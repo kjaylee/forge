@@ -90,7 +90,6 @@ impl<F: API> UI<F> {
 
     // Set the current mode and update conversation variable
     async fn on_mode_change(&mut self, mode: Mode) -> Result<()> {
-        self.on_new().await?;
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
 
