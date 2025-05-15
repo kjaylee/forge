@@ -1,6 +1,6 @@
 use forge_domain::Provider;
 
-use super::drop_or_fields::DropOpenRouterFields;
+use super::drop_or_fields::DropAntinomyFields;
 use super::drop_tool_call::DropToolCalls;
 use super::identity::Identity;
 use super::set_cache::SetCache;
@@ -25,9 +25,9 @@ impl Transformer for ProviderPipeline<'_> {
             .combine(DropToolCalls.when_model("mistral"))
             .combine(SetToolChoice::new(ToolChoice::Auto).when_model("gemini"))
             .combine(SetCache.except_when_model("mistral|gemini|openai"))
-            .when(move |_| self.0.is_open_router());
+            .when(move |_| self.0.is_antinomy());
 
-        let non_open_router = DropOpenRouterFields.when(move |_| !self.0.is_open_router());
+        let non_open_router = DropAntinomyFields.when(move |_| !self.0.is_antinomy());
 
         or_transformers.combine(non_open_router).transform(request)
     }

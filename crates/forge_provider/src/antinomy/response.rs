@@ -200,13 +200,13 @@ mod tests {
     impl Fixture {
         // check if the response is compatible with the AntinomyResponse
         fn test_response_compatibility(message: &str) -> bool {
-            let open_router_response = serde_json::from_str::<AntinomyResponse>(message)
+            let antinomy_response = serde_json::from_str::<AntinomyResponse>(message)
                 .with_context(|| format!("Failed to parse Antinomy response: {message}"))
                 .and_then(|event| {
                     ChatCompletionMessage::try_from(event.clone())
                         .with_context(|| "Failed to create completion message")
                 });
-            open_router_response.is_ok()
+            antinomy_response.is_ok()
         }
     }
 
@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_open_router_response_event() {
+    fn test_antinomy_response_event() {
         let event = "{\"id\":\"gen-1739949430-JZMcABaj4fg8oFDtRNDZ\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o-mini\",\"object\":\"chat.completion.chunk\",\"created\":1739949430,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_bhjvz9w48ov4DSRhM15qLMmh\",\"type\":\"function\",\"function\":{\"name\":\"forge_tool_process_shell\",\"arguments\":\"\"}}],\"refusal\":null},\"logprobs\":null,\"finish_reason\":null,\"native_finish_reason\":null}],\"system_fingerprint\":\"fp_00428b782a\"}";
         assert!(Fixture::test_response_compatibility(event));
     }
