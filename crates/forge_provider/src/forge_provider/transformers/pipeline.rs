@@ -25,9 +25,10 @@ impl Transformer for ProviderPipeline<'_> {
             .combine(DropToolCalls.when_model("mistral"))
             .combine(SetToolChoice::new(ToolChoice::Auto).when_model("gemini"))
             .combine(SetCache.except_when_model("mistral|gemini|openai"))
-            .when(move |_| self.0.is_open_router());
+            .when(move |_| self.0.is_open_router() || self.0.is_antinomy());
 
-        let open_ai_compat = MakeOpenAiCompat.when(move |_| !self.0.is_open_router());
+        let open_ai_compat =
+            MakeOpenAiCompat.when(move |_| !self.0.is_open_router() || !self.0.is_antinomy());
 
         or_transformers.combine(open_ai_compat).transform(request)
     }
