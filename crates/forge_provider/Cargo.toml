@@ -15,7 +15,7 @@ tracing.workspace = true
 async-trait.workspace = true
 derive_more.workspace = true
 derive_setters.workspace = true
-reqwest-eventsource.workspace = true
+reqwest-eventsource = { git = "https://github.com/laststylebender14/reqwest-eventsource", branch = "fix/increment-retry-num-on-subsequent-errors" }
 strum.workspace = true
 strum_macros.workspace = true
 forge_domain.workspace = true
