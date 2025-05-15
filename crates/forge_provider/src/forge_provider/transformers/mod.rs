@@ -1,5 +1,5 @@
 mod combine;
-mod drop_or_fields;
+mod make_openai_compat;
 mod drop_tool_call;
 mod identity;
 mod pipeline;
