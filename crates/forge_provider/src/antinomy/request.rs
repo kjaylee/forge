@@ -5,7 +5,7 @@ use forge_domain::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::response::{ToolCall, FunctionCall};
+use super::response::{FunctionCall, ToolCall};
 use super::tool_choice::{FunctionType, ToolChoice};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

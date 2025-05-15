@@ -12,7 +12,7 @@ use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
 use tracing::debug;
 
-use super::model::{Model, ListModelResponse};
+use super::model::{ListModelResponse, Model};
 use super::request::Request;
 use super::response::Response;
 use crate::antinomy::transformers::{ProviderPipeline, Transformer};
@@ -75,9 +75,7 @@ impl ForgeProvider {
         model: &ModelId,
         context: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let mut request = Request::from(context)
-            .model(model.clone())
-            .stream(true);
+        let mut request = Request::from(context).model(model.clone()).stream(true);
         request = ProviderPipeline::new(&self.provider).transform(request);
 
         let url = self.url("chat/completions")?;
@@ -253,8 +251,8 @@ mod tests {
           }
         }))
         .unwrap();
-        let message = serde_json::from_str::<Response>(&content)
-            .context("Failed to parse response")?;
+        let message =
+            serde_json::from_str::<Response>(&content).context("Failed to parse response")?;
         let message = ChatCompletionMessage::try_from(message.clone());
 
         assert!(message.is_err());
