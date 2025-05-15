@@ -15,6 +15,7 @@ const options = {
 // Create TLS server
 const server = tls.createServer(options, (socket) => {
     const clientId = `${socket.remoteAddress}:${socket.remotePort}`;
+    logWithTimestamp(`==============================================`);
     logWithTimestamp(`New client connection from ${clientId}`);
 
     // Log TLS version and cipher once handshake is complete
