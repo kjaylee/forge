@@ -505,6 +505,8 @@ impl<A: Services> Orchestrator<A> {
                 if empty_tool_call_count > 3 {
                     bail!("Model '{model}' is unable to follow instructions, consider retrying or switching to a bigger model.");
                 }
+            } else {
+                empty_tool_call_count = 0;
             }
 
             // Update context in the conversation
