@@ -1,7 +1,7 @@
 mod combine;
-mod make_openai_compat;
 mod drop_tool_call;
 mod identity;
+mod make_openai_compat;
 mod pipeline;
 mod set_cache;
 mod tool_choice;
