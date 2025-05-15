@@ -13,7 +13,7 @@ use super::tool_choice::FunctionType;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
-pub enum OpenRouterResponse {
+pub enum AntinomyResponse {
     Success {
         id: String,
         provider: Option<String>,
@@ -82,12 +82,12 @@ impl Display for ErrorResponse {
 pub struct ResponseMessage {
     pub content: Option<String>,
     pub role: Option<String>,
-    pub tool_calls: Option<Vec<OpenRouterToolCall>>,
+    pub tool_calls: Option<Vec<AntinomyToolCall>>,
     pub refusal: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OpenRouterToolCall {
+pub struct AntinomyToolCall {
     pub id: Option<ToolCallId>,
     pub r#type: FunctionType,
     pub function: FunctionCall,
@@ -111,12 +111,12 @@ impl From<ResponseUsage> for Usage {
     }
 }
 
-impl TryFrom<OpenRouterResponse> for ModelResponse {
+impl TryFrom<AntinomyResponse> for ModelResponse {
     type Error = Error;
 
-    fn try_from(res: OpenRouterResponse) -> Result<Self, Self::Error> {
+    fn try_from(res: AntinomyResponse) -> Result<Self, Self::Error> {
         match res {
-            OpenRouterResponse::Success { choices, usage, .. } => {
+            AntinomyResponse::Success { choices, usage, .. } => {
                 if let Some(choice) = choices.first() {
                     let mut response = match choice {
                         Choice::NonChat { text, finish_reason, .. } => {
@@ -183,7 +183,7 @@ impl TryFrom<OpenRouterResponse> for ModelResponse {
                     Ok(default_response)
                 }
             }
-            OpenRouterResponse::Failure { error } => Err(Error::Upstream(error)),
+            AntinomyResponse::Failure { error } => Err(Error::Upstream(error)),
         }
     }
 }
@@ -198,10 +198,10 @@ mod tests {
     struct Fixture;
 
     impl Fixture {
-        // check if the response is compatible with the OpenRouterResponse
+        // check if the response is compatible with the AntinomyResponse
         fn test_response_compatibility(message: &str) -> bool {
-            let open_router_response = serde_json::from_str::<OpenRouterResponse>(message)
-                .with_context(|| format!("Failed to parse OpenRouter response: {message}"))
+            let open_router_response = serde_json::from_str::<AntinomyResponse>(message)
+                .with_context(|| format!("Failed to parse Antinomy response: {message}"))
                 .and_then(|event| {
                     ChatCompletionMessage::try_from(event.clone())
                         .with_context(|| "Failed to create completion message")

@@ -14,7 +14,7 @@ use tracing::debug;
 
 use super::model::{AntinomyModel, ListModelResponse};
 use super::request::AntinomyRequest;
-use super::response::OpenRouterResponse;
+use super::response::AntinomyResponse;
 use crate::antinomy::transformers::{ProviderPipeline, Transformer};
 use crate::retry::StatusCodeRetryPolicy;
 use crate::utils::format_http_context;
@@ -118,7 +118,7 @@ impl Antinomy {
                             None
                         }
                         Event::Message(message) => Some(
-                            serde_json::from_str::<OpenRouterResponse>(&message.data)
+                            serde_json::from_str::<AntinomyResponse>(&message.data)
                                 .with_context(|| format!("Failed to parse Antinomy response: {}", message.data))
                                 .and_then(|event| {
                                     ChatCompletionMessage::try_from(event.clone())
@@ -253,7 +253,7 @@ mod tests {
           }
         }))
         .unwrap();
-        let message = serde_json::from_str::<OpenRouterResponse>(&content)
+        let message = serde_json::from_str::<AntinomyResponse>(&content)
             .context("Failed to parse response")?;
         let message = ChatCompletionMessage::try_from(message.clone());
 

@@ -5,7 +5,7 @@ use forge_domain::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::response::{FunctionCall, OpenRouterToolCall};
+use super::response::{FunctionCall, AntinomyToolCall};
 use super::tool_choice::{FunctionType, ToolChoice};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -38,7 +38,7 @@ pub struct AntinomyMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<ToolCallId>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tool_calls: Option<Vec<OpenRouterToolCall>>,
+    pub tool_calls: Option<Vec<AntinomyToolCall>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -279,7 +279,7 @@ impl From<Context> for AntinomyRequest {
     }
 }
 
-impl From<ToolCallFull> for OpenRouterToolCall {
+impl From<ToolCallFull> for AntinomyToolCall {
     fn from(value: ToolCallFull) -> Self {
         Self {
             id: value.call_id,
@@ -303,7 +303,7 @@ impl From<ContextMessage> for AntinomyMessage {
                 tool_calls: chat_message.tool_calls.map(|tool_calls| {
                     tool_calls
                         .into_iter()
-                        .map(OpenRouterToolCall::from)
+                        .map(AntinomyToolCall::from)
                         .collect()
                 }),
             },
