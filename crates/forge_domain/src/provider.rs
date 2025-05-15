@@ -87,7 +87,14 @@ impl Provider {
         }
     }
 
-    pub fn is_forge_provider(&self) -> bool {
+    pub fn is_antinomy(&self) -> bool {
+        match self {
+            Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::ANTINOMY_URL),
+            Provider::Anthropic { .. } => false,
+        }
+    }
+
+    pub fn is_open_router(&self) -> bool {
         match self {
             Provider::OpenAI { url, .. } => url.as_str().starts_with(Self::OPEN_ROUTER_URL),
             Provider::Anthropic { .. } => false,
