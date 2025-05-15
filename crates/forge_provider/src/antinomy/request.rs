@@ -29,8 +29,8 @@ pub struct ImageUrl {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OpenRouterMessage {
-    pub role: OpenRouterRole,
+pub struct AntinomyMessage {
+    pub role: AntinomyRole,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<MessageContent>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,7 +107,7 @@ pub struct FunctionDescription {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OpenRouterTool {
+pub struct AntinomyTool {
     // TODO: should be an enum
     pub r#type: FunctionType,
     pub function: FunctionDescription,
@@ -131,9 +131,9 @@ pub struct ProviderPreferences {
 
 #[derive(Debug, Deserialize, Serialize, Clone, Setters, Default)]
 #[setters(strip_option)]
-pub struct OpenRouterRequest {
+pub struct AntinomyRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub messages: Option<Vec<OpenRouterMessage>>,
+    pub messages: Option<Vec<AntinomyMessage>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -149,7 +149,7 @@ pub struct OpenRouterRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tools: Option<Vec<OpenRouterTool>>,
+    pub tools: Option<Vec<AntinomyTool>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -186,7 +186,7 @@ pub struct OpenRouterRequest {
     pub parallel_tool_calls: Option<bool>,
 }
 
-impl OpenRouterRequest {
+impl AntinomyRequest {
     pub fn message_count(&self) -> usize {
         self.messages
             .as_ref()
@@ -214,9 +214,9 @@ pub enum Transform {
     MiddleOut,
 }
 
-impl From<ToolDefinition> for OpenRouterTool {
+impl From<ToolDefinition> for AntinomyTool {
     fn from(value: ToolDefinition) -> Self {
-        OpenRouterTool {
+        AntinomyTool {
             r#type: FunctionType,
             function: FunctionDescription {
                 description: Some(value.description),
@@ -227,14 +227,14 @@ impl From<ToolDefinition> for OpenRouterTool {
     }
 }
 
-impl From<Context> for OpenRouterRequest {
+impl From<Context> for AntinomyRequest {
     fn from(request: Context) -> Self {
-        OpenRouterRequest {
+        AntinomyRequest {
             messages: {
                 let messages = request
                     .messages
                     .into_iter()
-                    .map(OpenRouterMessage::from)
+                    .map(AntinomyMessage::from)
                     .collect::<Vec<_>>();
 
                 Some(messages)
@@ -243,7 +243,7 @@ impl From<Context> for OpenRouterRequest {
                 let tools = request
                     .tools
                     .into_iter()
-                    .map(OpenRouterTool::from)
+                    .map(AntinomyTool::from)
                     .collect::<Vec<_>>();
                 if tools.is_empty() {
                     None
@@ -292,10 +292,10 @@ impl From<ToolCallFull> for OpenRouterToolCall {
     }
 }
 
-impl From<ContextMessage> for OpenRouterMessage {
+impl From<ContextMessage> for AntinomyMessage {
     fn from(value: ContextMessage) -> Self {
         match value {
-            ContextMessage::ContentMessage(chat_message) => OpenRouterMessage {
+            ContextMessage::ContentMessage(chat_message) => AntinomyMessage {
                 role: chat_message.role.into(),
                 content: Some(MessageContent::Text(chat_message.content)),
                 name: None,
@@ -307,8 +307,8 @@ impl From<ContextMessage> for OpenRouterMessage {
                         .collect()
                 }),
             },
-            ContextMessage::ToolMessage(tool_result) => OpenRouterMessage {
-                role: OpenRouterRole::Tool,
+            ContextMessage::ToolMessage(tool_result) => AntinomyMessage {
+                role: AntinomyRole::Tool,
                 content: Some(MessageContent::Text(tool_result.to_string())),
                 name: Some(tool_result.name),
                 tool_call_id: tool_result.call_id,
@@ -317,8 +317,8 @@ impl From<ContextMessage> for OpenRouterMessage {
             ContextMessage::Image(url) => {
                 let content =
                     vec![ContentPart::ImageUrl { image_url: ImageUrl { url, detail: None } }];
-                OpenRouterMessage {
-                    role: OpenRouterRole::User,
+                AntinomyMessage {
+                    role: AntinomyRole::User,
                     content: Some(MessageContent::Parts(content)),
                     name: None,
                     tool_call_id: None,
@@ -329,19 +329,19 @@ impl From<ContextMessage> for OpenRouterMessage {
     }
 }
 
-impl From<Role> for OpenRouterRole {
+impl From<Role> for AntinomyRole {
     fn from(role: Role) -> Self {
         match role {
-            Role::System => OpenRouterRole::System,
-            Role::User => OpenRouterRole::User,
-            Role::Assistant => OpenRouterRole::Assistant,
+            Role::System => AntinomyRole::System,
+            Role::User => AntinomyRole::User,
+            Role::Assistant => AntinomyRole::Assistant,
         }
     }
 }
 
 #[derive(Debug, Deserialize, Display, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum OpenRouterRole {
+pub enum AntinomyRole {
     System,
     User,
     Assistant,
@@ -366,7 +366,7 @@ mod tests {
             tool_calls: None,
             model: ModelId::new("gpt-3.5-turbo").into(),
         });
-        let router_message = OpenRouterMessage::from(user_message);
+        let router_message = AntinomyMessage::from(user_message);
         assert_json_snapshot!(router_message);
     }
 
@@ -388,7 +388,7 @@ mod tests {
             tool_calls: None,
             model: ModelId::new("gpt-3.5-turbo").into(),
         });
-        let router_message = OpenRouterMessage::from(message);
+        let router_message = AntinomyMessage::from(message);
         assert_json_snapshot!(router_message);
     }
 
@@ -406,7 +406,7 @@ mod tests {
             tool_calls: Some(vec![tool_call]),
             model: ModelId::new("gpt-3.5-turbo").into(),
         });
-        let router_message = OpenRouterMessage::from(assistant_message);
+        let router_message = AntinomyMessage::from(assistant_message);
         assert_json_snapshot!(router_message);
     }
 
@@ -423,7 +423,7 @@ mod tests {
             );
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
-        let router_message = OpenRouterMessage::from(tool_message);
+        let router_message = AntinomyMessage::from(tool_message);
         assert_json_snapshot!(router_message);
     }
 
@@ -443,7 +443,7 @@ mod tests {
             );
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
-        let router_message = OpenRouterMessage::from(tool_message);
+        let router_message = AntinomyMessage::from(tool_message);
         assert_json_snapshot!(router_message);
     }
 
@@ -454,7 +454,7 @@ mod tests {
             .success(r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#);
 
         let tool_message = ContextMessage::ToolMessage(tool_result);
-        let router_message = OpenRouterMessage::from(tool_message);
+        let router_message = AntinomyMessage::from(tool_message);
         assert_json_snapshot!(router_message);
     }
 

@@ -1,22 +1,22 @@
 use super::transformer::Transformer;
-use crate::antinomy::request::{OpenRouterRequest, OpenRouterRole};
+use crate::antinomy::request::{AntinomyRequest, AntinomyRole};
 
 /// Drops all tool call messages and converts them to user/assistant messages
 pub struct DropToolCalls;
 
 impl Transformer for DropToolCalls {
-    fn transform(&self, mut request: OpenRouterRequest) -> OpenRouterRequest {
+    fn transform(&self, mut request: AntinomyRequest) -> AntinomyRequest {
         if let Some(messages) = request.messages.as_mut() {
             for message in messages.iter_mut() {
                 // Convert tool messages to user messages
-                if message.role == OpenRouterRole::Tool {
-                    message.role = OpenRouterRole::User;
+                if message.role == AntinomyRole::Tool {
+                    message.role = AntinomyRole::User;
                     message.tool_calls = None;
                     message.tool_call_id = None;
                     message.name = None;
                 }
                 // Remove tool calls from assistant messages
-                if message.role == OpenRouterRole::Assistant {
+                if message.role == AntinomyRole::Assistant {
                     message.tool_calls = None;
                 }
             }
@@ -64,7 +64,7 @@ mod tests {
             temperature: None,
         };
 
-        let request = OpenRouterRequest::from(context);
+        let request = AntinomyRequest::from(context);
         let transformer = DropToolCalls;
         let transformed = transformer.transform(request);
 
@@ -72,6 +72,6 @@ mod tests {
         // Assistant message
         assert!(messages[0].tool_calls.is_none());
         // Converted tool message
-        assert_eq!(messages[1].role, OpenRouterRole::User);
+        assert_eq!(messages[1].role, AntinomyRole::User);
     }
 }

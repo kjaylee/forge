@@ -12,24 +12,24 @@ use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
 use tracing::debug;
 
-use super::model::{ListModelResponse, OpenRouterModel};
-use super::request::OpenRouterRequest;
+use super::model::{AntinomyModel, ListModelResponse};
+use super::request::AntinomyRequest;
 use super::response::OpenRouterResponse;
 use crate::antinomy::transformers::{ProviderPipeline, Transformer};
 use crate::retry::StatusCodeRetryPolicy;
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
-pub struct OpenRouter {
+pub struct Antinomy {
     client: Client,
     provider: Provider,
     #[builder(default = "RetryConfig::default()")]
     retry_config: RetryConfig,
 }
 
-impl OpenRouter {
-    pub fn builder() -> OpenRouterBuilder {
-        OpenRouterBuilder::default()
+impl Antinomy {
+    pub fn builder() -> AntinomyBuilder {
+        AntinomyBuilder::default()
     }
 
     fn url(&self, path: &str) -> anyhow::Result<Url> {
@@ -75,7 +75,7 @@ impl OpenRouter {
         model: &ModelId,
         context: ChatContext,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let mut request = OpenRouterRequest::from(context)
+        let mut request = AntinomyRequest::from(context)
             .model(model.clone())
             .stream(true);
         request = ProviderPipeline::new(&self.provider).transform(request);
@@ -119,7 +119,7 @@ impl OpenRouter {
                         }
                         Event::Message(message) => Some(
                             serde_json::from_str::<OpenRouterResponse>(&message.data)
-                                .with_context(|| format!("Failed to parse OpenRouter response: {}", message.data))
+                                .with_context(|| format!("Failed to parse Antinomy response: {}", message.data))
                                 .and_then(|event| {
                                     ChatCompletionMessage::try_from(event.clone())
                                         .with_context(|| format!("Failed to create completion message: {}", message.data))
@@ -213,7 +213,7 @@ impl OpenRouter {
 }
 
 #[async_trait::async_trait]
-impl ProviderService for OpenRouter {
+impl ProviderService for Antinomy {
     async fn chat(
         &self,
         model: &ModelId,
@@ -227,8 +227,8 @@ impl ProviderService for OpenRouter {
     }
 }
 
-impl From<OpenRouterModel> for Model {
-    fn from(value: OpenRouterModel) -> Self {
+impl From<AntinomyModel> for Model {
+    fn from(value: AntinomyModel) -> Self {
         Model {
             id: value.id,
             name: value.name,

@@ -6,7 +6,7 @@ use super::identity::Identity;
 use super::set_cache::SetCache;
 use super::tool_choice::SetToolChoice;
 use super::Transformer;
-use crate::antinomy::request::OpenRouterRequest;
+use crate::antinomy::request::AntinomyRequest;
 use crate::antinomy::tool_choice::ToolChoice;
 
 /// Pipeline for transforming requests based on the provider type
@@ -20,7 +20,7 @@ impl<'a> ProviderPipeline<'a> {
 }
 
 impl Transformer for ProviderPipeline<'_> {
-    fn transform(&self, request: OpenRouterRequest) -> OpenRouterRequest {
+    fn transform(&self, request: AntinomyRequest) -> AntinomyRequest {
         let or_transformers = Identity
             .combine(DropToolCalls.when_model("mistral"))
             .combine(SetToolChoice::new(ToolChoice::Auto).when_model("gemini"))
