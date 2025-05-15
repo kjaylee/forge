@@ -1,5 +1,5 @@
 use super::transformer::Transformer;
-use crate::antinomy::request::AntinomyRequest;
+use crate::antinomy::request::Request;
 
 /// A transformer that combines two transformers, applying them in sequence.
 /// The transformations are applied in the order: B then A (right to left).
@@ -7,7 +7,7 @@ use crate::antinomy::request::AntinomyRequest;
 pub(crate) struct Combine<A, B>(pub(super) A, pub(super) B);
 
 impl<A: Transformer, B: Transformer> Transformer for Combine<A, B> {
-    fn transform(&self, request: AntinomyRequest) -> AntinomyRequest {
+    fn transform(&self, request: Request) -> Request {
         self.0.transform(self.1.transform(request))
     }
 }

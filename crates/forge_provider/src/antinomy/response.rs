@@ -13,7 +13,7 @@ use super::tool_choice::FunctionType;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
-pub enum AntinomyResponse {
+pub enum Response {
     Success {
         id: String,
         provider: Option<String>,
@@ -82,12 +82,12 @@ impl Display for ErrorResponse {
 pub struct ResponseMessage {
     pub content: Option<String>,
     pub role: Option<String>,
-    pub tool_calls: Option<Vec<AntinomyToolCall>>,
+    pub tool_calls: Option<Vec<ToolCall>>,
     pub refusal: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AntinomyToolCall {
+pub struct ToolCall {
     pub id: Option<ToolCallId>,
     pub r#type: FunctionType,
     pub function: FunctionCall,
@@ -111,12 +111,12 @@ impl From<ResponseUsage> for Usage {
     }
 }
 
-impl TryFrom<AntinomyResponse> for ModelResponse {
+impl TryFrom<Response> for ModelResponse {
     type Error = Error;
 
-    fn try_from(res: AntinomyResponse) -> Result<Self, Self::Error> {
+    fn try_from(res: Response) -> Result<Self, Self::Error> {
         match res {
-            AntinomyResponse::Success { choices, usage, .. } => {
+            Response::Success { choices, usage, .. } => {
                 if let Some(choice) = choices.first() {
                     let mut response = match choice {
                         Choice::NonChat { text, finish_reason, .. } => {
@@ -183,7 +183,7 @@ impl TryFrom<AntinomyResponse> for ModelResponse {
                     Ok(default_response)
                 }
             }
-            AntinomyResponse::Failure { error } => Err(Error::Upstream(error)),
+            Response::Failure { error } => Err(Error::Upstream(error)),
         }
     }
 }
@@ -198,15 +198,15 @@ mod tests {
     struct Fixture;
 
     impl Fixture {
-        // check if the response is compatible with the AntinomyResponse
+        // check if the response is compatible with the
         fn test_response_compatibility(message: &str) -> bool {
-            let antinomy_response = serde_json::from_str::<AntinomyResponse>(message)
-                .with_context(|| format!("Failed to parse Antinomy response: {message}"))
+            let response = serde_json::from_str::<Response>(message)
+                .with_context(|| format!("Failed to parse response: {message}"))
                 .and_then(|event| {
                     ChatCompletionMessage::try_from(event.clone())
                         .with_context(|| "Failed to create completion message")
                 });
-            antinomy_response.is_ok()
+            response.is_ok()
         }
     }
 

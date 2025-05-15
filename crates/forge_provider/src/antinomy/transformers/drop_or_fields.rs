@@ -1,11 +1,11 @@
 use super::Transformer;
-use crate::antinomy::request::AntinomyRequest;
+use crate::antinomy::request::Request;
 
-/// makes the AntinomyRequest compatible with the OpenAI API.
+/// makes the Request compatible with the OpenAI API.
 pub struct DropAntinomyFields;
 
 impl Transformer for DropAntinomyFields {
-    fn transform(&self, mut request: AntinomyRequest) -> AntinomyRequest {
+    fn transform(&self, mut request: Request) -> Request {
         // remove fields that are not supported by open-ai.
         request.provider = None;
         request.transforms = None;

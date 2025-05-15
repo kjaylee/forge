@@ -1,4 +1,4 @@
-use crate::antinomy::request::AntinomyRequest;
+use crate::antinomy::request::Request;
 use crate::antinomy::tool_choice::ToolChoice;
 use crate::antinomy::transformers::Transformer;
 
@@ -13,7 +13,7 @@ impl SetToolChoice {
 }
 
 impl Transformer for SetToolChoice {
-    fn transform(&self, mut request: AntinomyRequest) -> AntinomyRequest {
+    fn transform(&self, mut request: Request) -> Request {
         request.tool_choice = Some(self.choice.clone());
         request
     }
@@ -28,7 +28,7 @@ mod tests {
     #[test]
     fn test_gemini_transformer_tool_strategy() {
         let context = Context::default();
-        let request = AntinomyRequest::from(context).model(ModelId::new("google/gemini-pro"));
+        let request = Request::from(context).model(ModelId::new("google/gemini-pro"));
 
         let transformer = SetToolChoice::new(ToolChoice::Auto);
         let transformed = transformer.transform(request);

@@ -7,4 +7,4 @@ mod tool_choice;
 mod transformers;
 
 mod provider;
-pub use provider::Antinomy;
+pub use provider::ForgeProvider;
