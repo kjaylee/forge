@@ -59,7 +59,7 @@ agents:
     system_prompt: |-
       {{> system-prompt-engineer-plan.hbs }}
     user_prompt: |-
-      {{#if (eq event.name 'act/user_task_init')}}
+      {{#if (eq event.name 'plan/user_task_init')}}
       <task>{{event.value}}</task>
       {{else}}
       <feedback>{{event.value}}</feedback>
