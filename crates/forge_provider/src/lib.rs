@@ -1,6 +1,6 @@
 mod anthropic;
-mod builder;
 mod antinomy;
+mod builder;
 mod retry;
 mod utils;
 

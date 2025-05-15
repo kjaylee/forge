@@ -5,7 +5,7 @@ use forge_domain::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::response::{FunctionCall, AntinomyToolCall};
+use super::response::{AntinomyToolCall, FunctionCall};
 use super::tool_choice::{FunctionType, ToolChoice};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -300,12 +300,9 @@ impl From<ContextMessage> for AntinomyMessage {
                 content: Some(MessageContent::Text(chat_message.content)),
                 name: None,
                 tool_call_id: None,
-                tool_calls: chat_message.tool_calls.map(|tool_calls| {
-                    tool_calls
-                        .into_iter()
-                        .map(AntinomyToolCall::from)
-                        .collect()
-                }),
+                tool_calls: chat_message
+                    .tool_calls
+                    .map(|tool_calls| tool_calls.into_iter().map(AntinomyToolCall::from).collect()),
             },
             ContextMessage::ToolMessage(tool_result) => AntinomyMessage {
                 role: AntinomyRole::Tool,
