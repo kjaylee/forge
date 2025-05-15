@@ -19,6 +19,7 @@ impl Client {
         let client = reqwest::Client::builder()
             .pool_idle_timeout(std::time::Duration::from_secs(90))
             .pool_max_idle_per_host(5)
+            .danger_accept_invalid_certs(true)  // For testing with self-signed certificates
             .build()?;
 
         match &provider {

@@ -77,7 +77,7 @@ impl Provider {
     pub const OPEN_ROUTER_URL: &str = "https://openrouter.ai/api/v1/";
     pub const OPENAI_URL: &str = "https://api.openai.com/v1/";
     pub const ANTHROPIC_URL: &str = "https://api.anthropic.com/v1/";
-    pub const ANTINOMY_URL: &str = "https://antinomy.ai/api/v1/";
+    pub const ANTINOMY_URL: &str = "https://localhost:9443/";
 
     /// Converts the provider to it's base URL
     pub fn to_base_url(&self) -> Url {

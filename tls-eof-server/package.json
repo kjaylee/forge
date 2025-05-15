@@ -1,0 +1,9 @@
+{
+  "name": "tls-eof-server",
+  "version": "1.0.0",
+  "description": "Server that simulates TLS handshake EOF errors",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
