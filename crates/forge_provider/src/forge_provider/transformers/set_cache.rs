@@ -1,5 +1,5 @@
-use crate::antinomy::request::{Request, Role};
-use crate::antinomy::transformers::Transformer;
+use crate::forge_provider::request::{Request, Role};
+use crate::forge_provider::transformers::Transformer;
 
 /// Transformer that caches the last user/system message for supported models
 pub struct SetCache;

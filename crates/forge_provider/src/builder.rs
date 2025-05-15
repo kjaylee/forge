@@ -8,7 +8,7 @@ use forge_domain::{
 use reqwest::redirect::Policy;
 
 use crate::anthropic::Anthropic;
-use crate::antinomy::ForgeProvider;
+use crate::forge_provider::ForgeProvider;
 
 pub enum Client {
     OpenAICompat(ForgeProvider),

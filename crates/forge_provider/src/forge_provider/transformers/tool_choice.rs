@@ -1,6 +1,6 @@
-use crate::antinomy::request::Request;
-use crate::antinomy::tool_choice::ToolChoice;
-use crate::antinomy::transformers::Transformer;
+use crate::forge_provider::request::Request;
+use crate::forge_provider::tool_choice::ToolChoice;
+use crate::forge_provider::transformers::Transformer;
 
 pub struct SetToolChoice {
     choice: ToolChoice,

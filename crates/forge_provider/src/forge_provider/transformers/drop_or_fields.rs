@@ -1,5 +1,5 @@
 use super::Transformer;
-use crate::antinomy::request::Request;
+use crate::forge_provider::request::Request;
 
 /// makes the Request compatible with the OpenAI API.
 pub struct DropAntinomyFields;

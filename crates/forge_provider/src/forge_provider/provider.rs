@@ -15,7 +15,7 @@ use tracing::debug;
 use super::model::{ListModelResponse, Model};
 use super::request::Request;
 use super::response::Response;
-use crate::antinomy::transformers::{ProviderPipeline, Transformer};
+use crate::forge_provider::transformers::{ProviderPipeline, Transformer};
 use crate::retry::StatusCodeRetryPolicy;
 use crate::utils::format_http_context;
 
@@ -117,7 +117,7 @@ impl ForgeProvider {
                         }
                         Event::Message(message) => Some(
                             serde_json::from_str::<Response>(&message.data)
-                                .with_context(|| format!("Failed to parse Antinomy response: {}", message.data))
+                                .with_context(|| format!("Failed to parse Forge Provider response: {}", message.data))
                                 .and_then(|event| {
                                     ChatCompletionMessage::try_from(event.clone())
                                         .with_context(|| format!("Failed to create completion message: {}", message.data))

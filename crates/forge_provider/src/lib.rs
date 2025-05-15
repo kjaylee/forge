@@ -1,5 +1,5 @@
 mod anthropic;
-mod antinomy;
+mod forge_provider;
 mod builder;
 mod retry;
 mod utils;

@@ -1,5 +1,5 @@
 use super::transformer::Transformer;
-use crate::antinomy::request::{Request, Role};
+use crate::forge_provider::request::{Request, Role};
 
 /// Drops all tool call messages and converts them to user/assistant messages
 pub struct DropToolCalls;

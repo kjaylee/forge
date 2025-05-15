@@ -6,8 +6,8 @@ use super::identity::Identity;
 use super::set_cache::SetCache;
 use super::tool_choice::SetToolChoice;
 use super::Transformer;
-use crate::antinomy::request::Request;
-use crate::antinomy::tool_choice::ToolChoice;
+use crate::forge_provider::request::Request;
+use crate::forge_provider::tool_choice::ToolChoice;
 
 /// Pipeline for transforming requests based on the provider type
 pub struct ProviderPipeline<'a>(&'a Provider);
