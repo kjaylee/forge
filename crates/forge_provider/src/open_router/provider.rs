@@ -141,13 +141,8 @@ impl OpenRouter {
                             Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {status_code}"))))
                         }
                         error => {
-                            if crate::utils::is_tls_handshake_eof(&error) {
-                                debug!(error = %error, "TLS handshake EOF detected - treating as end of stream");
-                                None
-                            } else {
-                                debug!(error = %error, "Failed to receive chat completion event");
-                                Some(Err(error.into()))
-                            }
+                            debug!(error = %error, "Failed to receive chat completion event");
+                            Some(Err(error.into()))
                         }
                     },
                 }
