@@ -1,6 +1,6 @@
 mod anthropic;
 mod builder;
-mod open_router;
+mod antinomy;
 mod retry;
 mod utils;
 

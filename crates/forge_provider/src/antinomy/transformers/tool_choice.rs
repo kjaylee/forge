@@ -1,6 +1,6 @@
-use crate::open_router::request::OpenRouterRequest;
-use crate::open_router::tool_choice::ToolChoice;
-use crate::open_router::transformers::Transformer;
+use crate::antinomy::request::OpenRouterRequest;
+use crate::antinomy::tool_choice::ToolChoice;
+use crate::antinomy::transformers::Transformer;
 
 pub struct SetToolChoice {
     choice: ToolChoice,

@@ -1,5 +1,5 @@
 use super::transformer::Transformer;
-use crate::open_router::request::{OpenRouterRequest, OpenRouterRole};
+use crate::antinomy::request::{OpenRouterRequest, OpenRouterRole};
 
 /// Drops all tool call messages and converts them to user/assistant messages
 pub struct DropToolCalls;

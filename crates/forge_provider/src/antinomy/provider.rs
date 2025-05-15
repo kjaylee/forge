@@ -15,7 +15,7 @@ use tracing::debug;
 use super::model::{ListModelResponse, OpenRouterModel};
 use super::request::OpenRouterRequest;
 use super::response::OpenRouterResponse;
-use crate::open_router::transformers::{ProviderPipeline, Transformer};
+use crate::antinomy::transformers::{ProviderPipeline, Transformer};
 use crate::retry::StatusCodeRetryPolicy;
 use crate::utils::format_http_context;
 

@@ -8,7 +8,7 @@ use forge_domain::{
 use reqwest::redirect::Policy;
 
 use crate::anthropic::Anthropic;
-use crate::open_router::OpenRouter;
+use crate::antinomy::OpenRouter;
 
 pub enum Client {
     OpenAICompat(OpenRouter),

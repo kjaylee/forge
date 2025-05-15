@@ -1,5 +1,5 @@
 use super::transformer::Transformer;
-use crate::open_router::request::OpenRouterRequest;
+use crate::antinomy::request::OpenRouterRequest;
 
 /// A transformer that combines two transformers, applying them in sequence.
 /// The transformations are applied in the order: B then A (right to left).

@@ -2,7 +2,7 @@ use regex::Regex;
 
 use super::combine::Combine;
 use super::when::When;
-use crate::open_router::request::OpenRouterRequest;
+use crate::antinomy::request::OpenRouterRequest;
 
 /// A trait for transforming OpenRouterRequest based on model-specific
 /// requirements
@@ -71,7 +71,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::open_router::transformers::identity::Identity;
+    use crate::antinomy::transformers::identity::Identity;
 
     // A simple test transformer that adds a prefix to the model name
     struct TestTransformer {

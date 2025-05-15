@@ -1,5 +1,5 @@
-use crate::open_router::request::{OpenRouterRequest, OpenRouterRole};
-use crate::open_router::transformers::Transformer;
+use crate::antinomy::request::{OpenRouterRequest, OpenRouterRole};
+use crate::antinomy::transformers::Transformer;
 
 /// Transformer that caches the last user/system message for supported models
 pub struct SetCache;
