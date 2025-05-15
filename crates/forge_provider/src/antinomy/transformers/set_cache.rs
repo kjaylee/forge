@@ -80,7 +80,7 @@ mod tests {
             temperature: None,
         };
 
-        let request = OpenRouterRequest::from(context);
+        let request = AntinomyRequest::from(context);
         let request = SetCache.transform(request);
         let mut output = String::new();
         let sequences = request
