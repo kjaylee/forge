@@ -206,53 +206,70 @@ impl<A: Services> Orchestrator<A> {
 
         // Only interrupt the loop for XML tool calls if tool_supported is false
         let should_interrupt_for_xml = !agent.tool_supported.unwrap_or_default();
+        let mut error_set = Vec::new();
 
         while let Some(message) = response.next().await {
-            let message = message?;
-            messages.push(message.clone());
+            match message {
+                Ok(message) => {
+                    // clear the error set if we get a valid message
+                    error_set.clear();
 
-            // Process usage information
-            request_usage = self
-                .calculate_usage(&message, context, request_usage, agent)
-                .await?;
+                    messages.push(message.clone());
 
-            // Process content
-            if let Some(content_part) = message.content.clone() {
-                let content_part = content_part.as_str().to_string();
+                    // Process usage information
+                    request_usage = self
+                        .calculate_usage(&message, context, request_usage, agent)
+                        .await?;
 
-                content.push_str(&content_part);
+                    // Process content
+                    if let Some(content_part) = message.content.clone() {
+                        let content_part = content_part.as_str().to_string();
 
-                // Send partial content to the client
-                self.send(
-                    agent,
-                    ChatResponse::Text {
-                        text: content_part,
-                        is_complete: false,
-                        is_md: false,
-                        is_summary: false,
-                    },
-                )
-                .await?;
+                        content.push_str(&content_part);
 
-                // Check for XML tool calls in the content, but only interrupt if tool_supported
-                // is false
-                if should_interrupt_for_xml {
-                    // Use match instead of ? to avoid propagating errors
-                    if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
-                        .ok()
-                        .into_iter()
-                        .flatten()
-                        .next()
-                    {
-                        xml_tool_calls = Some(tool_call);
-                        tool_interrupted = true;
+                        // Send partial content to the client
+                        self.send(
+                            agent,
+                            ChatResponse::Text {
+                                text: content_part,
+                                is_complete: false,
+                                is_md: false,
+                                is_summary: false,
+                            },
+                        )
+                        .await?;
 
-                        // Break the loop since we found an XML tool call and tool_supported is
-                        // false
-                        break;
+                        // Check for XML tool calls in the content, but only interrupt if tool_supported
+                        // is false
+                        if should_interrupt_for_xml {
+                            // Use match instead of ? to avoid propagating errors
+                            if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
+                                .ok()
+                                .into_iter()
+                                .flatten()
+                                .next()
+                            {
+                                xml_tool_calls = Some(tool_call);
+                                tool_interrupted = true;
+
+                                // Break the loop since we found an XML tool call and tool_supported is
+                                // false
+                                break;
+                            }
+                        }
                     }
                 }
+                Err(err) => {
+                    error_set.push(err);
+                }
             }
+        }
+
+        if !error_set.is_empty() {
+            bail!(
+                "Error(s) occurred while processing messages: {:#?}",
+                error_set
+            );
         }
 
         // Get the full content from all messages
