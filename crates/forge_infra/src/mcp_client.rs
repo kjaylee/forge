@@ -48,8 +48,8 @@ impl ForgeMcpClient {
     /// if already connected.
     async fn connect(&self) -> anyhow::Result<()> {
         let mut guard = self.client.lock().await;
-        if guard.is_none() || self.reconnect.load(Ordering::SeqCst) {
-            self.reconnect.store(false, Ordering::SeqCst);
+        if guard.is_none() || self.reconnect.load(Ordering::Relaxed) {
+            self.reconnect.store(false, Ordering::Relaxed);
 
             let client = match &self.config {
                 McpServerConfig::Stdio(stdio) => {
@@ -150,7 +150,7 @@ impl ForgeMcpClient {
                 .unwrap_or(false);
 
             if is_transport {
-                self.reconnect.store(true, Ordering::SeqCst);
+                self.reconnect.store(true, Ordering::Relaxed);
             }
 
             is_transport
