@@ -152,10 +152,13 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         };
         let mut tokio_cmd = Command::new(shell);
 
+        let parameter = if is_windows { "/C" } else { "-c" };
+        tokio_cmd.arg(parameter);
+
         #[cfg(windows)]
-        tokio_cmd.raw_arg(["/C", command]);
+        tokio_cmd.raw_arg(command);
         #[cfg(unix)]
-        tokio_cmd.args(["-l", "-c", command]);
+        tokio_cmd.arg(command);
 
         tokio_cmd.kill_on_drop(true);
 
