@@ -567,32 +567,25 @@ impl<F: API> UI<F> {
         if !self.api.should_show_feedback().await? {
             return Ok(());
         }
-        
+
         // Update timestamp of when feedback was last shown
         self.api.update_last_shown().await?;
 
         // Feedback banner components with shorter text for smaller screens
         const FEEDBACK_URL: &str = "https://shorturl.at/LheIj";
-        
+
         // Create colorful decorative elements
         let sparkle = "✨".bright_yellow().bold();
         let heart = "♥".bright_red().bold();
-        
+
         // Simplified style elements for better wrapping on small screens
         let banner_title = "Thanks for using Forge!".bright_magenta().bold();
         let banner_message = "We'd love your feedback".cyan().bold();
-        let feedback_link = format!("{FEEDBACK_URL}")
-            .bright_cyan()
-            .underline();
-        
+        let feedback_link = FEEDBACK_URL.to_string().bright_cyan().underline();
+
         // Create a simpler banner with more predictable wrapping
         let banner = format!(
-            "\n  {sparkle} {title} {heart}\n  {message}\n  {link}\n",
-            sparkle = sparkle,
-            title = banner_title,
-            heart = heart,
-            message = banner_message,
-            link = feedback_link
+            "\n  {sparkle} {banner_title} {heart}\n  {banner_message}\n  {feedback_link}\n"
         );
 
         // Display the enhanced feedback banner
