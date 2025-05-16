@@ -209,53 +209,67 @@ impl<A: Services> Orchestrator<A> {
 
         // Only interrupt the loop for XML tool calls if tool_supported is false
         let should_interrupt_for_xml = !agent.tool_supported.unwrap_or_default();
+        let mut stream_error = None;
 
         while let Some(message) = response.next().await {
-            let message = message?;
-            messages.push(message.clone());
+            match message {
+                Ok(message) => {
+                    // If there's response, then clean up the stream error.
+                    stream_error = None;
 
-            // Process usage information
-            request_usage = self
-                .calculate_usage(&message, context, request_usage, agent)
-                .await?;
+                    messages.push(message.clone());
 
-            // Process content
-            if let Some(content_part) = message.content.clone() {
-                let content_part = content_part.as_str().to_string();
+                    // Process usage information
+                    request_usage = self
+                        .calculate_usage(&message, context, request_usage, agent)
+                        .await?;
 
-                content.push_str(&content_part);
+                    // Process content
+                    if let Some(content_part) = message.content.clone() {
+                        let content_part = content_part.as_str().to_string();
 
-                // Send partial content to the client
-                self.send(
-                    agent,
-                    ChatResponse::Text {
-                        text: content_part,
-                        is_complete: false,
-                        is_md: false,
-                        is_summary: false,
-                    },
-                )
-                .await?;
+                        content.push_str(&content_part);
 
-                // Check for XML tool calls in the content, but only interrupt if tool_supported
-                // is false
-                if should_interrupt_for_xml {
-                    // Use match instead of ? to avoid propagating errors
-                    if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
-                        .ok()
-                        .into_iter()
-                        .flatten()
-                        .next()
-                    {
-                        xml_tool_calls = Some(tool_call);
-                        tool_interrupted = true;
+                        // Send partial content to the client
+                        self.send(
+                            agent,
+                            ChatResponse::Text {
+                                text: content_part,
+                                is_complete: false,
+                                is_md: false,
+                                is_summary: false,
+                            },
+                        )
+                        .await?;
 
-                        // Break the loop since we found an XML tool call and tool_supported is
-                        // false
-                        break;
+                        // Check for XML tool calls in the content, but only interrupt if tool_supported
+                        // is false
+                        if should_interrupt_for_xml {
+                            // Use match instead of ? to avoid propagating errors
+                            if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
+                                .ok()
+                                .into_iter()
+                                .flatten()
+                                .next()
+                            {
+                                xml_tool_calls = Some(tool_call);
+                                tool_interrupted = true;
+
+                                // Break the loop since we found an XML tool call and tool_supported is
+                                // false
+                                break;
+                            }
+                        }
                     }
                 }
+                Err(e) => {
+                    stream_error = Some(e);
+                }
             }
+        }
+
+        if let Some(error) = stream_error {
+            todo!("Handle stream error {:#?}", error);
         }
 
         // Get the full content from all messages

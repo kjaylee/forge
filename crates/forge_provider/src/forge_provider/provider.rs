@@ -23,7 +23,6 @@ use crate::utils::format_http_context;
 pub struct ForgeProvider {
     client: Client,
     provider: Provider,
-    #[builder(default = "RetryConfig::default()")]
     retry_config: RetryConfig,
 }
 

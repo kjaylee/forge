@@ -121,7 +121,7 @@ pub mod tests {
     use base64::Engine;
     use bytes::Bytes;
     use forge_domain::{
-        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider,
+        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider, RetryConfig,
     };
     use forge_snaps::Snapshot;
 
@@ -145,7 +145,12 @@ pub mod tests {
                 shell: "bash".to_string(),
                 base_path: PathBuf::from("/base"),
                 provider: Provider::open_router("test-key"),
-                retry_config: Default::default(),
+                retry_config: RetryConfig {
+                    initial_backoff_ms: 100,
+                    backoff_factor: 2,
+                    max_retry_attempts: 5,
+                    retry_status_codes: vec![500, 502, 503, 504],
+                },
             }
         }
     }

@@ -22,7 +22,6 @@ pub struct Anthropic {
     api_key: String,
     base_url: Url,
     anthropic_version: String,
-    #[builder(default = "RetryConfig::default()")]
     retry_config: RetryConfig,
 }
 
@@ -213,7 +212,12 @@ mod tests {
             .base_url(Url::parse("https://api.anthropic.com/v1/").unwrap())
             .anthropic_version("v1".to_string())
             .api_key("sk-some-key".to_string())
-            .retry_config(RetryConfig::default())
+            .retry_config(RetryConfig {
+                initial_backoff_ms: 100,
+                backoff_factor: 2,
+                max_retry_attempts: 5,
+                retry_status_codes: vec![500, 502, 503, 504],
+            })
             .build()
             .unwrap();
         assert_eq!(

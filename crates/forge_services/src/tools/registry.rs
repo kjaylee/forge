@@ -43,7 +43,7 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider};
+    use forge_domain::{CommandOutput, Environment, EnvironmentService, Provider, RetryConfig};
     use forge_snaps::Snapshot;
 
     use super::*;
@@ -67,7 +67,12 @@ pub mod tests {
                 base_path: PathBuf::new(),
                 pid: std::process::id(),
                 provider: Provider::anthropic("test-key"),
-                retry_config: Default::default(),
+                retry_config: RetryConfig {
+                    initial_backoff_ms: 100,
+                    backoff_factor: 2,
+                    max_retry_attempts: 5,
+                    retry_status_codes: vec![500, 502, 503, 504],
+                },
             },
         }
     }
