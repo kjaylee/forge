@@ -232,8 +232,8 @@ impl<A: Services> Orchestrator<A> {
                         )
                         .await?;
 
-                        // Check for XML tool calls in the content, but only interrupt if tool_supported
-                        // is false
+                        // Check for XML tool calls in the content, but only interrupt if
+                        // tool_supported is false
                         if should_interrupt_for_xml {
                             // Use match instead of ? to avoid propagating errors
                             if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
@@ -245,8 +245,8 @@ impl<A: Services> Orchestrator<A> {
                                 xml_tool_calls = Some(tool_call);
                                 tool_interrupted = true;
 
-                                // Break the loop since we found an XML tool call and tool_supported is
-                                // false
+                                // Break the loop since we found an XML tool call and tool_supported
+                                // is false
                                 break;
                             }
                         }
