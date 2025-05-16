@@ -560,7 +560,7 @@ impl<A: Services> Orchestrator<A> {
                         .with_min_delay(Duration::from_millis(retry_config.initial_backoff_ms))
                         .with_jitter(),
                 )
-                .when(should_retry)
+                .when(should_retry(&retry_config.retry_status_codes))
                 .notify(|error, duration| {
                     // TODO: notify the frontend about the retry.
                     println!(
@@ -576,10 +576,19 @@ impl<A: Services> Orchestrator<A> {
     }
 }
 
-fn should_retry(error: &anyhow::Error) -> bool {
-    error
-        .source()
-        .and_then(|err| err.downcast_ref::<reqwest_eventsource::Error>())
-        .map(|err| matches!(err, reqwest_eventsource::Error::Transport(_)))
-        .unwrap_or(false)
+fn should_retry(status_codes: &[u16]) -> impl Fn(&anyhow::Error) -> bool + '_ {
+    let status_codes = status_codes.to_vec(); // Clone the slice to own the data
+    move |error| {
+        error
+            .source()
+            .and_then(|err| err.downcast_ref::<reqwest_eventsource::Error>())
+            .map(|err| match err {
+                reqwest_eventsource::Error::Transport(_) => true,
+                reqwest_eventsource::Error::InvalidStatusCode(status_code, _) => {
+                    status_codes.contains(&status_code.as_u16())
+                }
+                _ => false,
+            })
+            .unwrap_or(false)
+    }
 }
