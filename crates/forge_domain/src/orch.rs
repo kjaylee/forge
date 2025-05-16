@@ -259,7 +259,7 @@ impl<A: Services> Orchestrator<A> {
         }
 
         if let Some(error) = stream_error {
-            todo!("Handle stream error {:#?}", error);
+            return Err(error);
         }
 
         // Get the full content from all messages
