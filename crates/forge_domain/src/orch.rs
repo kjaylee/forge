@@ -377,6 +377,20 @@ impl<A: Services> Orchestrator<A> {
             .sender(self.sender.clone())
     }
 
+    async fn chat(
+        &self,
+        agent: &Agent,
+        model_id: &ModelId,
+        context: Context,
+    ) -> anyhow::Result<ChatCompletionResult> {
+        let response = self
+            .services
+            .provider_service()
+            .chat(&model_id, context.clone())
+            .await?;
+        self.collect_messages(agent, &context, response).await
+    }
+
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
@@ -439,18 +453,35 @@ impl<A: Services> Orchestrator<A> {
 
         let mut empty_tool_call_count = 0;
 
+        let retry_config = self
+            .services
+            .environment_service()
+            .get_environment()
+            .retry_config;
+
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
 
-            let response = self
-                .services
-                .provider_service()
-                .chat(&model_id, context.clone())
-                .await?;
-
             let ChatCompletionResult { tool_calls, content, usage } =
-                self.collect_messages(agent, &context, response).await?;
+                (|| self.chat(agent, &model_id, context.clone()))
+                    .retry(
+                        ExponentialBuilder::default()
+                            .with_factor(retry_config.backoff_factor as f32)
+                            .with_max_times(retry_config.max_retry_attempts)
+                            .with_min_delay(Duration::from_millis(retry_config.initial_backoff_ms))
+                            .with_jitter(),
+                    )
+                    .when(should_retry(&retry_config.retry_status_codes))
+                    .notify(|error, duration| {
+                        // TODO: notify the frontend about the retry.
+                        println!(
+                            "Retrying due to error: {}. Retrying in {} ms",
+                            error.root_cause(),
+                            duration.as_millis()
+                        )
+                    })
+                    .await?;
 
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, usage.map(|usage| usage.prompt_tokens as usize)) {
@@ -542,34 +573,11 @@ impl<A: Services> Orchestrator<A> {
     }
 
     async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
-        let retry_config = self
-            .services
-            .environment_service()
-            .get_environment()
-            .retry_config;
-
         while let Some(event) = {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
-            (|| self.init_agent(agent_id, &event))
-                .retry(
-                    ExponentialBuilder::default()
-                        .with_factor(retry_config.backoff_factor as f32)
-                        .with_max_times(retry_config.max_retry_attempts)
-                        .with_min_delay(Duration::from_millis(retry_config.initial_backoff_ms))
-                        .with_jitter(),
-                )
-                .when(should_retry(&retry_config.retry_status_codes))
-                .notify(|error, duration| {
-                    // TODO: notify the frontend about the retry.
-                    println!(
-                        "Retrying due to error: {}. Retrying in {} ms",
-                        error.root_cause(),
-                        duration.as_millis()
-                    )
-                })
-                .await?
+            self.init_agent(agent_id, &event).await?
         }
 
         Ok(())
