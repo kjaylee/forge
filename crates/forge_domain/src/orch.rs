@@ -564,6 +564,7 @@ impl<A: Services> Orchestrator<A> {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
+            // FIXME: drop retry logic.
             RetryIf::spawn(
                 self.retry_strategy.clone().map(jitter),
                 || self.init_agent(agent_id, &event),

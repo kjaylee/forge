@@ -3,9 +3,9 @@ use merge::Merge;
 use serde::{Deserialize, Serialize};
 
 // Maximum number of retry attempts for retryable operations
-const MAX_RETRY_ATTEMPTS: usize = 5;
+// const MAX_RETRY_ATTEMPTS: usize = 5;
 
-const RETRY_STATUS_CODES: &[u16] = &[429, 500, 502, 503, 504];
+// const RETRY_STATUS_CODES: &[u16] = &[429, 500, 502, 503, 504];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq)]
 #[setters(into)]
@@ -28,13 +28,14 @@ pub struct RetryConfig {
     pub retry_status_codes: Vec<u16>,
 }
 
-impl Default for RetryConfig {
-    fn default() -> Self {
-        Self {
-            initial_backoff_ms: 200,
-            backoff_factor: 2,
-            max_retry_attempts: MAX_RETRY_ATTEMPTS,
-            retry_status_codes: RETRY_STATUS_CODES.to_vec(),
-        }
-    }
-}
+// TODO: drop this.
+// impl Default for RetryConfig {
+//     fn default() -> Self {
+//         Self {
+//             initial_backoff_ms: 5000,
+//             backoff_factor: 2,
+//             max_retry_attempts: MAX_RETRY_ATTEMPTS,
+//             retry_status_codes: RETRY_STATUS_CODES.to_vec(),
+//         }
+//     }
+// }
