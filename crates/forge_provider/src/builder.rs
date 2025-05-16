@@ -21,7 +21,6 @@ impl Client {
             .pool_idle_timeout(std::time::Duration::from_secs(90))
             .pool_max_idle_per_host(5)
             .redirect(Policy::limited(10))
-            .danger_accept_invalid_certs(true)
             .build()?;
 
         match &provider {
