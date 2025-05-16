@@ -155,7 +155,7 @@ impl CommandExecutorService for ForgeCommandExecutorService {
         #[cfg(windows)]
         tokio_cmd.raw_arg(["/C", command]);
         #[cfg(unix)]
-        tokio_cmd.args(["-i", "-c", command]);
+        tokio_cmd.args(["-l", "-c", command]);
 
         tokio_cmd.kill_on_drop(true);
 
