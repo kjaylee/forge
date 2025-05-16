@@ -469,18 +469,9 @@ impl<A: Services> Orchestrator<A> {
                         ExponentialBuilder::default()
                             .with_factor(retry_config.backoff_factor as f32)
                             .with_max_times(retry_config.max_retry_attempts)
-                            .with_min_delay(Duration::from_millis(retry_config.initial_backoff_ms))
                             .with_jitter(),
                     )
                     .when(should_retry(&retry_config.retry_status_codes))
-                    .notify(|error, duration| {
-                        // TODO: notify the frontend about the retry.
-                        println!(
-                            "Retrying due to error: '{}'. Retrying in {} ms",
-                            error.root_cause(),
-                            duration.as_millis()
-                        )
-                    })
                     .await?;
 
             // Check if context requires compression and decide to compact
