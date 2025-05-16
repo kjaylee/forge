@@ -476,7 +476,7 @@ impl<A: Services> Orchestrator<A> {
                     .notify(|error, duration| {
                         // TODO: notify the frontend about the retry.
                         println!(
-                            "Retrying due to error: {}. Retrying in {} ms",
+                            "Retrying due to error: '{}'. Retrying in {} ms",
                             error.root_cause(),
                             duration.as_millis()
                         )
