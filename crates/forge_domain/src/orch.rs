@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Context as AnyhowContext};
 use async_recursion::async_recursion;
+use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use forge_walker::Walker;
 use futures::future::join_all;
@@ -11,9 +12,6 @@ use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tracing::debug;
-
-use backon::ExponentialBuilder;
-use backon::Retryable;
 
 // Use retry_config default values directly in this file
 use crate::services::Services;
