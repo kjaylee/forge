@@ -51,7 +51,7 @@ reqwest = { version = "0.12.12", features = [
     "json",
     "rustls-tls",
 ], default-features = false }
-reqwest-eventsource = "0.6.0"
+reqwest-eventsource = { git = "https://github.com/laststylebender14/reqwest-eventsource", branch = "fix/increment-retry-num-on-subsequent-errors" }
 rust-embed = "8.5.0"
 schemars = "0.8.21"
 serde = { version = "1.0.217", features = ["derive"] }

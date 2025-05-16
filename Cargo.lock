@@ -3019,8 +3019,7 @@ dependencies = [
 [[package]]
 name = "reqwest-eventsource"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "632c55746dbb44275691640e7b40c907c16a2dc1a5842aa98aaec90da6ec6bde"
+source = "git+https://github.com/laststylebender14/reqwest-eventsource?branch=fix%2Fincrement-retry-num-on-subsequent-errors#74fb417d64946cefef779cd53f11087ad68e909b"
 dependencies = [
  "eventsource-stream",
  "futures-core",
