@@ -577,7 +577,6 @@ impl<A: Services> Orchestrator<A> {
 }
 
 fn should_retry(status_codes: &[u16]) -> impl Fn(&anyhow::Error) -> bool + '_ {
-    let status_codes = status_codes.to_vec(); // Clone the slice to own the data
     move |error| {
         error
             .source()
