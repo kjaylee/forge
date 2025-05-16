@@ -555,6 +555,9 @@ impl<F: API> UI<F> {
             ChatResponse::Usage(usage) => {
                 self.state.usage = usage;
             }
+            ChatResponse::Retry(retry_message) => {
+                tokio::spawn(TRACKER.dispatch(forge_tracker::EventKind::Error(retry_message)));
+            }
         }
         Ok(())
     }
