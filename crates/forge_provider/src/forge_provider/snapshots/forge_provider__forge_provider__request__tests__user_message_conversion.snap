@@ -1,0 +1,8 @@
+---
+source: crates/forge_provider/src/forge_provider/request.rs
+expression: router_message
+---
+{
+  "role": "user",
+  "content": "Hello"
+}

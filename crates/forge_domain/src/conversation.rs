@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{Agent, AgentId, Context, Error, Event, ModelId, Result, Workflow};
+use crate::{Agent, AgentId, Compact, Context, Error, Event, ModelId, Result, ToolName, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
@@ -80,15 +80,15 @@ impl Conversation {
         Ok(())
     }
 
-    pub fn new(id: ConversationId, workflow: Workflow) -> Self {
+    pub fn new(id: ConversationId, workflow: Workflow, additional_tools: Vec<ToolName>) -> Self {
         // Merge the workflow with the default workflow
         let mut base_workflow = Workflow::default();
         base_workflow.merge(workflow);
 
-        Self::new_inner(id, base_workflow)
+        Self::new_inner(id, base_workflow, additional_tools)
     }
 
-    fn new_inner(id: ConversationId, workflow: Workflow) -> Self {
+    fn new_inner(id: ConversationId, workflow: Workflow, additional_tools: Vec<ToolName>) -> Self {
         let mut agents = Vec::new();
 
         for mut agent in workflow.agents.into_iter() {
@@ -105,7 +105,17 @@ impl Conversation {
             }
 
             if let Some(model) = workflow.model.clone() {
-                agent.model = Some(model);
+                agent.model = Some(model.clone());
+
+                // If a workflow model is specified, ensure all agents have a compact model
+                // initialized with that model, creating the compact configuration if needed
+                if agent.compact.is_some() {
+                    if let Some(ref mut compact) = agent.compact {
+                        compact.model = model;
+                    }
+                } else {
+                    agent.compact = Some(Compact::new(model));
+                }
             }
 
             if let Some(tool_supported) = workflow.tool_supported {
@@ -124,6 +134,17 @@ impl Conversation {
                 } else {
                     agent.subscribe = Some(commands);
                 }
+            }
+
+            if !additional_tools.is_empty() {
+                agent.tools = Some(
+                    agent
+                        .tools
+                        .unwrap_or_default()
+                        .into_iter()
+                        .chain(additional_tools.iter().cloned())
+                        .collect::<Vec<_>>(),
+                );
             }
 
             agents.push(agent);
@@ -294,7 +315,7 @@ mod tests {
 
     use serde_json::json;
 
-    use crate::{Agent, Command, Error, ModelId, Temperature, Workflow};
+    use crate::{Agent, AgentId, Command, Compact, Error, ModelId, Temperature, Workflow};
 
     #[test]
     fn test_conversation_new_with_empty_workflow() {
@@ -303,7 +324,7 @@ mod tests {
         let workflow = Workflow::new();
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.id, id);
@@ -326,7 +347,7 @@ mod tests {
         workflow.variables = variables.clone();
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.id, id);
@@ -349,7 +370,7 @@ mod tests {
             .tool_supported(true);
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
@@ -389,7 +410,7 @@ mod tests {
             .tool_supported(true);
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
@@ -449,7 +470,7 @@ mod tests {
             .commands(commands.clone());
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
@@ -515,7 +536,7 @@ mod tests {
             .commands(commands.clone());
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         let main_agent = conversation
@@ -543,7 +564,7 @@ mod tests {
 
         let workflow = Workflow::new().agents(vec![main_agent]);
 
-        let conversation = super::Conversation::new_inner(id, workflow);
+        let conversation = super::Conversation::new_inner(id, workflow, vec![]);
 
         // Act
         let model_id = conversation.main_model().unwrap();
@@ -560,7 +581,7 @@ mod tests {
 
         let workflow = Workflow::new().agents(vec![agent]);
 
-        let conversation = super::Conversation::new_inner(id, workflow);
+        let conversation = super::Conversation::new_inner(id, workflow, vec![]);
 
         // Act
         let result = conversation.main_model();
@@ -578,7 +599,7 @@ mod tests {
 
         let workflow = Workflow::new().agents(vec![main_agent]);
 
-        let conversation = super::Conversation::new_inner(id, workflow);
+        let conversation = super::Conversation::new_inner(id, workflow, vec![]);
 
         // Act
         let result = conversation.main_model();
@@ -595,7 +616,7 @@ mod tests {
 
         let workflow = Workflow::new().agents(vec![main_agent]);
 
-        let mut conversation = super::Conversation::new_inner(id, workflow);
+        let mut conversation = super::Conversation::new_inner(id, workflow, vec![]);
 
         // Act
         let result = conversation.set_main_model(ModelId::new("new-model"));
@@ -614,7 +635,7 @@ mod tests {
 
         let workflow = Workflow::new().agents(vec![agent]);
 
-        let mut conversation = super::Conversation::new_inner(id, workflow);
+        let mut conversation = super::Conversation::new_inner(id, workflow, vec![]);
 
         // Act
         let result = conversation.set_main_model(ModelId::new("new-model"));
@@ -635,7 +656,7 @@ mod tests {
             .tool_supported(true);
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
@@ -662,7 +683,7 @@ mod tests {
             .tool_supported(true);
 
         // Act
-        let conversation = super::Conversation::new_inner(id.clone(), workflow);
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
 
         // Assert
         assert_eq!(conversation.agents.len(), 2);
@@ -683,5 +704,40 @@ mod tests {
             .find(|a| a.id.as_str() == "agent2")
             .unwrap();
         assert_eq!(agent2.tool_supported, Some(true));
+    }
+
+    #[test]
+    fn test_workflow_model_overrides_compact_model() {
+        // Arrange
+        let id = super::ConversationId::generate();
+
+        // Create an agent with compaction configured
+        let agent1 =
+            Agent::new("agent1").compact(Compact::new(ModelId::new("old-compaction-model")));
+
+        // Create an agent without compaction
+        let agent2 = Agent::new("agent2");
+
+        // Use setters pattern to create the workflow
+        let workflow = Workflow::new()
+            .agents(vec![agent1, agent2])
+            .model(ModelId::new("workflow-model"));
+
+        // Act
+        let conversation = super::Conversation::new_inner(id.clone(), workflow, vec![]);
+
+        // Check that agent1's compact.model was updated to the workflow model
+        let agent1 = conversation.get_agent(&AgentId::new("agent1")).unwrap();
+        let compact = agent1.compact.as_ref().unwrap();
+        assert_eq!(compact.model, ModelId::new("workflow-model"));
+
+        // Regular agent model should also be updated
+        assert_eq!(agent1.model, Some(ModelId::new("workflow-model")));
+
+        // Check that agent2 still has no compaction
+        let agent2 = conversation.get_agent(&AgentId::new("agent2")).unwrap();
+        let compact = agent2.compact.as_ref().unwrap();
+        assert_eq!(compact.model, ModelId::new("workflow-model"));
+        assert_eq!(agent2.model, Some(ModelId::new("workflow-model")));
     }
 }
