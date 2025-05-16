@@ -563,24 +563,40 @@ impl<F: API> UI<F> {
     }
 
     async fn show_feedback(&mut self) -> Result<(), anyhow::Error> {
-        if self.api.should_show_feedback().await? {
-            self.api.update_last_shown().await?;
+        // Only show feedback prompt if conditions are met
+        if !self.api.should_show_feedback().await? {
+            return Ok(());
+        }
+        
+        // Update timestamp of when feedback was last shown
+        self.api.update_last_shown().await?;
 
-            let feedback_url = "https://shorturl.at/LheIj";
+        // Feedback banner components with shorter text for smaller screens
+        const FEEDBACK_URL: &str = "https://shorturl.at/LheIj";
+        
+        // Create colorful decorative elements
+        let sparkle = "✨".bright_yellow().bold();
+        let heart = "♥".bright_red().bold();
+        
+        // Simplified style elements for better wrapping on small screens
+        let banner_title = "Thanks for using Forge!".bright_magenta().bold();
+        let banner_message = "We'd love your feedback".cyan().bold();
+        let feedback_link = format!("{FEEDBACK_URL}")
+            .bright_cyan()
+            .underline();
+        
+        // Create a simpler banner with more predictable wrapping
+        let banner = format!(
+            "\n  {sparkle} {title} {heart}\n  {message}\n  {link}\n",
+            sparkle = sparkle,
+            title = banner_title,
+            heart = heart,
+            message = banner_message,
+            link = feedback_link
+        );
 
-            let star = "★".yellow().bold();
-            let title = "Thank you for using Forge!".white().bold();
-            let message =
-                "  Your feedback helps us improve. We'd love to hear your thoughts!".white();
-            let link = format!("Click to share feedback: {feedback_url}")
-                .cyan()
-                .underline();
-
-            let banner = format!("\n{star} {title} {star}\n{message}\n{link}\n");
-
-            self.writeln(banner)?;
-        };
-        Ok(())
+        // Display the enhanced feedback banner
+        self.writeln(banner)
     }
 
     fn update_model(&mut self, model: ModelId) {
