@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{bail, Context as AnyhowContext};
 use async_recursion::async_recursion;
@@ -9,9 +10,10 @@ use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::RwLock;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::RetryIf;
 use tracing::debug;
+
+use backon::ExponentialBuilder;
+use backon::Retryable;
 
 // Use retry_config default values directly in this file
 use crate::services::Services;
@@ -36,7 +38,6 @@ pub struct Orchestrator<Services> {
     services: Arc<Services>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
-    retry_strategy: std::iter::Take<tokio_retry::strategy::ExponentialBackoff>,
 }
 
 struct ChatCompletionResult {
@@ -56,15 +57,9 @@ impl<A: Services> Orchestrator<A> {
             state.queue.clear();
         });
 
-        let env = services.environment_service().get_environment();
-        let retry_strategy = ExponentialBackoff::from_millis(env.retry_config.initial_backoff_ms)
-            .factor(env.retry_config.backoff_factor)
-            .take(env.retry_config.max_retry_attempts);
-
         Self {
             services,
             sender,
-            retry_strategy,
             conversation: Arc::new(RwLock::new(conversation)),
         }
     }
@@ -549,36 +544,44 @@ impl<A: Services> Orchestrator<A> {
     }
 
     async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
+        let retry_config = self
+            .services
+            .environment_service()
+            .get_environment()
+            .retry_config;
+
         while let Some(event) = {
             let mut conversation = self.conversation.write().await;
             conversation.poll_event(agent_id)
         } {
-            RetryIf::spawn(
-                self.retry_strategy.clone().map(jitter),
-                || self.init_agent(agent_id, &event),
-                is_parse_error,
-            )
-            .await?;
+            (|| self.init_agent(agent_id, &event))
+                .retry(
+                    ExponentialBuilder::default()
+                        .with_factor(retry_config.backoff_factor as f32)
+                        .with_max_times(retry_config.max_retry_attempts)
+                        .with_min_delay(Duration::from_millis(retry_config.initial_backoff_ms))
+                        .with_jitter(),
+                )
+                .when(should_retry)
+                .notify(|error, duration| {
+                    // TODO: notify the frontend about the retry.
+                    println!(
+                        "Retrying due to error: {}. Retrying in {} ms",
+                        error.root_cause(),
+                        duration.as_millis()
+                    )
+                })
+                .await?
         }
 
         Ok(())
     }
 }
 
-fn is_parse_error(error: &anyhow::Error) -> bool {
-    let check = error
-        .downcast_ref::<Error>()
-        .map(|error| {
-            matches!(
-                error,
-                Error::ToolCallParse(_) | Error::ToolCallArgument(_) | Error::ToolCallMissingName
-            )
-        })
-        .unwrap_or_default();
-
-    if check {
-        debug!(error = %error, "Retrying due to parse error");
-    }
-
-    check
+fn should_retry(error: &anyhow::Error) -> bool {
+    error
+        .source()
+        .and_then(|err| err.downcast_ref::<reqwest_eventsource::Error>())
+        .map(|err| matches!(err, reqwest_eventsource::Error::Transport(_)))
+        .unwrap_or(false)
 }
