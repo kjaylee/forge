@@ -63,16 +63,10 @@ impl ForgeMcpClient {
     async fn create_connection(&self) -> anyhow::Result<Arc<RmcpClient>> {
         let client = match &self.config {
             McpServerConfig::Stdio(stdio) => {
-                let command = stdio
-                    .command
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("Command not specified"))?;
-                let mut cmd = Command::new(command);
+                let mut cmd = Command::new(stdio.command.clone());
 
-                if let Some(env) = &stdio.env {
-                    for (key, value) in env {
-                        cmd.env(key, value);
-                    }
+                for (key, value) in &stdio.env {
+                    cmd.env(key, value);
                 }
 
                 cmd.stdin(std::process::Stdio::inherit())
@@ -83,11 +77,7 @@ impl ForgeMcpClient {
                     .await?
             }
             McpServerConfig::Sse(sse) => {
-                let url = sse
-                    .url
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("URL not specified"))?;
-                let transport = rmcp::transport::SseTransport::start(url).await?;
+                let transport = rmcp::transport::SseTransport::start(sse.url.clone()).await?;
                 self.client_info().serve(transport).await?
             }
         };
