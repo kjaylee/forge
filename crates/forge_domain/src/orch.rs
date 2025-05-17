@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::{bail, Context as AnyhowContext};
+use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
@@ -530,7 +530,7 @@ impl<A: Services> Orchestrator<A> {
                     .map(ModelId::as_str)
                     .unwrap_or_default();
                 if empty_tool_call_count > 3 {
-                    bail!("Model '{model}' is unable to follow instructions, consider retrying or switching to a bigger model.");
+                    return Err(Error::ModelInstructionFailure(model));
                 }
             } else {
                 empty_tool_call_count = 0;

@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use thiserror::Error;
 
-use crate::{AgentId, ConversationId};
+use crate::{AgentId, ConversationId, ModelId};
 
 // NOTE: Deriving From for error is a really bad idea. This is because you end
 // up converting errors incorrectly without much context. For eg: You don't want
@@ -45,6 +45,9 @@ pub enum Error {
 
     #[error("No model defined for agent: {0}")]
     NoModelDefined(AgentId),
+
+    #[error("Model '{0}' is unable to follow instructions, consider retrying.")]
+    ModelInstructionFailure(ModelId),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;
