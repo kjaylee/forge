@@ -207,13 +207,28 @@ mod tests {
 
     use super::*;
 
+    #[derive(Clone)]
+    struct DummyTemplateService;
+
+    #[async_trait::async_trait]
+    impl TemplateService for DummyTemplateService {
+        fn render(
+            &self,
+            _template: impl ToString,
+            _object: &impl serde::Serialize,
+        ) -> anyhow::Result<String> {
+            Ok(String::new())
+        }
+    }
+
     #[tokio::test]
     async fn test_url_for_models() {
-        let anthropic = Anthropic::builder()
+        let anthropic: Anthropic<DummyTemplateService> = Anthropic::builder()
             .client(Client::new())
             .base_url(Url::parse("https://api.anthropic.com/v1/").unwrap())
             .anthropic_version("v1".to_string())
             .api_key("sk-some-key".to_string())
+            .template_service(Some(Arc::new(DummyTemplateService)))
             .build()
             .unwrap();
         assert_eq!(

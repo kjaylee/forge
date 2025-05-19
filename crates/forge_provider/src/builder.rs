@@ -11,14 +11,9 @@ use std::sync::Arc;
 use crate::anthropic::Anthropic;
 use crate::forge_provider::ForgeProvider;
 
-pub enum ProviderClient<T: Clone> {
+pub enum Client<T: Clone> {
     OpenAICompat(ForgeProvider<T>),
     Anthropic(Anthropic<T>),
-}
-
-pub struct Client<T: Clone> {
-    provider: ProviderClient<T>,
-    template_service: Arc<T>,
 }
 
 impl<T: TemplateService + Clone + 'static> Client<T> {
@@ -30,19 +25,17 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
             .redirect(Policy::limited(10))
             .build()?;
 
-        let client_provider = match &provider {
-            Provider::OpenAI { url, .. } => {
-                Ok::<ProviderClient<T>, anyhow::Error>(ProviderClient::OpenAICompat(
-                    ForgeProvider::builder()
-                        .client(client)
-                        .provider(provider.clone())
-                        .template_service(Some(Arc::clone(&template_service)))
-                        .build()
-                        .with_context(|| format!("Failed to initialize: {url}"))?,
-                ))
-            }
+        match &provider {
+            Provider::OpenAI { url, .. } => Ok(Client::OpenAICompat(
+                ForgeProvider::builder()
+                    .client(client)
+                    .provider(provider.clone())
+                    .template_service(Some(Arc::clone(&template_service)))
+                    .build()
+                    .with_context(|| format!("Failed to initialize: {url}"))?,
+            )),
 
-            Provider::Anthropic { url, key } => Ok(ProviderClient::Anthropic(
+            Provider::Anthropic { url, key } => Ok(Client::Anthropic(
                 Anthropic::builder()
                     .client(client)
                     .api_key(key.to_string())
@@ -54,9 +47,7 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
                         format!("Failed to initialize Anthropic client with URL: {url}")
                     })?,
             )),
-        }?;
-
-        Ok(Client { provider: client_provider, template_service })
+        }
     }
 }
 
@@ -67,23 +58,23 @@ impl<C: TemplateService + Clone + 'static> ProviderService for Client<C> {
         model: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        match &self.provider {
-            ProviderClient::OpenAICompat(provider) => provider.chat(model, context).await,
-            ProviderClient::Anthropic(provider) => provider.chat(model, context).await,
+        match self {
+            Client::OpenAICompat(provider) => provider.chat(model, context).await,
+            Client::Anthropic(provider) => provider.chat(model, context).await,
         }
     }
 
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
-        match &self.provider {
-            ProviderClient::OpenAICompat(provider) => provider.models().await,
-            ProviderClient::Anthropic(provider) => provider.models().await,
+        match self {
+            Client::OpenAICompat(provider) => provider.models().await,
+            Client::Anthropic(provider) => provider.models().await,
         }
     }
 
     async fn compact(&self, context: Context, options: &Compact) -> anyhow::Result<Context> {
-        match &self.provider {
-            ProviderClient::OpenAICompat(provider) => provider.compact(context, options).await,
-            ProviderClient::Anthropic(provider) => provider.compact(context, options).await,
+        match self {
+            Client::OpenAICompat(provider) => provider.compact(context, options).await,
+            Client::Anthropic(provider) => provider.compact(context, options).await,
         }
     }
 }
