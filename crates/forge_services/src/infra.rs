@@ -104,29 +104,6 @@ pub trait CommandExecutorService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait InquireService: Send + Sync {
-    /// Prompts the user with question
-    /// Returns None if the user interrupts the prompt
-    async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>>;
-
-    /// Prompts the user to select a single option from a list
-    /// Returns None if the user interrupts the selection
-    async fn select_one(
-        &self,
-        message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<String>>;
-
-    /// Prompts the user to select multiple options from a list
-    /// Returns None if the user interrupts the selection
-    async fn select_many(
-        &self,
-        message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<Vec<String>>>;
-}
-
-#[async_trait::async_trait]
 pub trait McpClient: Send + Sync + 'static {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
     async fn call(
@@ -151,7 +128,6 @@ pub trait Infrastructure: Send + Sync + 'static {
     type FsWriteService: FsWriteService;
     type FsCreateDirsService: FsCreateDirsService;
     type CommandExecutorService: CommandExecutorService;
-    type InquireService: InquireService;
     type McpServer: McpServer;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
@@ -162,6 +138,5 @@ pub trait Infrastructure: Send + Sync + 'static {
     fn file_write_service(&self) -> &Self::FsWriteService;
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
     fn command_executor_service(&self) -> &Self::CommandExecutorService;
-    fn inquire_service(&self) -> &Self::InquireService;
     fn mcp_server(&self) -> &Self::McpServer;
 }

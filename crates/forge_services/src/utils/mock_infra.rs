@@ -6,17 +6,19 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
-use forge_domain::{CommandOutput, Environment, EnvironmentService, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
-use forge_fs::FileInfo;
-use forge_fs::ForgeFS;
+use forge_domain::{
+    CommandOutput, Environment, EnvironmentService, McpServerConfig, ToolDefinition, ToolName,
+    ToolOutput,
+};
+use forge_fs::{FileInfo, ForgeFS};
 use forge_snaps::{Snapshot, SnapshotId};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
-    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
-    FsWriteService, Infrastructure, InquireService, McpClient, McpServer,
+    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
+    FsSnapshotService, FsWriteService, Infrastructure, McpClient, McpServer,
 };
 
 #[derive(Clone)]
@@ -27,12 +29,11 @@ pub struct MockInfrastructure {
 impl MockInfrastructure {
     pub fn new() -> Self {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        Self {
-            temp_dir: Arc::new(temp_dir),
-        }
+        Self { temp_dir: Arc::new(temp_dir) }
     }
-    
-    // Helper method to convert a relative path to an absolute path within the temp directory
+
+    // Helper method to convert a relative path to an absolute path within the temp
+    // directory
     fn temp_path(&self, path: &Path) -> PathBuf {
         if path.is_absolute() {
             path.to_path_buf()
@@ -57,7 +58,6 @@ impl Infrastructure for MockInfrastructure {
     type FsWriteService = MockInfrastructure;
     type FsCreateDirsService = MockInfrastructure;
     type CommandExecutorService = MockInfrastructure;
-    type InquireService = MockInfrastructure;
     type McpServer = MockInfrastructure;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
@@ -89,10 +89,6 @@ impl Infrastructure for MockInfrastructure {
     }
 
     fn command_executor_service(&self) -> &Self::CommandExecutorService {
-        self
-    }
-
-    fn inquire_service(&self) -> &Self::InquireService {
         self
     }
 
@@ -156,8 +152,10 @@ impl FsSnapshotService for MockInfrastructure {
     async fn create_snapshot(&self, file_path: &Path) -> Result<Snapshot> {
         // Simple implementation that creates a snapshot with minimal information
         let path = self.temp_path(file_path);
-        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::from_secs(0));
-        
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_else(|_| Duration::from_secs(0));
+
         Ok(Snapshot {
             id: SnapshotId::from(Uuid::new_v4()),
             timestamp,
@@ -187,12 +185,12 @@ impl FsWriteService for MockInfrastructure {
         // Create a random filename in the temp directory
         let filename = format!("{}-{}{}", prefix, uuid::Uuid::new_v4(), ext);
         let path = self.temp_dir.path().join(filename);
-        
+
         // Write content to the file
         let mut file = File::create(&path).await?;
         file.write_all(content.as_bytes()).await?;
         file.flush().await?;
-        
+
         Ok(path)
     }
 }
@@ -227,36 +225,6 @@ impl CommandExecutorService for MockInfrastructure {
         _args: &[&str],
     ) -> anyhow::Result<ExitStatus> {
         todo!()
-    }
-}
-
-#[async_trait]
-impl InquireService for MockInfrastructure {
-    async fn prompt_question(&self, _question: &str) -> anyhow::Result<Option<String>> {
-        // Return a mock answer for testing
-        Ok(Some("mock_answer".to_string()))
-    }
-
-    async fn select_one(
-        &self,
-        _message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<String>> {
-        // Return the first option or None if empty
-        Ok(options.into_iter().next())
-    }
-
-    async fn select_many(
-        &self,
-        _message: &str,
-        options: Vec<String>,
-    ) -> anyhow::Result<Option<Vec<String>>> {
-        // Return all options
-        if options.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(options))
-        }
     }
 }
 

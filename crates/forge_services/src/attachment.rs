@@ -124,8 +124,7 @@ pub mod tests {
     use crate::utils::AttachmentExtension;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService,
-        McpClient, McpServer,
+        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, McpClient, McpServer,
     };
 
     #[derive(Debug)]
@@ -463,41 +462,6 @@ pub mod tests {
         }
     }
 
-    #[async_trait::async_trait]
-    impl InquireService for () {
-        /// Prompts the user with question
-        async fn prompt_question(&self, question: &str) -> anyhow::Result<Option<String>> {
-            // For testing, we can just return the question as the answer
-            Ok(Some(question.to_string()))
-        }
-
-        /// Prompts the user to select a single option from a list
-        async fn select_one(
-            &self,
-            _: &str,
-            options: Vec<String>,
-        ) -> anyhow::Result<Option<String>> {
-            // For testing, we can just return the first option
-            if options.is_empty() {
-                return Err(anyhow::anyhow!("No options provided"));
-            }
-            Ok(Some(options[0].clone()))
-        }
-
-        /// Prompts the user to select multiple options from a list
-        async fn select_many(
-            &self,
-            _: &str,
-            options: Vec<String>,
-        ) -> anyhow::Result<Option<Vec<String>>> {
-            // For testing, we can just return all options
-            if options.is_empty() {
-                return Err(anyhow::anyhow!("No options provided"));
-            }
-            Ok(Some(options))
-        }
-    }
-
     impl Infrastructure for MockInfrastructure {
         type EnvironmentService = MockEnvironmentService;
         type FsReadService = MockFileService;
@@ -507,7 +471,6 @@ pub mod tests {
         type FsCreateDirsService = MockFileService;
         type FsSnapshotService = MockSnapService;
         type CommandExecutorService = ();
-        type InquireService = ();
         type McpServer = ();
 
         fn environment_service(&self) -> &Self::EnvironmentService {
@@ -539,10 +502,6 @@ pub mod tests {
         }
 
         fn command_executor_service(&self) -> &Self::CommandExecutorService {
-            &()
-        }
-
-        fn inquire_service(&self) -> &Self::InquireService {
             &()
         }
 

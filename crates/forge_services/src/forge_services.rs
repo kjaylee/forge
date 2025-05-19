@@ -137,7 +137,6 @@ impl<F: Infrastructure + Clone> Infrastructure for ForgeServices<F> {
     type FsRemoveService = F::FsRemoveService;
     type FsCreateDirsService = F::FsCreateDirsService;
     type CommandExecutorService = F::CommandExecutorService;
-    type InquireService = F::InquireService;
     type McpServer = F::McpServer;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
@@ -170,10 +169,6 @@ impl<F: Infrastructure + Clone> Infrastructure for ForgeServices<F> {
 
     fn command_executor_service(&self) -> &Self::CommandExecutorService {
         self.infra.command_executor_service()
-    }
-
-    fn inquire_service(&self) -> &Self::InquireService {
-        self.infra.inquire_service()
     }
 
     fn mcp_server(&self) -> &Self::McpServer {
