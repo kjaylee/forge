@@ -94,7 +94,7 @@ impl<C: CompactionService, M: McpService> ConversationService for ForgeConversat
         // Perform compaction
         let new_context = self
             .compaction_service
-            .compact_context(agent, context.clone())
+            .compact_context(context.clone(), &agent.compact.as_ref().unwrap())
             .await?;
 
         // Compute compacted metrics

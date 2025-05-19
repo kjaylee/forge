@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::{
-    Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
+    Attachment, ChatCompletionMessage, Compact, CompactionResult, Context, Conversation,
     ConversationId, Environment, File, McpConfig, Model, ModelId, ResultStream, Scope, Tool,
     ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
 };
@@ -46,7 +46,8 @@ pub trait McpService: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait CompactionService: Send + Sync {
-    async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context>;
+    async fn compact_context(&self, context: Context, compact: &Compact)
+        -> anyhow::Result<Context>;
 }
 
 #[async_trait::async_trait]

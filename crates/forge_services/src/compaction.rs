@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_domain::{
-    extract_tag_content, Agent, ChatCompletionMessage, Compact, CompactionService, Context,
+    extract_tag_content, ChatCompletionMessage, Compact, CompactionService, Context,
     ContextMessage, ProviderService, Role, TemplateService,
 };
 use futures::StreamExt;
@@ -22,29 +22,24 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
     }
 
     /// Apply compaction to the context if requested
-    pub async fn compact_context(&self, agent: &Agent, context: Context) -> Result<Context> {
-        // Return early if agent doesn't have compaction configured
-        if let Some(ref compact) = agent.compact {
-            debug!(agent_id = %agent.id, "Context compaction triggered");
+    pub async fn compact_context(&self, options: &Compact, context: Context) -> Result<Context> {
+        debug!("Context compaction triggered");
 
-            // Identify and compress the first compressible sequence
-            // Get all compressible sequences, considering the preservation window
-            match find_sequence(&context, compact.retention_window)
-                .into_iter()
-                .next()
-            {
-                Some(sequence) => {
-                    debug!(agent_id = %agent.id, "Compressing sequence");
-                    self.compress_single_sequence(compact, context, sequence)
-                        .await
-                }
-                None => {
-                    debug!(agent_id = %agent.id, "No compressible sequences found");
-                    Ok(context)
-                }
+        // Identify and compress the first compressible sequence
+        // Get all compressible sequences, considering the preservation window
+        match find_sequence(&context, options.retention_window)
+            .into_iter()
+            .next()
+        {
+            Some(sequence) => {
+                // debug!(agent_id = %agent.id, "Compressing sequence");
+                self.compress_single_sequence(options, context, sequence)
+                    .await
             }
-        } else {
-            Ok(context)
+            None => {
+                // debug!(agent_id = %agent.id, "No compressible sequences found");
+                Ok(context)
+            }
         }
     }
 
@@ -231,10 +226,14 @@ fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, us
 
 #[async_trait::async_trait]
 impl<T: TemplateService, P: ProviderService> CompactionService for ForgeCompactionService<T, P> {
-    async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context> {
+    async fn compact_context(
+        &self,
+        context: Context,
+        options: &Compact,
+    ) -> anyhow::Result<Context> {
         // Call the compact_context method without passing prompt_tokens
         // since the decision logic has been moved to the orchestrator
-        self.compact_context(agent, context).await
+        self.compact_context(options, context).await
     }
 }
 

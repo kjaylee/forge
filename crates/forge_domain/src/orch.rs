@@ -488,7 +488,7 @@ impl<A: Services> Orchestrator<A> {
                 context = self
                     .services
                     .compaction_service()
-                    .compact_context(agent, context)
+                    .compact_context(context, agent.compact.as_ref().unwrap())
                     .await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
