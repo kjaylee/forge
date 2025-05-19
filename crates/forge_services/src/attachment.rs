@@ -562,7 +562,7 @@ pub mod tests {
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with a text file path in chat message
-        let url = "@[/test/file1.txt]".to_string();
+        let url = "@/test/file1.txt".to_string();
 
         // Execute
         let attachments = chat_request.attachments(&url).await.unwrap();
@@ -587,7 +587,7 @@ pub mod tests {
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with an image file
-        let url = "@[/test/image.png]".to_string();
+        let url = "@/test/image.png".to_string();
 
         // Execute
         let attachments = chat_request.attachments(&url).await.unwrap();
@@ -613,8 +613,8 @@ pub mod tests {
         let infra = Arc::new(MockInfrastructure::new());
         let chat_request = ForgeChatRequest::new(infra.clone());
 
-        // Test with an image file that has spaces in the path
-        let url = "@[/test/image with spaces.jpg]".to_string();
+        // Test with an image file that has spaces in the path - URL encoded
+        let url = "@/test/image%20with%20spaces.jpg".to_string();
 
         // Execute
         let attachments = chat_request.attachments(&url).await.unwrap();
@@ -647,7 +647,7 @@ pub mod tests {
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with multiple files mentioned
-        let url = "@[/test/file1.txt] @[/test/file2.txt] @[/test/image.png]".to_string();
+        let url = "@/test/file1.txt @/test/file2.txt @/test/image.png".to_string();
 
         // Execute
         let attachments = chat_request.attachments(&url).await.unwrap();
@@ -679,7 +679,7 @@ pub mod tests {
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with a file that doesn't exist
-        let url = "@[/test/nonexistent.txt]".to_string();
+        let url = "@/test/nonexistent.txt".to_string();
 
         // Execute - Let's handle the error properly
         let result = chat_request.attachments(&url).await;
@@ -719,7 +719,7 @@ pub mod tests {
         let chat_request = ForgeChatRequest::new(infra.clone());
 
         // Test with the file
-        let url = "@[/test/unknown.xyz]".to_string();
+        let url = "@/test/unknown.xyz".to_string();
 
         // Execute
         let attachments = chat_request.attachments(&url).await.unwrap();
