@@ -23,7 +23,7 @@ pub struct Anthropic<T: Clone> {
     api_key: String,
     base_url: Url,
     anthropic_version: String,
-    template_service: Option<Arc<T>>,
+    template_service: Arc<T>,
 }
 
 impl<T: TemplateService + Clone> Anthropic<T> {
@@ -191,7 +191,7 @@ impl<T: TemplateService + Clone + 'static> ProviderService for Anthropic<T> {
 
     async fn compact(&self, context: Context, options: &Compact) -> anyhow::Result<Context> {
         let compaction_service = ForgeCompactionService::new(
-            self.template_service.clone().unwrap(),
+            self.template_service.clone(),
             Arc::new(self.clone()),
         );
         compaction_service.compact_context(options, context).await
@@ -228,7 +228,7 @@ mod tests {
             .base_url(Url::parse("https://api.anthropic.com/v1/").unwrap())
             .anthropic_version("v1".to_string())
             .api_key("sk-some-key".to_string())
-            .template_service(Some(Arc::new(DummyTemplateService)))
+            .template_service(Arc::new(DummyTemplateService))
             .build()
             .unwrap();
         assert_eq!(

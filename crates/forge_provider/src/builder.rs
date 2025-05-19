@@ -30,7 +30,7 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
                 ForgeProvider::builder()
                     .client(client)
                     .provider(provider.clone())
-                    .template_service(Some(Arc::clone(&template_service)))
+                    .template_service(Arc::clone(&template_service))
                     .build()
                     .with_context(|| format!("Failed to initialize: {url}"))?,
             )),
@@ -41,7 +41,7 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
                     .api_key(key.to_string())
                     .base_url(url.clone())
                     .anthropic_version("2023-06-01".to_string())
-                    .template_service(Some(Arc::clone(&template_service)))
+                    .template_service(Arc::clone(&template_service))
                     .build()
                     .with_context(|| {
                         format!("Failed to initialize Anthropic client with URL: {url}")

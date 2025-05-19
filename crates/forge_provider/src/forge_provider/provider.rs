@@ -23,7 +23,7 @@ use crate::utils::format_http_context;
 pub struct ForgeProvider<T: Clone> {
     client: Client,
     provider: Provider,
-    template_service: Option<Arc<T>>,
+    template_service: Arc<T>,
 }
 
 impl<T: TemplateService + Clone> ForgeProvider<T> {
@@ -220,7 +220,7 @@ impl<T: TemplateService + Clone + 'static> ProviderService for ForgeProvider<T> 
         options: &Compact,
     ) -> anyhow::Result<ChatContext> {
         let compaction_service = ForgeCompactionService::new(
-            self.template_service.clone().unwrap(),
+            self.template_service.clone(),
             Arc::new(self.clone()),
         );
         compaction_service.compact_context(options, context).await
