@@ -3,7 +3,6 @@ use std::sync::Arc;
 use forge_domain::Services;
 
 use crate::attachment::ForgeChatRequest;
-// use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
