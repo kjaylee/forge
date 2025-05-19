@@ -7,12 +7,12 @@ use forge_domain::{
 };
 use forge_provider::Client;
 
-use crate::Infrastructure;
+use crate::{template::ForgeTemplateService, Infrastructure};
 
 #[derive(Clone)]
 pub struct ForgeProviderService {
     // The provider service implementation
-    client: Arc<Client>,
+    client: Arc<Client<ForgeTemplateService>>,
 }
 
 impl ForgeProviderService {
@@ -20,7 +20,10 @@ impl ForgeProviderService {
         let infra = infra.clone();
         let env = infra.environment_service().get_environment();
         let provider = env.provider.clone();
-        Self { client: Arc::new(Client::new(provider).unwrap()) }
+
+        Self {
+            client: Arc::new(Client::new(provider, Arc::new(ForgeTemplateService::new())).unwrap()),
+        }
     }
 }
 
