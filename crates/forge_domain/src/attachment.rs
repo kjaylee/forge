@@ -33,7 +33,7 @@ impl Attachment {
                     // Decode URL-encoded path if necessary
                     let decoded_path = if path.contains('%') {
                         form_urlencoded::parse(path.as_bytes())
-                            .map(|(k, v)| format!("{}{}", k, v))
+                            .map(|(k, v)| format!("{k}{v}"))
                             .collect::<String>()
                     } else {
                         path.to_string()
@@ -55,12 +55,13 @@ impl Attachment {
     fn parse(input: &str) -> nom::IResult<&str, &str> {
         // Find @ symbol
         let (remaining, _) = take_until("@")(input)?;
-        
+
         // Parse the path after @ until whitespace or another special char
         preceded(
             tag("@"),
-            take_while1(|c: char| !c.is_whitespace() && c != '@')
-        ).parse(remaining)
+            take_while1(|c: char| !c.is_whitespace() && c != '@'),
+        )
+        .parse(remaining)
     }
 }
 

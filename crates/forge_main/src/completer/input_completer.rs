@@ -2,8 +2,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use forge_walker::Walker;
-use url::form_urlencoded;
 use reedline::{Completer, Suggestion};
+use url::form_urlencoded;
 
 use crate::completer::search_term::SearchTerm;
 use crate::completer::CommandCompleter;
