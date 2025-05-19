@@ -135,6 +135,7 @@ impl<F: Infrastructure + Clone> Infrastructure for ForgeServices<F> {
     type FsMetaService = F::FsMetaService;
     type FsSnapshotService = F::FsSnapshotService;
     type FsRemoveService = F::FsRemoveService;
+    type FsUndoService = F::FsUndoService;
     type FsCreateDirsService = F::FsCreateDirsService;
     type CommandExecutorService = F::CommandExecutorService;
     type McpServer = F::McpServer;
@@ -161,6 +162,10 @@ impl<F: Infrastructure + Clone> Infrastructure for ForgeServices<F> {
 
     fn file_remove_service(&self) -> &Self::FsRemoveService {
         self.infra.file_remove_service()
+    }
+
+    fn file_undo_service(&self) -> &Self::FsUndoService {
+        self.infra.file_undo_service()
     }
 
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService {

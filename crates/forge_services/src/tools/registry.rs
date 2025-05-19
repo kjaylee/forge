@@ -1,6 +1,8 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use forge_domain::Tool;
+use forge_snaps::Snapshot;
 
 use super::completion::Completion;
 use super::fetch::Fetch;
@@ -8,6 +10,7 @@ use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
 use crate::Infrastructure;
+use crate::infra::FsUndoService;
 
 pub struct ToolRegistry<F> {
     infra: Arc<F>,
@@ -136,6 +139,14 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl crate::infra::FsUndoService for Stub {
+        async fn undo(&self, _file_path: &Path) -> anyhow::Result<()> {
+            // For tests, just return success
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
     impl FsMetaService for Stub {
         async fn is_file(&self, _: &Path) -> anyhow::Result<bool> {
             unimplemented!()
@@ -198,6 +209,7 @@ pub mod tests {
         type FsRemoveService = Stub;
         type FsMetaService = Stub;
         type FsSnapshotService = Stub;
+        type FsUndoService = Stub;
         type FsCreateDirsService = Stub;
         type CommandExecutorService = Stub;
         type McpServer = Stub;
@@ -219,6 +231,10 @@ pub mod tests {
         }
 
         fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
+            self
+        }
+        
+        fn file_undo_service(&self) -> &Self::FsUndoService {
             self
         }
 

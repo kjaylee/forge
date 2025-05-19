@@ -17,8 +17,8 @@ use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::{
-    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-    FsSnapshotService, FsWriteService, Infrastructure, McpClient, McpServer,
+    infra::FsUndoService, CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
+    FsReadService, FsSnapshotService, FsWriteService, Infrastructure, McpClient, McpServer,
 };
 
 #[derive(Clone)]
@@ -56,6 +56,7 @@ impl Infrastructure for MockInfrastructure {
     type FsRemoveService = MockInfrastructure;
     type FsSnapshotService = MockInfrastructure;
     type FsWriteService = MockInfrastructure;
+    type FsUndoService = MockInfrastructure;
     type FsCreateDirsService = MockInfrastructure;
     type CommandExecutorService = MockInfrastructure;
     type McpServer = MockInfrastructure;
@@ -81,6 +82,10 @@ impl Infrastructure for MockInfrastructure {
     }
 
     fn file_write_service(&self) -> &Self::FsWriteService {
+        self
+    }
+
+    fn file_undo_service(&self) -> &Self::FsUndoService {
         self
     }
 
@@ -164,6 +169,15 @@ impl FsSnapshotService for MockInfrastructure {
     }
 
     async fn undo_snapshot(&self, _file_path: &Path) -> Result<()> {
+        // In a real implementation, we'd restore from the last snapshot
+        // For tests, we'll just indicate success
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl FsUndoService for MockInfrastructure {
+    async fn undo(&self, _file_path: &Path) -> Result<()> {
         // In a real implementation, we'd restore from the last snapshot
         // For tests, we'll just indicate success
         Ok(())

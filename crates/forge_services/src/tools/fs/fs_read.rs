@@ -443,6 +443,7 @@ mod test {
             type FsCreateDirsService = crate::attachment::tests::MockFileService;
             type FsRemoveService = crate::attachment::tests::MockFileService;
             type FsSnapshotService = crate::attachment::tests::MockSnapService;
+            type FsUndoService = crate::attachment::tests::MockSnapService;
             type CommandExecutorService = ();
             type McpServer = ();
 
@@ -471,6 +472,10 @@ mod test {
             }
 
             fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
+                self.inner.file_snapshot_service()
+            }
+            
+            fn file_undo_service(&self) -> &Self::FsUndoService {
                 self.inner.file_snapshot_service()
             }
 

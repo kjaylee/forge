@@ -89,6 +89,13 @@ pub trait FsSnapshotService: Send + Sync {
     async fn undo_snapshot(&self, file_path: &Path) -> Result<()>;
 }
 
+/// Service for undoing file operations
+#[async_trait::async_trait]
+pub trait FsUndoService: Send + Sync {
+    /// Undoes the most recent operation on the specified file path
+    async fn undo(&self, file_path: &Path) -> Result<()>;
+}
+
 /// Service for executing shell commands
 #[async_trait::async_trait]
 pub trait CommandExecutorService: Send + Sync {
@@ -120,6 +127,7 @@ pub trait McpServer: Send + Sync + 'static {
 }
 
 pub trait Infrastructure: Send + Sync + 'static {
+
     type EnvironmentService: EnvironmentService;
     type FsMetaService: FsMetaService;
     type FsReadService: FsReadService;
@@ -127,6 +135,7 @@ pub trait Infrastructure: Send + Sync + 'static {
     type FsSnapshotService: FsSnapshotService;
     type FsWriteService: FsWriteService;
     type FsCreateDirsService: FsCreateDirsService;
+    type FsUndoService: FsUndoService;
     type CommandExecutorService: CommandExecutorService;
     type McpServer: McpServer;
 
@@ -137,6 +146,7 @@ pub trait Infrastructure: Send + Sync + 'static {
     fn file_snapshot_service(&self) -> &Self::FsSnapshotService;
     fn file_write_service(&self) -> &Self::FsWriteService;
     fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
+    fn file_undo_service(&self) -> &Self::FsUndoService;
     fn command_executor_service(&self) -> &Self::CommandExecutorService;
     fn mcp_server(&self) -> &Self::McpServer;
 }

@@ -300,6 +300,14 @@ pub mod tests {
             unimplemented!()
         }
     }
+    
+    #[async_trait::async_trait]
+    impl crate::infra::FsUndoService for MockSnapService {
+        async fn undo(&self, _file_path: &Path) -> anyhow::Result<()> {
+            // For tests, just indicate success
+            Ok(())
+        }
+    }
 
     #[async_trait::async_trait]
     impl FsMetaService for MockFileService {
@@ -470,6 +478,7 @@ pub mod tests {
         type FsMetaService = MockFileService;
         type FsCreateDirsService = MockFileService;
         type FsSnapshotService = MockSnapService;
+        type FsUndoService = MockSnapService;
         type CommandExecutorService = ();
         type McpServer = ();
 
@@ -490,6 +499,10 @@ pub mod tests {
         }
 
         fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
+            &self.file_snapshot_service
+        }
+        
+        fn file_undo_service(&self) -> &Self::FsUndoService {
             &self.file_snapshot_service
         }
 
