@@ -3,7 +3,7 @@ use std::sync::Arc;
 use forge_domain::Services;
 
 use crate::attachment::ForgeChatRequest;
-use crate::compaction::ForgeCompactionService;
+// use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
@@ -26,15 +26,9 @@ pub struct ForgeServices<F> {
     infra: Arc<F>,
     tool_service: Arc<ForgeToolService<McpService<F>>>,
     provider_service: Arc<ForgeProviderService>,
-    conversation_service: Arc<
-        ForgeConversationService<
-            ForgeCompactionService<ForgeTemplateService, ForgeProviderService>,
-            McpService<F>,
-        >,
-    >,
+    conversation_service: Arc<ForgeConversationService<McpService<F>>>,
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
-    compaction_service: Arc<ForgeCompactionService<ForgeTemplateService, ForgeProviderService>>,
     workflow_service: Arc<ForgeWorkflowService<F>>,
     suggestion_service: Arc<ForgeSuggestionService<F>>,
     mcp_manager: Arc<ForgeMcpManager<F>>,
@@ -48,15 +42,8 @@ impl<F: Infrastructure> ForgeServices<F> {
         let template_service = Arc::new(ForgeTemplateService::new());
         let provider_service = Arc::new(ForgeProviderService::new(infra.clone()));
         let attachment_service = Arc::new(ForgeChatRequest::new(infra.clone()));
-        let compaction_service = Arc::new(ForgeCompactionService::new(
-            template_service.clone(),
-            provider_service.clone(),
-        ));
 
-        let conversation_service = Arc::new(ForgeConversationService::new(
-            compaction_service.clone(),
-            mcp_service,
-        ));
+        let conversation_service = Arc::new(ForgeConversationService::new(mcp_service));
 
         let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
         let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
@@ -65,7 +52,6 @@ impl<F: Infrastructure> ForgeServices<F> {
             conversation_service,
             tool_service,
             attachment_service,
-            compaction_service,
             provider_service,
             template_service,
             workflow_service,
@@ -78,11 +64,10 @@ impl<F: Infrastructure> ForgeServices<F> {
 impl<F: Infrastructure> Services for ForgeServices<F> {
     type ToolService = ForgeToolService<McpService<F>>;
     type ProviderService = ForgeProviderService;
-    type ConversationService = ForgeConversationService<Self::CompactionService, McpService<F>>;
+    type ConversationService = ForgeConversationService<McpService<F>>;
     type TemplateService = ForgeTemplateService;
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
-    type CompactionService = ForgeCompactionService<Self::TemplateService, Self::ProviderService>;
     type WorkflowService = ForgeWorkflowService<F>;
     type SuggestionService = ForgeSuggestionService<F>;
     type McpConfigManager = ForgeMcpManager<F>;
@@ -109,10 +94,6 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
-    }
-
-    fn compaction_service(&self) -> &Self::CompactionService {
-        self.compaction_service.as_ref()
     }
 
     fn workflow_service(&self) -> &Self::WorkflowService {

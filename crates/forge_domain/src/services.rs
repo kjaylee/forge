@@ -132,7 +132,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     type TemplateService: TemplateService;
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
-    type CompactionService: CompactionService;
     type WorkflowService: WorkflowService;
     type SuggestionService: SuggestionService;
     type McpConfigManager: McpConfigManager;
@@ -143,7 +142,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn template_service(&self) -> &Self::TemplateService;
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
-    fn compaction_service(&self) -> &Self::CompactionService;
     fn workflow_service(&self) -> &Self::WorkflowService;
     fn suggestion_service(&self) -> &Self::SuggestionService;
     fn mcp_config_manager(&self) -> &Self::McpConfigManager;
