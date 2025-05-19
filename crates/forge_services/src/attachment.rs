@@ -53,13 +53,13 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         &self,
         paths: HashSet<T>,
     ) -> anyhow::Result<Vec<Attachment>> {
-        let results =
-            futures::future::join_all(paths.into_iter().map(|v| v.as_ref().to_path_buf()).map(
-                |v| async move {
-                    (self.populate_attachments(v).await).ok()
-                },
-            ))
-            .await;
+        let results = futures::future::join_all(
+            paths
+                .into_iter()
+                .map(|v| v.as_ref().to_path_buf())
+                .map(|v| async move { (self.populate_attachments(v).await).ok() }),
+        )
+        .await;
 
         // Filter out None values (failed attachments)
         Ok(results.into_iter().flatten().collect())
