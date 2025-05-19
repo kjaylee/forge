@@ -1,22 +1,52 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
+use async_trait::async_trait;
 use bytes::Bytes;
-use derive_builder::Builder;
-use forge_domain::{
-    CommandOutput, Environment, EnvironmentService, McpServerConfig, ToolDefinition, ToolName,
-    ToolOutput,
-};
-use forge_snaps::Snapshot;
+use forge_domain::{CommandOutput, Environment, EnvironmentService, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
+use forge_fs::FileInfo;
+use forge_fs::ForgeFS;
+use forge_snaps::{Snapshot, SnapshotId};
+use tokio::fs::File;
+use tokio::io::AsyncWriteExt;
+use uuid::Uuid;
 
 use crate::{
-    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-    FsSnapshotService, FsWriteService, Infrastructure, InquireService, McpClient, McpServer,
+    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService,
+    FsWriteService, Infrastructure, InquireService, McpClient, McpServer,
 };
 
-#[derive(Clone, Builder)]
-pub struct MockInfrastructure {}
+#[derive(Clone)]
+pub struct MockInfrastructure {
+    temp_dir: Arc<tempfile::TempDir>,
+}
+
+impl MockInfrastructure {
+    pub fn new() -> Self {
+        let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+        Self {
+            temp_dir: Arc::new(temp_dir),
+        }
+    }
+    
+    // Helper method to convert a relative path to an absolute path within the temp directory
+    fn temp_path(&self, path: &Path) -> PathBuf {
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.temp_dir.path().join(path)
+        }
+    }
+}
+
+impl Default for MockInfrastructure {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Infrastructure for MockInfrastructure {
     type EnvironmentService = MockInfrastructure;
@@ -77,86 +107,118 @@ impl EnvironmentService for MockInfrastructure {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl FsMetaService for MockInfrastructure {
-    async fn is_file(&self, _path: &Path) -> anyhow::Result<bool> {
-        todo!()
+    async fn is_file(&self, path: &Path) -> anyhow::Result<bool> {
+        let path = self.temp_path(path);
+        Ok(ForgeFS::is_file(&path))
     }
 
-    async fn exists(&self, _path: &Path) -> anyhow::Result<bool> {
-        todo!()
+    async fn exists(&self, path: &Path) -> anyhow::Result<bool> {
+        let path = self.temp_path(path);
+        Ok(ForgeFS::exists(&path))
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl FsReadService for MockInfrastructure {
-    async fn read_utf8(&self, _path: &Path) -> anyhow::Result<String> {
-        todo!()
+    async fn read_utf8(&self, path: &Path) -> anyhow::Result<String> {
+        let path = self.temp_path(path);
+        ForgeFS::read_utf8(&path).await
     }
 
-    async fn read(&self, _path: &Path) -> anyhow::Result<Vec<u8>> {
-        todo!()
+    async fn read(&self, path: &Path) -> anyhow::Result<Vec<u8>> {
+        let path = self.temp_path(path);
+        ForgeFS::read(&path).await
     }
 
     async fn range_read_utf8(
         &self,
-        _path: &Path,
-        _start_char: u64,
-        _end_char: u64,
-    ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
-        todo!()
+        path: &Path,
+        start_char: u64,
+        end_char: u64,
+    ) -> anyhow::Result<(String, FileInfo)> {
+        let path = self.temp_path(path);
+        ForgeFS::read_range_utf8(&path, start_char, end_char).await
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl FileRemoveService for MockInfrastructure {
-    async fn remove(&self, _path: &Path) -> anyhow::Result<()> {
-        todo!()
+    async fn remove(&self, path: &Path) -> anyhow::Result<()> {
+        let path = self.temp_path(path);
+        ForgeFS::remove_file(&path).await
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl FsSnapshotService for MockInfrastructure {
-    async fn create_snapshot(&self, _file_path: &Path) -> Result<Snapshot> {
-        todo!()
+    async fn create_snapshot(&self, file_path: &Path) -> Result<Snapshot> {
+        // Simple implementation that creates a snapshot with minimal information
+        let path = self.temp_path(file_path);
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_else(|_| Duration::from_secs(0));
+        
+        Ok(Snapshot {
+            id: SnapshotId::from(Uuid::new_v4()),
+            timestamp,
+            path: path.to_string_lossy().to_string(),
+        })
     }
 
     async fn undo_snapshot(&self, _file_path: &Path) -> Result<()> {
-        todo!()
+        // In a real implementation, we'd restore from the last snapshot
+        // For tests, we'll just indicate success
+        Ok(())
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl FsWriteService for MockInfrastructure {
-    async fn write(&self, _path: &Path, _contents: Bytes) -> anyhow::Result<()> {
-        todo!()
+    async fn write(&self, path: &Path, contents: Bytes) -> anyhow::Result<()> {
+        let path = self.temp_path(path);
+        // Create parent directory if it doesn't exist
+        if let Some(parent) = path.parent() {
+            ForgeFS::create_dir_all(parent).await?;
+        }
+        ForgeFS::write(&path, contents).await
     }
 
-    async fn write_temp(
-        &self,
-        _prefix: &str,
-        _ext: &str,
-        _content: &str,
-    ) -> anyhow::Result<PathBuf> {
-        todo!()
+    async fn write_temp(&self, prefix: &str, ext: &str, content: &str) -> anyhow::Result<PathBuf> {
+        // Create a random filename in the temp directory
+        let filename = format!("{}-{}{}", prefix, uuid::Uuid::new_v4(), ext);
+        let path = self.temp_dir.path().join(filename);
+        
+        // Write content to the file
+        let mut file = File::create(&path).await?;
+        file.write_all(content.as_bytes()).await?;
+        file.flush().await?;
+        
+        Ok(path)
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl FsCreateDirsService for MockInfrastructure {
-    async fn create_dirs(&self, _path: &Path) -> anyhow::Result<()> {
-        todo!()
+    async fn create_dirs(&self, path: &Path) -> anyhow::Result<()> {
+        let path = self.temp_path(path);
+        ForgeFS::create_dir_all(&path).await
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl CommandExecutorService for MockInfrastructure {
     async fn execute_command(
         &self,
-        _command: String,
+        command: String,
         _working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        todo!()
+        // Mock command execution with empty output
+        Ok(CommandOutput {
+            command,
+            stdout: "".to_string(),
+            stderr: "".to_string(),
+            exit_code: Some(0),
+        })
     }
 
     async fn execute_command_raw(
@@ -168,35 +230,42 @@ impl CommandExecutorService for MockInfrastructure {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl InquireService for MockInfrastructure {
     async fn prompt_question(&self, _question: &str) -> anyhow::Result<Option<String>> {
-        todo!()
+        // Return a mock answer for testing
+        Ok(Some("mock_answer".to_string()))
     }
 
     async fn select_one(
         &self,
         _message: &str,
-        _options: Vec<String>,
+        options: Vec<String>,
     ) -> anyhow::Result<Option<String>> {
-        todo!()
+        // Return the first option or None if empty
+        Ok(options.into_iter().next())
     }
 
     async fn select_many(
         &self,
         _message: &str,
-        _options: Vec<String>,
+        options: Vec<String>,
     ) -> anyhow::Result<Option<Vec<String>>> {
-        todo!()
+        // Return all options
+        if options.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(options))
+        }
     }
 }
 
 pub struct MockMcpClient;
 
-#[async_trait::async_trait]
+#[async_trait]
 impl McpClient for MockMcpClient {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        todo!()
+        Ok(vec![])
     }
 
     async fn call(
@@ -204,15 +273,15 @@ impl McpClient for MockMcpClient {
         _tool_name: &ToolName,
         _input: serde_json::Value,
     ) -> anyhow::Result<ToolOutput> {
-        todo!()
+        Ok(ToolOutput::default())
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl McpServer for MockInfrastructure {
     type Client = MockMcpClient;
 
     async fn connect(&self, _config: McpServerConfig) -> anyhow::Result<Self::Client> {
-        todo!()
+        Ok(MockMcpClient)
     }
 }
