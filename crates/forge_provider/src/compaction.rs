@@ -32,12 +32,12 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
             .next()
         {
             Some(sequence) => {
-                // debug!(agent_id = %agent.id, "Compressing sequence");
+                debug!("Compressing sequence found");
                 self.compress_single_sequence(options, context, sequence)
                     .await
             }
             None => {
-                // debug!(agent_id = %agent.id, "No compressible sequences found");
+                debug!("No compressible sequences found");
                 Ok(context)
             }
         }
