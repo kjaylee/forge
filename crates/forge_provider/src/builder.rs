@@ -1,6 +1,5 @@
 // Context trait is needed for error handling in the provider implementations
 
-use crate::compaction::ForgeCompactionService;
 use anyhow::{Context as _, Result};
 use forge_domain::{
     ChatCompletionMessage, Compact, Context, Model, ModelId, Provider, ProviderService,
@@ -12,13 +11,13 @@ use std::sync::Arc;
 use crate::anthropic::Anthropic;
 use crate::forge_provider::ForgeProvider;
 
-pub enum ProviderClient {
-    OpenAICompat(ForgeProvider),
-    Anthropic(Anthropic),
+pub enum ProviderClient<T: Clone> {
+    OpenAICompat(ForgeProvider<T>),
+    Anthropic(Anthropic<T>),
 }
 
 pub struct Client<T: Clone> {
-    provider: ProviderClient,
+    provider: ProviderClient<T>,
     template_service: Arc<T>,
 }
 
@@ -33,10 +32,11 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
 
         let client_provider = match &provider {
             Provider::OpenAI { url, .. } => {
-                Ok::<ProviderClient, anyhow::Error>(ProviderClient::OpenAICompat(
+                Ok::<ProviderClient<T>, anyhow::Error>(ProviderClient::OpenAICompat(
                     ForgeProvider::builder()
                         .client(client)
                         .provider(provider.clone())
+                        .template_service(Some(Arc::clone(&template_service)))
                         .build()
                         .with_context(|| format!("Failed to initialize: {url}"))?,
                 ))
@@ -48,6 +48,7 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
                     .api_key(key.to_string())
                     .base_url(url.clone())
                     .anthropic_version("2023-06-01".to_string())
+                    .template_service(Some(Arc::clone(&template_service)))
                     .build()
                     .with_context(|| {
                         format!("Failed to initialize Anthropic client with URL: {url}")
@@ -56,25 +57,6 @@ impl<T: TemplateService + Clone + 'static> Client<T> {
         }?;
 
         Ok(Client { provider: client_provider, template_service })
-    }
-
-    pub async fn compact(&self, context: Context, options: &Compact) -> anyhow::Result<Context> {
-        match &self.provider {
-            ProviderClient::OpenAICompat(p) => {
-                let compaction_service = ForgeCompactionService::new(
-                    Arc::clone(&self.template_service),
-                    Arc::new(p.clone()),
-                );
-                compaction_service.compact_context(options, context).await
-            }
-            ProviderClient::Anthropic(p) => {
-                let compaction_service = ForgeCompactionService::new(
-                    Arc::clone(&self.template_service),
-                    Arc::new(p.clone()),
-                );
-                compaction_service.compact_context(options, context).await
-            }
-        }
     }
 }
 
@@ -95,6 +77,13 @@ impl<C: TemplateService + Clone + 'static> ProviderService for Client<C> {
         match &self.provider {
             ProviderClient::OpenAICompat(provider) => provider.models().await,
             ProviderClient::Anthropic(provider) => provider.models().await,
+        }
+    }
+
+    async fn compact(&self, context: Context, options: &Compact) -> anyhow::Result<Context> {
+        match &self.provider {
+            ProviderClient::OpenAICompat(provider) => provider.compact(context, options).await,
+            ProviderClient::Anthropic(provider) => provider.compact(context, options).await,
         }
     }
 }

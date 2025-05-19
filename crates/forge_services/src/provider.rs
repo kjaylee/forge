@@ -43,4 +43,12 @@ impl ProviderService for ForgeProviderService {
     async fn models(&self) -> Result<Vec<Model>> {
         self.client.models().await
     }
+
+    async fn compact(
+        &self,
+        context: ChatContext,
+        options: &forge_domain::Compact,
+    ) -> Result<ChatContext> {
+        self.client.compact(context, options).await
+    }
 }

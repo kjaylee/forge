@@ -1,6 +1,11 @@
+use std::sync::Arc;
+
 use anyhow::Context as _;
 use derive_builder::Builder;
-use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream};
+use forge_domain::{
+    ChatCompletionMessage, Compact, Context, Model, ModelId, ProviderService, ResultStream,
+    TemplateService,
+};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
@@ -9,18 +14,20 @@ use tracing::{debug, error};
 
 use super::request::Request;
 use super::response::{EventData, ListModelResponse};
+use crate::compaction::ForgeCompactionService;
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
-pub struct Anthropic {
+pub struct Anthropic<T: Clone> {
     client: Client,
     api_key: String,
     base_url: Url,
     anthropic_version: String,
+    template_service: Option<Arc<T>>,
 }
 
-impl Anthropic {
-    pub fn builder() -> AnthropicBuilder {
+impl<T: TemplateService + Clone> Anthropic<T> {
+    pub fn builder() -> AnthropicBuilder<T> {
         AnthropicBuilder::default()
     }
 
@@ -57,7 +64,7 @@ impl Anthropic {
 }
 
 #[async_trait::async_trait]
-impl ProviderService for Anthropic {
+impl<T: TemplateService + Clone + 'static> ProviderService for Anthropic<T> {
     async fn chat(
         &self,
         model: &ModelId,
@@ -180,6 +187,14 @@ impl ProviderService for Anthropic {
                 }
             },
         }
+    }
+
+    async fn compact(&self, context: Context, options: &Compact) -> anyhow::Result<Context> {
+        let compaction_service = ForgeCompactionService::new(
+            self.template_service.clone().unwrap(),
+            Arc::new(self.clone()),
+        );
+        compaction_service.compact_context(options, context).await
     }
 }
 

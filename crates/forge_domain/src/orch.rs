@@ -485,11 +485,11 @@ impl<A: Services> Orchestrator<A> {
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, usage.map(|usage| usage.prompt_tokens as usize)) {
                 debug!(agent_id = %agent.id, "Compaction needed, applying compaction");
-                // context = self
-                //     .services
-                //     .compaction_service()
-                //     .compact_context(context, agent.compact.as_ref().unwrap())
-                //     .await?;
+                context = self
+                    .services
+                    .provider_service()
+                    .compact(context, agent.compact.as_ref().unwrap())
+                    .await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }

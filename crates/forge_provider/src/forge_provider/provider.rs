@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use anyhow::{Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
-    self, ChatCompletionMessage, Context as ChatContext, ModelId, Provider, ProviderService,
-    ResultStream,
+    self, ChatCompletionMessage, Compact, Context as ChatContext, ModelId, Provider,
+    ProviderService, ResultStream, TemplateService,
 };
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
@@ -13,17 +15,19 @@ use tracing::debug;
 use super::model::{ListModelResponse, Model};
 use super::request::Request;
 use super::response::Response;
+use crate::compaction::ForgeCompactionService;
 use crate::forge_provider::transformers::{ProviderPipeline, Transformer};
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
-pub struct ForgeProvider {
+pub struct ForgeProvider<T: Clone> {
     client: Client,
     provider: Provider,
+    template_service: Option<Arc<T>>,
 }
 
-impl ForgeProvider {
-    pub fn builder() -> ForgeProviderBuilder {
+impl<T: TemplateService + Clone> ForgeProvider<T> {
+    pub fn builder() -> ForgeProviderBuilder<T> {
         ForgeProviderBuilder::default()
     }
 
@@ -197,7 +201,7 @@ impl ForgeProvider {
 }
 
 #[async_trait::async_trait]
-impl ProviderService for ForgeProvider {
+impl<T: TemplateService + Clone + 'static> ProviderService for ForgeProvider<T> {
     async fn chat(
         &self,
         model: &ModelId,
@@ -208,6 +212,18 @@ impl ProviderService for ForgeProvider {
 
     async fn models(&self) -> Result<Vec<forge_domain::Model>> {
         self.inner_models().await
+    }
+
+    async fn compact(
+        &self,
+        context: ChatContext,
+        options: &Compact,
+    ) -> anyhow::Result<ChatContext> {
+        let compaction_service = ForgeCompactionService::new(
+            self.template_service.clone().unwrap(),
+            Arc::new(self.clone()),
+        );
+        compaction_service.compact_context(options, context).await
     }
 }
 
