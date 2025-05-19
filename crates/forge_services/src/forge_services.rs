@@ -40,7 +40,7 @@ pub struct ForgeServices<F> {
     mcp_manager: Arc<ForgeMcpManager<F>>,
 }
 
-impl<F: Infrastructure> ForgeServices<F> {
+impl<F: Infrastructure + Clone> ForgeServices<F> {
     pub fn new(infra: Arc<F>) -> Self {
         let mcp_manager = Arc::new(ForgeMcpManager::new(infra.clone()));
         let mcp_service = Arc::new(ForgeMcpService::new(mcp_manager.clone(), infra.clone()));
@@ -75,7 +75,7 @@ impl<F: Infrastructure> ForgeServices<F> {
     }
 }
 
-impl<F: Infrastructure> Services for ForgeServices<F> {
+impl<F: Infrastructure + Clone> Services for ForgeServices<F> {
     type ToolService = ForgeToolService<McpService<F>>;
     type ProviderService = ForgeProviderService;
     type ConversationService = ForgeConversationService<Self::CompactionService, McpService<F>>;
@@ -128,7 +128,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     }
 }
 
-impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
+impl<F: Infrastructure + Clone> Infrastructure for ForgeServices<F> {
     type EnvironmentService = F::EnvironmentService;
     type FsReadService = F::FsReadService;
     type FsWriteService = F::FsWriteService;

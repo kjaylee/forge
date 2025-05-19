@@ -54,6 +54,7 @@ serde_yml.workspace = true
 merge.workspace = true
 strip-ansi-escapes.workspace = true
 rmcp.workspace = true
+derive_builder.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

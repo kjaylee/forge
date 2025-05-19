@@ -142,7 +142,7 @@ pub trait McpServer: Send + Sync + 'static {
     async fn connect(&self, config: McpServerConfig) -> anyhow::Result<Self::Client>;
 }
 
-pub trait Infrastructure: Send + Sync + Clone + 'static {
+pub trait Infrastructure: Send + Sync + 'static {
     type EnvironmentService: EnvironmentService;
     type FsMetaService: FsMetaService;
     type FsReadService: FsReadService;

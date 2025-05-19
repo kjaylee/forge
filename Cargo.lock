@@ -1158,6 +1158,7 @@ dependencies = [
  "bytes",
  "chrono",
  "console",
+ "derive_builder",
  "derive_more",
  "derive_setters",
  "dissimilar",
