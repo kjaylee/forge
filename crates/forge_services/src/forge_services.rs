@@ -26,7 +26,7 @@ pub struct ForgeServices<F> {
     infra: Arc<F>,
     tool_service: Arc<ForgeToolService<McpService<F>>>,
     provider_service: Arc<ForgeProviderService>,
-    conversation_service: Arc<ForgeConversationService<McpService<F>>>,
+    conversation_service: Arc<ForgeConversationService<McpService<F>, ForgeProviderService>>,
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
     workflow_service: Arc<ForgeWorkflowService<F>>,
@@ -43,7 +43,10 @@ impl<F: Infrastructure> ForgeServices<F> {
         let provider_service = Arc::new(ForgeProviderService::new(infra.clone()));
         let attachment_service = Arc::new(ForgeChatRequest::new(infra.clone()));
 
-        let conversation_service = Arc::new(ForgeConversationService::new(mcp_service));
+        let conversation_service: Arc<ForgeConversationService<ForgeMcpService<ForgeMcpManager<F>, F>, ForgeProviderService>> = Arc::new(ForgeConversationService::new(
+            mcp_service,
+            provider_service.clone(),
+        ));
 
         let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
         let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
@@ -64,7 +67,7 @@ impl<F: Infrastructure> ForgeServices<F> {
 impl<F: Infrastructure> Services for ForgeServices<F> {
     type ToolService = ForgeToolService<McpService<F>>;
     type ProviderService = ForgeProviderService;
-    type ConversationService = ForgeConversationService<McpService<F>>;
+    type ConversationService = ForgeConversationService<McpService<F>, Self::ProviderService>;
     type TemplateService = ForgeTemplateService;
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
