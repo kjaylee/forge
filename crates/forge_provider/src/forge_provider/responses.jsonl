@@ -1,0 +1,12 @@
+{"error": {"message": "No auth credentials found", "code": 401}}
+{"error": {"message": "Key limit exceeded. Manage it using https://openrouter.ai/settings/keys", "code": 403}}
+{"error": {"code": "ERR_STREAM_PREMATURE_CLOSE"}}
+{"error": {"error": {"message": "Provider returned error", "code": 413, "metadata": {"raw": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Prompt is too long\"}}", "provider_name": "Google"}}, "code": 413}}
+{"error": {"message": "This request requires more credits, or fewer max_tokens. You requested up to 84980 tokens, but can only afford 69644. To increase, visit https://openrouter.ai/settings/keys and create a key with a higher limit", "code": 402, "metadata": {"provider_name": null}}, "user_id": "user_2q36EtHSol1CeC92ASe8n5NfpRV"}
+{"error": {"message": "Overloaded", "code": 502, "metadata": {"raw": {"type": "overloaded_error", "message": "Overloaded"}, "provider_name": "Anthropic"}}, "user_id": "org_2wZ6LHHh0PySw3TNN7NTK7OcCvE"}
+{"error": {"message": "Insufficient credits. Add more using https://openrouter.ai/settings/credits", "code": 402}}
+{"error": {"error": {"message": "Provider returned error", "code": 400, "metadata": {"raw": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"input length and `max_tokens` exceed context limit: 150104 + 62934 > 200000, decrease input length or `max_tokens` and try again\"}}", "provider_name": "Google"}}, "code": 400}}
+{"error": {"message": "Provider returned error", "code": 413, "metadata": {"raw": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Prompt is too long\"}}", "provider_name": "Google"}}, "user_id": "user_2q36EtHSol1CeC92ASe8n5NfpRV"}
+{"error": {"message": "Provider returned error", "code": 400, "metadata": {"raw": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"input length and `max_tokens` exceed context limit: 90991 + 114229 > 200000, decrease input length or `max_tokens` and try again\"}}", "provider_name": "Anthropic"}}, "user_id": "org_2wZ6LHHh0PySw3TNN7NTK7OcCvE"}
+{"error": {"code": "500", "message": "Internal Server Error", "id": "sqxGheMLOlW9rmsFLTREdl0ucekQOQdN"}}
+{"error": {"errno": -110, "code": "ETIMEDOUT", "syscall": "read"}}

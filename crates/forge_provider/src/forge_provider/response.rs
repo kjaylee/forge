@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use derive_more::Display;
 use forge_domain::{
     ChatCompletionMessage as ModelResponse, Content, FinishReason, ToolCallFull, ToolCallId,
     ToolCallPart, ToolName, Usage,
@@ -58,17 +59,28 @@ pub enum Choice {
     },
 }
 
+#[derive(Debug, Display, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum Code {
+    String(String),
+    Number(u32),
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ErrorResponse {
-    pub code: u32,
-    pub message: String,
+    pub code: Code,
+    pub message: Option<String>,
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
 impl Display for ErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "message: {}", self.message)?;
+        if let Some(ref message) = self.message {
+            write!(f, "code: {}, message: {}", self.code, message)?;
+        } else {
+            write!(f, "code: {}", self.code)?;
+        }
         if !self.metadata.is_empty() {
             if let Ok(str_repr) = serde_json::to_string(&self.metadata) {
                 write!(f, ", details: {str_repr}")?;
@@ -220,5 +232,18 @@ mod tests {
     fn test_antinomy_response_event() {
         let event = "{\"id\":\"gen-1739949430-JZMcABaj4fg8oFDtRNDZ\",\"provider\":\"OpenAI\",\"model\":\"openai/gpt-4o-mini\",\"object\":\"chat.completion.chunk\",\"created\":1739949430,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_bhjvz9w48ov4DSRhM15qLMmh\",\"type\":\"function\",\"function\":{\"name\":\"forge_tool_process_shell\",\"arguments\":\"\"}}],\"refusal\":null},\"logprobs\":null,\"finish_reason\":null,\"native_finish_reason\":null}],\"system_fingerprint\":\"fp_00428b782a\"}";
         assert!(Fixture::test_response_compatibility(event));
+    }
+
+    #[test]
+    fn test_responses() -> anyhow::Result<()> {
+        let input = include_str!("./responses.jsonl").split("\n");
+        for (i, line) in input.enumerate() {
+            let i = i + 1;
+            let _: Response = serde_json::from_str(line).with_context(|| {
+                format!("Failed to parse response [responses.jsonl:{i}]: {line}")
+            })?;
+        }
+
+        Ok(())
     }
 }
