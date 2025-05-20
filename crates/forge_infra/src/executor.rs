@@ -23,7 +23,7 @@ impl ForgeCommandExecutorService {
         Self { restricted, env, ready: Arc::new(Mutex::new(())) }
     }
 
-    fn prepare_command(&self, command_str: &str, working_dir: &Path) -> Command {
+    fn prepare_command(&self, command_str: &str, working_dir: Option<&Path>) -> Command {
         // Create a basic command
         let is_windows = cfg!(target_os = "windows");
         let shell = if self.restricted && !is_windows {
@@ -61,7 +61,9 @@ impl ForgeCommandExecutorService {
         command.kill_on_drop(true);
 
         // Set the working directory
-        command.current_dir(working_dir);
+        if let Some(working_dir) = working_dir {
+            command.current_dir(working_dir);
+        }
 
         // Configure the command for output
         command
@@ -80,7 +82,7 @@ impl ForgeCommandExecutorService {
     ) -> anyhow::Result<CommandOutput> {
         let ready = self.ready.lock().await;
 
-        let mut prepared_command = self.prepare_command(&command, working_dir);
+        let mut prepared_command = self.prepare_command(&command, Some(working_dir));
 
         // Spawn the command
         let mut child = prepared_command.spawn()?;
@@ -143,26 +145,15 @@ impl CommandExecutorService for ForgeCommandExecutorService {
     }
 
     async fn execute_command_raw(&self, command: &str) -> anyhow::Result<std::process::ExitStatus> {
-        // Create a basic command
-        let is_windows = cfg!(target_os = "windows");
-        let shell = if self.restricted && !is_windows {
-            "rbash"
-        } else {
-            self.env.shell.as_str()
-        };
-        let mut tokio_cmd = Command::new(shell);
+        let mut prepared_command = self.prepare_command(&command, None);
 
-        let parameter = if is_windows { "/C" } else { "-c" };
-        tokio_cmd.arg(parameter);
+        // overwrite the stdin, stdout and stderr to inherit
+        prepared_command
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit());
 
-        #[cfg(windows)]
-        tokio_cmd.raw_arg(command);
-        #[cfg(unix)]
-        tokio_cmd.arg(command);
-
-        tokio_cmd.kill_on_drop(true);
-
-        Ok(tokio_cmd.spawn()?.wait().await?)
+        Ok(prepared_command.spawn()?.wait().await?)
     }
 }
 
