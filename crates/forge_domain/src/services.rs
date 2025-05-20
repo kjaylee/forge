@@ -7,14 +7,20 @@ use crate::{
     ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
 };
 
+pub trait ProviderError: std::error::Error + Send + Sync + 'static {
+    fn status_code(&self) -> Option<u16>;
+    fn is_transport_error(&self) -> bool;
+}
+
 #[async_trait::async_trait]
 pub trait ProviderService: Send + Sync + 'static {
+    type Error: ProviderError;
     async fn chat(
         &self,
         id: &ModelId,
         context: Context,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
-    async fn models(&self) -> anyhow::Result<Vec<Model>>;
+    ) -> ResultStream<ChatCompletionMessage, Self::Error>;
+    async fn models(&self) -> std::result::Result<Vec<Model>, Self::Error>;
 }
 
 #[async_trait::async_trait]

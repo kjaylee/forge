@@ -194,7 +194,8 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         context: &Context,
-        mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
+        mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, impl ProviderError>>
+            + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
         let mut request_usage: Option<Usage> = None;
@@ -379,20 +380,6 @@ impl<A: Services> Orchestrator<A> {
             .sender(self.sender.clone())
     }
 
-    async fn chat(
-        &self,
-        agent: &Agent,
-        model_id: &ModelId,
-        context: Context,
-    ) -> anyhow::Result<ChatCompletionResult> {
-        let response = self
-            .services
-            .provider_service()
-            .chat(model_id, context.clone())
-            .await?;
-        self.collect_messages(agent, &context, response).await
-    }
-
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
         let conversation = self.get_conversation().await?;
@@ -471,16 +458,22 @@ impl<A: Services> Orchestrator<A> {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
 
+            let response = (|| {
+                self.services
+                    .provider_service()
+                    .chat(&model_id, context.clone())
+            })
+            .retry(
+                ExponentialBuilder::default()
+                    .with_factor(retry_config.backoff_factor as f32)
+                    .with_max_times(retry_config.max_retry_attempts)
+                    .with_jitter(),
+            )
+            .when(should_retry(&retry_config.retry_status_codes))
+            .await?;
+
             let ChatCompletionResult { tool_calls, content, usage } =
-                (|| self.chat(agent, &model_id, context.clone()))
-                    .retry(
-                        ExponentialBuilder::default()
-                            .with_factor(retry_config.backoff_factor as f32)
-                            .with_max_times(retry_config.max_retry_attempts)
-                            .with_jitter(),
-                    )
-                    .when(should_retry(&retry_config.retry_status_codes))
-                    .await?;
+                self.collect_messages(agent, &context, response).await?;
 
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, usage.map(|usage| usage.prompt_tokens as usize)) {
@@ -583,18 +576,11 @@ impl<A: Services> Orchestrator<A> {
     }
 }
 
-fn should_retry(status_codes: &[u16]) -> impl Fn(&anyhow::Error) -> bool + '_ {
+fn should_retry<E: ProviderError>(status_codes: &[u16]) -> impl Fn(&E) -> bool + '_ {
     move |error| {
         error
-            .source()
-            .and_then(|err| err.downcast_ref::<reqwest_eventsource::Error>())
-            .map(|err| match err {
-                reqwest_eventsource::Error::Transport(_) => true,
-                reqwest_eventsource::Error::InvalidStatusCode(status_code, _) => {
-                    status_codes.contains(&status_code.as_u16())
-                }
-                _ => false,
-            })
-            .unwrap_or(false)
+            .status_code()
+            .is_some_and(|code| status_codes.contains(&code))
+            || error.is_transport_error()
     }
 }

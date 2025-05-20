@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 use derive_builder::Builder;
-use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, ProviderService, ResultStream};
+use forge_domain::{ChatCompletionMessage, Context, Model, ModelId, ResultStream};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
@@ -56,9 +56,8 @@ impl Anthropic {
     }
 }
 
-#[async_trait::async_trait]
-impl ProviderService for Anthropic {
-    async fn chat(
+impl Anthropic {
+    pub async fn chat(
         &self,
         model: &ModelId,
         context: Context,
@@ -77,7 +76,7 @@ impl ProviderService for Anthropic {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format_http_context(None, "POST", &url))?;
+            .with_context(|| format_http_context(None, "POST", &url))?;
 
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -121,7 +120,7 @@ impl ProviderService for Anthropic {
                         reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                             let status_code = response.status();
                             debug!(response = ?response, "Invalid content type");
-                            Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {status_code}" ))))
+                            Some(Err(error).with_context(||format!("Http Status: {status_code}" )))
                         }
                         error => {
                             debug!(error = %error, "Failed to receive chat completion event");
@@ -131,14 +130,15 @@ impl ProviderService for Anthropic {
                 }
             }).map(move |response| {
                 match response {
-                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", &url)))),
+                    Some(Err(err)) => Some(Err(err).with_context(||format_http_context(None, "POST", &url))),
                     _ => response,
                 }
             });
 
         Ok(Box::pin(stream.filter_map(|x| x)))
     }
-    async fn models(&self) -> anyhow::Result<Vec<Model>> {
+
+    pub async fn models(&self) -> anyhow::Result<Vec<Model>> {
         let url = self.url("models")?;
         debug!(url = %url, "Fetching models");
 
@@ -154,8 +154,8 @@ impl ProviderService for Anthropic {
                 debug!(error = %err, "Failed to fetch models");
                 let ctx_msg = format_http_context(err.status(), "GET", &url);
                 Err(anyhow::anyhow!(err))
-                    .context(ctx_msg)
-                    .context("Failed to fetch models")
+                    .with_context(|| ctx_msg)
+                    .with_context(|| "Failed to fetch models")
             }
             Ok(response) => match response.error_for_status() {
                 Ok(response) => {
@@ -163,20 +163,20 @@ impl ProviderService for Anthropic {
                     match response.text().await {
                         Ok(text) => {
                             let response: ListModelResponse = serde_json::from_str(&text)
-                                .context(ctx_msg)
-                                .context("Failed to deserialize models response")?;
+                                .with_context(|| ctx_msg)
+                                .with_context(|| "Failed to deserialize models response")?;
                             Ok(response.data.into_iter().map(Into::into).collect())
                         }
                         Err(err) => Err(anyhow::anyhow!(err))
-                            .context(ctx_msg)
-                            .context("Failed to decode response into text"),
+                            .with_context(|| ctx_msg)
+                            .with_context(|| "Failed to decode response into text"),
                     }
                 }
                 Err(err) => {
                     let ctx_msg = format_http_context(err.status(), "GET", &url);
                     Err(anyhow::anyhow!(err))
-                        .context(ctx_msg)
-                        .context("Failed because of a non 200 status code".to_string())
+                        .with_context(|| ctx_msg)
+                        .with_context(|| "Failed because of a non 200 status code".to_string())
                 }
             },
         }

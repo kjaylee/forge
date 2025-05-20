@@ -1,5 +1,6 @@
 mod anthropic;
 mod builder;
+mod error;
 mod forge_provider;
 mod utils;
 

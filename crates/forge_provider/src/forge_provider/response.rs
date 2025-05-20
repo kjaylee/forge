@@ -1,16 +1,13 @@
-use std::collections::HashMap;
-use std::fmt::Display;
 use std::str::FromStr;
 
-use derive_more::Display;
 use forge_domain::{
-    ChatCompletionMessage as ModelResponse, Content, FinishReason, ToolCallFull, ToolCallId,
-    ToolCallPart, ToolName, Usage,
+    ChatCompletionMessage, Content, FinishReason, ToolCallFull, ToolCallId, ToolCallPart, ToolName,
+    Usage,
 };
 use serde::{Deserialize, Serialize};
 
-use super::error::Error;
 use super::tool_choice::FunctionType;
+use crate::error::{Error, OpenAiApiError};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -26,7 +23,7 @@ pub enum Response {
         usage: Option<ResponseUsage>,
     },
     Failure {
-        error: ErrorResponse,
+        error: OpenAiApiError,
     },
 }
 
@@ -43,51 +40,20 @@ pub enum Choice {
     NonChat {
         finish_reason: Option<String>,
         text: String,
-        error: Option<ErrorResponse>,
+        error: Option<OpenAiApiError>,
     },
     NonStreaming {
         logprobs: Option<serde_json::Value>,
         index: u32,
         finish_reason: Option<String>,
         message: ResponseMessage,
-        error: Option<ErrorResponse>,
+        error: Option<OpenAiApiError>,
     },
     Streaming {
         finish_reason: Option<String>,
         delta: ResponseMessage,
-        error: Option<ErrorResponse>,
+        error: Option<OpenAiApiError>,
     },
-}
-
-#[derive(Debug, Display, Deserialize, Serialize, Clone)]
-#[serde(untagged)]
-pub enum Code {
-    String(String),
-    Number(u32),
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ErrorResponse {
-    pub code: Code,
-    pub message: Option<String>,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub metadata: HashMap<String, serde_json::Value>,
-}
-
-impl Display for ErrorResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(ref message) = self.message {
-            write!(f, "code: {}, message: {}", self.code, message)?;
-        } else {
-            write!(f, "code: {}", self.code)?;
-        }
-        if !self.metadata.is_empty() {
-            if let Ok(str_repr) = serde_json::to_string(&self.metadata) {
-                write!(f, ", details: {str_repr}")?;
-            }
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -123,7 +89,7 @@ impl From<ResponseUsage> for Usage {
     }
 }
 
-impl TryFrom<Response> for ModelResponse {
+impl TryFrom<Response> for ChatCompletionMessage {
     type Error = Error;
 
     fn try_from(res: Response) -> Result<Self, Self::Error> {
@@ -132,14 +98,14 @@ impl TryFrom<Response> for ModelResponse {
                 if let Some(choice) = choices.first() {
                     let mut response = match choice {
                         Choice::NonChat { text, finish_reason, .. } => {
-                            ModelResponse::assistant(Content::full(text)).finish_reason_opt(
+                            ChatCompletionMessage::assistant(Content::full(text)).finish_reason_opt(
                                 finish_reason
                                     .clone()
                                     .and_then(|s| FinishReason::from_str(&s).ok()),
                             )
                         }
                         Choice::NonStreaming { message, finish_reason, .. } => {
-                            let mut resp = ModelResponse::assistant(Content::full(
+                            let mut resp = ChatCompletionMessage::assistant(Content::full(
                                 message.content.clone().unwrap_or_default(),
                             ))
                             .finish_reason_opt(
@@ -165,7 +131,7 @@ impl TryFrom<Response> for ModelResponse {
                             resp
                         }
                         Choice::Streaming { delta, finish_reason, .. } => {
-                            let mut resp = ModelResponse::assistant(Content::part(
+                            let mut resp = ChatCompletionMessage::assistant(Content::part(
                                 delta.content.clone().unwrap_or_default(),
                             ))
                             .finish_reason_opt(
@@ -191,11 +157,11 @@ impl TryFrom<Response> for ModelResponse {
                     }
                     Ok(response)
                 } else {
-                    let default_response = ModelResponse::assistant(Content::full(""));
+                    let default_response = ChatCompletionMessage::assistant(Content::full(""));
                     Ok(default_response)
                 }
             }
-            Response::Failure { error } => Err(Error::Upstream(error)),
+            Response::Failure { error } => Err(Error::OpenAI(error)),
         }
     }
 }

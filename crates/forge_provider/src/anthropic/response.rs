@@ -1,9 +1,9 @@
-use std::fmt::{self, Display, Formatter};
 
 use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCallPart, ToolName};
 use serde::Deserialize;
 
 use super::request::Role;
+use crate::error::{AnthropicApiError, Error};
 
 #[derive(Deserialize)]
 pub struct ListModelResponse {
@@ -80,7 +80,7 @@ impl From<StopReason> for forge_domain::FinishReason {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Event {
     Error {
-        error: ErrorData,
+        error: AnthropicApiError,
     },
     MessageStart {
         message: MessageStart,
@@ -113,20 +113,6 @@ pub enum EventData {
     Unknown(serde_json::Value),
 }
 
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub enum ErrorData {
-    OverloadedError { message: String },
-}
-
-impl Display for ErrorData {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ErrorData::OverloadedError { message } => write!(f, "OverloadedError: {message}"),
-        }
-    }
-}
-
 #[derive(Deserialize, Clone, PartialEq, Debug)]
 pub struct MessageDelta {
     pub stop_reason: StopReason,
@@ -154,7 +140,7 @@ pub enum ContentBlock {
 }
 
 impl TryFrom<EventData> for ChatCompletionMessage {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: EventData) -> Result<Self, Self::Error> {
         match value {
             EventData::KnownEvent(event) => ChatCompletionMessage::try_from(event),
@@ -167,7 +153,7 @@ impl TryFrom<EventData> for ChatCompletionMessage {
 }
 
 impl TryFrom<Event> for ChatCompletionMessage {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: Event) -> Result<Self, Self::Error> {
         let result = match value {
             Event::ContentBlockStart { content_block, .. }
@@ -178,7 +164,7 @@ impl TryFrom<Event> for ChatCompletionMessage {
                 ChatCompletionMessage::assistant(Content::part("")).finish_reason(delta.stop_reason)
             }
             Event::Error { error } => {
-                return Err(anyhow::anyhow!("Anthropic API error: {}", error));
+                return Err(error.into());
             }
             _ => ChatCompletionMessage::assistant(Content::part("")),
         };
@@ -188,7 +174,7 @@ impl TryFrom<Event> for ChatCompletionMessage {
 }
 
 impl TryFrom<ContentBlock> for ChatCompletionMessage {
-    type Error = anyhow::Error;
+    type Error = Error;
     fn try_from(value: ContentBlock) -> Result<Self, Self::Error> {
         let result = match value {
             ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
@@ -240,7 +226,7 @@ mod tests {
                 "error",
                 r#"{"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#,
                 Event::Error {
-                    error: ErrorData::OverloadedError { message: "Overloaded".to_string() },
+                    error: AnthropicApiError::OverloadedError { message: "Overloaded".to_string() },
                 },
             ),
             (

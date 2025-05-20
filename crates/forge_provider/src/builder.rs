@@ -1,10 +1,14 @@
 // Context trait is needed for error handling in the provider implementations
 
 use anyhow::{Context as _, Result};
+use derive_more::{Display, From};
 use forge_domain::{
-    ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
+    ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderError, ProviderService,
+    ResultStream,
 };
 use reqwest::redirect::Policy;
+use thiserror::Error;
+use tokio_stream::StreamExt;
 
 use crate::anthropic::Anthropic;
 use crate::forge_provider::ForgeProvider;
@@ -49,21 +53,39 @@ impl Client {
 
 #[async_trait::async_trait]
 impl ProviderService for Client {
+    type Error = ForgeProviderError;
     async fn chat(
         &self,
         model: &ModelId,
         context: Context,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        match self {
+    ) -> ResultStream<ChatCompletionMessage, Self::Error> {
+        let chat_stream = match self {
             Client::OpenAICompat(provider) => provider.chat(model, context).await,
             Client::Anthropic(provider) => provider.chat(model, context).await,
-        }
+        }?;
+
+        Ok(Box::pin(
+            chat_stream.map(|item| item.map_err(ForgeProviderError::from)),
+        ))
     }
 
-    async fn models(&self) -> anyhow::Result<Vec<Model>> {
-        match self {
+    async fn models(&self) -> Result<Vec<Model>, Self::Error> {
+        Ok(match self {
             Client::OpenAICompat(provider) => provider.models().await,
             Client::Anthropic(provider) => provider.models().await,
-        }
+        }?)
+    }
+}
+
+#[derive(Display, Debug, Error, From)]
+pub struct ForgeProviderError(anyhow::Error);
+
+impl ProviderError for ForgeProviderError {
+    fn status_code(&self) -> Option<u16> {
+        todo!()
+    }
+
+    fn is_transport_error(&self) -> bool {
+        todo!()
     }
 }
