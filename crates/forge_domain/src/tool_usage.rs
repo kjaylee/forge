@@ -60,7 +60,7 @@ impl Display for ToolUsagePrompt<'_> {
                 .collect::<BTreeMap<_, _>>();
 
             let schema = Schema {
-                name: tool.name.as_str().to_string(),
+                name: tool.name.to_string(),
                 arguments: parameters,
                 description: tool.description.clone(),
             };
@@ -103,6 +103,7 @@ mod tests {
     use super::*;
     use crate::{
         ExecutableTool, NamedTool, ToolCallContext, ToolDefinition, ToolDescription, ToolName,
+        ToolOutput,
     };
 
     #[derive(Default)]
@@ -135,8 +136,8 @@ mod tests {
     impl ExecutableTool for MangoTool {
         type Input = ToolInput;
 
-        async fn call(&self, _: ToolCallContext, _: Self::Input) -> anyhow::Result<String> {
-            Ok("Completed".to_string())
+        async fn call(&self, _: ToolCallContext, _: Self::Input) -> anyhow::Result<ToolOutput> {
+            Ok(ToolOutput::text("Completed".to_string()))
         }
     }
 

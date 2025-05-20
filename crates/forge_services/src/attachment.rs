@@ -3,8 +3,7 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use base64::Engine;
-use forge_domain::{Attachment, AttachmentService, ContentType, EnvironmentService};
+use forge_domain::{Attachment, AttachmentContent, AttachmentService, EnvironmentService, Image};
 
 use crate::{FsReadService, Infrastructure};
 
@@ -17,12 +16,12 @@ pub struct ForgeChatRequest<F> {
 impl<F: Infrastructure> ForgeChatRequest<F> {
     async fn generate_image_content(
         path: &Path,
-        img_format: &str,
+        img_format: String,
         infra: &impl FsReadService,
-    ) -> anyhow::Result<String> {
+    ) -> anyhow::Result<Image> {
         let bytes = infra.read(path).await?;
-        let base64_encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-        Ok(format!("data:image/{img_format};base64,{base64_encoded}"))
+
+        Ok(Image::new_bytes(bytes, img_format))
     }
 
     async fn generate_text_content(
@@ -78,30 +77,24 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         }
 
         // Determine file type (text or image with format)
-        let img_format = extension.and_then(|ext| match ext.as_str() {
-            "jpeg" | "jpg" => Some("jpeg".to_string()),
-            "png" => Some("png".to_string()),
-            "webp" => Some("webp".to_string()),
+        let mime_type = extension.and_then(|ext| match ext.as_str() {
+            "jpeg" | "jpg" => Some("image/jpeg".to_string()),
+            "png" => Some("image/png".to_string()),
+            "webp" => Some("image/webp".to_string()),
             _ => None,
         });
 
-        let (content, content_type) = match img_format {
-            Some(format) => (
-                Self::generate_image_content(&path, &format, self.infra.file_read_service())
+        let content = match mime_type {
+            Some(mime_type) => AttachmentContent::Image(
+                Self::generate_image_content(&path, mime_type, self.infra.file_read_service())
                     .await?,
-                ContentType::Image,
             ),
-            None => (
+            None => AttachmentContent::FileContent(
                 Self::generate_text_content(&path, self.infra.file_read_service()).await?,
-                ContentType::Text,
             ),
         };
 
-        Ok(Attachment {
-            content,
-            path: path.to_string_lossy().to_string(),
-            content_type,
-        })
+        Ok(Attachment { content, path: path.to_string_lossy().to_string() })
     }
 }
 
@@ -121,14 +114,18 @@ pub mod tests {
     use base64::Engine;
     use bytes::Bytes;
     use forge_domain::{
-        AttachmentService, CommandOutput, ContentType, Environment, EnvironmentService, Provider,
+        AttachmentContent, AttachmentService, CommandOutput, Environment, EnvironmentService,
+        Provider, ToolDefinition, ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
+    use serde_json::Value;
 
     use crate::attachment::ForgeChatRequest;
+    use crate::utils::AttachmentExtension;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService, TempDir,
+        FsReadService, FsSnapshotService, FsWriteService, Infrastructure, InquireService,
+        McpClient, McpServer,
     };
 
     #[derive(Debug)]
@@ -282,7 +279,7 @@ pub mod tests {
         }
 
         async fn write_temp(&self, _: &str, _: &str, content: &str) -> anyhow::Result<PathBuf> {
-            let temp_dir = TempDir::new().unwrap();
+            let temp_dir = crate::utils::TempDir::new().unwrap();
             let path = temp_dir.path();
 
             self.write(&path, content.to_string().into()).await?;
@@ -319,6 +316,26 @@ pub mod tests {
 
         async fn exists(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl McpClient for () {
+        async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
+            Ok(vec![])
+        }
+
+        async fn call(&self, _: &ToolName, _: Value) -> anyhow::Result<ToolOutput> {
+            Ok(ToolOutput::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl McpServer for () {
+        type Client = ();
+
+        async fn connect(&self, _: forge_domain::McpServerConfig) -> anyhow::Result<Self::Client> {
+            Ok(())
         }
     }
 
@@ -491,6 +508,7 @@ pub mod tests {
         type FsSnapshotService = MockSnapService;
         type CommandExecutorService = ();
         type InquireService = ();
+        type McpServer = ();
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -527,6 +545,10 @@ pub mod tests {
         fn inquire_service(&self) -> &Self::InquireService {
             &()
         }
+
+        fn mcp_server(&self) -> &Self::McpServer {
+            &()
+        }
     }
 
     #[tokio::test]
@@ -546,7 +568,6 @@ pub mod tests {
         assert_eq!(attachments.len(), 1);
         let attachment = attachments.first().unwrap();
         assert_eq!(attachment.path, "/test/file1.txt");
-        assert_eq!(attachment.content_type, ContentType::Text);
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("This is a text file content"));
@@ -571,14 +592,13 @@ pub mod tests {
         assert_eq!(attachments.len(), 1);
         let attachment = attachments.first().unwrap();
         assert_eq!(attachment.path, "/test/image.png");
-        assert!(matches!(attachment.content_type, ContentType::Image));
 
         // Base64 content should be the encoded mock binary content with proper data URI
         // format
         let expected_base64 =
             base64::engine::general_purpose::STANDARD.encode("mock-binary-content");
         assert_eq!(
-            attachment.content,
+            attachment.content.as_image().unwrap().url().as_str(),
             format!("data:image/png;base64,{expected_base64}")
         );
     }
@@ -604,7 +624,7 @@ pub mod tests {
         // format
         let expected_base64 = base64::engine::general_purpose::STANDARD.encode("mock-jpeg-content");
         assert_eq!(
-            attachment.content,
+            attachment.content.as_image().unwrap().url().as_str(),
             format!("data:image/jpeg;base64,{expected_base64}")
         );
     }
@@ -633,15 +653,15 @@ pub mod tests {
         assert_eq!(attachments.len(), 3);
 
         // Verify that each expected file is in the attachments
-        let has_file1 = attachments
-            .iter()
-            .any(|a| a.path == "/test/file1.txt" && matches!(a.content_type, ContentType::Text));
-        let has_file2 = attachments
-            .iter()
-            .any(|a| a.path == "/test/file2.txt" && matches!(a.content_type, ContentType::Text));
-        let has_image = attachments
-            .iter()
-            .any(|a| a.path == "/test/image.png" && matches!(a.content_type, ContentType::Image));
+        let has_file1 = attachments.iter().any(|a| {
+            a.path == "/test/file1.txt" && matches!(a.content, AttachmentContent::FileContent(_))
+        });
+        let has_file2 = attachments.iter().any(|a| {
+            a.path == "/test/file2.txt" && matches!(a.content, AttachmentContent::FileContent(_))
+        });
+        let has_image = attachments.iter().any(|a| {
+            a.path == "/test/image.png" && matches!(a.content, AttachmentContent::Image(_))
+        });
 
         assert!(has_file1, "Missing file1.txt in attachments");
         assert!(has_file2, "Missing file2.txt in attachments");
@@ -704,7 +724,6 @@ pub mod tests {
         assert_eq!(attachments.len(), 1);
         let attachment = attachments.first().unwrap();
         assert_eq!(attachment.path, "/test/unknown.xyz");
-        assert_eq!(attachment.content_type, ContentType::Text);
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("Some content"));
