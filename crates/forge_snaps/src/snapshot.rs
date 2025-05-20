@@ -3,7 +3,6 @@ use std::hash::Hasher;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use forge_fs::ForgeFS;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
