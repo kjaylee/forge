@@ -145,7 +145,7 @@ impl CommandExecutorService for ForgeCommandExecutorService {
     }
 
     async fn execute_command_raw(&self, command: &str) -> anyhow::Result<std::process::ExitStatus> {
-        let mut prepared_command = self.prepare_command(&command, None);
+        let mut prepared_command = self.prepare_command(command, None);
 
         // overwrite the stdin, stdout and stderr to inherit
         prepared_command
