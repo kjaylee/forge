@@ -3,10 +3,10 @@ use std::path::Path;
 use anyhow::Result;
 use forge_domain::Environment;
 use forge_services::FsUndoService;
-use forge_snaps::SnapshotService;
+use forge_snaps::SnapshotController;
 
 pub struct ForgeFileUndoService {
-    inner: SnapshotService,
+    inner: SnapshotController,
 }
 
 impl Default for ForgeFileUndoService {
@@ -14,7 +14,7 @@ impl Default for ForgeFileUndoService {
         // In default implementation, we'll use a temporary directory path
         // This is mainly for testing purposes
         let temp_dir = std::env::temp_dir().join("forge-snapshots");
-        Self { inner: SnapshotService::new(temp_dir) }
+        Self { inner: SnapshotController::new(temp_dir) }
     }
 }
 
@@ -25,7 +25,7 @@ impl ForgeFileUndoService {
 
     /// Create a new ForgeFileUndoService with a specific environment
     pub fn with_env(env: Environment) -> Self {
-        Self { inner: SnapshotService::new(env.snapshot_path()) }
+        Self { inner: SnapshotController::new(env.snapshot_path()) }
     }
 }
 
