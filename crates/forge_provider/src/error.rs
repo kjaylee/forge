@@ -106,19 +106,20 @@ impl std::fmt::Display for AnthropicApiError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use pretty_assertions::assert_eq;
+
+    use super::*;
 
     #[test]
     fn test_error_code_as_number() {
         // Test with numeric error code
         let code_number = ErrorCode::Number(404);
         assert_eq!(code_number.as_number(), Some(404));
-        
+
         // Test with string error code containing a valid number
         let code_string_numeric = ErrorCode::String("500".to_string());
         assert_eq!(code_string_numeric.as_number(), Some(500));
-        
+
         // Test with string error code containing a non-numeric value
         let code_string_non_numeric = ErrorCode::String("ERR_STREAM_PREMATURE_CLOSE".to_string());
         assert_eq!(code_string_non_numeric.as_number(), None);
@@ -129,7 +130,7 @@ mod tests {
         // Test with string error code
         let code_string = ErrorCode::String("ERR_STREAM_PREMATURE_CLOSE".to_string());
         assert_eq!(code_string.as_str(), Some("ERR_STREAM_PREMATURE_CLOSE"));
-        
+
         // Test with numeric error code
         let code_number = ErrorCode::Number(404);
         assert_eq!(code_number.as_str(), None);

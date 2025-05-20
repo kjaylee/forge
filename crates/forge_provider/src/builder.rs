@@ -82,12 +82,19 @@ pub struct ForgeProviderError(anyhow::Error);
 
 impl ProviderError for ForgeProviderError {
     fn status_code(&self) -> Option<u16> {
-        self.0.downcast_ref::<crate::error::Error>().and_then(|error| match error {
-            crate::error::Error::Api(error) => error.code.as_ref().and_then(|code| code.as_number()),
-            crate::error::Error::Reqwest(reqwest_eventsource::Error::InvalidStatusCode(code, _)) => Some(code.as_u16()),
-            crate::error::Error::InvalidStatusCode(code) => Some(*code),
-            _ => None,
-        })
+        self.0
+            .downcast_ref::<crate::error::Error>()
+            .and_then(|error| match error {
+                crate::error::Error::Api(error) => {
+                    error.code.as_ref().and_then(|code| code.as_number())
+                }
+                crate::error::Error::Reqwest(reqwest_eventsource::Error::InvalidStatusCode(
+                    code,
+                    _,
+                )) => Some(code.as_u16()),
+                crate::error::Error::InvalidStatusCode(code) => Some(*code),
+                _ => None,
+            })
     }
 
     fn is_transport_error(&self) -> bool {
@@ -103,7 +110,9 @@ impl ProviderError for ForgeProviderError {
                             .into_iter()
                             .any(|message| message == code)
                     }),
-                crate::error::Error::Reqwest(error) => matches!(error, reqwest_eventsource::Error::Transport(_)),
+                crate::error::Error::Reqwest(error) => {
+                    matches!(error, reqwest_eventsource::Error::Transport(_))
+                }
                 _ => false,
             })
     }
