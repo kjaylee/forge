@@ -117,3 +117,103 @@ impl ProviderError for ForgeProviderError {
             })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::{AnthropicApiError, ApiError, Error, ErrorCode};
+    use pretty_assertions::assert_eq;
+
+    fn create_api_error_with_code(code: ErrorCode) -> anyhow::Error {
+        let api_error = ApiError {
+            error: None,
+            message: Some("Test message".to_string()),
+            errno: None,
+            code: Some(code),
+            metadata: Default::default(),
+            syscall: None,
+            type_of: None,
+            param: None,
+        };
+        Error::Api(api_error).into()
+    }
+
+    // Helper function to create a ForgeProviderError with an InvalidStatusCode error
+    fn create_invalid_status_code_error(code: u16) -> ForgeProviderError {
+        ForgeProviderError(Error::InvalidStatusCode(code).into())
+    }
+
+    // Helper function to create ForgeProviderError with an API error containing a specific error code string
+    fn create_api_string_error(code_str: &str) -> ForgeProviderError {
+        ForgeProviderError(create_api_error_with_code(ErrorCode::String(code_str.to_string())))
+    }
+
+    // Helper function to create ForgeProviderError with a SerdeJson error
+    fn create_serde_json_error() -> ForgeProviderError {
+        let error = serde_json::from_str::<serde_json::Value>("{invalid: json}").unwrap_err();
+        ForgeProviderError(Error::SerdeJson(error).into())
+    }
+
+    #[test]
+    fn test_status_code() {
+        // Test with API error with numeric code
+        let error = ForgeProviderError(create_api_error_with_code(ErrorCode::Number(404)));
+        assert_eq!(error.status_code(), Some(404));
+
+        // Test with API error with string code containing a number
+        let error = ForgeProviderError(create_api_error_with_code(ErrorCode::String("500".to_string())));
+        assert_eq!(error.status_code(), Some(500));
+
+        // Test with API error with non-numeric string code
+        let error = create_api_string_error("ERR_STREAM_PREMATURE_CLOSE");
+        assert_eq!(error.status_code(), None);
+
+        // Test with InvalidStatusCode error
+        let error = create_invalid_status_code_error(429);
+        assert_eq!(error.status_code(), Some(429));
+
+        // Test with other error types
+        let error = create_serde_json_error();
+        assert_eq!(error.status_code(), None);
+
+        let error = ForgeProviderError(Error::ToolCallMissingName.into());
+        assert_eq!(error.status_code(), None);
+
+        let error = ForgeProviderError(Error::Anthropic(AnthropicApiError::OverloadedError {
+            message: "Test message".to_string(),
+        }).into());
+        assert_eq!(error.status_code(), None);
+    }
+
+    #[test]
+    fn test_is_transport_error() {
+        // Test with API error with transport error code
+        let error = create_api_string_error("ERR_STREAM_PREMATURE_CLOSE");
+        assert!(error.is_transport_error());
+
+        let error = create_api_string_error("ECONNRESET");
+        assert!(error.is_transport_error());
+
+        let error = create_api_string_error("ETIMEDOUT");
+        assert!(error.is_transport_error());
+
+        // Test with API error with non-transport error code
+        let error = create_api_string_error("SOME_OTHER_ERROR");
+        assert!(!error.is_transport_error());
+
+        // Test with other error types
+        let error = create_serde_json_error();
+        assert!(!error.is_transport_error());
+
+        let error = ForgeProviderError(Error::ToolCallMissingName.into());
+        assert!(!error.is_transport_error());
+
+        let error = ForgeProviderError(Error::Anthropic(AnthropicApiError::OverloadedError {
+            message: "Test message".to_string(),
+        }).into());
+        assert!(!error.is_transport_error());
+
+        let error = create_invalid_status_code_error(500);
+        assert!(!error.is_transport_error());
+    }
+}
