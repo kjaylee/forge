@@ -207,7 +207,7 @@ pub mod tests {
         type FsMetaService = Stub;
         type FsSnapshotService = Stub;
         type FsUndoService = Stub;
-        type FsCreateDirsService = Stub;
+        type DirCreateService = Stub;
         type CommandExecutorService = Stub;
         type McpServer = Stub;
 
@@ -239,7 +239,7 @@ pub mod tests {
             self
         }
 
-        fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+        fn dir_create_service(&self) -> &Self::DirCreateService {
             self
         }
 

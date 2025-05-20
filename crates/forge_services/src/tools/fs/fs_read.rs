@@ -440,7 +440,7 @@ mod test {
             type FsReadService = Self; // This struct will handle read operations
             type FsWriteService = crate::attachment::tests::MockFileService;
             type FsMetaService = crate::attachment::tests::MockFileService;
-            type FsCreateDirsService = crate::attachment::tests::MockFileService;
+            type DirCreateService = crate::attachment::tests::MockFileService;
             type FsRemoveService = crate::attachment::tests::MockFileService;
             type FsSnapshotService = crate::attachment::tests::MockSnapService;
             type FsUndoService = crate::attachment::tests::MockSnapService;
@@ -467,8 +467,8 @@ mod test {
                 self.inner.file_remove_service()
             }
 
-            fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
-                self.inner.create_dirs_service()
+            fn dir_create_service(&self) -> &Self::DirCreateService {
+                self.inner.dir_create_service()
             }
 
             fn file_snapshot_service(&self) -> &Self::FsSnapshotService {

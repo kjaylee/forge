@@ -476,7 +476,7 @@ pub mod tests {
         type FsWriteService = MockFileService;
         type FsRemoveService = MockFileService;
         type FsMetaService = MockFileService;
-        type FsCreateDirsService = MockFileService;
+        type DirCreateService = MockFileService;
         type FsSnapshotService = MockSnapService;
         type FsUndoService = MockSnapService;
         type CommandExecutorService = ();
@@ -510,7 +510,7 @@ pub mod tests {
             &self.file_service
         }
 
-        fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+        fn dir_create_service(&self) -> &Self::DirCreateService {
             &self.file_service
         }
 

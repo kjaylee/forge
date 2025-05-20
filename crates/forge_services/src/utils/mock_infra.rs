@@ -50,9 +50,9 @@ impl MockInfrastructure {
             environment: None,
         }
     }
-    
+
     /// Configure with a custom environment for testing
-    /// 
+    ///
     /// Returns self for method chaining
     pub fn with_environment(mut self, env: Environment) -> Self {
         self.environment = Some(env);
@@ -70,9 +70,9 @@ impl MockInfrastructure {
     }
 
     /// Configure with a mock output for a command
-    /// 
+    ///
     /// Returns self for method chaining
-    /// 
+    ///
     /// Note: This uses interior mutability, so it doesn't need &mut self
     pub async fn with_command_output(
         &self,
@@ -87,11 +87,15 @@ impl MockInfrastructure {
     }
 
     /// Configure with a mock exit status for a raw command
-    /// 
+    ///
     /// Returns self for method chaining
-    /// 
+    ///
     /// Note: This uses interior mutability, so it doesn't need &mut self
-    pub async fn with_raw_command_output(&self, command: String, status: std::process::ExitStatus) -> &Self {
+    pub async fn with_raw_command_output(
+        &self,
+        command: String,
+        status: std::process::ExitStatus,
+    ) -> &Self {
         let mut outputs = self.raw_command_outputs.lock().await;
         outputs.insert(command, status);
         self
@@ -117,7 +121,7 @@ impl Infrastructure for MockInfrastructure {
     type FsSnapshotService = MockInfrastructure;
     type FsWriteService = MockInfrastructure;
     type FsUndoService = MockInfrastructure;
-    type FsCreateDirsService = MockInfrastructure;
+    type DirCreateService = MockInfrastructure;
     type CommandExecutorService = MockInfrastructure;
     type McpServer = MockInfrastructure;
 
@@ -149,7 +153,7 @@ impl Infrastructure for MockInfrastructure {
         self
     }
 
-    fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
+    fn dir_create_service(&self) -> &Self::DirCreateService {
         self
     }
 
@@ -168,10 +172,10 @@ impl EnvironmentService for MockInfrastructure {
         self.environment.clone().unwrap_or_else(|| {
             // Create a default environment for testing
             use std::path::PathBuf;
-            
+
             // Use the factory method from Provider which handles URL parsing internally
             let provider = forge_domain::Provider::openai("mock-key");
-            
+
             Environment {
                 os: String::from("mock-os"),
                 pid: 12345,

@@ -3,9 +3,9 @@ use std::sync::Arc;
 use forge_domain::EnvironmentService;
 use forge_services::Infrastructure;
 
+use crate::dir_create::ForgeDirCreateService;
 use crate::env::ForgeEnvironmentService;
 use crate::executor::ForgeCommandExecutorService;
-use crate::fs_create_dirs::ForgeCreateDirsService;
 use crate::fs_meta::ForgeFileMetaService;
 use crate::fs_read::ForgeFileReadService;
 use crate::fs_remove::ForgeFileRemoveService;
@@ -23,7 +23,7 @@ pub struct ForgeInfra {
     file_meta_service: Arc<ForgeFileMetaService>,
     file_remove_service: Arc<ForgeFileRemoveService<ForgeFileSnapshotService>>,
     file_undo_service: Arc<ForgeFileUndoService>,
-    create_dirs_service: Arc<ForgeCreateDirsService>,
+    dir_create_service: Arc<ForgeDirCreateService>,
     command_executor_service: Arc<ForgeCommandExecutorService>,
     mcp_server: ForgeMcpServer,
 }
@@ -43,7 +43,7 @@ impl ForgeInfra {
             file_undo_service: Arc::new(ForgeFileUndoService::with_env(env.clone())),
             environment_service,
             file_snapshot_service,
-            create_dirs_service: Arc::new(ForgeCreateDirsService),
+            dir_create_service: Arc::new(ForgeDirCreateService),
             command_executor_service: Arc::new(ForgeCommandExecutorService::new(
                 restricted,
                 env.clone(),
@@ -61,7 +61,7 @@ impl Infrastructure for ForgeInfra {
     type FsSnapshotService = ForgeFileSnapshotService;
     type FsRemoveService = ForgeFileRemoveService<ForgeFileSnapshotService>;
     type FsUndoService = ForgeFileUndoService;
-    type FsCreateDirsService = ForgeCreateDirsService;
+    type DirCreateService = ForgeDirCreateService;
     type CommandExecutorService = ForgeCommandExecutorService;
     type McpServer = ForgeMcpServer;
 
@@ -93,8 +93,8 @@ impl Infrastructure for ForgeInfra {
         &self.file_undo_service
     }
 
-    fn create_dirs_service(&self) -> &Self::FsCreateDirsService {
-        &self.create_dirs_service
+    fn dir_create_service(&self) -> &Self::DirCreateService {
+        &self.dir_create_service
     }
 
     fn command_executor_service(&self) -> &Self::CommandExecutorService {

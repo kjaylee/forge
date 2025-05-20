@@ -133,7 +133,7 @@ pub trait Infrastructure: Send + Sync + 'static {
     type FsRemoveService: FileRemoveService;
     type FsSnapshotService: FsSnapshotService;
     type FsWriteService: FsWriteService;
-    type FsCreateDirsService: FsCreateDirsService;
+    type DirCreateService: FsCreateDirsService;
     type FsUndoService: FsUndoService;
     type CommandExecutorService: CommandExecutorService;
     type McpServer: McpServer;
@@ -144,7 +144,7 @@ pub trait Infrastructure: Send + Sync + 'static {
     fn file_remove_service(&self) -> &Self::FsRemoveService;
     fn file_snapshot_service(&self) -> &Self::FsSnapshotService;
     fn file_write_service(&self) -> &Self::FsWriteService;
-    fn create_dirs_service(&self) -> &Self::FsCreateDirsService;
+    fn dir_create_service(&self) -> &Self::DirCreateService;
     fn file_undo_service(&self) -> &Self::FsUndoService;
     fn command_executor_service(&self) -> &Self::CommandExecutorService;
     fn mcp_server(&self) -> &Self::McpServer;
