@@ -34,6 +34,8 @@ pub struct MockInfrastructure {
     // Stores raw command outputs for mocking
     raw_command_outputs:
         Arc<tokio::sync::Mutex<std::collections::HashMap<String, std::process::ExitStatus>>>,
+    // Stores custom environment for testing
+    environment: Option<Environment>,
 }
 
 impl MockInfrastructure {
@@ -45,7 +47,16 @@ impl MockInfrastructure {
             raw_command_outputs: Arc::new(
                 tokio::sync::Mutex::new(std::collections::HashMap::new()),
             ),
+            environment: None,
         }
+    }
+    
+    /// Configure with a custom environment for testing
+    /// 
+    /// Returns self for method chaining
+    pub fn with_environment(mut self, env: Environment) -> Self {
+        self.environment = Some(env);
+        self
     }
 
     // Helper method to convert a relative path to an absolute path within the temp
@@ -58,22 +69,32 @@ impl MockInfrastructure {
         }
     }
 
-    /// Set a mock output for a command
-    pub async fn set_command_output(
+    /// Configure with a mock output for a command
+    /// 
+    /// Returns self for method chaining
+    /// 
+    /// Note: This uses interior mutability, so it doesn't need &mut self
+    pub async fn with_command_output(
         &self,
         command: String,
         stdout: String,
         stderr: String,
         exit_code: Option<i32>,
-    ) {
+    ) -> &Self {
         let mut outputs = self.command_outputs.lock().await;
         outputs.insert(command.clone(), (command, stdout, stderr, exit_code));
+        self
     }
 
-    /// Set a mock exit status for a raw command
-    pub async fn set_raw_command_output(&self, command: String, status: std::process::ExitStatus) {
+    /// Configure with a mock exit status for a raw command
+    /// 
+    /// Returns self for method chaining
+    /// 
+    /// Note: This uses interior mutability, so it doesn't need &mut self
+    pub async fn with_raw_command_output(&self, command: String, status: std::process::ExitStatus) -> &Self {
         let mut outputs = self.raw_command_outputs.lock().await;
         outputs.insert(command, status);
+        self
     }
 
     /// Helper method to format a raw command with its args
@@ -143,7 +164,25 @@ impl Infrastructure for MockInfrastructure {
 
 impl EnvironmentService for MockInfrastructure {
     fn get_environment(&self) -> Environment {
-        todo!()
+        // Return stored environment if available, otherwise return a default one
+        self.environment.clone().unwrap_or_else(|| {
+            // Create a default environment for testing
+            use std::path::PathBuf;
+            
+            // Use the factory method from Provider which handles URL parsing internally
+            let provider = forge_domain::Provider::openai("mock-key");
+            
+            Environment {
+                os: String::from("mock-os"),
+                pid: 12345,
+                cwd: self.temp_dir.path().to_path_buf(),
+                home: Some(PathBuf::from("/mock/home")),
+                shell: String::from("mock-shell"),
+                base_path: self.temp_dir.path().to_path_buf(),
+                provider,
+                retry_config: forge_domain::RetryConfig::default(),
+            }
+        })
     }
 }
 
