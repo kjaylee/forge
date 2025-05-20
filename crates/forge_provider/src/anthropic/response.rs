@@ -1,4 +1,3 @@
-
 use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCallPart, ToolName};
 use serde::Deserialize;
 

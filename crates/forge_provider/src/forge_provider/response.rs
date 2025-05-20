@@ -7,7 +7,7 @@ use forge_domain::{
 use serde::{Deserialize, Serialize};
 
 use super::tool_choice::FunctionType;
-use crate::error::{Error, OpenAiApiError};
+use crate::error::{ApiError, Error};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -23,7 +23,7 @@ pub enum Response {
         usage: Option<ResponseUsage>,
     },
     Failure {
-        error: OpenAiApiError,
+        error: ApiError,
     },
 }
 
@@ -40,19 +40,19 @@ pub enum Choice {
     NonChat {
         finish_reason: Option<String>,
         text: String,
-        error: Option<OpenAiApiError>,
+        error: Option<ApiError>,
     },
     NonStreaming {
         logprobs: Option<serde_json::Value>,
         index: u32,
         finish_reason: Option<String>,
         message: ResponseMessage,
-        error: Option<OpenAiApiError>,
+        error: Option<ApiError>,
     },
     Streaming {
         finish_reason: Option<String>,
         delta: ResponseMessage,
-        error: Option<OpenAiApiError>,
+        error: Option<ApiError>,
     },
 }
 
@@ -161,7 +161,7 @@ impl TryFrom<Response> for ChatCompletionMessage {
                     Ok(default_response)
                 }
             }
-            Response::Failure { error } => Err(Error::OpenAI(error)),
+            Response::Failure { error } => Err(Error::Api(error)),
         }
     }
 }
