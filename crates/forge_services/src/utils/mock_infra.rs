@@ -16,20 +16,36 @@ use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
+use crate::infra::FsUndoService;
 use crate::{
-    infra::FsUndoService, CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
-    FsReadService, FsSnapshotService, FsWriteService, Infrastructure, McpClient, McpServer,
+    CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
+    FsSnapshotService, FsWriteService, Infrastructure, McpClient, McpServer,
 };
 
 #[derive(Clone)]
 pub struct MockInfrastructure {
     temp_dir: Arc<tempfile::TempDir>,
+    // Stores command outputs for mocking with the structure we need to recreate CommandOutput
+    command_outputs: Arc<
+        tokio::sync::Mutex<
+            std::collections::HashMap<String, (String, String, String, Option<i32>)>,
+        >,
+    >,
+    // Stores raw command outputs for mocking
+    raw_command_outputs:
+        Arc<tokio::sync::Mutex<std::collections::HashMap<String, std::process::ExitStatus>>>,
 }
 
 impl MockInfrastructure {
     pub fn new() -> Self {
         let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
-        Self { temp_dir: Arc::new(temp_dir) }
+        Self {
+            temp_dir: Arc::new(temp_dir),
+            command_outputs: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
+            raw_command_outputs: Arc::new(
+                tokio::sync::Mutex::new(std::collections::HashMap::new()),
+            ),
+        }
     }
 
     // Helper method to convert a relative path to an absolute path within the temp
@@ -40,6 +56,29 @@ impl MockInfrastructure {
         } else {
             self.temp_dir.path().join(path)
         }
+    }
+
+    /// Set a mock output for a command
+    pub async fn set_command_output(
+        &self,
+        command: String,
+        stdout: String,
+        stderr: String,
+        exit_code: Option<i32>,
+    ) {
+        let mut outputs = self.command_outputs.lock().await;
+        outputs.insert(command.clone(), (command, stdout, stderr, exit_code));
+    }
+
+    /// Set a mock exit status for a raw command
+    pub async fn set_raw_command_output(&self, command: String, status: std::process::ExitStatus) {
+        let mut outputs = self.raw_command_outputs.lock().await;
+        outputs.insert(command, status);
+    }
+
+    /// Helper method to format a raw command with its args
+    fn format_raw_command(command: &str, args: &[&str]) -> String {
+        format!("{} {}", command, args.join(" "))
     }
 }
 
@@ -224,7 +263,18 @@ impl CommandExecutorService for MockInfrastructure {
         command: String,
         _working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        // Mock command execution with empty output
+        // Check if we have a mock output for this command
+        let outputs = self.command_outputs.lock().await;
+        if let Some((cmd, stdout, stderr, exit_code)) = outputs.get(&command) {
+            return Ok(CommandOutput {
+                command: cmd.clone(),
+                stdout: stdout.clone(),
+                stderr: stderr.clone(),
+                exit_code: *exit_code,
+            });
+        }
+
+        // Default mock response if not specifically mocked
         Ok(CommandOutput {
             command,
             stdout: "".to_string(),
@@ -235,10 +285,30 @@ impl CommandExecutorService for MockInfrastructure {
 
     async fn execute_command_raw(
         &self,
-        _command: &str,
-        _args: &[&str],
+        command: &str,
+        args: &[&str],
     ) -> anyhow::Result<ExitStatus> {
-        todo!()
+        // Format the command string for lookup
+        let cmd_key = Self::format_raw_command(command, args);
+
+        // Check if we have a mock output for this raw command
+        let outputs = self.raw_command_outputs.lock().await;
+        if let Some(status) = outputs.get(&cmd_key) {
+            return Ok(*status);
+        }
+
+        // Default mock exit status if not specifically mocked
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::ExitStatusExt;
+            Ok(ExitStatus::from_raw(0))
+        }
+
+        #[cfg(windows)]
+        {
+            // Windows default implementation
+            anyhow::bail!("No mock exit status available for command: {}", cmd_key)
+        }
     }
 }
 

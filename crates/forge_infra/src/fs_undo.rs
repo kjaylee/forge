@@ -14,9 +14,7 @@ impl Default for ForgeFileUndoService {
         // In default implementation, we'll use a temporary directory path
         // This is mainly for testing purposes
         let temp_dir = std::env::temp_dir().join("forge-snapshots");
-        Self {
-            inner: SnapshotService::new(temp_dir),
-        }
+        Self { inner: SnapshotService::new(temp_dir) }
     }
 }
 
@@ -27,9 +25,7 @@ impl ForgeFileUndoService {
 
     /// Create a new ForgeFileUndoService with a specific environment
     pub fn with_env(env: Environment) -> Self {
-        Self {
-            inner: SnapshotService::new(env.snapshot_path()),
-        }
+        Self { inner: SnapshotService::new(env.snapshot_path()) }
     }
 }
 

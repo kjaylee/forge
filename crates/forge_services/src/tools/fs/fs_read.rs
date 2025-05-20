@@ -474,7 +474,7 @@ mod test {
             fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
                 self.inner.file_snapshot_service()
             }
-            
+
             fn file_undo_service(&self) -> &Self::FsUndoService {
                 self.inner.file_snapshot_service()
             }

@@ -1,8 +1,6 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use forge_domain::Tool;
-use forge_snaps::Snapshot;
 
 use super::completion::Completion;
 use super::fetch::Fetch;
@@ -10,7 +8,6 @@ use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
 use crate::Infrastructure;
-use crate::infra::FsUndoService;
 
 pub struct ToolRegistry<F> {
     infra: Arc<F>,
@@ -233,7 +230,7 @@ pub mod tests {
         fn file_snapshot_service(&self) -> &Self::FsSnapshotService {
             self
         }
-        
+
         fn file_undo_service(&self) -> &Self::FsUndoService {
             self
         }
