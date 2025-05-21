@@ -155,7 +155,7 @@ impl Anthropic {
             Err(err) => {
                 debug!(error = %err, "Failed to fetch models");
                 let ctx_msg = format_http_context(err.status(), "GET", &url);
-                Err(anyhow::anyhow!(err))
+                Err(err)
                     .with_context(|| ctx_msg)
                     .with_context(|| "Failed to fetch models")
             }
@@ -169,14 +169,14 @@ impl Anthropic {
                                 .with_context(|| "Failed to deserialize models response")?;
                             Ok(response.data.into_iter().map(Into::into).collect())
                         }
-                        Err(err) => Err(anyhow::anyhow!(err))
+                        Err(err) => Err(err)
                             .with_context(|| ctx_msg)
                             .with_context(|| "Failed to decode response into text"),
                     }
                 }
                 Err(err) => {
                     let ctx_msg = format_http_context(err.status(), "GET", &url);
-                    Err(anyhow::anyhow!(err))
+                    Err(err)
                         .with_context(|| ctx_msg)
                         .with_context(|| "Failed because of a non 200 status code".to_string())
                 }
