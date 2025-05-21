@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use forge_domain::Services;
-use forge_provider::Client;
 
 use crate::attachment::ForgeChatRequest;
 use crate::compaction::ForgeCompactionService;
 use crate::conversation::ForgeConversationService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
-use crate::provider::ForgeProviderService as _ForgeProviderService;
+use crate::provider::ForgeProviderService;
 use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
@@ -15,7 +14,6 @@ use crate::workflow::ForgeWorkflowService;
 use crate::Infrastructure;
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F>;
-type ForgeProviderService = _ForgeProviderService<Client>;
 
 /// ForgeApp is the main application container that implements the App trait.
 /// It provides access to all core services required by the application.

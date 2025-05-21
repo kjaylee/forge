@@ -14,6 +14,7 @@ pub enum Error {
     SerdeJson(serde_json::Error),
     ToolCallMissingName,
     Reqwest(reqwest_eventsource::Error),
+    InvalidStatusCode(u16),
 }
 
 #[derive(Debug, Display, Deserialize, Serialize, Clone)]
@@ -64,6 +65,19 @@ pub struct ApiError {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub param: Option<serde_json::Value>,
+}
+
+impl ApiError {
+    /// Deeply introspects the error structure to determine the ErrorCode
+    pub fn get_code_deep(&self) -> Option<&ErrorCode> {
+        if let Some(ref code) = self.code {
+            return Some(code);
+        }
+        if let Some(ref error) = self.error {
+            return error.get_code_deep();
+        }
+        None
+    }
 }
 
 impl std::fmt::Display for ApiError {

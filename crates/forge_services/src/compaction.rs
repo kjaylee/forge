@@ -138,7 +138,7 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
         mut stream: F,
     ) -> Result<String>
     where
-        F: futures::Stream<Item = anyhow::Result<ChatCompletionMessage>> + Unpin,
+        F: futures::Stream<Item = Result<ChatCompletionMessage>> + Unpin,
     {
         let mut result_content = String::new();
 

@@ -8,6 +8,7 @@ use reqwest::redirect::Policy;
 use tokio_stream::StreamExt;
 
 use crate::anthropic::Anthropic;
+use crate::error::Error;
 use crate::forge_provider::ForgeProvider;
 
 pub struct Client {
@@ -96,25 +97,24 @@ fn provider_error(error: anyhow::Error, retry_status_codes: Vec<u16>) -> anyhow:
 }
 
 fn get_status_code(error: &anyhow::Error) -> Option<u16> {
-    error
-        .downcast_ref::<crate::error::Error>()
-        .and_then(|error| match error {
-            crate::error::Error::Api(error) => {
-                error.code.as_ref().and_then(|code| code.as_number())
-            }
-            crate::error::Error::Reqwest(reqwest_eventsource::Error::InvalidStatusCode(
-                code,
-                _,
-            )) => Some(code.as_u16()),
-            _ => None,
-        })
+    error.downcast_ref::<Error>().and_then(|error| match error {
+        Error::Api(error) => error
+            .get_code_deep()
+            .as_ref()
+            .and_then(|code| code.as_number()),
+        Error::Reqwest(reqwest_eventsource::Error::InvalidStatusCode(code, _)) => {
+            Some(code.as_u16())
+        }
+        Error::InvalidStatusCode(code) => Some(*code),
+        _ => None,
+    })
 }
 
 fn is_transport_error(error: &anyhow::Error) -> bool {
     error
-        .downcast_ref::<crate::error::Error>()
+        .downcast_ref::<Error>()
         .is_some_and(|error| match error {
-            crate::error::Error::Api(error) => error
+            Error::Api(error) => error
                 .code
                 .as_ref()
                 .and_then(|code| code.as_str())
@@ -123,7 +123,7 @@ fn is_transport_error(error: &anyhow::Error) -> bool {
                         .into_iter()
                         .any(|message| message == code)
                 }),
-            crate::error::Error::Reqwest(error) => {
+            Error::Reqwest(error) => {
                 matches!(error, reqwest_eventsource::Error::Transport(_))
             }
             _ => false,
