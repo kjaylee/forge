@@ -8,7 +8,7 @@ use thiserror::Error;
 #[derive(Debug, Display, derive_more::From, Error)]
 pub enum Error {
     #[display("OpenAI API Error: {_0}")]
-    Api(ApiError),
+    Response(ResponseError),
     #[display("Anthropic API Error: {_0}")]
     Anthropic(AnthropicApiError),
     SerdeJson(serde_json::Error),
@@ -16,7 +16,7 @@ pub enum Error {
     InvalidStatusCode(u16),
 }
 
-#[derive(Debug, Display, Deserialize, Serialize, Clone)]
+#[derive(Debug, Display, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum ErrorCode {
     String(String),
@@ -40,9 +40,9 @@ impl ErrorCode {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ApiError {
+pub struct ResponseError {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<Box<ApiError>>,
+    pub error: Option<Box<ResponseError>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -66,7 +66,7 @@ pub struct ApiError {
     pub param: Option<serde_json::Value>,
 }
 
-impl ApiError {
+impl ResponseError {
     /// Deeply introspects the error structure to determine the ErrorCode
     pub fn get_code_deep(&self) -> Option<&ErrorCode> {
         if let Some(ref code) = self.code {
@@ -79,7 +79,7 @@ impl ApiError {
     }
 }
 
-impl std::fmt::Display for ApiError {
+impl std::fmt::Display for ResponseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut output = Vec::new();
 
