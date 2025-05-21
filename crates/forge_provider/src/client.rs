@@ -60,7 +60,7 @@ impl Client {
         })
     }
 
-    fn into_retry<A>(&self, result: anyhow::Result<A>) -> anyhow::Result<A> {
+    fn retry<A>(&self, result: anyhow::Result<A>) -> anyhow::Result<A> {
         let codes = &self.retry_status_codes;
         result.map_err(move |e| into_retry(e, codes))
     }
@@ -73,19 +73,19 @@ impl ProviderService for Client {
         model: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let chat_stream = self.clone().into_retry(match self.inner.as_ref() {
+        let chat_stream = self.clone().retry(match self.inner.as_ref() {
             InnerClient::OpenAICompat(provider) => provider.chat(model, context).await,
             InnerClient::Anthropic(provider) => provider.chat(model, context).await,
         })?;
 
         let this = self.clone();
         Ok(Box::pin(
-            chat_stream.map(move |item| this.clone().into_retry(item)),
+            chat_stream.map(move |item| this.clone().retry(item)),
         ))
     }
 
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
-        self.clone().into_retry(match self.inner.as_ref() {
+        self.clone().retry(match self.inner.as_ref() {
             InnerClient::OpenAICompat(provider) => provider.models().await,
             InnerClient::Anthropic(provider) => provider.models().await,
         })
