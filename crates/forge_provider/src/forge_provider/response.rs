@@ -7,7 +7,7 @@ use forge_domain::{
 use serde::{Deserialize, Serialize};
 
 use super::tool_choice::FunctionType;
-use crate::error::{ResponseError, Error};
+use crate::error::{Error, ResponseError};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]

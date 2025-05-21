@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Formatter;
 
 use derive_more::derive::Display;
+use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -12,7 +13,7 @@ pub enum Error {
     #[display("Anthropic API Error: {_0}")]
     Anthropic(AnthropicApiError),
     SerdeJson(serde_json::Error),
-    ToolCallMissingName,    
+    ToolCallMissingName,
     InvalidStatusCode(u16),
 }
 
@@ -39,7 +40,7 @@ impl ErrorCode {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Default, Debug, Deserialize, Serialize, Clone, Setters)]
 pub struct ResponseError {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<Box<ResponseError>>,
@@ -145,5 +146,79 @@ mod tests {
         // Test with numeric error code
         let code_number = ErrorCode::Number(404);
         assert_eq!(code_number.as_str(), None);
+    }
+
+    #[test]
+    fn test_get_code_deep_direct() {
+        // Test with an error that has a direct code
+        let error_code = ErrorCode::Number(404);
+
+        // Use derived setters for a cleaner initialization
+        let fixture = ResponseError::default()
+            .message(Some("Error message".to_string()))
+            .code(Some(error_code));
+
+        let actual = fixture.get_code_deep();
+
+        // Create a new ErrorCode to compare against
+        let expected_code = ErrorCode::Number(404);
+        assert_eq!(actual, Some(&expected_code));
+    }
+
+    #[test]
+    fn test_get_code_deep_nested() {
+        // Test with an error that has no direct code but has an inner error with a code
+        let error_code = ErrorCode::String("ERR_STREAM_PREMATURE_CLOSE".to_string());
+
+        // Use derived setters for cleaner initialization
+        let inner_error = ResponseError::default()
+            .message(Some("Inner error".to_string()))
+            .code(Some(error_code));
+
+        let fixture = ResponseError::default()
+            .error(Some(Box::new(inner_error)))
+            .message(Some("Outer error".to_string()));
+
+        let actual = fixture.get_code_deep();
+
+        // Create a new ErrorCode to compare against
+        let expected_code = ErrorCode::String("ERR_STREAM_PREMATURE_CLOSE".to_string());
+        assert_eq!(actual, Some(&expected_code));
+    }
+
+    #[test]
+    fn test_get_code_deep_no_code() {
+        // Test with an error that has no code and no inner error
+        let fixture = ResponseError::default().message(Some("Error message".to_string()));
+
+        let actual = fixture.get_code_deep();
+        let expected = None;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_get_code_deep_multiple_nested() {
+        // Test with deeply nested errors
+        let error_code = ErrorCode::Number(500);
+
+        let deepest_error = ResponseError::default()
+            .message(Some("Deepest error".to_string()))
+            .code(Some(error_code));
+
+        let middle_error = ResponseError::default()
+            .error(Some(Box::new(deepest_error)))
+            .message(Some("Middle error".to_string()));
+        // No code here, should find deepest
+
+        let fixture = ResponseError::default()
+            .error(Some(Box::new(middle_error)))
+            .message(Some("Outer error".to_string()));
+        // No code here, should find deepest
+
+        let actual = fixture.get_code_deep();
+
+        // Create a new ErrorCode to compare against
+        let expected_code = ErrorCode::Number(500);
+        assert_eq!(actual, Some(&expected_code));
     }
 }
