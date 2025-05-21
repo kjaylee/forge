@@ -586,10 +586,7 @@ impl<A: Services> Orchestrator<A> {
 fn should_retry(error: &anyhow::Error) -> bool {
     let retry = error
         .downcast_ref::<Error>()
-        .is_some_and(|error| match error {
-            Error::Retryable(_) => true,
-            _ => false,
-        });
+        .is_some_and(|error| matches!(error, Error::Retryable(_)));
 
     tracing::error!(error = ?error, retry = retry, "Error");
     retry
