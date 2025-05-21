@@ -187,10 +187,7 @@ enum Content {
 impl TryFrom<forge_domain::ToolCallFull> for Content {
     type Error = anyhow::Error;
     fn try_from(value: forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
-        let call_id = value
-            .call_id
-            .as_ref()
-            .ok_or(Error::ToolCallMissingId)?;
+        let call_id = value.call_id.as_ref().ok_or(Error::ToolCallMissingId)?;
 
         Ok(Content::ToolUse {
             id: call_id.as_str().to_string(),
@@ -204,10 +201,7 @@ impl TryFrom<forge_domain::ToolCallFull> for Content {
 impl TryFrom<forge_domain::ToolResult> for Content {
     type Error = anyhow::Error;
     fn try_from(value: forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
-        let call_id = value
-            .call_id
-            .as_ref()
-            .ok_or(Error::ToolCallMissingId)?;
+        let call_id = value.call_id.as_ref().ok_or(Error::ToolCallMissingId)?;
         Ok(Content::ToolResult {
             tool_use_id: call_id.as_str().to_string(),
             cache_control: None,
