@@ -12,8 +12,7 @@ pub enum Error {
     #[display("Anthropic API Error: {_0}")]
     Anthropic(AnthropicApiError),
     SerdeJson(serde_json::Error),
-    ToolCallMissingName,
-    Reqwest(reqwest_eventsource::Error),
+    ToolCallMissingName,    
     InvalidStatusCode(u16),
 }
 
