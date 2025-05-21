@@ -7,7 +7,7 @@ use forge_domain::{
 use serde::{Deserialize, Serialize};
 
 use super::tool_choice::FunctionType;
-use crate::error::{Error, ResponseError};
+use crate::error::{Error, ErrorResponse};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
@@ -23,7 +23,7 @@ pub enum Response {
         usage: Option<ResponseUsage>,
     },
     Failure {
-        error: ResponseError,
+        error: ErrorResponse,
     },
 }
 
@@ -40,19 +40,19 @@ pub enum Choice {
     NonChat {
         finish_reason: Option<String>,
         text: String,
-        error: Option<ResponseError>,
+        error: Option<ErrorResponse>,
     },
     NonStreaming {
         logprobs: Option<serde_json::Value>,
         index: u32,
         finish_reason: Option<String>,
         message: ResponseMessage,
-        error: Option<ResponseError>,
+        error: Option<ErrorResponse>,
     },
     Streaming {
         finish_reason: Option<String>,
         delta: ResponseMessage,
-        error: Option<ResponseError>,
+        error: Option<ErrorResponse>,
     },
 }
 
@@ -90,7 +90,7 @@ impl From<ResponseUsage> for Usage {
 }
 
 impl TryFrom<Response> for ChatCompletionMessage {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     fn try_from(res: Response) -> Result<Self, Self::Error> {
         match res {
@@ -161,7 +161,7 @@ impl TryFrom<Response> for ChatCompletionMessage {
                     Ok(default_response)
                 }
             }
-            Response::Failure { error } => Err(Error::Response(error)),
+            Response::Failure { error } => Err(Error::Response(error).into()),
         }
     }
 }

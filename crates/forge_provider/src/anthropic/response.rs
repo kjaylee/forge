@@ -2,7 +2,7 @@ use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCall
 use serde::Deserialize;
 
 use super::request::Role;
-use crate::error::{AnthropicApiError, Error};
+use crate::error::{AnthropicErrorResponse, Error};
 
 #[derive(Deserialize)]
 pub struct ListModelResponse {
@@ -79,7 +79,7 @@ impl From<StopReason> for forge_domain::FinishReason {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Event {
     Error {
-        error: AnthropicApiError,
+        error: AnthropicErrorResponse,
     },
     MessageStart {
         message: MessageStart,
@@ -139,7 +139,7 @@ pub enum ContentBlock {
 }
 
 impl TryFrom<EventData> for ChatCompletionMessage {
-    type Error = Error;
+    type Error = anyhow::Error;
     fn try_from(value: EventData) -> Result<Self, Self::Error> {
         match value {
             EventData::KnownEvent(event) => ChatCompletionMessage::try_from(event),
@@ -152,7 +152,7 @@ impl TryFrom<EventData> for ChatCompletionMessage {
 }
 
 impl TryFrom<Event> for ChatCompletionMessage {
-    type Error = Error;
+    type Error = anyhow::Error;
     fn try_from(value: Event) -> Result<Self, Self::Error> {
         let result = match value {
             Event::ContentBlockStart { content_block, .. }
@@ -163,7 +163,7 @@ impl TryFrom<Event> for ChatCompletionMessage {
                 ChatCompletionMessage::assistant(Content::part("")).finish_reason(delta.stop_reason)
             }
             Event::Error { error } => {
-                return Err(error.into());
+                return Err(Error::Anthropic(error).into());
             }
             _ => ChatCompletionMessage::assistant(Content::part("")),
         };
@@ -173,7 +173,7 @@ impl TryFrom<Event> for ChatCompletionMessage {
 }
 
 impl TryFrom<ContentBlock> for ChatCompletionMessage {
-    type Error = Error;
+    type Error = anyhow::Error;
     fn try_from(value: ContentBlock) -> Result<Self, Self::Error> {
         let result = match value {
             ContentBlock::Text { text } | ContentBlock::TextDelta { text } => {
@@ -225,7 +225,9 @@ mod tests {
                 "error",
                 r#"{"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#,
                 Event::Error {
-                    error: AnthropicApiError::OverloadedError { message: "Overloaded".to_string() },
+                    error: AnthropicErrorResponse::OverloadedError {
+                        message: "Overloaded".to_string(),
+                    },
                 },
             ),
             (

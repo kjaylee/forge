@@ -1,23 +1,26 @@
 use std::collections::BTreeMap;
 use std::fmt::Formatter;
 
-use derive_more::derive::Display;
 use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Display, derive_more::From, Error)]
+#[derive(Debug, derive_more::From, Error)]
 pub enum Error {
-    #[display("OpenAI API Error: {_0}")]
-    Response(ResponseError),
-    #[display("Anthropic API Error: {_0}")]
-    Anthropic(AnthropicApiError),
-    SerdeJson(serde_json::Error),
+    #[error("{0}")]
+    Response(ErrorResponse),
+
+    #[error("{0}")]
+    Anthropic(AnthropicErrorResponse),
+
+    #[error("Missing tool name")]
     ToolCallMissingName,
+
+    #[error("Invalid Status Code: {0}")]
     InvalidStatusCode(u16),
 }
 
-#[derive(Debug, Display, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum ErrorCode {
     String(String),
@@ -41,9 +44,9 @@ impl ErrorCode {
 }
 
 #[derive(Default, Debug, Deserialize, Serialize, Clone, Setters)]
-pub struct ResponseError {
+pub struct ErrorResponse {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<Box<ResponseError>>,
+    pub error: Option<Box<ErrorResponse>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -67,7 +70,7 @@ pub struct ResponseError {
     pub param: Option<serde_json::Value>,
 }
 
-impl ResponseError {
+impl ErrorResponse {
     /// Deeply introspects the error structure to determine the ErrorCode
     pub fn get_code_deep(&self) -> Option<&ErrorCode> {
         if let Some(ref code) = self.code {
@@ -80,36 +83,24 @@ impl ResponseError {
     }
 }
 
-impl std::fmt::Display for ResponseError {
+impl std::fmt::Display for ErrorResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut output = Vec::new();
-
-        if let Some(ref code) = self.code {
-            output.push(format!("code: {code}"));
-        }
-        if let Some(ref message) = self.message {
-            output.push(format!("message: {message}"));
-        }
-        if !self.metadata.is_empty() {
-            if let Ok(str_repr) = serde_json::to_string(&self.metadata) {
-                output.push(format!("metadata: {str_repr}"));
-            }
-        }
-
-        write!(f, "{}", output.join(", "))
+        serde_json::to_string(self)
+            .map_err(|_| std::fmt::Error)?
+            .fmt(f)
     }
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case", tag = "type")]
-pub enum AnthropicApiError {
+pub enum AnthropicErrorResponse {
     OverloadedError { message: String },
 }
 
-impl std::fmt::Display for AnthropicApiError {
+impl std::fmt::Display for AnthropicErrorResponse {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            AnthropicApiError::OverloadedError { message } => {
+            AnthropicErrorResponse::OverloadedError { message } => {
                 write!(f, "OverloadedError: {message}")
             }
         }
@@ -154,7 +145,7 @@ mod tests {
         let error_code = ErrorCode::Number(404);
 
         // Use derived setters for a cleaner initialization
-        let fixture = ResponseError::default()
+        let fixture = ErrorResponse::default()
             .message(Some("Error message".to_string()))
             .code(Some(error_code));
 
@@ -171,11 +162,11 @@ mod tests {
         let error_code = ErrorCode::String("ERR_STREAM_PREMATURE_CLOSE".to_string());
 
         // Use derived setters for cleaner initialization
-        let inner_error = ResponseError::default()
+        let inner_error = ErrorResponse::default()
             .message(Some("Inner error".to_string()))
             .code(Some(error_code));
 
-        let fixture = ResponseError::default()
+        let fixture = ErrorResponse::default()
             .error(Some(Box::new(inner_error)))
             .message(Some("Outer error".to_string()));
 
@@ -189,7 +180,7 @@ mod tests {
     #[test]
     fn test_get_code_deep_no_code() {
         // Test with an error that has no code and no inner error
-        let fixture = ResponseError::default().message(Some("Error message".to_string()));
+        let fixture = ErrorResponse::default().message(Some("Error message".to_string()));
 
         let actual = fixture.get_code_deep();
         let expected = None;
@@ -201,16 +192,16 @@ mod tests {
         // Test with deeply nested errors
         let error_code = ErrorCode::Number(500);
 
-        let deepest_error = ResponseError::default()
+        let deepest_error = ErrorResponse::default()
             .message(Some("Deepest error".to_string()))
             .code(Some(error_code));
 
-        let middle_error = ResponseError::default()
+        let middle_error = ErrorResponse::default()
             .error(Some(Box::new(deepest_error)))
             .message(Some("Middle error".to_string()));
         // No code here, should find deepest
 
-        let fixture = ResponseError::default()
+        let fixture = ErrorResponse::default()
             .error(Some(Box::new(middle_error)))
             .message(Some("Outer error".to_string()));
         // No code here, should find deepest
