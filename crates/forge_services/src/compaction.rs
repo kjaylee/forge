@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::{
     extract_tag_content, Agent, ChatCompletionMessage, Compact, CompactionService, Context,
-    ContextMessage, ProviderError, ProviderService, Role, TemplateService,
+    ContextMessage, ProviderService, Role, TemplateService,
 };
 use futures::StreamExt;
 use tracing::{debug, info};
@@ -132,14 +132,13 @@ impl<T: TemplateService, P: ProviderService> ForgeCompactionService<T, P> {
 
     /// Collects the content from a streaming ChatCompletionMessage response
     /// and extracts text within the configured tag if present
-    async fn collect_completion_stream_content<F, E>(
+    async fn collect_completion_stream_content<F>(
         &self,
         compact: &Compact,
         mut stream: F,
     ) -> Result<String>
     where
-        F: futures::Stream<Item = Result<ChatCompletionMessage, E>> + Unpin,
-        E: ProviderError,
+        F: futures::Stream<Item = anyhow::Result<ChatCompletionMessage>> + Unpin,
     {
         let mut result_content = String::new();
 

@@ -1,4 +1,3 @@
-use std::result::Result;
 use std::sync::Arc;
 
 use forge_domain::{
@@ -26,16 +25,15 @@ impl ForgeProviderService<Client> {
 
 #[async_trait::async_trait]
 impl<P: ProviderService> ProviderService for ForgeProviderService<P> {
-    type Error = P::Error;
     async fn chat(
         &self,
         model: &ModelId,
         request: ChatContext,
-    ) -> ResultStream<ChatCompletionMessage, Self::Error> {
+    ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         self.client.chat(model, request).await
     }
 
-    async fn models(&self) -> Result<Vec<Model>, Self::Error> {
+    async fn models(&self) -> anyhow::Result<Vec<Model>> {
         self.client.models().await
     }
 }

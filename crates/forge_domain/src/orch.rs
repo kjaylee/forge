@@ -194,7 +194,7 @@ impl<A: Services> Orchestrator<A> {
         &self,
         agent: &Agent,
         context: &Context,
-        mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, impl ProviderError>>
+        mut response: impl Stream<Item = std::result::Result<ChatCompletionMessage, anyhow::Error>>
             + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
@@ -576,11 +576,17 @@ impl<A: Services> Orchestrator<A> {
     }
 }
 
-fn should_retry<E: ProviderError>(status_codes: &[u16]) -> impl Fn(&E) -> bool + '_ {
+fn should_retry(status_codes: &[u16]) -> impl Fn(&anyhow::Error) -> bool + '_ {
     move |error| {
         error
-            .status_code()
-            .is_some_and(|code| status_codes.contains(&code))
-            || error.is_transport_error()
+            .downcast_ref::<Error>()
+            .is_some_and(|error| match error {
+                Error::Provider(error) => match error {
+                    ProviderError::InvalidStatusCode(code) => status_codes.contains(code),
+                    ProviderError::Transport(_) => true,
+                    ProviderError::Service(_) => false,
+                },
+                _ => false,
+            })
     }
 }
