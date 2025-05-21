@@ -129,10 +129,10 @@ impl ForgeProvider {
                             Some(Err(Error::InvalidStatusCode(status.as_u16())).with_context(
                                 || match body {
                                     Some(body) => {
-                                        format!("Invalid status code: {} Reason: {}", status, body)
+                                        format!("Invalid status code: {status} Reason: {body}")
                                     }
                                     None => {
-                                        format!("Invalid status code: {} Reason: [Unknown]", status)
+                                        format!("Invalid status code: {status} Reason: [Unknown]")
                                     }
                                 },
                             ))
