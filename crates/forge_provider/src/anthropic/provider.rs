@@ -5,10 +5,11 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client, Url};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio_stream::StreamExt;
-use tracing::{debug, error};
+use tracing::debug;
 
 use super::request::Request;
 use super::response::{EventData, ListModelResponse};
+use crate::error::Error;
 use crate::utils::format_http_context;
 
 #[derive(Clone, Builder)]
@@ -104,23 +105,23 @@ impl Anthropic {
                     Err(error) => match error {
                         reqwest_eventsource::Error::StreamEnded => None,
                         reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                            let headers = response.headers().clone();
                             let status = response.status();
-                             match response.text().await {
-                                Ok(ref body) => {
-                                    debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                    Some(Err(anyhow::anyhow!("Invalid status code: {}, reason: {}", status, body)))
-                                }
-                                Err(error) => {
-                                    error!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
-                                    Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
-                                }
-                            }
+                            let body = response.text().await.ok();
+                            Some(Err(Error::InvalidStatusCode(status.as_u16())).with_context(
+                                || match body {
+                                    Some(body) => {
+                                        format!("Invalid status code: {status} Reason: {body}")
+                                    }
+                                    None => {
+                                        format!("Invalid status code: {status} Reason: [Unknown]")
+                                    }
+                                },
+                            ))
                         }
                         reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                             let status_code = response.status();
                             debug!(response = ?response, "Invalid content type");
-                            Some(Err(error).with_context(||format!("Http Status: {status_code}" )))
+                            Some(Err(error).with_context(|| format!("Http Status: {status_code}")))
                         }
                         error => {
                             debug!(error = %error, "Failed to receive chat completion event");
@@ -128,11 +129,12 @@ impl Anthropic {
                         }
                     },
                 }
-            }).map(move |response| {
-                match response {
-                    Some(Err(err)) => Some(Err(err).with_context(||format_http_context(None, "POST", &url))),
-                    _ => response,
+            })
+            .map(move |response| match response {
+                Some(Err(err)) => {
+                    Some(Err(err).with_context(|| format_http_context(None, "POST", &url)))
                 }
+                _ => response,
             });
 
         Ok(Box::pin(stream.filter_map(|x| x)))
