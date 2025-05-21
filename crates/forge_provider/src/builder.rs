@@ -2,8 +2,7 @@
 
 use anyhow::{Context as _, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderError, ProviderService,
-    ResultStream,
+    ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
 };
 use reqwest::redirect::Policy;
 use tokio_stream::StreamExt;
@@ -11,13 +10,18 @@ use tokio_stream::StreamExt;
 use crate::anthropic::Anthropic;
 use crate::forge_provider::ForgeProvider;
 
-pub enum Client {
+pub struct Client {
+    retry_status_codes: Vec<u16>,
+    inner: InnerClient,
+}
+
+enum InnerClient {
     OpenAICompat(ForgeProvider),
     Anthropic(Anthropic),
 }
 
 impl Client {
-    pub fn new(provider: Provider) -> Result<Self> {
+    pub fn new(provider: Provider, retry_status_codes: Vec<u16>) -> Result<Self> {
         let client = reqwest::Client::builder()
             .read_timeout(std::time::Duration::from_secs(60))
             .pool_idle_timeout(std::time::Duration::from_secs(90))
@@ -25,16 +29,16 @@ impl Client {
             .redirect(Policy::limited(10))
             .build()?;
 
-        match &provider {
-            Provider::OpenAI { url, .. } => Ok(Client::OpenAICompat(
+        let inner = match &provider {
+            Provider::OpenAI { url, .. } => InnerClient::OpenAICompat(
                 ForgeProvider::builder()
                     .client(client)
                     .provider(provider.clone())
                     .build()
                     .with_context(|| format!("Failed to initialize: {url}"))?,
-            )),
+            ),
 
-            Provider::Anthropic { url, key } => Ok(Client::Anthropic(
+            Provider::Anthropic { url, key } => InnerClient::Anthropic(
                 Anthropic::builder()
                     .client(client)
                     .api_key(key.to_string())
@@ -44,8 +48,9 @@ impl Client {
                     .with_context(|| {
                         format!("Failed to initialize Anthropic client with URL: {url}")
                     })?,
-            )),
-        }
+            ),
+        };
+        Ok(Self { inner, retry_status_codes })
     }
 }
 
@@ -56,32 +61,35 @@ impl ProviderService for Client {
         model: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let chat_stream = match self {
-            Client::OpenAICompat(provider) => provider.chat(model, context).await,
-            Client::Anthropic(provider) => provider.chat(model, context).await,
+        let chat_stream = match &self.inner {
+            InnerClient::OpenAICompat(provider) => provider.chat(model, context).await,
+            InnerClient::Anthropic(provider) => provider.chat(model, context).await,
         }?;
-
-        Ok(Box::pin(
-            chat_stream.map(|item| item.map_err(provider_error)),
-        ))
+        let retry_status_codes = self.retry_status_codes.clone();
+        Ok(Box::pin(chat_stream.map(move |item| {
+            item.map_err(|e| provider_error(e, retry_status_codes.clone()))
+        })))
     }
 
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
-        Ok(match self {
-            Client::OpenAICompat(provider) => provider.models().await,
-            Client::Anthropic(provider) => provider.models().await,
+        let retry_status_codes = self.retry_status_codes.clone();
+        Ok(match &self.inner {
+            InnerClient::OpenAICompat(provider) => provider.models().await,
+            InnerClient::Anthropic(provider) => provider.models().await,
         }
-        .map_err(provider_error)?)
+        .map_err(|e| provider_error(e, retry_status_codes))?)
     }
 }
 
-fn provider_error(error: anyhow::Error) -> anyhow::Error {
+fn provider_error(error: anyhow::Error, retry_status_codes: Vec<u16>) -> anyhow::Error {
     if let Some(code) = get_status_code(&error) {
-        return ProviderError::InvalidStatusCode(code).into();
+        if retry_status_codes.contains(&code) {
+            return forge_domain::Error::Retryable(error).into();
+        }
     }
 
     if is_transport_error(&error) {
-        return ProviderError::Transport(error).into();
+        return forge_domain::Error::Retryable(error).into();
     }
 
     error
@@ -98,7 +106,6 @@ fn get_status_code(error: &anyhow::Error) -> Option<u16> {
                 code,
                 _,
             )) => Some(code.as_u16()),
-            crate::error::Error::InvalidStatusCode(code) => Some(*code),
             _ => None,
         })
 }

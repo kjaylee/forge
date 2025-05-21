@@ -53,17 +53,7 @@ pub enum Error {
     NoModelDefined(AgentId),
 
     #[error("{0}")]
-    Provider(ProviderError),
-}
-
-#[derive(Debug, Error)]
-pub enum ProviderError {
-    #[error("Invalid Status Code: {0}")]
-    InvalidStatusCode(u16),
-    #[error("{0}")]
-    Transport(anyhow::Error),
-    #[error("{0}")]
-    Service(anyhow::Error),
+    Retryable(anyhow::Error),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;

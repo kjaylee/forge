@@ -12,7 +12,6 @@ use tracing::debug;
 use super::model::{ListModelResponse, Model};
 use super::request::Request;
 use super::response::Response;
-use crate::error::Error;
 use crate::forge_provider::transformers::{ProviderPipeline, Transformer};
 use crate::utils::format_http_context;
 
@@ -123,18 +122,6 @@ impl ForgeProvider {
                     },
                     Err(error) => match error {
                         reqwest_eventsource::Error::StreamEnded => None,
-                        reqwest_eventsource::Error::InvalidStatusCode(code, response) => {
-                            let body = response.text().await.unwrap_or("[EMPTY_BODY]".to_string());
-                            Some(
-                                Err(Error::InvalidStatusCode(code.as_u16()))
-                                    .with_context(|| format!("Reason: {body}")),
-                            )
-                        }
-                        reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
-                            let status_code = response.status();
-                            debug!(response = ?response, "Invalid content type");
-                            Some(Err(error).with_context(|| format!("Http Status: {status_code}")))
-                        }
                         error => {
                             debug!(error = %error, "Failed to receive chat completion event");
                             Some(Err(error.into()))

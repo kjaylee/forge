@@ -14,8 +14,6 @@ pub enum Error {
     SerdeJson(serde_json::Error),
     ToolCallMissingName,
     Reqwest(reqwest_eventsource::Error),
-    #[display("Invalid Status Code: {_0}")]
-    InvalidStatusCode(u16),
 }
 
 #[derive(Debug, Display, Deserialize, Serialize, Clone)]
