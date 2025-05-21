@@ -68,7 +68,7 @@ impl ProviderService for Client {
         }?;
         let retry_status_codes = self.retry_status_codes.clone();
         Ok(Box::pin(chat_stream.map(move |item| {
-            item.map_err(|e| provider_error(e, retry_status_codes.clone()))
+            item.map_err(|e| into_retry(e, retry_status_codes.clone()))
         })))
     }
 
@@ -78,11 +78,11 @@ impl ProviderService for Client {
             InnerClient::OpenAICompat(provider) => provider.models().await,
             InnerClient::Anthropic(provider) => provider.models().await,
         }
-        .map_err(|e| provider_error(e, retry_status_codes))?)
+        .map_err(|e| into_retry(e, retry_status_codes))?)
     }
 }
 
-fn provider_error(error: anyhow::Error, retry_status_codes: Vec<u16>) -> anyhow::Error {
+fn into_retry(error: anyhow::Error, retry_status_codes: Vec<u16>) -> anyhow::Error {
     if let Some(code) = get_status_code(&error) {
         if retry_status_codes.contains(&code) {
             return forge_domain::Error::Retryable(error).into();
