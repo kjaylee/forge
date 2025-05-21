@@ -1,5 +1,7 @@
 // Context trait is needed for error handling in the provider implementations
 
+use std::sync::Arc;
+
 use anyhow::{Context as _, Result};
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
@@ -8,12 +10,13 @@ use reqwest::redirect::Policy;
 use tokio_stream::StreamExt;
 
 use crate::anthropic::Anthropic;
-use crate::error::Error;
 use crate::forge_provider::ForgeProvider;
+use crate::retry::into_retry;
 
+#[derive(Clone)]
 pub struct Client {
-    retry_status_codes: Vec<u16>,
-    inner: InnerClient,
+    retry_status_codes: Arc<Vec<u16>>,
+    inner: Arc<InnerClient>,
 }
 
 enum InnerClient {
@@ -24,7 +27,7 @@ enum InnerClient {
 impl Client {
     pub fn new(provider: Provider, retry_status_codes: Vec<u16>) -> Result<Self> {
         let client = reqwest::Client::builder()
-            .read_timeout(std::time::Duration::from_secs(10))
+            .read_timeout(std::time::Duration::from_secs(60))
             .pool_idle_timeout(std::time::Duration::from_secs(90))
             .pool_max_idle_per_host(5)
             .redirect(Policy::limited(10))
@@ -51,7 +54,15 @@ impl Client {
                     })?,
             ),
         };
-        Ok(Self { inner, retry_status_codes })
+        Ok(Self {
+            inner: Arc::new(inner),
+            retry_status_codes: Arc::new(retry_status_codes),
+        })
+    }
+
+    fn into_retry<A>(&self, result: anyhow::Result<A>) -> anyhow::Result<A> {
+        let codes = &self.retry_status_codes;
+        result.map_err(move |e| into_retry(e, codes))
     }
 }
 
@@ -62,105 +73,21 @@ impl ProviderService for Client {
         model: &ModelId,
         context: Context,
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
-        let retry_status_codes = self.retry_status_codes.clone();
-        let chat_stream = match &self.inner {
+        let chat_stream = self.clone().into_retry(match self.inner.as_ref() {
             InnerClient::OpenAICompat(provider) => provider.chat(model, context).await,
             InnerClient::Anthropic(provider) => provider.chat(model, context).await,
-        }
-        .map_err(|e| into_retry(e, retry_status_codes.clone()))?;
+        })?;
 
-        Ok(Box::pin(chat_stream.map(move |item| {
-            item.map_err(|e| into_retry(e, retry_status_codes.clone()))
-        })))
+        let this = self.clone();
+        Ok(Box::pin(
+            chat_stream.map(move |item| this.clone().into_retry(item)),
+        ))
     }
 
     async fn models(&self) -> anyhow::Result<Vec<Model>> {
-        let retry_status_codes = self.retry_status_codes.clone();
-        Ok(match &self.inner {
+        self.clone().into_retry(match self.inner.as_ref() {
             InnerClient::OpenAICompat(provider) => provider.models().await,
             InnerClient::Anthropic(provider) => provider.models().await,
-        }
-        .map_err(|e| into_retry(e, retry_status_codes))?)
-    }
-}
-
-fn into_retry(error: anyhow::Error, retry_status_codes: Vec<u16>) -> anyhow::Error {
-    if let Some(code) = get_req_status_code(&error)
-        .or(get_event_req_status_code(&error))
-        .or(get_api_status_code(&error))
-    {
-        if retry_status_codes.contains(&code) {
-            return forge_domain::Error::Retryable(error).into();
-        }
-    }
-
-    if is_api_transport_error(&error)
-        || is_req_transport_error(&error)
-        || is_event_transport_error(&error)
-    {
-        return forge_domain::Error::Retryable(error).into();
-    }
-
-    error
-}
-
-fn get_api_status_code(error: &anyhow::Error) -> Option<u16> {
-    error.downcast_ref::<Error>().and_then(|error| match error {
-        Error::Response(error) => error
-            .get_code_deep()
-            .as_ref()
-            .and_then(|code| code.as_number()),
-        Error::InvalidStatusCode(code) => Some(*code),
-        _ => None,
-    })
-}
-
-fn get_req_status_code(error: &anyhow::Error) -> Option<u16> {
-    error
-        .downcast_ref::<reqwest::Error>()
-        .and_then(|error| error.status())
-        .map(|status| status.as_u16())
-}
-
-fn get_event_req_status_code(error: &anyhow::Error) -> Option<u16> {
-    error
-        .downcast_ref::<reqwest_eventsource::Error>()
-        .and_then(|error| match error {
-            reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                Some(response.status().as_u16())
-            }
-            reqwest_eventsource::Error::InvalidContentType(_, response) => {
-                Some(response.status().as_u16())
-            }
-            _ => None,
         })
-}
-
-fn is_api_transport_error(error: &anyhow::Error) -> bool {
-    error
-        .downcast_ref::<Error>()
-        .is_some_and(|error| match error {
-            Error::Response(error) => error
-                .code
-                .as_ref()
-                .and_then(|code| code.as_str())
-                .is_some_and(|code| {
-                    ["ERR_STREAM_PREMATURE_CLOSE", "ECONNRESET", "ETIMEDOUT"]
-                        .into_iter()
-                        .any(|message| message == code)
-                }),
-            _ => false,
-        })
-}
-
-fn is_req_transport_error(error: &anyhow::Error) -> bool {
-    error
-        .downcast_ref::<reqwest::Error>()
-        .is_some_and(|e| e.is_timeout() || e.is_connect())
-}
-
-fn is_event_transport_error(error: &anyhow::Error) -> bool {
-    error
-        .downcast_ref::<reqwest_eventsource::Error>()
-        .is_some_and(|e| matches!(e, reqwest_eventsource::Error::Transport(_)))
+    }
 }
