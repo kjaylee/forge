@@ -1,5 +1,4 @@
 use forge_api::ToolDefinition;
-use forge_display::markdown::MarkdownFormat;
 
 /// Formats the list of tools for display in the shell UI, showing only the tool
 /// name as a blue bold heading with numbering for each tool.
@@ -16,7 +15,5 @@ pub fn format_tools(tools: &[ToolDefinition]) -> String {
         }
     }
 
-    // Use the markdown formatter to render the final output
-    let formatter = MarkdownFormat::new();
-    formatter.render(output)
+    output
 }
