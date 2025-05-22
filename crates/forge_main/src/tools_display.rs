@@ -1,4 +1,3 @@
-use colored::Colorize;
 use forge_api::ToolDefinition;
 use forge_display::markdown::MarkdownFormat;
 
@@ -8,13 +7,8 @@ pub fn format_tools(tools: &[ToolDefinition]) -> String {
     let mut output = String::new();
 
     for (i, tool) in tools.iter().enumerate() {
-        // Format number and tool name as blue bold
-        let number = format!("{}", i + 1).blue().bold();
-        let name = tool.name.to_string().blue().bold();
-
-        // Add numbered tool name, with backticks around name to prevent rendering as
-        // hyperlink
-        output.push_str(&format!("{number}. `{name}`"));
+        // Add numbered tool name as plain text
+        output.push_str(&format!("{}.  {}", i + 1, tool.name));
 
         // Add newline between tools
         if i < tools.len() - 1 {
