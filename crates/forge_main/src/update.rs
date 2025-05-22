@@ -7,7 +7,7 @@ use update_informer::{registry, Check, Version};
 
 use crate::TRACKER;
 
-const UPDATE_COMMAND: &str = "npm update -g @antinomyhq/forge";
+const UPDATE_COMMAND: &str = "npm update -g @antinomyhq/forge --force";
 
 /// Runs npm update in the background, failing silently
 async fn execute_update_command(api: Arc<impl API>) {
