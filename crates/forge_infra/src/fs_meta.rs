@@ -13,4 +13,8 @@ impl FsMetaService for ForgeFileMetaService {
     async fn exists(&self, path: &Path) -> Result<bool> {
         Ok(forge_fs::ForgeFS::exists(path))
     }
+
+    async fn is_binary(&self, path: &Path) -> Result<(bool, String)> {
+        forge_fs::ForgeFS::is_binary(path).await
+    }
 }

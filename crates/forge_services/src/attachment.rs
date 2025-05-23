@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use forge_domain::{Attachment, AttachmentContent, AttachmentService, EnvironmentService, Image};
+use nom::AsBytes;
 
 use crate::{FsReadService, Infrastructure};
 
@@ -21,7 +22,7 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
     ) -> anyhow::Result<Image> {
         let bytes = infra.read(path).await?;
 
-        Ok(Image::new_bytes(bytes, img_format))
+        Ok(Image::new_bytes(bytes.as_bytes(), img_format))
     }
 
     async fn generate_text_content(
@@ -316,6 +317,10 @@ pub mod tests {
 
         async fn exists(&self, path: &Path) -> anyhow::Result<bool> {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
+        }
+
+        async fn is_binary(&self, path: &Path) -> anyhow::Result<(bool, String)> {
+            unimplemented!()
         }
     }
 

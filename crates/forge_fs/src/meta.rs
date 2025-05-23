@@ -3,6 +3,13 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 impl crate::ForgeFS {
+    pub async fn is_binary<T: AsRef<Path>>(path: T) -> Result<(bool, String)> {
+        let mut file = tokio::fs::File::open(path.as_ref())
+            .await
+            .with_context(|| format!("Failed to open file {}", path.as_ref().display()))?;
+
+        Self::is_binary_inner(&mut file).await
+    }
     pub fn exists<T: AsRef<Path>>(path: T) -> bool {
         path.as_ref().exists()
     }

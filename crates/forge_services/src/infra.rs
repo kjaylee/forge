@@ -72,6 +72,7 @@ pub trait FileRemoveService: Send + Sync {
 pub trait FsMetaService: Send + Sync {
     async fn is_file(&self, path: &Path) -> anyhow::Result<bool>;
     async fn exists(&self, path: &Path) -> anyhow::Result<bool>;
+    async fn is_binary(&self, path: &Path) -> anyhow::Result<(bool, String)>;
 }
 
 #[async_trait::async_trait]
