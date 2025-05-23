@@ -594,7 +594,6 @@ impl<F: API> UI<F> {
                 let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
 
                 let mut fs = std::fs::OpenOptions::new()
-                    
                     .create(true)
                     .append(true)
                     .open("conversation.md")
