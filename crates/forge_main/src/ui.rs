@@ -379,7 +379,7 @@ impl<F: API> UI<F> {
         let models = self.get_models().await?;
 
         // Create list of model IDs for selection
-        let model_ids: Vec<ModelId> = models.iter().map(|m| m.id.clone()).collect();
+        let model_ids: Vec<ModelId> = models.into_iter().map(|m| m.id).collect();
 
         // Create a custom render config with the specified icons
         let render_config = RenderConfig::default()
