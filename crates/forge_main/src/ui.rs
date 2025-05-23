@@ -593,8 +593,18 @@ impl<F: API> UI<F> {
             if let Some(conversation) = conversation {
                 let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
 
-                let mut fs = std::fs::OpenOptions::new().write(true).create(true).append(true).open("conversation.md").unwrap();
-                fs.write_all(serde_json::to_string_pretty(&conversation).unwrap().as_bytes()).unwrap();
+                let mut fs = std::fs::OpenOptions::new()
+                    
+                    .create(true)
+                    .append(true)
+                    .open("conversation.md")
+                    .unwrap();
+                fs.write_all(
+                    serde_json::to_string_pretty(&conversation)
+                        .unwrap()
+                        .as_bytes(),
+                )
+                .unwrap();
                 fs.write_all(b"\n\n").unwrap();
 
                 if let Some(format) = format {
