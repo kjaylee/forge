@@ -126,7 +126,10 @@ impl<A: Services> Orchestrator<A> {
 
     // Returns if agent supports tool or not.
     async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
-        let model_id = agent.model.as_ref().unwrap();
+        let model_id = agent
+            .model
+            .as_ref()
+            .ok_or(Error::MissingModel(agent.id.clone()))?;
         let model_info = self.services.provider_service().model(model_id).await?;
 
         Ok(model_info
@@ -419,17 +422,18 @@ impl<A: Services> Orchestrator<A> {
             .model
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
+        let tool_supported = self.is_tool_supported(agent).await?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
             agent
-                .init_context(self.get_allowed_tools(agent).await?)
+                .init_context(self.get_allowed_tools(agent).await?, tool_supported)
                 .await?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
                 None => {
                     agent
-                        .init_context(self.get_allowed_tools(agent).await?)
+                        .init_context(self.get_allowed_tools(agent).await?, tool_supported)
                         .await?
                 }
             }
@@ -477,8 +481,6 @@ impl<A: Services> Orchestrator<A> {
             .environment_service()
             .get_environment()
             .retry_config;
-
-        let tool_supported = self.is_tool_supported(agent).await?;
 
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
