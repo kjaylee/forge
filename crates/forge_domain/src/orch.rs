@@ -127,7 +127,7 @@ impl<A: Services> Orchestrator<A> {
     // Returns if agent supports tool or not.
     async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
         let model_id = agent.model.as_ref().unwrap();
-        let model_info = self.services.provider_service().model(&model_id).await?;
+        let model_info = self.services.provider_service().model(model_id).await?;
 
         Ok(model_info
             .and_then(|model| model.tools_supported)
