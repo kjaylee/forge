@@ -68,20 +68,13 @@ impl<F: API> UI<F> {
     fn writeln<T: ToString>(&mut self, content: T) -> anyhow::Result<()> {
         self.spinner.write_ln(content)
     }
-    /// Retrieve available models, using cache if present
-    async fn get_models(&mut self) -> Result<&[Model]> {
-        if self.state.cached_models.is_none() {
-            self.spinner.start(Some("Loading Models"))?;
-            let models = self.api.models().await?;
-            self.state.cached_models = Some(models);
-            self.spinner.stop(None)?;
-        }
 
-        if let Some(models) = &self.state.cached_models {
-            Ok(models)
-        } else {
-            Err(anyhow::anyhow!("Failed to retrieve models"))
-        }
+    /// Retrieve available models
+    async fn get_models(&mut self) -> Result<Vec<Model>> {
+        self.spinner.start(Some("Loading Models"))?;
+        let models = self.api.models().await?;
+        self.spinner.stop(None)?;
+        Ok(models)
     }
 
     // Handle creating a new conversation
