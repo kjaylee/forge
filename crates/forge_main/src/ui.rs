@@ -164,6 +164,9 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) {
+        //
+        let _ = self.update_agent_tool_support().await;
+
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
@@ -451,6 +454,42 @@ impl<F: API> UI<F> {
         }
 
         Ok(())
+    }
+
+    /// Updates tool support information for all agents in the current conversation based on available models
+    async fn update_agent_tool_support(&mut self) -> Result<()> {
+        // Get the conversation ID and fetch the conversation
+        let conversation_id = match self.init_conversation().await {
+            Ok(id) => id,
+            Err(_) => return Ok(()), // No conversation to update
+        };
+
+        let mut conversation = match self.api.conversation(&conversation_id).await? {
+            Some(conv) => conv,
+            None => return Ok(()), // Conversation not found
+        };
+
+        // Get the models
+        let models = match self.get_models().await {
+            Ok(models) => models,
+            Err(_) => return Ok(()), // Can't get models, early return
+        };
+
+        // Update tool support for all agents
+        for agent in conversation.agents.iter_mut() {
+            if let Some(agent_model_id) = agent.model.as_ref() {
+                if let Some(tool_supported) = models
+                    .iter()
+                    .find(|model| *agent_model_id == model.id)
+                    .and_then(|model| model.tools_supported)
+                {
+                    agent.tool_supported = Some(tool_supported);
+                }
+            }
+        }
+
+        // Save the updated conversation
+        self.api.upsert_conversation(conversation).await
     }
 
     // Handle dispatching events from the CLI
