@@ -450,22 +450,6 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    /// Updates tool support information for all agents in the current
-    /// conversation based on available models
-    async fn update_agent_tool_support(&mut self, conversation_id: &ConversationId) -> Result<()> {
-        let mut conversation = match self.api.conversation(conversation_id).await? {
-            Some(conv) => conv,
-            None => return Ok(()), // Conversation not found
-        };
-        let models = self.get_models().await?;
-
-        // update the conversation agents tool supported flag based on models.
-        conversation.update_agents_tool_support(models);
-
-        // Save the updated conversation
-        self.api.upsert_conversation(conversation).await
-    }
-
     // Handle dispatching events from the CLI
     async fn handle_dispatch(&mut self, json: String) -> Result<()> {
         // Initialize the conversation
@@ -483,7 +467,7 @@ impl<F: API> UI<F> {
     }
 
     async fn init_conversation(&mut self) -> Result<ConversationId> {
-        let conversation_id = match self.state.conversation_id {
+        match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
                 // Select a model if workflow doesn't have one
@@ -508,13 +492,7 @@ impl<F: API> UI<F> {
                     Ok(conversation.id)
                 }
             }
-        };
-
-        if let Ok(conversation_id) = conversation_id.as_ref() {
-            let _ = self.update_agent_tool_support(conversation_id).await;
         }
-
-        conversation_id
     }
 
     /// Initialize the state of the UI
@@ -585,20 +563,6 @@ impl<F: API> UI<F> {
             let conversation = self.api.conversation(&conversation_id).await?;
             if let Some(conversation) = conversation {
                 let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-
-                let mut fs = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open("conversation.md")
-                    .unwrap();
-                fs.write_all(
-                    serde_json::to_string_pretty(&conversation)
-                        .unwrap()
-                        .as_bytes(),
-                )
-                .unwrap();
-                fs.write_all(b"\n\n").unwrap();
-
                 if let Some(format) = format {
                     if format == "html" {
                         // Export as HTML
