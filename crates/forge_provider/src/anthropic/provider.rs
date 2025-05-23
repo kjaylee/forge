@@ -215,7 +215,7 @@ impl Anthropic {
                 let ctx_msg = format_http_context(err.status(), "GET", &url);
                 Err(err)
                     .with_context(|| ctx_msg)
-                    .with_context(|| format!("Failed to fetch model details for '{}'", model))
+                    .with_context(|| format!("Failed to fetch model details for '{model}'"))
             }
         }
     }
