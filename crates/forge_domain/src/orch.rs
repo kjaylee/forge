@@ -124,6 +124,16 @@ impl<A: Services> Orchestrator<A> {
             .collect())
     }
 
+    // Returns if agent supports tool or not.
+    async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
+        let model_id = agent.model.as_ref().unwrap();
+        let model_info = self.services.provider_service().model(&model_id).await?;
+
+        Ok(model_info
+            .and_then(|model| model.tools_supported)
+            .unwrap_or_else(|| agent.tool_supported.unwrap_or_default()))
+    }
+
     async fn set_system_prompt(
         &self,
         context: Context,
@@ -144,7 +154,8 @@ impl<A: Services> Orchestrator<A> {
 
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
-            let tool_information = match agent.tool_supported.unwrap_or_default() {
+            let tool_supported = self.is_tool_supported(agent).await?;
+            let tool_information = match tool_supported {
                 true => None,
                 false => {
                     Some(ToolUsagePrompt::from(&self.get_allowed_tools(agent).await?).to_string())
@@ -155,7 +166,7 @@ impl<A: Services> Orchestrator<A> {
                 current_time,
                 env: Some(env),
                 tool_information,
-                tool_supported: agent.tool_supported.unwrap_or_default(),
+                tool_supported,
                 files,
                 custom_rules: agent.custom_rules.as_ref().cloned().unwrap_or_default(),
                 variables: variables.clone(),
@@ -203,7 +214,7 @@ impl<A: Services> Orchestrator<A> {
         let mut tool_interrupted = false;
 
         // Only interrupt the loop for XML tool calls if tool_supported is false
-        let should_interrupt_for_xml = !agent.tool_supported.unwrap_or_default();
+        let should_interrupt_for_xml = !self.is_tool_supported(agent).await?;
 
         while let Some(message) = response.next().await {
             let message = message?;
@@ -467,6 +478,8 @@ impl<A: Services> Orchestrator<A> {
             .get_environment()
             .retry_config;
 
+        let tool_supported = self.is_tool_supported(agent).await?;
+
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
@@ -509,7 +522,7 @@ impl<A: Services> Orchestrator<A> {
                 model_id.clone(),
                 self.get_all_tool_results(agent, &tool_calls, tool_context.clone())
                     .await?,
-                agent.tool_supported.unwrap_or_default(),
+                tool_supported,
             );
 
             if empty_tool_calls {
@@ -518,7 +531,7 @@ impl<A: Services> Orchestrator<A> {
                 let content = self.services.template_service().render(
                     "{{> partial-tool-required.hbs}}",
                     &serde_json::json!({
-                        "tool_supported": agent.tool_supported.unwrap_or_default()
+                        "tool_supported": tool_supported
                     }),
                 )?;
                 context =
