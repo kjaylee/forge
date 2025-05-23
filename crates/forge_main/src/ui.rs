@@ -68,15 +68,18 @@ impl<F: API> UI<F> {
         self.spinner.write_ln(content)
     }
     /// Retrieve available models, using cache if present
-    async fn get_models(&mut self) -> Result<Vec<Model>> {
-        if let Some(models) = &self.state.cached_models {
-            Ok(models.clone())
-        } else {
+    async fn get_models(&mut self) -> Result<&[Model]> {
+        if self.state.cached_models.is_none() {
             self.spinner.start(Some("Loading Models"))?;
             let models = self.api.models().await?;
             self.spinner.stop(None)?;
             self.state.cached_models = Some(models.clone());
+        }
+
+        if let Some(models) = &self.state.cached_models {
             Ok(models)
+        } else {
+            Err(anyhow::anyhow!("Failed to retrieve models"))
         }
     }
 
@@ -383,7 +386,7 @@ impl<F: API> UI<F> {
         let models = self.get_models().await?;
 
         // Create list of model IDs for selection
-        let model_ids: Vec<ModelId> = models.into_iter().map(|m| m.id).collect();
+        let model_ids: Vec<ModelId> = models.into_iter().map(|m| m.id.clone()).collect();
 
         // Create a custom render config with the specified icons
         let render_config = RenderConfig::default()
