@@ -7,9 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::{
-    Agent, AgentId, Compact, Context, Error, Event, Model, ModelId, Result, ToolName, Workflow,
-};
+use crate::{Agent, AgentId, Compact, Context, Error, Event, ModelId, Result, ToolName, Workflow};
 
 #[derive(Debug, Display, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
