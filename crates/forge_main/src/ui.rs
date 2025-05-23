@@ -465,18 +465,8 @@ impl<F: API> UI<F> {
         };
         let models = self.get_models().await?;
 
-        // Update tool support for all agents
-        for agent in conversation.agents.iter_mut() {
-            if let Some(agent_model_id) = agent.model.as_ref() {
-                if let Some(tool_supported) = models
-                    .iter()
-                    .find(|model| *agent_model_id == model.id)
-                    .and_then(|model| model.tools_supported)
-                {
-                    agent.tool_supported = Some(tool_supported);
-                }
-            }
-        }
+        // update the conversation agents tool supported flag based on models.
+        conversation.update_agents_tool_support(models);
 
         // Save the updated conversation
         self.api.upsert_conversation(conversation).await
