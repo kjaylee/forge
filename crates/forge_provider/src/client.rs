@@ -90,4 +90,11 @@ impl ProviderService for Client {
             InnerClient::Anthropic(provider) => provider.models().await,
         })
     }
+
+    async fn model(&self, model: &ModelId) -> anyhow::Result<Option<Model>> {
+        self.clone().retry(match self.inner.as_ref() {
+            InnerClient::OpenAICompat(provider) => provider.model(model).await,
+            InnerClient::Anthropic(provider) => provider.model(model).await,
+        })
+    }
 }
