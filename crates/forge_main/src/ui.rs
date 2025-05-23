@@ -456,7 +456,8 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    /// Updates tool support information for all agents in the current conversation based on available models
+    /// Updates tool support information for all agents in the current
+    /// conversation based on available models
     async fn update_agent_tool_support(&mut self) -> Result<()> {
         // Get the conversation ID and fetch the conversation
         let conversation_id = match self.init_conversation().await {
