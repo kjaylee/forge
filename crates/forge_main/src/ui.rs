@@ -460,21 +460,12 @@ impl<F: API> UI<F> {
     /// conversation based on available models
     async fn update_agent_tool_support(&mut self) -> Result<()> {
         // Get the conversation ID and fetch the conversation
-        let conversation_id = match self.init_conversation().await {
-            Ok(id) => id,
-            Err(_) => return Ok(()), // No conversation to update
-        };
-
+        let conversation_id = self.init_conversation().await?;
         let mut conversation = match self.api.conversation(&conversation_id).await? {
             Some(conv) => conv,
             None => return Ok(()), // Conversation not found
         };
-
-        // Get the models
-        let models = match self.get_models().await {
-            Ok(models) => models,
-            Err(_) => return Ok(()), // Can't get models, early return
-        };
+        let models = self.get_models().await?;
 
         // Update tool support for all agents
         for agent in conversation.agents.iter_mut() {
