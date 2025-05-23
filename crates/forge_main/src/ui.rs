@@ -164,9 +164,6 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) {
-        // Update the agent with tool support.
-        let _ = self.update_agent_tool_support().await;
-
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
@@ -458,9 +455,7 @@ impl<F: API> UI<F> {
 
     /// Updates tool support information for all agents in the current
     /// conversation based on available models
-    async fn update_agent_tool_support(&mut self) -> Result<()> {
-        // Get the conversation ID and fetch the conversation
-        let conversation_id = self.init_conversation().await?;
+    async fn update_agent_tool_support(&mut self, conversation_id: &ConversationId) -> Result<()> {
         let mut conversation = match self.api.conversation(&conversation_id).await? {
             Some(conv) => conv,
             None => return Ok(()), // Conversation not found
@@ -501,7 +496,7 @@ impl<F: API> UI<F> {
     }
 
     async fn init_conversation(&mut self) -> Result<ConversationId> {
-        match self.state.conversation_id {
+        let conversation_id = match self.state.conversation_id {
             Some(ref id) => Ok(id.clone()),
             None => {
                 // Select a model if workflow doesn't have one
@@ -526,7 +521,13 @@ impl<F: API> UI<F> {
                     Ok(conversation.id)
                 }
             }
+        };
+
+        if let Ok(conversation_id) = conversation_id.as_ref() {
+            let _ = self.update_agent_tool_support(conversation_id).await;
         }
+
+        conversation_id
     }
 
     /// Initialize the state of the UI
