@@ -215,7 +215,7 @@ impl<A: Services> Orchestrator<A> {
                 .await?;
 
             // Process content
-            if let Some(content_part) = message.content.clone() {
+            if let Some(content_part) = message.content.as_ref() {
                 let content_part = content_part.as_str().to_string();
 
                 content.push_str(&content_part);

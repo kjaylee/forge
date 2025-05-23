@@ -22,6 +22,8 @@ impl From<Model> for forge_domain::Model {
             name: Some(value.display_name),
             description: None,
             context_length: None,
+            // TODO: verify this: assuming all the anthropic models supports tool calls.
+            tools_supported: Some(true),
         }
     }
 }
