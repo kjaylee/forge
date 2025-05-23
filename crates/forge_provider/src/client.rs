@@ -59,7 +59,7 @@ impl Client {
         };
 
         let cache = Cache::builder()
-            .time_to_live(Duration::from_secs(cache_ttl)) // 60 minutes TTL
+            .time_to_live(Duration::from_secs(cache_ttl))
             .build();
 
         Ok(Self {
