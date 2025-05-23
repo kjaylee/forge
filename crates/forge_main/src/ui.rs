@@ -164,7 +164,7 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) {
-        //
+        // Update the agent with tool support.
         let _ = self.update_agent_tool_support().await;
 
         match self.run_inner().await {
