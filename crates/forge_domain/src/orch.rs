@@ -461,9 +461,7 @@ impl<A: Services> Orchestrator<A> {
         };
 
         // Update agent with tool support information from the model
-        let _ = self
-            .update_agent_tool_support(&model_id, agent)
-            .await;
+        let _ = self.update_agent_tool_support(&model_id, agent).await;
 
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, agent, variables).await?;
