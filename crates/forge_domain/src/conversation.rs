@@ -52,25 +52,6 @@ pub struct AgentState {
 impl Conversation {
     pub const MAIN_AGENT_NAME: &str = "software-engineer";
 
-    /// Updates agents' tool support status based on their models.
-    /// Returns the number of agents updated.
-    pub fn update_agents_tool_support(&mut self, models: &[Model]) -> u32 {
-        let mut updated_agents_count = 0;
-        for agent in self.agents.iter_mut() {
-            if let Some(agent_model_id) = agent.model.as_ref() {
-                if let Some(tool_supported) = models
-                    .iter()
-                    .find(|model| *agent_model_id == model.id)
-                    .and_then(|model| model.tools_supported)
-                {
-                    agent.tool_supported = Some(tool_supported);
-                    updated_agents_count += 1;
-                }
-            }
-        }
-        updated_agents_count
-    }
-
     /// Returns the model of the main agent
     ///
     /// # Errors
