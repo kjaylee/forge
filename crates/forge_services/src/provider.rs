@@ -22,7 +22,12 @@ impl ForgeProviderService {
         let provider = env.provider.clone();
         Self {
             client: Arc::new(
-                Client::new(provider, env.retry_config.retry_status_codes, env.model_cache_ttl).unwrap(),
+                Client::new(
+                    provider,
+                    env.retry_config.retry_status_codes,
+                    env.model_cache_ttl,
+                )
+                .unwrap(),
             ),
         }
     }
