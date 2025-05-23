@@ -379,18 +379,6 @@ impl<A: Services> Orchestrator<A> {
             .sender(self.sender.clone())
     }
 
-    async fn update_agent(&self, agent: Agent) -> anyhow::Result<()> {
-        let mut conversation = self.conversation.read().await.clone();
-        if let Some(old_agent) = conversation.agents.iter_mut().find(|a| a.id == agent.id) {
-            *old_agent = agent;
-            self.services
-                .conversation_service()
-                .upsert(conversation)
-                .await?;
-        }
-        Ok(())
-    }
-
     async fn chat(
         &self,
         agent: &Agent,
@@ -403,30 +391,6 @@ impl<A: Services> Orchestrator<A> {
             .chat(model_id, context.clone())
             .await?;
         self.collect_messages(agent, &context, response).await
-    }
-
-    async fn update_agent_tool_support(
-        &self,
-        model_id: &ModelId,
-        agent: &Agent,
-    ) -> anyhow::Result<()> {
-        if let Ok(models) = self.services.provider_service().models().await {
-            if let Some(tool_supported) = models
-                .iter()
-                .find(|model| model.id == *model_id)
-                .and_then(|model| model.tools_supported)
-            {
-                let mut agent_clone = agent.clone();
-                agent_clone.tool_supported.replace(tool_supported);
-                if let Err(err) = self.update_agent(agent_clone).await {
-                    tracing::warn!(error = ?err, agent_id = ?agent.id, "Failed to update agent with tool support information");
-                }
-            }
-        } else {
-            tracing::debug!(agent_id = ?agent.id, "Could not fetch models to check tool support");
-        }
-
-        Ok(())
     }
 
     // Create a helper method with the core functionality
@@ -459,9 +423,6 @@ impl<A: Services> Orchestrator<A> {
                 }
             }
         };
-
-        // Update agent with tool support information from the model
-        let _ = self.update_agent_tool_support(&model_id, agent).await;
 
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, agent, variables).await?;
