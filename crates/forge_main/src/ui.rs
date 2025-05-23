@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -73,7 +74,7 @@ impl<F: API> UI<F> {
             self.spinner.start(Some("Loading Models"))?;
             let models = self.api.models().await?;
             self.spinner.stop(None)?;
-            self.state.cached_models = Some(models.clone());
+            self.state.cached_models = Some(models);
         }
 
         if let Some(models) = &self.state.cached_models {
@@ -591,6 +592,10 @@ impl<F: API> UI<F> {
             let conversation = self.api.conversation(&conversation_id).await?;
             if let Some(conversation) = conversation {
                 let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
+
+                let mut fs = std::fs::OpenOptions::new().write(true).create(true).append(true).open("conversation.md").unwrap();
+                fs.write_all(serde_json::to_string_pretty(&conversation).unwrap().as_bytes()).unwrap();
+                fs.write_all(b"\n\n").unwrap();
 
                 if let Some(format) = format {
                     if format == "html" {
