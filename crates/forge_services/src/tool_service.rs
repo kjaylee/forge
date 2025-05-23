@@ -77,7 +77,8 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
                 )
                 .context(elapsed),
             ),
-        };
+        }
+        .with_call_id(call.call_id.clone());
 
         Ok(result)
     }
