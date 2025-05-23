@@ -525,13 +525,8 @@ impl<A: Services> Orchestrator<A> {
                     context.add_message(ContextMessage::user(content, model_id.clone().into()));
 
                 empty_tool_call_count += 1;
-                let model = agent
-                    .model
-                    .as_ref()
-                    .map(ModelId::as_str)
-                    .unwrap_or_default();
                 if empty_tool_call_count > 3 {
-                    bail!("Model '{model}' is unable to follow instructions, consider retrying or switching to a bigger model.");
+                    bail!("Model '{model_id}' is unable to follow instructions, consider retrying or switching to a bigger model.");
                 }
             } else {
                 empty_tool_call_count = 0;
