@@ -73,8 +73,8 @@ impl<F: API> UI<F> {
         if self.state.cached_models.is_none() {
             self.spinner.start(Some("Loading Models"))?;
             let models = self.api.models().await?;
-            self.spinner.stop(None)?;
             self.state.cached_models = Some(models);
+            self.spinner.stop(None)?;
         }
 
         if let Some(models) = &self.state.cached_models {
