@@ -320,7 +320,7 @@ pub mod tests {
         }
 
         async fn is_binary(&self, _: &Path) -> anyhow::Result<(bool, String)> {
-            unimplemented!()
+            Ok((true, "binary".to_string()))
         }
     }
 
