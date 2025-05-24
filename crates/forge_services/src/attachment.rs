@@ -319,7 +319,7 @@ pub mod tests {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
         }
 
-        async fn is_binary(&self, path: &Path) -> anyhow::Result<(bool, String)> {
+        async fn is_binary(&self, _: &Path) -> anyhow::Result<(bool, String)> {
             unimplemented!()
         }
     }

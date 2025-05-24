@@ -146,6 +146,10 @@ pub mod tests {
         async fn exists(&self, _: &Path) -> anyhow::Result<bool> {
             unimplemented!()
         }
+
+        async fn is_binary(&self, _: &Path) -> anyhow::Result<(bool, String)> {
+            unimplemented!()
+        }
     }
 
     #[async_trait::async_trait]
