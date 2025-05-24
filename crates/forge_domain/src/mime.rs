@@ -23,8 +23,8 @@ impl Display for MimeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MimeType::Text => write!(f, "text"),
-            MimeType::Image(image) => write!(f, "image/{}", image),
-            MimeType::Other(other) => write!(f, "{}", other),
+            MimeType::Image(image) => write!(f, "image/{image}"),
+            MimeType::Other(other) => write!(f, "{other}"),
         }
     }
 }
