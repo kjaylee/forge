@@ -40,13 +40,12 @@ impl<F: Infrastructure> ToolRegistry<F> {
 
 #[cfg(test)]
 pub mod tests {
-
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
     use forge_domain::{
-        CommandOutput, Environment, EnvironmentService, Provider, ToolDefinition, ToolName,
-        ToolOutput,
+        CommandOutput, Environment, EnvironmentService, MimeType, Provider, ToolDefinition,
+        ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
     use serde_json::Value;
@@ -147,7 +146,7 @@ pub mod tests {
             unimplemented!()
         }
 
-        async fn is_binary(&self, _: &Path) -> anyhow::Result<(bool, String)> {
+        async fn mime_type(&self, _: &Path) -> anyhow::Result<MimeType> {
             unimplemented!()
         }
     }

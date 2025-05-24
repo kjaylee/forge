@@ -28,7 +28,7 @@ impl crate::ForgeFS {
         // Check if the file is binary
         let (is_text, file_type) = Self::is_binary_inner(&mut file).await?;
         if !is_text {
-            return Err(Error::BinaryFileNotSupported(file_type).into());
+            return Err(Error::BinaryFileNotSupported(file_type.to_string()).into());
         }
 
         // Read the file content

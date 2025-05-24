@@ -6,7 +6,7 @@ use std::sync::Arc;
 use anyhow::{bail, Context};
 use forge_display::TitleFormat;
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSReadInput, Image, NamedTool, ToolCallContext,
+    EnvironmentService, ExecutableTool, FSReadInput, Image, MimeType, NamedTool, ToolCallContext,
     ToolDescription, ToolName, ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
@@ -200,7 +200,7 @@ impl<F: Infrastructure> FSRead<F> {
         context: ToolCallContext,
         input: FSReadInput,
         path: PathBuf,
-        ty: String,
+        ty: MimeType,
     ) -> anyhow::Result<ToolOutput> {
         let bytes = self
             .0
@@ -210,7 +210,7 @@ impl<F: Infrastructure> FSRead<F> {
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
         let file_info = forge_fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
-        let image = Image::new_bytes(bytes.as_bytes(), &ty);
+        let image = Image::new_bytes(bytes.as_bytes(), &ty.to_string());
 
         self.create_and_send_title(
             &context,
@@ -233,11 +233,11 @@ impl<F: Infrastructure> FSRead<F> {
     ) -> anyhow::Result<ToolOutput> {
         let path = PathBuf::from(&input.path);
         assert_absolute_path(&path)?;
-        let (is_text, ty) = self.0.file_meta_service().is_binary(&path).await?;
-        if is_text {
-            self.read_binary(context, input, path).await
-        } else {
+        let ty = self.0.file_meta_service().mime_type(&path).await?;
+        if matches!(&ty, MimeType::Image(_)) {
             self.read_image(context, input, path, ty).await
+        } else {
+            self.read_binary(context, input, path).await
         }
     }
 }

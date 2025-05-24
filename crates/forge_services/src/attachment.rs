@@ -116,7 +116,7 @@ pub mod tests {
     use bytes::Bytes;
     use forge_domain::{
         AttachmentContent, AttachmentService, CommandOutput, Environment, EnvironmentService,
-        Provider, ToolDefinition, ToolName, ToolOutput,
+        MimeType, Provider, ToolDefinition, ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
     use serde_json::Value;
@@ -319,8 +319,8 @@ pub mod tests {
             Ok(self.files.lock().unwrap().iter().any(|(p, _)| p == path))
         }
 
-        async fn is_binary(&self, _: &Path) -> anyhow::Result<(bool, String)> {
-            Ok((true, "binary".to_string()))
+        async fn mime_type(&self, _: &Path) -> anyhow::Result<MimeType> {
+            Ok(MimeType::Text)
         }
     }
 
