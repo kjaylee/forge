@@ -296,7 +296,7 @@ impl Agent {
         }
     }
 
-    pub async fn init_context(
+    pub fn init_context(
         &self,
         mut forge_tools: Vec<ToolDefinition>,
         tool_supported: bool,

@@ -425,17 +425,11 @@ impl<A: Services> Orchestrator<A> {
         let tool_supported = self.is_tool_supported(agent).await?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent
-                .init_context(self.get_allowed_tools(agent).await?, tool_supported)
-                .await?
+            agent.init_context(self.get_allowed_tools(agent).await?, tool_supported)?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => {
-                    agent
-                        .init_context(self.get_allowed_tools(agent).await?, tool_supported)
-                        .await?
-                }
+                None => agent.init_context(self.get_allowed_tools(agent).await?, tool_supported)?,
             }
         };
 
