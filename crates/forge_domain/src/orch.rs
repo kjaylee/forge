@@ -198,8 +198,6 @@ impl<A: Services> Orchestrator<A> {
         // estimates.
         let mut usage = message.usage.clone().unwrap_or_default();
         usage.estimated_tokens = Some(context.estimate_token_count());
-
-        debug!(usage = ?usage, "Usage");
         self.send(agent, ChatResponse::Usage(usage.clone())).await?;
         Ok(request_usage.or(Some(usage)))
     }
