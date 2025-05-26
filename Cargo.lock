@@ -1273,6 +1273,7 @@ dependencies = [
  "chrono",
  "convert_case",
  "derive_more",
+ "forge_domain",
  "http 1.2.0",
  "lazy_static",
  "machineid-rs",

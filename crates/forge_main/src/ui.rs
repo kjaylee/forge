@@ -163,8 +163,7 @@ impl<F: API> UI<F> {
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
-                self.writeln(TitleFormat::error(format!("{error:?}")))
-                    .unwrap();
+                eprintln!("{}", TitleFormat::error(format!("{error:?}")));
             }
         }
     }
@@ -203,10 +202,16 @@ impl<F: API> UI<F> {
                     match result {
                         Ok(exit) => if exit {return Ok(())},
                         Err(error) => {
+                            if let Some(conversation_id) = self.state.conversation_id.as_ref() {
+                                if let Some(conversation) = self.api.conversation(conversation_id).await.ok().flatten() {
+                                    TRACKER.set_conversation(conversation).await;
+                                }
+                            }
                             tokio::spawn(
                                 TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{error:?}"))),
                             );
-                            self.writeln(TitleFormat::error(format!("{error:?}")))?;
+                            self.spinner.stop(None)?;
+                            eprintln!("{}", TitleFormat::error(format!("{error:?}")));
                         },
                     }
                 }
@@ -460,9 +465,7 @@ impl<F: API> UI<F> {
         // Create the chat request with the event
         let chat = ChatRequest::new(event.into(), conversation_id);
 
-        // Process the event
-        let mut stream = self.api.chat(chat).await?;
-        self.handle_chat_stream(&mut stream).await
+        self.on_chat(chat).await
     }
 
     async fn init_conversation(&mut self) -> Result<ConversationId> {
@@ -531,16 +534,12 @@ impl<F: API> UI<F> {
         // Create the chat request with the event
         let chat = ChatRequest::new(event, conversation_id);
 
-        match self.api.chat(chat).await {
-            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
-            Err(err) => Err(err),
-        }
+        self.on_chat(chat).await
     }
 
-    async fn handle_chat_stream(
-        &mut self,
-        stream: &mut (impl StreamExt<Item = Result<AgentMessage<ChatResponse>>> + Unpin),
-    ) -> Result<()> {
+    async fn on_chat(&mut self, chat: ChatRequest) -> Result<()> {
+        let mut stream = self.api.chat(chat).await?;
+
         while let Some(message) = stream.next().await {
             match message {
                 Ok(message) => self.handle_chat_response(message)?,
@@ -641,10 +640,7 @@ impl<F: API> UI<F> {
     async fn on_custom_event(&mut self, event: Event) -> Result<()> {
         let conversation_id = self.init_conversation().await?;
         let chat = ChatRequest::new(event, conversation_id);
-        match self.api.chat(chat).await {
-            Ok(mut stream) => self.handle_chat_stream(&mut stream).await,
-            Err(err) => Err(err),
-        }
+        self.on_chat(chat).await
     }
 
     async fn update_mcp_config(&self, scope: &Scope, f: impl FnOnce(&mut McpConfig)) -> Result<()> {
