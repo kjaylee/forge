@@ -120,7 +120,8 @@ impl ProviderService for Client {
             }
         }
 
-        // Cache miss - refresh models (which will populate the cache) and find the model in the result
+        // Cache miss - refresh models (which will populate the cache) and find the
+        // model in the result
         let models = self.refresh_models().await?;
         Ok(models.into_iter().find(|m| m.id == *model))
     }
@@ -153,9 +154,11 @@ mod tests {
             key: Some("test-key".to_string()),
         };
         let client = Client::new(provider, vec![]).unwrap();
-        
-        // Verify refresh_models method is available (it will fail due to no actual API, but that's expected)
+
+        // Verify refresh_models method is available (it will fail due to no actual API,
+        // but that's expected)
         let result = client.refresh_models().await;
-        assert!(result.is_err()); // Expected to fail since we're not hitting a real API
+        assert!(result.is_err()); // Expected to fail since we're not hitting a
+                                  // real API
     }
 }
