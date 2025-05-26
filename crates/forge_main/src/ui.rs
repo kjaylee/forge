@@ -67,17 +67,13 @@ impl<F: API> UI<F> {
     fn writeln<T: ToString>(&mut self, content: T) -> anyhow::Result<()> {
         self.spinner.write_ln(content)
     }
-    /// Retrieve available models, using cache if present
+
+    /// Retrieve available models
     async fn get_models(&mut self) -> Result<Vec<Model>> {
-        if let Some(models) = &self.state.cached_models {
-            Ok(models.clone())
-        } else {
-            self.spinner.start(Some("Loading Models"))?;
-            let models = self.api.models().await?;
-            self.spinner.stop(None)?;
-            self.state.cached_models = Some(models.clone());
-            Ok(models)
-        }
+        self.spinner.start(Some("Loading Models"))?;
+        let models = self.api.models().await?;
+        self.spinner.stop(None)?;
+        Ok(models)
     }
 
     // Handle creating a new conversation
@@ -167,8 +163,7 @@ impl<F: API> UI<F> {
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
-                self.writeln(TitleFormat::error(format!("{error:?}")))
-                    .unwrap();
+                eprintln!("{}", TitleFormat::error(format!("{error:?}")));
             }
         }
     }
@@ -207,10 +202,16 @@ impl<F: API> UI<F> {
                     match result {
                         Ok(exit) => if exit {return Ok(())},
                         Err(error) => {
+                            if let Some(conversation_id) = self.state.conversation_id.as_ref() {
+                                if let Some(conversation) = self.api.conversation(conversation_id).await.ok().flatten() {
+                                    TRACKER.set_conversation(conversation).await;
+                                }
+                            }
                             tokio::spawn(
                                 TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{error:?}"))),
                             );
-                            self.writeln(TitleFormat::error(format!("{error:?}")))?;
+                            self.spinner.stop(None)?;
+                            eprintln!("{}", TitleFormat::error(format!("{error:?}")));
                         },
                     }
                 }
@@ -358,16 +359,7 @@ impl<F: API> UI<F> {
                 self.on_model_selection().await?;
             }
             Command::Shell(ref command) => {
-                let mut s = command.split_whitespace();
-                if let Some(command) = s.next() {
-                    let args = s.collect::<Vec<_>>();
-                    self.api.execute_shell_command_raw(command, &args).await?;
-                } else {
-                    return Err(anyhow::anyhow!(
-                        "Correct Usage: ! <command> [args...] (e.g., !ls -la)"
-                    ))
-                    .context("Empty shell command.");
-                }
+                self.api.execute_shell_command_raw(command).await?;
             }
         }
 
