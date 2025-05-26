@@ -73,7 +73,6 @@ pub mod tests {
                 pid: std::process::id(),
                 provider: Provider::anthropic("test-key"),
                 retry_config: Default::default(),
-                model_cache_ttl: 60 * 60,
             },
         }
     }

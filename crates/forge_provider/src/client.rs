@@ -1,13 +1,11 @@
 // Context trait is needed for error handling in the provider implementations
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{Context as _, Result};
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
 };
-use moka2::sync::Cache;
 use reqwest::redirect::Policy;
 use tokio_stream::StreamExt;
 
@@ -19,7 +17,6 @@ use crate::retry::into_retry;
 pub struct Client {
     retry_status_codes: Arc<Vec<u16>>,
     inner: Arc<InnerClient>,
-    cache: Arc<Cache<ModelId, Model>>,
 }
 
 enum InnerClient {
@@ -28,7 +25,7 @@ enum InnerClient {
 }
 
 impl Client {
-    pub fn new(provider: Provider, retry_status_codes: Vec<u16>, cache_ttl: u64) -> Result<Self> {
+    pub fn new(provider: Provider, retry_status_codes: Vec<u16>) -> Result<Self> {
         let client = reqwest::Client::builder()
             .read_timeout(std::time::Duration::from_secs(60))
             .pool_idle_timeout(std::time::Duration::from_secs(90))
@@ -58,14 +55,9 @@ impl Client {
             ),
         };
 
-        let cache = Cache::builder()
-            .time_to_live(Duration::from_secs(cache_ttl))
-            .build();
-
         Ok(Self {
             inner: Arc::new(inner),
             retry_status_codes: Arc::new(retry_status_codes),
-            cache: Arc::new(cache),
         })
     }
 
@@ -102,21 +94,11 @@ impl ProviderService for Client {
     }
 
     async fn model(&self, model: &ModelId) -> anyhow::Result<Option<Model>> {
-        // Try to get from cache first
-        if let Some(cached_model) = self.cache.get(model) {
-            return Ok(Some(cached_model));
-        }
-
-        // If not in cache, fetch from provider
+        // Fetch from provider
         let model_result = self.clone().retry(match self.inner.as_ref() {
             InnerClient::OpenAICompat(provider) => provider.model(model).await,
             InnerClient::Anthropic(provider) => provider.model(model).await,
         })?;
-
-        // If model exists, store in cache for future use
-        if let Some(model_data) = &model_result {
-            self.cache.insert(model.clone(), model_data.clone());
-        }
 
         Ok(model_result)
     }
