@@ -130,11 +130,27 @@ impl<A: Services> Orchestrator<A> {
             .model
             .as_ref()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
-        let model_info = self.services.provider_service().model(model_id).await?;
 
-        Ok(model_info
-            .and_then(|model| model.tools_supported)
-            .unwrap_or_else(|| agent.tool_supported.unwrap_or_default()))
+        // Check if at agent level tool support is defined
+        let tool_supported = match agent.tool_supported {
+            Some(tool_supported) => tool_supported,
+            None => {
+                // If not defined at agent level, check model level
+
+                let model = self.services.provider_service().model(model_id).await?;
+                model
+                    .and_then(|model| model.tools_supported)
+                    .unwrap_or_default()
+            }
+        };
+
+        debug!(
+            agent_id = %agent.id,
+            model_id = %model_id,
+            tool_supported,
+            "Tool support check"
+        );
+        Ok(tool_supported)
     }
 
     async fn set_system_prompt(
