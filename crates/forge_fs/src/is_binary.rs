@@ -67,8 +67,7 @@ mod test {
         // Test binary data
         let binary_content = vec![0, 1, 2, 3, 0, 0, 0, 0, 5, 6, 7, 8];
         let binary_file = create_test_file(&binary_content).await?;
-        let (is_text_or_doc, file_type) =
-            crate::ForgeFS::is_binary(binary_file.path()).await?;
+        let (is_text_or_doc, file_type) = crate::ForgeFS::is_binary(binary_file.path()).await?;
 
         if !is_text_or_doc {
             assert!(

@@ -17,6 +17,9 @@ impl FsMetaService for ForgeFileMetaService {
     }
 
     async fn mime_type(&self, path: &Path) -> anyhow::Result<MimeType> {
-        forge_fs::ForgeFS::is_binary(path).await.map(|v| v.1).map(|v| MimeType::from(v.as_str()))
+        forge_fs::ForgeFS::is_binary(path)
+            .await
+            .map(|v| v.1)
+            .map(|v| MimeType::from(v.as_str()))
     }
 }
