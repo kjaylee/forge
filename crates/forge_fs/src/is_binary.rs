@@ -12,14 +12,14 @@ impl crate::ForgeFS {
             .await
             .with_context(|| format!("Failed to open file {}", path_ref.display()))?;
 
-        Self::is_binary_inner(&mut file).await
+        Self::is_binary_file(&mut file).await
     }
 
     /// Checks if a file is binary by examining its content.
     /// This version takes an already opened file handle, allowing for reuse
     /// of the same file handle across multiple operations.
     /// This is a crate-private implementation detail.
-    pub(crate) async fn is_binary_inner(file: &mut File) -> Result<(bool, MimeType)> {
+    pub async fn is_binary_file(file: &mut File) -> Result<(bool, MimeType)> {
         // Read sample data
         let mut sample = vec![0; 8192];
         let bytes_read = file.read(&mut sample).await?;
