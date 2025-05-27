@@ -1,12 +1,11 @@
 use anyhow::{Context, Result};
-use forge_domain::MimeType;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
 impl crate::ForgeFS {
     /// Checks if a file is binary by examining its content.
     /// This version takes a path and opens the file itself.
-    pub async fn is_binary<T: AsRef<std::path::Path>>(path: T) -> Result<(bool, MimeType)> {
+    pub async fn is_binary<T: AsRef<std::path::Path>>(path: T) -> Result<(bool, String)> {
         let path_ref = path.as_ref();
         let mut file = File::open(path_ref)
             .await
@@ -19,7 +18,7 @@ impl crate::ForgeFS {
     /// This version takes an already opened file handle, allowing for reuse
     /// of the same file handle across multiple operations.
     /// This is a crate-private implementation detail.
-    pub async fn is_binary_file(file: &mut File) -> Result<(bool, MimeType)> {
+    pub async fn is_binary_file(file: &mut File) -> Result<(bool, String)> {
         // Read sample data
         let mut sample = vec![0; 8192];
         let bytes_read = file.read(&mut sample).await?;
@@ -27,7 +26,7 @@ impl crate::ForgeFS {
 
         // Handle empty files
         if bytes_read == 0 {
-            return Ok((true, MimeType::Other("text".to_string())));
+            return Ok((true, "Empty file".into()));
         }
 
         // Get file type info
@@ -41,9 +40,9 @@ impl crate::ForgeFS {
 
         let description = infer::get(&sample)
             .map(|info| info.mime_type().to_string())
-            .unwrap_or_else(|| "text".into());
+            .unwrap_or_else(|| "Text file (no specific format detected)".into());
 
-        Ok((is_text, MimeType::from(description.as_str())))
+        Ok((is_text, description))
     }
 }
 
@@ -68,11 +67,12 @@ mod test {
         // Test binary data
         let binary_content = vec![0, 1, 2, 3, 0, 0, 0, 0, 5, 6, 7, 8];
         let binary_file = create_test_file(&binary_content).await?;
-        let (is_text_or_doc, file_type) = crate::ForgeFS::is_binary(binary_file.path()).await?;
+        let (is_text_or_doc, file_type) =
+            crate::ForgeFS::is_binary(binary_file.path()).await?;
 
         if !is_text_or_doc {
             assert!(
-                file_type.to_string().contains("binary") || !file_type.to_string().contains("text"),
+                file_type.contains("binary") || !file_type.contains("text"),
                 "Binary file type description should indicate binary"
             );
         }
@@ -87,7 +87,7 @@ mod test {
         let (is_text_or_doc, file_type) = crate::ForgeFS::is_binary(png_file.path()).await?;
         assert!(!is_text_or_doc, "PNG file should be identified as binary");
         assert!(
-            file_type.to_string().contains("image/png"),
+            file_type.contains("image/png"),
             "PNG file type should be correctly identified"
         );
 
