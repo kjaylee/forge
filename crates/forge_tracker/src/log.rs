@@ -16,9 +16,7 @@ pub fn init_tracing(log_path: PathBuf, tracker: Tracker) -> anyhow::Result<Guard
 
     tracing_subscriber::fmt()
         .json()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("FORGE_LOG").unwrap_or(level),
-        )
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_env("FORGE_LOG").unwrap_or(level))
         .with_timer(tracing_subscriber::fmt::time::uptime())
         .with_thread_ids(false)
         .with_target(false)
