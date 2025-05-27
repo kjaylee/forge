@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -40,7 +41,7 @@ pub struct Orchestrator<Services> {
 struct ChatCompletionResult {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
-    pub usage: Option<Usage>,
+    pub usage: Usage,
 }
 
 impl<A: Services> Orchestrator<A> {
@@ -212,19 +213,18 @@ impl<A: Services> Orchestrator<A> {
     }
 
     /// Process usage information from a chat completion message
-    async fn calculate_usage(
+    fn update_usage(
         &self,
         message: &ChatCompletionMessage,
         context: &Context,
-        request_usage: Option<Usage>,
-        agent: &Agent,
-    ) -> anyhow::Result<Option<Usage>> {
+        request_usage: Usage,
+    ) -> Usage {
         // If usage information is provided by provider use that else depend on
         // estimates.
-        let mut usage = message.usage.clone().unwrap_or_default();
-        usage.estimated_tokens = Some(context.estimate_token_count());
-        self.send(agent, ChatResponse::Usage(usage.clone())).await?;
-        Ok(request_usage.or(Some(usage)))
+
+        let mut usage = message.usage.clone().unwrap_or(request_usage);
+        usage.estimated_tokens = context.estimate_token_count();
+        usage
     }
 
     async fn collect_messages(
@@ -234,7 +234,7 @@ impl<A: Services> Orchestrator<A> {
         mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
-        let mut request_usage: Option<Usage> = None;
+        let mut usage: Usage = Default::default();
         let mut content = String::new();
         let mut xml_tool_calls = None;
         let mut tool_interrupted = false;
@@ -247,9 +247,7 @@ impl<A: Services> Orchestrator<A> {
             messages.push(message.clone());
 
             // Process usage information
-            request_usage = self
-                .calculate_usage(&message, context, request_usage, agent)
-                .await?;
+            usage = self.update_usage(&message, context, usage);
 
             // Process content
             if let Some(content_part) = message.content.as_ref() {
@@ -352,7 +350,7 @@ impl<A: Services> Orchestrator<A> {
             .chain(xml_tool_calls)
             .collect();
 
-        Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
+        Ok(ChatCompletionResult { content, tool_calls, usage })
     }
 
     pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
@@ -514,8 +512,13 @@ impl<A: Services> Orchestrator<A> {
                     .when(should_retry)
                     .await?;
 
+            // Send the usage information if available
+
+            debug!(usage= ?usage, "Processing usage information");
+            self.send(agent, ChatResponse::Usage(usage.clone())).await?;
+
             // Check if context requires compression and decide to compact
-            if agent.should_compact(&context, usage.map(|usage| usage.prompt_tokens as usize)) {
+            if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
                 context = self
                     .services
