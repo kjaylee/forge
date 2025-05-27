@@ -223,9 +223,9 @@ impl<A: Services> Orchestrator<A> {
         // estimates.
 
         let mut usage = message.usage.clone().unwrap_or(request_usage);
-        let context = context.to_text();
-        usage.estimated_tokens = estimate_token_count(context.as_str()) as u64;
-        usage.content_length = context.len() as u64;
+        let content_length = context.to_text().len();
+        usage.estimated_tokens = estimate_token_count(content_length) as u64;
+        usage.content_length = content_length as u64;
         usage
     }
 

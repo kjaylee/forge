@@ -88,7 +88,7 @@ impl<C: CompactionService, M: McpService> ConversationService for ForgeConversat
             .unwrap_or_default();
 
         // Compute original metrics
-        let original_tokens = estimate_token_count(context.to_text().as_str());
+        let original_tokens = estimate_token_count(context.to_text().len());
         let original_messages = context.messages.len();
 
         // Perform compaction
@@ -98,7 +98,7 @@ impl<C: CompactionService, M: McpService> ConversationService for ForgeConversat
             .await?;
 
         // Compute compacted metrics
-        let compacted_tokens = estimate_token_count(new_context.to_text().as_str());
+        let compacted_tokens = estimate_token_count(new_context.to_text().len());
         let compacted_messages = new_context.messages.len();
 
         // Persist the updated context

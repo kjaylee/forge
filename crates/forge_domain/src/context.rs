@@ -320,7 +320,7 @@ mod tests {
             .add_message(ContextMessage::assistant("Assistant message", None));
 
         // Get the token count
-        let token_count = estimate_token_count(&context.to_text());
+        let token_count = estimate_token_count(context.to_text().len());
 
         // Validate the token count is reasonable
         // The exact value will depend on the implementation of estimate_token_count
