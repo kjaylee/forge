@@ -4,18 +4,20 @@ use tracing::debug;
 use tracing_appender::non_blocking::{self, WorkerGuard};
 use tracing_subscriber::{self};
 
-use crate::{can_track::can_track, Tracker};
+use crate::can_track::can_track;
+use crate::Tracker;
 
 pub fn init_tracing(log_path: PathBuf, tracker: Tracker) -> anyhow::Result<Guard> {
     debug!(path = %log_path.display(), "Initializing logging system in JSON format");
 
-    // If tracking is enabled, use PostHog for logging; otherwise, use a rolling file appender.
+    // If tracking is enabled, use PostHog for logging; otherwise, use a rolling
+    // file appender.
     let (writer, guard, level) = prepare_writer(log_path, tracker);
 
     tracing_subscriber::fmt()
         .json()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("FORGE_LOG").unwrap_or_else(|_| level),
+            tracing_subscriber::EnvFilter::try_from_env("FORGE_LOG").unwrap_or(level),
         )
         .with_timer(tracing_subscriber::fmt::time::uptime())
         .with_thread_ids(false)
