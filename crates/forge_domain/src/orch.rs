@@ -1,7 +1,8 @@
+use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::{bail, Context as AnyhowContext};
+use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
@@ -10,7 +11,7 @@ use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::RwLock;
-use tracing::debug;
+use tracing::{debug, info, warn};
 
 // Use retry_config default values directly in this file
 use crate::services::Services;
@@ -40,7 +41,7 @@ pub struct Orchestrator<Services> {
 struct ChatCompletionResult {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
-    pub usage: Option<Usage>,
+    pub usage: Usage,
 }
 
 impl<A: Services> Orchestrator<A> {
@@ -82,7 +83,16 @@ impl<A: Services> Orchestrator<A> {
                 .services
                 .tool_service()
                 .call(tool_context.clone(), tool_call.clone())
-                .await?;
+                .await;
+
+            if tool_result.is_error() {
+                warn!(
+                    agent_id = %agent.id,
+                    tool_call = ?tool_call,
+                    output = ?tool_result.output,
+                    "Tool call failed",
+                );
+            }
 
             // Send the end notification
             self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone()))
@@ -124,6 +134,35 @@ impl<A: Services> Orchestrator<A> {
             .collect())
     }
 
+    // Returns if agent supports tool or not.
+    async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
+        let model_id = agent
+            .model
+            .as_ref()
+            .ok_or(Error::MissingModel(agent.id.clone()))?;
+
+        // Check if at agent level tool support is defined
+        let tool_supported = match agent.tool_supported {
+            Some(tool_supported) => tool_supported,
+            None => {
+                // If not defined at agent level, check model level
+
+                let model = self.services.provider_service().model(model_id).await?;
+                model
+                    .and_then(|model| model.tools_supported)
+                    .unwrap_or_default()
+            }
+        };
+
+        debug!(
+            agent_id = %agent.id,
+            model_id = %model_id,
+            tool_supported,
+            "Tool support check"
+        );
+        Ok(tool_supported)
+    }
+
     async fn set_system_prompt(
         &self,
         context: Context,
@@ -144,7 +183,8 @@ impl<A: Services> Orchestrator<A> {
 
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
-            let tool_information = match agent.tool_supported.unwrap_or_default() {
+            let tool_supported = self.is_tool_supported(agent).await?;
+            let tool_information = match tool_supported {
                 true => None,
                 false => {
                     Some(ToolUsagePrompt::from(&self.get_allowed_tools(agent).await?).to_string())
@@ -155,7 +195,7 @@ impl<A: Services> Orchestrator<A> {
                 current_time,
                 env: Some(env),
                 tool_information,
-                tool_supported: agent.tool_supported.unwrap_or_default(),
+                tool_supported,
                 files,
                 custom_rules: agent.custom_rules.as_ref().cloned().unwrap_or_default(),
                 variables: variables.clone(),
@@ -173,21 +213,18 @@ impl<A: Services> Orchestrator<A> {
     }
 
     /// Process usage information from a chat completion message
-    async fn calculate_usage(
+    fn update_usage(
         &self,
         message: &ChatCompletionMessage,
         context: &Context,
-        request_usage: Option<Usage>,
-        agent: &Agent,
-    ) -> anyhow::Result<Option<Usage>> {
+        request_usage: Usage,
+    ) -> Usage {
         // If usage information is provided by provider use that else depend on
         // estimates.
-        let mut usage = message.usage.clone().unwrap_or_default();
-        usage.estimated_tokens = Some(context.estimate_token_count());
 
-        debug!(usage = ?usage, "Usage");
-        self.send(agent, ChatResponse::Usage(usage.clone())).await?;
-        Ok(request_usage.or(Some(usage)))
+        let mut usage = message.usage.clone().unwrap_or(request_usage);
+        usage.estimated_tokens = context.estimate_token_count();
+        usage
     }
 
     async fn collect_messages(
@@ -197,25 +234,23 @@ impl<A: Services> Orchestrator<A> {
         mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionResult> {
         let mut messages = Vec::new();
-        let mut request_usage: Option<Usage> = None;
+        let mut usage: Usage = Default::default();
         let mut content = String::new();
         let mut xml_tool_calls = None;
         let mut tool_interrupted = false;
 
         // Only interrupt the loop for XML tool calls if tool_supported is false
-        let should_interrupt_for_xml = !agent.tool_supported.unwrap_or_default();
+        let should_interrupt_for_xml = !self.is_tool_supported(agent).await?;
 
         while let Some(message) = response.next().await {
             let message = message?;
             messages.push(message.clone());
 
             // Process usage information
-            request_usage = self
-                .calculate_usage(&message, context, request_usage, agent)
-                .await?;
+            usage = self.update_usage(&message, context, usage);
 
             // Process content
-            if let Some(content_part) = message.content.clone() {
+            if let Some(content_part) = message.content.as_ref() {
                 let content_part = content_part.as_str().to_string();
 
                 content.push_str(&content_part);
@@ -315,7 +350,7 @@ impl<A: Services> Orchestrator<A> {
             .chain(xml_tool_calls)
             .collect();
 
-        Ok(ChatCompletionResult { content, tool_calls, usage: request_usage })
+        Ok(ChatCompletionResult { content, tool_calls, usage })
     }
 
     pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
@@ -372,10 +407,10 @@ impl<A: Services> Orchestrator<A> {
     }
 
     // Get the ToolCallContext for an agent
-    fn get_tool_call_context(&self, agent_id: &AgentId) -> ToolCallContext {
+    fn get_tool_call_context(&self, agent: &Agent) -> ToolCallContext {
         // Create a new ToolCallContext with the agent ID
         ToolCallContext::default()
-            .agent_id(agent_id.clone())
+            .agent(agent.clone())
             .sender(self.sender.clone())
     }
 
@@ -408,19 +443,14 @@ impl<A: Services> Orchestrator<A> {
             .model
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
+        let tool_supported = self.is_tool_supported(agent).await?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent
-                .init_context(self.get_allowed_tools(agent).await?)
-                .await?
+            agent.init_context(self.get_allowed_tools(agent).await?, tool_supported)?
         } else {
             match conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => {
-                    agent
-                        .init_context(self.get_allowed_tools(agent).await?)
-                        .await?
-                }
+                None => agent.init_context(self.get_allowed_tools(agent).await?, tool_supported)?,
             }
         };
 
@@ -457,7 +487,7 @@ impl<A: Services> Orchestrator<A> {
 
         self.set_context(&agent.id, context.clone()).await?;
 
-        let tool_context = self.get_tool_call_context(&agent.id);
+        let tool_context = self.get_tool_call_context(agent);
 
         let mut empty_tool_call_count = 0;
 
@@ -482,9 +512,14 @@ impl<A: Services> Orchestrator<A> {
                     .when(should_retry)
                     .await?;
 
+            // Send the usage information if available
+
+            info!(token_usage= ?usage.prompt_tokens, estimated_token_usage= ?usage.estimated_tokens, "Processing usage information");
+            self.send(agent, ChatResponse::Usage(usage.clone())).await?;
+
             // Check if context requires compression and decide to compact
-            if agent.should_compact(&context, usage.map(|usage| usage.prompt_tokens as usize)) {
-                debug!(agent_id = %agent.id, "Compaction needed, applying compaction");
+            if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
+                info!(agent_id = %agent.id, "Compaction needed, applying compaction");
                 context = self
                     .services
                     .compaction_service()
@@ -509,27 +544,37 @@ impl<A: Services> Orchestrator<A> {
                 model_id.clone(),
                 self.get_all_tool_results(agent, &tool_calls, tool_context.clone())
                     .await?,
-                agent.tool_supported.unwrap_or_default(),
+                tool_supported,
             );
 
             if empty_tool_calls {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.
-                let content = self
-                    .services
-                    .template_service()
-                    .render("{{> partial-tool-required.hbs}}", &())?;
+                let content = self.services.template_service().render(
+                    "{{> partial-tool-required.hbs}}",
+                    &serde_json::json!({
+                        "tool_supported": tool_supported
+                    }),
+                )?;
                 context =
                     context.add_message(ContextMessage::user(content, model_id.clone().into()));
 
+                warn!(
+                    agent_id = %agent.id,
+                    model_id = %model_id,
+                    empty_tool_call_count,
+                    "Agent is unable to follow instructions"
+                );
+
                 empty_tool_call_count += 1;
-                let model = agent
-                    .model
-                    .as_ref()
-                    .map(ModelId::as_str)
-                    .unwrap_or_default();
                 if empty_tool_call_count > 3 {
-                    bail!("Model '{model}' is unable to follow instructions, consider retrying or switching to a bigger model.");
+                    warn!(
+                        agent_id = %agent.id,
+                        model_id = %model_id,
+                        empty_tool_call_count,
+                        "Forced completion due to repeated empty tool calls"
+                    );
+                    tool_context.set_complete().await;
                 }
             } else {
                 empty_tool_call_count = 0;
@@ -588,6 +633,6 @@ fn should_retry(error: &anyhow::Error) -> bool {
         .downcast_ref::<Error>()
         .is_some_and(|error| matches!(error, Error::Retryable(_)));
 
-    tracing::error!(error = ?error, retry = retry, "Error");
+    warn!(error = ?error, retry = retry, "Retrying on error");
     retry
 }
