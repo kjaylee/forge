@@ -514,7 +514,7 @@ impl<A: Services> Orchestrator<A> {
 
             // Send the usage information if available
 
-            debug!(usage= ?usage, "Processing usage information");
+            info!(token_usage= ?usage.prompt_tokens, estimated_token_usage= ?usage.estimated_tokens, "Processing usage information");
             self.send(agent, ChatResponse::Usage(usage.clone())).await?;
 
             // Check if context requires compression and decide to compact
