@@ -10,7 +10,7 @@ use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
 use tokio::sync::RwLock;
-use tracing::debug;
+use tracing::{debug, info, warn};
 
 // Use retry_config default values directly in this file
 use crate::services::Services;
@@ -83,6 +83,15 @@ impl<A: Services> Orchestrator<A> {
                 .tool_service()
                 .call(tool_context.clone(), tool_call.clone())
                 .await;
+
+            if tool_result.is_error() {
+                warn!(
+                    agent_id = %agent.id,
+                    tool_call = ?tool_call,
+                    output = ?tool_result.output,
+                    "Tool call failed",
+                );
+            }
 
             // Send the end notification
             self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone()))
@@ -507,7 +516,7 @@ impl<A: Services> Orchestrator<A> {
 
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, usage.map(|usage| usage.prompt_tokens as usize)) {
-                debug!(agent_id = %agent.id, "Compaction needed, applying compaction");
+                info!(agent_id = %agent.id, "Compaction needed, applying compaction");
                 context = self
                     .services
                     .compaction_service()
@@ -547,13 +556,20 @@ impl<A: Services> Orchestrator<A> {
                 context =
                     context.add_message(ContextMessage::user(content, model_id.clone().into()));
 
+                warn!(
+                    agent_id = %agent.id,
+                    model_id = %model_id,
+                    empty_tool_call_count,
+                    "Agent is unable to follow instructions"
+                );
+
                 empty_tool_call_count += 1;
                 if empty_tool_call_count > 3 {
-                    tracing::warn!(
+                    warn!(
                         agent_id = %agent.id,
                         model_id = %model_id,
                         empty_tool_call_count,
-                        "Agent is unable to follow instructions"
+                        "Forced completion due to repeated empty tool calls"
                     );
                     tool_context.set_complete().await;
                 }
@@ -614,6 +630,6 @@ fn should_retry(error: &anyhow::Error) -> bool {
         .downcast_ref::<Error>()
         .is_some_and(|error| matches!(error, Error::Retryable(_)));
 
-    tracing::error!(error = ?error, retry = retry, "Retrying on error");
+    warn!(error = ?error, retry = retry, "Retrying on error");
     retry
 }
