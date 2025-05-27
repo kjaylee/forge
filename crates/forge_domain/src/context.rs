@@ -272,9 +272,8 @@ impl Context {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::estimate_token_count;
-
     use super::*;
+    use crate::estimate_token_count;
 
     #[test]
     fn test_override_system_message() {

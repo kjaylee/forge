@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use anyhow::{Context as AnyhowContext, Result};
 use forge_domain::{
-    estimate_token_count, AgentId, CompactionResult, CompactionService, Conversation, ConversationId, ConversationService, McpService, Workflow
+    estimate_token_count, AgentId, CompactionResult, CompactionService, Conversation,
+    ConversationId, ConversationService, McpService, Workflow,
 };
 use tokio::sync::Mutex;
 
