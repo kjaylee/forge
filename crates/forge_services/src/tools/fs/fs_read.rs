@@ -21,11 +21,8 @@ const MAX_RANGE_SIZE: u64 = 40_000;
 
 /// Parameters for creating and sending a title for the fs_read operation
 struct TitleParams<'a> {
-    context: &'a ToolCallContext,
-    input: &'a FSReadInput,
-    path: &'a Path,
-    start_char: u64,
-    end_char: u64,
+    read_params: (&'a ToolCallContext, &'a FSReadInput, &'a Path),
+    range_params: (u64, u64),
     file_info: &'a FileInfo,
     is_image: bool,
 }
@@ -96,19 +93,22 @@ impl<F: Infrastructure> FSRead<F> {
     /// range request or an automatic limit for large files, then sends it
     /// via the context channel.
     async fn create_and_send_title(&self, params: TitleParams<'_>) -> anyhow::Result<()> {
+        let (context, input, path) = params.read_params;
+        let (start_char, end_char) = params.range_params;
+
         // For images, use simple "Image" title and don't show range information
         if params.is_image {
-            let display_path = self.format_display_path(params.path)?;
+            let display_path = self.format_display_path(path)?;
             let message = TitleFormat::debug("Image read").sub_title(display_path);
-            params.context.send_text(message).await?;
+            context.send_text(message).await?;
             return Ok(());
         }
 
         // Determine if the user requested an explicit range
-        let is_explicit_range = params.input.start_char.is_some() | params.input.end_char.is_some();
+        let is_explicit_range = input.start_char.is_some() | input.end_char.is_some();
 
         // Determine if the file is larger than the limit and needs truncation
-        let is_truncated = params.file_info.total_chars > params.end_char;
+        let is_truncated = params.file_info.total_chars > end_char;
 
         // Determine if range information is relevant to display
         let is_range_relevant = is_explicit_range || is_truncated;
@@ -125,15 +125,15 @@ impl<F: Infrastructure> FSRead<F> {
             "Read"
         };
 
-        let end_info = min(params.end_char, params.file_info.total_chars);
+        let end_info = min(end_char, params.file_info.total_chars);
 
         let range_info = format!(
             "char range: {}-{}, total chars: {}",
-            params.start_char, end_info, params.file_info.total_chars
+            start_char, end_info, params.file_info.total_chars
         );
 
         // Format a response with metadata
-        let display_path = self.format_display_path(params.path)?;
+        let display_path = self.format_display_path(path)?;
 
         // Build the subtitle conditionally using a string buffer
         let mut subtitle = String::new();
@@ -150,7 +150,7 @@ impl<F: Infrastructure> FSRead<F> {
         let message = TitleFormat::debug(title).sub_title(subtitle);
 
         // Send the formatted message
-        params.context.send_text(message).await?;
+        context.send_text(message).await?;
 
         Ok(())
     }
@@ -176,12 +176,9 @@ impl<F: Infrastructure> FSRead<F> {
 
         // Create and send the title using the extracted method
         self.create_and_send_title(TitleParams {
-            context: &context,
-            input: &input,
-            path: &path,
-            start_char,
-            end_char,
-            file_info: &FileInfo {
+            read_params: (&context, &input, &path),
+            range_params: (start_char, end_char),
+            file_info: &crate::tools::fs::FileInfo {
                 start_char: file_info.start_char,
                 end_char: file_info.end_char,
                 total_chars: file_info.total_chars,
@@ -233,15 +230,12 @@ impl<F: Infrastructure> FSRead<F> {
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
-        let file_info = FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
+        let file_info = crate::tools::fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
         let image = Image::new_bytes(bytes.as_bytes(), ty.to_string());
 
         self.create_and_send_title(TitleParams {
-            context: &context,
-            input: &input,
-            path: &path,
-            start_char: 0,
-            end_char: (bytes.len() - 1) as u64,
+            read_params: (&context, &input, &path),
+            range_params: (0, (bytes.len() - 1) as u64),
             file_info: &file_info,
             is_image: true,
         })
@@ -463,7 +457,7 @@ mod test {
                 _path: &Path,
                 start_char: u64,
                 end_char: u64,
-            ) -> anyhow::Result<(String, FileInfo)> {
+            ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
                 // Convert to Option for tracking with the old method signature
                 let start_opt = Some(start_char);
                 let end_opt = Some(end_char);
@@ -479,7 +473,7 @@ mod test {
                     // This will trigger the auto-limiting behavior
                     return Ok((
                         "".to_string(),
-                        FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
+                        forge_fs::FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
                     ));
                 } else if start_char == 0 && end_char == 39999 {
                     // This is the expected auto-limit range that should be requested for large
