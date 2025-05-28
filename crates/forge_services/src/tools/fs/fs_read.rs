@@ -230,7 +230,8 @@ impl<F: Infrastructure> FSRead<F> {
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
-        let file_info = crate::tools::fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
+        let file_info =
+            crate::tools::fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
         let image = Image::new_bytes(bytes.as_bytes(), ty.to_string());
 
         self.create_and_send_title(TitleParams {
