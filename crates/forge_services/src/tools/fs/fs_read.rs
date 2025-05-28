@@ -18,6 +18,17 @@ use crate::{FsMetaService, FsReadService, Infrastructure};
 // Define maximum character limits
 const MAX_RANGE_SIZE: u64 = 40_000;
 
+/// Parameters for creating and sending a title for the fs_read operation
+struct TitleParams<'a> {
+    context: &'a ToolCallContext,
+    input: &'a FSReadInput,
+    path: &'a Path,
+    start_char: u64,
+    end_char: u64,
+    file_info: &'a forge_fs::FileInfo,
+    is_image: bool,
+}
+
 /// Ensures that the given character range is valid and doesn't exceed the
 /// maximum size
 ///
@@ -83,20 +94,20 @@ impl<F: Infrastructure> FSRead<F> {
     /// Sets the title and subtitle based on whether this was an explicit user
     /// range request or an automatic limit for large files, then sends it
     /// via the context channel.
-    async fn create_and_send_title(
-        &self,
-        context: &ToolCallContext,
-        input: &FSReadInput,
-        path: &Path,
-        start_char: u64,
-        end_char: u64,
-        file_info: &forge_fs::FileInfo,
-    ) -> anyhow::Result<()> {
+    async fn create_and_send_title(&self, params: TitleParams<'_>) -> anyhow::Result<()> {
+        // For images, use simple "Image" title and don't show range information
+        if params.is_image {
+            let display_path = self.format_display_path(params.path)?;
+            let message = TitleFormat::debug("Image read").sub_title(display_path);
+            params.context.send_text(message).await?;
+            return Ok(());
+        }
+
         // Determine if the user requested an explicit range
-        let is_explicit_range = input.start_char.is_some() | input.end_char.is_some();
+        let is_explicit_range = params.input.start_char.is_some() | params.input.end_char.is_some();
 
         // Determine if the file is larger than the limit and needs truncation
-        let is_truncated = file_info.total_chars > end_char;
+        let is_truncated = params.file_info.total_chars > params.end_char;
 
         // Determine if range information is relevant to display
         let is_range_relevant = is_explicit_range || is_truncated;
@@ -113,15 +124,15 @@ impl<F: Infrastructure> FSRead<F> {
             "Read"
         };
 
-        let end_info = min(end_char, file_info.total_chars);
+        let end_info = min(params.end_char, params.file_info.total_chars);
 
         let range_info = format!(
             "char range: {}-{}, total chars: {}",
-            start_char, end_info, file_info.total_chars
+            params.start_char, end_info, params.file_info.total_chars
         );
 
         // Format a response with metadata
-        let display_path = self.format_display_path(path)?;
+        let display_path = self.format_display_path(params.path)?;
 
         // Build the subtitle conditionally using a string buffer
         let mut subtitle = String::new();
@@ -138,7 +149,7 @@ impl<F: Infrastructure> FSRead<F> {
         let message = TitleFormat::debug(title).sub_title(subtitle);
 
         // Send the formatted message
-        context.send_text(message).await?;
+        params.context.send_text(message).await?;
 
         Ok(())
     }
@@ -163,8 +174,16 @@ impl<F: Infrastructure> FSRead<F> {
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
         // Create and send the title using the extracted method
-        self.create_and_send_title(&context, &input, &path, start_char, end_char, &file_info)
-            .await?;
+        self.create_and_send_title(TitleParams {
+            context: &context,
+            input: &input,
+            path: &path,
+            start_char,
+            end_char,
+            file_info: &file_info,
+            is_image: false,
+        })
+        .await?;
 
         // Determine if the user requested an explicit range
         let is_explicit_range = input.start_char.is_some() | input.end_char.is_some();
@@ -212,14 +231,15 @@ impl<F: Infrastructure> FSRead<F> {
         let file_info = forge_fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
         let image = Image::new_bytes(bytes.as_bytes(), ty.to_string());
 
-        self.create_and_send_title(
-            &context,
-            &input,
-            &path,
-            0,
-            (bytes.len() - 1) as u64,
-            &file_info,
-        )
+        self.create_and_send_title(TitleParams {
+            context: &context,
+            input: &input,
+            path: &path,
+            start_char: 0,
+            end_char: (bytes.len() - 1) as u64,
+            file_info: &file_info,
+            is_image: true,
+        })
         .await?;
 
         Ok(ToolOutput::image(image))
