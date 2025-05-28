@@ -1,0 +1,62 @@
+use std::path::Path;
+use std::sync::Arc;
+
+use crate::{Store, chunkers::Chunker, embedders::Embedder, loaders::Loader};
+
+/// Indexer for indexing files
+pub struct Indexer<L: Loader, C: Chunker, E: Embedder, S: Store> {
+    loader: Arc<L>,
+    chunker: Arc<C>,
+    embedder: Arc<E>,
+    store: Arc<S>,
+}
+
+impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
+    pub fn new(loader: Arc<L>, chunker: Arc<C>, embedder: Arc<E>, store: Arc<S>) -> Self {
+        Self { loader, chunker, embedder, store }
+    }
+}
+
+impl<
+    O,
+    L: Loader<Output = O>,
+    C: Chunker<Input = L::Output>,
+    E: Embedder<Input = C::Output>,
+    S: Store<Input = E::Output>,
+> Indexer<L, C, E, S>
+{
+    /// Indexes the files at the given path
+    pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
+        self.store
+            .store(
+                self.embedder
+                    .embed(self.chunker
+                        .chunk(self.loader
+                            .load(path).await?).await?)
+                    .await?,
+            )
+            .await?;
+        Ok(())
+    }
+}
+
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+
+//     #[tokio::test]
+//     async fn chunk_file() {
+//         let path = PathBuf::from(
+//             "/Users/ranjit/Desktop/workspace/code-forge/code-forge/crates/forge_main/src/editor.rs",
+//         );
+//         let blocks = Indexer::default().index(&path).await.unwrap();
+//         for block in blocks {
+//             println!("path: {}", block.path.display());
+//             println!("------------------------------------------------");
+//             for chunk in block.chunks {
+//                 println!("chunk: {}", chunk);
+//                 println!("------------------------------------------------");
+//             }
+//         }
+//     }
+// }
