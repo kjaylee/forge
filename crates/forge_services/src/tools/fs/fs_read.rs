@@ -12,6 +12,7 @@ use forge_domain::{
 use forge_tool_macros::ToolDescription;
 use nom::AsBytes;
 
+use crate::tools::fs::FileInfo;
 use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsMetaService, FsReadService, Infrastructure};
 
@@ -25,7 +26,7 @@ struct TitleParams<'a> {
     path: &'a Path,
     start_char: u64,
     end_char: u64,
-    file_info: &'a forge_fs::FileInfo,
+    file_info: &'a FileInfo,
     is_image: bool,
 }
 
@@ -154,7 +155,7 @@ impl<F: Infrastructure> FSRead<F> {
         Ok(())
     }
 
-    async fn read_binary(
+    async fn read_text(
         &self,
         context: ToolCallContext,
         input: FSReadInput,
@@ -180,7 +181,11 @@ impl<F: Infrastructure> FSRead<F> {
             path: &path,
             start_char,
             end_char,
-            file_info: &file_info,
+            file_info: &FileInfo {
+                start_char: file_info.start_char,
+                end_char: file_info.end_char,
+                total_chars: file_info.total_chars,
+            },
             is_image: false,
         })
         .await?;
@@ -228,7 +233,7 @@ impl<F: Infrastructure> FSRead<F> {
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
-        let file_info = forge_fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
+        let file_info = FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
         let image = Image::new_bytes(bytes.as_bytes(), ty.to_string());
 
         self.create_and_send_title(TitleParams {
@@ -254,10 +259,15 @@ impl<F: Infrastructure> FSRead<F> {
         let path = PathBuf::from(&input.path);
         assert_absolute_path(&path)?;
         let ty = self.0.file_meta_service().mime_type(&path).await?;
-        if matches!(&ty, MimeType::Image(_)) {
-            self.read_image(context, input, path, ty).await
-        } else {
-            self.read_binary(context, input, path).await
+        match &ty {
+            MimeType::Text => self.read_text(context, input, path).await,
+            MimeType::Image(_) => self.read_image(context, input, path, ty).await,
+            MimeType::Other(_) => {
+                bail!(
+                    "Unsupported file type: {}. Only text and image files are supported.",
+                    ty
+                );
+            }
         }
     }
 }
@@ -453,7 +463,7 @@ mod test {
                 _path: &Path,
                 start_char: u64,
                 end_char: u64,
-            ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
+            ) -> anyhow::Result<(String, FileInfo)> {
                 // Convert to Option for tracking with the old method signature
                 let start_opt = Some(start_char);
                 let end_opt = Some(end_char);
@@ -469,7 +479,7 @@ mod test {
                     // This will trigger the auto-limiting behavior
                     return Ok((
                         "".to_string(),
-                        forge_fs::FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
+                        FileInfo::new(0, 0, 50_000), // Simulate a large file (50k chars)
                     ));
                 } else if start_char == 0 && end_char == 39999 {
                     // This is the expected auto-limit range that should be requested for large
