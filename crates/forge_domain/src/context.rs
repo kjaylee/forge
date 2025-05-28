@@ -326,4 +326,336 @@ mod tests {
         // The exact value will depend on the implementation of estimate_token_count
         assert!(token_count > 0, "Token count should be greater than 0");
     }
+    #[test]
+    fn test_append_message_with_tool_support_empty_tool_records() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let actual = fixture.append_message("Hello world", model.clone(), vec![], true);
+
+        let expected =
+            Context::default().add_message(ContextMessage::assistant("Hello world", None));
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_with_tool_support_single_tool_record() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let tool_call = ToolCallFull {
+            name: crate::ToolName::new("test_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            arguments: serde_json::json!({"param": "value"}),
+        };
+
+        let tool_result = ToolResult {
+            name: crate::ToolName::new("test_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            output: crate::ToolOutput::text("Tool output".to_string()),
+        };
+
+        let actual = fixture.append_message(
+            "Hello world",
+            model.clone(),
+            vec![(tool_call.clone(), tool_result.clone())],
+            true,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::assistant(
+                "Hello world",
+                Some(vec![tool_call]),
+            ))
+            .add_tool_results(vec![tool_result]);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_with_tool_support_multiple_tool_records() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let tool_call1 = ToolCallFull {
+            name: crate::ToolName::new("tool1"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            arguments: serde_json::json!({"param1": "value1"}),
+        };
+
+        let tool_call2 = ToolCallFull {
+            name: crate::ToolName::new("tool2"),
+            call_id: Some(crate::ToolCallId::new("call2")),
+            arguments: serde_json::json!({"param2": "value2"}),
+        };
+
+        let tool_result1 = ToolResult {
+            name: crate::ToolName::new("tool1"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            output: crate::ToolOutput::text("Tool 1 output".to_string()),
+        };
+
+        let tool_result2 = ToolResult {
+            name: crate::ToolName::new("tool2"),
+            call_id: Some(crate::ToolCallId::new("call2")),
+            output: crate::ToolOutput::text("Tool 2 output".to_string()),
+        };
+
+        let actual = fixture.append_message(
+            "Processing complete",
+            model.clone(),
+            vec![
+                (tool_call1.clone(), tool_result1.clone()),
+                (tool_call2.clone(), tool_result2.clone()),
+            ],
+            true,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::assistant(
+                "Processing complete",
+                Some(vec![tool_call1, tool_call2]),
+            ))
+            .add_tool_results(vec![tool_result1, tool_result2]);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_without_tool_support_empty_tool_records() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let actual = fixture.append_message("Hello world", model.clone(), vec![], false);
+
+        let expected =
+            Context::default().add_message(ContextMessage::assistant("Hello world", None));
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_without_tool_support_single_text_output() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let tool_call = ToolCallFull {
+            name: crate::ToolName::new("test_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            arguments: serde_json::json!({"param": "value"}),
+        };
+
+        let tool_result = ToolResult {
+            name: crate::ToolName::new("test_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            output: crate::ToolOutput::text("Tool output".to_string()),
+        };
+
+        let actual = fixture.append_message(
+            "Processing",
+            model.clone(),
+            vec![(tool_call, tool_result)],
+            false,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::assistant("Processing", None))
+            .add_message(ContextMessage::user("Tool output", Some(model)));
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_without_tool_support_single_image_output() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let image = Image::new_base64("test123".to_string(), "image/png");
+
+        let tool_call = ToolCallFull {
+            name: crate::ToolName::new("image_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            arguments: serde_json::json!({"generate": "image"}),
+        };
+
+        let tool_result = ToolResult {
+            name: crate::ToolName::new("image_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            output: crate::ToolOutput::image(image.clone()),
+        };
+
+        let actual = fixture.append_message(
+            "Image generated",
+            model.clone(),
+            vec![(tool_call, tool_result)],
+            false,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::assistant("Image generated", None))
+            .add_base64_url(image);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_without_tool_support_empty_output() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let tool_call = ToolCallFull {
+            name: crate::ToolName::new("void_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            arguments: serde_json::json!({}),
+        };
+
+        let tool_result = ToolResult {
+            name: crate::ToolName::new("void_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            output: crate::ToolOutput {
+                values: vec![crate::ToolOutputValue::Empty],
+                is_error: false,
+            },
+        };
+
+        let actual = fixture.append_message(
+            "Task completed",
+            model.clone(),
+            vec![(tool_call, tool_result)],
+            false,
+        );
+
+        let expected =
+            Context::default().add_message(ContextMessage::assistant("Task completed", None));
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_without_tool_support_mixed_outputs() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let image = Image::new_base64("test123".to_string(), "image/png");
+
+        let tool_call1 = ToolCallFull {
+            name: crate::ToolName::new("text_tool"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            arguments: serde_json::json!({"generate": "text"}),
+        };
+
+        let tool_result1 = ToolResult {
+            name: crate::ToolName::new("text_tool"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            output: crate::ToolOutput::text("Text result".to_string()),
+        };
+
+        let tool_call2 = ToolCallFull {
+            name: crate::ToolName::new("image_tool"),
+            call_id: Some(crate::ToolCallId::new("call2")),
+            arguments: serde_json::json!({"generate": "image"}),
+        };
+
+        let tool_result2 = ToolResult {
+            name: crate::ToolName::new("image_tool"),
+            call_id: Some(crate::ToolCallId::new("call2")),
+            output: crate::ToolOutput::image(image.clone()),
+        };
+
+        let actual = fixture.append_message(
+            "Mixed outputs generated",
+            model.clone(),
+            vec![(tool_call1, tool_result1), (tool_call2, tool_result2)],
+            false,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::assistant("Mixed outputs generated", None))
+            .add_message(ContextMessage::user("Text result", Some(model)))
+            .add_base64_url(image);
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_without_tool_support_multiple_values_in_single_output() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default();
+
+        let image = Image::new_base64("test123".to_string(), "image/png");
+
+        let tool_call = ToolCallFull {
+            name: crate::ToolName::new("multi_tool"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            arguments: serde_json::json!({"multi": true}),
+        };
+
+        let tool_result = ToolResult {
+            name: crate::ToolName::new("multi_tool"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            output: crate::ToolOutput {
+                values: vec![
+                    crate::ToolOutputValue::Text("First text".to_string()),
+                    crate::ToolOutputValue::Image(image.clone()),
+                    crate::ToolOutputValue::Text("Second text".to_string()),
+                    crate::ToolOutputValue::Empty,
+                ],
+                is_error: false,
+            },
+        };
+
+        let actual = fixture.append_message(
+            "Multiple values generated",
+            model.clone(),
+            vec![(tool_call, tool_result)],
+            false,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::assistant("Multiple values generated", None))
+            .add_message(ContextMessage::user("First text", Some(model.clone())))
+            .add_base64_url(image)
+            .add_message(ContextMessage::user("Second text", Some(model)));
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_append_message_preserves_existing_context() {
+        let model = ModelId::new("test-model");
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System prompt"))
+            .add_message(ContextMessage::user("User question", Some(model.clone())));
+
+        let tool_call = ToolCallFull {
+            name: crate::ToolName::new("test_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            arguments: serde_json::json!({"param": "value"}),
+        };
+
+        let tool_result = ToolResult {
+            name: crate::ToolName::new("test_tool"),
+            call_id: Some(crate::ToolCallId::new("call123")),
+            output: crate::ToolOutput::text("Tool output".to_string()),
+        };
+
+        let actual = fixture.append_message(
+            "Response with tool",
+            model.clone(),
+            vec![(tool_call.clone(), tool_result.clone())],
+            true,
+        );
+
+        let expected = Context::default()
+            .add_message(ContextMessage::system("System prompt"))
+            .add_message(ContextMessage::user("User question", Some(model)))
+            .add_message(ContextMessage::assistant(
+                "Response with tool",
+                Some(vec![tool_call]),
+            ))
+            .add_tool_results(vec![tool_result]);
+
+        assert_eq!(actual, expected);
+    }
 }
