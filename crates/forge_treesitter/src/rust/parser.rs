@@ -100,13 +100,15 @@ impl RustTreeSitter {
                 end: Location::from(node.end_position()),
             };
 
+            let offset = Offset { start: start_byte, end: end_byte };
+
             blocks.push(Block::new(
                 pattern.into(),
                 path_buf.clone(),
                 snippet,
                 None,
                 span,
-                Offset { start: start_byte, end: end_byte },
+                offset,
             ));
         }
 
