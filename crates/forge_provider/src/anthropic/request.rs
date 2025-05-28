@@ -1,5 +1,5 @@
 use derive_setters::Setters;
-use forge_domain::{ContextMessage, Image};
+use forge_domain::{ContextMessage, Image, Pdf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
@@ -128,6 +128,9 @@ impl TryFrom<ContextMessage> for Message {
             ContextMessage::Image(img) => {
                 Message { content: vec![Content::from(img)], role: Role::User }
             }
+            ContextMessage::Pdf(pdf) => {
+                Message { content: vec![Content::from(pdf)], role: Role::User }
+            }
         })
     }
 }
@@ -140,6 +143,18 @@ impl From<Image> for Content {
                 media_type: None,
                 data: None,
                 url: Some(value.url().clone()),
+            },
+        }
+    }
+}
+
+impl From<Pdf> for Content {
+    fn from(value: Pdf) -> Self {
+        Content::Pdf {
+            image_source: PdfSource {
+                type_: "file".to_string(),
+                filename: value.filename().clone(),
+                file_data: value.file_data().clone(),
             },
         }
     }
@@ -158,10 +173,21 @@ struct ImageSource {
 }
 
 #[derive(Serialize)]
+struct PdfSource {
+    #[serde(rename = "type")]
+    type_: String,
+    filename: String,
+    file_data: String,
+}
+
+#[derive(Serialize)]
 #[serde(rename_all = "snake_case", tag = "type")]
 enum Content {
     Image {
         source: ImageSource,
+    },
+    Pdf {
+        image_source: PdfSource,
     },
     Text {
         text: String,

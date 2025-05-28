@@ -5,12 +5,8 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context};
 use forge_display::TitleFormat;
-use forge_domain::{
-    EnvironmentService, ExecutableTool, FSReadInput, Image, MimeType, NamedTool, ToolCallContext,
-    ToolDescription, ToolName, ToolOutput,
-};
+use forge_domain::{EnvironmentService, ExecutableTool, FSReadInput, Image, MimeType, NamedTool, Pdf, ToolCallContext, ToolDescription, ToolName, ToolOutput};
 use forge_tool_macros::ToolDescription;
-use nom::AsBytes;
 
 use crate::tools::fs::FileInfo;
 use crate::utils::{assert_absolute_path, format_display_path};
@@ -185,7 +181,7 @@ impl<F: Infrastructure> FSRead<F> {
             },
             is_image: false,
         })
-        .await?;
+            .await?;
 
         // Determine if the user requested an explicit range
         let is_explicit_range = input.start_char.is_some() | input.end_char.is_some();
@@ -232,7 +228,6 @@ impl<F: Infrastructure> FSRead<F> {
 
         let file_info =
             crate::tools::fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
-        let image = Image::new_bytes(bytes.as_bytes(), ty.to_string());
 
         self.create_and_send_title(TitleParams {
             read_params: (&context, &input, &path),
@@ -240,9 +235,21 @@ impl<F: Infrastructure> FSRead<F> {
             file_info: &file_info,
             is_image: true,
         })
-        .await?;
+            .await?;
 
-        Ok(ToolOutput::image(image))
+        Ok(Self::tool_output(path.file_name().context("Unable to extract filename")?.to_string_lossy().as_ref(), &bytes, ty))
+    }
+    fn tool_output(path: &str, bytes: &[u8], mime_type: MimeType) -> ToolOutput {
+        match mime_type {
+            MimeType::Image(_) => {
+                ToolOutput::image(Image::new_bytes(bytes, mime_type.to_string()))
+            }
+            MimeType::Pdf => {
+                ToolOutput::pdf(Pdf::new_bytes(path, bytes, mime_type.to_string()))
+            }
+            MimeType::Text => unreachable!(),
+            MimeType::Other(_) => unreachable!(),
+        }
     }
 
     /// Helper function to read a file with range constraints

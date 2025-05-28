@@ -86,6 +86,10 @@ pub enum ContentPart {
     ImageUrl {
         image_url: ImageUrl,
     },
+    Pdf {
+        filename: String,
+        file_data: String,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -324,6 +328,19 @@ impl From<ContextMessage> for Message {
                     tool_calls: None,
                 }
             }
+            ContextMessage::Pdf(pdf) => {
+                let content = vec![ContentPart::Pdf {
+                    filename: pdf.filename().clone(),
+                    file_data: pdf.file_data().clone(),
+                }];
+                Message {
+                    role: Role::User,
+                    content: Some(MessageContent::Parts(content)),
+                    name: None,
+                    tool_call_id: None,
+                    tool_calls: None,
+                }
+            }
         }
     }
 }
@@ -344,6 +361,13 @@ impl From<ToolResult> for MessageContent {
                 ToolOutputValue::Image(img) => {
                     let content = ContentPart::ImageUrl {
                         image_url: ImageUrl { url: img.url().clone(), detail: None },
+                    };
+                    parts.push(content);
+                }
+                ToolOutputValue::Pdf(pdf) => {
+                    let content = ContentPart::Pdf {
+                        filename: pdf.filename().clone(),
+                        file_data: pdf.file_data().clone(),
                     };
                     parts.push(content);
                 }

@@ -43,8 +43,10 @@ mod tool_usage;
 mod top_k;
 mod top_p;
 mod workflow;
+mod pdf;
 
 pub use agent::*;
+pub use pdf::*;
 pub use api::*;
 pub use attachment::*;
 pub use chat_request::*;
