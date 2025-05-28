@@ -216,7 +216,7 @@ impl<F: Infrastructure> FSRead<F> {
         Ok(ToolOutput::text(response))
     }
 
-    async fn read_image(
+    async fn read_file(
         &self,
         context: ToolCallContext,
         input: FSReadInput,
@@ -256,7 +256,7 @@ impl<F: Infrastructure> FSRead<F> {
         let ty = self.0.file_meta_service().mime_type(&path).await?;
         match &ty {
             MimeType::Text => self.read_text(context, input, path).await,
-            MimeType::Image(_) => self.read_image(context, input, path, ty).await,
+            MimeType::Pdf | MimeType::Image(_) => self.read_file(context, input, path, ty).await,
             MimeType::Other(_) => {
                 bail!(
                     "Unsupported file type: {}. Only text and image files are supported.",

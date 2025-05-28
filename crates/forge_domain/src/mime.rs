@@ -4,18 +4,25 @@ use std::fmt::Display;
 pub enum MimeType {
     Text,
     Image(String),
+    Pdf,
     Other(String),
 }
 
 impl From<&str> for MimeType {
     fn from(value: &str) -> Self {
         if value.starts_with("text") {
-            MimeType::Text
-        } else if let Some(image) = value.strip_prefix("image/") {
-            MimeType::Image(image.to_string())
-        } else {
-            MimeType::Other(value.to_string())
+            return MimeType::Text;
         }
+
+        if let Some(image) = value.strip_prefix("image/") {
+            return MimeType::Image(image.to_string());
+        }
+
+        if value == "application/pdf" {
+            return MimeType::Pdf;
+        }
+
+        MimeType::Other(value.to_string())
     }
 }
 
@@ -24,6 +31,7 @@ impl Display for MimeType {
         match self {
             MimeType::Text => write!(f, "text"),
             MimeType::Image(image) => write!(f, "image/{image}"),
+            MimeType::Pdf => write!(f, "application/pdf"),
             MimeType::Other(other) => write!(f, "{other}"),
         }
     }
