@@ -271,7 +271,8 @@ impl Context {
     }
 }
 
-// Assuming tool calls are supported by the model we will convert all tool results that contain images into user messages
+// Assuming tool calls are supported by the model we will convert all tool
+// results that contain images into user messages
 fn update_image_tool_calls(mut context: Context) -> Context {
     let mut images = Vec::new();
 
@@ -287,10 +288,10 @@ fn update_image_tool_calls(mut context: Context) -> Context {
             }
         })
         .flat_map(|tool_result| tool_result.output.values.iter_mut())
-        .enumerate()
-        .for_each(|(id, value)| match value {
+        .for_each(|value| match value {
             crate::ToolOutputValue::Image(image) => {
                 let image = std::mem::take(image);
+                let id = images.len();
                 *value = crate::ToolOutputValue::Text(format!(
                     "[The image with ID {id} will be sent as an attachment in the next message]"
                 ));
@@ -301,19 +302,20 @@ fn update_image_tool_calls(mut context: Context) -> Context {
         });
 
     // Step 2: Insert all images in the end
-    for (id, image) in images {
+    images.into_iter().for_each(|(id, image)| {
         context.messages.push(ContextMessage::user(
             format!("[Here is the image attachment for ID {id}]"),
             None,
         ));
         context.messages.push(ContextMessage::Image(image));
-    }
+    });
 
     context
 }
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_yaml_snapshot;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -701,5 +703,161 @@ mod tests {
             .add_tool_results(vec![tool_result]);
 
         assert_eq!(actual, expected);
+    }
+    #[test]
+    fn test_update_image_tool_calls_empty_context() {
+        let fixture = Context::default();
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_no_tool_results() {
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message", None))
+            .add_message(ContextMessage::assistant("Assistant message", None));
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_tool_results_no_images() {
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_tool_results(vec![
+                ToolResult {
+                    name: crate::ToolName::new("text_tool"),
+                    call_id: Some(crate::ToolCallId::new("call1")),
+                    output: crate::ToolOutput::text("Text output".to_string()),
+                },
+                ToolResult {
+                    name: crate::ToolName::new("empty_tool"),
+                    call_id: Some(crate::ToolCallId::new("call2")),
+                    output: crate::ToolOutput {
+                        values: vec![crate::ToolOutputValue::Empty],
+                        is_error: false,
+                    },
+                },
+            ]);
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_single_image() {
+        let image = Image::new_base64("test123".to_string(), "image/png");
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_tool_results(vec![ToolResult {
+                name: crate::ToolName::new("image_tool"),
+                call_id: Some(crate::ToolCallId::new("call1")),
+                output: crate::ToolOutput::image(image),
+            }]);
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_multiple_images_single_tool_result() {
+        let image1 = Image::new_base64("test123".to_string(), "image/png");
+        let image2 = Image::new_base64("test456".to_string(), "image/jpeg");
+        let fixture = Context::default().add_tool_results(vec![ToolResult {
+            name: crate::ToolName::new("multi_image_tool"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            output: crate::ToolOutput {
+                values: vec![
+                    crate::ToolOutputValue::Text("First text".to_string()),
+                    crate::ToolOutputValue::Image(image1),
+                    crate::ToolOutputValue::Text("Second text".to_string()),
+                    crate::ToolOutputValue::Image(image2),
+                ],
+                is_error: false,
+            },
+        }]);
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_multiple_tool_results_with_images() {
+        let image1 = Image::new_base64("test123".to_string(), "image/png");
+        let image2 = Image::new_base64("test456".to_string(), "image/jpeg");
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_tool_results(vec![
+                ToolResult {
+                    name: crate::ToolName::new("text_tool"),
+                    call_id: Some(crate::ToolCallId::new("call1")),
+                    output: crate::ToolOutput::text("Text output".to_string()),
+                },
+                ToolResult {
+                    name: crate::ToolName::new("image_tool1"),
+                    call_id: Some(crate::ToolCallId::new("call2")),
+                    output: crate::ToolOutput::image(image1),
+                },
+                ToolResult {
+                    name: crate::ToolName::new("image_tool2"),
+                    call_id: Some(crate::ToolCallId::new("call3")),
+                    output: crate::ToolOutput::image(image2),
+                },
+            ]);
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_mixed_content_with_images() {
+        let image = Image::new_base64("test123".to_string(), "image/png");
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User question", None))
+            .add_message(ContextMessage::assistant("Assistant response", None))
+            .add_tool_results(vec![ToolResult {
+                name: crate::ToolName::new("mixed_tool"),
+                call_id: Some(crate::ToolCallId::new("call1")),
+                output: crate::ToolOutput {
+                    values: vec![
+                        crate::ToolOutputValue::Text("Before image".to_string()),
+                        crate::ToolOutputValue::Image(image),
+                        crate::ToolOutputValue::Text("After image".to_string()),
+                        crate::ToolOutputValue::Empty,
+                    ],
+                    is_error: false,
+                },
+            }]);
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
+    }
+
+    #[test]
+    fn test_update_image_tool_calls_preserves_error_flag() {
+        let image = Image::new_base64("test123".to_string(), "image/png");
+        let fixture = Context::default().add_tool_results(vec![ToolResult {
+            name: crate::ToolName::new("error_tool"),
+            call_id: Some(crate::ToolCallId::new("call1")),
+            output: crate::ToolOutput {
+                values: vec![crate::ToolOutputValue::Image(image)],
+                is_error: true,
+            },
+        }]);
+
+        let actual = update_image_tool_calls(fixture);
+
+        assert_yaml_snapshot!(actual);
     }
 }
