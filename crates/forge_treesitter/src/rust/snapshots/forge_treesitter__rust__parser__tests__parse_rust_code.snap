@@ -18,6 +18,10 @@ expression: blocks
                 column: 13,
             },
         },
+        offset: Offset {
+            start: 13,
+            end: 96,
+        },
     },
     Block {
         kind: Enum,
@@ -34,6 +38,30 @@ expression: blocks
                 column: 13,
             },
         },
+        offset: Offset {
+            start: 122,
+            end: 224,
+        },
+    },
+    Block {
+        kind: Function,
+        path: "./test.rs",
+        snippet: "pub fn status(&self) -> &Status {\n                    self\n                }",
+        scope: None,
+        span: Span {
+            start: Location {
+                line: 13,
+                column: 16,
+            },
+            end: Location {
+                line: 15,
+                column: 17,
+            },
+        },
+        offset: Offset {
+            start: 280,
+            end: 356,
+        },
     },
     Block {
         kind: Function,
@@ -42,13 +70,17 @@ expression: blocks
         scope: None,
         span: Span {
             start: Location {
-                line: 13,
+                line: 19,
                 column: 12,
             },
             end: Location {
-                line: 19,
+                line: 25,
                 column: 13,
             },
+        },
+        offset: Offset {
+            start: 404,
+            end: 607,
         },
     },
 ]

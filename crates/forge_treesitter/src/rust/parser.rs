@@ -1,6 +1,6 @@
 use std::{fmt::Display, path::Path};
 
-use super::models::{Block, Kind, Location, Offset, Scope, Span};
+use super::models::{Block, Kind, Location, Offset, Span};
 use tree_sitter::StreamingIterator;
 
 const QUERIES: &'static str = include_str!("../queries/rust.scm");
@@ -133,6 +133,12 @@ mod tests {
                 Pending,
             }
             
+            impl Status {
+                pub fn status(&self) -> &Status {
+                    self
+                }
+            }
+
             #[test]
             fn process_user(user: &User) -> Status {
                 if user.age > 18 {
