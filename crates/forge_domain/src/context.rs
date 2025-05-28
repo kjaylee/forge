@@ -320,7 +320,7 @@ fn update_image_tool_calls(mut context: Context) -> Context {
                 let pdf = std::mem::take(pdf);
                 let id = pdfs.len();
                 *value = ToolOutputValue::Text(format!(
-                    "[The image with ID {id} will be sent as an attachment in the next message]"
+                    "[The pdf with ID {id} will be sent as an attachment in the next message]"
                 ));
                 pdfs.push((id, pdf));
             }
@@ -335,6 +335,14 @@ fn update_image_tool_calls(mut context: Context) -> Context {
             None,
         ));
         context.messages.push(ContextMessage::Image(image));
+    });
+
+    pdfs.into_iter().for_each(|(id, pdf)| {
+        context.messages.push(ContextMessage::user(
+            format!("[Here is the pdf for ID {id}]"),
+            None,
+        ));
+        context.messages.push(ContextMessage::Pdf(pdf));
     });
 
     context

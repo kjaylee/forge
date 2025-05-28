@@ -30,6 +30,12 @@ pub struct ImageUrl {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct File {
+    filename: String,
+    file_data: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Message {
     pub role: Role,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,9 +92,8 @@ pub enum ContentPart {
     ImageUrl {
         image_url: ImageUrl,
     },
-    Pdf {
-        filename: String,
-        file_data: String,
+    File {
+        file: File,
     },
 }
 
@@ -329,9 +334,11 @@ impl From<ContextMessage> for Message {
                 }
             }
             ContextMessage::Pdf(pdf) => {
-                let content = vec![ContentPart::Pdf {
-                    filename: pdf.filename().clone(),
-                    file_data: pdf.file_data().clone(),
+                let content = vec![ContentPart::File {
+                    file: File {
+                        filename: pdf.filename().clone(),
+                        file_data: pdf.file_data().clone(),
+                    },
                 }];
                 Message {
                     role: Role::User,
@@ -365,9 +372,11 @@ impl From<ToolResult> for MessageContent {
                     parts.push(content);
                 }
                 ToolOutputValue::Pdf(pdf) => {
-                    let content = ContentPart::Pdf {
-                        filename: pdf.filename().clone(),
-                        file_data: pdf.file_data().clone(),
+                    let content = ContentPart::File {
+                        file: File {
+                            filename: pdf.filename().clone(),
+                            file_data: pdf.file_data().clone(),
+                        },
                     };
                     parts.push(content);
                 }
