@@ -225,22 +225,25 @@ impl Context {
     ) -> Self {
         if tool_supported {
             // Adding tool calls
-            self.add_message(ContextMessage::assistant(
-                content,
-                Some(
+            let context = self
+                .add_message(ContextMessage::assistant(
+                    content,
+                    Some(
+                        tool_records
+                            .iter()
+                            .map(|record| record.0.clone())
+                            .collect::<Vec<_>>(),
+                    ),
+                ))
+                // Adding tool results
+                .add_tool_results(
                     tool_records
                         .iter()
-                        .map(|record| record.0.clone())
+                        .map(|record| record.1.clone())
                         .collect::<Vec<_>>(),
-                ),
-            ))
-            // Adding tool results
-            .add_tool_results(
-                tool_records
-                    .iter()
-                    .map(|record| record.1.clone())
-                    .collect::<Vec<_>>(),
-            )
+                );
+
+            update_image_tool_calls(context)
         } else {
             // Adding tool calls
             self = self.add_message(ContextMessage::assistant(content.to_string(), None));
@@ -266,6 +269,47 @@ impl Context {
             self
         }
     }
+}
+
+// Assuming tool calls are supported by the model we will convert all tool results that contain images into user messages
+fn update_image_tool_calls(mut context: Context) -> Context {
+    let mut images = Vec::new();
+
+    // Step 1: Replace the image value with a text message
+    context
+        .messages
+        .iter_mut()
+        .filter_map(|message| {
+            if let ContextMessage::Tool(tool_result) = message {
+                Some(tool_result)
+            } else {
+                None
+            }
+        })
+        .flat_map(|tool_result| tool_result.output.values.iter_mut())
+        .enumerate()
+        .for_each(|(id, value)| match value {
+            crate::ToolOutputValue::Image(image) => {
+                let image = std::mem::take(image);
+                *value = crate::ToolOutputValue::Text(format!(
+                    "[The image with ID {id} will be sent as an attachment in the next message]"
+                ));
+                images.push((id, image));
+            }
+            crate::ToolOutputValue::Text(_) => {}
+            crate::ToolOutputValue::Empty => {}
+        });
+
+    // Step 2: Insert all images in the end
+    for (id, image) in images {
+        context.messages.push(ContextMessage::user(
+            format!("[Here is the image attachment for ID {id}]"),
+            None,
+        ));
+        context.messages.push(ContextMessage::Image(image));
+    }
+
+    context
 }
 
 #[cfg(test)]
