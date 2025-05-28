@@ -72,7 +72,10 @@ impl ForgeProvider {
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error> {
         let mut request = Request::from(context).model(model.clone()).stream(true);
         request = ProviderPipeline::new(&self.provider).transform(request);
-        println!("{}", serde_json::to_string_pretty(&request).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&request).unwrap_or_default()
+        );
 
         let url = self.url("chat/completions")?;
 

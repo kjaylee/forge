@@ -16,7 +16,11 @@ impl Pdf {
         Self::new_base64(name, base64_encoded, mime_type)
     }
 
-    pub fn new_base64(name: impl ToString, base64_encoded: String, mime_type: impl ToString) -> Self {
+    pub fn new_base64(
+        name: impl ToString,
+        base64_encoded: String,
+        mime_type: impl ToString,
+    ) -> Self {
         let mime_type = mime_type.to_string();
         let content = format!("data:{mime_type};base64,{base64_encoded}");
         Self { filename: name.to_string(), file_data: content, mime_type }

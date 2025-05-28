@@ -304,9 +304,9 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                                             crate::ToolOutputValue::Image(image) => {
                                                 Some(Element::new("img").attr("src", image.url()))
                                             }
-                                            ToolOutputValue::Pdf(pdf) => {
-                                                Some(Element::new("pdf").attr("src", pdf.file_data()))
-                                            }
+                                            ToolOutputValue::Pdf(pdf) => Some(
+                                                Element::new("pdf").attr("src", pdf.file_data()),
+                                            ),
                                             crate::ToolOutputValue::Empty => None,
                                         }
                                     }))
