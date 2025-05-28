@@ -1,6 +1,6 @@
 use std::{fmt::Display, path::Path};
 
-use super::models::{Block, Kind, Location, Scope, Span};
+use super::models::{Block, Kind, Location, Offset, Scope, Span};
 use tree_sitter::StreamingIterator;
 
 const QUERIES: &'static str = include_str!("../queries/rust.scm");
@@ -106,6 +106,7 @@ impl RustTreeSitter {
                 snippet,
                 None,
                 span,
+                Offset { start: start_byte, end: end_byte },
             ));
         }
 

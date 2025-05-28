@@ -32,6 +32,14 @@ pub struct Block {
     scope: Option<Scope>,
     /// Span of snippet
     span: Span,
+    /// Char offset of snippet
+    offset: Offset,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Offset {
+    pub start: usize,
+    pub end: usize,
 }
 
 impl Block {
@@ -42,6 +50,7 @@ impl Block {
         snippet: String,
         scope: Option<Scope>,
         span: Span,
+        offset: Offset
     ) -> Self {
         Self {
             kind,
@@ -49,6 +58,7 @@ impl Block {
             snippet,
             scope,
             span,
+            offset
         }
     }
 }
