@@ -1820,6 +1820,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "forge_treesitter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "insta",
+ "pretty_assertions",
+ "thiserror 2.0.12",
+ "tree-sitter",
+ "tree-sitter-rust",
+]
+
+[[package]]
 name = "forge_walker"
 version = "0.1.0"
 dependencies = [

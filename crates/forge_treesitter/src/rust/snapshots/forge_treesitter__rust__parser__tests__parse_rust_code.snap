@@ -1,0 +1,54 @@
+---
+source: crates/forge_treesitter/src/rust/parser.rs
+expression: blocks
+---
+[
+    Block {
+        kind: Struct,
+        path: "./test.rs",
+        snippet: "struct User {\n                name: String,\n                age: u32,\n            }",
+        scope: None,
+        span: Span {
+            start: Location {
+                line: 1,
+                column: 12,
+            },
+            end: Location {
+                line: 4,
+                column: 13,
+            },
+        },
+    },
+    Block {
+        kind: Enum,
+        path: "./test.rs",
+        snippet: "enum Status {\n                Active,\n                Inactive,\n                Pending,\n            }",
+        scope: None,
+        span: Span {
+            start: Location {
+                line: 6,
+                column: 12,
+            },
+            end: Location {
+                line: 10,
+                column: 13,
+            },
+        },
+    },
+    Block {
+        kind: Function,
+        path: "./test.rs",
+        snippet: "fn process_user(user: &User) -> Status {\n                if user.age > 18 {\n                    Status::Active\n                } else {\n                    Status::Pending\n                }\n            }",
+        scope: None,
+        span: Span {
+            start: Location {
+                line: 13,
+                column: 12,
+            },
+            end: Location {
+                line: 19,
+                column: 13,
+            },
+        },
+    },
+]
