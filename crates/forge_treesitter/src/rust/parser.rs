@@ -43,7 +43,7 @@ impl Default for RustTreeSitter {
         let mut parser = tree_sitter::Parser::new();
         parser
             .set_language(&tree_sitter_rust::LANGUAGE.into())
-            .expect("shouldn't fail.");
+            .expect("Failed to set Rust language for tree-sitter parser");
 
         Self(parser)
     }
