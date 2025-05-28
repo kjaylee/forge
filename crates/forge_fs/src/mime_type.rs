@@ -35,9 +35,7 @@ impl MimeType {
 impl crate::ForgeFS {
     /// Detects the MIME type of a file by examining its content.
     /// This version takes a path and opens the file itself.
-    pub async fn mime_type<T: AsRef<std::path::Path>>(
-        path: T,
-    ) -> anyhow::Result<Option<MimeType>> {
+    pub async fn mime_type<T: AsRef<std::path::Path>>(path: T) -> anyhow::Result<Option<MimeType>> {
         use anyhow::Context;
         use tokio::fs::File;
 
@@ -52,7 +50,9 @@ impl crate::ForgeFS {
     /// Detects the MIME type of an already opened file by examining its
     /// content. This version takes an already opened file handle, allowing
     /// for reuse of the same file handle across multiple operations.
-    pub async fn mime_type_from_file(file: &mut tokio::fs::File) -> anyhow::Result<Option<MimeType>> {
+    pub async fn mime_type_from_file(
+        file: &mut tokio::fs::File,
+    ) -> anyhow::Result<Option<MimeType>> {
         use tokio::io::AsyncReadExt;
 
         // Read sample data
@@ -86,7 +86,7 @@ mod test {
         // Test text file
         let text_file = create_test_file(b"Hello, world!").await?;
         let mime_type_opt = crate::ForgeFS::mime_type(text_file.path()).await?;
-        
+
         // Text content might not be detected by infer, which is expected
         if let Some(mime_type) = mime_type_opt {
             // If detected, it should be marked appropriately
@@ -105,7 +105,7 @@ mod test {
         let mime_type = crate::ForgeFS::mime_type(png_file.path())
             .await?
             .expect("PNG should be detected");
-        
+
         assert!(
             mime_type.is_binary(),
             "PNG file should be identified as binary"
@@ -122,10 +122,7 @@ mod test {
         // Test empty file
         let empty_file = create_test_file(&[]).await?;
         let mime_type_opt = crate::ForgeFS::mime_type(empty_file.path()).await?;
-        assert!(
-            mime_type_opt.is_none(),
-            "Empty file should return None"
-        );
+        assert!(mime_type_opt.is_none(), "Empty file should return None");
 
         Ok(())
     }

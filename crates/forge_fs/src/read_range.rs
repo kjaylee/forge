@@ -31,7 +31,8 @@ impl crate::ForgeFS {
                 return Err(Error::BinaryFileNotSupported(mime_type.as_str().to_string()).into());
             }
         }
-        // If MIME type is None (empty files or undetected), assume it's text and continue
+        // If MIME type is None (empty files or undetected), assume it's text and
+        // continue
 
         // Read the file content
         let content = tokio::fs::read_to_string(path_ref)
