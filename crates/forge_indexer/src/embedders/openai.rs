@@ -52,22 +52,19 @@ impl OpenAI {
 
 #[async_trait::async_trait]
 impl Embedder for OpenAI {
-    async fn embed<T, In>(
+    async fn embed<T>(
         &self,
         inputs: Vec<EmbedderInput<T>>,
     ) -> anyhow::Result<Vec<EmbedderOutput>>
     where
         T: ToString + Send,
-        In: Into<EmbedderInput<T>> + Send,
     {
         info!("Embedding {} blocks", inputs.len());
-        let mut result = Vec::with_capacity(inputs.len());
-        result.fill(None);
+        let mut result = vec![None; inputs.len()];
 
         let inputs = inputs
             .into_iter()
-            .map(|input: EmbedderInput<T>| input)
-            .map(|m: EmbedderInput<T>| EmbedderInput { payload: m.payload.to_string() })
+            .map(|input: EmbedderInput<T>| EmbedderInput { payload: input.payload.to_string() })
             .collect::<Vec<_>>();
 
         let mut uncached = Vec::new();
@@ -98,6 +95,7 @@ impl Embedder for OpenAI {
                 .iter()
                 .map(|(_, p)| p.payload.to_string())
                 .collect::<Vec<_>>();
+            // Pre-allocate with the exact capacity we need
             let mut embeddings = Vec::with_capacity(texts.len());
 
             // 30,000 is limit of OpenAi embedding API.
@@ -113,10 +111,11 @@ impl Embedder for OpenAI {
 
             // TODO: can be parallelized
             // Update results and cache
-            for (embeddings, (pos, block)) in embeddings.into_iter().zip(uncached.into_iter()) {
+            for (idx, embeddings) in embeddings.into_iter().enumerate() {
+                let (pos, block) = &uncached[idx];
                 let cache_key = format!("{}.{}:{}", self.embedding_model, self.dims, block.hash());
                 let _ = self.cache.put(&cache_key, &embeddings).await;
-                result[pos] = Some(EmbedderOutput { embeddings });
+                result[*pos] = Some(EmbedderOutput { embeddings });
             }
         }
 

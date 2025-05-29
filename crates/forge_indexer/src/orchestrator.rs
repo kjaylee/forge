@@ -83,7 +83,7 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
         let code_blocks = self.chunker.chunk(files).await?;
         let embeddings = self
             .embedder
-            .embed::<String, EmbedderInput<String>>(code_blocks.iter().map(Into::into).collect())
+            .embed::<String>(code_blocks.iter().map(Into::into).collect())
             .await?;
 
         self.store
@@ -110,9 +110,7 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
     ) -> anyhow::Result<Vec<QueryOutput<P>>> {
         let embeddings = self
             .embedder
-            .embed::<String, EmbedderInput<String>>(vec![EmbedderInput {
-                payload: query.to_string(),
-            }])
+            .embed::<String>(vec![EmbedderInput { payload: query.to_string() }])
             .await?;
         if let Some(query_embeddings) = embeddings.into_iter().next() {
             self.store.query(query_embeddings.embeddings, options).await
