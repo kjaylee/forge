@@ -1,6 +1,8 @@
 mod code_chunker;
+mod tree_sitter_chunker;
 
 pub use code_chunker::*;
+pub use tree_sitter_chunker::*;
 
 /// Chunker trait for splitting documents into chunks
 #[async_trait::async_trait]

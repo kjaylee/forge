@@ -7,6 +7,7 @@ edition = "2024"
 text-splitter = {version = "0.26.0", features = ["code"]}
 anyhow.workspace = true
 forge_walker.workspace = true
+forge_treesitter.workspace = true
 tree-sitter-rust.workspace = true
 tokio.workspace = true
 tiktoken-rs = "0.7.0"

@@ -1595,6 +1595,7 @@ dependencies = [
  "bytemuck",
  "cacache",
  "dotenv",
+ "forge_treesitter",
  "forge_walker",
  "futures",
  "qdrant-client",
