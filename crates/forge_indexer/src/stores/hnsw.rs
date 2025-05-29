@@ -145,4 +145,33 @@ impl Store for HnswStore<'_> {
 
         Ok(results)
     }
+
+    async fn reset(&self) -> anyhow::Result<()> {
+        // Clear payloads
+        let mut payloads = self.payloads.write().unwrap();
+        payloads.clear();
+
+        // Reset HNSW index by replacing it with a new instance
+        let mut hnsw = self.hnsw.write().unwrap();
+        
+        // Create a new HNSW index with the same parameters
+        let max_nb_connection = 16;
+        let nb_layer = 16.min((self.dimension as f32).ln().floor() as usize);
+        let ef_construction = 200;
+        
+        // Replace the existing HNSW index with a new one
+        *hnsw = Hnsw::new(
+            max_nb_connection,
+            self.dimension,
+            nb_layer,
+            ef_construction,
+            DistCosine,
+        );
+        
+        // Reset the ID counter
+        let mut id = self.id.write().unwrap();
+        *id = 0;
+
+        Ok(())
+    }
 }

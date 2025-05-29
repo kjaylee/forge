@@ -43,4 +43,5 @@ pub trait Store: Send + Sync {
     ) -> anyhow::Result<Vec<QueryOutput<T>>>
     where
         T: serde::de::DeserializeOwned + Send + Sync;
+    async fn reset(&self) -> anyhow::Result<()>;
 }

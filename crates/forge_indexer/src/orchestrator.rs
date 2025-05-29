@@ -77,6 +77,9 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
 
 impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
     pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
+        // Firstly reset the store to avoid duplicate records.
+        let _ = self.store.reset().await?;
+
         let files = self.loader.load(path).await?;
         let code_blocks = self.chunker.chunk(files).await?;
         let embeddings = self

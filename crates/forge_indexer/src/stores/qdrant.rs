@@ -3,7 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::future::join_all;
 use qdrant_client::Payload;
-use qdrant_client::qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder};
+use qdrant_client::qdrant::{
+    DeleteCollection, PointStruct, SearchPointsBuilder, UpsertPointsBuilder,
+};
 use tracing::info;
 use uuid::Uuid;
 
@@ -94,5 +96,16 @@ impl Store for QdrantStore {
         info!("Retrieved {} results from Qdrant", results.len());
 
         Ok(results)
+    }
+
+    async fn reset(&self) -> anyhow::Result<()> {
+        let _ = self
+            .client
+            .delete_collection(DeleteCollection {
+                collection_name: self.collection_name.clone(),
+                timeout: None,
+            })
+            .await?;
+        Ok(())
     }
 }
