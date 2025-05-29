@@ -1,6 +1,7 @@
 use hnsw_rs::prelude::*;
 use serde_json::Value;
 use std::{collections::HashMap, sync::RwLock};
+use tracing::info;
 
 use super::{QueryOptions, QueryOutput, Store, StoreInput};
 
@@ -49,6 +50,7 @@ impl Store for HnswStore<'_> {
     where
         T: Into<serde_json::Value> + Send + Sync,
     {
+        info!("Storing embeddings in In-memory");
         let hnsw = self.hnsw.write().unwrap();
         let mut payloads = self.payloads.write().unwrap();
 
@@ -90,6 +92,8 @@ impl Store for HnswStore<'_> {
         // Insert all vectors in parallel
         hnsw.parallel_insert(&data_refs);
 
+        info!("Stored embeddings in In-memory");
+
         Ok(())
     }
     async fn query<T>(
@@ -107,6 +111,8 @@ impl Store for HnswStore<'_> {
                 query.len()
             ));
         }
+
+        info!("Querying in-memory embeddings");
 
         let hnsw = self.hnsw.read().unwrap();
         let payloads = self.payloads.read().unwrap();
@@ -131,7 +137,9 @@ impl Store for HnswStore<'_> {
                     }
                 })
             })
-            .collect();
+            .collect::<Vec<_>>();
+
+        info!("Retrieved {} results from Qdrant", results.len());
 
         Ok(results)
     }
