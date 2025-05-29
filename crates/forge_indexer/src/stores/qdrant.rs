@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::Embedding;
 use async_trait::async_trait;
+use futures::future::join_all;
 use qdrant_client::{
     Payload,
     qdrant::{PointStruct, UpsertPointsBuilder},
@@ -57,15 +58,19 @@ impl Store for QdrantStore {
             points.push(point);
         }
 
-        for batch in points.chunks(40) {
-            let _ = self
-                .client
-                .upsert_points(UpsertPointsBuilder::new(
-                    self.collection_name.clone(),
-                    batch,
-                ))
-                .await?;
-        }
+        // Process batches in parallel
+        let futures = points.chunks(40).map(|batch| {
+            let client = Arc::clone(&self.client);
+            let collection_name = self.collection_name.clone();
+            async move {
+                client
+                    .upsert_points(UpsertPointsBuilder::new(collection_name, batch))
+                    .await
+            }
+        });
+
+        // Join all futures and collect results
+        let _results = join_all(futures).await;
 
         info!("Stored embeddings in Qdrant");
 
