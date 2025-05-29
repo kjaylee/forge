@@ -1,4 +1,3 @@
-use forge_treesitter::Block;
 use tracing::info;
 
 use crate::{FileLoad, TokenCounter};
@@ -18,9 +17,7 @@ impl<'model> TreeSitterChunker<'model> {
 
 #[async_trait::async_trait]
 impl<'model> Chunker for TreeSitterChunker<'model> {
-    type Input = Vec<FileLoad>;
-    type Output = Vec<Block>;
-    async fn chunk(&self, input: Self::Input) -> anyhow::Result<Self::Output> {
+    async fn chunk(&self, input: Vec<FileLoad>) -> anyhow::Result<Vec<forge_treesitter::Block>> {
         let mut parser = forge_treesitter::RustTreeSitter::default();
         let token_counter = TokenCounter::new(self.model);
         // extract code blocks from source code and keep blocks only if tokens are less than max_tokens

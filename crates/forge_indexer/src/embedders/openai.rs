@@ -7,7 +7,7 @@ use tracing::info;
 
 use crate::token_counter::TokenCounter;
 
-use super::Embedder;
+use super::{Embedder, EmbedderInput, EmbedderOutput};
 
 #[derive(Clone)]
 pub struct OpenAI {
@@ -61,24 +61,43 @@ pub struct Embedding<Input> {
     pub embedding: Vec<f32>,
 }
 
+fn hash<P: AsRef<str>>(payload: P) -> String {
+    use blake3::Hasher as Blake3;
+    let mut hasher = Blake3::new();
+    hasher.update(payload.as_ref().as_bytes());
+    let hash = hasher.finalize();
+    hash.to_hex().to_string()
+}
+
 #[async_trait::async_trait]
 impl Embedder for OpenAI {
-    type Output = Vec<Embedding<forge_treesitter::Block>>;
-    type Input = Vec<forge_treesitter::Block>;
-
-    async fn embed(&self, input: Self::Input) -> anyhow::Result<Self::Output> {
-        info!("Embedding {} blocks", input.len());
-        let mut result = Vec::with_capacity(input.len());
-        for _ in 0..input.len() {
+    async fn embed<T, In>(
+        &self,
+        inputs: Vec<EmbedderInput<T>>,
+    ) -> anyhow::Result<Vec<EmbedderOutput>>
+    where
+        T: ToString + Send,
+        In: Into<EmbedderInput<T>> + Send,
+    {
+        info!("Embedding {} blocks", inputs.len());
+        let mut result = Vec::with_capacity(inputs.len());
+        for _ in 0..inputs.len() {
             result.push(None);
         }
+
+        let inputs = inputs
+            .into_iter()
+            .map(|input: EmbedderInput<T>| input.into())
+            .map(|m: EmbedderInput<T>| EmbedderInput { payload: m.payload.to_string() })
+            .collect::<Vec<_>>();
 
         let mut uncached = Vec::new();
 
         // Check cache first
         let mut cache_hits = 0;
-        for (i, block) in input.iter().enumerate() {
-            let key = format!("{}.{}:{}", self.embedding_model, self.dims, block.hash());
+        for (i, block) in inputs.iter().enumerate() {
+            let hash = hash(&block.payload);
+            let key = format!("{}.{}:{}", self.embedding_model, self.dims, hash);
 
             // Try to get from disk cache
             match cacache::read(&self.cache_path, &key).await {
@@ -87,7 +106,7 @@ impl Embedder for OpenAI {
                     let cached: Vec<f32> = bytemuck::cast_slice(&cached_bytes).to_vec();
                     cache_hits += 1;
 
-                    result[i] = Some(Embedding { input: block.clone(), embedding: cached });
+                    result[i] = Some(EmbedderOutput { embeddings: cached });
                     continue;
                 }
                 Err(_) => {
@@ -102,14 +121,7 @@ impl Embedder for OpenAI {
             // Process batches of uncached texts
             let texts = uncached
                 .iter()
-                .map(|(_, p)| {
-                    serde_json::json!({
-                        "path": p.relative_path().display().to_string(),
-                        "snippet": p.snippet,
-                        "kind": p.kind.to_string(),
-                    })
-                    .to_string()
-                })
+                .map(|(_, p)| p.payload.to_string())
                 .collect();
             let mut embeddings = Vec::new();
 
@@ -124,10 +136,9 @@ impl Embedder for OpenAI {
             // Update results and cache
             for (idx, (orig_idx, payload)) in uncached.iter().enumerate() {
                 let embedding = embeddings[idx].clone();
-                result[*orig_idx] =
-                    Some(Embedding { input: (*payload).clone(), embedding: embedding.clone() });
-
-                let key = format!("{}.{}:{}", self.embedding_model, self.dims, payload.hash());
+                result[*orig_idx] = Some(EmbedderOutput { embeddings: embedding.clone() });
+                let hash = hash(&payload.payload);
+                let key = format!("{}.{}:{}", self.embedding_model, self.dims, hash);
 
                 let bytes = bytemuck::cast_slice(&embedding).to_vec();
                 cacache::write(&self.cache_path, &key, &bytes)
@@ -136,11 +147,11 @@ impl Embedder for OpenAI {
             }
         }
 
-        println!("Cache hits: {}/{}", cache_hits, input.len());
+        println!("Cache hits: {}/{}", cache_hits, inputs.len());
 
-        info!("Embedded {} blocks", input.len());
+        info!("Embedded {} blocks", inputs.len());
 
-        Ok(result.into_iter().flat_map(|r| r.clone()).collect())
+        Ok(result.into_iter().flat_map(|r| r).collect())
     }
 }
 

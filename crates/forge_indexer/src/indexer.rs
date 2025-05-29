@@ -1,7 +1,21 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{Store, chunkers::Chunker, embedders::Embedder, loaders::Loader};
+use crate::{
+    EmbedderInput, Store, StoreInput, chunkers::Chunker, embedders::Embedder, loaders::Loader,
+};
+
+impl From<&forge_treesitter::Block> for EmbedderInput<String> {
+    fn from(block: &forge_treesitter::Block) -> Self {
+        let payload = serde_json::json!({
+            "path": block.relative_path(),
+            "code": block.snippet,
+        })
+        .to_string();
+
+        Self { payload }
+    }
+}
 
 /// Indexer for indexing files
 pub struct Indexer<L: Loader, C: Chunker, E: Embedder, S: Store> {
@@ -17,23 +31,31 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
     }
 }
 
-impl<
-    Input,
-    L: Loader<Output = Input>,
-    C: Chunker<Input = L::Output>,
-    E: Embedder<Input = C::Output>,
-    S: Store<Input = E::Output>,
-> Indexer<L, C, E, S>
-{
-    /// Indexes the files at the given path
+impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
     pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
+        let code_blocks = self.loader.load(path).await?;
+        let chunk_blocks = self.chunker.chunk(code_blocks).await?;
+        let embeddings = self
+            .embedder
+            .embed::<String, EmbedderInput<String>>(chunk_blocks.iter().map(Into::into).collect())
+            .await?;
+
         self.store
             .store(
-                self.embedder
-                    .embed(self.chunker
-                        .chunk(self.loader
-                            .load(path).await?).await?)
-                    .await?,
+                chunk_blocks
+                    .into_iter()
+                    .zip(embeddings.into_iter())
+                    .map(|(block, embeddings)| StoreInput {
+                        embeddings: embeddings.embeddings,
+                        metadata: serde_json::json!({
+                            "path": block.relative_path(),
+                            "kind": block.kind.to_string(),
+                            "span": block.span,
+                            "scope": block.scope.map(|s| s.to_string()),
+                            "offset": block.offset,
+                        }),
+                    })
+                    .collect(),
             )
             .await?;
         Ok(())

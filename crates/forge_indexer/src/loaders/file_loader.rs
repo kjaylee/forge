@@ -1,34 +1,14 @@
 use anyhow::{Context, Result, anyhow};
 use forge_walker::Walker;
-use tracing::info;
-use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
+use tracing::info;
 use tree_sitter::Language;
 
-use super::Loader;
+use super::{FileLoad, Loader};
 
 #[derive(Default)]
 pub struct FileLoader {
     exts: Option<Vec<String>>,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct FileLoad {
-    pub path: PathBuf,
-    pub content: String,
-    pub language: Language,
-}
-
-impl Ord for FileLoad {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.path.cmp(&other.path)
-    }
-}
-
-impl PartialOrd for FileLoad {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 /// Maps a file extension to its corresponding Tree-sitter language
@@ -122,9 +102,7 @@ impl FileLoader {
 
 #[async_trait::async_trait]
 impl Loader for FileLoader {
-    type Output = Vec<FileLoad>;
-
-    async fn load(&self, path: &Path) -> Result<Self::Output> {
+    async fn load(&self, path: &Path) -> Result<Vec<FileLoad>> {
         info!("Loading files from: {}", path.display());
         let result = self.load(path).await;
         info!("Loaded files from: {}", path.display());

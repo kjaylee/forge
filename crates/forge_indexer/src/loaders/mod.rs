@@ -1,12 +1,34 @@
 mod file_loader;
 
-use std::path::Path;
+use std::{
+    cmp::Ordering,
+    path::{Path, PathBuf},
+};
 
 pub use file_loader::*;
+use tree_sitter::Language;
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct FileLoad {
+    pub path: PathBuf,
+    pub content: String,
+    pub language: Language,
+}
+
+impl Ord for FileLoad {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.path.cmp(&other.path)
+    }
+}
+
+impl PartialOrd for FileLoad {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 /// Loader trait for loading documents
 #[async_trait::async_trait]
 pub trait Loader: Send + Sync {
-    type Output;
-    async fn load(&self, path: &Path) -> anyhow::Result<Self::Output>;
+    async fn load(&self, path: &Path) -> anyhow::Result<Vec<FileLoad>>;
 }

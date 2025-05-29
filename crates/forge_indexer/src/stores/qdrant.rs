@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use crate::Embedding;
 use async_trait::async_trait;
 use futures::future::join_all;
 use qdrant_client::{
@@ -10,7 +9,7 @@ use qdrant_client::{
 use tracing::info;
 use uuid::Uuid;
 
-use super::Store;
+use super::{Store, StoreInput};
 
 #[derive(Clone)]
 pub struct QdrantStore {
@@ -37,23 +36,16 @@ impl QdrantStore {
 
 #[async_trait]
 impl Store for QdrantStore {
-    type Input = Vec<Embedding<forge_treesitter::Block>>;
-    async fn store(&self, inputs: Self::Input) -> anyhow::Result<()> {
+    async fn store<T>(&self, inputs: Vec<StoreInput<T>>) -> anyhow::Result<()>
+    where
+        T: Into<serde_json::Value> + Send + Sync,
+    {
         info!("Storing embeddings in Qdrant");
         let mut points = Vec::with_capacity(inputs.len());
         for input in inputs {
-            let vector = input.embedding;
-            let metadata = input.input;
-
+            let vector = input.embeddings;
             let id = Uuid::new_v4().to_string();
-            let payload: Payload = serde_json::json!({
-                "path": metadata.relative_path().display().to_string(),
-                "kind": metadata.kind.to_string(),
-                "scope": metadata.scope.as_ref().map(|s| s.to_string()),
-                "span": metadata.span,
-                "offset": metadata.offset,
-            })
-            .try_into()?;
+            let payload: Payload = input.metadata.into().try_into()?;
             let point = PointStruct::new(id, vector, payload);
             points.push(point);
         }
