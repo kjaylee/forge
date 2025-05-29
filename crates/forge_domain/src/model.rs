@@ -3,6 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Setters)]
+#[setters(into, strip_option)]
 pub struct Model {
     pub id: ModelId,
     pub name: Option<String>,
@@ -10,6 +11,18 @@ pub struct Model {
     pub context_length: Option<u64>,
     // TODO: add provider information to the model
     pub tools_supported: Option<bool>,
+}
+
+impl Model {
+    pub fn new(id: ModelId) -> Self {
+        Self {
+            id,
+            name: None,
+            description: None,
+            context_length: None,
+            tools_supported: None,
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
