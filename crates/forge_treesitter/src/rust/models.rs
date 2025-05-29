@@ -4,13 +4,9 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Kind {
     Function,
-    Method,
     Struct,
     Enum,
-    Impl,
-    Trait,
     Constant,
-    //... and so on
 }
 
 /// Represents a specific scope for the code block

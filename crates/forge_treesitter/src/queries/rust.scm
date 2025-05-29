@@ -6,3 +6,6 @@
 
 ;; Capture function definitions
 (function_item) @function.definition
+
+;; Capture constant definitions
+(const_item) @const.definition

@@ -11,6 +11,7 @@ pub enum Pattern {
     Struct,
     Enum,
     Function,
+    Constant,
 }
 
 impl Display for Pattern {
@@ -19,6 +20,7 @@ impl Display for Pattern {
             Pattern::Struct => "struct.definition",
             Pattern::Enum => "enum.definition",
             Pattern::Function => "function.definition",
+            Pattern::Constant => "const.definition",
         };
         write!(f, "{}", str_repr)
     }
@@ -31,6 +33,7 @@ impl TryFrom<&str> for Pattern {
             "struct.definition" => Ok(Pattern::Struct),
             "enum.definition" => Ok(Pattern::Enum),
             "function.definition" => Ok(Pattern::Function),
+            "const.definition" => Ok(Pattern::Constant),
             _ => Err(anyhow::anyhow!("Unsupported pattern found '{}'", value)),
         }
     }
@@ -55,6 +58,7 @@ impl From<Pattern> for Kind {
             Pattern::Struct => Kind::Struct,
             Pattern::Enum => Kind::Enum,
             Pattern::Function => Kind::Function,
+            Pattern::Constant => Kind::Constant,
         }
     }
 }
@@ -66,6 +70,9 @@ impl RustTreeSitter {
             .parse(source, None)
             .ok_or(anyhow::anyhow!("Failed to parse code"))?;
 
+        println!("{}", tree.root_node().to_sexp());
+
+
         let query = tree_sitter::Query::new(&tree_sitter_rust::LANGUAGE.into(), QUERIES)?;
 
         // Execute query
@@ -76,40 +83,39 @@ impl RustTreeSitter {
         let mut blocks = Vec::new();
 
         while let Some(match_) = matches.next() {
-            // Get the matched node and its kind
-            let capture = match_.captures[0];
-            let node = capture.node;
+            for capture in match_.captures {
+                let node = capture.node;
 
-            // Get the name of the capture from the query
-            let capture_name = query.capture_names()[capture.index as usize];
+                let capture_name = query.capture_names()[capture.index as usize];
 
-            // Convert the capture name to a Pattern and then to a Kind
-            let pattern = match Pattern::try_from(capture_name) {
-                Ok(pattern) => pattern,
-                Err(_) => continue, // Skip unknown patterns
-            };
+                // Convert the capture name to a Pattern and then to a Kind
+                let pattern = match Pattern::try_from(capture_name) {
+                    Ok(pattern) => pattern,
+                    Err(_) => continue, // Skip unknown patterns
+                };
 
-            // Extract the code snippet
-            let start_byte = node.start_byte();
-            let end_byte = node.end_byte();
-            let snippet = source[start_byte..end_byte].to_string();
+                // Extract the code snippet
+                let start_byte = node.start_byte();
+                let end_byte = node.end_byte();
+                let snippet = source[start_byte..end_byte].to_string();
 
-            // Create span for the block
-            let span = Span {
-                start: Location::from(node.start_position()),
-                end: Location::from(node.end_position()),
-            };
+                // Create span for the block
+                let span = Span {
+                    start: Location::from(node.start_position()),
+                    end: Location::from(node.end_position()),
+                };
 
-            let offset = Offset { start: start_byte, end: end_byte };
+                let offset = Offset { start: start_byte, end: end_byte };
 
-            blocks.push(Block::new(
-                pattern.into(),
-                path_buf.clone(),
-                snippet,
-                None,
-                span,
-                offset,
-            ));
+                blocks.push(Block::new(
+                    pattern.into(),
+                    path_buf.clone(),
+                    snippet,
+                    None,
+                    span,
+                    offset,
+                ));
+            }
         }
 
         Ok(blocks)
@@ -124,6 +130,7 @@ mod tests {
     fn test_parse_rust_code() {
         // Sample Rust code to parse
         let sample_code = r#"
+            const DATA: &'static str = "test";
             struct User {
                 name: String,
                 age: u32,
