@@ -39,24 +39,3 @@ impl<
         Ok(())
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[tokio::test]
-//     async fn chunk_file() {
-//         let path = PathBuf::from(
-//             "/Users/ranjit/Desktop/workspace/code-forge/code-forge/crates/forge_main/src/editor.rs",
-//         );
-//         let blocks = Indexer::default().index(&path).await.unwrap();
-//         for block in blocks {
-//             println!("path: {}", block.path.display());
-//             println!("------------------------------------------------");
-//             for chunk in block.chunks {
-//                 println!("chunk: {}", chunk);
-//                 println!("------------------------------------------------");
-//             }
-//         }
-//     }
-// }
