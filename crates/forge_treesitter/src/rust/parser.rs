@@ -3,7 +3,7 @@ use std::{fmt::Display, path::Path};
 use super::models::{Block, Kind, Location, Offset, Span};
 use tree_sitter::StreamingIterator;
 
-const QUERIES: &'static str = include_str!("../queries/rust.scm");
+const QUERIES: &str = include_str!("../queries/rust.scm");
 
 /// Represents a query pattern with its associated metadata
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +22,7 @@ impl Display for Pattern {
             Pattern::Function => "function.definition",
             Pattern::Constant => "const.definition",
         };
-        write!(f, "{}", str_repr)
+        write!(f, "{str_repr}")
     }
 }
 

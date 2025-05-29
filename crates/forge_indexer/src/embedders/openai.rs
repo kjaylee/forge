@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
-use bytemuck;
 use tracing::info;
 
 use crate::token_counter::TokenCounter;
@@ -87,7 +86,7 @@ impl Embedder for OpenAI {
 
         let inputs = inputs
             .into_iter()
-            .map(|input: EmbedderInput<T>| input.into())
+            .map(|input: EmbedderInput<T>| input)
             .map(|m: EmbedderInput<T>| EmbedderInput { payload: m.payload.to_string() })
             .collect::<Vec<_>>();
 
@@ -151,7 +150,7 @@ impl Embedder for OpenAI {
 
         info!("Cache hits: {}/{}", cache_hits, inputs.len());
 
-        Ok(result.into_iter().flat_map(|r| r).collect())
+        Ok(result.into_iter().flatten().collect())
     }
 }
 

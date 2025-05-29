@@ -26,7 +26,7 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
             .filter_map(|file| match parser.parse(&file.path, &file.content) {
                 Ok(blocks) => Some(blocks),
                 Err(e) => {
-                    eprintln!("failed to parse the file contents: {}", e);
+                    eprintln!("failed to parse the file contents: {e}");
                     None
                 }
             })

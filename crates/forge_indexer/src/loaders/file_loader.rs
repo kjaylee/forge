@@ -80,9 +80,9 @@ impl FileLoader {
     }
 
     /// Returns true if the file should be included based on its extension
-    fn should_include_file(&self, path: &PathBuf) -> bool {
-        self.exts.as_ref().map_or(false, |exts| {
-            path.extension().map_or(false, |ext| {
+    fn should_include_file(&self, path: &Path) -> bool {
+        self.exts.as_ref().is_some_and(|exts| {
+            path.extension().is_some_and(|ext| {
                 exts.contains(&ext.to_string_lossy().to_string())
             })
         })

@@ -51,7 +51,6 @@ impl Store for HnswStore<'_> {
         T: Into<serde_json::Value> + Send + Sync,
     {
         info!("Storing embeddings in In-memory");
-        let hnsw = self.hnsw.write().unwrap();
         let mut payloads = self.payloads.write().unwrap();
 
         let inputs_with_identifier = inputs
@@ -90,6 +89,7 @@ impl Store for HnswStore<'_> {
         let data_refs: Vec<_> = data.iter().map(|(vec, id)| (vec, *id)).collect();
 
         // Insert all vectors in parallel
+        let hnsw = self.hnsw.read().unwrap();
         hnsw.parallel_insert(&data_refs);
 
         info!("Stored embeddings in In-memory");
