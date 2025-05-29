@@ -1,20 +1,20 @@
 mod chunkers;
 mod embedders;
-mod indexer;
+mod orchestrator;
 mod loaders;
 mod stores;
 mod token_counter;
 
 pub use chunkers::*;
 pub use embedders::*;
-pub use indexer::*;
+pub use orchestrator::*;
 pub use loaders::*;
 pub use stores::*;
 pub use token_counter::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::{FileLoader, Indexer, OpenAI, QdrantStore, TreeSitterChunker};
+    use crate::{FileLoader, Orchestrator, OpenAI, QdrantStore, TreeSitterChunker};
     use std::path::Path;
     use std::sync::Arc;
 
@@ -33,7 +33,7 @@ mod tests {
         )
         .unwrap();
 
-        let indexer: Indexer<FileLoader, TreeSitterChunker, OpenAI, QdrantStore> = Indexer::new(
+        let indexer: Orchestrator<FileLoader, TreeSitterChunker, OpenAI, QdrantStore> = Orchestrator::new(
             Arc::new(loader),
             Arc::new(chunker),
             Arc::new(embedder),

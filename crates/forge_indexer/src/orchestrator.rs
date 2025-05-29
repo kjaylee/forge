@@ -18,20 +18,43 @@ impl From<&forge_treesitter::Block> for EmbedderInput<String> {
 }
 
 /// Indexer for indexing files
-pub struct Indexer<L: Loader, C: Chunker, E: Embedder, S: Store> {
-    loader: Arc<L>,
-    chunker: Arc<C>,
-    embedder: Arc<E>,
-    store: Arc<S>,
+pub struct Orchestrator<L: Loader, C: Chunker, E: Embedder, S: Store> {
+    pub loader: Arc<L>,
+    pub chunker: Arc<C>,
+    pub embedder: Arc<E>,
+    pub store: Arc<S>,
 }
 
-impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
+use crate::{FileLoader, HnswStore, OpenAI, TreeSitterChunker};
+impl Default for Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, HnswStore<'_>> {
+    fn default() -> Self {
+        dotenv::dotenv().ok();
+
+        let embedding_model = "text-embedding-3-large";
+        let embedding_dims = 1536;
+        let max_tokens_supported = 8192;
+
+        let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
+        let chunker = TreeSitterChunker::new(embedding_model, max_tokens_supported);
+        let embedder = OpenAI::new(embedding_model, embedding_dims);
+        let store = HnswStore::new(embedding_dims as usize);
+
+        Self {
+            loader: Arc::new(loader),
+            chunker: Arc::new(chunker),
+            embedder: Arc::new(embedder),
+            store: Arc::new(store),
+        }
+    }
+}
+
+impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
     pub fn new(loader: Arc<L>, chunker: Arc<C>, embedder: Arc<E>, store: Arc<S>) -> Self {
         Self { loader, chunker, embedder, store }
     }
 }
 
-impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
+impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
     pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
         let files = self.loader.load(path).await?;
         let code_blocks = self.chunker.chunk(files).await?;
