@@ -20,7 +20,11 @@ impl IndexerService for Indexer {
         &self,
         query: &str,
     ) -> anyhow::Result<Vec<V>> {
-        let results = self.0.query::<V>(query, QueryOptions { limit: 10 }).await?;
+        // TODO: allow caller to set query options.
+        let results = self
+            .0
+            .query::<V>(query, QueryOptions::default().limit(10 as u64))
+            .await?;
         Ok(results.into_iter().map(|output| output.payload).collect())
     }
 }

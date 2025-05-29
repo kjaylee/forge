@@ -1,6 +1,7 @@
 mod hnsw;
 mod qdrant;
 
+use derive_setters::Setters;
 pub use hnsw::*;
 pub use qdrant::*;
 
@@ -15,8 +16,18 @@ pub struct QueryOutput<T> {
     pub payload: T,
 }
 
+#[derive(Setters)]
+#[setters(strip_option, into)]
 pub struct QueryOptions {
     pub limit: u64,
+    pub kind: Option<String>,
+    pub path: Option<String>,
+}
+
+impl Default for QueryOptions {
+    fn default() -> Self {
+        Self { limit: 10, kind: None, path: None }
+    }
 }
 
 /// Store trait for storing embeddings
