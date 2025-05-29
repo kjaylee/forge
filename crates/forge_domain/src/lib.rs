@@ -5,6 +5,7 @@ mod chat_request;
 mod chat_response;
 mod compaction_result;
 mod conversation_html;
+mod run;
 mod update;
 
 mod context;
@@ -64,6 +65,7 @@ pub use orch::*;
 pub use point::*;
 pub use provider::*;
 pub use retry_config::*;
+pub use run::*;
 pub use services::*;
 pub use shell::*;
 pub use suggestion::*;

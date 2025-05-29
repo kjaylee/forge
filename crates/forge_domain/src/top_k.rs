@@ -59,6 +59,12 @@ impl From<TopK> for u32 {
     }
 }
 
+impl From<u32> for TopK {
+    fn from(value: u32) -> Self {
+        TopK::new_unchecked(value)
+    }
+}
+
 impl fmt::Display for TopK {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)

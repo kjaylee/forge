@@ -59,6 +59,12 @@ impl From<TopP> for f32 {
     }
 }
 
+impl From<f32> for TopP {
+    fn from(value: f32) -> Self {
+        TopP::new_unchecked(value)
+    }
+}
+
 impl fmt::Display for TopP {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
