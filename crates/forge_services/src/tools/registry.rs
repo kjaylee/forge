@@ -7,6 +7,7 @@ use super::fetch::Fetch;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
+use crate::tools::codebase_search::CodebaseSearch;
 use crate::tools::followup::Followup;
 use crate::Infrastructure;
 
@@ -34,6 +35,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Completion.into(),
             Followup::new(self.infra.clone()).into(),
             Fetch::new(self.infra.clone()).into(),
+            CodebaseSearch::new(self.infra.clone()).into(),
         ]
     }
 }
@@ -54,7 +56,9 @@ pub mod tests {
 
     use super::*;
     use crate::{
-        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService, FsSnapshotService, FsWriteService, IndexerService, InquireService, McpClient, McpServer
+        CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
+        FsReadService, FsSnapshotService, FsWriteService, IndexerService, InquireService,
+        McpClient, McpServer,
     };
 
     /// Create a default test environment
@@ -232,10 +236,12 @@ pub mod tests {
         async fn index(&self, _path: &Path) -> anyhow::Result<()> {
             todo!()
         }
-        async fn query<V: DeserializeOwned + Send + Sync>(&self, _query: &str)
-            -> anyhow::Result<Vec<V>> {
-                todo!()
-            }
+        async fn query<V: DeserializeOwned + Send + Sync>(
+            &self,
+            _query: &str,
+        ) -> anyhow::Result<Vec<V>> {
+            todo!()
+        }
     }
 
     #[async_trait::async_trait]
@@ -292,7 +298,7 @@ pub mod tests {
         fn mcp_server(&self) -> &Self::McpServer {
             self
         }
-        
+
         fn indexer_service(&self) -> &Self::IndexerService {
             self
         }
