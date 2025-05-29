@@ -1,6 +1,8 @@
 mod qdrant;
+mod hnsw;
 
 pub use qdrant::*;
+pub use hnsw::*;
 
 pub struct StoreInput<T> {
     pub embeddings: Vec<f32>,
