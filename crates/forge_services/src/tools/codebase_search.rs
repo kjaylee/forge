@@ -71,10 +71,17 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         context
-            .send_text(TitleFormat::debug(format!(
-                "Codebase Search for {}",
-                input.query
-            )))
+            .send_text(TitleFormat::debug(match input.target_directories {
+                Some(dir) => {
+                    format!(
+                        "Codebase Search for '{}' in directories {:#?}",
+                        input.query, dir
+                    )
+                }
+                None => {
+                    format!("Codebase Search for '{}'", input.query)
+                }
+            }))
             .await?;
 
         let results = self
@@ -88,6 +95,13 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
         let cwd = self.0.environment_service().get_environment().cwd;
 
         for result in results {
+            let _ = context
+                .send_text(TitleFormat::debug(format!(
+                    "file: {}:{}:{}",
+                    result.path, result.span.start.line, result.span.end.line
+                )))
+                .await;
+
             let file_path = cwd.join(&result.path);
             let code = match self.0.file_read_service().read_utf8(&file_path).await {
                 Ok(file_content) => {
