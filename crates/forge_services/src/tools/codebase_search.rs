@@ -54,8 +54,6 @@ struct Span {
 struct QueryOutput {
     path: String,
     kind: String,
-    span: Span,
-    scope: Option<String>,
     offset: Offset,
 }
 
@@ -99,8 +97,8 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
         for result in results {
             let _ = context
                 .send_text(TitleFormat::debug(format!(
-                    "file: {}:{}:{}",
-                    result.path, result.span.start.line, result.span.end.line
+                    "file: {} start_char:{} end_char:{}",
+                    result.path, result.offset.start, result.offset.end
                 )))
                 .await;
 
