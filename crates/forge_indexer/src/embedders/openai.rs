@@ -5,7 +5,7 @@ use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 use bytemuck;
 use tracing::info;
 
-use crate::{chunkers::Block, token_counter::TokenCounter};
+use crate::token_counter::TokenCounter;
 
 use super::Embedder;
 
@@ -56,15 +56,15 @@ impl OpenAI {
 }
 
 #[derive(Debug, Clone)]
-pub struct Embedding {
-    pub input: Block,
+pub struct Embedding<Input> {
+    pub input: Input,
     pub embedding: Vec<f32>,
 }
 
 #[async_trait::async_trait]
 impl Embedder for OpenAI {
-    type Output = Vec<Embedding>;
-    type Input = Vec<Block>;
+    type Output = Vec<Embedding<forge_treesitter::Block>>;
+    type Input = Vec<forge_treesitter::Block>;
 
     async fn embed(&self, input: Self::Input) -> anyhow::Result<Self::Output> {
         info!("Embedding {} blocks", input.len());
@@ -104,8 +104,9 @@ impl Embedder for OpenAI {
                 .iter()
                 .map(|(_, p)| {
                     serde_json::json!({
-                        "path": p.path.display().to_string(),
-                        "chunk": p.chunk,
+                        "path": p.relative_path().display().to_string(),
+                        "snippet": p.snippet,
+                        "kind": p.kind.to_string(),
                     })
                     .to_string()
                 })

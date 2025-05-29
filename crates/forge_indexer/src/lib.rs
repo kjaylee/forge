@@ -23,7 +23,7 @@ pub use token_counter::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::{CodeChunker, FileLoader, Indexer, OpenAI, QdrantStore};
+    use crate::{FileLoader, Indexer, OpenAI, QdrantStore, TreeSitterChunker};
     use std::path::Path;
     use std::sync::Arc;
 
@@ -33,7 +33,8 @@ mod tests {
 
         let embedding_model = "text-embedding-3-large";
         let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
-        let chunker = CodeChunker::new(embedding_model, 450);
+        // let chunker = CodeChunker::new(embedding_model, 450);
+        let chunker = TreeSitterChunker::default();
         let embedder = OpenAI::new(embedding_model, 1536);
         let store = QdrantStore::try_new(
             "https://c55da98e-e560-48d0-afb0-5a2f9d7456a6.europe-west3-0.gcp.cloud.qdrant.io:6334",
@@ -42,7 +43,7 @@ mod tests {
         )
         .unwrap();
 
-        let indexer: Indexer<FileLoader, CodeChunker<'_>, OpenAI, QdrantStore> = Indexer::new(
+        let indexer: Indexer<FileLoader, TreeSitterChunker, OpenAI, QdrantStore> = Indexer::new(
             Arc::new(loader),
             Arc::new(chunker),
             Arc::new(embedder),

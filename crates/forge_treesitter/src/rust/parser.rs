@@ -70,9 +70,6 @@ impl RustTreeSitter {
             .parse(source, None)
             .ok_or(anyhow::anyhow!("Failed to parse code"))?;
 
-        println!("{}", tree.root_node().to_sexp());
-
-
         let query = tree_sitter::Query::new(&tree_sitter_rust::LANGUAGE.into(), QUERIES)?;
 
         // Execute query
