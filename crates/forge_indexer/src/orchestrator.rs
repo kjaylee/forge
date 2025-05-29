@@ -1,6 +1,8 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use serde::de::DeserializeOwned;
+
 use crate::{
     EmbedderInput, Store, StoreInput, chunkers::Chunker, embedders::Embedder, loaders::Loader,
 };
@@ -25,7 +27,7 @@ pub struct Orchestrator<L: Loader, C: Chunker, E: Embedder, S: Store> {
     pub store: Arc<S>,
 }
 
-use crate::{FileLoader, HnswStore, OpenAI, TreeSitterChunker};
+use crate::{FileLoader, HnswStore, OpenAI, QueryOptions, QueryOutput, TreeSitterChunker};
 impl Default for Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, HnswStore<'_>> {
     fn default() -> Self {
         dotenv::dotenv().ok();
@@ -82,5 +84,23 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
             )
             .await?;
         Ok(())
+    }
+
+    pub async fn query<P: Send + Sync + DeserializeOwned>(
+        &self,
+        query: &str,
+        options: QueryOptions,
+    ) -> anyhow::Result<Vec<QueryOutput<P>>> {
+        let embeddings = self
+            .embedder
+            .embed::<String, EmbedderInput<String>>(vec![EmbedderInput {
+                payload: query.to_string(),
+            }])
+            .await?;
+        if let Some(query_embeddings) = embeddings.into_iter().next() {
+            self.store.query(query_embeddings.embeddings, options).await
+        } else {
+            Err(anyhow::anyhow!("No embeddings returned from embedder"))
+        }
     }
 }
