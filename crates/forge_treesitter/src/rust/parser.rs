@@ -1,7 +1,9 @@
-use std::{fmt::Display, path::Path};
+use std::fmt::Display;
+use std::path::Path;
+
+use tree_sitter::StreamingIterator;
 
 use super::models::{Block, Kind, Location, Offset, Span};
-use tree_sitter::StreamingIterator;
 
 const QUERIES: &str = include_str!("../queries/rust.scm");
 

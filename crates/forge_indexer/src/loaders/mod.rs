@@ -1,9 +1,7 @@
 mod file_loader;
 
-use std::{
-    cmp::Ordering,
-    path::{Path, PathBuf},
-};
+use std::cmp::Ordering;
+use std::path::{Path, PathBuf};
 
 pub use file_loader::*;
 use tree_sitter::Language;

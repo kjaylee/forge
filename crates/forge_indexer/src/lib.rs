@@ -1,22 +1,23 @@
 mod chunkers;
 mod embedders;
-mod orchestrator;
 mod loaders;
+mod orchestrator;
 mod stores;
 mod token_counter;
 
 pub use chunkers::*;
 pub use embedders::*;
-pub use orchestrator::*;
 pub use loaders::*;
+pub use orchestrator::*;
 pub use stores::*;
 pub use token_counter::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::{FileLoader, Orchestrator, OpenAI, QdrantStore, TreeSitterChunker};
     use std::path::Path;
     use std::sync::Arc;
+
+    use crate::{FileLoader, OpenAI, Orchestrator, QdrantStore, TreeSitterChunker};
 
     #[tokio::test]
     async fn test_indexer() {
@@ -33,12 +34,13 @@ mod tests {
         )
         .unwrap();
 
-        let indexer: Orchestrator<FileLoader, TreeSitterChunker, OpenAI, QdrantStore> = Orchestrator::new(
-            Arc::new(loader),
-            Arc::new(chunker),
-            Arc::new(embedder),
-            Arc::new(store),
-        );
+        let indexer: Orchestrator<FileLoader, TreeSitterChunker, OpenAI, QdrantStore> =
+            Orchestrator::new(
+                Arc::new(loader),
+                Arc::new(chunker),
+                Arc::new(embedder),
+                Arc::new(store),
+            );
         let _ = indexer.index(Path::new("/Users/ranjit/Desktop/workspace/code-forge/code-forge/crates/forge_main/src/prompt.rs")).await.unwrap();
     }
 }

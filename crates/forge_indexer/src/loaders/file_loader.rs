@@ -1,6 +1,7 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{Context, Result, anyhow};
 use forge_walker::Walker;
-use std::path::{Path, PathBuf};
 use tracing::info;
 use tree_sitter::Language;
 
@@ -82,9 +83,8 @@ impl FileLoader {
     /// Returns true if the file should be included based on its extension
     fn should_include_file(&self, path: &Path) -> bool {
         self.exts.as_ref().is_some_and(|exts| {
-            path.extension().is_some_and(|ext| {
-                exts.contains(&ext.to_string_lossy().to_string())
-            })
+            path.extension()
+                .is_some_and(|ext| exts.contains(&ext.to_string_lossy().to_string()))
         })
     }
 

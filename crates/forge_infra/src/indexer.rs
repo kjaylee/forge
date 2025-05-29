@@ -1,11 +1,9 @@
+use std::path::Path;
 use std::sync::Arc;
 
-use forge_indexer::{
-    FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions, TreeSitterChunker,
-};
+use forge_indexer::{FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions, TreeSitterChunker};
 use forge_services::IndexerService;
 use serde::de::DeserializeOwned;
-use std::path::Path;
 
 #[derive(Default, Clone)]
 pub struct Indexer(

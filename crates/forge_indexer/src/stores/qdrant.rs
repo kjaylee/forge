@@ -2,10 +2,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::future::join_all;
-use qdrant_client::{
-    Payload,
-    qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder},
-};
+use qdrant_client::Payload;
+use qdrant_client::qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder};
 use tracing::info;
 use uuid::Uuid;
 

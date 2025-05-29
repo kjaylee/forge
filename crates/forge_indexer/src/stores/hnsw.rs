@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+use std::sync::RwLock;
+
 use hnsw_rs::prelude::*;
 use serde_json::Value;
-use std::{collections::HashMap, sync::RwLock};
 use tracing::info;
 
 use super::{QueryOptions, QueryOutput, Store, StoreInput};

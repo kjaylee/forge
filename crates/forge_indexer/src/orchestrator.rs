@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 
-use crate::{
-    EmbedderInput, Store, StoreInput, chunkers::Chunker, embedders::Embedder, loaders::Loader,
-};
+use crate::chunkers::Chunker;
+use crate::embedders::Embedder;
+use crate::loaders::Loader;
+use crate::{EmbedderInput, Store, StoreInput};
 
 impl From<&forge_treesitter::Block> for EmbedderInput<String> {
     fn from(block: &forge_treesitter::Block) -> Self {

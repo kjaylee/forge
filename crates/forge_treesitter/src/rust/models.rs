@@ -1,4 +1,5 @@
-use std::{fmt::Display, path::PathBuf};
+use std::fmt::Display;
+use std::path::PathBuf;
 
 /// Represents the type of code block captured
 #[derive(Debug, Clone, PartialEq)]
@@ -63,8 +64,7 @@ impl Block {
 
     pub fn relative_path(&self) -> PathBuf {
         let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        pathdiff::diff_paths(&self.path, &current_dir)
-            .unwrap_or_else(|| self.path.clone())
+        pathdiff::diff_paths(&self.path, &current_dir).unwrap_or_else(|| self.path.clone())
     }
 }
 

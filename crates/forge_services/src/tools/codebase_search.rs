@@ -1,24 +1,22 @@
 use std::sync::Arc;
 
 use forge_display::TitleFormat;
-use forge_domain::CodebaseSearchInput;
-use forge_domain::EnvironmentService;
-use forge_domain::ExecutableTool;
-use forge_domain::NamedTool;
-use forge_domain::ToolCallContext;
-use forge_domain::ToolDescription;
-use forge_domain::ToolOutput;
+use forge_domain::{
+    CodebaseSearchInput, EnvironmentService, ExecutableTool, NamedTool, ToolCallContext,
+    ToolDescription, ToolOutput,
+};
 use forge_tool_macros::ToolDescription;
 
-use crate::FsReadService;
-use crate::IndexerService;
-use crate::Infrastructure;
+use crate::{FsReadService, IndexerService, Infrastructure};
 
 /// Find snippets of code from the codebase most relevant to the search query.
-/// This is a semantic search tool, so the query should ask for something semantically matching what is needed.
-/// If it makes sense to only search in particular directories, please specify them in the target_directories field.
-/// Unless there is a clear reason to use your own search query, please just reuse the user's exact query with their wording.
-/// Their exact wording/phrasing can often be helpful for the semantic search query. Keeping the same exact question format can also be helpful.
+/// This is a semantic search tool, so the query should ask for something
+/// semantically matching what is needed. If it makes sense to only search in
+/// particular directories, please specify them in the target_directories field.
+/// Unless there is a clear reason to use your own search query, please just
+/// reuse the user's exact query with their wording. Their exact
+/// wording/phrasing can often be helpful for the semantic search query. Keeping
+/// the same exact question format can also be helpful.
 #[derive(ToolDescription)]
 pub struct CodebaseSearch<F>(Arc<F>);
 

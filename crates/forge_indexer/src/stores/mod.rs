@@ -1,8 +1,8 @@
-mod qdrant;
 mod hnsw;
+mod qdrant;
 
-pub use qdrant::*;
 pub use hnsw::*;
+pub use qdrant::*;
 
 pub struct StoreInput<T> {
     pub embeddings: Vec<f32>,
@@ -25,7 +25,11 @@ pub trait Store: Send + Sync {
     async fn store<T>(&self, inputs: Vec<StoreInput<T>>) -> anyhow::Result<()>
     where
         T: Into<serde_json::Value> + Send + Sync;
-    async fn query<T>(&self, query: Vec<f32>, options: QueryOptions) -> anyhow::Result<Vec<QueryOutput<T>>>
+    async fn query<T>(
+        &self,
+        query: Vec<f32>,
+        options: QueryOptions,
+    ) -> anyhow::Result<Vec<QueryOutput<T>>>
     where
         T: serde::de::DeserializeOwned + Send + Sync;
 }

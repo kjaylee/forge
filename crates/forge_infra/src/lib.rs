@@ -9,10 +9,10 @@ mod fs_read;
 mod fs_remove;
 mod fs_snap;
 mod fs_write;
+mod indexer;
 mod inquire;
 mod mcp_client;
 mod mcp_server;
-mod indexer;
 
 pub use executor::ForgeCommandExecutorService;
 pub use forge_infra::*;

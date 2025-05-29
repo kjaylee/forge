@@ -1,3 +1,4 @@
+mod codebase_search;
 mod completion;
 mod fetch;
 mod followup;
@@ -6,6 +7,5 @@ mod patch;
 mod registry;
 mod shell;
 mod syn;
-mod codebase_search;
 
 pub use registry::ToolRegistry;

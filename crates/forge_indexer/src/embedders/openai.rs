@@ -4,9 +4,8 @@ use anyhow::Context;
 use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 use tracing::info;
 
-use crate::token_counter::TokenCounter;
-
 use super::{Embedder, EmbedderInput, EmbedderOutput};
+use crate::token_counter::TokenCounter;
 
 #[derive(Clone)]
 pub struct OpenAI {
