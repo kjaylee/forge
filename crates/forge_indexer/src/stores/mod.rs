@@ -9,6 +9,7 @@ pub struct StoreInput<T> {
     pub metadata: T,
 }
 
+#[derive(Debug)]
 pub struct QueryOutput<T> {
     pub score: f32,
     pub payload: T,

@@ -6,6 +6,7 @@ use forge_domain::{
     CommandOutput, EnvironmentService, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
 };
 use forge_snaps::Snapshot;
+use serde::de::DeserializeOwned;
 
 /// Repository for accessing system environment information
 /// This uses the EnvironmentService trait from forge_domain
@@ -142,6 +143,13 @@ pub trait McpServer: Send + Sync + 'static {
     async fn connect(&self, config: McpServerConfig) -> anyhow::Result<Self::Client>;
 }
 
+#[async_trait::async_trait]
+pub trait IndexerService: Send + Sync + 'static {
+    async fn index(&self, path: &Path) -> anyhow::Result<()>;
+    async fn query<V: DeserializeOwned + Send + Sync>(&self, query: &str)
+        -> anyhow::Result<Vec<V>>;
+}
+
 pub trait Infrastructure: Send + Sync + Clone + 'static {
     type EnvironmentService: EnvironmentService;
     type FsMetaService: FsMetaService;
@@ -153,6 +161,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     type CommandExecutorService: CommandExecutorService;
     type InquireService: InquireService;
     type McpServer: McpServer;
+    type IndexerService: IndexerService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FsMetaService;
@@ -164,4 +173,5 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn command_executor_service(&self) -> &Self::CommandExecutorService;
     fn inquire_service(&self) -> &Self::InquireService;
     fn mcp_server(&self) -> &Self::McpServer;
+    fn indexer_service(&self) -> &Self::IndexerService;
 }
