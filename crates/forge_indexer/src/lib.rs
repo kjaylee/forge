@@ -33,8 +33,7 @@ mod tests {
 
         let embedding_model = "text-embedding-3-large";
         let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
-        // let chunker = CodeChunker::new(embedding_model, 450);
-        let chunker = TreeSitterChunker::default();
+        let chunker = TreeSitterChunker::new(embedding_model, 8192);
         let embedder = OpenAI::new(embedding_model, 1536);
         let store = QdrantStore::try_new(
             "https://c55da98e-e560-48d0-afb0-5a2f9d7456a6.europe-west3-0.gcp.cloud.qdrant.io:6334",
