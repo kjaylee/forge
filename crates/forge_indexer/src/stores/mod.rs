@@ -7,10 +7,22 @@ pub struct StoreInput<T> {
     pub metadata: T,
 }
 
+pub struct QueryOutput<T> {
+    pub score: f32,
+    pub payload: T,
+}
+
+pub struct QueryOptions {
+    pub limit: u64,
+}
+
 /// Store trait for storing embeddings
 #[async_trait::async_trait]
 pub trait Store: Send + Sync {
     async fn store<T>(&self, inputs: Vec<StoreInput<T>>) -> anyhow::Result<()>
     where
         T: Into<serde_json::Value> + Send + Sync;
+    async fn query<T>(&self, query: Vec<f32>, options: QueryOptions) -> anyhow::Result<Vec<QueryOutput<T>>>
+    where
+        T: serde::de::DeserializeOwned + Send + Sync;
 }

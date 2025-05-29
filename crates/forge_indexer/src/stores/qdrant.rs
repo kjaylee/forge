@@ -4,12 +4,12 @@ use async_trait::async_trait;
 use futures::future::join_all;
 use qdrant_client::{
     Payload,
-    qdrant::{PointStruct, UpsertPointsBuilder},
+    qdrant::{PointStruct, SearchPointsBuilder, UpsertPointsBuilder},
 };
 use tracing::info;
 use uuid::Uuid;
 
-use super::{Store, StoreInput};
+use super::{QueryOptions, QueryOutput, Store, StoreInput};
 
 #[derive(Clone)]
 pub struct QdrantStore {
@@ -67,5 +67,34 @@ impl Store for QdrantStore {
         info!("Stored embeddings in Qdrant");
 
         Ok(())
+    }
+
+    async fn query<T>(
+        &self,
+        query: Vec<f32>,
+        options: QueryOptions,
+    ) -> anyhow::Result<Vec<QueryOutput<T>>>
+    where
+        T: serde::de::DeserializeOwned + Send + Sync,
+    {
+        info!("Querying Qdrant with embeddings");
+        let search_request =
+            SearchPointsBuilder::new(self.collection_name.clone(), query, options.limit).build();
+        let output = self.client.search_points(search_request).await?.result;
+
+        let results = output
+            .into_iter()
+            .map(|point| {
+                let score = point.score;
+                // TODO: figure out better way to do this.
+                let payload = serde_json::value::to_value(&point.payload)
+                    .and_then(|value| serde_json::from_value::<T>(value))?;
+                Ok::<QueryOutput<T>, anyhow::Error>(QueryOutput { score, payload })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        info!("Retrieved {} results from Qdrant", results.len());
+
+        Ok(results)
     }
 }
