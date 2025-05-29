@@ -77,9 +77,7 @@ impl Embedder for OpenAI {
     {
         info!("Embedding {} blocks", inputs.len());
         let mut result = Vec::with_capacity(inputs.len());
-        for _ in 0..inputs.len() {
-            result.push(None);
-        }
+        result.fill(None);
 
         let inputs = inputs
             .into_iter()
@@ -154,7 +152,6 @@ impl Embedder for OpenAI {
 }
 
 /// Helper struct to manage batching for embeddings generation with token limits
-/// Follows the builder pattern for configuration
 pub struct EmbeddingBatcher {
     /// Maximum tokens allowed per batch
     pub max_tokens_per_batch: usize,

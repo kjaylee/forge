@@ -57,7 +57,7 @@ impl Default for Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, Hn
         let embedding_dims = 1536;
         let max_tokens_supported = 8192;
 
-        let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
+        let loader = FileLoader::default();
         let chunker = TreeSitterChunker::new(embedding_model, max_tokens_supported);
         let embedder = OpenAI::new(".", embedding_model, embedding_dims);
         let store = HnswStore::new(embedding_dims as usize);

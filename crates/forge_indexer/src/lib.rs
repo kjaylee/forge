@@ -25,7 +25,7 @@ mod tests {
 
         let embedding_model = "text-embedding-3-large";
         let embedding_dimensions = 1536;
-        let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
+        let loader = FileLoader::default();
         let chunker = TreeSitterChunker::new(embedding_model, 8192);
         let embedder = OpenAI::new(".", embedding_model, embedding_dimensions);
         let hnsw_store = HnswStore::new(embedding_dimensions as usize);

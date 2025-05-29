@@ -20,6 +20,7 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
         let mut parser = forge_treesitter::RustTreeSitter::default();
         let tokenizer = TokenCounter::try_from(self.model)?;
 
+        // TODO: can be done in parallel.
         let blocks = input
             .into_iter()
             .filter_map(|file| match parser.parse(&file.path, &file.content) {

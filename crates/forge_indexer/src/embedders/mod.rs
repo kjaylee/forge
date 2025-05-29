@@ -6,6 +6,7 @@ pub struct EmbedderInput<T> {
     pub payload: T,
 }
 
+#[derive(Clone)]
 pub struct EmbedderOutput {
     pub embeddings: Vec<f32>,
 }

@@ -4,13 +4,11 @@ use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 
 pub use file_loader::*;
-use tree_sitter::Language;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct FileLoad {
     pub path: PathBuf,
     pub content: String,
-    pub language: Language,
 }
 
 impl Ord for FileLoad {
