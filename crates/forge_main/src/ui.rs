@@ -18,6 +18,7 @@ use merge::Merge;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
+use tracing::{error, info};
 
 use crate::cli::{Cli, McpCommand, TopLevelCommand, Transport};
 use crate::info::Info;
@@ -61,7 +62,7 @@ pub struct UI<F> {
     _guard: forge_tracker::Guard,
 }
 
-impl<F: API> UI<F> {
+impl<F: API + 'static> UI<F> {
     /// Writes a line to the console output
     /// Takes anything that implements ToString trait
     fn writeln<T: ToString>(&mut self, content: T) -> anyhow::Result<()> {
@@ -160,6 +161,22 @@ impl<F: API> UI<F> {
     }
 
     pub async fn run(&mut self) {
+        // Clone the API reference to avoid moving self into the async block
+        let api = self.api.clone();
+        let cwd = self.api.environment().cwd.clone();
+
+        // Start indexing the project in background.
+        tokio::spawn(async move {
+            match api.index(&cwd).await {
+                Ok(_) => {
+                    info!("Indexing completed...");
+                }
+                Err(e) => {
+                    error!("Indexing failed with error {} ", e);
+                }
+            }
+        });
+
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
