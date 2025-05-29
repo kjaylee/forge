@@ -18,8 +18,8 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
 }
 
 impl<
-    O,
-    L: Loader<Output = O>,
+    Input,
+    L: Loader<Output = Input>,
     C: Chunker<Input = L::Output>,
     E: Embedder<Input = C::Output>,
     S: Store<Input = E::Output>,
