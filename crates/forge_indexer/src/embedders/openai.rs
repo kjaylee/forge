@@ -15,11 +15,9 @@ pub struct OpenAI {
 }
 
 impl OpenAI {
-    pub fn new<S: Into<String>>(embedding_model: S, dims: u32) -> Self {
-        // Create a cache directory in the current working directory
-        let cwd = std::env::current_dir().expect("Failed to get current directory");
+    pub fn new<S: Into<String>>(cwd: S, embedding_model: S, dims: u32) -> Self {
         let embedding_model = embedding_model.into();
-        let cache_path = cwd.join(format!(
+        let cache_path = PathBuf::from(cwd.into()).join(format!(
             ".cache/openai-embeddings-{}-{}",
             embedding_model.replace('/', "_"),
             dims
@@ -125,7 +123,9 @@ impl Embedder for OpenAI {
                 .collect();
             let mut embeddings = Vec::new();
 
-            for batch in EmbeddingBatcher::new(&self.embedding_model, 30_000).create_batches(texts)
+            // 30,000 is limit of OpenAi embedding API.
+            for batch in
+                EmbeddingBatcher::try_new(&self.embedding_model, 30_000)?.create_batches(texts)
             {
                 let batch_results = self
                     .process_batch(batch, &self.embedding_model, self.dims)
@@ -162,15 +162,18 @@ pub struct EmbeddingBatcher {
 }
 
 impl EmbeddingBatcher {
-    pub fn new(model: &str, max_tokens_per_batch: usize) -> Self {
-        Self { max_tokens_per_batch, tokenizer: TokenCounter::new(model) }
+    pub fn try_new(model: &str, max_tokens_per_batch: usize) -> anyhow::Result<Self> {
+        Ok(Self {
+            max_tokens_per_batch,
+            tokenizer: TokenCounter::try_from(model)?,
+        })
     }
 }
 
 impl EmbeddingBatcher {
     /// Estimate token count for a text
     pub fn estimate_tokens(&self, text: &str) -> usize {
-        self.tokenizer.tokens(text)
+        self.tokenizer.count_tokens(text)
     }
 
     /// Create batches from input texts respecting token limits

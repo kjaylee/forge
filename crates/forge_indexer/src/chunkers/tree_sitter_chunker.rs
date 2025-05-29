@@ -18,9 +18,8 @@ impl<'model> TreeSitterChunker<'model> {
 impl<'model> Chunker for TreeSitterChunker<'model> {
     async fn chunk(&self, input: Vec<FileLoad>) -> anyhow::Result<Vec<forge_treesitter::Block>> {
         let mut parser = forge_treesitter::RustTreeSitter::default();
-        let token_counter = TokenCounter::new(self.model);
-        // extract code blocks from source code and keep blocks only if tokens are less
-        // than max_tokens
+        let tokenizer = TokenCounter::try_from(self.model)?;
+
         let blocks = input
             .into_iter()
             .filter_map(|file| match parser.parse(&file.path, &file.content) {
@@ -34,21 +33,21 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
             .collect::<Vec<_>>();
 
         let total_blocks = blocks.len();
-
         info!("Total code blocks: {}", total_blocks);
 
-        let filtered_blocks = blocks
+        let filter_blocks = blocks
             .into_iter()
-            .filter(|block| token_counter.tokens(&block.snippet) < self.max_tokens)
+            .filter(|block| tokenizer.count_tokens(&block.snippet) <= self.max_tokens)
             .collect::<Vec<_>>();
 
-        let filtered_blocks_count = filtered_blocks.len();
+        let filtered_blocks_count = filter_blocks.len();
 
         info!(
-            "Total code blocks: {}, Filtered code blocks: {}",
-            total_blocks, filtered_blocks_count
+            "After filtering {} blocks eliminated, total blocks: {} ",
+            total_blocks - filtered_blocks_count,
+            filtered_blocks_count
         );
 
-        Ok(filtered_blocks)
+        Ok(filter_blocks)
     }
 }

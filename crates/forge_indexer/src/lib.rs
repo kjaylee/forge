@@ -17,29 +17,25 @@ mod tests {
     use std::path::Path;
     use std::sync::Arc;
 
-    use crate::{FileLoader, OpenAI, Orchestrator, QdrantStore, TreeSitterChunker};
+    use crate::{FileLoader, HnswStore, OpenAI, Orchestrator, TreeSitterChunker};
 
     #[tokio::test]
     async fn test_indexer() {
         dotenv::dotenv().ok();
 
         let embedding_model = "text-embedding-3-large";
+        let embedding_dimensions = 1536;
         let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
         let chunker = TreeSitterChunker::new(embedding_model, 8192);
-        let embedder = OpenAI::new(embedding_model, 1536);
-        let store = QdrantStore::try_new(
-            "https://c55da98e-e560-48d0-afb0-5a2f9d7456a6.europe-west3-0.gcp.cloud.qdrant.io:6334",
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.8M8EzfjVo9LkDMqgR_L6uVUaTV7Y45he68m7uqD1lrs",
-            "testing",
-        )
-        .unwrap();
+        let embedder = OpenAI::new(".", embedding_model, embedding_dimensions);
+        let hnsw_store = HnswStore::new(embedding_dimensions as usize);
 
-        let indexer: Orchestrator<FileLoader, TreeSitterChunker, OpenAI, QdrantStore> =
+        let indexer: Orchestrator<FileLoader, TreeSitterChunker, OpenAI, HnswStore<'_>> =
             Orchestrator::new(
                 Arc::new(loader),
                 Arc::new(chunker),
                 Arc::new(embedder),
-                Arc::new(store),
+                Arc::new(hnsw_store),
             );
         let _ = indexer.index(Path::new("/Users/ranjit/Desktop/workspace/code-forge/code-forge/crates/forge_main/src/prompt.rs")).await.unwrap();
     }

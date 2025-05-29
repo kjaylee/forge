@@ -146,10 +146,3 @@ impl Store for HnswStore<'_> {
         Ok(results)
     }
 }
-
-// Implement Default for convenience
-impl Default for HnswStore<'static> {
-    fn default() -> Self {
-        Self::new(384) // Default dimension, adjust as needed
-    }
-}

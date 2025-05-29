@@ -211,7 +211,7 @@ impl ForgeCommandManager {
 /// - System commands (starting with '/')
 /// - Regular chat messages
 /// - File content
-#[derive(Debug, Clone, PartialEq, Eq, EnumProperty, EnumIter)]
+#[derive(Debug, Clone, PartialEq, Eq, strum_macros::EnumProperty, EnumIter)]
 pub enum Command {
     /// Compact the conversation context. This can be triggered with the
     /// '/compact' command.

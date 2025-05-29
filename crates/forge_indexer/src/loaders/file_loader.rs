@@ -90,13 +90,17 @@ impl FileLoader {
 
     /// Loads a single file and returns its content and language
     fn load_file(&self, path: &PathBuf) -> Result<FileLoad> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read file: {}", path.display()))?;
+        if self.should_include_file(path) {
+            let content = std::fs::read_to_string(path)
+                .with_context(|| format!("Failed to read file: {}", path.display()))?;
 
-        let language = path_to_language(path)
-            .with_context(|| format!("Failed to determine language for: {}", path.display()))?;
+            let language = path_to_language(path)
+                .with_context(|| format!("Failed to determine language for: {}", path.display()))?;
 
-        Ok(FileLoad { content, path: path.clone(), language })
+            Ok(FileLoad { content, path: path.clone(), language })
+        } else {
+            Err(anyhow::anyhow!("Unsupported file format."))
+        }
     }
 }
 

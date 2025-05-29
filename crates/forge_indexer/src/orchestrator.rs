@@ -1,7 +1,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use forge_treesitter::{Block, Offset, Span};
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 use crate::chunkers::Chunker;
 use crate::embedders::Embedder;
@@ -10,6 +12,7 @@ use crate::{EmbedderInput, Store, StoreInput};
 
 impl From<&forge_treesitter::Block> for EmbedderInput<String> {
     fn from(block: &forge_treesitter::Block) -> Self {
+        // We only want to generate embeddings for code and it's relative path
         let payload = serde_json::json!({
             "path": block.relative_path(),
             "code": block.snippet,
@@ -17,6 +20,25 @@ impl From<&forge_treesitter::Block> for EmbedderInput<String> {
         .to_string();
 
         Self { payload }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MetaData {
+    path: String,
+    kind: String,
+    span: Span,
+    offset: Offset,
+}
+
+impl From<Block> for MetaData {
+    fn from(value: Block) -> Self {
+        Self {
+            path: value.path.display().to_string(),
+            kind: value.kind.to_string(),
+            span: value.span,
+            offset: value.offset,
+        }
     }
 }
 
@@ -31,15 +53,13 @@ pub struct Orchestrator<L: Loader, C: Chunker, E: Embedder, S: Store> {
 use crate::{FileLoader, HnswStore, OpenAI, QueryOptions, QueryOutput, TreeSitterChunker};
 impl Default for Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, HnswStore<'_>> {
     fn default() -> Self {
-        dotenv::dotenv().ok();
-
         let embedding_model = "text-embedding-3-large";
         let embedding_dims = 1536;
         let max_tokens_supported = 8192;
 
         let loader = FileLoader::default().with_extensions(vec!["rs".to_string()]);
         let chunker = TreeSitterChunker::new(embedding_model, max_tokens_supported);
-        let embedder = OpenAI::new(embedding_model, embedding_dims);
+        let embedder = OpenAI::new(".", embedding_model, embedding_dims);
         let store = HnswStore::new(embedding_dims as usize);
 
         Self {
@@ -71,17 +91,13 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
                 code_blocks
                     .into_iter()
                     .zip(embeddings.into_iter())
-                    .map(|(block, embeddings)| StoreInput {
-                        embeddings: embeddings.embeddings,
-                        metadata: serde_json::json!({
-                            "path": block.relative_path(),
-                            "kind": block.kind.to_string(),
-                            "span": block.span,
-                            "scope": block.scope.map(|s| s.to_string()),
-                            "offset": block.offset,
-                        }),
+                    .map(|(block, embeddings)| {
+                        Ok(StoreInput {
+                            embeddings: embeddings.embeddings,
+                            metadata: serde_json::to_value(MetaData::from(block))?,
+                        })
                     })
-                    .collect(),
+                    .collect::<anyhow::Result<Vec<_>>>()?,
             )
             .await?;
         Ok(())
