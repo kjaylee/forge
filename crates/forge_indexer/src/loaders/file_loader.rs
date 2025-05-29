@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
 use forge_walker::Walker;
@@ -6,20 +9,34 @@ use tracing::info;
 
 use super::{FileLoad, Loader};
 
+#[derive(Default)]
+pub enum Extension {
+    #[default]
+    Rust,
+}
+
+impl Display for Extension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Extension::Rust => write!(f, "rs"),
+        }
+    }
+}
+
 pub struct FileLoader {
-    exts: Option<Vec<String>>,
+    exts: Vec<Extension>,
 }
 
 impl Default for FileLoader {
     fn default() -> Self {
-        Self { exts: Some(vec!["rs".to_string()]) }
+        Self { exts: vec![Extension::default()] }
     }
 }
 
 impl FileLoader {
     /// Sets the file extensions to load
-    pub fn with_extensions(mut self, exts: Vec<String>) -> Self {
-        self.exts = Some(exts);
+    pub fn with_extensions(mut self, exts: Vec<Extension>) -> Self {
+        self.exts = exts;
         self
     }
 
@@ -59,10 +76,11 @@ impl FileLoader {
 
     /// Returns true if the file should be included based on its extension
     fn should_include_file(&self, path: &Path) -> bool {
-        self.exts.as_ref().is_some_and(|exts| {
-            path.extension()
-                .is_some_and(|ext| exts.contains(&ext.to_string_lossy().to_string()))
-        })
+        path.extension()
+            .map(|ext| ext.to_string_lossy().to_string())
+            .map_or(false, |file_ext| {
+                self.exts.iter().any(|ext| ext.to_string() == file_ext)
+            })
     }
 
     /// Loads a single file and returns its content and language
