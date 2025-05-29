@@ -116,6 +116,8 @@ impl Embedder for OpenAI {
             uncached.push((i, block));
         }
 
+        info!("Uncached blocks: {}", uncached.len());
+
         // Process uncached items if any
         if !uncached.is_empty() {
             // Process batches of uncached texts
@@ -157,22 +159,22 @@ impl Embedder for OpenAI {
 
 /// Helper struct to manage batching for embeddings generation with token limits
 /// Follows the builder pattern for configuration
-pub struct EmbeddingBatcher<'model> {
+pub struct EmbeddingBatcher {
     /// Maximum tokens allowed per batch
     pub max_tokens_per_batch: usize,
-    pub model: &'model str,
+    pub tokenizer: TokenCounter,
 }
 
-impl<'model> EmbeddingBatcher<'model> {
-    pub fn new(model: &'model str, max_tokens_per_batch: usize) -> Self {
-        Self { max_tokens_per_batch, model }
+impl EmbeddingBatcher {
+    pub fn new(model: &str, max_tokens_per_batch: usize) -> Self {
+        Self { max_tokens_per_batch, tokenizer: TokenCounter::new(model) }
     }
 }
 
-impl<'model> EmbeddingBatcher<'model> {
+impl EmbeddingBatcher {
     /// Estimate token count for a text
     pub fn estimate_tokens(&self, text: &str) -> usize {
-        TokenCounter::new(self.model).tokens(text)
+        self.tokenizer.tokens(text)
     }
 
     /// Create batches from input texts respecting token limits

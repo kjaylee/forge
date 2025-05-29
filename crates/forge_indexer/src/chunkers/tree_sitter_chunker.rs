@@ -35,6 +35,8 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
 
         let total_blocks = blocks.len();
 
+        info!("Total code blocks: {}", total_blocks);
+
         let filtered_blocks = blocks
             .into_iter()
             .filter(|block| token_counter.tokens(&block.snippet) < self.max_tokens)
@@ -43,7 +45,7 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
         let filtered_blocks_count = filtered_blocks.len();
 
         info!(
-            "Total blocks: {}, Filtered blocks: {}",
+            "Total code blocks: {}, Filtered code blocks: {}",
             total_blocks, filtered_blocks_count
         );
 
