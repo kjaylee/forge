@@ -88,6 +88,10 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
             .query::<QueryOutput>(&input.query)
             .await?;
 
+        if results.is_empty() {
+            return Ok(ToolOutput::text("No semantic searches found, try either changing the query or narrowing the search space".into()));
+        };
+
         let mut code_snippets = String::new();
 
         let cwd = self.0.environment_service().get_environment().cwd;
