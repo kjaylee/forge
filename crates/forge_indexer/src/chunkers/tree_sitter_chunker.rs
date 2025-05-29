@@ -1,4 +1,5 @@
 use forge_treesitter::Block;
+use tracing::info;
 
 use crate::{FileLoad, TokenCounter};
 
@@ -33,9 +34,22 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
                 }
             })
             .flatten()
+            .collect::<Vec<_>>();
+
+        let total_blocks = blocks.len();
+
+        let filtered_blocks = blocks
+            .into_iter()
             .filter(|block| token_counter.tokens(&block.snippet) < self.max_tokens)
             .collect::<Vec<_>>();
 
-        Ok(blocks)
+        let filtered_blocks_count = filtered_blocks.len();
+
+        info!(
+            "Total blocks: {}, Filtered blocks: {}",
+            total_blocks, filtered_blocks_count
+        );
+
+        Ok(filtered_blocks)
     }
 }
