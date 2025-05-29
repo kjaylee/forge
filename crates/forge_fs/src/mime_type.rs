@@ -83,18 +83,6 @@ mod test {
 
     #[tokio::test]
     async fn test_mime_type_detection() -> Result<()> {
-        // Test text file
-        let text_file = create_test_file(b"Hello, world!").await?;
-        let mime_type_opt = crate::ForgeFS::mime_type(text_file.path()).await?;
-
-        // Text content might not be detected by infer, which is expected
-        if let Some(mime_type) = mime_type_opt {
-            // If detected, it should be marked appropriately
-            println!("Text detected as: {}", mime_type.as_str());
-        } else {
-            println!("Text not detected by infer (expected)");
-        }
-
         // Test PNG file
         let png_header = [
             0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
