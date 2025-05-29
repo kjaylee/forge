@@ -141,7 +141,7 @@ impl Store for HnswStore<'_> {
             })
             .collect::<Vec<_>>();
 
-        info!("Retrieved {} results from Qdrant", results.len());
+        info!("Retrieved {} results from in-memory store", results.len());
 
         Ok(results)
     }
