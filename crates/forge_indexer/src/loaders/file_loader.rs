@@ -12,7 +12,7 @@ pub struct FileLoader {
 
 impl Default for FileLoader {
     fn default() -> Self {
-        Self { exts: Some(vec!["rust".to_string()]) }
+        Self { exts: Some(vec!["rs".to_string()]) }
     }
 }
 
@@ -83,8 +83,8 @@ impl FileLoader {
 impl Loader for FileLoader {
     async fn load(&self, path: &Path) -> Result<Vec<FileLoad>> {
         info!("Loading files from: {}", path.display());
-        let result = self.load(path).await;
-        info!("Loaded files from: {}", path.display());
-        result
+        let result = self.load(path).await?;
+        info!("'{}' files loaded from {}", result.len(), path.display());
+        Ok(result)
     }
 }
