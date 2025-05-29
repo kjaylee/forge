@@ -33,16 +33,16 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
 
 impl<L: Loader, C: Chunker, E: Embedder, S: Store> Indexer<L, C, E, S> {
     pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
-        let code_blocks = self.loader.load(path).await?;
-        let chunk_blocks = self.chunker.chunk(code_blocks).await?;
+        let files = self.loader.load(path).await?;
+        let code_blocks = self.chunker.chunk(files).await?;
         let embeddings = self
             .embedder
-            .embed::<String, EmbedderInput<String>>(chunk_blocks.iter().map(Into::into).collect())
+            .embed::<String, EmbedderInput<String>>(code_blocks.iter().map(Into::into).collect())
             .await?;
 
         self.store
             .store(
-                chunk_blocks
+                code_blocks
                     .into_iter()
                     .zip(embeddings.into_iter())
                     .map(|(block, embeddings)| StoreInput {
