@@ -149,9 +149,7 @@ impl Embedder for OpenAI {
             }
         }
 
-        println!("Cache hits: {}/{}", cache_hits, inputs.len());
-
-        info!("Embedded {} blocks", inputs.len());
+        info!("Cache hits: {}/{}", cache_hits, inputs.len());
 
         Ok(result.into_iter().flat_map(|r| r).collect())
     }
