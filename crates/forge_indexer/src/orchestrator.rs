@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use forge_treesitter::{Block, Offset, Span};
+use forge_treesitter::{Block, Offset};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,6 @@ impl From<&forge_treesitter::Block> for EmbedderInput<String> {
 pub struct MetaData {
     path: String,
     kind: String,
-    span: Span,
     offset: Offset,
 }
 
@@ -36,7 +35,6 @@ impl From<Block> for MetaData {
         Self {
             path: value.path.display().to_string(),
             kind: value.kind.to_string(),
-            span: value.span,
             offset: value.offset,
         }
     }
@@ -59,7 +57,7 @@ impl Default for Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, Hn
 
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::new(embedding_model, max_tokens_supported);
-        let embedder = OpenAI::new(".", embedding_model, embedding_dims);
+        let embedder = OpenAI::new(embedding_model, embedding_dims);
         let store = HnswStore::new(embedding_dims as usize);
 
         Self {

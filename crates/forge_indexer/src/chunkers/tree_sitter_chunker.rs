@@ -1,3 +1,4 @@
+use forge_treesitter::Parser;
 use tracing::info;
 
 use super::Chunker;
@@ -17,18 +18,25 @@ impl<'model> TreeSitterChunker<'model> {
 #[async_trait::async_trait]
 impl<'model> Chunker for TreeSitterChunker<'model> {
     async fn chunk(&self, input: Vec<FileLoad>) -> anyhow::Result<Vec<forge_treesitter::Block>> {
-        let mut parser = forge_treesitter::RustTreeSitter::default();
         let tokenizer = TokenCounter::try_from(self.model)?;
-
         // TODO: can be done in parallel.
         let blocks = input
             .into_iter()
-            .filter_map(|file| match parser.parse(&file.path, &file.content) {
-                Ok(blocks) => Some(blocks),
-                Err(e) => {
-                    eprintln!("failed to parse the file contents: {e}");
-                    None
-                }
+            .filter_map(|file| {
+                file.path
+                    .extension()
+                    .map(|ext| ext.to_string_lossy().to_string())
+                    .and_then(|ext| {
+                        Parser::try_from(ext.as_str())
+                            .map_err(|e| eprintln!("failed to create parser: {e}"))
+                            .ok()
+                            .and_then(|mut parser| {
+                                parser
+                                    .parse(&file.path, &file.content)
+                                    .map_err(|e| eprintln!("failed to parse file contents: {e}"))
+                                    .ok()
+                            })
+                    })
             })
             .flatten()
             .collect::<Vec<_>>();

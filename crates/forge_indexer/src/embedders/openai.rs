@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Context;
 use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 use tracing::info;
 
@@ -14,18 +15,20 @@ pub struct OpenAI {
 }
 
 impl OpenAI {
-    pub fn new<S: Into<String>>(cwd: S, embedding_model: S, dims: u32) -> Self {
+    pub fn new<S: Into<String>>(embedding_model: S, dims: u32) -> Self {
         let embedding_model = embedding_model.into();
-        let cache_path = PathBuf::from(cwd.into()).join(format!(
+        let cwd = std::env::current_dir().expect("failed to retrive current working directory.");
+        let cache_path = cwd.join(format!(
             ".cache/openai-embeddings-{}-{}",
             embedding_model.replace('/', "_"),
             dims
         ));
 
-        // Ensure the cache directory exists
-        std::fs::create_dir_all(&cache_path).expect("Failed to create cache directory");
-
-        Self { embedding_model, dims, cache: Cache(cache_path) }
+        Self {
+            embedding_model,
+            dims,
+            cache: Cache::try_from(cache_path).expect("failed to create cache path"),
+        }
     }
 
     /// Process a single batch of texts to get embeddings
@@ -52,10 +55,7 @@ impl OpenAI {
 
 #[async_trait::async_trait]
 impl Embedder for OpenAI {
-    async fn embed<T>(
-        &self,
-        inputs: Vec<EmbedderInput<T>>,
-    ) -> anyhow::Result<Vec<EmbedderOutput>>
+    async fn embed<T>(&self, inputs: Vec<EmbedderInput<T>>) -> anyhow::Result<Vec<EmbedderOutput>>
     where
         T: ToString + Send,
     {
@@ -127,6 +127,14 @@ impl Embedder for OpenAI {
 
 #[derive(Clone)]
 struct Cache(PathBuf);
+
+impl TryFrom<PathBuf> for Cache {
+    type Error = anyhow::Error;
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        std::fs::create_dir_all(&path).context("failed to create cache directory")?;
+        Ok(Self(path))
+    }
+}
 
 impl Cache {
     async fn get(&self, cache_key: &str) -> Option<Vec<f32>> {
