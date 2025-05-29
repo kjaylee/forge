@@ -3,7 +3,7 @@ use std::pin::Pin;
 use derive_more::From;
 use thiserror::Error;
 
-use crate::{AgentId, ConversationId};
+use crate::{AgentId, ConversationId, ModelId};
 
 // NOTE: Deriving From for error is a really bad idea. This is because you end
 // up converting errors incorrectly without much context. For eg: You don't want
@@ -51,6 +51,9 @@ pub enum Error {
     #[error("No model defined for agent: {0}")]
     #[from(skip)]
     NoModelDefined(AgentId),
+
+    #[error("Missing model in the models collection: {0}")]
+    ModelNotFound(ModelId),
 
     #[error("{0:?}")]
     Retryable(anyhow::Error),

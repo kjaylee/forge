@@ -1,7 +1,7 @@
+use crate::Result;
+use crate::*;
 use chrono::{DateTime, Local};
 use serde_json::Value;
-
-use crate::*;
 
 /// The `Run` struct represents a run of the agent with its context.
 pub struct Run {
@@ -11,7 +11,7 @@ pub struct Run {
     pub models: Vec<Model>,
 }
 
-type SignalResult = anyhow::Result<Signal>;
+type SignalResult = Result<Signal>;
 
 impl Run {
     pub fn new(agent: Agent, models: Vec<Model>) -> Self {
@@ -72,15 +72,22 @@ impl Run {
     /// - Returns Some(bool) if the model exists and has tool support
     ///   information
     /// - Returns None if the model exists but has no tool support information
-    pub fn tool_supported(&self) -> Option<bool> {
+    pub fn tool_supported(&self) -> Result<bool> {
         // Get the model ID from the agent
-        let model_id = self.agent.model.as_ref()?;
+        let model_id = self
+            .agent
+            .model
+            .as_ref()
+            .ok_or(Error::MissingModel(self.agent.id))?;
 
         // Find the model in the models collection
-        let model = self.models.iter().find(|model| &model.id == model_id)?;
-
-        // Return the tool support information
-        model.tools_supported
+        Ok(self
+            .models
+            .iter()
+            .find(|model| &model.id == model_id)
+            .ok_or(Error::ModelNotFound(model_id))?
+            .tools_supported
+            .unwrap_or_default())
     }
 }
 
