@@ -23,7 +23,7 @@ impl IndexerService for Indexer {
         // TODO: allow caller to set query options.
         let results = self
             .0
-            .query::<V>(query, QueryOptions::default().limit(10 as u64))
+            .query::<V>(query, QueryOptions::default().limit(10_u64))
             .await?;
         Ok(results.into_iter().map(|output| output.payload).collect())
     }

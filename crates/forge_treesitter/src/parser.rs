@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 use std::path::Path;
 
-use tree_sitter::Parser as TreeSitterParser;
-use tree_sitter::StreamingIterator;
+use tree_sitter::{Parser as TreeSitterParser, StreamingIterator};
 
 use crate::{Block, Kind, Offset};
 
@@ -102,7 +101,7 @@ impl Parser {
                 let offset = Offset { start: start_byte, end: end_byte };
 
                 blocks.push(Block::new(
-                    pattern.into(),
+                    pattern,
                     path_buf.clone(),
                     snippet,
                     offset,

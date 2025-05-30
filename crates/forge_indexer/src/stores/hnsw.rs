@@ -153,12 +153,12 @@ impl Store for HnswStore<'_> {
 
         // Reset HNSW index by replacing it with a new instance
         let mut hnsw = self.hnsw.write().unwrap();
-        
+
         // Create a new HNSW index with the same parameters
         let max_nb_connection = 16;
         let nb_layer = 16.min((self.dimension as f32).ln().floor() as usize);
         let ef_construction = 200;
-        
+
         // Replace the existing HNSW index with a new one
         *hnsw = Hnsw::new(
             max_nb_connection,
@@ -167,7 +167,7 @@ impl Store for HnswStore<'_> {
             ef_construction,
             DistCosine,
         );
-        
+
         // Reset the ID counter
         let mut id = self.id.write().unwrap();
         *id = 0;
