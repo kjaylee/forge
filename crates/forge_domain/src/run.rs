@@ -272,6 +272,18 @@ impl<A> Wrap<A> {
     pub fn new(value: A) -> Self {
         Wrap { items: vec![value] }
     }
+
+    /// Combines multiple Wrap values into a single Wrap
+    pub fn all<I>(wraps: I) -> Self
+    where
+        I: IntoIterator<Item = Wrap<A>>,
+    {
+        let mut items = Vec::new();
+        for wrap in wraps {
+            items.extend(wrap.items);
+        }
+        Wrap { items }
+    }
 }
 
 impl<A> Wrap<A> {
