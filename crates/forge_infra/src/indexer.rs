@@ -8,12 +8,12 @@ use forge_services::IndexerService;
 use serde::de::DeserializeOwned;
 
 #[derive(Default, Clone)]
-pub struct Indexer(
+pub struct ForgeCodeIndex(
     Arc<Orchestrator<FileLoader, TreeSitterChunker, CachedEmbedder<OpenAI>, HnswStore<'static>>>,
 );
 
 #[async_trait::async_trait]
-impl IndexerService for Indexer {
+impl IndexerService for ForgeCodeIndex {
     async fn index(&self, path: &Path) -> anyhow::Result<()> {
         self.0.index(path).await
     }

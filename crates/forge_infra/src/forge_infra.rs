@@ -11,7 +11,7 @@ use crate::fs_read::ForgeFileReadService;
 use crate::fs_remove::ForgeFileRemoveService;
 use crate::fs_snap::ForgeFileSnapshotService;
 use crate::fs_write::ForgeFileWriteService;
-use crate::indexer::Indexer;
+use crate::indexer::ForgeCodeIndex;
 use crate::inquire::ForgeInquire;
 use crate::mcp_server::ForgeMcpServer;
 
@@ -27,7 +27,7 @@ pub struct ForgeInfra {
     command_executor_service: Arc<ForgeCommandExecutorService>,
     inquire_service: Arc<ForgeInquire>,
     mcp_server: ForgeMcpServer,
-    indexer: Indexer,
+    indexer: ForgeCodeIndex,
 }
 
 impl ForgeInfra {
@@ -52,7 +52,7 @@ impl ForgeInfra {
             )),
             inquire_service: Arc::new(ForgeInquire::new()),
             mcp_server: ForgeMcpServer,
-            indexer: Indexer::default(),
+            indexer: ForgeCodeIndex::default(),
         }
     }
 }
@@ -68,7 +68,7 @@ impl Infrastructure for ForgeInfra {
     type CommandExecutorService = ForgeCommandExecutorService;
     type InquireService = ForgeInquire;
     type McpServer = ForgeMcpServer;
-    type IndexerService = Indexer;
+    type IndexerService = ForgeCodeIndex;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
