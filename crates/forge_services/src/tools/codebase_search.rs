@@ -75,7 +75,7 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
         if let Some(dirs) = input.target_directories.as_ref() {
             options.path = Some(dirs.clone());
         }
-        
+
         let results = self
             .0
             .indexer_service()

@@ -1,8 +1,9 @@
 use std::path::Path;
 
-use super::{Cache, Embedder, EmbedderInput, EmbedderOutput};
 use anyhow::Result;
 use tracing::info;
+
+use super::{Cache, Embedder, EmbedderInput, EmbedderOutput};
 
 /// A wrapper that adds caching capabilities to any embedder
 #[derive(Clone)]

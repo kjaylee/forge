@@ -1,10 +1,10 @@
-mod openai;
 mod cache;
 mod cached;
+mod openai;
 
-pub use openai::*;
 pub use cache::*;
 pub use cached::*;
+pub use openai::*;
 
 pub struct EmbedderInput<T> {
     pub payload: T,

@@ -1,5 +1,6 @@
-use anyhow::Context;
 use std::path::PathBuf;
+
+use anyhow::Context;
 
 /// A cache for storing and retrieving
 #[derive(Clone)]

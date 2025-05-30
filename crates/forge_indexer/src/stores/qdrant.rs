@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use futures::future::join_all;
 use qdrant_client::Payload;
 use qdrant_client::qdrant::{
-    DeleteCollection, PointStruct, SearchPointsBuilder, UpsertPointsBuilder,
-    Filter, Condition, FieldCondition, Match, RepeatedStrings, condition, r#match,
+    Condition, DeleteCollection, FieldCondition, Filter, Match, PointStruct, RepeatedStrings,
+    SearchPointsBuilder, UpsertPointsBuilder, condition, r#match,
 };
 use tracing::info;
 use uuid::Uuid;
@@ -16,7 +16,7 @@ use super::{QueryOptions, QueryOutput, Store, StoreInput};
 impl From<&QueryOptions> for Option<Filter> {
     fn from(options: &QueryOptions) -> Self {
         let mut filter_conditions = Vec::new();
-        
+
         // Add kind filter if specified
         if let Some(kind) = &options.kind {
             let mut field_condition = FieldCondition::default();
@@ -24,18 +24,16 @@ impl From<&QueryOptions> for Option<Filter> {
             field_condition.r#match = Some(Match {
                 match_value: Some(r#match::MatchValue::Keyword(kind.clone())),
             });
-            
+
             let mut condition = Condition::default();
-            condition.condition_one_of = Some(condition::ConditionOneOf::Field(
-                field_condition,
-            ));
-            
+            condition.condition_one_of = Some(condition::ConditionOneOf::Field(field_condition));
+
             filter_conditions.push(condition);
         }
-        
+
         // Add path filter if specified
-        if let Some(paths) = &options.path {
-            if !paths.is_empty() {
+        if let Some(paths) = &options.path
+            && !paths.is_empty() {
                 // Since we're only dealing with absolute paths without glob patterns,
                 // we can use the Keywords match type directly
                 let mut field_condition = FieldCondition::default();
@@ -45,16 +43,14 @@ impl From<&QueryOptions> for Option<Filter> {
                         strings: paths.clone(),
                     })),
                 });
-                
+
                 let mut condition = Condition::default();
-                condition.condition_one_of = Some(condition::ConditionOneOf::Field(
-                    field_condition,
-                ));
-                
+                condition.condition_one_of =
+                    Some(condition::ConditionOneOf::Field(field_condition));
+
                 filter_conditions.push(condition);
             }
-        }
-        
+
         if filter_conditions.is_empty() {
             None
         } else {
@@ -132,13 +128,14 @@ impl Store for QdrantStore {
         T: serde::de::DeserializeOwned + Send + Sync,
     {
         info!("Querying Qdrant with embeddings");
-        let mut search_builder = SearchPointsBuilder::new(self.collection_name.clone(), query, options.limit);
-        
+        let mut search_builder =
+            SearchPointsBuilder::new(self.collection_name.clone(), query, options.limit);
+
         // Apply filters based on QueryOptions using the From implementation
         if let Some(filter) = Option::<Filter>::from(&options) {
             search_builder = search_builder.filter(filter);
         }
-        
+
         let search_request = search_builder.build();
         let output = self.client.search_points(search_request).await?.result;
 

@@ -60,7 +60,7 @@ impl Default
         let cache_dir = format!("{}:{}", embedding_model.replace("/", "-"), embedding_dims);
         let cache_path = std::env::current_dir()
             .expect("failed to retrive current working directory.")
-            .join(PathBuf::from(format!("./.cache/embeddings/{}", cache_dir)));
+            .join(PathBuf::from(format!("./.cache/embeddings/{cache_dir}")));
 
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::try_new(embedding_model, max_tokens_supported)
@@ -88,7 +88,7 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
     pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
         // Firstly reset the store to avoid duplicate records.
         // TODO: this is naive approach to avoid duplicate records.
-        let _ = self.store.reset().await?;
+        self.store.reset().await?;
 
         let files = self.loader.load(path).await?;
         let code_blocks = self.chunker.chunk(files).await?;
