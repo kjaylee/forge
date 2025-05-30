@@ -108,7 +108,8 @@ impl Embedder for OpenAI {
     }
 }
 
-/// A token-aware batching utility that groups texts while respecting token limits.
+/// A token-aware batching utility that groups texts while respecting token
+/// limits.
 pub struct TokenAwareBatcher {
     /// Maximum tokens allowed per batch
     pub max_tokens_per_batch: usize,
@@ -129,8 +130,9 @@ impl TokenAwareBatcher {
         self.tokenizer.count_tokens(text)
     }
 
-    /// Creates optimally-sized batches from input texts while respecting token limits.
-    /// 
+    /// Creates optimally-sized batches from input texts while respecting token
+    /// limits.
+    ///
     /// The batching strategy:
     /// - Accumulates texts into batches until reaching token limit
     /// - Handles oversized texts by processing them in individual batches
