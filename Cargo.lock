@@ -1496,7 +1496,6 @@ dependencies = [
  "forge_display",
  "forge_domain",
  "forge_fs",
- "forge_indexer",
  "forge_snaps",
  "forge_spinner",
  "forge_tracker",
