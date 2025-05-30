@@ -36,6 +36,15 @@ impl ForgeInfra {
         let env = environment_service.get_environment();
         let file_snapshot_service = Arc::new(ForgeFileSnapshotService::new(env.clone()));
 
+        // configure indexer
+        let base_url = env.provider.url();
+        let api_key = env
+            .provider
+            .key()
+            .expect("Provider key is required for indexing.");
+        let cwd = &env.cwd;
+        let indexer = ForgeCodeIndex::new(cwd, base_url.clone(), api_key.to_string());
+
         Self {
             file_read_service: Arc::new(ForgeFileReadService::new()),
             file_write_service: Arc::new(ForgeFileWriteService::new(file_snapshot_service.clone())),
@@ -52,7 +61,7 @@ impl ForgeInfra {
             )),
             inquire_service: Arc::new(ForgeInquire::new()),
             mcp_server: ForgeMcpServer,
-            indexer: ForgeCodeIndex::default(),
+            indexer,
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use forge_indexer::{
@@ -6,9 +6,10 @@ use forge_indexer::{
     TreeSitterChunker,
 };
 use forge_services::IndexerService;
+use reqwest::Url;
 use serde::de::DeserializeOwned;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct ForgeCodeIndex(
     Arc<
         Orchestrator<
@@ -19,6 +20,38 @@ pub struct ForgeCodeIndex(
         >,
     >,
 );
+
+impl ForgeCodeIndex {
+    pub fn new(cwd: &Path, provide_url: Url, provider_key: String) -> Self {
+        let embedding_model = "text-embedding-3-large";
+        let embedding_dims = 1536;
+        let max_tokens_supported = 8192;
+
+        // disk cache path
+        let cache_dir = format!("{}:{}", embedding_model.replace("/", "-"), embedding_dims);
+        let cache_path = cwd.join(PathBuf::from(format!("./.cache/embeddings/{cache_dir}")));
+
+        let loader = FileLoader::default();
+        let chunker = TreeSitterChunker::try_new(embedding_model, max_tokens_supported)
+            .expect("failed to create chunker");
+
+        // cache for embeddings
+        let embedder = OpenAI::new(embedding_model, embedding_dims)
+            .with_api_key(provider_key)
+            .with_base_url(provide_url);
+        let cache: DiskCache<String, Vec<f32>> = DiskCache::try_new(cache_path).unwrap();
+        let embedding_cache = CachedEmbedder::new(embedder, cache, embedding_model, embedding_dims);
+
+        let store = HnswStore::new(embedding_dims as usize);
+
+        Self(Arc::new(Orchestrator {
+            loader: Arc::new(loader),
+            chunker: Arc::new(chunker),
+            embedder: Arc::new(embedding_cache),
+            store: Arc::new(store),
+        }))
+    }
+}
 
 #[async_trait::async_trait]
 impl IndexerService for ForgeCodeIndex {
