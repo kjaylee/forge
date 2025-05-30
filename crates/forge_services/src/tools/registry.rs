@@ -58,7 +58,7 @@ pub mod tests {
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
         FsReadService, FsSnapshotService, FsWriteService, IndexerService, InquireService,
-        McpClient, McpServer,
+        McpClient, McpServer, QueryOptions,
     };
 
     /// Create a default test environment
@@ -239,6 +239,7 @@ pub mod tests {
         async fn query<V: DeserializeOwned + Send + Sync>(
             &self,
             _query: &str,
+            _options: QueryOptions,
         ) -> anyhow::Result<Vec<V>> {
             todo!()
         }

@@ -18,7 +18,6 @@ use merge::Merge;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio_stream::StreamExt;
-use tracing::{error, info};
 
 use crate::cli::{Cli, McpCommand, TopLevelCommand, Transport};
 use crate::info::Info;

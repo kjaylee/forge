@@ -19,12 +19,18 @@ impl IndexerService for Indexer {
     async fn query<V: DeserializeOwned + Send + Sync>(
         &self,
         query: &str,
+        options: forge_services::QueryOptions,
     ) -> anyhow::Result<Vec<V>> {
-        // TODO: allow caller to set query options.
-        let results = self
-            .0
-            .query::<V>(query, QueryOptions::default().limit(10_u64))
-            .await?;
+        let mut query_options = QueryOptions::default();
+        query_options.limit = options.limit;
+
+        if let Some(kind) = options.kind {
+            query_options.kind = Some(kind);
+        }
+        if let Some(path) = options.path {
+            query_options.path = Some(path);
+        }
+        let results = self.0.query::<V>(query, query_options).await?;
         Ok(results.into_iter().map(|output| output.payload).collect())
     }
 }

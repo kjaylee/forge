@@ -1635,6 +1635,7 @@ dependencies = [
  "forge_treesitter",
  "forge_walker",
  "futures",
+ "glob",
  "hnsw_rs",
  "qdrant-client",
  "serde",

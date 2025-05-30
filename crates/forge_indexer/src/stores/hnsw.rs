@@ -1,11 +1,84 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+use glob::Pattern;
 use hnsw_rs::prelude::*;
 use serde_json::Value;
 use tracing::info;
 
 use super::{QueryOptions, QueryOutput, Store, StoreInput};
+
+// Custom filter struct that implements the FilterT trait
+struct CustomFilter<'a> {
+    payloads: &'a HashMap<usize, Value>,
+    kind_filter: Option<String>,
+    path_filter: Option<Vec<String>>,
+}
+
+impl<'a> FilterT for CustomFilter<'a> {
+    fn hnsw_filter(&self, id: &usize) -> bool {
+        // Get the payload for this ID
+        if let Some(payload) = self.payloads.get(id) {
+            // Check kind filter if specified
+            if let Some(ref kind) = self.kind_filter {
+                if let Some(payload_kind) = payload.get("kind") {
+                    if payload_kind.as_str() != Some(kind) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+
+            // Check path filter if specified
+            if let Some(ref paths) = self.path_filter {
+                if let Some(payload_path) = payload.get("path") {
+                    let path_str = payload_path.as_str().unwrap_or("");
+
+                    // Check if the path matches any of the specified paths
+                    let matches = paths.iter().any(|filter_path| {
+                        // Use glob crate for proper pattern matching
+                        match Pattern::new(filter_path) {
+                            Ok(pattern) => pattern.matches(path_str),
+                            Err(_) => {
+                                // If pattern is invalid, fall back to prefix matching
+                                path_str.starts_with(filter_path)
+                            }
+                        }
+                    });
+
+                    if !matches {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            }
+
+            true
+        } else {
+            false
+        }
+    }
+}
+
+impl<'a> CustomFilter<'a> {
+    // Helper function to create a filter from QueryOptions
+    fn from_options(
+        options: &QueryOptions,
+        payloads: &'a HashMap<usize, Value>,
+    ) -> Option<CustomFilter<'a>> {
+        if options.kind.is_none() && options.path.is_none() {
+            return None;
+        }
+
+        Some(CustomFilter {
+            payloads,
+            kind_filter: options.kind.clone(),
+            path_filter: options.path.clone(),
+        })
+    }
+}
 
 pub struct HnswStore<'a> {
     hnsw: RwLock<Hnsw<'a, f32, DistCosine>>,
@@ -114,7 +187,7 @@ impl Store for HnswStore<'_> {
             ));
         }
 
-        info!("Querying in-memory embeddings");
+        info!("Querying in-memory embeddings with options: {:#?}", options);
 
         let hnsw = self.hnsw.read().unwrap();
         let payloads = self.payloads.read().unwrap();
@@ -123,7 +196,16 @@ impl Store for HnswStore<'_> {
         // Search for nearest neighbors
         // Using a fixed ef_search value of 100 (should be >= limit)
         let ef_search = std::cmp::max(100, limit * 2);
-        let nearest = hnsw.search(&query, limit as usize, ef_search as usize);
+
+        // Create a filter using the helper function
+        let filter = CustomFilter::from_options(&options, &payloads);
+
+        // Search with filter if applicable
+        let nearest = if let Some(filter) = filter {
+            hnsw.search_filter(&query, limit as usize, ef_search as usize, Some(&filter))
+        } else {
+            hnsw.search(&query, limit as usize, ef_search as usize)
+        };
 
         // Convert to SearchResult format
         let results = nearest

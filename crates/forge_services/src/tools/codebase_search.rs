@@ -7,7 +7,7 @@ use forge_domain::{
 };
 use forge_tool_macros::ToolDescription;
 
-use crate::{FsReadService, IndexerService, Infrastructure};
+use crate::{FsReadService, IndexerService, Infrastructure, QueryOptions};
 
 /// Find snippets of code from the codebase most relevant to the search query.
 /// This is a semantic search tool, so the query should ask for something
@@ -70,10 +70,16 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
             ))
             .await?;
 
+        // Create query options and set paths if target directories are specified
+        let mut options = QueryOptions::default();
+        if let Some(dirs) = input.target_directories.as_ref() {
+            options.path = Some(dirs.clone());
+        }
+        
         let results = self
             .0
             .indexer_service()
-            .query::<QueryOutput>(&input.query)
+            .query::<QueryOutput>(&input.query, options)
             .await?;
 
         if results.is_empty() {

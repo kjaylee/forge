@@ -16,12 +16,12 @@ pub struct QueryOutput<T> {
     pub payload: T,
 }
 
-#[derive(Setters)]
+#[derive(Setters, Debug)]
 #[setters(strip_option, into)]
 pub struct QueryOptions {
     pub limit: u64,
     pub kind: Option<String>,
-    pub path: Option<String>,
+    pub path: Option<Vec<String>>,
 }
 
 impl Default for QueryOptions {

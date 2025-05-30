@@ -143,11 +143,31 @@ pub trait McpServer: Send + Sync + 'static {
     async fn connect(&self, config: McpServerConfig) -> anyhow::Result<Self::Client>;
 }
 
+/// Options for query filtering
+#[derive(Debug, Clone)]
+pub struct QueryOptions {
+    /// Maximum number of results to return
+    pub limit: u64,
+    /// Filter results by kind
+    pub kind: Option<String>,
+    /// Filter results by glob paths
+    pub path: Option<Vec<String>>,
+}
+
+impl Default for QueryOptions {
+    fn default() -> Self {
+        Self { limit: 10, kind: None, path: None }
+    }
+}
+
 #[async_trait::async_trait]
 pub trait IndexerService: Send + Sync + 'static {
     async fn index(&self, path: &Path) -> anyhow::Result<()>;
-    async fn query<V: DeserializeOwned + Send + Sync>(&self, query: &str)
-        -> anyhow::Result<Vec<V>>;
+    async fn query<V: DeserializeOwned + Send + Sync>(
+        &self,
+        query: &str,
+        options: QueryOptions,
+    ) -> anyhow::Result<Vec<V>>;
 }
 
 pub trait Infrastructure: Send + Sync + Clone + 'static {

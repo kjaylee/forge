@@ -126,7 +126,7 @@ pub mod tests {
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,
         FsReadService, FsSnapshotService, FsWriteService, IndexerService, Infrastructure,
-        InquireService, McpClient, McpServer,
+        InquireService, McpClient, McpServer, QueryOptions,
     };
 
     #[derive(Debug)]
@@ -507,6 +507,7 @@ pub mod tests {
         async fn query<V: DeserializeOwned + Send + Sync>(
             &self,
             _query: &str,
+            _options: QueryOptions,
         ) -> anyhow::Result<Vec<V>> {
             todo!()
         }
