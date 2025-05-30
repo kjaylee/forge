@@ -6,7 +6,7 @@ use tracing::info;
 use super::{CachedEmbedder, Embedder, EmbedderInput, EmbedderOutput};
 use crate::token_counter::TokenCounter;
 
-/// Maximum tokens supported by open-ai embedding endpoint with batching.
+/// Maximum tokens supported by OpenAI embedding batch endpoint.
 const TOKEN_LIMIT_PER_BATCH: usize = 30_000;
 
 #[derive(Clone)]
