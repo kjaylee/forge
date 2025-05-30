@@ -24,7 +24,7 @@ pub struct ForgeCodeIndex(
 impl ForgeCodeIndex {
     pub fn new(cwd: &Path, provide_url: Url, provider_key: String) -> Self {
         let embedding_model = "text-embedding-3-large";
-        let embedding_dims = 1536;
+        let embedding_dims = 3072;
         let max_tokens_supported = 8192;
 
         // disk cache path
