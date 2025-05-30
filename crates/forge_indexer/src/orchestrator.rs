@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use forge_treesitter::{Block, Offset};
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::chunkers::Chunker;
 use crate::embedders::Embedder;
 use crate::loaders::Loader;
-use crate::{EmbedderInput, Store, StoreInput};
+use crate::{CachedEmbedder, EmbedderInput, Store, StoreInput};
 
 impl From<&forge_treesitter::Block> for EmbedderInput<String> {
     fn from(block: &forge_treesitter::Block) -> Self {
@@ -49,15 +49,22 @@ pub struct Orchestrator<L: Loader, C: Chunker, E: Embedder, S: Store> {
 }
 
 use crate::{FileLoader, HnswStore, OpenAI, QueryOptions, QueryOutput, TreeSitterChunker};
-impl Default for Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, HnswStore<'_>> {
+impl Default
+    for Orchestrator<FileLoader, TreeSitterChunker<'static>, CachedEmbedder<OpenAI>, HnswStore<'_>>
+{
     fn default() -> Self {
         let embedding_model = "text-embedding-3-large";
         let embedding_dims = 1536;
         let max_tokens_supported = 8192;
 
+        let cache_dir = format!("{}:{}", embedding_model.replace("/", "-"), embedding_dims);
+        let cache_path = std::env::current_dir()
+            .expect("failed to retrive current working directory.")
+            .join(PathBuf::from(format!("./cache/embeddings/{}", cache_dir)));
+
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::new(embedding_model, max_tokens_supported);
-        let embedder = OpenAI::new(embedding_model, embedding_dims);
+        let embedder = OpenAI::cached(&cache_path, embedding_model, embedding_dims).unwrap();
         let store = HnswStore::new(embedding_dims as usize);
 
         Self {
@@ -78,7 +85,8 @@ impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
 impl<L: Loader, C: Chunker, E: Embedder, S: Store> Orchestrator<L, C, E, S> {
     pub async fn index(&self, path: &Path) -> anyhow::Result<()> {
         // Firstly reset the store to avoid duplicate records.
-        self.store.reset().await?;
+        // TODO: this is naive approach to avoid duplicate records.
+        let _ = self.store.reset().await?;
 
         let files = self.loader.load(path).await?;
         let code_blocks = self.chunker.chunk(files).await?;

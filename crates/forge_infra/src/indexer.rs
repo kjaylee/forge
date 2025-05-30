@@ -1,13 +1,13 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use forge_indexer::{FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions, TreeSitterChunker};
+use forge_indexer::{CachedEmbedder, FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions, TreeSitterChunker};
 use forge_services::IndexerService;
 use serde::de::DeserializeOwned;
 
 #[derive(Default, Clone)]
 pub struct Indexer(
-    Arc<Orchestrator<FileLoader, TreeSitterChunker<'static>, OpenAI, HnswStore<'static>>>,
+    Arc<Orchestrator<FileLoader, TreeSitterChunker<'static>, CachedEmbedder<OpenAI>, HnswStore<'static>>>,
 );
 
 #[async_trait::async_trait]

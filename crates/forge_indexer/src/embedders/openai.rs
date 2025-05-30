@@ -1,34 +1,30 @@
-use std::path::PathBuf;
+use std::path::Path;
 
-use anyhow::Context;
 use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 use tracing::info;
 
-use super::{Embedder, EmbedderInput, EmbedderOutput};
+use super::{CachedEmbedder, Embedder, EmbedderInput, EmbedderOutput};
 use crate::token_counter::TokenCounter;
 
 #[derive(Clone)]
 pub struct OpenAI {
     embedding_model: String,
     dims: u32,
-    cache: Cache,
 }
 
 impl OpenAI {
     pub fn new<S: Into<String>>(embedding_model: S, dims: u32) -> Self {
-        let embedding_model = embedding_model.into();
-        let cwd = std::env::current_dir().expect("failed to retrive current working directory.");
-        let cache_path = cwd.join(format!(
-            ".cache/openai-embeddings-{}-{}",
-            embedding_model.replace('/', "_"),
-            dims
-        ));
+        Self { embedding_model: embedding_model.into(), dims }
+    }
 
-        Self {
-            embedding_model,
-            dims,
-            cache: Cache::try_from(cache_path).expect("failed to create cache path"),
-        }
+    /// Creates a cached version of the OpenAI embedder
+    pub fn cached(
+        cache_path: &Path,
+        embedding_model: impl Into<String>,
+        dims: u32,
+    ) -> anyhow::Result<CachedEmbedder<OpenAI>> {
+        let model_name = embedding_model.into();
+        CachedEmbedder::try_new(cache_path, OpenAI::new(&model_name, dims), model_name, dims)
     }
 
     /// Process a single batch of texts to get embeddings
@@ -59,95 +55,34 @@ impl Embedder for OpenAI {
     where
         T: ToString + Send,
     {
-        info!("Embedding {} blocks", inputs.len());
-        let mut result = vec![None; inputs.len()];
+        info!("Embedding {} blocks with OpenAI", inputs.len());
 
-        let inputs = inputs
-            .into_iter()
-            .map(|input: EmbedderInput<T>| EmbedderInput { payload: input.payload.to_string() })
+        // Process batches of texts
+        let texts = inputs
+            .iter()
+            .map(|p| p.payload.to_string())
             .collect::<Vec<_>>();
 
-        let mut uncached = Vec::new();
+        // Pre-allocate with the exact capacity we need
+        let mut embeddings = Vec::with_capacity(texts.len());
 
-        // Check cache first
-        let mut cache_hits = 0;
-
-        // TODO: can be parallelized
-        for (i, block) in inputs.iter().enumerate() {
-            let cache_key = format!("{}.{}:{}", self.embedding_model, self.dims, block.hash());
-            match self.cache.get(&cache_key).await {
-                Some(embeddings) => {
-                    cache_hits += 1;
-                    result[i] = Some(EmbedderOutput { embeddings });
-                }
-                None => {
-                    uncached.push((i, block));
-                }
-            }
+        // 30,000 is limit of OpenAI embedding API.
+        let batches =
+            EmbeddingBatcher::try_new(&self.embedding_model, 30_000)?.create_batches(texts);
+        for batch in batches {
+            let batch_results = self
+                .process_batch(batch, &self.embedding_model, self.dims)
+                .await?;
+            embeddings.extend(batch_results);
         }
 
-        info!("Uncached blocks: {}", uncached.len());
+        // Convert to EmbedderOutput format
+        let results = embeddings
+            .into_iter()
+            .map(|embeddings| EmbedderOutput { embeddings })
+            .collect();
 
-        // Process uncached items if any
-        if !uncached.is_empty() {
-            // Process batches of uncached texts
-            let texts = uncached
-                .iter()
-                .map(|(_, p)| p.payload.to_string())
-                .collect::<Vec<_>>();
-            // Pre-allocate with the exact capacity we need
-            let mut embeddings = Vec::with_capacity(texts.len());
-
-            // 30,000 is limit of OpenAi embedding API.
-            // TODO: can be parallelized
-            let batches =
-                EmbeddingBatcher::try_new(&self.embedding_model, 30_000)?.create_batches(texts);
-            for batch in batches {
-                let batch_results = self
-                    .process_batch(batch, &self.embedding_model, self.dims)
-                    .await?;
-                embeddings.extend(batch_results);
-            }
-
-            // TODO: can be parallelized
-            // Update results and cache
-            for (idx, embeddings) in embeddings.into_iter().enumerate() {
-                let (pos, block) = &uncached[idx];
-                let cache_key = format!("{}.{}:{}", self.embedding_model, self.dims, block.hash());
-                let _ = self.cache.put(&cache_key, &embeddings).await;
-                result[*pos] = Some(EmbedderOutput { embeddings });
-            }
-        }
-
-        info!("Cache hits: {}/{}", cache_hits, inputs.len());
-
-        Ok(result.into_iter().flatten().collect())
-    }
-}
-
-#[derive(Clone)]
-struct Cache(PathBuf);
-
-impl TryFrom<PathBuf> for Cache {
-    type Error = anyhow::Error;
-    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
-        std::fs::create_dir_all(&path).context("failed to create cache directory")?;
-        Ok(Self(path))
-    }
-}
-
-impl Cache {
-    async fn get(&self, cache_key: &str) -> Option<Vec<f32>> {
-        cacache::read(&self.0, cache_key)
-            .await
-            .map(|cached_bytes| bytemuck::cast_slice(&cached_bytes).to_vec())
-            .ok()
-    }
-
-    async fn put(&self, cache_key: &str, cache_value: &[f32]) -> anyhow::Result<()> {
-        let bytes: Vec<u8> = bytemuck::cast_slice(cache_value).to_vec();
-        cacache::write(&self.0, cache_key, &bytes).await?;
-        Ok(())
+        Ok(results)
     }
 }
 
