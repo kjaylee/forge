@@ -17,7 +17,12 @@ pub struct Run {
 type SignalResult = Result<Signal>;
 
 impl Run {
-    pub fn new(agent: Agent) -> Self {
+    pub fn new(
+        agent: Agent,
+        models: Vec<Model>,
+        tool_definitions: Vec<ToolDefinition>,
+        current_time: DateTime<Local>,
+    ) -> Self {
         let mut context = Context::default();
         if let Some(top_k) = agent.top_k {
             context = context.top_k(top_k);
@@ -28,29 +33,23 @@ impl Run {
         if let Some(top_p) = agent.top_p {
             context = context.top_p(top_p);
         }
-        Self {
-            agent,
-            context,
-            models: Default::default(),
-            current_time: Local::now(),
-            tool_definitions: Default::default(),
-        }
+        Self { agent, context, models, current_time, tool_definitions }
     }
 
     pub fn update(&mut self, event: Action) -> SignalResult {
         match event {
-            Action::Initialize(event) => {
-                self.set_system_prompt()?;
-                self.set_tools()?;
-                self.add_user_message(&event.value)?;
-                self.add_user_attachments(&event.value)?;
-                Ok(Signal::default())
-            }
-            Action::Message(message) => {
-                self.collect_message(message)?;
-                Ok(Signal::default())
-            }
+            Action::Initialize(event) => self.on_init(event),
+            Action::Message(message) => self.on_message(message),
         }
+    }
+
+    fn on_init(&mut self, event: Event) -> std::result::Result<Signal, Error> {
+        self.set_system_prompt()?
+            .and(self.set_tools()?)
+            .and(self.add_user_message(&event.value)?)
+            .and(self.add_user_message(&event.value)?)
+            .and(self.add_user_attachments(&event.value)?)
+            .ok()
     }
 
     fn set_system_prompt(&mut self) -> SignalResult {
@@ -58,7 +57,36 @@ impl Run {
     }
 
     fn set_tools(&mut self) -> SignalResult {
-        todo!()
+        // Get the tools specified by the agent
+        let agent_tools = match &self.agent.tools {
+            Some(tools) => tools,
+            None => {
+                // No tools specified, clear any existing tools in context
+                self.context.tools.clear();
+                return Ok(Signal::default());
+            }
+        };
+
+        // Create a map of tool definitions for efficient lookup
+        let tool_def_map: std::collections::HashMap<&crate::ToolName, &ToolDefinition> = self
+            .tool_definitions
+            .iter()
+            .map(|def| (&def.name, def))
+            .collect();
+
+        // Find definitions for each agent tool, error if any are missing
+        let mut filtered_tools = Vec::new();
+        for tool_name in agent_tools {
+            match tool_def_map.get(tool_name) {
+                Some(tool_def) => filtered_tools.push((*tool_def).clone()),
+                None => return Err(Error::ToolDefinitionNotFound(tool_name.clone())),
+            }
+        }
+
+        // Set the tools in the context (in-place mutation)
+        self.context.tools = filtered_tools;
+
+        Ok(Signal::default())
     }
 
     fn add_user_message(&mut self, _message: &Value) -> SignalResult {
@@ -69,7 +97,7 @@ impl Run {
         todo!()
     }
 
-    fn collect_message(&mut self, _message: ChatCompletionMessage) -> SignalResult {
+    fn on_message(&mut self, _message: ChatCompletionMessage) -> SignalResult {
         todo!()
     }
     /// Returns whether tools are supported for the agent's model
@@ -106,7 +134,7 @@ pub enum Action {
     Message(ChatCompletionMessage),
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub enum Signal {
     #[default]
     Continue,
@@ -115,6 +143,17 @@ pub enum Signal {
         agent: Box<Agent>,
         context: Context,
     },
+    And(Box<Signal>, Box<Signal>),
+}
+
+impl Signal {
+    pub fn and(self, other: Signal) -> Self {
+        Signal::And(Box::new(self), Box::new(other))
+    }
+
+    pub fn ok(self) -> Result<Self> {
+        Ok(self)
+    }
 }
 
 #[cfg(test)]
@@ -129,7 +168,10 @@ mod tests {
     #[test]
     fn test_run_new() {
         let agent = Agent::new("my-agent").temperature(0.5).top_k(10).top_p(0.9);
-        let run = Run::new(agent);
+        let models = vec![];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         assert_eq!(run.agent.id.as_str(), "my-agent");
         assert!(run.context.messages.is_empty());
         assert!(run.models.is_empty());
@@ -139,55 +181,167 @@ mod tests {
     }
 
     #[test]
-    fn test_run_tool_supported() {
+    fn test_tool_supported_agent_with_model_that_supports_tools() {
         // Test case 1: Agent has model that exists and supports tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-4o"));
-        let run = Run::new(agent).models(vec![
-            Model::new(ModelId::new("gpt-4o")).tools_supported(true)
-        ]);
+        let models = vec![Model::new(ModelId::new("gpt-4o")).tools_supported(true)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         assert_eq!(run.tool_supported().unwrap(), true);
+    }
 
+    #[test]
+    fn test_tool_supported_agent_with_model_that_does_not_support_tools() {
         // Test case 2: Agent has model that exists but doesn't support tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-3.5-turbo"));
-        let run = Run::new(agent).models(vec![
-            Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false)
-        ]);
+        let models = vec![Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         assert_eq!(run.tool_supported().unwrap(), false);
+    }
 
+    #[test]
+    fn test_tool_supported_agent_with_model_null_tools_supported() {
         // Test case 3: Agent has model that exists but has null tools_supported
         let agent = Agent::new("test-agent").model(ModelId::new("forge-test-model"));
-        let run = Run::new(agent).models(vec![Model::new(ModelId::new("forge-test-model"))]);
+        let models = vec![Model::new(ModelId::new("forge-test-model"))];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         assert_eq!(run.tool_supported().unwrap(), false);
+    }
 
+    #[test]
+    fn test_tool_supported_agent_with_model_not_found() {
         // Test case 4: Agent has model that is not found in the models collection
         let agent = Agent::new("test-agent").model(ModelId::new("nonexistent-model"));
-        let run = Run::new(agent).models(vec![
-            Model::new(ModelId::new("different-model")).tools_supported(true)
-        ]);
+        let models = vec![Model::new(ModelId::new("different-model")).tools_supported(true)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         let result = run.tool_supported();
         let Error::ModelNotFound(model_id) = result.unwrap_err() else {
             panic!("Expected ModelNotFound error")
         };
         assert_eq!(model_id.as_str(), "nonexistent-model");
+    }
 
+    #[test]
+    fn test_tool_supported_agent_with_no_model_specified() {
         // Test case 5: Agent has no model specified
         let agent = Agent::new("test-agent"); // No model set
-        let run = Run::new(agent).models(vec![
-            Model::new(ModelId::new("some-model")).tools_supported(true)
-        ]);
+        let models = vec![Model::new(ModelId::new("some-model")).tools_supported(true)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         let result = run.tool_supported();
         let Error::MissingModel(agent_id) = result.unwrap_err() else {
             panic!("Expected MissingModel error")
         };
         assert_eq!(agent_id.as_str(), "test-agent");
+    }
 
+    #[test]
+    fn test_tool_supported_multiple_models_correct_one_found() {
         // Test case 6: Multiple models in collection, correct one is found
         let agent = Agent::new("test-agent").model(ModelId::new("model-2"));
-        let run = Run::new(agent).models(vec![
+        let models = vec![
             Model::new(ModelId::new("model-1")).tools_supported(false),
             Model::new(ModelId::new("model-2")).tools_supported(true),
             Model::new(ModelId::new("model-3")).tools_supported(false),
-        ]);
+        ];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let run = Run::new(agent, models, tool_definitions, current_time);
         assert_eq!(run.tool_supported().unwrap(), true);
+    }
+
+    #[test]
+    fn test_set_tools_agent_with_no_tools_specified() {
+        // Test case 1: Agent with no tools specified should result in empty context
+        // tools
+        let agent = Agent::new("test-agent");
+        let models = vec![];
+        let tool_definitions = vec![
+            ToolDefinition::new("tool1").description("Tool 1"),
+            ToolDefinition::new("tool2").description("Tool 2"),
+        ];
+        let current_time = Local::now();
+        let mut run = Run::new(agent, models, tool_definitions, current_time);
+
+        let result = run.set_tools();
+        assert!(result.is_ok());
+        assert!(run.context.tools.is_empty());
+    }
+
+    #[test]
+    fn test_set_tools_agent_with_specific_tools_filters_definitions() {
+        // Test case 2: Agent with specific tools should filter tool definitions
+        let agent =
+            Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
+        let models = vec![];
+        let tool_definitions = vec![
+            ToolDefinition::new("tool1").description("Tool 1"),
+            ToolDefinition::new("tool2").description("Tool 2"),
+            ToolDefinition::new("tool3").description("Tool 3"),
+        ];
+        let current_time = Local::now();
+        let mut run = Run::new(agent, models, tool_definitions, current_time);
+
+        let result = run.set_tools();
+        assert!(result.is_ok());
+        assert_eq!(run.context.tools.len(), 2);
+
+        let tool_names: Vec<&str> = run
+            .context
+            .tools
+            .iter()
+            .map(|tool| tool.name.as_str())
+            .collect();
+        assert!(tool_names.contains(&"tool1"));
+        assert!(tool_names.contains(&"tool3"));
+        assert!(!tool_names.contains(&"tool2"));
+    }
+
+    #[test]
+    fn test_set_tools_agent_with_nonexistent_tool_returns_error() {
+        // Test case 3: Agent with tools that don't match any tool definitions
+        let agent = Agent::new("test-agent").tools(vec![ToolName::new("nonexistent_tool")]);
+        let models = vec![];
+        let tool_definitions = vec![
+            ToolDefinition::new("tool1").description("Tool 1"),
+            ToolDefinition::new("tool2").description("Tool 2"),
+        ];
+        let current_time = Local::now();
+        let mut run = Run::new(agent, models, tool_definitions, current_time);
+
+        let result = run.set_tools();
+        assert!(result.is_err());
+        let Error::ToolDefinitionNotFound(tool_name) = result.unwrap_err() else {
+            panic!("Expected ToolDefinitionNotFound error")
+        };
+        assert_eq!(tool_name.as_str(), "nonexistent_tool");
+    }
+
+    #[test]
+    fn test_set_tools_agent_with_missing_tool_definition_returns_error() {
+        // Test case 4: Agent with tool that doesn't exist in tool definitions
+        let agent = Agent::new("test-agent").tools(vec![ToolName::new("missing_tool")]);
+        let models = vec![];
+        let tool_definitions = vec![
+            ToolDefinition::new("tool1").description("Tool 1"),
+            ToolDefinition::new("tool2").description("Tool 2"),
+        ];
+        let current_time = Local::now();
+        let mut run = Run::new(agent, models, tool_definitions, current_time);
+
+        let result = run.set_tools();
+        assert!(result.is_err());
+        let Error::ToolDefinitionNotFound(tool_name) = result.unwrap_err() else {
+            panic!("Expected ToolDefinitionNotFound error")
+        };
+        assert_eq!(tool_name.as_str(), "missing_tool");
     }
 }

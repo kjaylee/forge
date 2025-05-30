@@ -55,6 +55,10 @@ pub enum Error {
     #[error("Missing model in the models collection: {0}")]
     ModelNotFound(ModelId),
 
+    #[error("Tool definition not found: {0}")]
+    #[from(skip)]
+    ToolDefinitionNotFound(crate::ToolName),
+
     #[error("{0:?}")]
     Retryable(anyhow::Error),
 }
