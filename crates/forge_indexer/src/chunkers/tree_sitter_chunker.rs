@@ -4,21 +4,20 @@ use tracing::{error, info};
 use super::Chunker;
 use crate::{FileLoad, TokenCounter};
 
-pub struct TreeSitterChunker<'model> {
-    model: &'model str,
+pub struct TreeSitterChunker {
+    tokenizer: TokenCounter,
     max_tokens: usize,
 }
 
-impl<'model> TreeSitterChunker<'model> {
-    pub fn new(model: &'model str, max_tokens: usize) -> Self {
-        Self { model, max_tokens }
+impl TreeSitterChunker {
+    pub fn try_new(model: &str, max_tokens: usize) -> anyhow::Result<Self> {
+        Ok(Self { tokenizer: TokenCounter::try_from(model)?, max_tokens })
     }
 }
 
 #[async_trait::async_trait]
-impl<'model> Chunker for TreeSitterChunker<'model> {
+impl Chunker for TreeSitterChunker {
     async fn chunk(&self, input: Vec<FileLoad>) -> anyhow::Result<Vec<forge_treesitter::Block>> {
-        let tokenizer = TokenCounter::try_from(self.model)?;
         // TODO: can be done in parallel.
         let blocks = input
             .into_iter()
@@ -46,7 +45,7 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
 
         let filter_blocks = blocks
             .into_iter()
-            .filter(|block| tokenizer.count_tokens(&block.snippet) <= self.max_tokens)
+            .filter(|block| self.tokenizer.count_tokens(&block.snippet) <= self.max_tokens)
             .collect::<Vec<_>>();
 
         let filtered_blocks_count = filter_blocks.len();

@@ -36,7 +36,7 @@ mod tests {
             .join(PathBuf::from(format!("./cache/embeddings/{}", cache_dir)));
 
         let loader = FileLoader::default();
-        let chunker = TreeSitterChunker::new(embedding_model, 8192);
+        let chunker = TreeSitterChunker::try_new(embedding_model, 8192).unwrap();
         let embedder = OpenAI::cached(&cache_path, embedding_model, embedding_dimensions).unwrap();
         let hnsw_store = HnswStore::new(embedding_dimensions as usize);
 

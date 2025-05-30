@@ -50,7 +50,7 @@ pub struct Orchestrator<L: Loader, C: Chunker, E: Embedder, S: Store> {
 
 use crate::{FileLoader, HnswStore, OpenAI, QueryOptions, QueryOutput, TreeSitterChunker};
 impl Default
-    for Orchestrator<FileLoader, TreeSitterChunker<'static>, CachedEmbedder<OpenAI>, HnswStore<'_>>
+    for Orchestrator<FileLoader, TreeSitterChunker, CachedEmbedder<OpenAI>, HnswStore<'_>>
 {
     fn default() -> Self {
         let embedding_model = "text-embedding-3-large";
@@ -63,8 +63,10 @@ impl Default
             .join(PathBuf::from(format!("./cache/embeddings/{}", cache_dir)));
 
         let loader = FileLoader::default();
-        let chunker = TreeSitterChunker::new(embedding_model, max_tokens_supported);
-        let embedder = OpenAI::cached(&cache_path, embedding_model, embedding_dims).unwrap();
+        let chunker = TreeSitterChunker::try_new(embedding_model, max_tokens_supported)
+            .expect("failed to create chunker");
+        let embedder = OpenAI::cached(&cache_path, embedding_model, embedding_dims)
+            .expect("failed to create embedder");
         let store = HnswStore::new(embedding_dims as usize);
 
         Self {
