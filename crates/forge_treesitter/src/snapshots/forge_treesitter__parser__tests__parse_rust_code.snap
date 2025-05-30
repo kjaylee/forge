@@ -15,37 +15,37 @@ expression: blocks
     Block {
         kind: Struct,
         path: "./test.rs",
-        snippet: "struct User {\n                name: String,\n                age: u32,\n            }",
+        snippet: "/// Represents user information\n            /// in the system\n            struct User {\n                name: String,\n                age: u32,\n            }",
         offset: Offset {
             start: 60,
-            end: 143,
+            end: 217,
         },
     },
     Block {
         kind: Enum,
         path: "./test.rs",
-        snippet: "enum Status {\n                Active,\n                Inactive,\n                Pending,\n            }",
+        snippet: "/// type of status supported by system\n            enum Status {\n                Active,\n                Inactive,\n                Pending,\n            }",
         offset: Offset {
-            start: 169,
-            end: 271,
+            start: 243,
+            end: 396,
         },
     },
     Block {
         kind: Function,
         path: "./test.rs",
-        snippet: "pub fn status(&self) -> &Status {\n                    self\n                }",
+        snippet: "/// returns the status reference\n                pub fn status(&self) -> &Status {\n                    self\n                }",
         offset: Offset {
-            start: 327,
-            end: 403,
+            start: 452,
+            end: 577,
         },
     },
     Block {
         kind: Function,
         path: "./test.rs",
-        snippet: "fn process_user(user: &User) -> Status {\n                if user.age > 18 {\n                    Status::Active\n                } else {\n                    Status::Pending\n                }\n            }",
+        snippet: "#[test]\n            /// process user in test env.\n            fn process_user(user: &User) -> Status {\n                if user.age > 18 {\n                    Status::Active\n                } else {\n                    Status::Pending\n                }\n            }",
         offset: Offset {
-            start: 451,
-            end: 654,
+            start: 605,
+            end: 870,
         },
     },
 ]

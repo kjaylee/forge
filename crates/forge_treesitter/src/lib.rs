@@ -11,6 +11,33 @@ pub enum Kind {
     Struct,
     Enum,
     Constant,
+    TypeAlias,
+}
+
+#[derive(Debug, Clone)]
+pub enum SiblingKind {
+    Comment,
+    Attribute,
+}
+
+impl Display for SiblingKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SiblingKind::Comment => write!(f, "comment"),
+            SiblingKind::Attribute => write!(f, "attribute"),
+        }
+    }
+}
+
+impl TryFrom<&str> for SiblingKind {
+    type Error = anyhow::Error;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "line_comment" => Ok(SiblingKind::Comment),
+            "attribute_item" => Ok(SiblingKind::Attribute),
+            _ => Err(anyhow::anyhow!("Unsupported pattern found '{}'", value)),
+        }
+    }
 }
 
 impl Display for Kind {
@@ -20,6 +47,7 @@ impl Display for Kind {
             Kind::Struct => write!(f, "struct"),
             Kind::Enum => write!(f, "enum"),
             Kind::Constant => write!(f, "constant"),
+            Kind::TypeAlias => write!(f, "alias"),
         }
     }
 }
@@ -32,6 +60,7 @@ impl TryFrom<&str> for Kind {
             "enum.definition" => Ok(Kind::Enum),
             "function.definition" => Ok(Kind::Function),
             "const.definition" => Ok(Kind::Constant),
+            "type_alias.definition" => Ok(Kind::TypeAlias),
             _ => Err(anyhow::anyhow!("Unsupported pattern found '{}'", value)),
         }
     }

@@ -3,7 +3,7 @@ use std::{fmt::Display, path::Path};
 
 use tree_sitter::{Parser as TreeSitterParser, StreamingIterator};
 
-use crate::{Block, Kind, Offset};
+use crate::{Block, Kind, Offset, SiblingKind};
 
 pub struct Parser {
     parser: TreeSitterParser,
@@ -81,11 +81,12 @@ impl Parser {
             .parser
             .parse(code, None)
             .ok_or(anyhow::anyhow!("Failed to parse code"))?;
+        let root_node = tree.root_node();
         let query = tree_sitter::Query::try_from(self.language.clone())?;
 
         // Execute query
         let mut cursor = tree_sitter::QueryCursor::new();
-        let mut matches = cursor.matches(&query, tree.root_node(), code.as_bytes());
+        let mut matches = cursor.matches(&query, root_node, code.as_bytes());
 
         let path_buf = path.to_path_buf();
         let mut blocks = Vec::new();
@@ -101,34 +102,43 @@ impl Parser {
                     Err(_) => continue, // Skip unknown patterns
                 };
 
+                // Look for the start of preceding line comments/attribute_item for supported kinds
+                let mut base_start_byte = None;
+                if let Some(prev_sibling) = node.prev_sibling() {
+                    let mut current = Some(prev_sibling);
+                    while let Some(node) = current {
+                        if let Ok(_) = SiblingKind::try_from(node.kind()) {
+                            base_start_byte = Some(node.start_byte());
+                            current = node.prev_sibling();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
                 // Extract the code snippet safely handling UTF-8
                 let start_byte = node.start_byte();
                 let end_byte = node.end_byte();
 
-                // Calculate character offsets for UTF-8 aware positioning
-                let start_char = match code.get(..start_byte) {
-                    Some(s) => s.chars().count(),
-                    None => continue, // Skip if we can't find the correct character position
-                };
+                // Calculate character offsets
+                let start_char = base_start_byte
+                    .map_or(code[..start_byte].chars().count(), |base_byte| {
+                        code[..base_byte].chars().count()
+                    });
+                let end_char = code[..end_byte].chars().count();
 
-                let char_count_in_snippet = match code.get(start_byte..end_byte) {
-                    Some(s) => s.chars().count(),
-                    None => continue, // Skip if we can't find the correct character position
-                };
-
-                let end_char = start_char + char_count_in_snippet;
-
-                // Extract the snippet using byte offsets (safe because tree-sitter guarantees valid UTF-8 boundaries)
-                let snippet = code
-                    .get(start_byte..end_byte)
-                    .unwrap_or_default()
-                    .to_string();
+                // Extract snippet using character offsets
+                let snippet: String = code
+                    .chars()
+                    .skip(start_char)
+                    .take(end_char - start_char)
+                    .collect();
 
                 if snippet.is_empty() {
                     continue;
                 }
 
-                // Store character offsets in the Offset struct as requested
+                // Store character offsets
                 let offset = Offset { start: start_char, end: end_char };
 
                 blocks.push(Block::new(pattern, path_buf.clone(), snippet, offset));
@@ -149,12 +159,18 @@ mod tests {
     fn test_parse_rust_code() {
         // Sample Rust code to parse
         let sample_code = r#"
+            /// wrapper type with error of string type.
+            type Result<I> = std::result::Result<I, String>;
+
             const DATA: &'static str = "test";
+            /// Represents user information
+            /// in the system
             struct User {
                 name: String,
                 age: u32,
             }
             
+            /// type of status supported by system
             enum Status {
                 Active,
                 Inactive,
@@ -162,12 +178,14 @@ mod tests {
             }
             
             impl Status {
+                /// returns the status reference
                 pub fn status(&self) -> &Status {
                     self
                 }
             }
 
             #[test]
+            /// process user in test env.
             fn process_user(user: &User) -> Status {
                 if user.age > 18 {
                     Status::Active
