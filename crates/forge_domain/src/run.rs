@@ -53,6 +53,10 @@ impl Run {
             Action::Initialize { event, models, tool_definitions, current_time } => {
                 self.on_init(event, models, tool_definitions, current_time)
             }
+            Action::SystemRender { content } => {
+                self.context.set_first_system_message_mut(content);
+                Signal::default().wrap().ok()
+            }
             Action::Message(message) => self.on_message(message),
         }
     }
@@ -81,31 +85,62 @@ impl Run {
             .ok()
     }
 
-    fn tool_information(&self) -> Result<String> {
-        Ok("[NO TOOL INFORMATION]".to_string())
+    fn tool_information(&self) -> Result<Option<String>> {
+        let tool_supported = self.tool_supported()?;
+        if tool_supported {
+            Ok(None)
+        } else {
+            // Get the tools specified by the agent
+            let agent_tools = match &self.agent.tools {
+                Some(tools) => tools,
+                None => return Ok(None),
+            };
+
+            // Filter tool definitions to only include tools specified by the agent
+            let allowed_tools: Vec<ToolDefinition> = self
+                .tool_definitions
+                .iter()
+                .filter(|tool| agent_tools.contains(&tool.name))
+                .cloned()
+                .collect();
+
+            if allowed_tools.is_empty() {
+                return Ok(None);
+            }
+
+            // Create tool usage prompt
+            let tool_usage = ToolUsagePrompt::from(&allowed_tools);
+            Ok(Some(tool_usage.to_string()))
+        }
     }
 
     fn set_system_prompt(&mut self) -> SignalResult {
-        let _ = SystemContext {
-            current_time: self
-                .current_time
-                .format("%Y-%m-%d %H:%M:%S %:z")
-                .to_string(),
-            env: Some(self.env.clone()),
-            tool_information: Some(self.tool_information()?),
-            tool_supported: self.tool_supported()?,
-            files: self.files.clone(),
-            custom_rules: self
-                .agent
-                .custom_rules
-                .as_ref()
-                .cloned()
-                .unwrap_or_default(),
-            variables: self.variables.clone(),
-        };
-
-        // TODO: Implement system prompt setting
-        Ok(Wrap::default())
+        if let Some(system_prompt) = &self.agent.system_prompt {
+            Signal::RenderSystem {
+                prompt: system_prompt.clone(),
+                context: Box::new(SystemContext {
+                    current_time: self
+                        .current_time
+                        .format("%Y-%m-%d %H:%M:%S %:z")
+                        .to_string(),
+                    env: Some(self.env.clone()),
+                    tool_information: self.tool_information()?,
+                    tool_supported: self.tool_supported()?,
+                    files: self.files.clone(),
+                    custom_rules: self
+                        .agent
+                        .custom_rules
+                        .as_ref()
+                        .cloned()
+                        .unwrap_or_default(),
+                    variables: self.variables.clone(),
+                }),
+            }
+            .wrap()
+            .ok()
+        } else {
+            Signal::default().wrap().ok()
+        }
     }
 
     fn set_tools(&mut self) -> SignalResult {
@@ -191,6 +226,9 @@ pub enum Action {
         tool_definitions: Vec<ToolDefinition>,
         current_time: DateTime<Local>,
     },
+    SystemRender {
+        content: String,
+    },
     Message(ChatCompletionMessage),
 }
 
@@ -204,6 +242,17 @@ pub enum Signal {
         agent: Box<Agent>,
         context: Context,
     },
+    RenderSystem {
+        prompt: Template<SystemContext>,
+        context: Box<SystemContext>,
+    },
+}
+
+impl Signal {
+    /// Wraps the signal in a `Wrap` monoid
+    pub fn wrap(self) -> Wrap<Self> {
+        Wrap::new(self)
+    }
 }
 
 /// Monoid-like wrapper for composing signals using Vec
@@ -502,5 +551,56 @@ mod tests {
             panic!("Expected ToolDefinitionNotFound error")
         };
         assert_eq!(tool_name.as_str(), "missing_tool");
+    }
+
+    #[test]
+    fn test_update_with_system_render_action_stores_content() {
+        use pretty_assertions::assert_eq;
+
+        let fixture = Agent::new("test-agent");
+        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let action = Action::SystemRender { content: "Rendered system prompt content".to_string() };
+
+        let actual = run.update(action).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        assert!(matches!(actual.items[0], Signal::Continue));
+
+        // Check that the system message was set as the first message
+        assert_eq!(run.context.messages.len(), 1);
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::System);
+            assert_eq!(message.content, "Rendered system prompt content");
+        } else {
+            panic!("Expected first message to be a text message with system role");
+        }
+    }
+
+    #[test]
+    fn test_update_with_system_render_action_overwrites_previous_content() {
+        use pretty_assertions::assert_eq;
+
+        let fixture = Agent::new("test-agent");
+        let mut run = Run::new(fixture, Environment::default(), Local::now());
+
+        // Set initial content
+        let first_action = Action::SystemRender { content: "First content".to_string() };
+        run.update(first_action).unwrap();
+
+        // Overwrite with new content
+        let second_action = Action::SystemRender { content: "Second content".to_string() };
+        let actual = run.update(second_action).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        assert!(matches!(actual.items[0], Signal::Continue));
+
+        // Check that the system message was updated
+        assert_eq!(run.context.messages.len(), 1);
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::System);
+            assert_eq!(message.content, "Second content");
+        } else {
+            panic!("Expected first message to be a text message with system role");
+        }
     }
 }
