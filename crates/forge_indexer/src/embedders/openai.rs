@@ -1,9 +1,10 @@
-use std::path::Path;
-
-use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
+use async_openai::{
+    config::OpenAIConfig,
+    types::{CreateEmbeddingRequest, EmbeddingInput},
+};
 use tracing::info;
 
-use super::{CachedEmbedder, Embedder, EmbedderInput, EmbedderOutput};
+use super::{Embedder, EmbedderInput, EmbedderOutput};
 use crate::token_counter::TokenCounter;
 
 /// Maximum tokens supported by OpenAI embedding batch endpoint.
@@ -13,21 +14,42 @@ const TOKEN_LIMIT_PER_BATCH: usize = 30_000;
 pub struct OpenAI {
     model: String,
     dims: u32,
+    base_url: Option<String>,
+    api_key: Option<String>,
 }
 
 impl OpenAI {
     pub fn new<S: Into<String>>(embedding_model: S, dims: u32) -> Self {
-        Self { model: embedding_model.into(), dims }
+        Self {
+            model: embedding_model.into(),
+            dims,
+            base_url: None,
+            api_key: None,
+        }
     }
 
     /// Creates a cached version of the OpenAI embedder
-    pub fn cached(
-        cache_path: &Path,
-        embedding_model: impl Into<String>,
-        dims: u32,
-    ) -> anyhow::Result<CachedEmbedder<OpenAI>> {
-        let model_name = embedding_model.into();
-        CachedEmbedder::try_new(cache_path, OpenAI::new(&model_name, dims), model_name, dims)
+    /// Sets a custom base URL for the OpenAI API
+    pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
+        self.base_url = Some(base_url.into());
+        self
+    }
+
+    /// Sets the API key for OpenAI API authentication
+    pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
+        self.api_key = Some(api_key.into());
+        self
+    }
+
+    fn openai_config(&self) -> OpenAIConfig {
+        let mut config = async_openai::config::OpenAIConfig::new();
+        if let Some(api_key) = self.api_key.as_ref() {
+            config = config.with_api_key(api_key);
+        }
+        if let Some(base_url) = self.base_url.as_ref() {
+            config = config.with_api_base(base_url);
+        }
+        config
     }
 
     /// Process a single batch of texts to get embeddings
@@ -37,7 +59,9 @@ impl OpenAI {
         model: &str,
         dims: u32,
     ) -> anyhow::Result<Vec<Vec<f32>>> {
-        let result = async_openai::Client::new()
+        let client = async_openai::Client::with_config(self.openai_config());
+
+        let result = client
             .embeddings()
             .create(CreateEmbeddingRequest {
                 model: model.into(),
