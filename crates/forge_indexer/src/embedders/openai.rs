@@ -6,15 +6,18 @@ use tracing::info;
 use super::{CachedEmbedder, Embedder, EmbedderInput, EmbedderOutput};
 use crate::token_counter::TokenCounter;
 
+/// Maximum tokens supported by open-ai embedding endpoint with batching.
+const TOKEN_LIMIT_PER_BATCH: usize = 30_000;
+
 #[derive(Clone)]
 pub struct OpenAI {
-    embedding_model: String,
+    model: String,
     dims: u32,
 }
 
 impl OpenAI {
     pub fn new<S: Into<String>>(embedding_model: S, dims: u32) -> Self {
-        Self { embedding_model: embedding_model.into(), dims }
+        Self { model: embedding_model.into(), dims }
     }
 
     /// Creates a cached version of the OpenAI embedder
@@ -68,11 +71,9 @@ impl Embedder for OpenAI {
 
         // 30,000 is limit of OpenAI embedding API.
         let batches =
-            EmbeddingBatcher::try_new(&self.embedding_model, 30_000)?.create_batches(texts);
+            EmbeddingBatcher::try_new(&self.model, TOKEN_LIMIT_PER_BATCH)?.create_batches(texts);
         for batch in batches {
-            let batch_results = self
-                .process_batch(batch, &self.embedding_model, self.dims)
-                .await?;
+            let batch_results = self.process_batch(batch, &self.model, self.dims).await?;
             embeddings.extend(batch_results);
         }
 
