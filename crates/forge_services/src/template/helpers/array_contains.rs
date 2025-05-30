@@ -39,3 +39,92 @@ impl HelperDef for ArrayContainsHelper {
 }
 
 pub static ARRAY_CONTAINS_HELPER: ArrayContainsHelper = ArrayContainsHelper;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_array_contains() {
+        let mut handlebars = Handlebars::new();
+        handlebars.register_helper("array_contains", Box::new(ARRAY_CONTAINS_HELPER));
+
+        // Test when value exists in array
+        assert_eq!(
+            "found".to_string(),
+            handlebars
+                .render_template(
+                    "{{#array_contains arr 'b'}}found{{else}}not found{{/array_contains}}",
+                    &json!({"arr": ["a", "b", "c"]})
+                )
+                .unwrap()
+        );
+
+        // Test when value doesn't exist in array
+        assert_eq!(
+            "not found".to_string(),
+            handlebars
+                .render_template(
+                    "{{#array_contains arr 'd'}}found{{else}}not found{{/array_contains}}",
+                    &json!({"arr": ["a", "b", "c"]})
+                )
+                .unwrap()
+        );
+
+        // Test with empty array
+        assert_eq!(
+            "not found".to_string(),
+            handlebars
+                .render_template(
+                    "{{#array_contains arr 'a'}}found{{else}}not found{{/array_contains}}",
+                    &json!({"arr": []})
+                )
+                .unwrap()
+        );
+
+        // Test with non-array value
+        assert_eq!(
+            "not found".to_string(),
+            handlebars
+                .render_template(
+                    "{{#array_contains notarr 'a'}}found{{else}}not found{{/array_contains}}",
+                    &json!({"notarr": "string"})
+                )
+                .unwrap()
+        );
+
+        // Test with number values
+        assert_eq!(
+            "found".to_string(),
+            handlebars
+                .render_template(
+                    "{{#array_contains nums 42}}found{{else}}not found{{/array_contains}}",
+                    &json!({"nums": [1, 42, 100]})
+                )
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_array_contains_error_cases() {
+        let mut handlebars = Handlebars::new();
+        handlebars.register_helper("array_contains", Box::new(ARRAY_CONTAINS_HELPER));
+
+        // Test missing first parameter
+        assert!(handlebars
+            .render_template(
+                "{{#array_contains}}found{{else}}not found{{/array_contains}}",
+                &json!({})
+            )
+            .is_err());
+
+        // Test missing second parameter
+        assert!(handlebars
+            .render_template(
+                "{{#array_contains arr}}found{{else}}not found{{/array_contains}}",
+                &json!({"arr": [1, 2, 3]})
+            )
+            .is_err());
+    }
+}
