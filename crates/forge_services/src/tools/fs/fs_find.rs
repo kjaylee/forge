@@ -156,11 +156,14 @@ impl<F: Infrastructure> FSFind<F> {
             }
 
             // Content matching mode - read and search file contents
-            let content = match tokio::fs::read_to_string(&path).await {
+            let content = match forge_fs::ForgeFS::read_to_string(&path).await {
                 Ok(content) => content,
                 Err(e) => {
                     // Skip binary or unreadable files silently
-                    if e.kind() != std::io::ErrorKind::InvalidData {
+                    if let Some(e) = e
+                        .downcast_ref::<std::io::ErrorKind>()
+                        .map(|e| std::io::ErrorKind::InvalidData.eq(e))
+                    {
                         matches.push(format!(
                             "Error reading {}: {}",
                             self.format_display_path(&path)?,
@@ -316,6 +319,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -345,6 +349,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: Some("*.rs".to_string()),
@@ -376,6 +381,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: None,
                     file_pattern: Some("test*.txt".to_string()),
@@ -404,6 +410,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -438,6 +445,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -468,6 +476,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -494,6 +503,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("nonexistent".to_string()),
                     file_pattern: None,
@@ -522,6 +532,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: None,
                     file_pattern: None,
@@ -544,6 +555,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("[invalid".to_string()),
                     file_pattern: None,
@@ -566,6 +578,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: "relative/path".to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -622,6 +635,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().join("best.txt").display().to_string(),
                     regex: Some("nice".to_string()),
                     file_pattern: None,
@@ -640,6 +654,7 @@ mod test {
             .call(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().join("best.txt").display().to_string(),
                     regex: None,
                     file_pattern: None,
@@ -665,6 +680,7 @@ mod test {
             .call_inner(
                 ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("content*".into()),
                     file_pattern: None,
