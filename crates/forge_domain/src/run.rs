@@ -1,7 +1,7 @@
-use crate::Result;
-use crate::*;
 use chrono::{DateTime, Local};
 use serde_json::Value;
+
+use crate::{Result, *};
 
 /// The `Run` struct represents a run of the agent with its context.
 pub struct Run {
@@ -67,25 +67,26 @@ impl Run {
     ///
     /// This method looks up the agent's model from the models collection
     /// and returns the tool support information:
-    /// - Returns None if the agent has no model specified
-    /// - Returns None if the model is not found in the models collection
-    /// - Returns Some(bool) if the model exists and has tool support
-    ///   information
-    /// - Returns None if the model exists but has no tool support information
+    /// - Returns Err(MissingModel) if the agent has no model specified
+    /// - Returns Err(ModelNotFound) if the model is not found in the models
+    ///   collection
+    /// - Returns Ok(true) if the model exists and supports tools
+    /// - Returns Ok(false) if the model exists but doesn't support tools or has
+    ///   no tool support information
     pub fn tool_supported(&self) -> Result<bool> {
         // Get the model ID from the agent
         let model_id = self
             .agent
             .model
             .as_ref()
-            .ok_or(Error::MissingModel(self.agent.id))?;
+            .ok_or(Error::MissingModel(self.agent.id.clone()))?;
 
         // Find the model in the models collection
         Ok(self
             .models
             .iter()
             .find(|model| &model.id == model_id)
-            .ok_or(Error::ModelNotFound(model_id))?
+            .ok_or(Error::ModelNotFound(model_id.clone()))?
             .tools_supported
             .unwrap_or_default())
     }
@@ -134,31 +135,39 @@ mod tests {
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-4o"));
         let model = Model::new(ModelId::new("gpt-4o")).tools_supported(true);
         let run = Run::new(agent, vec![model]);
-        assert_eq!(run.tool_supported(), Some(true));
+        assert_eq!(run.tool_supported().unwrap(), true);
 
         // Test case 2: Agent has model that exists but doesn't support tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-3.5-turbo"));
         let model = Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false);
         let run = Run::new(agent, vec![model]);
-        assert_eq!(run.tool_supported(), Some(false));
+        assert_eq!(run.tool_supported().unwrap(), false);
 
         // Test case 3: Agent has model that exists but has null tools_supported
         let agent = Agent::new("test-agent").model(ModelId::new("forge-test-model"));
         let model = Model::new(ModelId::new("forge-test-model"));
         let run = Run::new(agent, vec![model]);
-        assert_eq!(run.tool_supported(), None);
+        assert_eq!(run.tool_supported().unwrap(), false);
 
         // Test case 4: Agent has model that is not found in the models collection
         let agent = Agent::new("test-agent").model(ModelId::new("nonexistent-model"));
         let model = Model::new(ModelId::new("different-model")).tools_supported(true);
         let run = Run::new(agent, vec![model]);
-        assert_eq!(run.tool_supported(), None);
+        let result = run.tool_supported();
+        let Error::ModelNotFound(model_id) = result.unwrap_err() else {
+            panic!("Expected ModelNotFound error")
+        };
+        assert_eq!(model_id.as_str(), "nonexistent-model");
 
         // Test case 5: Agent has no model specified
         let agent = Agent::new("test-agent"); // No model set
         let model = Model::new(ModelId::new("some-model")).tools_supported(true);
         let run = Run::new(agent, vec![model]);
-        assert_eq!(run.tool_supported(), None);
+        let result = run.tool_supported();
+        let Error::MissingModel(agent_id) = result.unwrap_err() else {
+            panic!("Expected MissingModel error")
+        };
+        assert_eq!(agent_id.as_str(), "test-agent");
 
         // Test case 6: Multiple models in collection, correct one is found
         let agent = Agent::new("test-agent").model(ModelId::new("model-2"));
@@ -168,6 +177,6 @@ mod tests {
             Model::new(ModelId::new("model-3")).tools_supported(false),
         ];
         let run = Run::new(agent, models);
-        assert_eq!(run.tool_supported(), Some(true));
+        assert_eq!(run.tool_supported().unwrap(), true);
     }
 }
