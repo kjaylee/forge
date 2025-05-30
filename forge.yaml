@@ -49,6 +49,7 @@ custom_rules: |-
   - Use words like `fixture`, `actual` and `expected` in test functions.
   - Fixtures should be generic and reusable.
   - Test should always be written in the same file as the source code.
+  - Never add conditionals in tests.
 
   Running Tests:
   - We use `insta` to run tests:
