@@ -161,22 +161,6 @@ impl<F: API + 'static> UI<F> {
     }
 
     pub async fn run(&mut self) {
-        // Clone the API reference to avoid moving self into the async block
-        let api = self.api.clone();
-        let cwd = self.api.environment().cwd.clone();
-
-        // Start indexing the project in background.
-        tokio::spawn(async move {
-            match api.index(&cwd).await {
-                Ok(_) => {
-                    info!("Indexing completed...");
-                }
-                Err(e) => {
-                    error!("Indexing failed with error {} ", e);
-                }
-            }
-        });
-
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
