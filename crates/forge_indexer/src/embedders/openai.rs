@@ -28,7 +28,6 @@ impl OpenAI {
         }
     }
 
-    /// Creates a cached version of the OpenAI embedder
     /// Sets a custom base URL for the OpenAI API
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = Some(base_url.into());
