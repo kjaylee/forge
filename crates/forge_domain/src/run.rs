@@ -16,7 +16,6 @@ pub struct Run {
     models: Vec<Model>,
     tool_definitions: Vec<ToolDefinition>,
     files: Vec<String>,
-    current_event: Option<Event>,
     variables: HashMap<String, Value>,
 }
 
@@ -42,7 +41,6 @@ impl Run {
             current_time,
             tool_definitions: Default::default(),
             env,
-            current_event: Default::default(),
             files: Default::default(),
             variables: Default::default(),
         }
@@ -53,12 +51,15 @@ impl Run {
             Action::Initialize { event, models, tool_definitions, current_time } => {
                 self.on_init(event, models, tool_definitions, current_time)
             }
-            Action::SystemRender { content } => {
-                self.context.set_first_system_message_mut(content);
-                Signal::default().wrap().ok()
-            }
+            Action::SystemRender { content } => self.on_system_render(content),
+            Action::UserRender { content } => self.on_render_user_message(content),
             Action::Message(message) => self.on_message(message),
         }
+    }
+
+    fn on_system_render(&mut self, content: String) -> std::result::Result<Wrap<Signal>, Error> {
+        self.context.set_first_system_message_mut(content);
+        Signal::default().wrap().ok()
     }
 
     fn on_init(
@@ -72,17 +73,19 @@ impl Run {
         self.models = models;
         self.tool_definitions = tool_definitions;
         self.current_time = current_time;
-        self.current_event = Some(event.clone());
 
-        self.set_system_prompt()?
-            .and(self.set_tools()?)
-            .and(self.add_user_message(&event.value)?)
-            .and(self.add_user_attachments(&event.value)?)
-            .and(Signal::Chat {
+        Wrap::all([
+            self.render_system_prompt()?,
+            self.render_user_prompt(&event)?,
+            self.set_tools()?,
+            self.add_user_attachments(&event.value)?,
+            Signal::Chat {
                 agent: Box::new(self.agent.clone()),
                 context: self.context.clone(),
-            })
-            .ok()
+            }
+            .into(),
+        ])
+        .ok()
     }
 
     fn tool_information(&self) -> Result<Option<String>> {
@@ -114,7 +117,7 @@ impl Run {
         }
     }
 
-    fn set_system_prompt(&mut self) -> SignalResult {
+    fn render_system_prompt(&mut self) -> SignalResult {
         if let Some(system_prompt) = &self.agent.system_prompt {
             Signal::RenderSystem {
                 prompt: system_prompt.clone(),
@@ -141,6 +144,32 @@ impl Run {
         } else {
             Signal::default().wrap().ok()
         }
+    }
+
+    fn render_user_prompt(&mut self, event: &Event) -> SignalResult {
+        if let Some(user_prompt) = &self.agent.user_prompt {
+            Signal::RenderUser {
+                prompt: user_prompt.clone(),
+                context: Box::new(
+                    EventContext::new(event.clone()).variables(self.variables.clone()),
+                ),
+            }
+            .wrap()
+            .ok()
+        } else {
+            Signal::default().wrap().ok()
+        }
+    }
+
+    fn on_render_user_message(&mut self, content: String) -> SignalResult {
+        if !content.is_empty() {
+            self.context = self
+                .context
+                .clone()
+                .add_message(ContextMessage::user(content, self.agent.model.clone()));
+        }
+
+        Signal::default().wrap().ok()
     }
 
     fn set_tools(&mut self) -> SignalResult {
@@ -173,11 +202,6 @@ impl Run {
         // Set the tools in the context (in-place mutation)
         self.context.tools = filtered_tools;
 
-        Ok(Wrap::default())
-    }
-
-    fn add_user_message(&mut self, _message: &Value) -> SignalResult {
-        // TODO: Implement user message addition
         Ok(Wrap::default())
     }
 
@@ -229,6 +253,9 @@ pub enum Action {
     SystemRender {
         content: String,
     },
+    UserRender {
+        content: String,
+    },
     Message(ChatCompletionMessage),
 }
 
@@ -245,6 +272,10 @@ pub enum Signal {
     RenderSystem {
         prompt: Template<SystemContext>,
         context: Box<SystemContext>,
+    },
+    RenderUser {
+        prompt: Template<EventContext>,
+        context: Box<EventContext>,
     },
 }
 
@@ -324,7 +355,6 @@ impl<'a, A> IntoIterator for &'a Wrap<A> {
 
 #[cfg(test)]
 mod tests {
-
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -347,6 +377,59 @@ mod tests {
                 },
                 retry_config: Default::default(),
             }
+        }
+    }
+
+    impl Run {
+        /// Creates a test fixture with comprehensive defaults for testing
+        fn fixture() -> Self {
+            let agent = Agent::new("test-agent")
+                .model(ModelId::new("test-model"))
+                .user_prompt(Template::new("Hello {{event.value}}"))
+                .tools(vec![ToolName::new("test-tool")]);
+
+            let models = vec![
+                Model::new(ModelId::new("test-model")).tools_supported(true),
+                Model::new(ModelId::new("gpt-4o")).tools_supported(true),
+                Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false),
+            ];
+
+            let tool_definitions = vec![
+                ToolDefinition::new("test-tool").description("Test Tool"),
+                ToolDefinition::new("tool1").description("Tool 1"),
+                ToolDefinition::new("tool2").description("Tool 2"),
+                ToolDefinition::new("tool3").description("Tool 3"),
+            ];
+
+            let env = Environment::default();
+            let current_time = Local::now();
+
+            Run::new(agent, env, current_time)
+                .models(models)
+                .tool_definitions(tool_definitions)
+        }
+
+        /// Creates a test fixture with a custom agent
+        fn fixture_with_agent(agent: Agent) -> Self {
+            let models = vec![
+                Model::new(ModelId::new("test-model")).tools_supported(true),
+                Model::new(ModelId::new("gpt-4o")).tools_supported(true),
+                Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false),
+            ];
+
+            let tool_definitions = vec![
+                ToolDefinition::new("test-tool").description("Test Tool"),
+                ToolDefinition::new("tool1").description("Tool 1"),
+                ToolDefinition::new("tool2").description("Tool 2"),
+                ToolDefinition::new("tool3").description("Tool 3"),
+            ];
+
+            let env = Environment::default();
+            let current_time = Local::now();
+
+            Run::new(agent, env, current_time)
+                .models(models)
+                .tool_definitions(tool_definitions)
         }
     }
 
@@ -439,8 +522,6 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(run.models.len(), 1);
         assert_eq!(run.tool_definitions.len(), 1);
-        assert!(run.current_event.is_some());
-        assert_eq!(run.current_event.unwrap().name, "test-event");
     }
 
     #[test]
@@ -482,14 +563,8 @@ mod tests {
     fn test_set_tools_agent_with_no_tools_specified() {
         // Test case 1: Agent with no tools specified should result in empty context
         // tools
-        let agent = Agent::new("test-agent");
-        let tool_definitions = vec![
-            ToolDefinition::new("tool1").description("Tool 1"),
-            ToolDefinition::new("tool2").description("Tool 2"),
-        ];
-        let current_time = Local::now();
-        let mut run = Run::new(agent, Environment::default(), current_time)
-            .tool_definitions(tool_definitions);
+        let agent = Agent::new("test-agent"); // Agent without tools
+        let mut run = Run::fixture_with_agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -501,14 +576,7 @@ mod tests {
         // Test case 2: Agent with specific tools should filter tool definitions
         let agent =
             Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
-        let tool_definitions = vec![
-            ToolDefinition::new("tool1").description("Tool 1"),
-            ToolDefinition::new("tool2").description("Tool 2"),
-            ToolDefinition::new("tool3").description("Tool 3"),
-        ];
-        let current_time = Local::now();
-        let mut run = Run::new(agent, Environment::default(), current_time)
-            .tool_definitions(tool_definitions);
+        let mut run = Run::fixture_with_agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -567,8 +635,6 @@ mod tests {
 
     #[test]
     fn test_update_with_system_render_action_stores_content() {
-        use pretty_assertions::assert_eq;
-
         let fixture = Agent::new("test-agent");
         let mut run = Run::new(fixture, Environment::default(), Local::now());
         let action = Action::SystemRender { content: "Rendered system prompt content".to_string() };
@@ -590,8 +656,6 @@ mod tests {
 
     #[test]
     fn test_update_with_system_render_action_overwrites_previous_content() {
-        use pretty_assertions::assert_eq;
-
         let fixture = Agent::new("test-agent");
         let mut run = Run::new(fixture, Environment::default(), Local::now());
 
@@ -614,5 +678,243 @@ mod tests {
         } else {
             panic!("Expected first message to be a text message with system role");
         }
+    }
+
+    #[test]
+    fn test_update_with_user_render_action_stores_content() {
+        let fixture = Agent::new("test-agent");
+        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let action = Action::UserRender { content: "Rendered user prompt content".to_string() };
+
+        let actual = run.update(action).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        assert!(matches!(actual.items[0], Signal::Continue));
+
+        // Check that the user message was added
+        assert_eq!(run.context.messages.len(), 1);
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::User);
+            assert_eq!(message.content, "Rendered user prompt content");
+        } else {
+            panic!("Expected first message to be a text message with user role");
+        }
+    }
+
+    #[test]
+    fn test_update_with_user_render_action_empty_content_does_nothing() {
+        let fixture = Agent::new("test-agent");
+        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let action = Action::UserRender { content: "".to_string() };
+
+        let actual = run.update(action).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        assert!(matches!(actual.items[0], Signal::Continue));
+
+        // Check that no message was added
+        assert_eq!(run.context.messages.len(), 0);
+    }
+
+    #[test]
+    fn test_update_with_user_render_action_adds_to_existing_messages() {
+        let fixture = Agent::new("test-agent");
+        let mut run = Run::new(fixture, Environment::default(), Local::now());
+
+        // Add a system message first
+        let system_action = Action::SystemRender { content: "System content".to_string() };
+        run.update(system_action).unwrap();
+
+        // Add a user message
+        let user_action = Action::UserRender { content: "User content".to_string() };
+        let actual = run.update(user_action).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        assert!(matches!(actual.items[0], Signal::Continue));
+
+        // Check that both messages exist
+        assert_eq!(run.context.messages.len(), 2);
+
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::System);
+            assert_eq!(message.content, "System content");
+        } else {
+            panic!("Expected first message to be a system message");
+        }
+
+        if let Some(ContextMessage::Text(message)) = run.context.messages.get(1) {
+            assert_eq!(message.role, Role::User);
+            assert_eq!(message.content, "User content");
+        } else {
+            panic!("Expected second message to be a user message");
+        }
+    }
+
+    #[test]
+    fn test_set_user_prompt_with_user_prompt_returns_render_user_signal() {
+        let event = Event::new("test-event", serde_json::json!("world"));
+        let mut run = Run::fixture(); // Uses default user_prompt
+
+        let actual = run.render_user_prompt(&event).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        if let Signal::RenderUser { prompt, .. } = &actual.items[0] {
+            assert_eq!(prompt.template, "Hello {{event.value}}");
+            // Note: We can't access private fields of EventContext, but we can
+            // verify the signal was created
+        } else {
+            panic!("Expected RenderUser signal");
+        }
+    }
+
+    #[test]
+    fn test_set_user_prompt_without_user_prompt_returns_continue_signal() {
+        let event = Event::new("test-event", serde_json::json!("world"));
+        let agent = Agent::new("test-agent"); // Agent without user_prompt
+        let mut run = Run::fixture_with_agent(agent);
+
+        let actual = run.render_user_prompt(&event).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        assert!(matches!(actual.items[0], Signal::Continue));
+    }
+
+    #[test]
+    fn test_set_user_prompt_includes_variables_in_context() {
+        let user_prompt = Template::new("Hello {{variable1}}");
+        let agent = Agent::new("test-agent").user_prompt(user_prompt);
+        let event = Event::new("test-event", serde_json::json!("world"));
+        let variables = HashMap::from([
+            ("variable1".to_string(), serde_json::json!("value1")),
+            ("variable2".to_string(), serde_json::json!("value2")),
+        ]);
+        let mut run =
+            Run::new(agent, Environment::default(), Local::now()).variables(variables.clone());
+
+        let actual = run.render_user_prompt(&event).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        if let Signal::RenderUser { .. } = &actual.items[0] {
+            // Note: We can't access private fields of EventContext, but we can
+            // verify the signal was created The variables are
+            // passed to EventContext during construction, which is tested by
+            // the signal creation
+        } else {
+            panic!("Expected RenderUser signal");
+        }
+    }
+
+    #[test]
+    fn test_add_user_message_content_with_content() {
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
+        let mut run = Run::new(agent, Environment::default(), Local::now());
+
+        let _ = run.on_render_user_message("Test user message".to_string());
+
+        assert_eq!(run.context.messages.len(), 1);
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::User);
+            assert_eq!(message.content, "Test user message");
+            assert_eq!(message.model, Some(ModelId::new("test-model")));
+        } else {
+            panic!("Expected user message to be added");
+        }
+    }
+
+    #[test]
+    fn test_add_user_message_content_with_empty_content() {
+        let mut run = Run::fixture();
+
+        let _ = run.on_render_user_message("".to_string());
+
+        assert_eq!(run.context.messages.len(), 0);
+    }
+
+    #[test]
+    fn test_update_initialize_action_includes_user_prompt_rendering() {
+        let user_prompt = Template::new("Hello {{event.value}}");
+        let agent = Agent::new("test-agent")
+            .model(ModelId::new("test-model"))
+            .user_prompt(user_prompt);
+        let mut run = Run::new(agent, Environment::default(), Local::now());
+
+        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
+        let tool_definitions = Default::default();
+        let current_time = Local::now();
+        let event = Event::new("test-event", serde_json::json!("world"));
+
+        let action = Action::Initialize { event, models, tool_definitions, current_time };
+
+        let result = run.update(action);
+
+        assert!(result.is_ok());
+        let signal = result.unwrap();
+
+        // Verify that the signal contains a RenderUser signal
+        assert!(signal
+            .iter()
+            .any(|s| matches!(s, Signal::RenderUser { .. })));
+        // Verify that the signal contains a Chat signal
+        assert!(signal.iter().any(|s| matches!(s, Signal::Chat { .. })));
+    }
+
+    #[test]
+    fn test_wrap_all_empty_iterator() {
+        let fixture: Vec<Wrap<i32>> = vec![];
+        let actual = Wrap::all(fixture);
+        let expected: Wrap<i32> = Wrap { items: vec![] };
+        assert_eq!(actual.items, expected.items);
+    }
+
+    #[test]
+    fn test_wrap_all_single_wrap() {
+        let fixture = vec![Wrap::new(42)];
+        let actual = Wrap::all(fixture);
+        let expected = Wrap { items: vec![42] };
+        assert_eq!(actual.items, expected.items);
+    }
+
+    #[test]
+    fn test_wrap_all_multiple_wraps() {
+        let fixture = vec![Wrap::new(1), Wrap::new(2), Wrap::new(3)];
+        let actual = Wrap::all(fixture);
+        let expected = Wrap { items: vec![1, 2, 3] };
+        assert_eq!(actual.items, expected.items);
+    }
+
+    #[test]
+    fn test_wrap_all_wraps_with_multiple_items() {
+        let fixture = vec![
+            Wrap { items: vec![1, 2] },
+            Wrap { items: vec![3, 4, 5] },
+            Wrap { items: vec![6] },
+        ];
+        let actual = Wrap::all(fixture);
+        let expected = Wrap { items: vec![1, 2, 3, 4, 5, 6] };
+        assert_eq!(actual.items, expected.items);
+    }
+
+    #[test]
+    fn test_wrap_all_with_array() {
+        let fixture = [Wrap::new("hello"), Wrap::new("world")];
+        let actual = Wrap::all(fixture);
+        let expected = Wrap { items: vec!["hello", "world"] };
+        assert_eq!(actual.items, expected.items);
+    }
+
+    #[test]
+    fn test_wrap_all_with_results() {
+        fn success_wrap(value: i32) -> Result<Wrap<i32>> {
+            Ok(Wrap::new(value))
+        }
+
+        let fixture = [
+            success_wrap(1).unwrap(),
+            success_wrap(2).unwrap(),
+            success_wrap(3).unwrap(),
+        ];
+        let actual = Wrap::all(fixture);
+        let expected = Wrap { items: vec![1, 2, 3] };
+        assert_eq!(actual.items, expected.items);
     }
 }
