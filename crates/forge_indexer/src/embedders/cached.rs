@@ -64,7 +64,7 @@ where
             match self.cache.get(&cache_key).await {
                 Some(embeddings) => {
                     cache_hits += 1;
-                    result[i] = Some(EmbedderOutput { embeddings });
+                    result.insert(i, Some(EmbedderOutput { embeddings }));
                 }
                 None => {
                     uncached.push((i, block));
@@ -90,7 +90,7 @@ where
             {
                 let cache_key = self.generate_key(&block.hash());
                 let _ = self.cache.put(&cache_key, &embeddings.embeddings).await;
-                result[position] = Some(embeddings);
+                result.insert(position, Some(embeddings));
             }
         }
 
