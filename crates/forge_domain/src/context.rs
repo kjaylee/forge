@@ -162,19 +162,21 @@ impl Context {
 
     /// Updates the set system message
     pub fn set_first_system_message(mut self, content: impl Into<String>) -> Self {
-        if self.messages.is_empty() {
-            self.add_message(ContextMessage::system(content.into()))
-        } else {
-            if let Some(ContextMessage::Text(content_message)) = self.messages.get_mut(0) {
-                if content_message.role == Role::System {
-                    content_message.content = content.into();
-                } else {
-                    self.messages
-                        .insert(0, ContextMessage::system(content.into()));
-                }
-            }
+        self.set_first_system_message_mut(content);
+        self
+    }
 
-            self
+    /// Updates the first system message using a mutable reference
+    pub fn set_first_system_message_mut(&mut self, content: impl Into<String>) {
+        if self.messages.is_empty() {
+            self.messages.push(ContextMessage::system(content.into()));
+        } else if let Some(ContextMessage::Text(content_message)) = self.messages.get_mut(0) {
+            if content_message.role == Role::System {
+                content_message.content = content.into();
+            } else {
+                self.messages
+                    .insert(0, ContextMessage::system(content.into()));
+            }
         }
     }
 
