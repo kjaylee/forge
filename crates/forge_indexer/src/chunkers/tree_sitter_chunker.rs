@@ -1,5 +1,5 @@
 use forge_treesitter::Parser;
-use tracing::info;
+use tracing::{error, info};
 
 use super::Chunker;
 use crate::{FileLoad, TokenCounter};
@@ -28,12 +28,12 @@ impl<'model> Chunker for TreeSitterChunker<'model> {
                     .map(|ext| ext.to_string_lossy().to_string())
                     .and_then(|ext| {
                         Parser::try_from(ext.as_str())
-                            .map_err(|e| eprintln!("failed to create parser: {e}"))
+                            .map_err(|e| error!("failed to create parser: {e}"))
                             .ok()
                             .and_then(|mut parser| {
                                 parser
                                     .parse(&file.path, &file.content)
-                                    .map_err(|e| eprintln!("failed to parse file contents: {e}"))
+                                    .map_err(|e| error!("failed to parse file contents: {e}"))
                                     .ok()
                             })
                     })
