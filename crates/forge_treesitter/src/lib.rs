@@ -1,9 +1,9 @@
 mod parser;
-pub use parser::*;
-use serde::{Deserialize, Serialize};
-
 use std::fmt::Display;
 use std::path::PathBuf;
+
+pub use parser::*;
+use serde::{Deserialize, Serialize};
 
 /// Represents the type of code block captured
 #[derive(Debug, Clone, PartialEq)]

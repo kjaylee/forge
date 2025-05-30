@@ -1,5 +1,6 @@
 #![allow(dead_code)]
-use std::{fmt::Display, path::Path};
+use std::fmt::Display;
+use std::path::Path;
 
 use tree_sitter::{Parser as TreeSitterParser, StreamingIterator};
 
@@ -70,7 +71,7 @@ impl From<SupportedLanguage> for Parser {
         let mut parser = tree_sitter::Parser::new();
         parser
             .set_language(&tree_sitter::Language::from(&value))
-            .expect(format!("Failed to set '{}' language for tree-sitter parser", value).as_str());
+            .unwrap_or_else(|_| panic!("Failed to set '{value}' language for tree-sitter parser"));
         Self { parser, language: value }
     }
 }
@@ -106,7 +107,8 @@ impl Parser {
                 let mut start_pos = node.start_position();
                 let end_pos = node.end_position();
 
-                // Look for the start of preceding line comments/attribute_item for supported kinds
+                // Look for the start of preceding line comments/attribute_item for supported
+                // kinds
                 let mut base_start_byte = None;
                 if let Some(prev_sibling) = node.prev_sibling() {
                     let mut current = Some(prev_sibling);
