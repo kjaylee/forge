@@ -350,17 +350,10 @@ impl<F: API + 'static> UI<F> {
             Command::Index => {
                 self.spinner.start(Some("Indexing codebase"))?;
                 let cwd = self.api.environment().cwd.clone();
-                match self.api.index(&cwd).await {
-                    Ok(_) => {
-                        self.writeln(TitleFormat::action(
-                            "Codebase indexing completed successfully",
-                        ))?;
-                        let _ = self.spinner.stop(None);
-                    }
-                    Err(e) => {
-                        self.writeln(TitleFormat::error(format!("Indexing failed: {e}")))?;
-                    }
-                }
+                let _ = self.api.index(&cwd).await?;
+                self.writeln(TitleFormat::action(
+                    "Codebase indexing completed successfully",
+                ))?;
             }
             Command::Update => {
                 on_update(self.api.clone(), None).await;
