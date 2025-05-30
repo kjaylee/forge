@@ -14,7 +14,7 @@ pub use token_counter::*;
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::sync::Arc;
 
     use crate::{
@@ -34,9 +34,8 @@ mod tests {
             embedding_model.replace("/", "-"),
             embedding_dimensions
         );
-        let cache_path = std::env::current_dir()
-            .expect("failed to retrive current working directory.")
-            .join(PathBuf::from(format!("./.cache/embeddings/{}", cache_dir)));
+        let cwd = std::env::current_dir().expect("failed to retrive current working directory.");
+        let cache_path = cwd.join(PathBuf::from(format!("./.cache/embeddings/{}", cache_dir)));
 
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::try_new(embedding_model, 8192).unwrap();
@@ -54,7 +53,11 @@ mod tests {
             Arc::new(embedder),
             Arc::new(hnsw_store),
         );
-        let _ = indexer.index(Path::new("/Users/ranjit/Desktop/workspace/code-forge/code-forge/crates/forge_main/src/prompt.rs")).await.unwrap();
+
+        let _ = indexer
+            .index(&cwd.join("../forge_main/src/prompt.rs"))
+            .await
+            .unwrap();
 
         let query = "change the usage token indicator on right side of cli from ~ to * and also update the same in info command display";
         let result = indexer
