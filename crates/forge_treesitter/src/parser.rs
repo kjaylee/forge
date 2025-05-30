@@ -113,7 +113,7 @@ impl Parser {
                 if let Some(prev_sibling) = node.prev_sibling() {
                     let mut current = Some(prev_sibling);
                     while let Some(node) = current {
-                        if let Ok(_) = SiblingKind::try_from(node.kind()) {
+                        if SiblingKind::try_from(node.kind()).is_ok() {
                             base_start_byte = Some(node.start_byte());
                             current = node.prev_sibling();
                             start_pos = node.start_position();

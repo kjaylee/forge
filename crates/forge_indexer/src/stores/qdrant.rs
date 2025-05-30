@@ -19,11 +19,13 @@ impl From<&QueryOptions> for Option<Filter> {
 
         // Add kind filter if specified
         if let Some(kind) = &options.kind {
-            let mut field_condition = FieldCondition::default();
-            field_condition.key = "kind".to_string();
-            field_condition.r#match = Some(Match {
-                match_value: Some(r#match::MatchValue::Keyword(kind.clone())),
-            });
+            let field_condition = FieldCondition {
+                key: "kind".to_string(),
+                r#match: Some(Match {
+                    match_value: Some(r#match::MatchValue::Keyword(kind.clone())),
+                }),
+                ..Default::default()
+            };
 
             let mut condition = Condition::default();
             condition.condition_one_of = Some(condition::ConditionOneOf::Field(field_condition));
@@ -32,18 +34,19 @@ impl From<&QueryOptions> for Option<Filter> {
         }
 
         // Add path filter if specified
-        if let Some(paths) = &options.path
-            && !paths.is_empty()
-        {
+        let paths = options.path.clone().unwrap_or_default();
+        if !paths.is_empty() {
             // Since we're only dealing with absolute paths without glob patterns,
             // we can use the Keywords match type directly
-            let mut field_condition = FieldCondition::default();
-            field_condition.key = "path".to_string();
-            field_condition.r#match = Some(Match {
-                match_value: Some(r#match::MatchValue::Keywords(RepeatedStrings {
-                    strings: paths.clone(),
-                })),
-            });
+            let field_condition = FieldCondition {
+                key: "path".to_string(),
+                r#match: Some(Match {
+                    match_value: Some(r#match::MatchValue::Keywords(RepeatedStrings {
+                        strings: paths,
+                    })),
+                }),
+                ..Default::default()
+            };
 
             let mut condition = Condition::default();
             condition.condition_one_of = Some(condition::ConditionOneOf::Field(field_condition));
@@ -54,9 +57,7 @@ impl From<&QueryOptions> for Option<Filter> {
         if filter_conditions.is_empty() {
             None
         } else {
-            let mut filter = Filter::default();
-            filter.must = filter_conditions;
-            Some(filter)
+            Some(Filter { must: filter_conditions, ..Default::default() })
         }
     }
 }

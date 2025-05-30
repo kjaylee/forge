@@ -23,8 +23,7 @@ impl IndexerService for ForgeCodeIndex {
         query: &str,
         options: forge_services::QueryOptions,
     ) -> anyhow::Result<Vec<V>> {
-        let mut query_options = QueryOptions::default();
-        query_options.limit = options.limit;
+        let mut query_options = QueryOptions { limit: options.limit, ..Default::default() };
 
         if let Some(kind) = options.kind {
             query_options.kind = Some(kind);
