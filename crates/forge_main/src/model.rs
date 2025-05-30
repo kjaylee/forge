@@ -98,6 +98,7 @@ impl ForgeCommandManager {
             ForgeCommand { name, description, value }
         }));
 
+        // include commands that depend on tool only when tool is available on agent.
         for agent in workflow.agents.iter() {
             if let Some(tools) = agent.tools.as_ref() {
                 if tools
