@@ -92,7 +92,7 @@ impl Embedder for OpenAI {
 
         // 30,000 is limit of OpenAI embedding API.
         let batches =
-            EmbeddingBatcher::try_new(&self.model, TOKEN_LIMIT_PER_BATCH)?.create_batches(texts);
+            TokenAwareBatcher::try_new(&self.model, TOKEN_LIMIT_PER_BATCH)?.create_batches(texts);
         for batch in batches {
             let batch_results = self.process_batch(batch, &self.model, self.dims).await?;
             embeddings.extend(batch_results);
@@ -108,14 +108,14 @@ impl Embedder for OpenAI {
     }
 }
 
-/// Helper struct to manage batching for embeddings generation with token limits
-pub struct EmbeddingBatcher {
+/// A token-aware batching utility that groups texts while respecting token limits.
+pub struct TokenAwareBatcher {
     /// Maximum tokens allowed per batch
     pub max_tokens_per_batch: usize,
     pub tokenizer: TokenCounter,
 }
 
-impl EmbeddingBatcher {
+impl TokenAwareBatcher {
     pub fn try_new(model: &str, max_tokens_per_batch: usize) -> anyhow::Result<Self> {
         Ok(Self {
             max_tokens_per_batch,
@@ -124,13 +124,17 @@ impl EmbeddingBatcher {
     }
 }
 
-impl EmbeddingBatcher {
-    /// Estimate token count for a text
+impl TokenAwareBatcher {
     pub fn estimate_tokens(&self, text: &str) -> usize {
         self.tokenizer.count_tokens(text)
     }
 
-    /// Create batches from input texts respecting token limits
+    /// Creates optimally-sized batches from input texts while respecting token limits.
+    /// 
+    /// The batching strategy:
+    /// - Accumulates texts into batches until reaching token limit
+    /// - Handles oversized texts by processing them in individual batches
+    /// - Ensures no batch exceeds the configured token limit
     pub fn create_batches(&self, texts: Vec<String>) -> Vec<Vec<String>> {
         let mut batches = Vec::new();
         let mut current_batch = Vec::new();
