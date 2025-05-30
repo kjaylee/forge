@@ -76,9 +76,7 @@ impl FileLoader {
     fn should_include_file(&self, path: &Path) -> bool {
         path.extension()
             .map(|ext| ext.to_string_lossy().to_string())
-            .is_some_and(|file_ext| {
-                self.exts.iter().any(|ext| ext.to_string() == file_ext)
-            })
+            .is_some_and(|file_ext| self.exts.iter().any(|ext| ext.to_string() == file_ext))
     }
 
     /// Loads a single file and returns its content and language

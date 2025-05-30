@@ -100,12 +100,7 @@ impl Parser {
 
                 let offset = Offset { start: start_byte, end: end_byte };
 
-                blocks.push(Block::new(
-                    pattern,
-                    path_buf.clone(),
-                    snippet,
-                    offset,
-                ));
+                blocks.push(Block::new(pattern, path_buf.clone(), snippet, offset));
             }
         }
 
