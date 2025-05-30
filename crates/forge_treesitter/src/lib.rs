@@ -1,5 +1,6 @@
 mod parser;
 pub use parser::*;
+use serde::{Deserialize, Serialize};
 
 use std::fmt::Display;
 use std::path::PathBuf;
@@ -77,6 +78,21 @@ pub struct Block {
     pub snippet: String,
     /// Char offset of snippet
     pub offset: Offset,
+    /// span of the snippet.
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+
+pub struct Span {
+    start: Location,
+    end: Location,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Location {
+    line: usize,
+    column: usize,
 }
 
 impl Block {
@@ -104,7 +120,7 @@ pub struct Offset {
 
 impl Block {
     /// Create a new code block
-    pub fn new(kind: Kind, path: PathBuf, snippet: String, offset: Offset) -> Self {
-        Self { kind, path, snippet, offset }
+    pub fn new(kind: Kind, path: PathBuf, snippet: String, offset: Offset, span: Span) -> Self {
+        Self { kind, path, snippet, offset, span }
     }
 }

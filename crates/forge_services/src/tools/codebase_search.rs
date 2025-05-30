@@ -39,10 +39,23 @@ struct Offset {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+struct Span {
+    start: Location,
+    end: Location,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Location {
+    line: usize,
+    column: usize,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 struct QueryOutput {
     path: String,
     kind: String,
     offset: Offset,
+    span: Span,
 }
 
 #[async_trait::async_trait]
@@ -93,8 +106,8 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
         for result in results {
             let _ = context
                 .send_text(TitleFormat::debug(format!(
-                    "file: {} start_char:{} end_char:{}",
-                    result.path, result.offset.start, result.offset.end
+                    "file: {}:{}:{}",
+                    result.path, result.span.start.line, result.span.end.line
                 )))
                 .await;
 

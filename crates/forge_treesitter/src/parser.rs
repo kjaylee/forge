@@ -3,7 +3,7 @@ use std::{fmt::Display, path::Path};
 
 use tree_sitter::{Parser as TreeSitterParser, StreamingIterator};
 
-use crate::{Block, Kind, Offset, SiblingKind};
+use crate::{Block, Kind, Location, Offset, SiblingKind, Span};
 
 pub struct Parser {
     parser: TreeSitterParser,
@@ -102,6 +102,10 @@ impl Parser {
                     Err(_) => continue, // Skip unknown patterns
                 };
 
+                // Get start and end positions
+                let mut start_pos = node.start_position();
+                let end_pos = node.end_position();
+
                 // Look for the start of preceding line comments/attribute_item for supported kinds
                 let mut base_start_byte = None;
                 if let Some(prev_sibling) = node.prev_sibling() {
@@ -110,6 +114,7 @@ impl Parser {
                         if let Ok(_) = SiblingKind::try_from(node.kind()) {
                             base_start_byte = Some(node.start_byte());
                             current = node.prev_sibling();
+                            start_pos = node.start_position();
                         } else {
                             break;
                         }
@@ -117,14 +122,11 @@ impl Parser {
                 }
 
                 // Extract the code snippet safely handling UTF-8
-                let start_byte = node.start_byte();
+                let start_byte = base_start_byte.unwrap_or(node.start_byte());
                 let end_byte = node.end_byte();
 
                 // Calculate character offsets
-                let start_char = base_start_byte
-                    .map_or(code[..start_byte].chars().count(), |base_byte| {
-                        code[..base_byte].chars().count()
-                    });
+                let start_char = code[..start_byte].chars().count();
                 let end_char = code[..end_byte].chars().count();
 
                 // Extract snippet using character offsets
@@ -138,10 +140,15 @@ impl Parser {
                     continue;
                 }
 
-                // Store character offsets
+                // Create location objects
+                let start_location = Location { line: start_pos.row, column: start_pos.column };
+                let end_location = Location { line: end_pos.row, column: end_pos.column };
+
+                // Create span and offset
+                let span = Span { start: start_location, end: end_location };
                 let offset = Offset { start: start_char, end: end_char };
 
-                blocks.push(Block::new(pattern, path_buf.clone(), snippet, offset));
+                blocks.push(Block::new(pattern, path_buf.clone(), snippet, offset, span));
             }
         }
 

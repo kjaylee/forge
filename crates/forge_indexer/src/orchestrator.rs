@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use forge_treesitter::{Block, Offset};
+use forge_treesitter::{Block, Offset, Span};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +28,7 @@ pub struct MetaData {
     path: String,
     kind: String,
     offset: Offset,
+    span: Span,
 }
 
 impl From<Block> for MetaData {
@@ -36,6 +37,7 @@ impl From<Block> for MetaData {
             path: value.path.display().to_string(),
             kind: value.kind.to_string(),
             offset: value.offset,
+            span: value.span,
         }
     }
 }
