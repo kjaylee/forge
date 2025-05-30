@@ -1,0 +1,51 @@
+---
+source: crates/forge_treesitter/src/parser.rs
+expression: blocks
+---
+[
+    Block {
+        kind: Constant,
+        path: "./test.rs",
+        snippet: "const DATA: &'static str = \"test\";",
+        offset: Offset {
+            start: 13,
+            end: 47,
+        },
+    },
+    Block {
+        kind: Struct,
+        path: "./test.rs",
+        snippet: "struct User {\n                name: String,\n                age: u32,\n            }",
+        offset: Offset {
+            start: 60,
+            end: 143,
+        },
+    },
+    Block {
+        kind: Enum,
+        path: "./test.rs",
+        snippet: "enum Status {\n                Active,\n                Inactive,\n                Pending,\n            }",
+        offset: Offset {
+            start: 169,
+            end: 271,
+        },
+    },
+    Block {
+        kind: Function,
+        path: "./test.rs",
+        snippet: "pub fn status(&self) -> &Status {\n                    self\n                }",
+        offset: Offset {
+            start: 327,
+            end: 403,
+        },
+    },
+    Block {
+        kind: Function,
+        path: "./test.rs",
+        snippet: "fn process_user(user: &User) -> Status {\n                if user.age > 18 {\n                    Status::Active\n                } else {\n                    Status::Pending\n                }\n            }",
+        offset: Offset {
+            start: 451,
+            end: 654,
+        },
+    },
+]
