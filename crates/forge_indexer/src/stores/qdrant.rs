@@ -33,23 +33,23 @@ impl From<&QueryOptions> for Option<Filter> {
 
         // Add path filter if specified
         if let Some(paths) = &options.path
-            && !paths.is_empty() {
-                // Since we're only dealing with absolute paths without glob patterns,
-                // we can use the Keywords match type directly
-                let mut field_condition = FieldCondition::default();
-                field_condition.key = "path".to_string();
-                field_condition.r#match = Some(Match {
-                    match_value: Some(r#match::MatchValue::Keywords(RepeatedStrings {
-                        strings: paths.clone(),
-                    })),
-                });
+            && !paths.is_empty()
+        {
+            // Since we're only dealing with absolute paths without glob patterns,
+            // we can use the Keywords match type directly
+            let mut field_condition = FieldCondition::default();
+            field_condition.key = "path".to_string();
+            field_condition.r#match = Some(Match {
+                match_value: Some(r#match::MatchValue::Keywords(RepeatedStrings {
+                    strings: paths.clone(),
+                })),
+            });
 
-                let mut condition = Condition::default();
-                condition.condition_one_of =
-                    Some(condition::ConditionOneOf::Field(field_condition));
+            let mut condition = Condition::default();
+            condition.condition_one_of = Some(condition::ConditionOneOf::Field(field_condition));
 
-                filter_conditions.push(condition);
-            }
+            filter_conditions.push(condition);
+        }
 
         if filter_conditions.is_empty() {
             None
