@@ -43,6 +43,7 @@ mod tool_usage;
 mod top_k;
 mod top_p;
 mod workflow;
+mod wrap;
 
 pub use agent::*;
 pub use api::*;
@@ -87,3 +88,4 @@ pub use top_k::*;
 pub use top_p::*;
 pub use update::*;
 pub use workflow::*;
+pub use wrap::*;
