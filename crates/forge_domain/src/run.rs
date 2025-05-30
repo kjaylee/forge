@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::{DateTime, Local};
 use derive_setters::Setters;
 use serde_json::Value;
@@ -8,23 +10,21 @@ use crate::{Result, *};
 #[derive(Debug, Clone, Setters)]
 pub struct Run {
     agent: Agent,
+    env: Environment,
     context: Context,
     current_time: DateTime<Local>,
     models: Vec<Model>,
     tool_definitions: Vec<ToolDefinition>,
+    files: Vec<String>,
     current_event: Option<Event>,
+    variables: HashMap<String, Value>,
 }
 
 type SignalResult = Result<WrappedSignal>;
 type WrappedSignal = Wrap<Signal>;
 
 impl Run {
-    pub fn new(
-        agent: Agent,
-        models: Vec<Model>,
-        tool_definitions: Vec<ToolDefinition>,
-        current_time: DateTime<Local>,
-    ) -> Self {
+    pub fn new(agent: Agent, env: Environment, current_time: DateTime<Local>) -> Self {
         let mut context = Context::default();
         if let Some(top_k) = agent.top_k {
             context = context.top_k(top_k);
@@ -38,10 +38,13 @@ impl Run {
         Self {
             agent,
             context,
-            models,
+            models: Default::default(),
             current_time,
-            tool_definitions,
-            current_event: None,
+            tool_definitions: Default::default(),
+            env,
+            current_event: Default::default(),
+            files: Default::default(),
+            variables: Default::default(),
         }
     }
 
@@ -78,7 +81,29 @@ impl Run {
             .ok()
     }
 
+    fn tool_information(&self) -> Result<String> {
+        Ok("[NO TOOL INFORMATION]".to_string())
+    }
+
     fn set_system_prompt(&mut self) -> SignalResult {
+        let _ = SystemContext {
+            current_time: self
+                .current_time
+                .format("%Y-%m-%d %H:%M:%S %:z")
+                .to_string(),
+            env: Some(self.env.clone()),
+            tool_information: Some(self.tool_information()?),
+            tool_supported: self.tool_supported()?,
+            files: self.files.clone(),
+            custom_rules: self
+                .agent
+                .custom_rules
+                .as_ref()
+                .cloned()
+                .unwrap_or_default(),
+            variables: self.variables.clone(),
+        };
+
         // TODO: Implement system prompt setting
         Ok(Wrap::default())
     }
@@ -239,13 +264,30 @@ mod tests {
     use crate::agent::Agent;
     use crate::model::{Model, ModelId};
 
+    impl Default for Environment {
+        fn default() -> Self {
+            use url::Url;
+            Self {
+                os: Default::default(),
+                pid: Default::default(),
+                cwd: Default::default(),
+                home: Default::default(),
+                shell: Default::default(),
+                base_path: Default::default(),
+                provider: Provider::OpenAI {
+                    url: Url::parse("https://api.openai.com/v1/").unwrap(),
+                    key: Some("-key-".to_string()),
+                },
+                retry_config: Default::default(),
+            }
+        }
+    }
+
     #[test]
     fn test_run_new() {
         let agent = Agent::new("my-agent").temperature(0.5).top_k(10).top_p(0.9);
-        let models = vec![];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time);
         assert_eq!(run.agent.id.as_str(), "my-agent");
         assert!(run.context.messages.is_empty());
         assert!(run.models.is_empty());
@@ -259,9 +301,8 @@ mod tests {
         // Test case 1: Agent has model that exists and supports tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-4o"));
         let models = vec![Model::new(ModelId::new("gpt-4o")).tools_supported(true)];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time).models(models);
         assert_eq!(run.tool_supported().unwrap(), true);
     }
 
@@ -270,9 +311,8 @@ mod tests {
         // Test case 2: Agent has model that exists but doesn't support tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-3.5-turbo"));
         let models = vec![Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false)];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time).models(models);
         assert_eq!(run.tool_supported().unwrap(), false);
     }
 
@@ -281,9 +321,8 @@ mod tests {
         // Test case 3: Agent has model that exists but has null tools_supported
         let agent = Agent::new("test-agent").model(ModelId::new("forge-test-model"));
         let models = vec![Model::new(ModelId::new("forge-test-model"))];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time).models(models);
         assert_eq!(run.tool_supported().unwrap(), false);
     }
 
@@ -292,9 +331,8 @@ mod tests {
         // Test case 4: Agent has model that is not found in the models collection
         let agent = Agent::new("test-agent").model(ModelId::new("nonexistent-model"));
         let models = vec![Model::new(ModelId::new("different-model")).tools_supported(true)];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time).models(models);
         let result = run.tool_supported();
         let Error::ModelNotFound(model_id) = result.unwrap_err() else {
             panic!("Expected ModelNotFound error")
@@ -307,9 +345,8 @@ mod tests {
         // Test case 5: Agent has no model specified
         let agent = Agent::new("test-agent"); // No model set
         let models = vec![Model::new(ModelId::new("some-model")).tools_supported(true)];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time).models(models);
         let result = run.tool_supported();
         let Error::MissingModel(agent_id) = result.unwrap_err() else {
             panic!("Expected MissingModel error")
@@ -319,10 +356,10 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_sets_values() {
-        let agent = Agent::new("test-agent");
-        let mut run = Run::new(agent, vec![], vec![], Local::now());
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
+        let mut run = Run::new(agent, Environment::default(), Local::now());
 
-        let models = vec![Model::new(ModelId::new("test-model"))];
+        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = vec![ToolDefinition::new("test-tool")];
         let current_time = Local::now();
         let event = Event::new("test-event", serde_json::json!({}));
@@ -341,10 +378,10 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_returns_chat_signal() {
-        let agent = Agent::new("test-agent");
-        let mut run = Run::new(agent, Default::default(), Default::default(), Local::now());
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
+        let mut run = Run::new(agent, Environment::default(), Local::now());
 
-        let models = Default::default();
+        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = Default::default();
         let current_time = Local::now();
         let event = Event::new("test-event", Value::Null);
@@ -369,9 +406,8 @@ mod tests {
             Model::new(ModelId::new("model-2")).tools_supported(true),
             Model::new(ModelId::new("model-3")).tools_supported(false),
         ];
-        let tool_definitions = vec![];
         let current_time = Local::now();
-        let run = Run::new(agent, models, tool_definitions, current_time);
+        let run = Run::new(agent, Environment::default(), current_time).models(models);
         assert_eq!(run.tool_supported().unwrap(), true);
     }
 
@@ -380,13 +416,13 @@ mod tests {
         // Test case 1: Agent with no tools specified should result in empty context
         // tools
         let agent = Agent::new("test-agent");
-        let models = vec![];
         let tool_definitions = vec![
             ToolDefinition::new("tool1").description("Tool 1"),
             ToolDefinition::new("tool2").description("Tool 2"),
         ];
         let current_time = Local::now();
-        let mut run = Run::new(agent, models, tool_definitions, current_time);
+        let mut run = Run::new(agent, Environment::default(), current_time)
+            .tool_definitions(tool_definitions);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -398,14 +434,14 @@ mod tests {
         // Test case 2: Agent with specific tools should filter tool definitions
         let agent =
             Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
-        let models = vec![];
         let tool_definitions = vec![
             ToolDefinition::new("tool1").description("Tool 1"),
             ToolDefinition::new("tool2").description("Tool 2"),
             ToolDefinition::new("tool3").description("Tool 3"),
         ];
         let current_time = Local::now();
-        let mut run = Run::new(agent, models, tool_definitions, current_time);
+        let mut run = Run::new(agent, Environment::default(), current_time)
+            .tool_definitions(tool_definitions);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -426,13 +462,13 @@ mod tests {
     fn test_set_tools_agent_with_nonexistent_tool_returns_error() {
         // Test case 3: Agent with tools that don't match any tool definitions
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("nonexistent_tool")]);
-        let models = vec![];
         let tool_definitions = vec![
             ToolDefinition::new("tool1").description("Tool 1"),
             ToolDefinition::new("tool2").description("Tool 2"),
         ];
         let current_time = Local::now();
-        let mut run = Run::new(agent, models, tool_definitions, current_time);
+        let mut run = Run::new(agent, Environment::default(), current_time)
+            .tool_definitions(tool_definitions);
 
         let result = run.set_tools();
         assert!(result.is_err());
@@ -446,13 +482,13 @@ mod tests {
     fn test_set_tools_agent_with_missing_tool_definition_returns_error() {
         // Test case 4: Agent with tool that doesn't exist in tool definitions
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("missing_tool")]);
-        let models = vec![];
         let tool_definitions = vec![
             ToolDefinition::new("tool1").description("Tool 1"),
             ToolDefinition::new("tool2").description("Tool 2"),
         ];
         let current_time = Local::now();
-        let mut run = Run::new(agent, models, tool_definitions, current_time);
+        let mut run = Run::new(agent, Environment::default(), current_time)
+            .tool_definitions(tool_definitions);
 
         let result = run.set_tools();
         assert!(result.is_err());
