@@ -1,20 +1,23 @@
 use chrono::{DateTime, Local};
+use derive_setters::Setters;
 use serde_json::Value;
 
 use crate::{Result, *};
 
 /// The `Run` struct represents a run of the agent with its context.
+#[derive(Debug, Clone, Setters)]
 pub struct Run {
-    pub agent: Agent,
-    pub context: Context,
-    pub current_time: DateTime<Local>,
-    pub models: Vec<Model>,
+    agent: Agent,
+    context: Context,
+    current_time: DateTime<Local>,
+    models: Vec<Model>,
+    tool_definitions: Vec<ToolDefinition>,
 }
 
 type SignalResult = Result<Signal>;
 
 impl Run {
-    pub fn new(agent: Agent, models: Vec<Model>) -> Self {
+    pub fn new(agent: Agent) -> Self {
         let mut context = Context::default();
         if let Some(top_k) = agent.top_k {
             context = context.top_k(top_k);
@@ -25,7 +28,13 @@ impl Run {
         if let Some(top_p) = agent.top_p {
             context = context.top_p(top_p);
         }
-        Self { agent, models, context, current_time: Local::now() }
+        Self {
+            agent,
+            context,
+            models: Default::default(),
+            current_time: Local::now(),
+            tool_definitions: Default::default(),
+        }
     }
 
     pub fn update(&mut self, event: Action) -> SignalResult {
@@ -38,7 +47,7 @@ impl Run {
                 Ok(Signal::default())
             }
             Action::Message(message) => {
-                self.collect_message(message?)?;
+                self.collect_message(message)?;
                 Ok(Signal::default())
             }
         }
@@ -94,7 +103,7 @@ impl Run {
 
 pub enum Action {
     Initialize(Event),
-    Message(anyhow::Result<ChatCompletionMessage>),
+    Message(ChatCompletionMessage),
 }
 
 #[derive(Default)]
@@ -120,7 +129,7 @@ mod tests {
     #[test]
     fn test_run_new() {
         let agent = Agent::new("my-agent").temperature(0.5).top_k(10).top_p(0.9);
-        let run = Run::new(agent, vec![]);
+        let run = Run::new(agent);
         assert_eq!(run.agent.id.as_str(), "my-agent");
         assert!(run.context.messages.is_empty());
         assert!(run.models.is_empty());
@@ -133,26 +142,28 @@ mod tests {
     fn test_run_tool_supported() {
         // Test case 1: Agent has model that exists and supports tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-4o"));
-        let model = Model::new(ModelId::new("gpt-4o")).tools_supported(true);
-        let run = Run::new(agent, vec![model]);
+        let run = Run::new(agent).models(vec![
+            Model::new(ModelId::new("gpt-4o")).tools_supported(true)
+        ]);
         assert_eq!(run.tool_supported().unwrap(), true);
 
         // Test case 2: Agent has model that exists but doesn't support tools
         let agent = Agent::new("test-agent").model(ModelId::new("gpt-3.5-turbo"));
-        let model = Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false);
-        let run = Run::new(agent, vec![model]);
+        let run = Run::new(agent).models(vec![
+            Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false)
+        ]);
         assert_eq!(run.tool_supported().unwrap(), false);
 
         // Test case 3: Agent has model that exists but has null tools_supported
         let agent = Agent::new("test-agent").model(ModelId::new("forge-test-model"));
-        let model = Model::new(ModelId::new("forge-test-model"));
-        let run = Run::new(agent, vec![model]);
+        let run = Run::new(agent).models(vec![Model::new(ModelId::new("forge-test-model"))]);
         assert_eq!(run.tool_supported().unwrap(), false);
 
         // Test case 4: Agent has model that is not found in the models collection
         let agent = Agent::new("test-agent").model(ModelId::new("nonexistent-model"));
-        let model = Model::new(ModelId::new("different-model")).tools_supported(true);
-        let run = Run::new(agent, vec![model]);
+        let run = Run::new(agent).models(vec![
+            Model::new(ModelId::new("different-model")).tools_supported(true)
+        ]);
         let result = run.tool_supported();
         let Error::ModelNotFound(model_id) = result.unwrap_err() else {
             panic!("Expected ModelNotFound error")
@@ -161,8 +172,9 @@ mod tests {
 
         // Test case 5: Agent has no model specified
         let agent = Agent::new("test-agent"); // No model set
-        let model = Model::new(ModelId::new("some-model")).tools_supported(true);
-        let run = Run::new(agent, vec![model]);
+        let run = Run::new(agent).models(vec![
+            Model::new(ModelId::new("some-model")).tools_supported(true)
+        ]);
         let result = run.tool_supported();
         let Error::MissingModel(agent_id) = result.unwrap_err() else {
             panic!("Expected MissingModel error")
@@ -171,12 +183,11 @@ mod tests {
 
         // Test case 6: Multiple models in collection, correct one is found
         let agent = Agent::new("test-agent").model(ModelId::new("model-2"));
-        let models = vec![
+        let run = Run::new(agent).models(vec![
             Model::new(ModelId::new("model-1")).tools_supported(false),
             Model::new(ModelId::new("model-2")).tools_supported(true),
             Model::new(ModelId::new("model-3")).tools_supported(false),
-        ];
-        let run = Run::new(agent, models);
+        ]);
         assert_eq!(run.tool_supported().unwrap(), true);
     }
 }
