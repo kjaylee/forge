@@ -66,7 +66,8 @@ pub struct CodebaseSearchInput {
     ///Glob patterns for directories to search over
     pub target_directories: Option<Vec<String>>,
 
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -86,7 +87,8 @@ pub struct FSReadInput {
     /// will end at this character position.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_char: Option<u64>,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -108,7 +110,8 @@ pub struct FSWriteInput {
     #[serde(default)]
     #[serde(skip_serializing_if = "is_default")]
     pub overwrite: bool,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -131,7 +134,8 @@ pub struct FSSearchInput {
     /// If not provided, it will search all files (*).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_pattern: Option<String>,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -141,7 +145,8 @@ pub struct FSSearchInput {
 pub struct FSRemoveInput {
     /// The path of the file to remove (absolute path required)
     pub path: String,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -182,7 +187,8 @@ pub struct FSPatchInput {
     /// prepend/append, or target text for swap operations)
     pub content: String,
 
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -210,7 +216,8 @@ pub struct ShellInput {
     #[serde(skip_serializing_if = "is_default")]
     pub keep_ansi: bool,
 
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -267,7 +274,8 @@ pub struct AttemptCompletionInput {
     /// questions or offers for further assistance.
     pub result: String,
 
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -283,7 +291,8 @@ pub struct FetchInput {
     /// Get raw content without any markdown conversion (default: false)
     #[serde(default = "default_raw")]
     pub raw: Option<bool>,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -295,7 +304,8 @@ pub struct FSListInput {
     /// Whether to list files recursively. Use true for recursive listing, false
     /// or omit for top-level only.
     pub recursive: Option<bool>,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -304,7 +314,8 @@ pub struct FSListInput {
 pub struct FSFileInfoInput {
     /// The path of the file or directory to inspect (absolute path required)
     pub path: String,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -317,7 +328,8 @@ pub struct UndoInput {
     /// original path it had before deletion. The system requires a prior
     /// snapshot for this path.
     pub path: String,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
@@ -347,7 +359,8 @@ pub struct SelectInput {
     /// option can be selected
     #[schemars(default)]
     pub multiple: Option<bool>,
-    /// One sentence explanation as to why this tool is being used, and how it contributes to the goal.
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
 }
