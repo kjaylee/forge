@@ -15,7 +15,8 @@ pub struct Run {
     current_event: Option<Event>,
 }
 
-type SignalResult = Result<Signal>;
+type SignalResult = Result<WrappedSignal>;
+type WrappedSignal = Wrap<Signal>;
 
 impl Run {
     pub fn new(
@@ -59,7 +60,7 @@ impl Run {
         models: Vec<Model>,
         tool_definitions: Vec<ToolDefinition>,
         current_time: DateTime<Local>,
-    ) -> std::result::Result<Signal, Error> {
+    ) -> std::result::Result<WrappedSignal, Error> {
         // Set the values from the Initialize action
         self.models = models;
         self.tool_definitions = tool_definitions;
@@ -70,12 +71,16 @@ impl Run {
             .and(self.set_tools()?)
             .and(self.add_user_message(&event.value)?)
             .and(self.add_user_attachments(&event.value)?)
+            .and(Wrap::new(Signal::Chat {
+                agent: Box::new(self.agent.clone()),
+                context: self.context.clone(),
+            }))
             .ok()
     }
 
     fn set_system_prompt(&mut self) -> SignalResult {
         // TODO: Implement system prompt setting
-        Ok(Signal::default())
+        Ok(Wrap::empty())
     }
 
     fn set_tools(&mut self) -> SignalResult {
@@ -85,7 +90,7 @@ impl Run {
             None => {
                 // No tools specified, clear any existing tools in context
                 self.context.tools.clear();
-                return Ok(Signal::default());
+                return Ok(Wrap::empty());
             }
         };
 
@@ -108,22 +113,22 @@ impl Run {
         // Set the tools in the context (in-place mutation)
         self.context.tools = filtered_tools;
 
-        Ok(Signal::default())
+        Ok(Wrap::empty())
     }
 
     fn add_user_message(&mut self, _message: &Value) -> SignalResult {
         // TODO: Implement user message addition
-        Ok(Signal::default())
+        Ok(Wrap::empty())
     }
 
     fn add_user_attachments(&mut self, _message: &Value) -> SignalResult {
         // TODO: Implement user attachments addition
-        Ok(Signal::default())
+        Ok(Wrap::empty())
     }
 
     fn on_message(&mut self, _message: ChatCompletionMessage) -> SignalResult {
         // TODO: Implement message handling
-        Ok(Signal::default())
+        Ok(Wrap::empty())
     }
     /// Returns whether tools are supported for the agent's model
     ///
@@ -164,7 +169,8 @@ pub enum Action {
     Message(ChatCompletionMessage),
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
+/// Pure signal types without composition logic
 pub enum Signal {
     #[default]
     Continue,
@@ -173,16 +179,85 @@ pub enum Signal {
         agent: Box<Agent>,
         context: Context,
     },
-    And(Box<Signal>, Box<Signal>),
 }
 
-impl Signal {
-    pub fn and(self, other: Signal) -> Self {
-        Signal::And(Box::new(self), Box::new(other))
+/// Monoid-like wrapper for composing signals using Vec
+#[derive(Debug, Clone)]
+pub struct Wrap<A> {
+    items: Vec<A>,
+}
+
+impl<A: Default> Default for Wrap<A> {
+    fn default() -> Self {
+        Wrap { items: vec![A::default()] }
+    }
+}
+
+impl<A> Wrap<A> {
+    /// Monoid binary operation - combines two wrapped values by concatenation
+    pub fn and(mut self, other: Wrap<A>) -> Self {
+        self.items.extend(other.items);
+        self
     }
 
+    /// Wraps a single value
+    pub fn new(value: A) -> Self {
+        Wrap { items: vec![value] }
+    }
+
+    /// Monoid identity - empty collection
+    pub fn empty() -> Self {
+        Wrap { items: Vec::new() }
+    }
+
+    /// Create from a vector of items
+    pub fn from_vec(items: Vec<A>) -> Self {
+        Wrap { items }
+    }
+
+    /// Get the items as a slice
+    pub fn as_slice(&self) -> &[A] {
+        &self.items
+    }
+
+    /// Check if empty
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    /// Get the number of items
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+}
+
+impl<A> Wrap<A> {
+    /// Converts to Result (convenience method)
     pub fn ok(self) -> Result<Self> {
         Ok(self)
+    }
+
+    /// Returns an iterator over all values in this wrapper
+    pub fn iter(&self) -> std::slice::Iter<A> {
+        self.items.iter()
+    }
+}
+
+impl<A> IntoIterator for Wrap<A> {
+    type Item = A;
+    type IntoIter = std::vec::IntoIter<A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
+}
+
+impl<'a, A> IntoIterator for &'a Wrap<A> {
+    type Item = &'a A;
+    type IntoIter = std::slice::Iter<'a, A>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -293,6 +368,27 @@ mod tests {
         assert_eq!(run.tool_definitions.len(), 1);
         assert!(run.current_event.is_some());
         assert_eq!(run.current_event.unwrap().name, "test-event");
+    }
+
+    #[test]
+    fn test_update_initialize_action_returns_chat_signal() {
+        let agent = Agent::new("test-agent");
+        let mut run = Run::new(agent, Default::default(), Default::default(), Local::now());
+
+        let models = Default::default();
+        let tool_definitions = Default::default();
+        let current_time = Local::now();
+        let event = Event::new("test-event", Value::Null);
+
+        let action = Action::Initialize { event, models, tool_definitions, current_time };
+
+        let result = run.update(action);
+
+        assert!(result.is_ok());
+        let signal = result.unwrap();
+
+        // Verify that the signal contains a Chat signal
+        assert!(signal.iter().any(|s| matches!(s, Signal::Chat { .. })));
     }
 
     #[test]
