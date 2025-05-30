@@ -60,7 +60,7 @@ impl Default
         let cache_dir = format!("{}:{}", embedding_model.replace("/", "-"), embedding_dims);
         let cache_path = std::env::current_dir()
             .expect("failed to retrive current working directory.")
-            .join(PathBuf::from(format!("./cache/embeddings/{}", cache_dir)));
+            .join(PathBuf::from(format!("./.cache/embeddings/{}", cache_dir)));
 
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::try_new(embedding_model, max_tokens_supported)

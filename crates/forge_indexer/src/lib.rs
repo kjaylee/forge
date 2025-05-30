@@ -17,7 +17,10 @@ mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
-    use crate::{CachedEmbedder, FileLoader, HnswStore, OpenAI, Orchestrator, TreeSitterChunker};
+    use crate::{
+        CachedEmbedder, FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions,
+        TreeSitterChunker,
+    };
 
     #[tokio::test]
     async fn test_indexer() {
@@ -33,7 +36,7 @@ mod tests {
         );
         let cache_path = std::env::current_dir()
             .expect("failed to retrive current working directory.")
-            .join(PathBuf::from(format!("./cache/embeddings/{}", cache_dir)));
+            .join(PathBuf::from(format!("./.cache/embeddings/{}", cache_dir)));
 
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::try_new(embedding_model, 8192).unwrap();
@@ -52,5 +55,13 @@ mod tests {
             Arc::new(hnsw_store),
         );
         let _ = indexer.index(Path::new("/Users/ranjit/Desktop/workspace/code-forge/code-forge/crates/forge_main/src/prompt.rs")).await.unwrap();
+
+        let query = "change the usage token indicator on right side of cli from ~ to * and also update the same in info command display";
+        let result = indexer
+            .query::<serde_json::Value>(query, QueryOptions::default())
+            .await
+            .unwrap();
+        assert!(!result.is_empty());
+        assert_eq!(result.len(), 10)
     }
 }
