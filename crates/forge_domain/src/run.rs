@@ -12,6 +12,7 @@ pub struct Run {
     current_time: DateTime<Local>,
     models: Vec<Model>,
     tool_definitions: Vec<ToolDefinition>,
+    current_event: Option<Event>,
 }
 
 type SignalResult = Result<Signal>;
@@ -33,27 +34,48 @@ impl Run {
         if let Some(top_p) = agent.top_p {
             context = context.top_p(top_p);
         }
-        Self { agent, context, models, current_time, tool_definitions }
+        Self {
+            agent,
+            context,
+            models,
+            current_time,
+            tool_definitions,
+            current_event: None,
+        }
     }
 
-    pub fn update(&mut self, event: Action) -> SignalResult {
-        match event {
-            Action::Initialize(event) => self.on_init(event),
+    pub fn update(&mut self, action: Action) -> SignalResult {
+        match action {
+            Action::Initialize { event, models, tool_definitions, current_time } => {
+                self.on_init(event, models, tool_definitions, current_time)
+            }
             Action::Message(message) => self.on_message(message),
         }
     }
 
-    fn on_init(&mut self, event: Event) -> std::result::Result<Signal, Error> {
+    fn on_init(
+        &mut self,
+        event: Event,
+        models: Vec<Model>,
+        tool_definitions: Vec<ToolDefinition>,
+        current_time: DateTime<Local>,
+    ) -> std::result::Result<Signal, Error> {
+        // Set the values from the Initialize action
+        self.models = models;
+        self.tool_definitions = tool_definitions;
+        self.current_time = current_time;
+        self.current_event = Some(event.clone());
+
         self.set_system_prompt()?
             .and(self.set_tools()?)
-            .and(self.add_user_message(&event.value)?)
             .and(self.add_user_message(&event.value)?)
             .and(self.add_user_attachments(&event.value)?)
             .ok()
     }
 
     fn set_system_prompt(&mut self) -> SignalResult {
-        todo!()
+        // TODO: Implement system prompt setting
+        Ok(Signal::default())
     }
 
     fn set_tools(&mut self) -> SignalResult {
@@ -90,15 +112,18 @@ impl Run {
     }
 
     fn add_user_message(&mut self, _message: &Value) -> SignalResult {
-        todo!()
+        // TODO: Implement user message addition
+        Ok(Signal::default())
     }
 
     fn add_user_attachments(&mut self, _message: &Value) -> SignalResult {
-        todo!()
+        // TODO: Implement user attachments addition
+        Ok(Signal::default())
     }
 
     fn on_message(&mut self, _message: ChatCompletionMessage) -> SignalResult {
-        todo!()
+        // TODO: Implement message handling
+        Ok(Signal::default())
     }
     /// Returns whether tools are supported for the agent's model
     ///
@@ -130,7 +155,12 @@ impl Run {
 }
 
 pub enum Action {
-    Initialize(Event),
+    Initialize {
+        event: Event,
+        models: Vec<Model>,
+        tool_definitions: Vec<ToolDefinition>,
+        current_time: DateTime<Local>,
+    },
     Message(ChatCompletionMessage),
 }
 
@@ -241,6 +271,47 @@ mod tests {
             panic!("Expected MissingModel error")
         };
         assert_eq!(agent_id.as_str(), "test-agent");
+    }
+
+    #[test]
+    fn test_update_initialize_action_sets_values() {
+        // Test that the Initialize action properly sets models, tool_definitions,
+        // current_time, and event
+        let agent = Agent::new("test-agent");
+        let initial_models = vec![];
+        let initial_tool_definitions = vec![];
+        let initial_current_time = Local::now();
+        let mut run = Run::new(
+            agent,
+            initial_models,
+            initial_tool_definitions,
+            initial_current_time,
+        );
+
+        // Create new values for the Initialize action
+        let new_models = vec![Model::new(ModelId::new("new-model")).tools_supported(true)];
+        let new_tool_definitions = vec![ToolDefinition::new("new-tool").description("New Tool")];
+        let new_current_time = Local::now();
+        let event = Event::new("test-event", serde_json::json!({"key": "value"}));
+
+        let action = Action::Initialize {
+            event: event.clone(),
+            models: new_models.clone(),
+            tool_definitions: new_tool_definitions.clone(),
+            current_time: new_current_time,
+        };
+
+        let result = run.update(action);
+        assert!(result.is_ok());
+
+        // Verify that the values were set correctly
+        assert_eq!(run.models.len(), 1);
+        assert_eq!(run.models[0].id.as_str(), "new-model");
+        assert_eq!(run.tool_definitions.len(), 1);
+        assert_eq!(run.tool_definitions[0].name.as_str(), "new-tool");
+        assert_eq!(run.current_time, new_current_time);
+        assert!(run.current_event.is_some());
+        assert_eq!(run.current_event.as_ref().unwrap().name, "test-event");
     }
 
     #[test]
