@@ -1,7 +1,5 @@
-use async_openai::{
-    config::OpenAIConfig,
-    types::{CreateEmbeddingRequest, EmbeddingInput},
-};
+use async_openai::config::OpenAIConfig;
+use async_openai::types::{CreateEmbeddingRequest, EmbeddingInput};
 use tracing::info;
 
 use super::{Embedder, EmbedderInput, EmbedderOutput};

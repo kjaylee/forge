@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 #[async_trait::async_trait]
 pub trait Cache {
