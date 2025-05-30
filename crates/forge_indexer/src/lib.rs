@@ -18,7 +18,7 @@ mod tests {
     use std::sync::Arc;
 
     use crate::{
-        CachedEmbedder, FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions,
+        CachedEmbedder, DiskCache, FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions,
         TreeSitterChunker,
     };
 
@@ -39,18 +39,22 @@ mod tests {
 
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::try_new(embedding_model, 8192).unwrap();
-        let embedder = OpenAI::cached(&cache_path, embedding_model, embedding_dimensions).unwrap();
+        let embedder = OpenAI::new(embedding_model, embedding_dimensions);
+        let cache: DiskCache<String, Vec<f32>> = DiskCache::try_new(cache_path).unwrap();
+        let embedding_cache =
+            CachedEmbedder::new(embedder, cache, embedding_model, embedding_dimensions);
+
         let hnsw_store = HnswStore::new(embedding_dimensions as usize);
 
         let indexer: Orchestrator<
             FileLoader,
             TreeSitterChunker,
-            CachedEmbedder<OpenAI>,
+            CachedEmbedder<OpenAI, DiskCache<String, Vec<f32>>>,
             HnswStore<'_>,
         > = Orchestrator::new(
             Arc::new(loader),
             Arc::new(chunker),
-            Arc::new(embedder),
+            Arc::new(embedding_cache),
             Arc::new(hnsw_store),
         );
 

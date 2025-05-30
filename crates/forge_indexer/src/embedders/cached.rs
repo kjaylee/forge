@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Result;
 use tracing::info;
 
@@ -7,28 +5,18 @@ use super::{Cache, Embedder, EmbedderInput, EmbedderOutput};
 
 /// A wrapper that adds caching capabilities to any embedder
 #[derive(Clone)]
-pub struct CachedEmbedder<E> {
+pub struct CachedEmbedder<E, C> {
     embedder: E,
-    cache: Cache,
+    cache: C,
     model: String,
     dims: u32,
 }
 
-impl<E> CachedEmbedder<E> {
+impl<E, C> CachedEmbedder<E, C> {
     /// Create a new cached embedder
-    pub fn try_new(
-        cache_path: &Path,
-        embedder: E,
-        model_name: impl Into<String>,
-        dims: u32,
-    ) -> Result<Self> {
+    pub fn new(embedder: E, cache: C, model_name: impl Into<String>, dims: u32) -> Self {
         let model_name = model_name.into();
-        Ok(Self {
-            embedder,
-            cache: Cache::try_from(cache_path.to_path_buf())?,
-            model: model_name,
-            dims,
-        })
+        Self { embedder, cache, model: model_name, dims }
     }
 
     /// Generate a cache key for a given model, dimensions, and content hash
@@ -38,9 +26,10 @@ impl<E> CachedEmbedder<E> {
 }
 
 #[async_trait::async_trait]
-impl<E> Embedder for CachedEmbedder<E>
+impl<E, C> Embedder for CachedEmbedder<E, C>
 where
     E: Embedder + Send + Sync,
+    C: Cache<Key = String, Value = Vec<f32>> + Send + Sync,
 {
     async fn embed<T>(&self, inputs: Vec<EmbedderInput<T>>) -> Result<Vec<EmbedderOutput>>
     where
@@ -62,12 +51,12 @@ where
         // Check which inputs are already cached
         for (i, block) in inputs.iter().enumerate() {
             let cache_key = self.generate_key(&block.hash());
-            match self.cache.get(&cache_key).await {
-                Some(embeddings) => {
+            match self.cache.get(cache_key).await {
+                Ok(Some(embeddings)) => {
                     cache_hits += 1;
                     result.insert(i, Some(EmbedderOutput { embeddings }));
                 }
-                None => {
+                _ => {
                     uncached.push((i, block));
                 }
             }
@@ -90,7 +79,10 @@ where
                 uncached_embeddings.into_iter().zip(uncached.into_iter())
             {
                 let cache_key = self.generate_key(&block.hash());
-                let _ = self.cache.put(&cache_key, &embeddings.embeddings).await;
+                let _ = self
+                    .cache
+                    .put(cache_key, embeddings.embeddings.clone())
+                    .await;
                 result.insert(position, Some(embeddings));
             }
         }

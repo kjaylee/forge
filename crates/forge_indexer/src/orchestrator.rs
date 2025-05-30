@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::chunkers::Chunker;
 use crate::embedders::Embedder;
 use crate::loaders::Loader;
-use crate::{CachedEmbedder, EmbedderInput, Store, StoreInput};
+use crate::{CachedEmbedder, DiskCache, EmbedderInput, Store, StoreInput};
 
 impl From<&forge_treesitter::Block> for EmbedderInput<String> {
     fn from(block: &forge_treesitter::Block) -> Self {
@@ -52,7 +52,12 @@ pub struct Orchestrator<L: Loader, C: Chunker, E: Embedder, S: Store> {
 
 use crate::{FileLoader, HnswStore, OpenAI, QueryOptions, QueryOutput, TreeSitterChunker};
 impl Default
-    for Orchestrator<FileLoader, TreeSitterChunker, CachedEmbedder<OpenAI>, HnswStore<'_>>
+    for Orchestrator<
+        FileLoader,
+        TreeSitterChunker,
+        CachedEmbedder<OpenAI, DiskCache<String, Vec<f32>>>,
+        HnswStore<'_>,
+    >
 {
     fn default() -> Self {
         let embedding_model = "text-embedding-3-large";
@@ -67,14 +72,17 @@ impl Default
         let loader = FileLoader::default();
         let chunker = TreeSitterChunker::try_new(embedding_model, max_tokens_supported)
             .expect("failed to create chunker");
-        let embedder = OpenAI::cached(&cache_path, embedding_model, embedding_dims)
-            .expect("failed to create embedder");
+
+        let embedder = OpenAI::new(embedding_model, embedding_dims);
+        let cache: DiskCache<String, Vec<f32>> = DiskCache::try_new(cache_path).unwrap();
+        let embedding_cache = CachedEmbedder::new(embedder, cache, embedding_model, embedding_dims);
+
         let store = HnswStore::new(embedding_dims as usize);
 
         Self {
             loader: Arc::new(loader),
             chunker: Arc::new(chunker),
-            embedder: Arc::new(embedder),
+            embedder: Arc::new(embedding_cache),
             store: Arc::new(store),
         }
     }

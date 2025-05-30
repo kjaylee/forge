@@ -2,14 +2,22 @@ use std::path::Path;
 use std::sync::Arc;
 
 use forge_indexer::{
-    CachedEmbedder, FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions, TreeSitterChunker,
+    CachedEmbedder, DiskCache, FileLoader, HnswStore, OpenAI, Orchestrator, QueryOptions,
+    TreeSitterChunker,
 };
 use forge_services::IndexerService;
 use serde::de::DeserializeOwned;
 
 #[derive(Default, Clone)]
 pub struct ForgeCodeIndex(
-    Arc<Orchestrator<FileLoader, TreeSitterChunker, CachedEmbedder<OpenAI>, HnswStore<'static>>>,
+    Arc<
+        Orchestrator<
+            FileLoader,
+            TreeSitterChunker,
+            CachedEmbedder<OpenAI, DiskCache<String, Vec<f32>>>,
+            HnswStore<'static>,
+        >,
+    >,
 );
 
 #[async_trait::async_trait]

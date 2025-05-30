@@ -1,34 +1,57 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
+use serde::{Serialize, de::DeserializeOwned};
 
-/// A cache for storing and retrieving
+#[async_trait::async_trait]
+pub trait Cache {
+    type Key;
+    type Value;
+    async fn get(&self, key: Self::Key) -> anyhow::Result<Option<Self::Value>>
+    where
+        Self: Send + Sync;
+    async fn put(&self, key: Self::Key, value: Self::Value) -> anyhow::Result<()>
+    where
+        Self: Send + Sync;
+}
+
+/// A cache for storing and retrieving embeddings on disk using cacache
 #[derive(Clone)]
-pub struct Cache {
+pub struct DiskCache<K, V> {
     path: PathBuf,
+    _key: std::marker::PhantomData<K>,
+    _value: std::marker::PhantomData<V>,
 }
 
-impl TryFrom<PathBuf> for Cache {
-    type Error = anyhow::Error;
-    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+impl<K, V> DiskCache<K, V> {
+    pub fn try_new(path: PathBuf) -> anyhow::Result<Self> {
         std::fs::create_dir_all(&path).context("failed to create cache directory")?;
-        Ok(Self { path })
+        Ok(Self {
+            path,
+            _key: std::marker::PhantomData,
+            _value: std::marker::PhantomData,
+        })
     }
 }
 
-impl Cache {
-    /// Retrieve embeddings from the cache
-    pub async fn get(&self, cache_key: &str) -> Option<Vec<f32>> {
-        cacache::read(&self.path, cache_key)
-            .await
-            .map(|cached_bytes| bytemuck::cast_slice(&cached_bytes).to_vec())
-            .ok()
+#[async_trait::async_trait]
+impl<K, T> Cache for DiskCache<K, T>
+where
+    K: ToString + Send + Sync,
+    T: Serialize + DeserializeOwned + Send + Sync,
+{
+    type Key = K;
+    type Value = T;
+
+    async fn get(&self, key: K) -> anyhow::Result<Option<T>> {
+        let bytes = cacache::read(&self.path, &key.to_string()).await?;
+        let data: T = serde_json::from_slice(&bytes)?;
+        Ok(Some(data))
     }
 
-    /// Store embeddings in the cache
-    pub async fn put(&self, cache_key: &str, cache_value: &[f32]) -> anyhow::Result<()> {
-        let bytes: Vec<u8> = bytemuck::cast_slice(cache_value).to_vec();
-        cacache::write(&self.path, cache_key, &bytes).await?;
+    async fn put(&self, key: K, value: T) -> anyhow::Result<()> {
+        let bytes = serde_json::to_vec(&value)?;
+        cacache::write(&self.path, &key.to_string(), bytes).await?;
         Ok(())
     }
 }
