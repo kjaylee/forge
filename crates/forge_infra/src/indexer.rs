@@ -9,17 +9,12 @@ use forge_services::IndexerService;
 use reqwest::Url;
 use serde::de::DeserializeOwned;
 
+type EmeddingProvider = CachedEmbedder<OpenAI, DiskCache<String, Vec<f32>>>;
+type CodeIndexingEngine =
+    Orchestrator<FileLoader, TreeSitterChunker, EmeddingProvider, HnswStore<'static>>;
+
 #[derive(Clone)]
-pub struct ForgeCodeIndex(
-    Arc<
-        Orchestrator<
-            FileLoader,
-            TreeSitterChunker,
-            CachedEmbedder<OpenAI, DiskCache<String, Vec<f32>>>,
-            HnswStore<'static>,
-        >,
-    >,
-);
+pub struct ForgeCodeIndex(Arc<CodeIndexingEngine>);
 
 impl ForgeCodeIndex {
     pub fn new(cwd: &Path, provide_url: Url, provider_key: String) -> Self {
