@@ -80,7 +80,7 @@ impl Run {
 
     fn set_system_prompt(&mut self) -> SignalResult {
         // TODO: Implement system prompt setting
-        Ok(Wrap::empty())
+        Ok(Wrap::default())
     }
 
     fn set_tools(&mut self) -> SignalResult {
@@ -90,7 +90,7 @@ impl Run {
             None => {
                 // No tools specified, clear any existing tools in context
                 self.context.tools.clear();
-                return Ok(Wrap::empty());
+                return Ok(Wrap::default());
             }
         };
 
@@ -113,22 +113,22 @@ impl Run {
         // Set the tools in the context (in-place mutation)
         self.context.tools = filtered_tools;
 
-        Ok(Wrap::empty())
+        Ok(Wrap::default())
     }
 
     fn add_user_message(&mut self, _message: &Value) -> SignalResult {
         // TODO: Implement user message addition
-        Ok(Wrap::empty())
+        Ok(Wrap::default())
     }
 
     fn add_user_attachments(&mut self, _message: &Value) -> SignalResult {
         // TODO: Implement user attachments addition
-        Ok(Wrap::empty())
+        Ok(Wrap::default())
     }
 
     fn on_message(&mut self, _message: ChatCompletionMessage) -> SignalResult {
         // TODO: Implement message handling
-        Ok(Wrap::empty())
+        Ok(Wrap::default())
     }
     /// Returns whether tools are supported for the agent's model
     ///
@@ -182,15 +182,9 @@ pub enum Signal {
 }
 
 /// Monoid-like wrapper for composing signals using Vec
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Wrap<A> {
     items: Vec<A>,
-}
-
-impl<A: Default> Default for Wrap<A> {
-    fn default() -> Self {
-        Wrap { items: vec![A::default()] }
-    }
 }
 
 impl<A> Wrap<A> {
@@ -203,31 +197,6 @@ impl<A> Wrap<A> {
     /// Wraps a single value
     pub fn new(value: A) -> Self {
         Wrap { items: vec![value] }
-    }
-
-    /// Monoid identity - empty collection
-    pub fn empty() -> Self {
-        Wrap { items: Vec::new() }
-    }
-
-    /// Create from a vector of items
-    pub fn from_vec(items: Vec<A>) -> Self {
-        Wrap { items }
-    }
-
-    /// Get the items as a slice
-    pub fn as_slice(&self) -> &[A] {
-        &self.items
-    }
-
-    /// Check if empty
-    pub fn is_empty(&self) -> bool {
-        self.items.is_empty()
-    }
-
-    /// Get the number of items
-    pub fn len(&self) -> usize {
-        self.items.len()
     }
 }
 
