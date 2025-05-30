@@ -33,21 +33,9 @@ impl<F: Infrastructure> NamedTool for CodebaseSearch<F> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Location {
-    column: usize,
-    line: usize,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
 struct Offset {
     start: usize,
     end: usize,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct Span {
-    start: Location,
-    end: Location,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -67,17 +55,19 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         context
-            .send_text(TitleFormat::debug(match input.target_directories {
-                Some(dir) => {
-                    format!(
-                        "Codebase Search for '{}' in directories {:#?}",
-                        input.query, dir
-                    )
-                }
-                None => {
-                    format!("Codebase Search for '{}'", input.query)
-                }
-            }))
+            .send_text(TitleFormat::debug(
+                match input.target_directories.as_ref() {
+                    Some(dir) => {
+                        format!(
+                            "Codebase Search for '{}' in directories {:#?}",
+                            input.query, dir
+                        )
+                    }
+                    None => {
+                        format!("Codebase Search for '{}'", input.query)
+                    }
+                },
+            ))
             .await?;
 
         let results = self
@@ -87,7 +77,7 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
             .await?;
 
         if results.is_empty() {
-            return Ok(ToolOutput::text("No semantic searches found, try either changing the query or narrowing the search space".into()));
+            return Ok(ToolOutput::text("No semantic searches found, try either changing the query or narrowing the search space".into()).is_error(true));
         };
 
         let mut code_snippets = String::new();
@@ -123,6 +113,14 @@ impl<F: Infrastructure> ExecutableTool for CodebaseSearch<F> {
             code_snippets.push('\n');
         }
 
-        Ok(ToolOutput::text(code_snippets))
+        let target_directories = match input.target_directories.as_ref() {
+            Some(dirs) => format!(" target_directories=\"{}\"", dirs.join(",")),
+            None => String::new(),
+        };
+
+        Ok(ToolOutput::text(format!(
+            "<semantic_search query=\"{}\"{}>\n{}\n</semantic_search>",
+            input.query, target_directories, code_snippets
+        )))
     }
 }
