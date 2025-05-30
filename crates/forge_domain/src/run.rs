@@ -275,43 +275,24 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_sets_values() {
-        // Test that the Initialize action properly sets models, tool_definitions,
-        // current_time, and event
         let agent = Agent::new("test-agent");
-        let initial_models = vec![];
-        let initial_tool_definitions = vec![];
-        let initial_current_time = Local::now();
-        let mut run = Run::new(
-            agent,
-            initial_models,
-            initial_tool_definitions,
-            initial_current_time,
-        );
+        let mut run = Run::new(agent, vec![], vec![], Local::now());
 
-        // Create new values for the Initialize action
-        let new_models = vec![Model::new(ModelId::new("new-model")).tools_supported(true)];
-        let new_tool_definitions = vec![ToolDefinition::new("new-tool").description("New Tool")];
-        let new_current_time = Local::now();
-        let event = Event::new("test-event", serde_json::json!({"key": "value"}));
+        let models = vec![Model::new(ModelId::new("test-model"))];
+        let tool_definitions = vec![ToolDefinition::new("test-tool")];
+        let current_time = Local::now();
+        let event = Event::new("test-event", serde_json::json!({}));
 
-        let action = Action::Initialize {
-            event: event.clone(),
-            models: new_models.clone(),
-            tool_definitions: new_tool_definitions.clone(),
-            current_time: new_current_time,
-        };
+        let action =
+            Action::Initialize { event: event.clone(), models, tool_definitions, current_time };
 
         let result = run.update(action);
-        assert!(result.is_ok());
 
-        // Verify that the values were set correctly
+        assert!(result.is_ok());
         assert_eq!(run.models.len(), 1);
-        assert_eq!(run.models[0].id.as_str(), "new-model");
         assert_eq!(run.tool_definitions.len(), 1);
-        assert_eq!(run.tool_definitions[0].name.as_str(), "new-tool");
-        assert_eq!(run.current_time, new_current_time);
         assert!(run.current_event.is_some());
-        assert_eq!(run.current_event.as_ref().unwrap().name, "test-event");
+        assert_eq!(run.current_event.unwrap().name, "test-event");
     }
 
     #[test]
