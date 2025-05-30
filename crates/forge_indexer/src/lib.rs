@@ -26,7 +26,7 @@ mod tests {
     async fn test_indexer() {
         dotenv::dotenv().ok();
 
-        let embedding_model = "text-embedding-3-large";
+        let embedding_model = "text-embedding-3-small";
         let embedding_dimensions = 1536;
 
         let cache_dir = format!(
@@ -58,17 +58,14 @@ mod tests {
             Arc::new(hnsw_store),
         );
 
-        let _ = indexer
-            .index(&cwd.join("../forge_main/src/prompt.rs"))
-            .await
-            .unwrap();
+        let _ = indexer.index(&cwd.join("src/lib.rs")).await.unwrap();
 
-        let query = "change the usage token indicator on right side of cli from ~ to * and also update the same in info command display";
+        let query = "In indexer test, what's embedding provider being used?";
         let result = indexer
             .query::<serde_json::Value>(query, QueryOptions::default())
             .await
             .unwrap();
         assert!(!result.is_empty());
-        assert_eq!(result.len(), 10)
+        assert_eq!(result.len(), 1)
     }
 }
