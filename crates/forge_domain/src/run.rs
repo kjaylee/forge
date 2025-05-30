@@ -74,10 +74,10 @@ impl Run {
             .and(self.set_tools()?)
             .and(self.add_user_message(&event.value)?)
             .and(self.add_user_attachments(&event.value)?)
-            .and(Wrap::new(Signal::Chat {
+            .and(Signal::Chat {
                 agent: Box::new(self.agent.clone()),
                 context: self.context.clone(),
-            }))
+            })
             .ok()
     }
 
@@ -214,8 +214,8 @@ pub struct Wrap<A> {
 
 impl<A> Wrap<A> {
     /// Monoid binary operation - combines two wrapped values by concatenation
-    pub fn and(mut self, other: Wrap<A>) -> Self {
-        self.items.extend(other.items);
+    pub fn and(mut self, other: impl Into<Wrap<A>>) -> Self {
+        self.items.extend(other.into().items);
         self
     }
 
@@ -243,6 +243,12 @@ impl<A> IntoIterator for Wrap<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.items.into_iter()
+    }
+}
+
+impl<A> From<A> for Wrap<A> {
+    fn from(value: A) -> Self {
+        Wrap::new(value)
     }
 }
 
