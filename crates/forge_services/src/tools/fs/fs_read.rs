@@ -49,7 +49,7 @@ pub fn assert_valid_range(start_char: u64, end_char: u64) -> anyhow::Result<()> 
 /// extracts text from PDF and DOCX files, preserving the original formatting.
 /// Returns the content as a string. For files larger than 40,000 characters,
 /// the tool automatically returns only the first 40,000 characters. You should
-/// generally rely on this default behavior and avoid specifying custom ranges
+/// always rely on this default behavior and avoid specifying custom ranges
 /// unless absolutely necessary. If needed, specify a range with the start_char
 /// and end_char parameters, ensuring the total range does not exceed 40,000
 /// characters. Specifying a range exceeding this limit will result in an error.
