@@ -53,11 +53,15 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .expect("conversation for the request should've been created at this point.");
 
         let tool_definitions = app.tool_service().list().await?;
+        let models = app.provider_service().models().await?;
 
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
 
-            let orch = Orchestrator::new(app, conversation, Some(tx.clone()), tool_definitions);
+            let orch = Orchestrator::new(app, conversation)
+                .sender(tx.clone())
+                .tool_definitions(tool_definitions)
+                .models(models);
 
             if let Err(err) = orch.dispatch(chat.event).await {
                 if let Err(e) = tx.send(Err(err)).await {

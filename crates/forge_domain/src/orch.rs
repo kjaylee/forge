@@ -6,6 +6,7 @@ use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
+use derive_setters::Setters;
 use forge_walker::Walker;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
@@ -52,13 +53,15 @@ impl<T> AgentMessage<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Setters)]
+#[setters(into, strip_option)]
 pub struct Orchestrator<Services> {
     services: Arc<Services>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
     environment: Environment,
     tool_definitions: Vec<ToolDefinition>,
+    models: Vec<Model>,
 }
 
 struct ChatCompletionResult {
@@ -68,23 +71,19 @@ struct ChatCompletionResult {
 }
 
 impl<A: Services> Orchestrator<A> {
-    pub fn new(
-        services: Arc<A>,
-        mut conversation: Conversation,
-        sender: Option<ArcSender>,
-        tool_definitions: Vec<ToolDefinition>,
-    ) -> Self {
+    pub fn new(services: Arc<A>, mut conversation: Conversation) -> Self {
         // since self is a new request, we clear the queue
         conversation.state.values_mut().for_each(|state| {
             state.queue.clear();
         });
 
         Self {
-            sender,
+            sender: Default::default(),
             conversation: Arc::new(RwLock::new(conversation)),
             environment: services.environment_service().get_environment(),
             services,
-            tool_definitions,
+            tool_definitions: Default::default(),
+            models: Default::default(),
         }
     }
 
@@ -158,6 +157,11 @@ impl<A: Services> Orchestrator<A> {
             .collect())
     }
 
+    /// Get model by ID from stored models
+    fn get_model(&self, model_id: &ModelId) -> Option<&Model> {
+        self.models.iter().find(|model| &model.id == model_id)
+    }
+
     // Returns if agent supports tool or not.
     async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
         let model_id = agent
@@ -171,7 +175,7 @@ impl<A: Services> Orchestrator<A> {
             None => {
                 // If not defined at agent level, check model level
 
-                let model = self.services.provider_service().model(model_id).await?;
+                let model = self.get_model(model_id);
                 model
                     .and_then(|model| model.tools_supported)
                     .unwrap_or_default()
