@@ -151,7 +151,14 @@ impl Run {
             Signal::RenderUser {
                 prompt: user_prompt.clone(),
                 context: Box::new(
-                    EventContext::new(event.clone()).variables(self.variables.clone()),
+                    EventContext::new(event.clone())
+                        .suggestions(vec![]) // TODO: Add actual suggestions
+                        .variables(self.variables.clone())
+                        .current_time(
+                            self.current_time
+                                .format("%Y-%m-%d %H:%M:%S %:z")
+                                .to_string(),
+                        ),
                 ),
             }
             .wrap()
@@ -313,37 +320,20 @@ mod tests {
         }
     }
 
-    impl Run {
-        /// Creates a test fixture with comprehensive defaults for testing
-        fn fixture() -> Self {
-            let agent = Agent::new("test-agent")
+    impl Agent {
+        fn default_test() -> Self {
+            Agent::new("test-agent")
                 .model(ModelId::new("test-model"))
                 .user_prompt(Template::new("Hello {{event.value}}"))
-                .tools(vec![ToolName::new("test-tool")]);
-
-            let models = vec![
-                Model::new(ModelId::new("test-model")).tools_supported(true),
-                Model::new(ModelId::new("gpt-4o")).tools_supported(true),
-                Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false),
-            ];
-
-            let tool_definitions = vec![
-                ToolDefinition::new("test-tool").description("Test Tool"),
-                ToolDefinition::new("tool1").description("Tool 1"),
-                ToolDefinition::new("tool2").description("Tool 2"),
-                ToolDefinition::new("tool3").description("Tool 3"),
-            ];
-
-            let env = Environment::default();
-            let current_time = Local::now();
-
-            Run::new(agent, env, current_time)
-                .models(models)
-                .tool_definitions(tool_definitions)
+                .tools(vec![ToolName::new("test-tool")])
         }
+    }
 
-        /// Creates a test fixture with a custom agent
-        fn fixture_with_agent(agent: Agent) -> Self {
+    impl Run {
+        /// Creates a test fixture with comprehensive defaults for testing
+        fn default_test() -> Self {
+            let agent = Agent::default_test();
+
             let models = vec![
                 Model::new(ModelId::new("test-model")).tools_supported(true),
                 Model::new(ModelId::new("gpt-4o")).tools_supported(true),
@@ -382,40 +372,38 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_that_supports_tools() {
         // Test case 1: Agent has model that exists and supports tools
-        let agent = Agent::new("test-agent").model(ModelId::new("gpt-4o"));
-        let models = vec![Model::new(ModelId::new("gpt-4o")).tools_supported(true)];
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time).models(models);
+        let run = Run::default_test();
+        // Default agent has "test-model" which supports tools by default
         assert_eq!(run.tool_supported().unwrap(), true);
     }
 
     #[test]
     fn test_tool_supported_agent_with_model_that_does_not_support_tools() {
         // Test case 2: Agent has model that exists but doesn't support tools
-        let agent = Agent::new("test-agent").model(ModelId::new("gpt-3.5-turbo"));
-        let models = vec![Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false)];
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time).models(models);
+        let mut run = Run::default_test();
+        // Use gpt-3.5-turbo which is already in default models and doesn't support
+        // tools
+        run.agent.model = Some(ModelId::new("gpt-3.5-turbo"));
         assert_eq!(run.tool_supported().unwrap(), false);
     }
 
     #[test]
     fn test_tool_supported_agent_with_model_null_tools_supported() {
         // Test case 3: Agent has model that exists but has null tools_supported
-        let agent = Agent::new("test-agent").model(ModelId::new("forge-test-model"));
-        let models = vec![Model::new(ModelId::new("forge-test-model"))];
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time).models(models);
+        let mut run = Run::default_test();
+        // Add a model with null tools_supported and use it
+        run.models
+            .push(Model::new(ModelId::new("forge-test-model")));
+        run.agent.model = Some(ModelId::new("forge-test-model"));
         assert_eq!(run.tool_supported().unwrap(), false);
     }
 
     #[test]
     fn test_tool_supported_agent_with_model_not_found() {
         // Test case 4: Agent has model that is not found in the models collection
-        let agent = Agent::new("test-agent").model(ModelId::new("nonexistent-model"));
-        let models = vec![Model::new(ModelId::new("different-model")).tools_supported(true)];
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time).models(models);
+        let mut run = Run::default_test();
+        // Set agent model to one that doesn't exist in the models collection
+        run.agent.model = Some(ModelId::new("nonexistent-model"));
         let result = run.tool_supported();
         let Error::ModelNotFound(model_id) = result.unwrap_err() else {
             panic!("Expected ModelNotFound error")
@@ -426,10 +414,9 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_no_model_specified() {
         // Test case 5: Agent has no model specified
-        let agent = Agent::new("test-agent"); // No model set
-        let models = vec![Model::new(ModelId::new("some-model")).tools_supported(true)];
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time).models(models);
+        let mut run = Run::default_test();
+        // Remove the model from the default agent
+        run.agent.model = None;
         let result = run.tool_supported();
         let Error::MissingModel(agent_id) = result.unwrap_err() else {
             panic!("Expected MissingModel error")
@@ -440,7 +427,7 @@ mod tests {
     #[test]
     fn test_update_initialize_action_sets_values() {
         let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
-        let mut run = Run::new(agent, Environment::default(), Local::now());
+        let mut run = Run::default_test().agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = vec![ToolDefinition::new("test-tool")];
@@ -460,7 +447,7 @@ mod tests {
     #[test]
     fn test_update_initialize_action_returns_chat_signal() {
         let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
-        let mut run = Run::new(agent, Environment::default(), Local::now());
+        let mut run = Run::default_test().agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = Default::default();
@@ -481,14 +468,9 @@ mod tests {
     #[test]
     fn test_tool_supported_multiple_models_correct_one_found() {
         // Test case 6: Multiple models in collection, correct one is found
-        let agent = Agent::new("test-agent").model(ModelId::new("model-2"));
-        let models = vec![
-            Model::new(ModelId::new("model-1")).tools_supported(false),
-            Model::new(ModelId::new("model-2")).tools_supported(true),
-            Model::new(ModelId::new("model-3")).tools_supported(false),
-        ];
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time).models(models);
+        let mut run = Run::default_test();
+        // Use gpt-4o which is already in default models and supports tools
+        run.agent.model = Some(ModelId::new("gpt-4o"));
         assert_eq!(run.tool_supported().unwrap(), true);
     }
 
@@ -497,7 +479,7 @@ mod tests {
         // Test case 1: Agent with no tools specified should result in empty context
         // tools
         let agent = Agent::new("test-agent"); // Agent without tools
-        let mut run = Run::fixture_with_agent(agent);
+        let mut run = Run::default_test().agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -509,7 +491,7 @@ mod tests {
         // Test case 2: Agent with specific tools should filter tool definitions
         let agent =
             Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
-        let mut run = Run::fixture_with_agent(agent);
+        let mut run = Run::default_test().agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -528,15 +510,8 @@ mod tests {
 
     #[test]
     fn test_set_tools_agent_with_nonexistent_tool_returns_error() {
-        // Test case 3: Agent with tools that don't match any tool definitions
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("nonexistent_tool")]);
-        let tool_definitions = vec![
-            ToolDefinition::new("tool1").description("Tool 1"),
-            ToolDefinition::new("tool2").description("Tool 2"),
-        ];
-        let current_time = Local::now();
-        let mut run = Run::new(agent, Environment::default(), current_time)
-            .tool_definitions(tool_definitions);
+        let mut run = Run::default_test().agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_err());
@@ -548,15 +523,8 @@ mod tests {
 
     #[test]
     fn test_set_tools_agent_with_missing_tool_definition_returns_error() {
-        // Test case 4: Agent with tool that doesn't exist in tool definitions
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("missing_tool")]);
-        let tool_definitions = vec![
-            ToolDefinition::new("tool1").description("Tool 1"),
-            ToolDefinition::new("tool2").description("Tool 2"),
-        ];
-        let current_time = Local::now();
-        let mut run = Run::new(agent, Environment::default(), current_time)
-            .tool_definitions(tool_definitions);
+        let mut run = Run::default_test().agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_err());
@@ -568,8 +536,8 @@ mod tests {
 
     #[test]
     fn test_update_with_system_render_action_stores_content() {
-        let fixture = Agent::new("test-agent");
-        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let _fixture = Agent::new("test-agent");
+        let mut run = Run::default_test();
         let action = Action::SystemRender { content: "Rendered system prompt content".to_string() };
 
         let actual = run.update(action).unwrap();
@@ -589,8 +557,8 @@ mod tests {
 
     #[test]
     fn test_update_with_system_render_action_overwrites_previous_content() {
-        let fixture = Agent::new("test-agent");
-        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let _fixture = Agent::new("test-agent");
+        let mut run = Run::default_test();
 
         // Set initial content
         let first_action = Action::SystemRender { content: "First content".to_string() };
@@ -615,8 +583,8 @@ mod tests {
 
     #[test]
     fn test_update_with_user_render_action_stores_content() {
-        let fixture = Agent::new("test-agent");
-        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let _fixture = Agent::new("test-agent");
+        let mut run = Run::default_test();
         let action = Action::UserRender { content: "Rendered user prompt content".to_string() };
 
         let actual = run.update(action).unwrap();
@@ -636,8 +604,8 @@ mod tests {
 
     #[test]
     fn test_update_with_user_render_action_empty_content_does_nothing() {
-        let fixture = Agent::new("test-agent");
-        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let _fixture = Agent::new("test-agent");
+        let mut run = Run::default_test();
         let action = Action::UserRender { content: "".to_string() };
 
         let actual = run.update(action).unwrap();
@@ -651,8 +619,8 @@ mod tests {
 
     #[test]
     fn test_update_with_user_render_action_adds_to_existing_messages() {
-        let fixture = Agent::new("test-agent");
-        let mut run = Run::new(fixture, Environment::default(), Local::now());
+        let _fixture = Agent::new("test-agent");
+        let mut run = Run::default_test();
 
         // Add a system message first
         let system_action = Action::SystemRender { content: "System content".to_string() };
@@ -686,7 +654,7 @@ mod tests {
     #[test]
     fn test_set_user_prompt_with_user_prompt_returns_render_user_signal() {
         let event = Event::new("test-event", serde_json::json!("world"));
-        let mut run = Run::fixture(); // Uses default user_prompt
+        let mut run = Run::default_test(); // Uses default user_prompt
 
         let actual = run.render_user_prompt(&event).unwrap();
 
@@ -704,7 +672,7 @@ mod tests {
     fn test_set_user_prompt_without_user_prompt_returns_continue_signal() {
         let event = Event::new("test-event", serde_json::json!("world"));
         let agent = Agent::new("test-agent"); // Agent without user_prompt
-        let mut run = Run::fixture_with_agent(agent);
+        let mut run = Run::default_test().agent(agent);
 
         let actual = run.render_user_prompt(&event).unwrap();
 
@@ -721,8 +689,9 @@ mod tests {
             ("variable1".to_string(), serde_json::json!("value1")),
             ("variable2".to_string(), serde_json::json!("value2")),
         ]);
-        let mut run =
-            Run::new(agent, Environment::default(), Local::now()).variables(variables.clone());
+        let mut run = Run::default_test()
+            .agent(agent)
+            .variables(variables.clone());
 
         let actual = run.render_user_prompt(&event).unwrap();
 
@@ -739,8 +708,8 @@ mod tests {
 
     #[test]
     fn test_add_user_message_content_with_content() {
-        let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
-        let mut run = Run::new(agent, Environment::default(), Local::now());
+        let _agent = Agent::new("test-agent").model(ModelId::new("test-model"));
+        let mut run = Run::default_test();
 
         let _ = run.on_render_user_message("Test user message".to_string());
 
@@ -756,7 +725,7 @@ mod tests {
 
     #[test]
     fn test_add_user_message_content_with_empty_content() {
-        let mut run = Run::fixture();
+        let mut run = Run::default_test();
 
         let _ = run.on_render_user_message("".to_string());
 
@@ -769,7 +738,7 @@ mod tests {
         let agent = Agent::new("test-agent")
             .model(ModelId::new("test-model"))
             .user_prompt(user_prompt);
-        let mut run = Run::new(agent, Environment::default(), Local::now());
+        let mut run = Run::default_test().agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = Default::default();
