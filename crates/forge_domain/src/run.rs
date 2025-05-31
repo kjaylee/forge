@@ -372,7 +372,7 @@ mod tests {
             Agent::new("test-agent")
                 .model(ModelId::new("test-model"))
                 .user_prompt(Template::new("Hello {{event.value}}"))
-                .tools(vec![ToolName::new("test-tool")])
+            // No tools by default
         }
     }
 
@@ -387,6 +387,18 @@ mod tests {
                 Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false),
             ];
 
+            let env = Environment::default();
+            let current_time = Local::now();
+
+            Run::new(agent, env, current_time)
+                .models(models)
+                .tool_definitions(vec![]) // No tool definitions by default
+                .suggestions(vec![])
+                .attachments(vec![])
+        }
+
+        /// Adds default tool definitions to the test fixture
+        fn with_default_tool_definitions(mut self) -> Self {
             let tool_definitions = vec![
                 ToolDefinition::new("test-tool").description("Test Tool"),
                 ToolDefinition::new("tool1").description("Tool 1"),
@@ -394,14 +406,8 @@ mod tests {
                 ToolDefinition::new("tool3").description("Tool 3"),
             ];
 
-            let env = Environment::default();
-            let current_time = Local::now();
-
-            Run::new(agent, env, current_time)
-                .models(models)
-                .tool_definitions(tool_definitions)
-                .suggestions(vec![])
-                .attachments(vec![])
+            self.tool_definitions = tool_definitions;
+            self
         }
     }
 
@@ -421,7 +427,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_that_supports_tools() {
         // Test case 1: Agent has model that exists and supports tools
-        let run = Run::default_test();
+        let run = Run::default_test().with_default_tool_definitions();
         // Default agent has "test-model" which supports tools by default
         assert_eq!(run.tool_supported().unwrap(), true);
     }
@@ -429,7 +435,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_that_does_not_support_tools() {
         // Test case 2: Agent has model that exists but doesn't support tools
-        let mut run = Run::default_test();
+        let mut run = Run::default_test().with_default_tool_definitions();
         // Use gpt-3.5-turbo which is already in default models and doesn't support
         // tools
         run.agent.model = Some(ModelId::new("gpt-3.5-turbo"));
@@ -439,7 +445,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_null_tools_supported() {
         // Test case 3: Agent has model that exists but has null tools_supported
-        let mut run = Run::default_test();
+        let mut run = Run::default_test().with_default_tool_definitions();
         // Add a model with null tools_supported and use it
         run.models
             .push(Model::new(ModelId::new("forge-test-model")));
@@ -450,7 +456,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_not_found() {
         // Test case 4: Agent has model that is not found in the models collection
-        let mut run = Run::default_test();
+        let mut run = Run::default_test().with_default_tool_definitions();
         // Set agent model to one that doesn't exist in the models collection
         run.agent.model = Some(ModelId::new("nonexistent-model"));
         let result = run.tool_supported();
@@ -463,7 +469,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_no_model_specified() {
         // Test case 5: Agent has no model specified
-        let mut run = Run::default_test();
+        let mut run = Run::default_test().with_default_tool_definitions();
         // Remove the model from the default agent
         run.agent.model = None;
         let result = run.tool_supported();
@@ -475,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_sets_values() {
-        let mut run = Run::default_test();
+        let mut run = Run::default_test().with_default_tool_definitions();
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = vec![ToolDefinition::new("test-tool")];
@@ -525,7 +531,7 @@ mod tests {
     #[test]
     fn test_tool_supported_multiple_models_correct_one_found() {
         // Test case 6: Multiple models in collection, correct one is found
-        let mut run = Run::default_test();
+        let mut run = Run::default_test().with_default_tool_definitions();
         // Use gpt-4o which is already in default models and supports tools
         run.agent.model = Some(ModelId::new("gpt-4o"));
         assert_eq!(run.tool_supported().unwrap(), true);
@@ -545,7 +551,9 @@ mod tests {
     fn test_set_tools_agent_with_specific_tools_filters_definitions() {
         let agent =
             Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
-        let mut run = Run::default_test().agent(agent);
+        let mut run = Run::default_test()
+            .with_default_tool_definitions()
+            .agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -565,7 +573,9 @@ mod tests {
     #[test]
     fn test_set_tools_agent_with_nonexistent_tool_returns_error() {
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("nonexistent_tool")]);
-        let mut run = Run::default_test().agent(agent);
+        let mut run = Run::default_test()
+            .with_default_tool_definitions()
+            .agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_err());
@@ -578,7 +588,9 @@ mod tests {
     #[test]
     fn test_set_tools_agent_with_missing_tool_definition_returns_error() {
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("missing_tool")]);
-        let mut run = Run::default_test().agent(agent);
+        let mut run = Run::default_test()
+            .with_default_tool_definitions()
+            .agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_err());
@@ -785,11 +797,14 @@ mod tests {
         let user_prompt = Template::new("Hello {{event.value}}");
         let agent = Agent::new("test-agent")
             .model(ModelId::new("test-model"))
-            .user_prompt(user_prompt);
-        let mut run = Run::default_test().agent(agent);
+            .user_prompt(user_prompt)
+            .tools(vec![ToolName::new("test-tool")]);
+        let mut run = Run::default_test()
+            .with_default_tool_definitions()
+            .agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
-        let tool_definitions = vec![];
+        let tool_definitions = vec![ToolDefinition::new("test-tool")];
         let current_time = Local::now();
         let event = Event::new("test-event", serde_json::json!("world"));
 
