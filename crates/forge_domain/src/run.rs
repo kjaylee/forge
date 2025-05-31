@@ -250,26 +250,19 @@ impl Run {
     }
 
     fn add_user_attachments(&mut self, _message: &Value) -> SignalResult {
-        // Add attachments to the context if any exist
+        // Process attachments efficiently without cloning context
         for attachment in &self.attachments {
-            match &attachment.content {
-                AttachmentContent::Image(image) => {
-                    // Add image attachment to context
-                    self.context = self
-                        .context
-                        .clone()
-                        .add_message(ContextMessage::Image(image.clone()));
-                }
+            let message = match &attachment.content {
+                AttachmentContent::Image(image) => ContextMessage::Image(image.clone()),
                 AttachmentContent::FileContent(content) => {
-                    // Add file content as a user message with path information
+                    // Include file path information for better context
                     let message_content = format!("File: {}\n\n{}", attachment.path, content);
-                    self.context = self.context.clone().add_message(ContextMessage::user(
-                        message_content,
-                        self.agent.model.clone(),
-                    ));
+                    ContextMessage::user(message_content, self.agent.model.clone())
                 }
-            }
+            };
+            self.context.messages.push(message);
         }
+
         Ok(Wrap::default())
     }
 
@@ -342,6 +335,7 @@ impl Signal {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_yaml_snapshot;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -557,17 +551,7 @@ mod tests {
 
         let result = run.set_tools();
         assert!(result.is_ok());
-        assert_eq!(run.context.tools.len(), 2);
-
-        let tool_names: Vec<&str> = run
-            .context
-            .tools
-            .iter()
-            .map(|tool| tool.name.as_str())
-            .collect();
-        assert!(tool_names.contains(&"tool1"));
-        assert!(tool_names.contains(&"tool3"));
-        assert!(!tool_names.contains(&"tool2"));
+        assert_yaml_snapshot!(run.context);
     }
 
     #[test]
@@ -610,15 +594,7 @@ mod tests {
 
         assert_eq!(actual.items.len(), 1);
         assert!(matches!(actual.items[0], Signal::Continue));
-
-        // Check that the system message was set as the first message
-        assert_eq!(run.context.messages.len(), 1);
-        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
-            assert_eq!(message.role, Role::System);
-            assert_eq!(message.content, "Rendered system prompt content");
-        } else {
-            panic!("Expected first message to be a text message with system role");
-        }
+        assert_yaml_snapshot!(run.context);
     }
 
     #[test]
@@ -939,15 +915,7 @@ mod tests {
         let result = run.add_user_attachments(&serde_json::json!({}));
 
         assert!(result.is_ok());
-        assert_eq!(run.context.messages.len(), 1);
-
-        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
-            assert_eq!(message.role, Role::User);
-            assert_eq!(message.content, "File: /path/to/file.txt\n\nHello, world!");
-            assert_eq!(message.model, Some(ModelId::new("test-model")));
-        } else {
-            panic!("Expected file content to be added as user message");
-        }
+        assert_yaml_snapshot!(run.context);
     }
 
     #[test]
@@ -964,13 +932,7 @@ mod tests {
         let result = run.add_user_attachments(&serde_json::json!({}));
 
         assert!(result.is_ok());
-        assert_eq!(run.context.messages.len(), 1);
-
-        if let Some(ContextMessage::Image(image_content)) = run.context.messages.first() {
-            assert_eq!(image_content, &image);
-        } else {
-            panic!("Expected image to be added as image message");
-        }
+        assert_yaml_snapshot!(run.context);
     }
 
     #[test]
@@ -993,22 +955,7 @@ mod tests {
         let result = run.add_user_attachments(&serde_json::json!({}));
 
         assert!(result.is_ok());
-        assert_eq!(run.context.messages.len(), 2);
-
-        // First message should be file content
-        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
-            assert_eq!(message.role, Role::User);
-            assert_eq!(message.content, "File: /path/to/file.txt\n\nFile content");
-        } else {
-            panic!("Expected first message to be file content");
-        }
-
-        // Second message should be image
-        if let Some(ContextMessage::Image(image_content)) = run.context.messages.get(1) {
-            assert_eq!(image_content, &image);
-        } else {
-            panic!("Expected second message to be image");
-        }
+        assert_yaml_snapshot!(run.context);
     }
 
     #[test]

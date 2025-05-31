@@ -1,0 +1,8 @@
+---
+source: crates/forge_domain/src/run.rs
+expression: run.context
+---
+messages:
+  - image:
+      url: "data:image/png;base64,base64data"
+      mime_type: image/png

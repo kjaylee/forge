@@ -1,0 +1,19 @@
+---
+source: crates/forge_domain/src/run.rs
+expression: run.context
+---
+tools:
+  - name: tool1
+    description: Tool 1
+    input_schema:
+      $schema: "http://json-schema.org/draft-07/schema#"
+      title: "Null"
+      type: "null"
+    output_schema: ~
+  - name: tool3
+    description: Tool 3
+    input_schema:
+      $schema: "http://json-schema.org/draft-07/schema#"
+      title: "Null"
+      type: "null"
+    output_schema: ~

@@ -1,0 +1,13 @@
+---
+source: crates/forge_domain/src/run.rs
+expression: run.context
+---
+messages:
+  - text:
+      role: User
+      content: "File: /path/to/file.txt\n\nFile content"
+      tool_calls: ~
+      model: test-model
+  - image:
+      url: "data:image/png;base64,base64data"
+      mime_type: image/png

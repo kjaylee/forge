@@ -1,0 +1,10 @@
+---
+source: crates/forge_domain/src/run.rs
+expression: run.context
+---
+messages:
+  - text:
+      role: System
+      content: Rendered system prompt content
+      tool_calls: ~
+      model: ~

@@ -1,0 +1,10 @@
+---
+source: crates/forge_domain/src/run.rs
+expression: run.context
+---
+messages:
+  - text:
+      role: User
+      content: "File: /path/to/file.txt\n\nHello, world!"
+      tool_calls: ~
+      model: test-model
