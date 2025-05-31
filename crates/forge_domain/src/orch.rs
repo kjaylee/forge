@@ -58,6 +58,7 @@ pub struct Orchestrator<Services> {
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
     environment: Environment,
+    tool_definitions: Vec<ToolDefinition>,
 }
 
 struct ChatCompletionResult {
@@ -71,6 +72,7 @@ impl<A: Services> Orchestrator<A> {
         services: Arc<A>,
         mut conversation: Conversation,
         sender: Option<ArcSender>,
+        tool_definitions: Vec<ToolDefinition>,
     ) -> Self {
         // since self is a new request, we clear the queue
         conversation.state.values_mut().for_each(|state| {
@@ -82,6 +84,7 @@ impl<A: Services> Orchestrator<A> {
             conversation: Arc::new(RwLock::new(conversation)),
             environment: services.environment_service().get_environment(),
             services,
+            tool_definitions,
         }
     }
 
@@ -148,12 +151,10 @@ impl<A: Services> Orchestrator<A> {
     async fn get_allowed_tools(&self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
         let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
         Ok(self
-            .services
-            .tool_service()
-            .list()
-            .await?
-            .into_iter()
+            .tool_definitions
+            .iter()
             .filter(|tool| allowed.contains(&tool.name))
+            .cloned()
             .collect())
     }
 
