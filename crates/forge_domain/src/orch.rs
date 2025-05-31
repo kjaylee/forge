@@ -377,18 +377,6 @@ impl<A: Services> Orchestrator<A> {
 
         Ok(())
     }
-    async fn sync_conversation(&self) -> anyhow::Result<()> {
-        let conversation = self.conversation.read().await.clone();
-        self.services
-            .conversation_service()
-            .upsert(conversation)
-            .await?;
-        Ok(())
-    }
-
-    async fn get_conversation(&self) -> anyhow::Result<Conversation> {
-        Ok(self.conversation.read().await.clone())
-    }
 
     async fn complete_turn(&self, agent_id: &AgentId) -> anyhow::Result<()> {
         let mut conversation = self.conversation.write().await;
@@ -434,7 +422,7 @@ impl<A: Services> Orchestrator<A> {
 
     // Create a helper method with the core functionality
     async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
-        let conversation = self.get_conversation().await?;
+        let conversation = self.conversation.read().await.clone();
         let variables = &conversation.variables;
         debug!(
             conversation_id = %conversation.id,
@@ -590,11 +578,9 @@ impl<A: Services> Orchestrator<A> {
 
             // Update context in the conversation
             self.set_context(&agent.id, context.clone()).await?;
-            self.sync_conversation().await?;
         }
 
         self.complete_turn(&agent.id).await?;
-        self.sync_conversation().await?;
 
         Ok(())
     }
