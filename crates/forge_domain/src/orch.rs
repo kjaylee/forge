@@ -9,6 +9,8 @@ use chrono::Local;
 use forge_walker::Walker;
 use futures::future::join_all;
 use futures::{Stream, StreamExt};
+use handlebars::Handlebars;
+use rust_embed::Embed;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
@@ -16,6 +18,25 @@ use tracing::{debug, info, warn};
 // Use retry_config default values directly in this file
 use crate::services::Services;
 use crate::*;
+
+#[derive(Embed)]
+#[folder = "../../templates/"]
+struct Templates;
+
+/// Pure function to render templates without service dependency
+fn render_template(template: &str, object: &impl serde::Serialize) -> anyhow::Result<String> {
+    // Create handlebars instance with same configuration as ForgeTemplateService
+    let mut hb = Handlebars::new();
+    hb.set_strict_mode(true);
+    hb.register_escape_fn(|str| str.to_string());
+
+    // Register all partial templates
+    hb.register_embed_templates::<Templates>()?;
+
+    // Render the template
+    let rendered = hb.render_template(template, object)?;
+    Ok(rendered)
+}
 
 type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
 
@@ -203,10 +224,7 @@ impl<A: Services> Orchestrator<A> {
                 variables: variables.clone(),
             };
 
-            let system_message = self
-                .services
-                .template_service()
-                .render(system_prompt.template.as_str(), &ctx)?;
+            let system_message = render_template(system_prompt.template.as_str(), &ctx)?;
 
             context.set_first_system_message(system_message)
         } else {
@@ -546,7 +564,7 @@ impl<A: Services> Orchestrator<A> {
             if empty_tool_calls {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.
-                let content = self.services.template_service().render(
+                let content = render_template(
                     "{{> partial-tool-required.hbs}}",
                     &serde_json::json!({
                         "tool_supported": tool_supported
@@ -595,9 +613,7 @@ impl<A: Services> Orchestrator<A> {
         let content = if let Some(user_prompt) = &agent.user_prompt {
             let event_context = EventContext::new(event.clone()).variables(variables.clone());
             debug!(event_context = ?event_context, "Event context");
-            self.services
-                .template_service()
-                .render(user_prompt.template.as_str(), &event_context)?
+            render_template(user_prompt.template.as_str(), &event_context)?
         } else {
             // Use the raw event value as content if no user_prompt is provided
             event.value.to_string()
@@ -629,4 +645,54 @@ fn should_retry(error: &anyhow::Error) -> bool {
 
     warn!(error = %error, retry = retry, "Retrying on error");
     retry
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+
+    use super::*;
+
+    #[test]
+    fn test_render_template_simple() {
+        // Fixture: Create test data
+        let data = json!({
+            "name": "Forge",
+            "version": "1.0",
+            "features": ["templates", "rendering", "handlebars"]
+        });
+
+        // Actual: Render a simple template
+        let template = "App: {{name}} v{{version}} - Features: {{#each features}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}";
+        let actual = render_template(template, &data).unwrap();
+
+        // Expected: Result should match the expected string
+        let expected = "App: Forge v1.0 - Features: templates, rendering, handlebars";
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_render_template_with_partial() {
+        // Fixture: Create test data
+        let data = json!({
+            "env": {
+                "os": "test-os",
+                "cwd": "/test/path",
+                "shell": "/bin/test",
+                "home": "/home/test"
+            },
+            "files": [
+                "/file1.txt",
+                "/file2.txt"
+            ]
+        });
+
+        // Actual: Render the partial-system-info template
+        let actual = render_template("{{> partial-system-info.hbs }}", &data).unwrap();
+
+        // Expected: Result should contain the rendered system info with substituted
+        // values
+        assert!(actual.contains("<operating_system>test-os</operating_system>"));
+    }
 }
