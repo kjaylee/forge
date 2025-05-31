@@ -98,10 +98,8 @@ impl ForgeMcpClient {
                     ToolDefinition::new(tool.name)
                         .description(tool.description.unwrap_or_default())
                         .input_schema(
-                            Schema::try_from(Value::Object(
-                                tool.input_schema.as_ref().clone(),
-                            ))
-                            .ok()?,
+                            Schema::try_from(Value::Object(tool.input_schema.as_ref().clone()))
+                                .ok()?,
                         ),
                 )
             })
