@@ -6,6 +6,37 @@ use serde_json::Value;
 
 use crate::{Result, *};
 
+/// Action for initializing an agent with all required data
+#[derive(Debug, Clone, Setters)]
+#[setters(strip_option, into)]
+pub struct InitializeAction {
+    event: Event,
+    models: Vec<Model>,
+    tool_definitions: Vec<ToolDefinition>,
+    current_time: DateTime<Local>,
+    suggestions: Vec<Suggestion>,
+    attachments: Vec<Attachment>,
+}
+
+impl InitializeAction {
+    pub fn new(event: Event) -> Self {
+        Self {
+            event,
+            models: Default::default(),
+            tool_definitions: Default::default(),
+            current_time: Local::now(),
+            suggestions: Default::default(),
+            attachments: Default::default(),
+        }
+    }
+}
+
+impl Default for InitializeAction {
+    fn default() -> Self {
+        Self::new(Event::new("default", serde_json::Value::Null))
+    }
+}
+
 /// The `Run` struct represents a run of the agent with its context.
 #[derive(Debug, Clone, Setters)]
 pub struct Run {
@@ -17,6 +48,8 @@ pub struct Run {
     tool_definitions: Vec<ToolDefinition>,
     files: Vec<String>,
     variables: HashMap<String, Value>,
+    suggestions: Vec<Suggestion>,
+    attachments: Vec<Attachment>,
 }
 
 type SignalResult = Result<WrappedSignal>;
@@ -43,14 +76,14 @@ impl Run {
             env,
             files: Default::default(),
             variables: Default::default(),
+            suggestions: Default::default(),
+            attachments: Default::default(),
         }
     }
 
     pub fn update(&mut self, action: Action) -> SignalResult {
         match action {
-            Action::Initialize { event, models, tool_definitions, current_time } => {
-                self.on_init(event, models, tool_definitions, current_time)
-            }
+            Action::Initialize(init_action) => self.on_init(init_action),
             Action::SystemRender { content } => self.on_system_render(content),
             Action::UserRender { content } => self.on_render_user_message(content),
             Action::Message(message) => self.on_message(message),
@@ -64,21 +97,20 @@ impl Run {
 
     fn on_init(
         &mut self,
-        event: Event,
-        models: Vec<Model>,
-        tool_definitions: Vec<ToolDefinition>,
-        current_time: DateTime<Local>,
+        init_action: InitializeAction,
     ) -> std::result::Result<WrappedSignal, Error> {
         // Set the values from the Initialize action
-        self.models = models;
-        self.tool_definitions = tool_definitions;
-        self.current_time = current_time;
+        self.models = init_action.models;
+        self.tool_definitions = init_action.tool_definitions;
+        self.current_time = init_action.current_time;
+        self.suggestions = init_action.suggestions;
+        self.attachments = init_action.attachments;
 
         Wrap::all([
             self.render_system_prompt()?,
-            self.render_user_prompt(&event)?,
+            self.render_user_prompt(&init_action.event)?,
             self.set_tools()?,
-            self.add_user_attachments(&event.value)?,
+            self.add_user_attachments(&init_action.event.value)?,
             Signal::Chat {
                 agent: Box::new(self.agent.clone()),
                 context: self.context.clone(),
@@ -152,7 +184,12 @@ impl Run {
                 prompt: user_prompt.clone(),
                 context: Box::new(
                     EventContext::new(event.clone())
-                        .suggestions(vec![]) // TODO: Add actual suggestions
+                        .suggestions(
+                            self.suggestions
+                                .iter()
+                                .map(|s| s.suggestion.clone())
+                                .collect(),
+                        )
                         .variables(self.variables.clone())
                         .current_time(
                             self.current_time
@@ -213,7 +250,26 @@ impl Run {
     }
 
     fn add_user_attachments(&mut self, _message: &Value) -> SignalResult {
-        // TODO: Implement user attachments addition
+        // Add attachments to the context if any exist
+        for attachment in &self.attachments {
+            match &attachment.content {
+                AttachmentContent::Image(image) => {
+                    // Add image attachment to context
+                    self.context = self
+                        .context
+                        .clone()
+                        .add_message(ContextMessage::Image(image.clone()));
+                }
+                AttachmentContent::FileContent(content) => {
+                    // Add file content as a user message with path information
+                    let message_content = format!("File: {}\n\n{}", attachment.path, content);
+                    self.context = self.context.clone().add_message(ContextMessage::user(
+                        message_content,
+                        self.agent.model.clone(),
+                    ));
+                }
+            }
+        }
         Ok(Wrap::default())
     }
 
@@ -251,18 +307,9 @@ impl Run {
 }
 
 pub enum Action {
-    Initialize {
-        event: Event,
-        models: Vec<Model>,
-        tool_definitions: Vec<ToolDefinition>,
-        current_time: DateTime<Local>,
-    },
-    SystemRender {
-        content: String,
-    },
-    UserRender {
-        content: String,
-    },
+    Initialize(InitializeAction),
+    SystemRender { content: String },
+    UserRender { content: String },
     Message(ChatCompletionMessage),
 }
 
@@ -353,6 +400,8 @@ mod tests {
             Run::new(agent, env, current_time)
                 .models(models)
                 .tool_definitions(tool_definitions)
+                .suggestions(vec![])
+                .attachments(vec![])
         }
     }
 
@@ -426,16 +475,19 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_sets_values() {
-        let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
-        let mut run = Run::default_test().agent(agent);
+        let mut run = Run::default_test();
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = vec![ToolDefinition::new("test-tool")];
         let current_time = Local::now();
         let event = Event::new("test-event", serde_json::json!({}));
 
-        let action =
-            Action::Initialize { event: event.clone(), models, tool_definitions, current_time };
+        let action = Action::Initialize(
+            InitializeAction::new(event.clone())
+                .models(models)
+                .tool_definitions(tool_definitions)
+                .current_time(current_time),
+        );
 
         let result = run.update(action);
 
@@ -446,15 +498,20 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_returns_chat_signal() {
-        let agent = Agent::new("test-agent").model(ModelId::new("test-model"));
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model")); // No tools
         let mut run = Run::default_test().agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
-        let tool_definitions = Default::default();
+        let tool_definitions = vec![];
         let current_time = Local::now();
         let event = Event::new("test-event", Value::Null);
 
-        let action = Action::Initialize { event, models, tool_definitions, current_time };
+        let action = Action::Initialize(
+            InitializeAction::new(event)
+                .models(models)
+                .tool_definitions(tool_definitions)
+                .current_time(current_time),
+        );
 
         let result = run.update(action);
 
@@ -476,8 +533,6 @@ mod tests {
 
     #[test]
     fn test_set_tools_agent_with_no_tools_specified() {
-        // Test case 1: Agent with no tools specified should result in empty context
-        // tools
         let agent = Agent::new("test-agent"); // Agent without tools
         let mut run = Run::default_test().agent(agent);
 
@@ -488,7 +543,6 @@ mod tests {
 
     #[test]
     fn test_set_tools_agent_with_specific_tools_filters_definitions() {
-        // Test case 2: Agent with specific tools should filter tool definitions
         let agent =
             Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
         let mut run = Run::default_test().agent(agent);
@@ -536,11 +590,11 @@ mod tests {
 
     #[test]
     fn test_update_with_system_render_action_stores_content() {
-        let _fixture = Agent::new("test-agent");
+        let fixture =
+            Action::SystemRender { content: "Rendered system prompt content".to_string() };
         let mut run = Run::default_test();
-        let action = Action::SystemRender { content: "Rendered system prompt content".to_string() };
 
-        let actual = run.update(action).unwrap();
+        let actual = run.update(fixture).unwrap();
 
         assert_eq!(actual.items.len(), 1);
         assert!(matches!(actual.items[0], Signal::Continue));
@@ -557,7 +611,6 @@ mod tests {
 
     #[test]
     fn test_update_with_system_render_action_overwrites_previous_content() {
-        let _fixture = Agent::new("test-agent");
         let mut run = Run::default_test();
 
         // Set initial content
@@ -583,11 +636,10 @@ mod tests {
 
     #[test]
     fn test_update_with_user_render_action_stores_content() {
-        let _fixture = Agent::new("test-agent");
+        let fixture = Action::UserRender { content: "Rendered user prompt content".to_string() };
         let mut run = Run::default_test();
-        let action = Action::UserRender { content: "Rendered user prompt content".to_string() };
 
-        let actual = run.update(action).unwrap();
+        let actual = run.update(fixture).unwrap();
 
         assert_eq!(actual.items.len(), 1);
         assert!(matches!(actual.items[0], Signal::Continue));
@@ -604,11 +656,10 @@ mod tests {
 
     #[test]
     fn test_update_with_user_render_action_empty_content_does_nothing() {
-        let _fixture = Agent::new("test-agent");
+        let fixture = Action::UserRender { content: "".to_string() };
         let mut run = Run::default_test();
-        let action = Action::UserRender { content: "".to_string() };
 
-        let actual = run.update(action).unwrap();
+        let actual = run.update(fixture).unwrap();
 
         assert_eq!(actual.items.len(), 1);
         assert!(matches!(actual.items[0], Signal::Continue));
@@ -619,7 +670,6 @@ mod tests {
 
     #[test]
     fn test_update_with_user_render_action_adds_to_existing_messages() {
-        let _fixture = Agent::new("test-agent");
         let mut run = Run::default_test();
 
         // Add a system message first
@@ -652,39 +702,37 @@ mod tests {
     }
 
     #[test]
-    fn test_set_user_prompt_with_user_prompt_returns_render_user_signal() {
-        let event = Event::new("test-event", serde_json::json!("world"));
-        let mut run = Run::default_test(); // Uses default user_prompt
+    fn test_render_user_prompt_with_user_prompt_returns_render_user_signal() {
+        let fixture = Event::new("test-event", serde_json::json!("world"));
+        let mut run = Run::default_test();
 
-        let actual = run.render_user_prompt(&event).unwrap();
+        let actual = run.render_user_prompt(&fixture).unwrap();
 
         assert_eq!(actual.items.len(), 1);
         if let Signal::RenderUser { prompt, .. } = &actual.items[0] {
             assert_eq!(prompt.template, "Hello {{event.value}}");
-            // Note: We can't access private fields of EventContext, but we can
-            // verify the signal was created
         } else {
             panic!("Expected RenderUser signal");
         }
     }
 
     #[test]
-    fn test_set_user_prompt_without_user_prompt_returns_continue_signal() {
-        let event = Event::new("test-event", serde_json::json!("world"));
+    fn test_render_user_prompt_without_user_prompt_returns_continue_signal() {
+        let fixture = Event::new("test-event", serde_json::json!("world"));
         let agent = Agent::new("test-agent"); // Agent without user_prompt
         let mut run = Run::default_test().agent(agent);
 
-        let actual = run.render_user_prompt(&event).unwrap();
+        let actual = run.render_user_prompt(&fixture).unwrap();
 
         assert_eq!(actual.items.len(), 1);
         assert!(matches!(actual.items[0], Signal::Continue));
     }
 
     #[test]
-    fn test_set_user_prompt_includes_variables_in_context() {
+    fn test_render_user_prompt_includes_variables_in_context() {
         let user_prompt = Template::new("Hello {{variable1}}");
         let agent = Agent::new("test-agent").user_prompt(user_prompt);
-        let event = Event::new("test-event", serde_json::json!("world"));
+        let fixture = Event::new("test-event", serde_json::json!("world"));
         let variables = HashMap::from([
             ("variable1".to_string(), serde_json::json!("value1")),
             ("variable2".to_string(), serde_json::json!("value2")),
@@ -693,26 +741,24 @@ mod tests {
             .agent(agent)
             .variables(variables.clone());
 
-        let actual = run.render_user_prompt(&event).unwrap();
+        let actual = run.render_user_prompt(&fixture).unwrap();
 
         assert_eq!(actual.items.len(), 1);
         if let Signal::RenderUser { .. } = &actual.items[0] {
-            // Note: We can't access private fields of EventContext, but we can
-            // verify the signal was created The variables are
-            // passed to EventContext during construction, which is tested by
-            // the signal creation
+            // Variables are passed to EventContext during construction
         } else {
             panic!("Expected RenderUser signal");
         }
     }
 
     #[test]
-    fn test_add_user_message_content_with_content() {
-        let _agent = Agent::new("test-agent").model(ModelId::new("test-model"));
+    fn test_on_render_user_message_with_content() {
+        let fixture = "Test user message".to_string();
         let mut run = Run::default_test();
 
-        let _ = run.on_render_user_message("Test user message".to_string());
+        let actual = run.on_render_user_message(fixture);
 
+        assert!(actual.is_ok());
         assert_eq!(run.context.messages.len(), 1);
         if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
             assert_eq!(message.role, Role::User);
@@ -724,11 +770,13 @@ mod tests {
     }
 
     #[test]
-    fn test_add_user_message_content_with_empty_content() {
+    fn test_on_render_user_message_with_empty_content() {
+        let fixture = "".to_string();
         let mut run = Run::default_test();
 
-        let _ = run.on_render_user_message("".to_string());
+        let actual = run.on_render_user_message(fixture);
 
+        assert!(actual.is_ok());
         assert_eq!(run.context.messages.len(), 0);
     }
 
@@ -741,11 +789,16 @@ mod tests {
         let mut run = Run::default_test().agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
-        let tool_definitions = Default::default();
+        let tool_definitions = vec![];
         let current_time = Local::now();
         let event = Event::new("test-event", serde_json::json!("world"));
 
-        let action = Action::Initialize { event, models, tool_definitions, current_time };
+        let action = Action::Initialize(
+            InitializeAction::new(event)
+                .models(models)
+                .tool_definitions(tool_definitions)
+                .current_time(current_time),
+        );
 
         let result = run.update(action);
 
@@ -758,5 +811,258 @@ mod tests {
             .any(|s| matches!(s, Signal::RenderUser { .. })));
         // Verify that the signal contains a Chat signal
         assert!(signal.iter().any(|s| matches!(s, Signal::Chat { .. })));
+    }
+
+    #[test]
+    fn test_initialize_action_stores_suggestions() {
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model")); // No tools
+        let mut run = Run::default_test().agent(agent);
+
+        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let event = Event::new("test-event", serde_json::json!({}));
+
+        let suggestions = vec![
+            Suggestion {
+                use_case: "Testing".to_string(),
+                suggestion: "Test suggestion 1".to_string(),
+            },
+            Suggestion {
+                use_case: "Development".to_string(),
+                suggestion: "Test suggestion 2".to_string(),
+            },
+        ];
+
+        let action = Action::Initialize(
+            InitializeAction::new(event.clone())
+                .models(models)
+                .tool_definitions(tool_definitions)
+                .current_time(current_time)
+                .suggestions(suggestions.clone()),
+        );
+
+        let result = run.update(action);
+
+        assert!(result.is_ok());
+        assert_eq!(run.suggestions.len(), 2);
+        assert_eq!(run.suggestions, suggestions);
+    }
+
+    #[test]
+    fn test_render_user_prompt_includes_suggestions() {
+        let user_prompt = Template::new("Hello {{event.value}}");
+        let agent = Agent::new("test-agent").user_prompt(user_prompt);
+        let fixture = Event::new("test-event", serde_json::json!("world"));
+        let suggestions = vec![Suggestion {
+            use_case: "Testing".to_string(),
+            suggestion: "Test suggestion".to_string(),
+        }];
+        let mut run = Run::default_test()
+            .agent(agent)
+            .suggestions(suggestions.clone());
+
+        let actual = run.render_user_prompt(&fixture).unwrap();
+
+        assert_eq!(actual.items.len(), 1);
+        if let Signal::RenderUser { .. } = &actual.items[0] {
+            // Suggestions are passed to EventContext during construction
+        } else {
+            panic!("Expected RenderUser signal");
+        }
+    }
+
+    #[test]
+    fn test_initialize_action_stores_attachments() {
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model")); // No tools
+        let mut run = Run::default_test().agent(agent);
+
+        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let event = Event::new("test-event", serde_json::json!({}));
+
+        let attachments = vec![
+            Attachment {
+                path: "/path/to/file.txt".to_string(),
+                content: AttachmentContent::FileContent("File content here".to_string()),
+            },
+            Attachment {
+                path: "/path/to/image.png".to_string(),
+                content: AttachmentContent::Image(Image::new_base64(
+                    "base64data".to_string(),
+                    "image/png",
+                )),
+            },
+        ];
+
+        let action = Action::Initialize(
+            InitializeAction::new(event.clone())
+                .models(models)
+                .tool_definitions(tool_definitions)
+                .current_time(current_time)
+                .attachments(attachments.clone()),
+        );
+
+        let result = run.update(action);
+
+        assert!(result.is_ok());
+        assert_eq!(run.attachments.len(), 2);
+        assert_eq!(run.attachments, attachments);
+    }
+
+    #[test]
+    fn test_add_user_attachments_with_file_content() {
+        let mut run = Run::default_test();
+
+        let attachments = vec![Attachment {
+            path: "/path/to/file.txt".to_string(),
+            content: AttachmentContent::FileContent("Hello, world!".to_string()),
+        }];
+        run.attachments = attachments;
+
+        let result = run.add_user_attachments(&serde_json::json!({}));
+
+        assert!(result.is_ok());
+        assert_eq!(run.context.messages.len(), 1);
+
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::User);
+            assert_eq!(message.content, "File: /path/to/file.txt\n\nHello, world!");
+            assert_eq!(message.model, Some(ModelId::new("test-model")));
+        } else {
+            panic!("Expected file content to be added as user message");
+        }
+    }
+
+    #[test]
+    fn test_add_user_attachments_with_image() {
+        let mut run = Run::default_test();
+
+        let image = Image::new_base64("base64data".to_string(), "image/png");
+        let attachments = vec![Attachment {
+            path: "/path/to/image.png".to_string(),
+            content: AttachmentContent::Image(image.clone()),
+        }];
+        run.attachments = attachments;
+
+        let result = run.add_user_attachments(&serde_json::json!({}));
+
+        assert!(result.is_ok());
+        assert_eq!(run.context.messages.len(), 1);
+
+        if let Some(ContextMessage::Image(image_content)) = run.context.messages.first() {
+            assert_eq!(image_content, &image);
+        } else {
+            panic!("Expected image to be added as image message");
+        }
+    }
+
+    #[test]
+    fn test_add_user_attachments_with_multiple_attachments() {
+        let mut run = Run::default_test();
+
+        let image = Image::new_base64("base64data".to_string(), "image/png");
+        let attachments = vec![
+            Attachment {
+                path: "/path/to/file.txt".to_string(),
+                content: AttachmentContent::FileContent("File content".to_string()),
+            },
+            Attachment {
+                path: "/path/to/image.png".to_string(),
+                content: AttachmentContent::Image(image.clone()),
+            },
+        ];
+        run.attachments = attachments;
+
+        let result = run.add_user_attachments(&serde_json::json!({}));
+
+        assert!(result.is_ok());
+        assert_eq!(run.context.messages.len(), 2);
+
+        // First message should be file content
+        if let Some(ContextMessage::Text(message)) = run.context.messages.first() {
+            assert_eq!(message.role, Role::User);
+            assert_eq!(message.content, "File: /path/to/file.txt\n\nFile content");
+        } else {
+            panic!("Expected first message to be file content");
+        }
+
+        // Second message should be image
+        if let Some(ContextMessage::Image(image_content)) = run.context.messages.get(1) {
+            assert_eq!(image_content, &image);
+        } else {
+            panic!("Expected second message to be image");
+        }
+    }
+
+    #[test]
+    fn test_add_user_attachments_with_no_attachments() {
+        let mut run = Run::default_test();
+
+        // No attachments set (default empty vec)
+        let result = run.add_user_attachments(&serde_json::json!({}));
+
+        assert!(result.is_ok());
+        assert_eq!(run.context.messages.len(), 0);
+    }
+
+    #[test]
+    fn test_initialize_action_with_both_suggestions_and_attachments() {
+        let agent = Agent::new("test-agent").model(ModelId::new("test-model")); // No tools
+        let mut run = Run::default_test().agent(agent);
+
+        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
+        let tool_definitions = vec![];
+        let current_time = Local::now();
+        let event = Event::new("test-event", serde_json::json!({}));
+
+        let suggestions = vec![Suggestion {
+            use_case: "Testing".to_string(),
+            suggestion: "Test suggestion".to_string(),
+        }];
+
+        let attachments = vec![Attachment {
+            path: "/path/to/file.txt".to_string(),
+            content: AttachmentContent::FileContent("Test content".to_string()),
+        }];
+
+        let action = Action::Initialize(
+            InitializeAction::new(event.clone())
+                .models(models)
+                .tool_definitions(tool_definitions)
+                .current_time(current_time)
+                .suggestions(suggestions.clone())
+                .attachments(attachments.clone()),
+        );
+
+        let result = run.update(action);
+
+        assert!(result.is_ok());
+        assert_eq!(run.suggestions.len(), 1);
+        assert_eq!(run.attachments.len(), 1);
+        assert_eq!(run.suggestions, suggestions);
+        assert_eq!(run.attachments, attachments);
+
+        // Verify attachment was processed and added to context
+        let file_messages: Vec<_> = run
+            .context
+            .messages
+            .iter()
+            .filter_map(|msg| {
+                if let ContextMessage::Text(text_msg) = msg {
+                    if text_msg.content.contains("File: /path/to/file.txt") {
+                        Some(text_msg)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert_eq!(file_messages.len(), 1);
+        assert!(file_messages[0].content.contains("Test content"));
     }
 }
