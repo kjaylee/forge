@@ -1,6 +1,5 @@
 mod attachment;
 mod clipper;
-mod compaction;
 mod conversation;
 mod forge_services;
 mod infra;
