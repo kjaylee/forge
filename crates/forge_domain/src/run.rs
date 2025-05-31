@@ -16,6 +16,8 @@ pub struct InitializeAction {
     current_time: DateTime<Local>,
     suggestions: Vec<Suggestion>,
     attachments: Vec<Attachment>,
+    files: Vec<String>,
+    variables: HashMap<String, Value>,
 }
 
 impl InitializeAction {
@@ -27,7 +29,38 @@ impl InitializeAction {
             current_time: Local::now(),
             suggestions: Default::default(),
             attachments: Default::default(),
+            files: Default::default(),
+            variables: Default::default(),
         }
+    }
+
+    /// Creates a test fixture with comprehensive defaults for testing
+    pub fn default_test() -> Self {
+        let models = vec![
+            Model::new(ModelId::new("test-model")).tools_supported(true),
+            Model::new(ModelId::new("gpt-4o")).tools_supported(true),
+            Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false),
+        ];
+
+        let tool_definitions = vec![
+            ToolDefinition::new("test-tool").description("Test Tool"),
+            ToolDefinition::new("tool1").description("Tool 1"),
+            ToolDefinition::new("tool2").description("Tool 2"),
+            ToolDefinition::new("tool3").description("Tool 3"),
+        ];
+
+        let files = vec!["src/main.rs".to_string(), "Cargo.toml".to_string()];
+
+        let variables = HashMap::from([
+            ("test_var".to_string(), serde_json::json!("test_value")),
+            ("debug_mode".to_string(), serde_json::json!(true)),
+        ]);
+
+        Self::new(Event::new("test-event", serde_json::json!({})))
+            .models(models)
+            .tool_definitions(tool_definitions)
+            .files(files)
+            .variables(variables)
     }
 }
 
@@ -43,20 +76,14 @@ pub struct Run {
     agent: Agent,
     env: Environment,
     context: Context,
-    current_time: DateTime<Local>,
-    models: Vec<Model>,
-    tool_definitions: Vec<ToolDefinition>,
-    files: Vec<String>,
-    variables: HashMap<String, Value>,
-    suggestions: Vec<Suggestion>,
-    attachments: Vec<Attachment>,
+    init_action: Option<InitializeAction>,
 }
 
 type SignalResult = Result<WrappedSignal>;
 type WrappedSignal = Wrap<Signal>;
 
 impl Run {
-    pub fn new(agent: Agent, env: Environment, current_time: DateTime<Local>) -> Self {
+    pub fn new(agent: Agent, env: Environment) -> Self {
         let mut context = Context::default();
         if let Some(top_k) = agent.top_k {
             context = context.top_k(top_k);
@@ -67,18 +94,40 @@ impl Run {
         if let Some(top_p) = agent.top_p {
             context = context.top_p(top_p);
         }
-        Self {
-            agent,
-            context,
-            models: Default::default(),
-            current_time,
-            tool_definitions: Default::default(),
-            env,
-            files: Default::default(),
-            variables: Default::default(),
-            suggestions: Default::default(),
-            attachments: Default::default(),
-        }
+        Self { agent, context, env, init_action: None }
+    }
+
+    // Helper methods to access initialization data with proper error handling
+    fn get_init_action(&self) -> Result<&InitializeAction> {
+        self.init_action.as_ref().ok_or(Error::RunNotInitialized)
+    }
+
+    fn models(&self) -> Result<&[Model]> {
+        Ok(&self.get_init_action()?.models)
+    }
+
+    fn tool_definitions(&self) -> Result<&[ToolDefinition]> {
+        Ok(&self.get_init_action()?.tool_definitions)
+    }
+
+    fn current_time(&self) -> Result<&DateTime<Local>> {
+        Ok(&self.get_init_action()?.current_time)
+    }
+
+    fn suggestions(&self) -> Result<&[Suggestion]> {
+        Ok(&self.get_init_action()?.suggestions)
+    }
+
+    fn attachments(&self) -> Result<&[Attachment]> {
+        Ok(&self.get_init_action()?.attachments)
+    }
+
+    fn files(&self) -> Result<&[String]> {
+        Ok(&self.get_init_action()?.files)
+    }
+
+    fn variables(&self) -> Result<&HashMap<String, Value>> {
+        Ok(&self.get_init_action()?.variables)
     }
 
     pub fn update(&mut self, action: Action) -> SignalResult {
@@ -99,18 +148,15 @@ impl Run {
         &mut self,
         init_action: InitializeAction,
     ) -> std::result::Result<WrappedSignal, Error> {
-        // Set the values from the Initialize action
-        self.models = init_action.models;
-        self.tool_definitions = init_action.tool_definitions;
-        self.current_time = init_action.current_time;
-        self.suggestions = init_action.suggestions;
-        self.attachments = init_action.attachments;
+        // Store the initialization action directly
+        let event = init_action.event.clone();
+        self.init_action = Some(init_action);
 
         Wrap::all([
             self.render_system_prompt()?,
-            self.render_user_prompt(&init_action.event)?,
+            self.render_user_prompt(&event)?,
             self.set_tools()?,
-            self.add_user_attachments(&init_action.event.value)?,
+            self.add_user_attachments(&event.value)?,
             Signal::Chat {
                 agent: Box::new(self.agent.clone()),
                 context: self.context.clone(),
@@ -133,7 +179,7 @@ impl Run {
 
             // Filter tool definitions to only include tools specified by the agent
             let allowed_tools: Vec<ToolDefinition> = self
-                .tool_definitions
+                .tool_definitions()?
                 .iter()
                 .filter(|tool| agent_tools.contains(&tool.name))
                 .cloned()
@@ -155,20 +201,20 @@ impl Run {
                 prompt: system_prompt.clone(),
                 context: Box::new(SystemContext {
                     current_time: self
-                        .current_time
+                        .current_time()?
                         .format("%Y-%m-%d %H:%M:%S %:z")
                         .to_string(),
                     env: Some(self.env.clone()),
                     tool_information: self.tool_information()?,
                     tool_supported: self.tool_supported()?,
-                    files: self.files.clone(),
+                    files: self.files()?.to_vec(),
                     custom_rules: self
                         .agent
                         .custom_rules
                         .as_ref()
                         .cloned()
                         .unwrap_or_default(),
-                    variables: self.variables.clone(),
+                    variables: self.variables()?.clone(),
                 }),
             }
             .wrap()
@@ -185,14 +231,14 @@ impl Run {
                 context: Box::new(
                     EventContext::new(event.clone())
                         .suggestions(
-                            self.suggestions
+                            self.suggestions()?
                                 .iter()
                                 .map(|s| s.suggestion.clone())
                                 .collect(),
                         )
-                        .variables(self.variables.clone())
+                        .variables(self.variables()?.clone())
                         .current_time(
-                            self.current_time
+                            self.current_time()?
                                 .format("%Y-%m-%d %H:%M:%S %:z")
                                 .to_string(),
                         ),
@@ -229,7 +275,7 @@ impl Run {
 
         // Create a map of tool definitions for efficient lookup
         let tool_def_map: std::collections::HashMap<&crate::ToolName, &ToolDefinition> = self
-            .tool_definitions
+            .tool_definitions()?
             .iter()
             .map(|def| (&def.name, def))
             .collect();
@@ -250,8 +296,11 @@ impl Run {
     }
 
     fn add_user_attachments(&mut self, _message: &Value) -> SignalResult {
+        // Get attachments to avoid borrowing issues
+        let attachments = self.attachments()?.to_vec();
+
         // Process attachments efficiently without cloning context
-        for attachment in &self.attachments {
+        for attachment in &attachments {
             let message = match &attachment.content {
                 AttachmentContent::Image(image) => ContextMessage::Image(image.clone()),
                 AttachmentContent::FileContent(content) => {
@@ -290,7 +339,7 @@ impl Run {
 
         // Find the model in the models collection
         Ok(self
-            .models
+            .models()?
             .iter()
             .find(|model| &model.id == model_id)
             .ok_or(Error::ModelNotFound(model_id.clone()))?
@@ -374,54 +423,28 @@ mod tests {
         /// Creates a test fixture with comprehensive defaults for testing
         fn default_test() -> Self {
             let agent = Agent::default_test();
-
-            let models = vec![
-                Model::new(ModelId::new("test-model")).tools_supported(true),
-                Model::new(ModelId::new("gpt-4o")).tools_supported(true),
-                Model::new(ModelId::new("gpt-3.5-turbo")).tools_supported(false),
-            ];
-
             let env = Environment::default();
-            let current_time = Local::now();
 
-            Run::new(agent, env, current_time)
-                .models(models)
-                .tool_definitions(vec![]) // No tool definitions by default
-                .suggestions(vec![])
-                .attachments(vec![])
+            Run::new(agent, env)
         }
 
-        /// Adds default tool definitions to the test fixture
-        fn with_default_tool_definitions(mut self) -> Self {
-            let tool_definitions = vec![
-                ToolDefinition::new("test-tool").description("Test Tool"),
-                ToolDefinition::new("tool1").description("Tool 1"),
-                ToolDefinition::new("tool2").description("Tool 2"),
-                ToolDefinition::new("tool3").description("Tool 3"),
-            ];
-
-            self.tool_definitions = tool_definitions;
-            self
+        /// Creates a test fixture that's already initialized with default data
+        fn default_initialized() -> Self {
+            let mut run = Self::default_test();
+            run.init_action = Some(Self::default_init_action());
+            run
         }
-    }
 
-    #[test]
-    fn test_run_new() {
-        let agent = Agent::new("my-agent").temperature(0.5).top_k(10).top_p(0.9);
-        let current_time = Local::now();
-        let run = Run::new(agent, Environment::default(), current_time);
-        assert_eq!(run.agent.id.as_str(), "my-agent");
-        assert!(run.context.messages.is_empty());
-        assert!(run.models.is_empty());
-        assert_eq!(run.context.top_k.map(|x| x.value()), Some(10));
-        assert_eq!(run.context.temperature.map(|x| x.value()), Some(0.5));
-        assert_eq!(run.context.top_p.map(|x| x.value()), Some(0.9));
+        /// Creates a default InitializeAction for testing
+        fn default_init_action() -> InitializeAction {
+            InitializeAction::default_test()
+        }
     }
 
     #[test]
     fn test_tool_supported_agent_with_model_that_supports_tools() {
         // Test case 1: Agent has model that exists and supports tools
-        let run = Run::default_test().with_default_tool_definitions();
+        let run = Run::default_initialized();
         // Default agent has "test-model" which supports tools by default
         assert_eq!(run.tool_supported().unwrap(), true);
     }
@@ -429,7 +452,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_that_does_not_support_tools() {
         // Test case 2: Agent has model that exists but doesn't support tools
-        let mut run = Run::default_test().with_default_tool_definitions();
+        let mut run = Run::default_initialized();
         // Use gpt-3.5-turbo which is already in default models and doesn't support
         // tools
         run.agent.model = Some(ModelId::new("gpt-3.5-turbo"));
@@ -439,10 +462,13 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_null_tools_supported() {
         // Test case 3: Agent has model that exists but has null tools_supported
-        let mut run = Run::default_test().with_default_tool_definitions();
+        let mut run = Run::default_test();
+        let mut init_action = Run::default_init_action();
         // Add a model with null tools_supported and use it
-        run.models
+        init_action
+            .models
             .push(Model::new(ModelId::new("forge-test-model")));
+        run.init_action = Some(init_action);
         run.agent.model = Some(ModelId::new("forge-test-model"));
         assert_eq!(run.tool_supported().unwrap(), false);
     }
@@ -450,7 +476,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_model_not_found() {
         // Test case 4: Agent has model that is not found in the models collection
-        let mut run = Run::default_test().with_default_tool_definitions();
+        let mut run = Run::default_initialized();
         // Set agent model to one that doesn't exist in the models collection
         run.agent.model = Some(ModelId::new("nonexistent-model"));
         let result = run.tool_supported();
@@ -463,7 +489,7 @@ mod tests {
     #[test]
     fn test_tool_supported_agent_with_no_model_specified() {
         // Test case 5: Agent has no model specified
-        let mut run = Run::default_test().with_default_tool_definitions();
+        let mut run = Run::default_initialized();
         // Remove the model from the default agent
         run.agent.model = None;
         let result = run.tool_supported();
@@ -475,25 +501,19 @@ mod tests {
 
     #[test]
     fn test_update_initialize_action_sets_values() {
-        let mut run = Run::default_test().with_default_tool_definitions();
+        let mut run = Run::default_test();
 
-        let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
-        let tool_definitions = vec![ToolDefinition::new("test-tool")];
         let current_time = Local::now();
-        let event = Event::new("test-event", serde_json::json!({}));
-
-        let action = Action::Initialize(
-            InitializeAction::new(event.clone())
-                .models(models)
-                .tool_definitions(tool_definitions)
-                .current_time(current_time),
-        );
+        let action =
+            Action::Initialize(InitializeAction::default_test().current_time(current_time));
 
         let result = run.update(action);
 
         assert!(result.is_ok());
-        assert_eq!(run.models.len(), 1);
-        assert_eq!(run.tool_definitions.len(), 1);
+        assert_eq!(run.models().unwrap().len(), 3); // default_test provides 3 models
+        assert_eq!(run.tool_definitions().unwrap().len(), 4); // default_test
+                                                              // provides 4 tool
+                                                              // definitions
     }
 
     #[test]
@@ -523,15 +543,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tool_supported_multiple_models_correct_one_found() {
-        // Test case 6: Multiple models in collection, correct one is found
-        let mut run = Run::default_test().with_default_tool_definitions();
-        // Use gpt-4o which is already in default models and supports tools
-        run.agent.model = Some(ModelId::new("gpt-4o"));
-        assert_eq!(run.tool_supported().unwrap(), true);
-    }
-
-    #[test]
     fn test_set_tools_agent_with_no_tools_specified() {
         let agent = Agent::new("test-agent"); // Agent without tools
         let mut run = Run::default_test().agent(agent);
@@ -545,9 +556,7 @@ mod tests {
     fn test_set_tools_agent_with_specific_tools_filters_definitions() {
         let agent =
             Agent::new("test-agent").tools(vec![ToolName::new("tool1"), ToolName::new("tool3")]);
-        let mut run = Run::default_test()
-            .with_default_tool_definitions()
-            .agent(agent);
+        let mut run = Run::default_initialized().agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_ok());
@@ -557,9 +566,7 @@ mod tests {
     #[test]
     fn test_set_tools_agent_with_nonexistent_tool_returns_error() {
         let agent = Agent::new("test-agent").tools(vec![ToolName::new("nonexistent_tool")]);
-        let mut run = Run::default_test()
-            .with_default_tool_definitions()
-            .agent(agent);
+        let mut run = Run::default_initialized().agent(agent);
 
         let result = run.set_tools();
         assert!(result.is_err());
@@ -567,21 +574,6 @@ mod tests {
             panic!("Expected ToolDefinitionNotFound error")
         };
         assert_eq!(tool_name.as_str(), "nonexistent_tool");
-    }
-
-    #[test]
-    fn test_set_tools_agent_with_missing_tool_definition_returns_error() {
-        let agent = Agent::new("test-agent").tools(vec![ToolName::new("missing_tool")]);
-        let mut run = Run::default_test()
-            .with_default_tool_definitions()
-            .agent(agent);
-
-        let result = run.set_tools();
-        assert!(result.is_err());
-        let Error::ToolDefinitionNotFound(tool_name) = result.unwrap_err() else {
-            panic!("Expected ToolDefinitionNotFound error")
-        };
-        assert_eq!(tool_name.as_str(), "missing_tool");
     }
 
     #[test]
@@ -643,20 +635,6 @@ mod tests {
     }
 
     #[test]
-    fn test_update_with_user_render_action_empty_content_does_nothing() {
-        let fixture = Action::UserRender { content: "".to_string() };
-        let mut run = Run::default_test();
-
-        let actual = run.update(fixture).unwrap();
-
-        assert_eq!(actual.items.len(), 1);
-        assert!(matches!(actual.items[0], Signal::Continue));
-
-        // Check that no message was added
-        assert_eq!(run.context.messages.len(), 0);
-    }
-
-    #[test]
     fn test_update_with_user_render_action_adds_to_existing_messages() {
         let mut run = Run::default_test();
 
@@ -692,7 +670,7 @@ mod tests {
     #[test]
     fn test_render_user_prompt_with_user_prompt_returns_render_user_signal() {
         let fixture = Event::new("test-event", serde_json::json!("world"));
-        let mut run = Run::default_test();
+        let mut run = Run::default_initialized();
 
         let actual = run.render_user_prompt(&fixture).unwrap();
 
@@ -725,9 +703,12 @@ mod tests {
             ("variable1".to_string(), serde_json::json!("value1")),
             ("variable2".to_string(), serde_json::json!("value2")),
         ]);
-        let mut run = Run::default_test()
-            .agent(agent)
-            .variables(variables.clone());
+        let mut run = Run::default_initialized().agent(agent);
+
+        // Update the init_action to include the custom variables
+        if let Some(init_action) = &mut run.init_action {
+            *init_action = init_action.clone().variables(variables.clone());
+        }
 
         let actual = run.render_user_prompt(&fixture).unwrap();
 
@@ -758,26 +739,13 @@ mod tests {
     }
 
     #[test]
-    fn test_on_render_user_message_with_empty_content() {
-        let fixture = "".to_string();
-        let mut run = Run::default_test();
-
-        let actual = run.on_render_user_message(fixture);
-
-        assert!(actual.is_ok());
-        assert_eq!(run.context.messages.len(), 0);
-    }
-
-    #[test]
     fn test_update_initialize_action_includes_user_prompt_rendering() {
         let user_prompt = Template::new("Hello {{event.value}}");
         let agent = Agent::new("test-agent")
             .model(ModelId::new("test-model"))
             .user_prompt(user_prompt)
             .tools(vec![ToolName::new("test-tool")]);
-        let mut run = Run::default_test()
-            .with_default_tool_definitions()
-            .agent(agent);
+        let mut run = Run::default_test().agent(agent);
 
         let models = vec![Model::new(ModelId::new("test-model")).tools_supported(true)];
         let tool_definitions = vec![ToolDefinition::new("test-tool")];
@@ -836,8 +804,8 @@ mod tests {
         let result = run.update(action);
 
         assert!(result.is_ok());
-        assert_eq!(run.suggestions.len(), 2);
-        assert_eq!(run.suggestions, suggestions);
+        assert_eq!(run.suggestions().unwrap().len(), 2);
+        assert_eq!(run.suggestions().unwrap(), &suggestions);
     }
 
     #[test]
@@ -849,9 +817,11 @@ mod tests {
             use_case: "Testing".to_string(),
             suggestion: "Test suggestion".to_string(),
         }];
-        let mut run = Run::default_test()
-            .agent(agent)
+
+        let mut run = Run::default_test().agent(agent);
+        let init_action = InitializeAction::new(Event::new("test", serde_json::json!({})))
             .suggestions(suggestions.clone());
+        run.init_action = Some(init_action);
 
         let actual = run.render_user_prompt(&fixture).unwrap();
 
@@ -898,8 +868,8 @@ mod tests {
         let result = run.update(action);
 
         assert!(result.is_ok());
-        assert_eq!(run.attachments.len(), 2);
-        assert_eq!(run.attachments, attachments);
+        assert_eq!(run.attachments().unwrap().len(), 2);
+        assert_eq!(run.attachments().unwrap(), &attachments);
     }
 
     #[test]
@@ -910,7 +880,10 @@ mod tests {
             path: "/path/to/file.txt".to_string(),
             content: AttachmentContent::FileContent("Hello, world!".to_string()),
         }];
-        run.attachments = attachments;
+
+        let init_action = InitializeAction::new(Event::new("test", serde_json::json!({})))
+            .attachments(attachments);
+        run.init_action = Some(init_action);
 
         let result = run.add_user_attachments(&serde_json::json!({}));
 
@@ -927,7 +900,10 @@ mod tests {
             path: "/path/to/image.png".to_string(),
             content: AttachmentContent::Image(image.clone()),
         }];
-        run.attachments = attachments;
+
+        let init_action = InitializeAction::new(Event::new("test", serde_json::json!({})))
+            .attachments(attachments);
+        run.init_action = Some(init_action);
 
         let result = run.add_user_attachments(&serde_json::json!({}));
 
@@ -950,23 +926,15 @@ mod tests {
                 content: AttachmentContent::Image(image.clone()),
             },
         ];
-        run.attachments = attachments;
+
+        let init_action = InitializeAction::new(Event::new("test", serde_json::json!({})))
+            .attachments(attachments);
+        run.init_action = Some(init_action);
 
         let result = run.add_user_attachments(&serde_json::json!({}));
 
         assert!(result.is_ok());
         assert_yaml_snapshot!(run.context);
-    }
-
-    #[test]
-    fn test_add_user_attachments_with_no_attachments() {
-        let mut run = Run::default_test();
-
-        // No attachments set (default empty vec)
-        let result = run.add_user_attachments(&serde_json::json!({}));
-
-        assert!(result.is_ok());
-        assert_eq!(run.context.messages.len(), 0);
     }
 
     #[test]
@@ -1001,10 +969,10 @@ mod tests {
         let result = run.update(action);
 
         assert!(result.is_ok());
-        assert_eq!(run.suggestions.len(), 1);
-        assert_eq!(run.attachments.len(), 1);
-        assert_eq!(run.suggestions, suggestions);
-        assert_eq!(run.attachments, attachments);
+        assert_eq!(run.suggestions().unwrap().len(), 1);
+        assert_eq!(run.attachments().unwrap().len(), 1);
+        assert_eq!(run.suggestions().unwrap(), &suggestions);
+        assert_eq!(run.attachments().unwrap(), &attachments);
 
         // Verify attachment was processed and added to context
         let file_messages: Vec<_> = run

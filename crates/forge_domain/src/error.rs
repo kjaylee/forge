@@ -59,6 +59,9 @@ pub enum Error {
     #[from(skip)]
     ToolDefinitionNotFound(crate::ToolName),
 
+    #[error("Run has not been initialized. Call Initialize action first.")]
+    RunNotInitialized,
+
     #[error("{0:?}")]
     Retryable(anyhow::Error),
 }
