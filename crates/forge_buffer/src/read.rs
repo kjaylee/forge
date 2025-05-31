@@ -75,7 +75,10 @@ mod tests {
         let temp_path = temp_file.path().to_path_buf();
 
         let test_data = vec![
-            Buffer { event: BufferEvent::Input, content: "Hello World".to_string() },
+            Buffer {
+                event: BufferEvent::Input,
+                content: "Hello World".to_string(),
+            },
             Buffer {
                 event: BufferEvent::Output,
                 content: "Test Content".to_string(),
@@ -100,8 +103,10 @@ mod tests {
         let mut actual = forge_buffer.read(&fixture_path.path).await.unwrap();
 
         let first = actual.next().await.unwrap().unwrap();
-        let expected_first =
-            Buffer { event: BufferEvent::Input, content: "Hello World".to_string() };
+        let expected_first = Buffer {
+            event: BufferEvent::Input,
+            content: "Hello World".to_string(),
+        };
         assert_eq!(first, expected_first);
 
         let second = actual.next().await.unwrap().unwrap();

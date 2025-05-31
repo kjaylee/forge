@@ -52,7 +52,10 @@ mod tests {
         let fixture_path = create_temp_file().await.unwrap();
         let forge_buffer = ForgeBuffer::new();
 
-        let buffer = Buffer { event: BufferEvent::Input, content: "Hello World".to_string() };
+        let buffer = Buffer {
+            event: BufferEvent::Input,
+            content: "Hello World".to_string(),
+        };
 
         let actual = forge_buffer.write(&fixture_path.path, buffer.clone()).await;
         assert!(actual.is_ok());
