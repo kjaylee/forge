@@ -36,6 +36,7 @@ pub struct Orchestrator<Services> {
     services: Arc<Services>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
+    environment: Environment,
 }
 
 struct ChatCompletionResult {
@@ -56,9 +57,10 @@ impl<A: Services> Orchestrator<A> {
         });
 
         Self {
-            services,
             sender,
             conversation: Arc::new(RwLock::new(conversation)),
+            environment: services.environment_service().get_environment(),
+            services,
         }
     }
 
@@ -170,7 +172,7 @@ impl<A: Services> Orchestrator<A> {
         variables: &HashMap<String, Value>,
     ) -> anyhow::Result<Context> {
         Ok(if let Some(system_prompt) = &agent.system_prompt {
-            let env = self.services.environment_service().get_environment();
+            let env = self.environment.clone();
             let walker = Walker::max_all().max_depth(agent.max_walker_depth.unwrap_or(1));
             let mut files = walker
                 .cwd(env.cwd.clone())
@@ -501,11 +503,7 @@ impl<A: Services> Orchestrator<A> {
 
         let mut empty_tool_call_count = 0;
 
-        let retry_config = self
-            .services
-            .environment_service()
-            .get_environment()
-            .retry_config;
+        let retry_config = self.environment.retry_config.clone();
 
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
