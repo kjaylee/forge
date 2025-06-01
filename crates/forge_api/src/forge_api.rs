@@ -5,9 +5,9 @@ use anyhow::Result;
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{
-    AgentService, AttachmentService, CommandExecutorService, ConversationService,
-    EnvironmentService, ForgeServices, Infrastructure, McpConfigManager, Orchestrator,
-    ProviderService, Services, SuggestionService, ToolService, WorkflowService,
+    AttachmentService, CommandExecutorService, ConversationService, EnvironmentService,
+    ForgeServices, Infrastructure, McpConfigManager, ProviderService, Services, SuggestionService,
+    ToolService, WorkflowService,
 };
 use forge_stream::MpscStream;
 use futures::TryFutureExt;

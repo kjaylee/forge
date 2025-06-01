@@ -7,14 +7,15 @@ use async_recursion::async_recursion;
 use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use derive_setters::Setters;
-// Use retry_config default values directly in this file
-use forge_domain::{find_compact_sequence, *};
 use forge_walker::Walker;
 use futures::{Stream, StreamExt};
 use handlebars::Handlebars;
 use rust_embed::Embed;
 use serde_json::Value;
 use tracing::{debug, info, warn};
+
+// Use retry_config default values directly in this file
+use crate::{find_compact_sequence, *};
 
 /// Minimal trait that defines only the methods Orchestrator needs from services
 #[async_trait::async_trait]
