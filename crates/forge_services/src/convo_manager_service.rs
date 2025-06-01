@@ -46,8 +46,8 @@ impl<I: Infrastructure> ForgeConversationSessionManager<I> {
         hasher.finish()
     }
 
-    // creates session path, i.e. ~/forge/conversations/<hash of
-    // cwd>/<session/conversation id>
+    // creates session path, i.e.
+    // ~/forge/conversations/<hash of cwd>/<session/conversation id>
     async fn session_path(&self) -> anyhow::Result<PathBuf> {
         Ok(self.project_dir.join(self.session_id().await?))
     }
