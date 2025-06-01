@@ -182,9 +182,8 @@ mod tests {
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
-    use crate::{ContextMessage, ToolCallFull, ToolCallId, ToolName, ToolResult};
-
     use super::*;
+    use crate::{ContextMessage, ToolCallFull, ToolCallId, ToolName, ToolResult};
 
     fn seq(pattern: impl ToString, preserve_last_n: usize) -> String {
         let model_id = ModelId::new("gpt-4");

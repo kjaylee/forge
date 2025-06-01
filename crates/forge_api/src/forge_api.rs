@@ -55,15 +55,22 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         let tool_definitions = app.tool_service().list().await?;
         let models = app.provider_service().models().await?;
 
+        // Always try to get attachments and overwrite them
+        let attachments = app
+            .attachment_service()
+            .attachments(&chat.event.value.to_string())
+            .await?;
+        chat.event = chat.event.attachments(attachments);
+
         Ok(MpscStream::spawn(move |tx| async move {
             let tx = Arc::new(tx);
 
-            let orch = Orchestrator::new(app, conversation)
+            let orch = Orchestrator::new(app.clone(), conversation)
                 .sender(tx.clone())
                 .tool_definitions(tool_definitions)
                 .models(models);
 
-            if let Err(err) = orch.dispatch(chat.event).await {
+            if let Err(err) = orch.dispatch(enriched_event).await {
                 if let Err(e) = tx.send(Err(err)).await {
                     error!("Failed to send error to stream: {:#?}", e);
                 }

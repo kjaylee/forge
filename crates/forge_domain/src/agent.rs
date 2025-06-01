@@ -10,8 +10,8 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, Event, EventContext, ModelId, Result, SystemContext, ToolDefinition,
-    ToolName, TopK, TopP,
+    Context, Error, Event, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName,
+    TopK, TopP,
 };
 
 // Unique identifier for an agent

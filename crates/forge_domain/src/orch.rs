@@ -638,12 +638,8 @@ impl<A: Services> Orchestrator<A> {
             context = context.top_k(top_k);
         }
 
-        // Process attachments in a more declarative way
-        let attachments = self
-            .services
-            .attachment_service()
-            .attachments(&event.value.to_string())
-            .await?;
+        // Process attachments from the event if they exist
+        let attachments = event.attachments.clone();
 
         // Process each attachment and fold the results into the context
         context = attachments
