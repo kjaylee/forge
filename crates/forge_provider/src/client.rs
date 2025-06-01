@@ -6,6 +6,7 @@ use std::sync::Arc;
 use anyhow::{Context as _, Result};
 use forge_domain::{
     ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
+    RetryConfig,
 };
 use reqwest::redirect::Policy;
 use tokio::sync::RwLock;
@@ -17,7 +18,7 @@ use crate::retry::into_retry;
 
 #[derive(Clone)]
 pub struct Client {
-    retry_status_codes: Arc<Vec<u16>>,
+    retry_config: Arc<RetryConfig>,
     inner: Arc<InnerClient>,
     models_cache: Arc<RwLock<HashMap<ModelId, Model>>>,
 }
@@ -30,7 +31,7 @@ enum InnerClient {
 impl Client {
     pub fn new(
         provider: Provider,
-        retry_status_codes: Vec<u16>,
+        retry_config: RetryConfig,
         version: impl ToString,
     ) -> Result<Self> {
         let client = reqwest::Client::builder()
@@ -65,14 +66,14 @@ impl Client {
 
         Ok(Self {
             inner: Arc::new(inner),
-            retry_status_codes: Arc::new(retry_status_codes),
+            retry_config: Arc::new(retry_config),
             models_cache: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
     fn retry<A>(&self, result: anyhow::Result<A>) -> anyhow::Result<A> {
-        let codes = &self.retry_status_codes;
-        result.map_err(move |e| into_retry(e, codes))
+        let retry_config = &self.retry_config;
+        result.map_err(move |e| into_retry(e, retry_config))
     }
 
     pub async fn refresh_models(&self) -> anyhow::Result<Vec<Model>> {
@@ -145,7 +146,7 @@ mod tests {
             url: Url::parse("https://api.openai.com/v1/").unwrap(),
             key: Some("test-key".to_string()),
         };
-        let client = Client::new(provider, vec![], "dev").unwrap();
+        let client = Client::new(provider, RetryConfig::default(), "dev").unwrap();
 
         // Verify cache is initialized as empty
         let cache = client.models_cache.read().await;
@@ -158,7 +159,7 @@ mod tests {
             url: Url::parse("https://api.openai.com/v1/").unwrap(),
             key: Some("test-key".to_string()),
         };
-        let client = Client::new(provider, vec![], "dev").unwrap();
+        let client = Client::new(provider, RetryConfig::default(), "dev").unwrap();
 
         // Verify refresh_models method is available (it will fail due to no actual API,
         // but that's expected)

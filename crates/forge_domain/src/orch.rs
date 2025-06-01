@@ -72,14 +72,18 @@ struct ChatCompletionResult {
 }
 
 impl<A: Services> Orchestrator<A> {
-    pub async fn new(services: Arc<A>, conversation: Arc<RwLock<Conversation>>) -> Self {
+    pub async fn new(
+        services: Arc<A>,
+        environment: Environment,
+        conversation: Arc<RwLock<Conversation>>,
+    ) -> Self {
         // since self is a new request, we clear the queue
 
         Self {
-            sender: Default::default(),
             conversation,
-            environment: services.environment_service().get_environment(),
+            environment,
             services,
+            sender: Default::default(),
             tool_definitions: Default::default(),
             models: Default::default(),
         }
@@ -788,7 +792,7 @@ impl<A: Services> Orchestrator<A> {
 fn should_retry(error: &anyhow::Error) -> bool {
     let retry = error
         .downcast_ref::<Error>()
-        .is_some_and(|error| matches!(error, Error::Retryable(_)));
+        .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
 
     warn!(error = %error, retry = retry, "Retrying on error");
     retry

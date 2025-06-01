@@ -9,26 +9,27 @@ use forge_stream::MpscStream;
 use tokio::sync::RwLock;
 use tracing::error;
 
-pub struct ForgeAPI<F> {
-    app: Arc<F>,
+pub struct ForgeAPI<A, F> {
+    app: Arc<A>,
+    infra: Arc<F>,
 }
 
-impl<F: Services + Infrastructure> ForgeAPI<F> {
-    pub fn new(app: Arc<F>) -> Self {
-        Self { app: app.clone() }
+impl<A: Services, F: Infrastructure> ForgeAPI<A, F> {
+    pub fn new(app: Arc<A>, infra: Arc<F>) -> Self {
+        Self { app, infra }
     }
 }
 
-impl ForgeAPI<ForgeServices<ForgeInfra>> {
+impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
     pub fn init(restricted: bool) -> Self {
         let infra = Arc::new(ForgeInfra::new(restricted));
-        let app = Arc::new(ForgeServices::new(infra));
-        ForgeAPI::new(app)
+        let app = Arc::new(ForgeServices::new(infra.clone()));
+        ForgeAPI::new(app, infra)
     }
 }
 
 #[async_trait::async_trait]
-impl<F: Services + Infrastructure> API for ForgeAPI<F> {
+impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
     async fn suggestions(&self) -> Result<Vec<File>> {
         self.app.suggestion_service().suggestions().await
     }
@@ -65,10 +66,14 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .attachments(&chat.event.value.to_string())
             .await?;
         chat.event = chat.event.attachments(attachments);
-        let orch = Orchestrator::new(app.clone(), conversation.clone())
-            .await
-            .tool_definitions(tool_definitions)
-            .models(models);
+        let orch = Orchestrator::new(
+            app.clone(),
+            app.environment_service().get_environment().clone(),
+            conversation.clone(),
+        )
+        .await
+        .tool_definitions(tool_definitions)
+        .models(models);
 
         let stream = MpscStream::spawn(|tx| {
             async move {
@@ -150,7 +155,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         command: &str,
         working_dir: PathBuf,
     ) -> anyhow::Result<CommandOutput> {
-        self.app
+        self.infra
             .command_executor_service()
             .execute_command(command.to_string(), working_dir)
             .await
@@ -175,7 +180,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         &self,
         command: &str,
     ) -> anyhow::Result<std::process::ExitStatus> {
-        self.app
+        self.infra
             .command_executor_service()
             .execute_command_raw(command)
             .await
