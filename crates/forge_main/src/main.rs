@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Parser;
-use forge::{Cli, UI};
+use forge_main::{Cli, UI};
 use forge_api::ForgeAPI;
 
 #[tokio::main]
