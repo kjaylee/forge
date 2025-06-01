@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
-use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use derive_setters::Setters;
 use forge_walker::Walker;
@@ -14,7 +13,6 @@ use rust_embed::Embed;
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
-// Use retry_config default values directly in this file
 use crate::{find_compact_sequence, *};
 
 /// Minimal trait that defines only the methods Orchestrator needs from services
@@ -640,22 +638,12 @@ impl<S: AgentService> Orchestrator<S> {
 
         let mut empty_tool_call_count = 0;
 
-        let retry_config = self.environment.retry_config.clone();
-
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.set_context(&agent.id, context.clone()).await?;
 
             let ChatCompletionResult { tool_calls, content, usage } =
-                (|| self.chat(&agent, &model_id, context.clone()))
-                    .retry(
-                        ExponentialBuilder::default()
-                            .with_factor(retry_config.backoff_factor as f32)
-                            .with_max_times(retry_config.max_retry_attempts)
-                            .with_jitter(),
-                    )
-                    .when(should_retry)
-                    .await?;
+                self.chat(&agent, &model_id, context.clone()).await?;
 
             // Send the usage information if available
 
@@ -761,15 +749,6 @@ impl<S: AgentService> Orchestrator<S> {
 
         Ok(())
     }
-}
-
-fn should_retry(error: &anyhow::Error) -> bool {
-    let retry = error
-        .downcast_ref::<Error>()
-        .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
-
-    warn!(error = %error, retry = retry, "Retrying on error");
-    retry
 }
 
 #[cfg(test)]
