@@ -4,11 +4,12 @@ use std::sync::Arc;
 use anyhow::Context;
 use forge_display::TitleFormat;
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSFileInfoInput, NamedTool, ToolCallContext,
-    ToolDescription, ToolName, ToolOutput,
+    ExecutableTool, FSFileInfoInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 
+use crate::services::EnvironmentService;
 use crate::utils::{assert_absolute_path, format_display_path};
 use crate::Infrastructure;
 

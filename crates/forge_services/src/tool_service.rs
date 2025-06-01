@@ -3,12 +3,12 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use forge_domain::{
-    McpService, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput,
-    ToolResult, ToolService,
+    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult,
 };
 use tokio::time::{timeout, Duration};
 use tracing::info;
 
+use crate::services::{McpService, ToolService};
 use crate::tools::ToolRegistry;
 use crate::Infrastructure;
 

@@ -9,11 +9,11 @@ use forge_display::{DiffFormat, TitleFormat};
 // Using FSWriteInput from forge_domain
 use forge_domain::ToolOutput;
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription,
-    ToolName,
+    ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 
+use crate::services::EnvironmentService;
 use crate::tools::syn;
 use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};

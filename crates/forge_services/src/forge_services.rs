@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use forge_domain::{AgentService, ProviderService, Services, ToolService};
+use forge_domain::AgentService;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
+use crate::services::{ProviderService, Services, ToolService};
 use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;

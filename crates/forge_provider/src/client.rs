@@ -5,8 +5,7 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, Result};
 use forge_domain::{
-    ChatCompletionMessage, Context, Model, ModelId, Provider, ProviderService, ResultStream,
-    RetryConfig,
+    ChatCompletionMessage, Context, Model, ModelId, Provider, ResultStream, RetryConfig,
 };
 use reqwest::redirect::Policy;
 use tokio::sync::RwLock;
@@ -95,9 +94,8 @@ impl Client {
     }
 }
 
-#[async_trait::async_trait]
-impl ProviderService for Client {
-    async fn chat(
+impl Client {
+    pub async fn chat(
         &self,
         model: &ModelId,
         context: Context,
@@ -113,11 +111,11 @@ impl ProviderService for Client {
         ))
     }
 
-    async fn models(&self) -> anyhow::Result<Vec<Model>> {
+    pub async fn models(&self) -> anyhow::Result<Vec<Model>> {
         self.refresh_models().await
     }
 
-    async fn model(&self, model: &ModelId) -> anyhow::Result<Option<Model>> {
+    pub async fn model(&self, model: &ModelId) -> anyhow::Result<Option<Model>> {
         // First, check if the model is in the cache
         {
             let cache = self.models_cache.read().await;

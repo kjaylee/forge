@@ -4,7 +4,11 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::*;
 use forge_infra::ForgeInfra;
-use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
+use forge_services::{
+    AttachmentService, CommandExecutorService, ConversationService, EnvironmentService,
+    ForgeServices, Infrastructure, McpConfigManager, ProviderService, Services, SuggestionService,
+    ToolService, WorkflowService,
+};
 use forge_stream::MpscStream;
 use tokio::sync::RwLock;
 use tracing::error;

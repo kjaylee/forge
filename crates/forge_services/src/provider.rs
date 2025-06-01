@@ -1,12 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use forge_domain::{
-    ChatCompletionMessage, Context as ChatContext, EnvironmentService, Model, ModelId,
-    ProviderService, ResultStream,
-};
+use forge_domain::{ChatCompletionMessage, Context as ChatContext, Model, ModelId, ResultStream};
 use forge_provider::Client;
 
+use crate::services::{EnvironmentService, ProviderService};
 use crate::Infrastructure;
 
 #[derive(Clone)]

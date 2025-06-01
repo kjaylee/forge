@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{
+use forge_domain::{
     Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation, ConversationId,
     Environment, File, McpConfig, Model, ModelId, ResultStream, Scope, Tool, ToolCallContext,
     ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
