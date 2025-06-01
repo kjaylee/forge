@@ -10,6 +10,7 @@ use forge_services::{
     ToolService, WorkflowService,
 };
 use forge_stream::MpscStream;
+use futures::TryFutureExt;
 use tokio::sync::RwLock;
 use tracing::error;
 
@@ -75,7 +76,6 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
             app.environment_service().get_environment().clone(),
             conversation.clone(),
         )
-        .await
         .tool_definitions(tool_definitions)
         .models(models);
 
@@ -84,7 +84,11 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
                 let tx = Arc::new(tx);
 
                 // Execute dispatch and always save conversation afterwards
-                let result = orch.sender(tx.clone()).dispatch(chat.event).await;
+                let result = orch
+                    .sender(tx.clone())
+                    .dispatch(chat.event)
+                    .and_then(|conv| app.conversation_service().upsert(conv))
+                    .await;
 
                 // Handle dispatch error after saving conversation
                 if let Err(err) = result {
@@ -94,10 +98,6 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
                 }
             }
         });
-
-        // Save the conversation after the stream is created
-        let conversation = conversation.read().await.clone();
-        app.conversation_service().upsert(conversation).await?;
 
         Ok(stream)
     }

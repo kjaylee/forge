@@ -53,7 +53,7 @@ fn render_template(template: &str, object: &impl serde::Serialize) -> anyhow::Re
     Ok(rendered)
 }
 
-type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
+pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
 
 #[derive(Debug, Clone)]
 pub struct AgentMessage<T> {
@@ -85,7 +85,7 @@ struct ChatCompletionResult {
 }
 
 impl<S: AgentService> Orchestrator<S> {
-    pub async fn new(
+    pub fn new(
         services: Arc<S>,
         environment: Environment,
         conversation: Arc<RwLock<Conversation>>,
@@ -538,7 +538,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(ChatCompletionResult { content, tool_calls, usage })
     }
 
-    pub async fn dispatch(&self, event: Event) -> anyhow::Result<()> {
+    pub async fn dispatch(&self, event: Event) -> anyhow::Result<Conversation> {
         let inactive_agents = {
             let mut conversation = self.conversation.write().await;
             debug!(
@@ -556,7 +556,7 @@ impl<S: AgentService> Orchestrator<S> {
             .into_iter()
             .collect::<anyhow::Result<Vec<()>>>()?;
 
-        Ok(())
+        Ok(self.conversation.write().await.clone())
     }
 
     async fn complete_turn(&self, agent_id: &AgentId) -> anyhow::Result<()> {

@@ -956,6 +956,7 @@ dependencies = [
  "forge_snaps",
  "forge_stream",
  "forge_walker",
+ "futures",
  "insta",
  "merge",
  "serde",
