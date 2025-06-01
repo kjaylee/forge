@@ -14,7 +14,7 @@ pub struct ForgeAPI<A, F> {
     infra: Arc<F>,
 }
 
-impl<A: Services, F: Infrastructure> ForgeAPI<A, F> {
+impl<A: Services + AgentService, F: Infrastructure> ForgeAPI<A, F> {
     pub fn new(app: Arc<A>, infra: Arc<F>) -> Self {
         Self { app, infra }
     }
@@ -29,7 +29,7 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 }
 
 #[async_trait::async_trait]
-impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
+impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
     async fn suggestions(&self) -> Result<Vec<File>> {
         self.app.suggestion_service().suggestions().await
     }

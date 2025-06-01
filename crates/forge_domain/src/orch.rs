@@ -18,8 +18,21 @@ use tracing::{debug, info, warn};
 
 // Use retry_config default values directly in this file
 use crate::compact::find_sequence;
-use crate::services::Services;
 use crate::*;
+
+/// Minimal trait that defines only the methods Orchestrator needs from services
+#[async_trait::async_trait]
+pub trait AgentService: Send + Sync + Clone + 'static {
+    /// Perform a chat request with the provider
+    async fn chat(
+        &self,
+        model_id: &ModelId,
+        context: Context,
+    ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
+
+    /// Execute a tool call
+    async fn call(&self, context: ToolCallContext, call: ToolCallFull) -> ToolResult;
+}
 
 #[derive(Embed)]
 #[folder = "../../templates/"]
@@ -56,8 +69,8 @@ impl<T> AgentMessage<T> {
 
 #[derive(Clone, Setters)]
 #[setters(into, strip_option)]
-pub struct Orchestrator<Services> {
-    services: Arc<Services>,
+pub struct Orchestrator<S> {
+    services: Arc<S>,
     sender: Option<ArcSender>,
     conversation: Arc<RwLock<Conversation>>,
     environment: Environment,
@@ -71,9 +84,9 @@ struct ChatCompletionResult {
     pub usage: Usage,
 }
 
-impl<A: Services> Orchestrator<A> {
+impl<S: AgentService> Orchestrator<S> {
     pub async fn new(
-        services: Arc<A>,
+        services: Arc<S>,
         environment: Environment,
         conversation: Arc<RwLock<Conversation>>,
     ) -> Self {
@@ -108,7 +121,6 @@ impl<A: Services> Orchestrator<A> {
             // Execute the tool
             let tool_result = self
                 .services
-                .tool_service()
                 .call(tool_context.clone(), tool_call.clone())
                 .await;
 
@@ -297,11 +309,7 @@ impl<A: Services> Orchestrator<A> {
         }
 
         // Get summary from the provider
-        let response = self
-            .services
-            .provider_service()
-            .chat(&compact.model, context)
-            .await?;
+        let response = self.services.chat(&compact.model, context).await?;
 
         self.collect_completion_stream_content(compact, response)
             .await
@@ -585,11 +593,7 @@ impl<A: Services> Orchestrator<A> {
         model_id: &ModelId,
         context: Context,
     ) -> anyhow::Result<ChatCompletionResult> {
-        let response = self
-            .services
-            .provider_service()
-            .chat(model_id, context.clone())
-            .await?;
+        let response = self.services.chat(model_id, context.clone()).await?;
         self.collect_messages(agent, &context, response).await
     }
 
