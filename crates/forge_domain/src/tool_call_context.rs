@@ -4,16 +4,14 @@ use derive_setters::Setters;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::RwLock;
 
-use crate::{Agent, AgentMessage, ChatResponse};
+use crate::ChatResponse;
 
-/// Type alias for Arc<Sender<Result<AgentMessage<ChatResponse>>>>
-type ArcSender = Arc<Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
+/// Type alias for Arc<Sender<Result<ChatResponse>>>
+type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
 
 /// Provides additional context for tool calls.
 #[derive(Default, Clone, Debug, Setters)]
 pub struct ToolCallContext {
-    #[setters(strip_option)]
-    pub agent: Option<Agent>,
     pub sender: Option<ArcSender>,
     /// Indicates whether the tool execution has been completed
     /// This is wrapped in an RWLock for thread-safety
@@ -24,11 +22,7 @@ pub struct ToolCallContext {
 impl ToolCallContext {
     /// Creates a new ToolCallContext with default values
     pub fn new() -> Self {
-        Self {
-            agent: None,
-            sender: None,
-            is_complete: Arc::new(RwLock::new(false)),
-        }
+        Self { sender: None, is_complete: Arc::new(RwLock::new(false)) }
     }
 
     /// Sets the is_complete flag to true
@@ -43,7 +37,7 @@ impl ToolCallContext {
     }
 
     /// Send a message through the sender if available
-    pub async fn send(&self, agent_message: AgentMessage<ChatResponse>) -> anyhow::Result<()> {
+    pub async fn send(&self, agent_message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             sender.send(Ok(agent_message)).await?
         }
@@ -51,37 +45,23 @@ impl ToolCallContext {
     }
 
     pub async fn send_summary(&self, content: String) -> anyhow::Result<()> {
-        if let Some(agent) = &self.agent {
-            self.send(AgentMessage::new(
-                agent.id.clone(),
-                ChatResponse::Text {
-                    text: content,
-                    is_complete: true,
-                    is_md: false,
-                    is_summary: true,
-                },
-            ))
-            .await
-        } else {
-            Ok(())
-        }
+        self.send(ChatResponse::Text {
+            text: content,
+            is_complete: true,
+            is_md: false,
+            is_summary: true,
+        })
+        .await
     }
 
     pub async fn send_text(&self, content: impl ToString) -> anyhow::Result<()> {
-        if let Some(agent) = &self.agent {
-            self.send(AgentMessage::new(
-                agent.id.clone(),
-                ChatResponse::Text {
-                    text: content.to_string(),
-                    is_complete: true,
-                    is_md: false,
-                    is_summary: false,
-                },
-            ))
-            .await
-        } else {
-            Ok(())
-        }
+        self.send(ChatResponse::Text {
+            text: content.to_string(),
+            is_complete: true,
+            is_md: false,
+            is_summary: false,
+        })
+        .await
     }
 }
 

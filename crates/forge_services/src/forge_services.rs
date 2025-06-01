@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::AgentService;
+use forge_domain::{Agent, AgentService};
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -174,9 +174,10 @@ impl<F: Infrastructure> AgentService for ForgeServices<F> {
 
     async fn call(
         &self,
+        agent: &Agent,
         context: forge_domain::ToolCallContext,
         call: forge_domain::ToolCallFull,
     ) -> forge_domain::ToolResult {
-        self.tool_service().call(context, call).await
+        self.tool_service().call(agent, context, call).await
     }
 }

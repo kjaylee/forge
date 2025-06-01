@@ -29,7 +29,8 @@ pub trait AgentService: Send + Sync + Clone + 'static {
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
 
     /// Execute a tool call
-    async fn call(&self, context: ToolCallContext, call: ToolCallFull) -> ToolResult;
+    async fn call(&self, agent: &Agent, context: ToolCallContext, call: ToolCallFull)
+        -> ToolResult;
 }
 
 #[derive(Embed)]
@@ -51,19 +52,7 @@ fn render_template(template: &str, object: &impl serde::Serialize) -> anyhow::Re
     Ok(rendered)
 }
 
-pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<AgentMessage<ChatResponse>>>>;
-
-#[derive(Debug, Clone)]
-pub struct AgentMessage<T> {
-    pub agent: AgentId,
-    pub message: T,
-}
-
-impl<T> AgentMessage<T> {
-    pub fn new(agent: AgentId, message: T) -> Self {
-        Self { agent, message }
-    }
-}
+pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<ChatResponse>>>;
 
 #[derive(Clone, Setters)]
 #[setters(into, strip_option)]
@@ -115,7 +104,7 @@ impl<S: AgentService> Orchestrator<S> {
             // Execute the tool
             let tool_result = self
                 .services
-                .call(tool_context.clone(), tool_call.clone())
+                .call(agent, tool_context.clone(), tool_call.clone())
                 .await;
 
             if tool_result.is_error() {
@@ -146,9 +135,7 @@ impl<S: AgentService> Orchestrator<S> {
             let show_text = !agent.hide_content.unwrap_or_default();
             let can_send = !matches!(&message, ChatResponse::Text { .. }) || show_text;
             if can_send {
-                sender
-                    .send(Ok(AgentMessage { agent: agent.id.clone(), message }))
-                    .await?
+                sender.send(Ok(message)).await?
             }
         }
         Ok(())
@@ -572,14 +559,6 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(())
     }
 
-    // Get the ToolCallContext for an agent
-    fn get_tool_call_context(&self, agent: &Agent) -> ToolCallContext {
-        // Create a new ToolCallContext with the agent ID
-        ToolCallContext::default()
-            .agent(agent.clone())
-            .sender(self.sender.clone())
-    }
-
     async fn chat(
         &self,
         agent: &Agent,
@@ -654,7 +633,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         self.set_context(&agent.id, context.clone()).await?;
 
-        let tool_context = self.get_tool_call_context(&agent);
+        let tool_context = ToolCallContext::default().sender(self.sender.clone());
 
         let mut empty_tool_call_count = 0;
 

@@ -2,9 +2,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use forge_domain::{
-    Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation, ConversationId,
-    Environment, File, McpConfig, Model, ModelId, ResultStream, Scope, Tool, ToolCallContext,
-    ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
+    Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
+    ConversationId, Environment, File, McpConfig, Model, ModelId, ResultStream, Scope, Tool,
+    ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -21,7 +21,8 @@ pub trait ProviderService: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference
-    async fn call(&self, context: ToolCallContext, call: ToolCallFull) -> ToolResult;
+    async fn call(&self, agent: &Agent, context: ToolCallContext, call: ToolCallFull)
+        -> ToolResult;
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
     async fn find(&self, name: &ToolName) -> anyhow::Result<Option<Arc<Tool>>>;
 }

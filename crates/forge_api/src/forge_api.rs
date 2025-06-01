@@ -49,7 +49,7 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
     async fn chat(
         &self,
         mut chat: ChatRequest,
-    ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
+    ) -> anyhow::Result<MpscStream<Result<ChatResponse, anyhow::Error>>> {
         let app = self.app.clone();
         let mut conversation = app
             .conversation_service()

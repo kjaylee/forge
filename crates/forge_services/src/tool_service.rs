@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use forge_domain::{
-    Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult,
+    Agent, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult,
 };
 use tokio::time::{timeout, Duration};
 use tracing::info;
@@ -61,26 +61,25 @@ impl<M: McpService> ForgeToolService<M> {
     /// 2. If agent validation passes, checks if the system supports the tool
     async fn validate_tool_call(
         &self,
-        context: &ToolCallContext,
+        agent: &Agent,
         tool_name: &ToolName,
     ) -> anyhow::Result<Arc<Tool>> {
         // Step 1: check if tool is supported by operating agent.
-        if let Some(agent) = &context.agent {
-            let agent_tools: Vec<_> = agent
-                .tools
-                .iter()
-                .flat_map(|tools| tools.iter())
-                .map(|tool| tool.as_str())
-                .collect();
 
-            if !agent_tools.contains(&tool_name.as_str()) {
-                return Err(anyhow::anyhow!(
+        let agent_tools: Vec<_> = agent
+            .tools
+            .iter()
+            .flat_map(|tools| tools.iter())
+            .map(|tool| tool.as_str())
+            .collect();
+
+        if !agent_tools.contains(&tool_name.as_str()) {
+            return Err(anyhow::anyhow!(
                     "No tool with name '{}' is supported by agent '{}'. Please try again with one of these tools {}",
                     tool_name,
                     agent.id,
                     agent_tools.join(", ")
                 ));
-            }
         }
 
         // Step 2: check if tool is supported by system.
@@ -90,13 +89,14 @@ impl<M: McpService> ForgeToolService<M> {
 
     async fn call(
         &self,
+        agent: &Agent,
         context: ToolCallContext,
         call: ToolCallFull,
     ) -> anyhow::Result<ToolOutput> {
         info!(tool_name = %call.name, arguments = %call.arguments, "Executing tool call");
 
         // Checks if tool is supported by agent and system.
-        let tool = self.validate_tool_call(&context, &call.name).await?;
+        let tool = self.validate_tool_call(agent, &call.name).await?;
 
         let output = timeout(
             TOOL_CALL_TIMEOUT,
@@ -121,10 +121,15 @@ impl<M: McpService> ForgeToolService<M> {
 
 #[async_trait::async_trait]
 impl<M: McpService> ToolService for ForgeToolService<M> {
-    async fn call(&self, context: ToolCallContext, call: ToolCallFull) -> ToolResult {
+    async fn call(
+        &self,
+        agent: &Agent,
+        context: ToolCallContext,
+        call: ToolCallFull,
+    ) -> ToolResult {
         ToolResult::new(call.name.clone())
             .call_id(call.call_id.clone())
-            .output(self.call(context, call).await)
+            .output(self.call(agent, context, call).await)
     }
 
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
@@ -216,12 +221,13 @@ mod test {
             arguments: json!("test input"),
             call_id: Some(ToolCallId::new("test")),
         };
+        let agent = Agent::new("software_agent");
 
         // Use tokio::time::timeout directly to simulate tool timeout behavior
         // without relying on tokio test mock time that might be flakey
         let result = tokio::time::timeout(
             Duration::from_millis(50), // Use a very short timeout for test speed
-            service.call(ToolCallContext::default(), call),
+            service.call(&agent, ToolCallContext::default(), call),
         )
         .await;
 
