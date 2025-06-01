@@ -1,16 +1,18 @@
-use crate::{
-    BufferService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-    FsWriteService, Infrastructure,
-};
+use std::hash::{DefaultHasher, Hasher};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
 use bytes::Bytes;
 use forge_domain::{Buffer, Conversation, ConversationSessionManager, EnvironmentService};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
-use std::hash::{DefaultHasher, Hasher};
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use thiserror::__private::AsDisplay;
 use tokio::sync::RwLock;
+
+use crate::{
+    BufferService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
+    FsWriteService, Infrastructure,
+};
 
 pub struct ForgeConversationSessionManager<I> {
     infra: Arc<I>,
@@ -44,7 +46,8 @@ impl<I: Infrastructure> ForgeConversationSessionManager<I> {
         hasher.finish()
     }
 
-    // creates session path, i.e. ~/forge/conversations/<hash of cwd>/<session/conversation id>
+    // creates session path, i.e. ~/forge/conversations/<hash of
+    // cwd>/<session/conversation id>
     async fn session_path(&self) -> anyhow::Result<PathBuf> {
         Ok(self.project_dir.join(self.session_id().await?))
     }
