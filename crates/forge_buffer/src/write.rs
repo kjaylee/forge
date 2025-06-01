@@ -85,7 +85,7 @@ mod tests {
             .unwrap();
 
         // Create second ForgeBuffer instance for same file and write
-        let mut second_buffer = ForgeBuffer::new();
+        let second_buffer = ForgeBuffer::new();
         let second_entry = Buffer {
             event: BufferEvent::Output,
             content: "Appended Entry".to_string(),
