@@ -316,6 +316,12 @@ impl Conversation {
 
         inactive_agents
     }
+
+    pub fn reset_queue(&mut self) {
+        self.state.iter_mut().for_each(|(_, state)| {
+            state.queue.clear();
+        });
+    }
 }
 
 #[cfg(test)]

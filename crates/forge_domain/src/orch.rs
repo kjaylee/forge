@@ -72,15 +72,12 @@ struct ChatCompletionResult {
 }
 
 impl<A: Services> Orchestrator<A> {
-    pub fn new(services: Arc<A>, mut conversation: Conversation) -> Self {
+    pub async fn new(services: Arc<A>, conversation: Arc<RwLock<Conversation>>) -> Self {
         // since self is a new request, we clear the queue
-        conversation.state.values_mut().for_each(|state| {
-            state.queue.clear();
-        });
 
         Self {
             sender: Default::default(),
-            conversation: Arc::new(RwLock::new(conversation)),
+            conversation,
             environment: services.environment_service().get_environment(),
             services,
             tool_definitions: Default::default(),
@@ -781,6 +778,10 @@ impl<A: Services> Orchestrator<A> {
         }
 
         Ok(())
+    }
+
+    pub async fn get_conversation(&self) -> Conversation {
+        self.conversation.read().await.clone()
     }
 }
 

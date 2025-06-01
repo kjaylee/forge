@@ -6,6 +6,7 @@ use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
+use tokio::sync::RwLock;
 use tracing::error;
 
 pub struct ForgeAPI<F> {
@@ -45,12 +46,15 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
         mut chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
         let app = self.app.clone();
-        let conversation = app
+        let mut conversation = app
             .conversation_service()
             .find(&chat.conversation_id)
             .await
             .unwrap_or_default()
             .expect("conversation for the request should've been created at this point.");
+
+        conversation.reset_queue();
+        let conversation = Arc::new(RwLock::new(conversation));
 
         let tool_definitions = app.tool_service().list().await?;
         let models = app.provider_service().models().await?;
@@ -61,21 +65,32 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
             .attachments(&chat.event.value.to_string())
             .await?;
         chat.event = chat.event.attachments(attachments);
+        let orch = Orchestrator::new(app.clone(), conversation.clone())
+            .await
+            .tool_definitions(tool_definitions)
+            .models(models);
 
-        Ok(MpscStream::spawn(move |tx| async move {
-            let tx = Arc::new(tx);
+        let stream = MpscStream::spawn(|tx| {
+            async move {
+                let tx = Arc::new(tx);
 
-            let orch = Orchestrator::new(app.clone(), conversation)
-                .sender(tx.clone())
-                .tool_definitions(tool_definitions)
-                .models(models);
+                // Execute dispatch and always save conversation afterwards
+                let result = orch.sender(tx.clone()).dispatch(chat.event).await;
 
-            if let Err(err) = orch.dispatch(chat.event).await {
-                if let Err(e) = tx.send(Err(err)).await {
-                    error!("Failed to send error to stream: {:#?}", e);
+                // Handle dispatch error after saving conversation
+                if let Err(err) = result {
+                    if let Err(e) = tx.send(Err(err)).await {
+                        error!("Failed to send error to stream: {:#?}", e);
+                    }
                 }
             }
-        }))
+        });
+
+        // Save the conversation after the stream is created
+        let conversation = conversation.read().await.clone();
+        app.conversation_service().upsert(conversation).await?;
+
+        Ok(stream)
     }
 
     async fn init_conversation<W: Into<Workflow> + Send + Sync>(
