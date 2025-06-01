@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::{Agent, AgentService};
+use forge_domain::Agent;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -11,7 +11,7 @@ use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::workflow::ForgeWorkflowService;
-use crate::Infrastructure;
+use crate::{AgentService, Infrastructure};
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F>;
 

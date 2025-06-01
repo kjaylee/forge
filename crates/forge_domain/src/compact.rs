@@ -119,7 +119,7 @@ impl Compact {
 /// Finds a sequence in the context for compaction, starting from the first
 /// assistant message and including all messages up to the last possible message
 /// (respecting preservation window)
-pub(crate) fn find_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, usize)> {
+pub fn find_compact_sequence(context: &Context, preserve_last_n: usize) -> Option<(usize, usize)> {
     let messages = &context.messages;
     if messages.is_empty() {
         return None;
@@ -227,7 +227,7 @@ mod tests {
             }
         }
 
-        let sequence = find_sequence(&context, preserve_last_n);
+        let sequence = find_compact_sequence(&context, preserve_last_n);
 
         let mut result = pattern.clone();
         if let Some((start, end)) = sequence {

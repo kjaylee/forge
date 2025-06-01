@@ -7,16 +7,14 @@ use async_recursion::async_recursion;
 use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use derive_setters::Setters;
+// Use retry_config default values directly in this file
+use forge_domain::{find_compact_sequence, *};
 use forge_walker::Walker;
 use futures::{Stream, StreamExt};
 use handlebars::Handlebars;
 use rust_embed::Embed;
 use serde_json::Value;
 use tracing::{debug, info, warn};
-
-// Use retry_config default values directly in this file
-use crate::compact::find_sequence;
-use crate::*;
 
 /// Minimal trait that defines only the methods Orchestrator needs from services
 #[async_trait::async_trait]
@@ -198,7 +196,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Identify and compress the first compressible sequence
             // Get all compressible sequences, considering the preservation window
-            match find_sequence(&context, compact.retention_window)
+            match find_compact_sequence(&context, compact.retention_window)
                 .into_iter()
                 .next()
             {
