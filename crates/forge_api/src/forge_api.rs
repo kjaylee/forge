@@ -11,7 +11,6 @@ use forge_services::{
 };
 use forge_stream::MpscStream;
 use futures::TryFutureExt;
-use tokio::sync::RwLock;
 use tracing::error;
 
 pub struct ForgeAPI<A, F> {
@@ -60,7 +59,6 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
             .expect("conversation for the request should've been created at this point.");
 
         conversation.reset_queue();
-        let conversation = Arc::new(RwLock::new(conversation));
 
         let tool_definitions = app.tool_service().list().await?;
         let models = app.provider_service().models().await?;
@@ -74,7 +72,7 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
         let orch = Orchestrator::new(
             app.clone(),
             app.environment_service().get_environment().clone(),
-            conversation.clone(),
+            conversation,
         )
         .tool_definitions(tool_definitions)
         .models(models);

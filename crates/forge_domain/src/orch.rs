@@ -8,12 +8,10 @@ use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use derive_setters::Setters;
 use forge_walker::Walker;
-use futures::future::join_all;
 use futures::{Stream, StreamExt};
 use handlebars::Handlebars;
 use rust_embed::Embed;
 use serde_json::Value;
-use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 // Use retry_config default values directly in this file
@@ -72,7 +70,7 @@ impl<T> AgentMessage<T> {
 pub struct Orchestrator<S> {
     services: Arc<S>,
     sender: Option<ArcSender>,
-    conversation: Arc<RwLock<Conversation>>,
+    conversation: Conversation,
     environment: Environment,
     tool_definitions: Vec<ToolDefinition>,
     models: Vec<Model>,
@@ -85,11 +83,7 @@ struct ChatCompletionResult {
 }
 
 impl<S: AgentService> Orchestrator<S> {
-    pub fn new(
-        services: Arc<S>,
-        environment: Environment,
-        conversation: Arc<RwLock<Conversation>>,
-    ) -> Self {
+    pub fn new(services: Arc<S>, environment: Environment, conversation: Conversation) -> Self {
         // since self is a new request, we clear the queue
 
         Self {
@@ -525,6 +519,7 @@ impl<S: AgentService> Orchestrator<S> {
             .collect();
 
         // Process partial tool calls
+        // FIXME: Parse failure should be retried
         let partial_tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)
             .with_context(|| format!("Failed to parse tool call: {tool_call_parts:?}"))?;
 
@@ -538,30 +533,29 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(ChatCompletionResult { content, tool_calls, usage })
     }
 
-    pub async fn dispatch(&self, event: Event) -> anyhow::Result<Conversation> {
+    pub async fn dispatch(mut self, event: Event) -> anyhow::Result<Conversation> {
         let inactive_agents = {
-            let mut conversation = self.conversation.write().await;
             debug!(
-                conversation_id = %conversation.id,
+                conversation_id = %self.conversation.id.clone(),
                 event_name = %event.name,
                 event_value = %event.value,
                 "Dispatching event"
             );
-            conversation.dispatch_event(event)
+            self.conversation.dispatch_event(event)
         };
 
-        // Execute all initialization futures in parallel
-        join_all(inactive_agents.iter().map(|id| self.wake_agent(id)))
-            .await
-            .into_iter()
-            .collect::<anyhow::Result<Vec<()>>>()?;
+        // Execute all initialization futures in parallel - but we can't do parallel
+        // anymore since wake_agent requires &mut self, so we'll do them
+        // sequentially
+        for agent_id in &inactive_agents {
+            self.wake_agent(agent_id).await?;
+        }
 
-        Ok(self.conversation.write().await.clone())
+        Ok(self.conversation)
     }
 
-    async fn complete_turn(&self, agent_id: &AgentId) -> anyhow::Result<()> {
-        let mut conversation = self.conversation.write().await;
-        conversation
+    async fn complete_turn(&mut self, agent_id: &AgentId) -> anyhow::Result<()> {
+        self.conversation
             .state
             .entry(agent_id.clone())
             .or_default()
@@ -569,9 +563,8 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(())
     }
 
-    async fn set_context(&self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
-        let mut conversation = self.conversation.write().await;
-        conversation
+    async fn set_context(&mut self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
+        self.conversation
             .state
             .entry(agent_id.clone())
             .or_default()
@@ -598,37 +591,38 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     // Create a helper method with the core functionality
-    async fn init_agent(&self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
-        let conversation = self.conversation.read().await.clone();
-        let variables = &conversation.variables;
+    async fn init_agent(&mut self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+        let variables = self.conversation.variables.clone();
         debug!(
-            conversation_id = %conversation.id,
+            conversation_id = %self.conversation.id,
             agent = %agent_id,
             event = ?event,
             "Initializing agent"
         );
-        let agent = conversation.get_agent(agent_id)?;
+        let agent = self.conversation.get_agent(agent_id)?.clone();
         let model_id = agent
             .model
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
-        let tool_supported = self.is_tool_supported(agent).await?;
+        let tool_supported = self.is_tool_supported(&agent).await?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent.init_context(self.get_allowed_tools(agent).await?, tool_supported)?
+            agent.init_context(self.get_allowed_tools(&agent).await?, tool_supported)?
         } else {
-            match conversation.context(&agent.id) {
+            match self.conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => agent.init_context(self.get_allowed_tools(agent).await?, tool_supported)?,
+                None => {
+                    agent.init_context(self.get_allowed_tools(&agent).await?, tool_supported)?
+                }
             }
         };
 
         // Render the system prompts with the variables
-        context = self.set_system_prompt(context, agent, variables).await?;
+        context = self.set_system_prompt(context, &agent, &variables).await?;
 
         // Render user prompts
         context = self
-            .set_user_prompt(context, agent, variables, event)
+            .set_user_prompt(context, &agent, &variables, event)
             .await?;
 
         if let Some(temperature) = agent.temperature {
@@ -660,7 +654,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         self.set_context(&agent.id, context.clone()).await?;
 
-        let tool_context = self.get_tool_call_context(agent);
+        let tool_context = self.get_tool_call_context(&agent);
 
         let mut empty_tool_call_count = 0;
 
@@ -671,7 +665,7 @@ impl<S: AgentService> Orchestrator<S> {
             self.set_context(&agent.id, context.clone()).await?;
 
             let ChatCompletionResult { tool_calls, content, usage } =
-                (|| self.chat(agent, &model_id, context.clone()))
+                (|| self.chat(&agent, &model_id, context.clone()))
                     .retry(
                         ExponentialBuilder::default()
                             .with_factor(retry_config.backoff_factor as f32)
@@ -689,12 +683,13 @@ impl<S: AgentService> Orchestrator<S> {
                 content_length = usage.content_length,
                 "Processing usage information"
             );
-            self.send(agent, ChatResponse::Usage(usage.clone())).await?;
+            self.send(&agent, ChatResponse::Usage(usage.clone()))
+                .await?;
 
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
-                context = self.compact_context(agent, context).await?;
+                context = self.compact_context(&agent, context).await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
@@ -707,7 +702,7 @@ impl<S: AgentService> Orchestrator<S> {
             context = context.append_message(
                 content,
                 model_id.clone(),
-                self.execute_tool_calls(agent, &tool_calls, tool_context.clone())
+                self.execute_tool_calls(&agent, &tool_calls, tool_context.clone())
                     .await?,
                 tool_supported,
             );
@@ -777,19 +772,12 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(context)
     }
 
-    async fn wake_agent(&self, agent_id: &AgentId) -> anyhow::Result<()> {
-        while let Some(event) = {
-            let mut conversation = self.conversation.write().await;
-            conversation.poll_event(agent_id)
-        } {
+    async fn wake_agent(&mut self, agent_id: &AgentId) -> anyhow::Result<()> {
+        while let Some(event) = self.conversation.poll_event(agent_id) {
             self.init_agent(agent_id, &event).await?
         }
 
         Ok(())
-    }
-
-    pub async fn get_conversation(&self) -> Conversation {
-        self.conversation.read().await.clone()
     }
 }
 
