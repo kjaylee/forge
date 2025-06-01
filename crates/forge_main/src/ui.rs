@@ -84,7 +84,7 @@ impl<F: API> UI<F> {
     async fn on_new(&mut self) -> Result<()> {
         self.init_state().await?;
         banner::display()?;
-
+        self.api.clear_state().await.ok();
         Ok(())
     }
 
