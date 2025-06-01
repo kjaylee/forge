@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use derive_setters::Setters;
 use tokio::sync::mpsc::Sender;
-use tokio::sync::RwLock;
 
 use crate::ChatResponse;
 
@@ -16,24 +15,23 @@ pub struct ToolCallContext {
     /// Indicates whether the tool execution has been completed
     /// This is wrapped in an RWLock for thread-safety
     #[setters(skip)]
-    pub is_complete: Arc<RwLock<bool>>,
+    pub is_complete: bool,
 }
 
 impl ToolCallContext {
     /// Creates a new ToolCallContext with default values
     pub fn new() -> Self {
-        Self { sender: None, is_complete: Arc::new(RwLock::new(false)) }
+        Self { sender: None, is_complete: false }
     }
 
     /// Sets the is_complete flag to true
-    pub async fn set_complete(&self) {
-        let mut is_complete = self.is_complete.write().await;
-        *is_complete = true;
+    pub async fn set_complete(&mut self) {
+        self.is_complete = true;
     }
 
     /// Gets the current value of is_complete flag
     pub async fn get_complete(&self) -> bool {
-        *self.is_complete.read().await
+        self.is_complete
     }
 
     /// Send a message through the sender if available
@@ -83,7 +81,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_complete() {
-        let context = ToolCallContext::default();
+        let mut context = ToolCallContext::default();
         context.set_complete().await;
         assert!(context.get_complete().await);
     }

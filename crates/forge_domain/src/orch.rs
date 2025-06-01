@@ -29,8 +29,12 @@ pub trait AgentService: Send + Sync + Clone + 'static {
     ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
 
     /// Execute a tool call
-    async fn call(&self, agent: &Agent, context: ToolCallContext, call: ToolCallFull)
-        -> ToolResult;
+    async fn call(
+        &self,
+        agent: &Agent,
+        context: &mut ToolCallContext,
+        call: ToolCallFull,
+    ) -> ToolResult;
 }
 
 #[derive(Embed)]
@@ -91,7 +95,7 @@ impl<S: AgentService> Orchestrator<S> {
         &self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
-        tool_context: ToolCallContext,
+        tool_context: &mut ToolCallContext,
     ) -> anyhow::Result<Vec<(ToolCallFull, ToolResult)>> {
         // Always process tool calls sequentially
         let mut tool_call_records = Vec::with_capacity(tool_calls.len());
@@ -104,7 +108,7 @@ impl<S: AgentService> Orchestrator<S> {
             // Execute the tool
             let tool_result = self
                 .services
-                .call(agent, tool_context.clone(), tool_call.clone())
+                .call(agent, tool_context, tool_call.clone())
                 .await;
 
             if tool_result.is_error() {
@@ -633,7 +637,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         self.set_context(&agent.id, context.clone()).await?;
 
-        let tool_context = ToolCallContext::default().sender(self.sender.clone());
+        let mut tool_context = ToolCallContext::default().sender(self.sender.clone());
 
         let mut empty_tool_call_count = 0;
 
@@ -681,7 +685,7 @@ impl<S: AgentService> Orchestrator<S> {
             context = context.append_message(
                 content,
                 model_id.clone(),
-                self.execute_tool_calls(&agent, &tool_calls, tool_context.clone())
+                self.execute_tool_calls(&agent, &tool_calls, &mut tool_context)
                     .await?,
                 tool_supported,
             );

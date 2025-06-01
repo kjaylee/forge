@@ -59,7 +59,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
 
     async fn call(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         // Validate absolute path requirement
@@ -181,7 +181,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let output = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: file_path.to_string_lossy().to_string(),
@@ -215,7 +215,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: file_path.to_string_lossy().to_string(),
@@ -241,7 +241,7 @@ mod test {
         let content = "fn main() { let x = 42; }";
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: file_path.to_string_lossy().to_string(),
@@ -277,7 +277,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: nested_path.to_string_lossy().to_string(),
@@ -320,7 +320,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: deep_path.to_string_lossy().to_string(),
@@ -364,7 +364,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: path_str,
@@ -402,7 +402,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     explanation: None,
                     path: "relative/path/file.txt".to_string(),
@@ -437,7 +437,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     path: file_path.to_string_lossy().to_string(),
                     content: "New content".to_string(),
@@ -503,7 +503,7 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     path: file_path.to_string_lossy().to_string(),
                     content: new_content.to_string(),

@@ -57,7 +57,7 @@ impl<F: Infrastructure> ExecutableTool for FSFileInfo<F> {
 
     async fn call(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
@@ -92,7 +92,7 @@ mod test {
         let fs_info = FSFileInfo::new(stub);
         let result = fs_info
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSFileInfoInput {
                     path: file_path.to_string_lossy().to_string(),
                     explanation: None,
@@ -117,7 +117,7 @@ mod test {
         let fs_info = FSFileInfo::new(stub);
         let result = fs_info
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSFileInfoInput {
                     path: dir_path.to_string_lossy().to_string(),
                     explanation: None,
@@ -141,7 +141,7 @@ mod test {
         let fs_info = FSFileInfo::new(stub);
         let result = fs_info
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSFileInfoInput {
                     path: nonexistent_path.to_string_lossy().to_string(),
                     explanation: None,
@@ -159,7 +159,7 @@ mod test {
         let fs_info = FSFileInfo::new(stub);
         let result = fs_info
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSFileInfoInput { path: "relative/path.txt".to_string(), explanation: None },
             )
             .await;

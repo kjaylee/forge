@@ -51,7 +51,7 @@ impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
     type Input = UndoInput;
     async fn call(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
@@ -93,7 +93,7 @@ mod tests {
         // Act
         let result = undo
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 UndoInput {
                     path: test_path.to_string_lossy().to_string(),
                     explanation: None,

@@ -175,7 +175,7 @@ impl<F: Infrastructure> AgentService for ForgeServices<F> {
     async fn call(
         &self,
         agent: &Agent,
-        context: forge_domain::ToolCallContext,
+        context: &mut forge_domain::ToolCallContext,
         call: forge_domain::ToolCallFull,
     ) -> forge_domain::ToolResult {
         self.tool_service().call(agent, context, call).await

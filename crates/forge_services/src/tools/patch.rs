@@ -211,7 +211,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
 
     async fn call(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         patch: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&patch.path);

@@ -90,7 +90,7 @@ impl<M: McpService> ForgeToolService<M> {
     async fn call(
         &self,
         agent: &Agent,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         call: ToolCallFull,
     ) -> anyhow::Result<ToolOutput> {
         info!(tool_name = %call.name, arguments = %call.arguments, "Executing tool call");
@@ -124,7 +124,7 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
     async fn call(
         &self,
         agent: &Agent,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         call: ToolCallFull,
     ) -> ToolResult {
         ToolResult::new(call.name.clone())
@@ -191,7 +191,7 @@ mod test {
 
         async fn call(
             &self,
-            _context: ToolCallContext,
+            _context: &mut ToolCallContext,
             _input: Self::Input,
         ) -> anyhow::Result<forge_domain::ToolOutput> {
             // Simulate a long-running task that exceeds the timeout
@@ -227,7 +227,7 @@ mod test {
         // without relying on tokio test mock time that might be flakey
         let result = tokio::time::timeout(
             Duration::from_millis(50), // Use a very short timeout for test speed
-            service.call(&agent, ToolCallContext::default(), call),
+            service.call(&agent, &mut ToolCallContext::default(), call),
         )
         .await;
 
