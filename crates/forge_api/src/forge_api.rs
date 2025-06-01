@@ -42,7 +42,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
 
     async fn chat(
         &self,
-        chat: ChatRequest,
+        mut chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<Result<AgentMessage<ChatResponse>, anyhow::Error>>> {
         let app = self.app.clone();
         let conversation = app
@@ -70,7 +70,7 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
                 .tool_definitions(tool_definitions)
                 .models(models);
 
-            if let Err(err) = orch.dispatch(enriched_event).await {
+            if let Err(err) = orch.dispatch(chat.event).await {
                 if let Err(e) = tx.send(Err(err)).await {
                     error!("Failed to send error to stream: {:#?}", e);
                 }
