@@ -143,7 +143,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     /// Get the allowed tools for an agent
-    async fn get_allowed_tools(&self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
+    fn get_allowed_tools(&self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
         let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
         Ok(self
             .tool_definitions
@@ -159,7 +159,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     // Returns if agent supports tool or not.
-    async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
+    fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
         let model_id = agent
             .model
             .as_ref()
@@ -351,12 +351,10 @@ impl<S: AgentService> Orchestrator<S> {
 
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
-            let tool_supported = self.is_tool_supported(agent).await?;
+            let tool_supported = self.is_tool_supported(agent)?;
             let tool_information = match tool_supported {
                 true => None,
-                false => {
-                    Some(ToolUsagePrompt::from(&self.get_allowed_tools(agent).await?).to_string())
-                }
+                false => Some(ToolUsagePrompt::from(&self.get_allowed_tools(agent)?).to_string()),
             };
 
             let ctx = SystemContext {
@@ -407,7 +405,7 @@ impl<S: AgentService> Orchestrator<S> {
         let mut tool_interrupted = false;
 
         // Only interrupt the loop for XML tool calls if tool_supported is false
-        let should_interrupt_for_xml = !self.is_tool_supported(agent).await?;
+        let should_interrupt_for_xml = !self.is_tool_supported(agent)?;
 
         while let Some(message) = response.next().await {
             let message = message?;
@@ -542,7 +540,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(self.conversation)
     }
 
-    async fn complete_turn(&mut self, agent_id: &AgentId) -> anyhow::Result<()> {
+    fn complete_turn(&mut self, agent_id: &AgentId) -> anyhow::Result<()> {
         self.conversation
             .state
             .entry(agent_id.clone())
@@ -551,7 +549,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(())
     }
 
-    async fn set_context(&mut self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
+    fn set_context(&mut self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
         self.conversation
             .state
             .entry(agent_id.clone())
@@ -584,16 +582,14 @@ impl<S: AgentService> Orchestrator<S> {
             .model
             .clone()
             .ok_or(Error::MissingModel(agent.id.clone()))?;
-        let tool_supported = self.is_tool_supported(&agent).await?;
+        let tool_supported = self.is_tool_supported(&agent)?;
 
         let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent.init_context(self.get_allowed_tools(&agent).await?, tool_supported)?
+            agent.init_context(self.get_allowed_tools(&agent)?, tool_supported)?
         } else {
             match self.conversation.context(&agent.id) {
                 Some(context) => context.clone(),
-                None => {
-                    agent.init_context(self.get_allowed_tools(&agent).await?, tool_supported)?
-                }
+                None => agent.init_context(self.get_allowed_tools(&agent)?, tool_supported)?,
             }
         };
 
@@ -601,9 +597,7 @@ impl<S: AgentService> Orchestrator<S> {
         context = self.set_system_prompt(context, &agent, &variables).await?;
 
         // Render user prompts
-        context = self
-            .set_user_prompt(context, &agent, &variables, event)
-            .await?;
+        context = self.set_user_prompt(context, &agent, &variables, event)?;
 
         if let Some(temperature) = agent.temperature {
             context = context.temperature(temperature);
@@ -632,7 +626,7 @@ impl<S: AgentService> Orchestrator<S> {
                 })
             });
 
-        self.set_context(&agent.id, context.clone()).await?;
+        self.set_context(&agent.id, context.clone())?;
 
         let mut tool_context = ToolCallContext::default().sender(self.sender.clone());
 
@@ -640,7 +634,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
-            self.set_context(&agent.id, context.clone()).await?;
+            self.set_context(&agent.id, context.clone())?;
 
             let ChatCompletionResult { tool_calls, content, usage } =
                 self.chat(&agent, &model_id, context.clone()).await?;
@@ -711,15 +705,15 @@ impl<S: AgentService> Orchestrator<S> {
             }
 
             // Update context in the conversation
-            self.set_context(&agent.id, context.clone()).await?;
+            self.set_context(&agent.id, context.clone())?;
         }
 
-        self.complete_turn(&agent.id).await?;
+        self.complete_turn(&agent.id)?;
 
         Ok(())
     }
 
-    async fn set_user_prompt(
+    fn set_user_prompt(
         &self,
         mut context: Context,
         agent: &Agent,
