@@ -536,15 +536,6 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(self.conversation)
     }
 
-    fn complete_turn(&mut self, agent_id: &AgentId) -> anyhow::Result<()> {
-        self.conversation
-            .state
-            .entry(agent_id.clone())
-            .or_default()
-            .turn_count += 1;
-        Ok(())
-    }
-
     fn set_context(&mut self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
         self.conversation
             .state
@@ -703,8 +694,6 @@ impl<S: AgentService> Orchestrator<S> {
             // Update context in the conversation
             self.set_context(&agent.id, context.clone())?;
         }
-
-        self.complete_turn(&agent.id)?;
 
         Ok(())
     }

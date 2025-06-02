@@ -41,7 +41,6 @@ pub struct Conversation {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AgentState {
-    pub turn_count: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<Context>,
 }
@@ -167,10 +166,6 @@ impl Conversation {
         }
     }
 
-    pub fn turn_count(&self, id: &AgentId) -> Option<u64> {
-        self.state.get(id).map(|s| s.turn_count)
-    }
-
     /// Returns all the agents that are subscribed to the given event.
     pub fn subscriptions(&self, event_name: &str) -> Vec<Agent> {
         self.agents
@@ -178,9 +173,6 @@ impl Conversation {
             .filter(|a| {
                 // Filter out disabled agents
                 !a.disable.unwrap_or_default()
-            })
-            .filter(|a| {
-                self.turn_count(&a.id).unwrap_or_default() < a.max_turns.unwrap_or(u64::MAX)
             })
             .filter(|a| {
                 a.subscribe
