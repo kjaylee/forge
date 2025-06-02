@@ -225,6 +225,7 @@ pub mod tests {
         env_service: Arc<MockEnvironmentService>,
         file_service: Arc<MockFileService>,
         file_snapshot_service: Arc<MockSnapService>,
+        console_service: Arc<MockConsoleService>,
     }
 
     impl MockInfrastructure {
@@ -233,6 +234,7 @@ pub mod tests {
                 env_service: Arc::new(MockEnvironmentService {}),
                 file_service: Arc::new(MockFileService::new()),
                 file_snapshot_service: Arc::new(MockSnapService),
+                console_service: Arc::new(MockConsoleService),
             }
         }
     }
@@ -474,6 +476,17 @@ pub mod tests {
         }
     }
 
+    #[derive(Debug, Clone)]
+    pub struct MockConsoleService;
+
+    #[async_trait::async_trait]
+    impl crate::infra::ConsoleService for MockConsoleService {
+        async fn print(&self, _output: &str) -> anyhow::Result<()> {
+            // Mock implementation - just ignore the output
+            Ok(())
+        }
+    }
+
     #[async_trait::async_trait]
     impl InquireService for () {
         /// Prompts the user with question
@@ -521,6 +534,7 @@ pub mod tests {
         type InquireService = ();
         type McpServer = ();
         type BufferService = ();
+        type ConsoleService = MockConsoleService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -564,6 +578,10 @@ pub mod tests {
 
         fn buffer_service(&self) -> &Self::BufferService {
             &()
+        }
+
+        fn console_service(&self) -> &Self::ConsoleService {
+            &self.console_service
         }
     }
 

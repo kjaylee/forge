@@ -231,6 +231,14 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
+    impl crate::infra::ConsoleService for Stub {
+        async fn print(&self, _output: &str) -> anyhow::Result<()> {
+            // Stub implementation - just ignore the output
+            Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
     impl McpServer for Stub {
         type Client = Stub;
 
@@ -252,6 +260,7 @@ pub mod tests {
         type InquireService = Stub;
         type McpServer = Stub;
         type BufferService = Stub;
+        type ConsoleService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -294,6 +303,10 @@ pub mod tests {
         }
 
         fn buffer_service(&self) -> &Self::BufferService {
+            self
+        }
+
+        fn console_service(&self) -> &Self::ConsoleService {
             self
         }
     }
