@@ -51,14 +51,12 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
         mut chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<Result<ChatResponse, anyhow::Error>>> {
         let app = self.app.clone();
-        let mut conversation = app
+        let conversation = app
             .conversation_service()
             .find(&chat.conversation_id)
             .await
             .unwrap_or_default()
             .expect("conversation for the request should've been created at this point.");
-
-        conversation.reset_queue();
 
         let tool_definitions = app.tool_service().list().await?;
         let models = app.provider_service().models().await?;

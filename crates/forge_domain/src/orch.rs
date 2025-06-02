@@ -74,8 +74,6 @@ struct ChatCompletionResult {
 
 impl<S: AgentService> Orchestrator<S> {
     pub fn new(services: Arc<S>, environment: Environment, conversation: Conversation) -> Self {
-        // since self is a new request, we clear the queue
-
         Self {
             conversation,
             environment,
@@ -520,21 +518,19 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     pub async fn dispatch(mut self, event: Event) -> anyhow::Result<Conversation> {
-        let inactive_agents = {
+        let target_agents = {
             debug!(
                 conversation_id = %self.conversation.id.clone(),
                 event_name = %event.name,
                 event_value = %event.value,
                 "Dispatching event"
             );
-            self.conversation.dispatch_event(event)
+            self.conversation.dispatch_event(event.clone())
         };
 
-        // Execute all initialization futures in parallel - but we can't do parallel
-        // anymore since wake_agent requires &mut self, so we'll do them
-        // sequentially
-        for agent_id in &inactive_agents {
-            self.wake_agent(agent_id).await?;
+        // Execute all agent initialization with the event
+        for agent_id in &target_agents {
+            self.wake_agent(agent_id, &event).await?;
         }
 
         Ok(self.conversation)
@@ -736,12 +732,8 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(context)
     }
 
-    async fn wake_agent(&mut self, agent_id: &AgentId) -> anyhow::Result<()> {
-        while let Some(event) = self.conversation.poll_event(agent_id) {
-            self.init_agent(agent_id, &event).await?
-        }
-
-        Ok(())
+    async fn wake_agent(&mut self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
+        self.init_agent(agent_id, event).await
     }
 }
 

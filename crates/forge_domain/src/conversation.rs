@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
@@ -44,8 +44,6 @@ pub struct AgentState {
     pub turn_count: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub context: Option<Context>,
-    /// holds the events that are waiting to be processed
-    pub queue: VecDeque<Event>,
 }
 
 impl Conversation {
@@ -206,9 +204,9 @@ impl Conversation {
     }
 
     pub fn rfind_event(&self, event_name: &str) -> Option<&Event> {
-        self.state
-            .values()
-            .flat_map(|state| state.queue.iter().rev())
+        self.events
+            .iter()
+            .rev()
             .find(|event| event.name == event_name)
     }
 
@@ -248,79 +246,29 @@ impl Conversation {
         crate::conversation_html::render_conversation_html(self)
     }
 
-    /// Add an event to the queue of subscribed agents
+    /// Add an event to the conversation
     pub fn insert_event(&mut self, event: Event) -> &mut Self {
-        let subscribed_agents = self.subscriptions(&event.name);
-        self.events.push(event.clone());
-
-        subscribed_agents.iter().for_each(|agent| {
-            self.state
-                .entry(agent.id.clone())
-                .or_default()
-                .queue
-                .push_back(event.clone());
-        });
-
+        self.events.push(event);
         self
     }
 
-    /// Gets the next event for a specific agent, if one is available
+    /// Dispatches an event to the conversation
     ///
-    /// If an event is available in the agent's queue, it is popped and
-    /// returned. Additionally, if the agent's queue becomes empty, it is
-    /// marked as inactive.
-    ///
-    /// Returns None if no events are available for this agent.
-    pub fn poll_event(&mut self, agent_id: &AgentId) -> Option<Event> {
-        // if event is present in queue, pop it and return.
-        if let Some(agent) = self.state.get_mut(agent_id) {
-            if let Some(event) = agent.queue.pop_front() {
-                return Some(event);
-            }
-        }
-        None
-    }
-
-    /// Dispatches an event to all subscribed agents and activates any inactive
-    /// agents
-    ///
-    /// This method performs two main operations:
-    /// 1. Adds the event to the queue of all agents that subscribe to this
-    ///    event type
-    /// 2. Activates any inactive agents (where is_active=false) that are
-    ///    subscribed to the event
-    ///
-    /// Returns a vector of AgentIds for all agents that were inactive and are
-    /// now activated
+    /// This method adds the event to the conversation and returns
+    /// a vector of AgentIds for all agents subscribed to this event.
     pub fn dispatch_event(&mut self, event: Event) -> Vec<AgentId> {
         let name = event.name.as_str();
-        let mut agents = self.subscriptions(name);
+        let agents = self.subscriptions(name);
 
-        let inactive_agents = agents
-            .iter_mut()
-            .filter_map(|agent| {
-                let is_inactive = self
-                    .state
-                    .get(&agent.id)
-                    .map(|state| state.queue.is_empty())
-                    .unwrap_or(true);
-                if is_inactive {
-                    Some(agent.id.clone())
-                } else {
-                    None
-                }
-            })
+        // Get all agent IDs that should be activated
+        let agent_ids = agents
+            .iter()
+            .map(|agent| agent.id.clone())
             .collect::<Vec<_>>();
 
         self.insert_event(event);
 
-        inactive_agents
-    }
-
-    pub fn reset_queue(&mut self) {
-        self.state.iter_mut().for_each(|(_, state)| {
-            state.queue.clear();
-        });
+        agent_ids
     }
 }
 

@@ -388,16 +388,7 @@ fn create_agent_states_section(conversation: &Conversation) -> Element {
                 agent_div = agent_div.append(context_div);
             }
 
-            // Add event queue
-            let event_queue = Element::new("ul").append(state.queue.iter().map(|event| {
-                Element::new("li").text(format!("{} (ID: {})", event.name, event.id))
-            }));
-
-            let event_queue_div = Element::new("div")
-                .append(Element::new("strong").text("Event Queue"))
-                .append(event_queue);
-
-            section.append(agent_div.append(event_queue_div))
+            section.append(agent_div)
         })
 }
 
