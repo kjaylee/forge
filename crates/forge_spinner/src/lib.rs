@@ -126,9 +126,7 @@ impl<C: ConsoleService> SpinnerManager<C> {
             }
         } else if let Some(message) = message {
             // If there's no spinner but we have a message, just print it
-            self.console_service
-                .print(&format!("{message}\n"))
-                .await?;
+            self.console_service.print(&format!("{message}\n")).await?;
         }
 
         // Tracker task will be dropped here.
