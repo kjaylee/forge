@@ -9,7 +9,7 @@ impl Transformer for ParallelToolCall {
         if request
             .tools
             .as_ref()
-            .map_or(false, |tools| !tools.is_empty())
+            .is_some_and(|tools| !tools.is_empty())
         {
             request.parallel_tool_calls = Some(true);
         }
@@ -19,10 +19,11 @@ impl Transformer for ParallelToolCall {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::forge_provider::request::{Tool, FunctionDescription};
-    use crate::forge_provider::tool_choice::FunctionType;
     use serde_json::json;
+
+    use super::*;
+    use crate::forge_provider::request::{FunctionDescription, Tool};
+    use crate::forge_provider::tool_choice::FunctionType;
 
     #[test]
     fn test_transform_with_tools() {
@@ -60,11 +61,7 @@ mod tests {
     #[test]
     fn test_transform_with_no_tools() {
         let transformer = ParallelToolCall;
-        let request = Request {
-            tools: None,
-            parallel_tool_calls: None,
-            ..Default::default()
-        };
+        let request = Request { tools: None, parallel_tool_calls: None, ..Default::default() };
 
         let transformed = transformer.transform(request);
         assert_eq!(transformed.parallel_tool_calls, None);
