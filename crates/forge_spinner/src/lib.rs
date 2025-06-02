@@ -122,12 +122,12 @@ impl<C: ConsoleService> SpinnerManager<C> {
 
             // Then print the message if provided
             if let Some(msg) = message {
-                self.console_service.print(&format!("{}\n", msg)).await?;
+                self.console_service.print(&format!("{msg}\n")).await?;
             }
         } else if let Some(message) = message {
             // If there's no spinner but we have a message, just print it
             self.console_service
-                .print(&format!("{}\n", message))
+                .print(&format!("{message}\n"))
                 .await?;
         }
 
