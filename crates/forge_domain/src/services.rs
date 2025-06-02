@@ -127,6 +127,11 @@ pub trait ConversationSessionManager: Send + Sync {
     async fn clear(&self) -> anyhow::Result<()>;
 }
 
+#[async_trait::async_trait]
+pub trait ConsoleService: Send + Sync {
+    async fn print(&self, output: &str) -> anyhow::Result<()>;
+}
+
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
@@ -142,6 +147,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type SuggestionService: SuggestionService;
     type McpConfigManager: McpConfigManager;
     type ConversationSessionManager: ConversationSessionManager;
+    type ConsoleService: ConsoleService;
 
     fn tool_service(&self) -> &Self::ToolService;
     fn provider_service(&self) -> &Self::ProviderService;
@@ -154,4 +160,5 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn suggestion_service(&self) -> &Self::SuggestionService;
     fn mcp_config_manager(&self) -> &Self::McpConfigManager;
     fn conversation_session_manager(&self) -> &Self::ConversationSessionManager;
+    fn console_service(&self) -> &Self::ConsoleService;
 }

@@ -4,6 +4,7 @@ use forge_domain::EnvironmentService;
 use forge_services::Infrastructure;
 
 use crate::buffer_service::ForgeBufferService;
+use crate::console::ForgeConsoleService;
 use crate::env::ForgeEnvironmentService;
 use crate::executor::ForgeCommandExecutorService;
 use crate::fs_create_dirs::ForgeCreateDirsService;
@@ -28,6 +29,7 @@ pub struct ForgeInfra {
     inquire_service: Arc<ForgeInquire>,
     mcp_server: ForgeMcpServer,
     forge_buffer_service: Arc<ForgeBufferService>,
+    console_service: Arc<ForgeConsoleService>,
 }
 
 impl ForgeInfra {
@@ -52,6 +54,7 @@ impl ForgeInfra {
             inquire_service: Arc::new(ForgeInquire::new()),
             mcp_server: ForgeMcpServer,
             forge_buffer_service: Arc::new(ForgeBufferService::new()),
+            console_service: Arc::new(ForgeConsoleService),
         }
     }
 }
@@ -68,6 +71,7 @@ impl Infrastructure for ForgeInfra {
     type InquireService = ForgeInquire;
     type McpServer = ForgeMcpServer;
     type BufferService = ForgeBufferService;
+    type ConsoleService = ForgeConsoleService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -111,5 +115,8 @@ impl Infrastructure for ForgeInfra {
 
     fn buffer_service(&self) -> &Self::BufferService {
         &self.forge_buffer_service
+    }
+    fn console_service(&self) -> &Self::ConsoleService {
+        self.console_service.as_ref()
     }
 }

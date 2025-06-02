@@ -155,8 +155,9 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
     async fn clear(&self) -> anyhow::Result<()> {
         self.infra
             .file_remove_service()
-            .remove(&self.project_dir)
+            .remove(&self.session_store)
             .await?;
+        self.session_id.write().await.take();
         Ok(())
     }
 }

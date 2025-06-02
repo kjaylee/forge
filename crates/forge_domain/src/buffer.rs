@@ -20,6 +20,15 @@ pub struct Buffer {
     pub content: String,
 }
 
+impl Buffer {
+    pub fn input<T: ToString>(content: T) -> Self {
+        Self { event: BufferEvent::Input, content: content.to_string() }
+    }
+    pub fn output<T: ToString>(content: T) -> Self {
+        Self { event: BufferEvent::Output, content: content.to_string() }
+    }
+}
+
 /// Iterator for reading JSONL (JSON Lines) files
 /// Each line in the file should contain a valid JSON object
 #[pin_project]

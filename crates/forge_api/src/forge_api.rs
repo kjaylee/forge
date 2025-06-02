@@ -171,4 +171,10 @@ impl<F: Services + Infrastructure> API for ForgeAPI<F> {
     async fn clear_state(&self) -> Result<()> {
         self.app.conversation_session_manager().clear().await
     }
+
+    async fn print(&self, text: &str) -> Result<()> {
+        <F as Services>::console_service(&self.app)
+            .print(text)
+            .await
+    }
 }

@@ -98,4 +98,7 @@ pub trait API: Sync + Send {
 
     /// Clears buffer and convo for cwd
     async fn clear_state(&self) -> Result<()>;
+
+    /// Print text to console
+    async fn print(&self, text: &str) -> Result<()>;
 }
