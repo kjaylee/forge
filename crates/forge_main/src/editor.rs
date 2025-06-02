@@ -59,9 +59,16 @@ impl ForgeEditor {
             KeyCode::Enter,
             ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
         );
+        // Additional bindings for newline insertion since some terminals have issues with ALT+Enter
         keybindings.add_binding(
             KeyModifiers::CONTROL,
             KeyCode::Char('j'),
+            ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
+        );
+        // Add SHIFT+Enter as another alternative
+        keybindings.add_binding(
+            KeyModifiers::SHIFT,
+            KeyCode::Enter,
             ReedlineEvent::Edit(vec![EditCommand::InsertNewline]),
         );
 
