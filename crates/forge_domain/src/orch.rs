@@ -317,7 +317,8 @@ impl<S: AgentService> Orchestrator<S> {
 
         // Extract content from within configured tags if present and if tag is
         // configured
-        // TODO: If no tag is found, it could be a misformed LLM call. We should consider retrying.
+        // TODO: If no tag is found, it could be a misformed LLM call. We should
+        // consider retrying.
         if let Some(extracted) = extract_tag_content(
             &result_content,
             compact
