@@ -217,11 +217,12 @@ impl Agent {
             .filter(|tool| allowed.contains(&tool.name))
             .collect::<Vec<_>>();
 
-        Ok(context.extend_tools(if tool_supported {
-            tool_defs
+        Ok(if tool_supported {
+            // Overwrite all the existing tools in the context with the new definitions
+            context.tools(tool_defs)
         } else {
-            Vec::new()
-        }))
+            context
+        })
     }
 }
 
