@@ -317,6 +317,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         // Extract content from within configured tags if present and if tag is
         // configured
+        // TODO: If no tag is found, it could be a misformed LLM call. We should consider retrying.
         if let Some(extracted) = extract_tag_content(
             &result_content,
             compact
@@ -507,7 +508,7 @@ impl<S: AgentService> Orchestrator<S> {
             .collect();
 
         // Process partial tool calls
-        // FIXME: Parse failure should be retried
+        // TODO: Parse failure should be retried
         let partial_tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)
             .with_context(|| format!("Failed to parse tool call: {tool_call_parts:?}"))?;
 

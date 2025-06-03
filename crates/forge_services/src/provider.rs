@@ -64,11 +64,6 @@ impl ProviderService for ForgeProviderService {
     async fn models(&self) -> Result<Vec<Model>> {
         self.attempt_retry(|| self.client.models()).await
     }
-
-    /// FIXME: Drop this method in favor of `models()`
-    async fn model(&self, model: &ModelId) -> Result<Option<Model>> {
-        self.attempt_retry(|| self.client.model(model)).await
-    }
 }
 
 fn should_retry(error: &anyhow::Error) -> bool {

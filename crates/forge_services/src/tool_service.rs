@@ -45,7 +45,7 @@ impl<M: McpService> ForgeToolService<M> {
 
             available_tools.sort();
 
-            // FIXME: Use typed errors instead of anyhow
+            // TODO: Use typed errors instead of anyhow
             anyhow::anyhow!(
                 "No tool with name '{}' was found. Please try again with one of these tools {}",
                 name.to_string(),
