@@ -1,4 +1,3 @@
-
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use merge::Merge;
@@ -9,8 +8,8 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName,
-    TopK, TopP,
+    Context, Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName, TopK,
+    TopP,
 };
 
 // Unique identifier for an agent
