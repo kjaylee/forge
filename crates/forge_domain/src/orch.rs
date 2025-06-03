@@ -84,6 +84,11 @@ impl<S: AgentService> Orchestrator<S> {
         }
     }
 
+    /// Get a reference to the internal conversation
+    pub fn get_conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
     // Helper function to get all tool results from a vector of tool calls
     #[async_recursion]
     async fn execute_tool_calls(
@@ -516,7 +521,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(ChatCompletionResult { content, tool_calls, usage })
     }
 
-    pub async fn dispatch(&mut self, event: Event) -> anyhow::Result<Conversation> {
+    pub async fn dispatch(&mut self, event: Event) -> anyhow::Result<()> {
         let target_agents = {
             debug!(
                 conversation_id = %self.conversation.id.clone(),
@@ -532,7 +537,7 @@ impl<S: AgentService> Orchestrator<S> {
             self.init_agent(agent_id, &event).await?;
         }
 
-        Ok(self.conversation.clone())
+        Ok(())
     }
 
     async fn chat(

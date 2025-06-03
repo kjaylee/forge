@@ -10,7 +10,6 @@ use forge_services::{
     ToolService, WorkflowService,
 };
 use forge_stream::MpscStream;
-use futures::TryFutureExt;
 use tracing::error;
 
 pub struct ForgeAPI<A, F> {
@@ -81,14 +80,14 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
 
                 // Execute dispatch and always save conversation afterwards
                 let mut orch = orch.sender(tx.clone());
-                let result = orch
-                    .dispatch(chat.event)
-                    // FIXME: We should capture conversation on Failure also
-                    .and_then(|conv| app.conversation_service().upsert(conv))
-                    .await;
+                let dispatch_result = orch.dispatch(chat.event).await;
 
-                // Handle dispatch error after saving conversation
-                if let Err(err) = result {
+                // Always save conversation using get_conversation()
+                let conversation = orch.get_conversation().clone();
+                let save_result = app.conversation_service().upsert(conversation).await;
+
+                // Send any error to the stream (prioritize dispatch error over save error)
+                if let Some(err) = dispatch_result.err().or(save_result.err()) {
                     if let Err(e) = tx.send(Err(err)).await {
                         error!("Failed to send error to stream: {:#?}", e);
                     }
