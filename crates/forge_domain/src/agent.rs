@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 
 use derive_more::derive::Display;
 use derive_setters::Setters;
@@ -10,7 +9,7 @@ use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, Event, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName,
+    Context, Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName,
     TopK, TopP,
 };
 
@@ -199,30 +198,6 @@ impl Agent {
         } else {
             false
         }
-    }
-
-    pub fn init_context(
-        &self,
-        context: Context,
-        mut forge_tools: Vec<ToolDefinition>,
-        tool_supported: bool,
-    ) -> Result<Context> {
-        let allowed = self.tools.iter().flatten().collect::<HashSet<_>>();
-
-        // Adding Event tool to the list of tool definitions
-        forge_tools.push(Event::tool_definition());
-
-        let tool_defs = forge_tools
-            .into_iter()
-            .filter(|tool| allowed.contains(&tool.name))
-            .collect::<Vec<_>>();
-
-        Ok(if tool_supported {
-            // Overwrite all the existing tools in the context with the new definitions
-            context.tools(tool_defs)
-        } else {
-            context
-        })
     }
 }
 

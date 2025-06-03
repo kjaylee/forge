@@ -147,13 +147,18 @@ impl<S: AgentService> Orchestrator<S> {
 
     /// Get the allowed tools for an agent
     fn get_allowed_tools(&mut self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
-        let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
-        Ok(self
-            .tool_definitions
-            .iter()
-            .filter(|tool| allowed.contains(&tool.name))
-            .cloned()
-            .collect())
+        if self.tool_definitions.is_empty() {
+            // If no tools are defined, return an empty vector
+            Ok(vec![])
+        } else {
+            let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
+            Ok(self
+                .tool_definitions
+                .iter()
+                .filter(|tool| allowed.contains(&tool.name))
+                .cloned()
+                .collect())
+        }
     }
 
     // Returns if agent supports tool or not.
@@ -568,11 +573,10 @@ impl<S: AgentService> Orchestrator<S> {
             .ok_or(Error::MissingModel(agent.id.clone()))?;
         let tool_supported = self.is_tool_supported(&agent)?;
 
-        let mut context = agent.init_context(
-            self.conversation.context.clone().unwrap_or_default(),
-            self.get_allowed_tools(&agent)?,
-            tool_supported,
-        )?;
+        let mut context = self.conversation.context.clone().unwrap_or_default();
+
+        // Reset all the available tools
+        context = context.tools(self.get_allowed_tools(&agent)?);
 
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, &agent, &variables).await?;
