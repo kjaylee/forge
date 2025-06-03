@@ -21,6 +21,7 @@ pub struct ForgeProvider {
     client: Client,
     provider: Provider,
     version: String,
+    signing_key: Option<String>,
 }
 
 impl ForgeProvider {
@@ -74,6 +75,36 @@ impl ForgeProvider {
         headers
     }
 
+    fn signed_headers(&self, method: &str) -> anyhow::Result<HeaderMap> {
+        let mut headers = self.headers();
+        if let Some(signing_key) = self.signing_key.as_ref() {
+            use hmac::{Hmac, Mac};
+            use sha2::Sha256;
+            type HmacSha256 = Hmac<Sha256>;
+
+            // Use a Unix timestamp (seconds since epoch) for request signing
+            let timestamp = chrono::Utc::now().timestamp().to_string();
+            let payload = format!("{}:{}", timestamp, method);
+
+            // Create HMAC signature
+            let mut mac =
+                HmacSha256::new_from_slice(signing_key.as_bytes()).context("Failed to initialize HMAC with signing key")?;
+            mac.update(payload.as_bytes());
+            let signature = hex::encode(mac.finalize().into_bytes());
+
+            headers.insert(
+                "x-request-signature",
+                HeaderValue::from_str(&signature).unwrap(),
+            );
+            headers.insert(
+                "x-request-timestamp",
+                HeaderValue::from_str(&timestamp).unwrap(),
+            );
+        }
+
+        Ok(headers)
+    }
+
     async fn inner_chat(
         &self,
         model: &ModelId,
@@ -95,7 +126,7 @@ impl ForgeProvider {
         let es = self
             .client
             .post(url.clone())
-            .headers(self.headers())
+            .headers(self.signed_headers("POST")?)
             .json(&request)
             .eventsource()
             .with_context(|| format_http_context(None, "POST", &url))?;
@@ -247,9 +278,8 @@ impl From<Model> for forge_domain::Model {
 
 #[cfg(test)]
 mod tests {
-    use anyhow::Context;
-
     use super::*;
+    use anyhow::Context;
 
     #[test]
     fn test_error_deserialization() -> Result<()> {
