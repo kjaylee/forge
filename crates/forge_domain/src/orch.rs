@@ -87,7 +87,7 @@ impl<S: AgentService> Orchestrator<S> {
     // Helper function to get all tool results from a vector of tool calls
     #[async_recursion]
     async fn execute_tool_calls(
-        &self,
+        &mut self,
         agent: &Agent,
         tool_calls: &[ToolCallFull],
         tool_context: &mut ToolCallContext,
@@ -128,7 +128,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(tool_call_records)
     }
 
-    async fn send(&self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
+    async fn send(&mut self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             // Send message if it's a Custom type or if hide_content is false
             let show_text = !agent.hide_content.unwrap_or_default();
@@ -141,7 +141,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     /// Get the allowed tools for an agent
-    fn get_allowed_tools(&self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
+    fn get_allowed_tools(&mut self, agent: &Agent) -> anyhow::Result<Vec<ToolDefinition>> {
         let allowed = agent.tools.iter().flatten().collect::<HashSet<_>>();
         Ok(self
             .tool_definitions
@@ -152,7 +152,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     // Returns if agent supports tool or not.
-    fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
+    fn is_tool_supported(&mut self, agent: &Agent) -> anyhow::Result<bool> {
         let model_id = agent
             .model
             .as_ref()
@@ -181,7 +181,11 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     /// Apply compaction to the context if requested
-    async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context> {
+    async fn compact_context(
+        &mut self,
+        agent: &Agent,
+        context: Context,
+    ) -> anyhow::Result<Context> {
         // Return early if agent doesn't have compaction configured
         if let Some(ref compact) = agent.compact {
             debug!(agent_id = %agent.id, "Context compaction triggered");
@@ -209,7 +213,7 @@ impl<S: AgentService> Orchestrator<S> {
 
     /// Compress a single identified sequence of assistant messages
     async fn compress_single_sequence(
-        &self,
+        &mut self,
         compact: &Compact,
         mut context: Context,
         sequence: (usize, usize),
@@ -250,7 +254,7 @@ impl<S: AgentService> Orchestrator<S> {
 
     /// Generate a summary for a specific sequence of assistant messages
     async fn generate_summary_for_sequence(
-        &self,
+        &mut self,
         compact: &Compact,
         messages: &[ContextMessage],
     ) -> anyhow::Result<String> {
@@ -293,7 +297,7 @@ impl<S: AgentService> Orchestrator<S> {
     /// Collects the content from a streaming ChatCompletionMessage response
     /// and extracts text within the configured tag if present
     async fn collect_completion_stream_content(
-        &self,
+        &mut self,
         compact: &Compact,
         mut stream: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
     ) -> anyhow::Result<String> {
@@ -325,7 +329,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     async fn set_system_prompt(
-        &self,
+        &mut self,
         context: Context,
         agent: &Agent,
         variables: &HashMap<String, Value>,
@@ -370,7 +374,7 @@ impl<S: AgentService> Orchestrator<S> {
 
     /// Process usage information from a chat completion message
     fn update_usage(
-        &self,
+        &mut self,
         message: &ChatCompletionMessage,
         context: &Context,
         request_usage: Usage,
@@ -386,7 +390,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     async fn collect_messages(
-        &self,
+        &mut self,
         agent: &Agent,
         context: &Context,
         mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
@@ -512,7 +516,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(ChatCompletionResult { content, tool_calls, usage })
     }
 
-    pub async fn dispatch(mut self, event: Event) -> anyhow::Result<Conversation> {
+    pub async fn dispatch(&mut self, event: Event) -> anyhow::Result<Conversation> {
         let target_agents = {
             debug!(
                 conversation_id = %self.conversation.id.clone(),
@@ -528,11 +532,11 @@ impl<S: AgentService> Orchestrator<S> {
             self.init_agent(agent_id, &event).await?;
         }
 
-        Ok(self.conversation)
+        Ok(self.conversation.clone())
     }
 
     async fn chat(
-        &self,
+        &mut self,
         agent: &Agent,
         model_id: &ModelId,
         context: Context,
@@ -685,7 +689,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     fn set_user_prompt(
-        &self,
+        &mut self,
         mut context: Context,
         agent: &Agent,
         variables: &HashMap<String, Value>,

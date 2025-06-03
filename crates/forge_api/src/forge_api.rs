@@ -80,8 +80,8 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
                 let tx = Arc::new(tx);
 
                 // Execute dispatch and always save conversation afterwards
+                let mut orch = orch.sender(tx.clone());
                 let result = orch
-                    .sender(tx.clone())
                     .dispatch(chat.event)
                     // FIXME: We should capture conversation on Failure also
                     .and_then(|conv| app.conversation_service().upsert(conv))
