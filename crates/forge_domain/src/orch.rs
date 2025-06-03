@@ -568,14 +568,11 @@ impl<S: AgentService> Orchestrator<S> {
             .ok_or(Error::MissingModel(agent.id.clone()))?;
         let tool_supported = self.is_tool_supported(&agent)?;
 
-        let mut context = if agent.ephemeral.unwrap_or_default() {
-            agent.init_context(self.get_allowed_tools(&agent)?, tool_supported)?
-        } else {
-            match self.conversation.context.as_ref() {
-                Some(context) => context.clone(),
-                None => agent.init_context(self.get_allowed_tools(&agent)?, tool_supported)?,
-            }
-        };
+        let mut context = agent.init_context(
+            self.conversation.context.clone().unwrap_or_default(),
+            self.get_allowed_tools(&agent)?,
+            tool_supported,
+        )?;
 
         // Render the system prompts with the variables
         context = self.set_system_prompt(context, &agent, &variables).await?;

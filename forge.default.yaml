@@ -31,7 +31,6 @@ agents:
       {{else}}
       <task>{{event.value}}</task>
       {{/if}}
-    ephemeral: false
     tools:
       - forge_tool_fs_read
       - forge_tool_fs_create
@@ -66,8 +65,7 @@ agents:
       {{/if}}
       Only create new plans or update existing ones.
       Do not modify, create, or delete any code files.
-    ephemeral: false
-    tools:
+tools:
       - forge_tool_fs_read
       - forge_tool_net_fetch
       - forge_tool_fs_search
