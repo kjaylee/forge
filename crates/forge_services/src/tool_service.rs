@@ -154,7 +154,7 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
 #[cfg(test)]
 mod test {
     use forge_domain::{Tool, ToolCallContext, ToolCallId, ToolDefinition};
-    use serde_json::{json, Value};
+    use serde_json::json;
 
     use super::*;
 
@@ -182,61 +182,73 @@ mod test {
         }
     }
 
-    // Mock tool that simulates a long-running task
-    struct SlowTool;
-
-    #[async_trait::async_trait]
-    impl forge_domain::ExecutableTool for SlowTool {
-        type Input = Value;
-
-        async fn call(
-            &self,
-            _context: &mut ToolCallContext,
-            _input: Self::Input,
-        ) -> anyhow::Result<forge_domain::ToolOutput> {
-            // Simulate a long-running task that exceeds the timeout
-            tokio::time::sleep(Duration::from_secs(400)).await;
-            Ok(forge_domain::ToolOutput::text(
-                "Slow tool completed".to_string(),
-            ))
-        }
-    }
-
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_tool_timeout() {
-        // Create a mock tool that would normally time out
-        let slow_tool = Tool {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
+        // Create a tool that doesn't sleep but allows us to verify the timeout
+        // mechanism
+        struct AlwaysPendingTool(Arc<AtomicBool>);
+
+        #[async_trait::async_trait]
+        impl forge_domain::ExecutableTool for AlwaysPendingTool {
+            type Input = serde_json::Value;
+
+            async fn call(
+                &self,
+                _context: &mut ToolCallContext,
+                _input: Self::Input,
+            ) -> anyhow::Result<forge_domain::ToolOutput> {
+                self.0.store(true, Ordering::SeqCst);
+                // Instead of sleeping, create a future that never resolves
+                std::future::pending::<()>().await;
+                Ok(forge_domain::ToolOutput::text(
+                    "This should never be reached".to_string(),
+                ))
+            }
+        }
+
+        let was_called = Arc::new(AtomicBool::new(false));
+        let pending_tool = Tool {
             definition: ToolDefinition {
-                name: ToolName::new("slow_tool"),
-                description: "A test tool that takes too long".to_string(),
+                name: ToolName::new("pending_tool"),
+                description: "A test tool that never completes".to_string(),
                 input_schema: schemars::schema_for!(serde_json::Value),
                 output_schema: Some(schemars::schema_for!(String)),
             },
-            executable: Box::new(SlowTool),
+            executable: Box::new(AlwaysPendingTool(was_called.clone())),
         };
 
-        let service = ForgeToolService::from_iter(vec![slow_tool]);
+        let service = ForgeToolService::from_iter(vec![pending_tool]);
         let call = ToolCallFull {
-            name: ToolName::new("slow_tool"),
+            name: ToolName::new("pending_tool"),
             arguments: json!("test input"),
             call_id: Some(ToolCallId::new("test")),
         };
-        let agent = Agent::new("software_agent");
 
-        // Use tokio::time::timeout directly to simulate tool timeout behavior
-        // without relying on tokio test mock time that might be flakey
+        // Create an agent that supports the pending_tool
+        let mut agent = Agent::new("software_agent");
+        agent = agent.tools(vec![ToolName::new("pending_tool")]);
+
+        // Use a very short timeout to test the timeout mechanism
         let result = tokio::time::timeout(
-            Duration::from_millis(50), // Use a very short timeout for test speed
+            Duration::from_millis(100), // Short timeout for test speed
             service.call(&agent, &mut ToolCallContext::default(), call),
         )
         .await;
 
-        // Verify we got an elapsed error
+        // Verify we got a timeout error
         assert!(result.is_err(), "Expected timeout error");
+        assert!(
+            was_called.load(Ordering::SeqCst),
+            "Tool should have been called"
+        );
+
         let timeout_err = result.unwrap_err();
         assert!(
             timeout_err.to_string().contains("elapsed"),
-            "Expected 'elapsed' in timeout message"
+            "Expected 'elapsed' in timeout message, got: {timeout_err}"
         );
     }
 }
