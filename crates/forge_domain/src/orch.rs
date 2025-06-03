@@ -151,11 +151,6 @@ impl<S: AgentService> Orchestrator<S> {
             .collect())
     }
 
-    /// Get model by ID from stored models
-    fn get_model(&self, model_id: &ModelId) -> Option<&Model> {
-        self.models.iter().find(|model| &model.id == model_id)
-    }
-
     // Returns if agent supports tool or not.
     fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
         let model_id = agent
@@ -169,7 +164,7 @@ impl<S: AgentService> Orchestrator<S> {
             None => {
                 // If not defined at agent level, check model level
 
-                let model = self.get_model(model_id);
+                let model = self.models.iter().find(|model| &model.id == model_id);
                 model
                     .and_then(|model| model.tools_supported)
                     .unwrap_or_default()
@@ -530,19 +525,10 @@ impl<S: AgentService> Orchestrator<S> {
 
         // Execute all agent initialization with the event
         for agent_id in &target_agents {
-            self.wake_agent(agent_id, &event).await?;
+            self.init_agent(agent_id, &event).await?;
         }
 
         Ok(self.conversation)
-    }
-
-    fn set_context(&mut self, agent_id: &AgentId, context: Context) -> anyhow::Result<()> {
-        self.conversation
-            .state
-            .entry(agent_id.clone())
-            .or_default()
-            .context = Some(context);
-        Ok(())
     }
 
     async fn chat(
@@ -574,7 +560,7 @@ impl<S: AgentService> Orchestrator<S> {
         let mut context = if agent.ephemeral.unwrap_or_default() {
             agent.init_context(self.get_allowed_tools(&agent)?, tool_supported)?
         } else {
-            match self.conversation.context(&agent.id) {
+            match self.conversation.context.as_ref() {
                 Some(context) => context.clone(),
                 None => agent.init_context(self.get_allowed_tools(&agent)?, tool_supported)?,
             }
@@ -613,7 +599,7 @@ impl<S: AgentService> Orchestrator<S> {
                 })
             });
 
-        self.set_context(&agent.id, context.clone())?;
+        self.conversation.context = Some(context.clone());
 
         let mut tool_context = ToolCallContext::default().sender(self.sender.clone());
 
@@ -621,7 +607,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
-            self.set_context(&agent.id, context.clone())?;
+            self.conversation.context = Some(context.clone());
 
             let ChatCompletionResult { tool_calls, content, usage } =
                 self.chat(&agent, &model_id, context.clone()).await?;
@@ -692,7 +678,7 @@ impl<S: AgentService> Orchestrator<S> {
             }
 
             // Update context in the conversation
-            self.set_context(&agent.id, context.clone())?;
+            self.conversation.context = Some(context.clone());
         }
 
         Ok(())
@@ -719,10 +705,6 @@ impl<S: AgentService> Orchestrator<S> {
         }
 
         Ok(context)
-    }
-
-    async fn wake_agent(&mut self, agent_id: &AgentId, event: &Event) -> anyhow::Result<()> {
-        self.init_agent(agent_id, event).await
     }
 }
 

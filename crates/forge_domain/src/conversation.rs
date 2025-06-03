@@ -33,16 +33,10 @@ impl ConversationId {
 pub struct Conversation {
     pub id: ConversationId,
     pub archived: bool,
-    pub state: HashMap<AgentId, AgentState>,
+    pub context: Option<Context>,
     pub variables: HashMap<String, Value>,
     pub agents: Vec<Agent>,
     pub events: Vec<Event>,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct AgentState {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub context: Option<Context>,
 }
 
 impl Conversation {
@@ -159,7 +153,7 @@ impl Conversation {
         Self {
             id,
             archived: false,
-            state: Default::default(),
+            context: None,
             variables: workflow.variables.clone(),
             agents,
             events: Default::default(),
@@ -189,10 +183,6 @@ impl Conversation {
             .iter()
             .find(|a| a.id == *id)
             .ok_or(Error::AgentUndefined(id.clone()))
-    }
-
-    pub fn context(&self, id: &AgentId) -> Option<&Context> {
-        self.state.get(id).and_then(|s| s.context.as_ref())
     }
 
     pub fn rfind_event(&self, event_name: &str) -> Option<&Event> {
@@ -284,7 +274,7 @@ mod tests {
         // Assert
         assert_eq!(conversation.id, id);
         assert!(!conversation.archived);
-        assert!(conversation.state.is_empty());
+        assert!(conversation.context.is_none());
         assert!(conversation.variables.is_empty());
         assert!(conversation.agents.is_empty());
         assert!(conversation.events.is_empty());

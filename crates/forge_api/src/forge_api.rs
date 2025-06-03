@@ -83,6 +83,7 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
                 let result = orch
                     .sender(tx.clone())
                     .dispatch(chat.event)
+                    // FIXME: We should capture conversation on Failure also
                     .and_then(|conv| app.conversation_service().upsert(conv))
                     .await;
 
