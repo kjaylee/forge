@@ -94,7 +94,7 @@ impl ForgeProvider {
             );
 
             // construct payload
-            let payload_parts = vec![timestamp.as_str(), &nonce, method, &path_and_query];
+            let payload_parts = [timestamp.as_str(), &nonce, method, &path_and_query];
             let payload = payload_parts.join(":");
 
             // Create HMAC signature with obfuscated key (muddy)
@@ -284,8 +284,9 @@ impl From<Model> for forge_domain::Model {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use anyhow::Context;
+
+    use super::*;
 
     #[test]
     fn test_error_deserialization() -> Result<()> {
