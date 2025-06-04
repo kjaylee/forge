@@ -294,24 +294,22 @@ fn create_conversation_context_section(conversation: &Conversation) -> Element {
                                     crate::ToolOutputValue::Image(image) => {
                                         Some(Element::new("img").attr("src", image.url()))
                                     }
-                                    ToolOutputValue::Pdf(pdf) => Some(
-                                                Element::new("pdf").attr("src", pdf.file_data()),
-                                            ),
-                                            crate::ToolOutputValue::Empty => None,
-                                        },
+                                    ToolOutputValue::Pdf(pdf) => {
+                                        Some(Element::new("pdf").attr("src", pdf.file_data()))
+                                    }
+                                    crate::ToolOutputValue::Empty => None,
+                                },
                             ))
-                            }
-                            ContextMessage::Image(image) => {
-                                // Image message
-                                Element::new("div.message-card.message-user")
-                                    .append(Element::new("strong").text("Image Attachment"))
-                                    .append(Element::new("img").attr("src", image.url()))
-                            }
-                            ContextMessage::Pdf(pdf) => {
-                                Element::new("div.message-card.message-user")
-                                    .append(Element::new("strong").text("Image Attachment"))
-                                    .append(Element::new("img").attr("src", pdf.file_data()))
                     }
+                    ContextMessage::Image(image) => {
+                        // Image message
+                        Element::new("div.message-card.message-user")
+                            .append(Element::new("strong").text("Image Attachment"))
+                            .append(Element::new("img").attr("src", image.url()))
+                    }
+                    ContextMessage::Pdf(pdf) => Element::new("div.message-card.message-user")
+                        .append(Element::new("strong").text("Image Attachment"))
+                        .append(Element::new("img").attr("src", pdf.file_data())),
                 }
             }));
 

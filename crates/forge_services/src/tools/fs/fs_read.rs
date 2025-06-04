@@ -6,8 +6,8 @@ use std::sync::Arc;
 use anyhow::{bail, Context};
 use forge_display::TitleFormat;
 use forge_domain::{
-    ExecutableTool, FSReadInput, Image, MimeType, NamedTool, Pdf,
-    ToolCallContext, ToolDescription, ToolName, ToolOutput,
+    ExecutableTool, FSReadInput, Image, MimeType, NamedTool, Pdf, ToolCallContext, ToolDescription,
+    ToolName, ToolOutput,
 };
 use forge_fs::FileInfo;
 use forge_tool_macros::ToolDescription;
@@ -175,7 +175,7 @@ impl<F: Infrastructure> FSRead<F> {
 
         // Create and send the title using the extracted method
         self.create_and_send_title(TitleParams {
-            read_params: (&context, &input, &path),
+            read_params: (context, &input, &path),
             range_params: (start_char, end_char),
             file_info: &FileInfo {
                 start_char: file_info.start_char,
@@ -232,7 +232,7 @@ impl<F: Infrastructure> FSRead<F> {
         let file_info = FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
 
         self.create_and_send_title(TitleParams {
-            read_params: (&context, &input, &path),
+            read_params: (context, &input, &path),
             range_params: (0, (bytes.len() - 1) as u64),
             file_info: &file_info,
             is_image: true,

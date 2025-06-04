@@ -115,7 +115,10 @@ pub mod tests {
 
     use base64::Engine;
     use bytes::Bytes;
-    use forge_domain::{AttachmentContent, CommandOutput, Environment, MimeType, Provider, ToolDefinition, ToolName, ToolOutput};
+    use forge_domain::{
+        AttachmentContent, CommandOutput, Environment, MimeType, Provider, ToolDefinition,
+        ToolName, ToolOutput,
+    };
     use forge_snaps::Snapshot;
     use serde_json::Value;
 
