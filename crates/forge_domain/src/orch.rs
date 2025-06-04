@@ -162,7 +162,7 @@ impl<S: AgentService> Orchestrator<S> {
     }
 
     /// Checks if parallel tool calls is supported by agent
-    async fn is_parallel_tool_call_supported(&self, agent: &Agent) -> bool {
+    fn is_parallel_tool_call_supported(&self, agent: &Agent) -> bool {
         agent
             .model
             .as_ref()
@@ -371,7 +371,7 @@ impl<S: AgentService> Orchestrator<S> {
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
             let tool_supported = self.is_tool_supported(agent)?;
-            let supports_parallel_tool_calls = self.is_parallel_tool_call_supported(agent).await;
+            let supports_parallel_tool_calls = self.is_parallel_tool_call_supported(agent);
             let tool_information = match tool_supported {
                 true => None,
                 false => Some(ToolUsagePrompt::from(&self.get_allowed_tools(agent)?).to_string()),
