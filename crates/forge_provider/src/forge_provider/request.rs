@@ -1,3 +1,5 @@
+use std::vec;
+
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use forge_domain::{
@@ -271,7 +273,7 @@ impl From<Context> for Request {
             min_p: Default::default(),
             top_a: Default::default(),
             prediction: Default::default(),
-            transforms: Default::default(),
+            transforms: Some(vec![Transform::MiddleOut]),
             models: Default::default(),
             route: Default::default(),
             provider: Default::default(),
