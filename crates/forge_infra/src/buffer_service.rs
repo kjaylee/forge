@@ -43,7 +43,7 @@ impl BufferService for ForgeBufferService {
             .last_n(n)
             .await?
             .deserialize::<Buffer>();
-        
+
         Ok(JsonlIterator::new(Box::pin(iter)))
     }
 

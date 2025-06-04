@@ -127,7 +127,7 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
             .buffer_service()
             .read_last(&state_path, n)
             .await?;
-        
+
         let buffer = buffer
             .filter_map(|v| async { v.ok() })
             .collect::<Vec<_>>()
