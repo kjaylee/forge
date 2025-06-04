@@ -2,11 +2,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::{
-    Buffer, CommandOutput, EnvironmentService, JsonlIterator, McpServerConfig, ToolDefinition,
-    ToolName, ToolOutput,
-};
+use forge_domain::{Buffer, CommandOutput, JsonlIterator, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
 use forge_snaps::Snapshot;
+
+use crate::services::EnvironmentService;
 
 /// Repository for accessing system environment information
 /// This uses the EnvironmentService trait from forge_domain

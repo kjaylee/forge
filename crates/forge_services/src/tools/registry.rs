@@ -44,14 +44,12 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{
-        Buffer, CommandOutput, Environment, EnvironmentService, JsonlIterator, Provider,
-        ToolDefinition, ToolName, ToolOutput,
-    };
+    use forge_domain::{Buffer, CommandOutput, Environment, JsonlIterator, Provider, ToolDefinition, ToolName, ToolOutput};
     use forge_snaps::Snapshot;
     use serde_json::Value;
 
     use super::*;
+    use crate::services::EnvironmentService;
     use crate::{
         BufferService, CommandExecutorService, FileRemoveService, FsCreateDirsService,
         FsMetaService, FsReadService, FsSnapshotService, FsWriteService, InquireService, McpClient,
