@@ -1,14 +1,13 @@
-use std::path::Path;
-use std::pin::Pin;
-
-use forge_buffer::ForgeBuffer;
-use forge_domain::{Buffer, BufferEvent, JsonlIterator};
+use async_jsonl::JsonlDeserialize;
+use forge_domain::{Buffer, JsonlIterator};
 use forge_services::BufferService;
 use futures::{Stream, StreamExt};
+use std::path::Path;
+use std::pin::Pin;
+use tokio::fs::{File, OpenOptions};
+use tokio::io::AsyncWriteExt;
 
-pub struct ForgeBufferService {
-    service: ForgeBuffer,
-}
+pub struct ForgeBufferService {}
 
 impl Default for ForgeBufferService {
     fn default() -> Self {
@@ -18,41 +17,39 @@ impl Default for ForgeBufferService {
 
 impl ForgeBufferService {
     pub fn new() -> Self {
-        Self { service: ForgeBuffer::new() }
+        Self {}
     }
-    fn buffer(buffer: Buffer) -> forge_buffer::Buffer {
-        forge_buffer::Buffer {
-            event: match buffer.event {
-                BufferEvent::Input => forge_buffer::BufferEvent::Input,
-                BufferEvent::Output => forge_buffer::BufferEvent::Output,
-            },
-            content: buffer.content,
-        }
+    async fn file(&self, path: &Path) -> anyhow::Result<File> {
+        Ok(OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(path)
+            .await?)
+    }
+    async fn write(&self, path: &Path, buffer: Buffer) -> anyhow::Result<()> {
+        let mut string = serde_json::to_string(&buffer)?;
+        string.push('\n');
+        self.file(path).await?.write_all(string.as_bytes()).await?;
+        Ok(())
     }
 }
 
 #[async_trait::async_trait]
 impl BufferService for ForgeBufferService {
     async fn read(&self, path: &Path) -> anyhow::Result<JsonlIterator> {
-        let forge_buffer_iter = self.service.read(path).await?;
-        let stream: Pin<Box<dyn Stream<Item = Buffer> + Send + Sync>> = Box::pin(
-            futures::stream::unfold(forge_buffer_iter, |mut iter| async move {
+        let file = File::open(path)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to open file: {}", e))?;
+        let iter = async_jsonl::Jsonl::new(file).deserialize::<Buffer>();
+        let stream: Pin<Box<dyn Stream<Item = Buffer> + Send + Sync>> =
+            Box::pin(futures::stream::unfold(iter, |mut iter| async move {
                 let buffer = StreamExt::next(&mut iter).await.and_then(|v| v.ok())?;
-
-                let domain_buffer = Buffer {
-                    event: match buffer.event {
-                        forge_buffer::BufferEvent::Input => BufferEvent::Input,
-                        forge_buffer::BufferEvent::Output => BufferEvent::Output,
-                    },
-                    content: buffer.content,
-                };
-                Some((domain_buffer, iter))
-            }),
-        );
+                Some((buffer, iter))
+            }));
         Ok(JsonlIterator::new(stream))
     }
 
     async fn write(&self, path: &Path, buffer: Buffer) -> anyhow::Result<()> {
-        self.service.write(path, Self::buffer(buffer)).await
+        self.write(path, buffer).await
     }
 }
