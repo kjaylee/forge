@@ -85,7 +85,7 @@ impl<F: API> UI<F> {
     async fn writeln<T: ToString>(&mut self, content: T) -> anyhow::Result<()> {
         let content = content.to_string();
         self.spinner.write_ln(&content).await?;
-        self.api.set_buffer_state(Buffer::output(content)).await
+        Ok(())
     }
 
     /// Retrieve available models

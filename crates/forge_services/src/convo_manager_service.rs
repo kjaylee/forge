@@ -92,6 +92,7 @@ impl<I: Infrastructure> ForgeConversationSessionManager<I> {
     }
 
     async fn update_session_id(&self, conversation_id: String) -> anyhow::Result<()> {
+        self.infra.create_dirs_service().create_dirs(&self.project_dir).await.ok();
         self.infra
             .file_write_service()
             .write(
@@ -127,7 +128,7 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
     }
 
     async fn buffer_update(&self, state: Buffer) -> anyhow::Result<()> {
-        self.create_dir().await?;
+        self.create_dir().await.ok();
 
         let buffer_path = self.state_path().await?;
         self.infra
@@ -139,7 +140,7 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
 
     async fn conversation_update(&self, conversation: &Conversation) -> anyhow::Result<()> {
         self.update_session_id(conversation.id.to_string()).await?;
-        self.create_dir().await?;
+        self.create_dir().await.ok();
 
         let conversation_path = self.conversation_path().await?;
         self.infra
@@ -156,7 +157,7 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
         self.infra
             .file_remove_service()
             .remove(&self.session_store)
-            .await?;
+            .await.ok();
         self.session_id.write().await.take();
         Ok(())
     }
