@@ -104,11 +104,8 @@ impl From<&UIState> for Info {
 
         info = info
             .add_key_value("Completion", usage.completion_tokens)
-            .add_key_value("Total", usage.total_tokens);
-
-        if usage.cached_tokens > 0 {
-            info = info.add_key_value("Cached Tokens", usage.cached_tokens);
-        }
+            .add_key_value("Total", usage.total_tokens)
+            .add_key_value("Cached Tokens", usage.cached_tokens);
 
         info
     }
