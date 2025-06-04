@@ -133,14 +133,9 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(tool_call_records)
     }
 
-    async fn send(&mut self, agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
+    async fn send(&mut self, _agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
-            // Send message if it's a Custom type or if hide_content is false
-            let show_text = !agent.hide_content.unwrap_or_default();
-            let can_send = !matches!(&message, ChatResponse::Text { .. }) || show_text;
-            if can_send {
-                sender.send(Ok(message)).await?
-            }
+            sender.send(Ok(message)).await?
         }
         Ok(())
     }
