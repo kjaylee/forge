@@ -283,7 +283,7 @@ impl From<Context> for Request {
             route: Default::default(),
             provider: Default::default(),
             parallel_tool_calls: Some(false),
-            usage: Some(Usage { include: true })
+            usage: Some(Usage { include: true }),
         }
     }
 }
