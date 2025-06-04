@@ -1,6 +1,5 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
-
 use derive_setters::Setters;
 use futures::Stream;
 use pin_project::pin_project;
@@ -34,11 +33,11 @@ impl Buffer {
 #[pin_project]
 pub struct JsonlIterator {
     #[pin]
-    stream: Pin<Box<dyn Stream<Item = Buffer> + Send + Sync>>,
+    stream: Pin<Box<dyn Stream<Item = anyhow::Result<Buffer>> + Send + Sync>>,
 }
 
 impl JsonlIterator {
-    pub fn new(stream: Pin<Box<dyn Stream<Item = Buffer> + Send + Sync>>) -> Self {
+    pub fn new(stream: Pin<Box<dyn Stream<Item = anyhow::Result<Buffer>> + Send + Sync>>) -> Self {
         Self { stream }
     }
 }
@@ -48,6 +47,6 @@ impl Stream for JsonlIterator {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.project();
-        this.stream.poll_next(cx).map(|opt| opt.map(Ok))
+        this.stream.poll_next(cx)
     }
 }

@@ -1,10 +1,8 @@
 use std::path::Path;
-use std::pin::Pin;
 
-use async_jsonl::JsonlDeserialize;
+use async_jsonl::{JsonlDeserialize, JsonlReader};
 use forge_domain::{Buffer, JsonlIterator};
 use forge_services::BufferService;
-use futures::{Stream, StreamExt};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 
@@ -37,17 +35,16 @@ impl ForgeBufferService {
 
 #[async_trait::async_trait]
 impl BufferService for ForgeBufferService {
-    async fn read(&self, path: &Path) -> anyhow::Result<JsonlIterator> {
+    async fn read_last(&self, path: &Path, n: usize) -> anyhow::Result<JsonlIterator> {
         let file = File::open(path)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to open file: {}", e))?;
-        let iter = async_jsonl::Jsonl::new(file).deserialize::<Buffer>();
-        let stream: Pin<Box<dyn Stream<Item = Buffer> + Send + Sync>> =
-            Box::pin(futures::stream::unfold(iter, |mut iter| async move {
-                let buffer = StreamExt::next(&mut iter).await.and_then(|v| v.ok())?;
-                Some((buffer, iter))
-            }));
-        Ok(JsonlIterator::new(stream))
+        let iter = async_jsonl::Jsonl::new(file)
+            .last_n(n)
+            .await?
+            .deserialize::<Buffer>();
+        
+        Ok(JsonlIterator::new(Box::pin(iter)))
     }
 
     async fn write(&self, path: &Path, buffer: Buffer) -> anyhow::Result<()> {

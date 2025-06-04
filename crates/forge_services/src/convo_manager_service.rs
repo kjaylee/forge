@@ -122,9 +122,13 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
 
     async fn state(&self, n: usize) -> anyhow::Result<Vec<Buffer>> {
         let state_path = self.state_path().await?;
-        let buffer = self.infra.buffer_service().read(&state_path).await?;
+        let buffer = self
+            .infra
+            .buffer_service()
+            .read_last(&state_path, n)
+            .await?;
+        
         let buffer = buffer
-            .take(n)
             .filter_map(|v| async { v.ok() })
             .collect::<Vec<_>>()
             .await;

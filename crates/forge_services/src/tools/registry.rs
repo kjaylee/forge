@@ -222,7 +222,7 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl BufferService for Stub {
-        async fn read(&self, _: &Path) -> anyhow::Result<JsonlIterator> {
+        async fn read_last(&self, _: &Path, _: usize) -> anyhow::Result<JsonlIterator> {
             unimplemented!()
         }
 

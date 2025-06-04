@@ -147,7 +147,7 @@ pub trait McpServer: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait BufferService: Send + Sync + 'static {
     /// Returns an iterator that yields Buffer items from JSONL format
-    async fn read(&self, path: &Path) -> anyhow::Result<JsonlIterator>;
+    async fn read_last(&self, path: &Path, n: usize) -> anyhow::Result<JsonlIterator>;
 
     /// Update the input/output buffer state.
     async fn write(&self, path: &Path, buffer: Buffer) -> anyhow::Result<()>;
