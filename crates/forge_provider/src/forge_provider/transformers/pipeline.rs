@@ -40,10 +40,8 @@ impl Transformer for ProviderPipeline<'_> {
 mod tests {
     use forge_domain::ModelId;
 
-    use crate::forge_provider::{
-        request::{Message, MessageContent, Request, Role, Transform},
-        transformers::{ProviderPipeline, Transformer},
-    };
+    use crate::forge_provider::request::{Message, MessageContent, Request, Role, Transform};
+    use crate::forge_provider::transformers::{ProviderPipeline, Transformer};
 
     impl Message {
         pub fn text_message(role: Role, content: &str) -> Self {
