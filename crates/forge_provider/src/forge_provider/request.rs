@@ -210,7 +210,7 @@ impl Request {
 }
 
 /// ref: https://openrouter.ai/docs/transforms
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Transform {
     #[default]
     #[serde(rename = "middle-out")]
