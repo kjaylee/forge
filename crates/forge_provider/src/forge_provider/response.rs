@@ -32,7 +32,6 @@ pub struct ResponseUsage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
     pub total_tokens: u64,
-
     pub cost: Option<f64>,
     pub prompt_tokens_details: Option<PromptTokenDetails>,
 }
