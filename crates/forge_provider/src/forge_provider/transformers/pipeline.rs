@@ -45,7 +45,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_is_open_router() {
+    fn test_supports_open_router_params() {
         assert!(supports_open_router_params(&Provider::antinomy(
             "antinomy".into()
         )));
