@@ -12,6 +12,7 @@ pub struct Usage {
     pub total_tokens: u64,
     pub estimated_tokens: u64,
     pub content_length: u64,
+    pub cached_tokens: u64,
 }
 
 /// Represents a message that was received from the LLM provider

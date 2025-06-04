@@ -185,6 +185,13 @@ pub struct Request {
     pub provider: Option<ProviderPreferences>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parallel_tool_calls: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Setters, Default)]
+pub struct Usage {
+    include: bool,
 }
 
 impl Request {
@@ -276,6 +283,7 @@ impl From<Context> for Request {
             route: Default::default(),
             provider: Default::default(),
             parallel_tool_calls: Some(false),
+            usage: Some(Usage { include: true })
         }
     }
 }
