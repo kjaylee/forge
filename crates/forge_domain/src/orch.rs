@@ -134,6 +134,21 @@ impl<A: Services> Orchestrator<A> {
             .collect())
     }
 
+    /// Checks if parallel tool calls is supported by agent
+    async fn is_parallel_tool_call_supported(&self, agent: &Agent) -> bool {
+        if let Some(model_id) = agent.model.as_ref() {
+            self.services
+                .provider_service()
+                .model(model_id)
+                .await
+                .ok()
+                .and_then(|model| model)
+                .map_or(false, |model| model.supports_parallel_tool_calls.unwrap_or_default())
+        } else {
+            false
+        }
+    }
+
     // Returns if agent supports tool or not.
     async fn is_tool_supported(&self, agent: &Agent) -> anyhow::Result<bool> {
         let model_id = agent
@@ -184,6 +199,7 @@ impl<A: Services> Orchestrator<A> {
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
 
             let tool_supported = self.is_tool_supported(agent).await?;
+            let supports_parallel_tool_calls = self.is_parallel_tool_call_supported(agent).await;
             let tool_information = match tool_supported {
                 true => None,
                 false => {
@@ -199,6 +215,7 @@ impl<A: Services> Orchestrator<A> {
                 files,
                 custom_rules: agent.custom_rules.as_ref().cloned().unwrap_or_default(),
                 variables: variables.clone(),
+                supports_parallel_tool_calls,
             };
 
             let system_message = self
