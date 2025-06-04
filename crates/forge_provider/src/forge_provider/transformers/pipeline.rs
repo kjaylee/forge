@@ -35,7 +35,7 @@ impl Transformer for ProviderPipeline<'_> {
     }
 }
 
-/// function checks if provider is open router or not.
+/// function checks if provider supports open-router parameters.
 fn supports_open_router_params(provider: &Provider) -> bool {
     provider.is_open_router() || provider.is_antinomy()
 }
