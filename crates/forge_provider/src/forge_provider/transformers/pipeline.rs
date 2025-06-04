@@ -30,7 +30,7 @@ impl Transformer for ProviderPipeline<'_> {
             .when(move |_| self.0.is_open_router() || self.0.is_antinomy());
 
         let open_ai_compat =
-            MakeOpenAiCompat.when(move |_| !self.0.is_open_router() || !self.0.is_antinomy());
+            MakeOpenAiCompat.when(move |_| !(self.0.is_antinomy() || self.0.is_open_router()));
 
         or_transformers.combine(open_ai_compat).transform(request)
     }
