@@ -189,7 +189,7 @@ pub struct Request {
     pub usage: Option<Usage>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Setters, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct Usage {
     include: bool,
 }
