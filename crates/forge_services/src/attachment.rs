@@ -3,9 +3,10 @@ use std::fmt::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use forge_domain::{Attachment, AttachmentContent, AttachmentService, EnvironmentService, Image};
+use forge_domain::{Attachment, AttachmentContent, Image};
 use nom::AsBytes;
 
+use crate::services::{AttachmentService, EnvironmentService};
 use crate::{FsReadService, Infrastructure};
 
 #[derive(Clone)]
@@ -114,14 +115,12 @@ pub mod tests {
 
     use base64::Engine;
     use bytes::Bytes;
-    use forge_domain::{
-        AttachmentContent, AttachmentService, CommandOutput, Environment, EnvironmentService,
-        MimeType, Provider, ToolDefinition, ToolName, ToolOutput,
-    };
+    use forge_domain::{AttachmentContent, CommandOutput, Environment, MimeType, Provider, ToolDefinition, ToolName, ToolOutput};
     use forge_snaps::Snapshot;
     use serde_json::Value;
 
     use crate::attachment::ForgeChatRequest;
+    use crate::services::{AttachmentService, EnvironmentService};
     use crate::utils::AttachmentExtension;
     use crate::{
         CommandExecutorService, FileRemoveService, FsCreateDirsService, FsMetaService,

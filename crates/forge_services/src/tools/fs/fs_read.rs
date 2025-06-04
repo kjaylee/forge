@@ -6,12 +6,13 @@ use std::sync::Arc;
 use anyhow::{bail, Context};
 use forge_display::TitleFormat;
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSReadInput, Image, MimeType, NamedTool, Pdf,
+    ExecutableTool, FSReadInput, Image, MimeType, NamedTool, Pdf,
     ToolCallContext, ToolDescription, ToolName, ToolOutput,
 };
+use forge_fs::FileInfo;
 use forge_tool_macros::ToolDescription;
 
-use crate::tools::fs::FileInfo;
+use crate::services::EnvironmentService;
 use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsMetaService, FsReadService, Infrastructure};
 
@@ -53,17 +54,16 @@ pub fn assert_valid_range(start_char: u64, end_char: u64) -> anyhow::Result<()> 
 
 // Using FSReadInput from forge_domain
 
-/// Reads file contents at specified path for analyzing code, config files,
-/// documentation, text data, and images in JPEG and PNG formats. Use this tool
-/// when you need to examine file contents, extract text from PDF/DOCX files, or
-/// view images, always providing absolute paths as the tool is read-only with
-/// no file modification capabilities. For large files exceeding 40,000
-/// characters, the tool automatically returns only the first 40,000 characters
-/// by default, though you can specify custom ranges using start_char and
-/// end_char parameters with a maximum range size of 40,000 characters. The tool
-/// preserves original formatting for text content and handles binary files by
-/// automatic detection and rejection, returning structured content with
-/// metadata headers for range operations and file information.
+/// Reads file contents from the specified absolute path. Ideal for analyzing
+/// code, configuration files, documentation, or textual data. Automatically
+/// extracts text from PDF and DOCX files, preserving the original formatting.
+/// Returns the content as a string. For files larger than 40,000 characters,
+/// the tool automatically returns only the first 40,000 characters. You should
+/// always rely on this default behavior and avoid specifying custom ranges
+/// unless absolutely necessary. If needed, specify a range with the start_char
+/// and end_char parameters, ensuring the total range does not exceed 40,000
+/// characters. Specifying a range exceeding this limit will result in an error.
+/// Binary files are automatically detected and rejected.
 #[derive(ToolDescription)]
 pub struct FSRead<F>(Arc<F>);
 
@@ -156,7 +156,7 @@ impl<F: Infrastructure> FSRead<F> {
 
     async fn read_text(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: FSReadInput,
         path: PathBuf,
     ) -> anyhow::Result<ToolOutput> {
@@ -177,7 +177,7 @@ impl<F: Infrastructure> FSRead<F> {
         self.create_and_send_title(TitleParams {
             read_params: (&context, &input, &path),
             range_params: (start_char, end_char),
-            file_info: &crate::tools::fs::FileInfo {
+            file_info: &FileInfo {
                 start_char: file_info.start_char,
                 end_char: file_info.end_char,
                 total_chars: file_info.total_chars,
@@ -217,7 +217,7 @@ impl<F: Infrastructure> FSRead<F> {
 
     async fn read_file(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: FSReadInput,
         path: PathBuf,
         ty: MimeType,
@@ -229,8 +229,7 @@ impl<F: Infrastructure> FSRead<F> {
             .await
             .with_context(|| format!("Failed to read file content from {}", input.path))?;
 
-        let file_info =
-            crate::tools::fs::FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
+        let file_info = FileInfo::new(0, (bytes.len() - 1) as u64, bytes.len() as u64);
 
         self.create_and_send_title(TitleParams {
             read_params: (&context, &input, &path),
@@ -261,7 +260,7 @@ impl<F: Infrastructure> FSRead<F> {
     /// Helper function to read a file with range constraints
     async fn call(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: FSReadInput,
     ) -> anyhow::Result<ToolOutput> {
         let path = PathBuf::from(&input.path);
@@ -292,7 +291,7 @@ impl<F: Infrastructure> ExecutableTool for FSRead<F> {
 
     async fn call(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         self.call(context, input).await
@@ -316,8 +315,13 @@ mod test {
         let fs_read = FSRead::new(infra);
         fs_read
             .call(
-                ToolCallContext::default(),
-                FSReadInput { path: path.to_string(), start_char: None, end_char: None },
+                &mut ToolCallContext::default(),
+                FSReadInput {
+                    path: path.to_string(),
+                    start_char: None,
+                    end_char: None,
+                    explanation: None,
+                },
             )
             .await
     }
@@ -357,11 +361,12 @@ mod test {
         // Test to read middle range of the file
         let result = fs_read
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSReadInput {
                     path: file_path.to_string_lossy().to_string(),
                     start_char: Some(10),
                     end_char: Some(20),
+                    explanation: None,
                 },
             )
             .await;
@@ -387,11 +392,12 @@ mod test {
         // Test with an invalid range (start > end)
         let result = fs_read
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSReadInput {
                     path: file_path.to_string_lossy().to_string(),
                     start_char: Some(20),
                     end_char: Some(10),
+                    explanation: None,
                 },
             )
             .await;
@@ -572,8 +578,9 @@ mod test {
         // Call with a path but no explicit range parameters
         let result = fs_read
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSReadInput {
+                    explanation: None,
                     path: "/test/large_file.txt".to_string(),
                     start_char: None,
                     end_char: None,
