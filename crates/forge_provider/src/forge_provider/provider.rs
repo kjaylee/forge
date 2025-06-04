@@ -235,9 +235,11 @@ impl From<Model> for forge_domain::Model {
             .iter()
             .flatten()
             .any(|param| param == "tools");
-
-        // For now, only set parallel tool calls for claude-sonnet-4
-        let supports_parallel_tool_calls = value.id.as_str().contains("anthropic/claude-sonnet-4");
+        let supports_parallel_tool_calls = value
+            .supported_parameters
+            .iter()
+            .flatten()
+            .any(|param| param == "supports_parallel_tool_calls");
 
         forge_domain::Model {
             id: value.id,

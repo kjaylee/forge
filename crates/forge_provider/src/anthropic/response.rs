@@ -17,14 +17,13 @@ pub struct Model {
 
 impl From<Model> for forge_domain::Model {
     fn from(value: Model) -> Self {
-        let supports_parallel_tool_calls = value.id.contains("claude-sonnet-4");
         Self {
             id: ModelId::new(value.id),
             name: Some(value.display_name),
             description: None,
             context_length: None,
             tools_supported: Some(true),
-            supports_parallel_tool_calls: Some(supports_parallel_tool_calls),
+            supports_parallel_tool_calls: Some(false),
         }
     }
 }
