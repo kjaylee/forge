@@ -95,6 +95,7 @@ impl From<ResponseUsage> for Usage {
                 .prompt_tokens_details
                 .map(|token_details| token_details.cached_tokens)
                 .unwrap_or_default(),
+            cost: usage.cost.unwrap_or_default(),
             ..Default::default()
         }
     }
