@@ -38,5 +38,5 @@ pub struct SystemContext {
 
     /// Indicated whether the agent supports parallel tool calls.
     #[serde(default)]
-    pub supports_parallel_tool_calls: bool
+    pub supports_parallel_tool_calls: bool,
 }
