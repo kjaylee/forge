@@ -66,7 +66,7 @@ pub struct Orchestrator<S> {
     models: Vec<Model>,
 }
 
-struct ChatCompletionResult {
+struct ChatCompletionMessageFull {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
     pub usage: Usage,
@@ -401,7 +401,7 @@ impl<S: AgentService> Orchestrator<S> {
         agent: &Agent,
         context: &Context,
         mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
-    ) -> anyhow::Result<ChatCompletionResult> {
+    ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut messages = Vec::new();
         let mut usage: Usage = Default::default();
         let mut content = String::new();
@@ -520,7 +520,7 @@ impl<S: AgentService> Orchestrator<S> {
             .chain(xml_tool_calls)
             .collect();
 
-        Ok(ChatCompletionResult { content, tool_calls, usage })
+        Ok(ChatCompletionMessageFull { content, tool_calls, usage })
     }
 
     pub async fn dispatch(&mut self, event: Event) -> anyhow::Result<()> {
@@ -547,7 +547,7 @@ impl<S: AgentService> Orchestrator<S> {
         agent: &Agent,
         model_id: &ModelId,
         context: Context,
-    ) -> anyhow::Result<ChatCompletionResult> {
+    ) -> anyhow::Result<ChatCompletionMessageFull> {
         let response = self.services.chat(model_id, context.clone()).await?;
         self.collect_messages(agent, &context, response).await
     }
@@ -616,7 +616,7 @@ impl<S: AgentService> Orchestrator<S> {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
 
-            let ChatCompletionResult { tool_calls, content, usage } =
+            let ChatCompletionMessageFull { tool_calls, content, usage } =
                 self.chat(&agent, &model_id, context.clone()).await?;
 
             // Send the usage information if available
