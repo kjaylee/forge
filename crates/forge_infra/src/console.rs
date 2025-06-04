@@ -1,9 +1,9 @@
-use forge_services::ConsoleService;
+use forge_services::ConsolePrintService;
 
 pub struct ForgeConsoleService;
 
 #[async_trait::async_trait]
-impl ConsoleService for ForgeConsoleService {
+impl ConsolePrintService for ForgeConsoleService {
     async fn print(&self, output: &str) -> anyhow::Result<()> {
         print!("{}", output);
         Ok(())

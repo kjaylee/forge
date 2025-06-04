@@ -5,9 +5,9 @@ use anyhow::Result;
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{
-    AttachmentService, CommandExecutorService, ConversationService, EnvironmentService,
-    ForgeServices, Infrastructure, McpConfigManager, ProviderService, Services, SuggestionService,
-    ToolService, WorkflowService,
+    AttachmentService, CommandExecutorService, ConsoleService, ConversationService,
+    ConversationSessionManager, EnvironmentService, ForgeServices, Infrastructure,
+    McpConfigManager, ProviderService, Services, SuggestionService, ToolService, WorkflowService,
 };
 use forge_stream::MpscStream;
 use tracing::error;
@@ -206,8 +206,6 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
     }
 
     async fn print(&self, text: &str) -> Result<()> {
-        <F as Services>::console_service(&self.app)
-            .print(text)
-            .await
+        self.app.console_service().print(text).await
     }
 }

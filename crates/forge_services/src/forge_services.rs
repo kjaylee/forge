@@ -8,12 +8,12 @@ use crate::conversation::ForgeConversationService;
 use crate::convo_manager_service::ForgeConversationSessionManager;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
-use crate::services::Services;
+use crate::services::{Services, ToolService};
 use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::workflow::ForgeWorkflowService;
-use crate::Infrastructure;
+use crate::{Infrastructure, ProviderService};
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F>;
 type ConversationService<F> =
@@ -59,7 +59,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             mcp_service,
             convo_session_manager.clone(),
         ));
-        
+
         let console_service = Arc::new(ForgeConsoleService::new(
             infra.clone(),
             convo_session_manager.clone(),
@@ -150,7 +150,7 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
     type InquireService = F::InquireService;
     type McpServer = F::McpServer;
     type BufferService = F::BufferService;
-    type ConsoleService = F::ConsoleService;
+    type ConsolePrintService = F::ConsolePrintService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
@@ -196,8 +196,8 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
         self.infra.buffer_service()
     }
 
-    fn console_service(&self) -> &Self::ConsoleService {
-        self.infra.console_service()
+    fn console_print_service(&self) -> &Self::ConsolePrintService {
+        self.infra.console_print_service()
     }
 }
 

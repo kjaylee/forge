@@ -2,10 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context as AnyhowContext, Result};
-use forge_domain::{CompactionResult, Conversation, CompactionService, ConversationId, Workflow};
+use forge_domain::{CompactionResult, Conversation, ConversationId, Workflow};
 use tokio::sync::Mutex;
-use crate::ConversationSessionManager;
+
 use crate::services::{ConversationService, McpService};
+use crate::ConversationSessionManager;
 
 /// Service for managing conversations, including creation, retrieval, and
 /// updates
@@ -16,18 +17,11 @@ pub struct ForgeConversationService<M, Manager> {
     conversation_session_manager: Arc<Manager>,
 }
 
-impl<C: CompactionService, M: McpService, Manager: ConversationSessionManager>
-    ForgeConversationService<C, M, Manager>
-{
+impl<M: McpService, Manager: ConversationSessionManager> ForgeConversationService<M, Manager> {
     /// Creates a new ForgeConversationService with the provided MCP service
-    pub fn new(
-        compaction_service: Arc<C>,
-        mcp_service: Arc<M>,
-        conversation_session_manager: Arc<Manager>,
-    ) -> Self {
+    pub fn new(mcp_service: Arc<M>, conversation_session_manager: Arc<Manager>) -> Self {
         Self {
             workflows: Arc::new(Mutex::new(HashMap::new())),
-            compaction_service,
             mcp_service,
             conversation_session_manager,
         }

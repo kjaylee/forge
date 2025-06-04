@@ -445,7 +445,7 @@ mod test {
             type InquireService = ();
             type McpServer = ();
             type BufferService = ();
-            type ConsoleService = crate::attachment::tests::MockConsoleService;
+            type ConsolePrintService = crate::attachment::tests::MockConsoleService;
 
             fn environment_service(&self) -> &Self::EnvironmentService {
                 self.inner.environment_service()
@@ -491,8 +491,8 @@ mod test {
                 &()
             }
 
-            fn console_service(&self) -> &Self::ConsoleService {
-                self.inner.console_service()
+            fn console_print_service(&self) -> &Self::ConsolePrintService {
+                self.inner.console_print_service()
             }
         }
 

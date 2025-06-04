@@ -44,7 +44,10 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
-    use forge_domain::{Buffer, CommandOutput, Environment, JsonlIterator, Provider, ToolDefinition, ToolName, ToolOutput};
+    use forge_domain::{
+        Buffer, CommandOutput, Environment, JsonlIterator, Provider, ToolDefinition, ToolName,
+        ToolOutput,
+    };
     use forge_snaps::Snapshot;
     use serde_json::Value;
 
@@ -229,7 +232,7 @@ pub mod tests {
     }
 
     #[async_trait::async_trait]
-    impl crate::infra::ConsoleService for Stub {
+    impl crate::infra::ConsolePrintService for Stub {
         async fn print(&self, _output: &str) -> anyhow::Result<()> {
             // Stub implementation - just ignore the output
             Ok(())
@@ -258,7 +261,7 @@ pub mod tests {
         type InquireService = Stub;
         type McpServer = Stub;
         type BufferService = Stub;
-        type ConsoleService = Stub;
+        type ConsolePrintService = Stub;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             self
@@ -304,7 +307,7 @@ pub mod tests {
             self
         }
 
-        fn console_service(&self) -> &Self::ConsoleService {
+        fn console_print_service(&self) -> &Self::ConsolePrintService {
             self
         }
     }

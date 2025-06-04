@@ -70,7 +70,7 @@ impl Infrastructure for ForgeInfra {
     type InquireService = ForgeInquire;
     type McpServer = ForgeMcpServer;
     type BufferService = ForgeBufferService;
-    type ConsoleService = ForgeConsoleService;
+    type ConsolePrintService = ForgeConsoleService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -115,7 +115,7 @@ impl Infrastructure for ForgeInfra {
     fn buffer_service(&self) -> &Self::BufferService {
         &self.forge_buffer_service
     }
-    fn console_service(&self) -> &Self::ConsoleService {
+    fn console_print_service(&self) -> &Self::ConsolePrintService {
         self.console_service.as_ref()
     }
 }

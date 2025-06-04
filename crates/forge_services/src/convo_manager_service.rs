@@ -3,15 +3,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use forge_domain::{Buffer, Conversation, ConversationSessionManager, EnvironmentService};
+use forge_domain::{Buffer, Conversation};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use thiserror::__private::AsDisplay;
 use tokio::sync::RwLock;
 
 use crate::{
-    BufferService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
-    FsWriteService, Infrastructure,
+    BufferService, ConversationSessionManager, EnvironmentService, FileRemoveService,
+    FsCreateDirsService, FsMetaService, FsReadService, FsWriteService, Infrastructure,
 };
 
 pub struct ForgeConversationSessionManager<I> {
@@ -92,7 +92,11 @@ impl<I: Infrastructure> ForgeConversationSessionManager<I> {
     }
 
     async fn update_session_id(&self, conversation_id: String) -> anyhow::Result<()> {
-        self.infra.create_dirs_service().create_dirs(&self.project_dir).await.ok();
+        self.infra
+            .create_dirs_service()
+            .create_dirs(&self.project_dir)
+            .await
+            .ok();
         self.infra
             .file_write_service()
             .write(
@@ -157,7 +161,8 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
         self.infra
             .file_remove_service()
             .remove(&self.session_store)
-            .await.ok();
+            .await
+            .ok();
         self.session_id.write().await.take();
         Ok(())
     }

@@ -115,8 +115,8 @@ pub mod tests {
     use base64::Engine;
     use bytes::Bytes;
     use forge_domain::{
-        AttachmentContent, CommandOutput, Environment, Provider, ToolDefinition, ToolName,
-        ToolOutput,
+        AttachmentContent, Buffer, CommandOutput, Environment, JsonlIterator, Provider,
+        ToolDefinition, ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
     use serde_json::Value;
@@ -482,7 +482,7 @@ pub mod tests {
     pub struct MockConsoleService;
 
     #[async_trait::async_trait]
-    impl crate::infra::ConsoleService for MockConsoleService {
+    impl crate::infra::ConsolePrintService for MockConsoleService {
         async fn print(&self, _output: &str) -> anyhow::Result<()> {
             // Mock implementation - just ignore the output
             Ok(())
@@ -536,7 +536,7 @@ pub mod tests {
         type InquireService = ();
         type McpServer = ();
         type BufferService = ();
-        type ConsoleService = MockConsoleService;
+        type ConsolePrintService = MockConsoleService;
 
         fn environment_service(&self) -> &Self::EnvironmentService {
             &self.env_service
@@ -582,7 +582,7 @@ pub mod tests {
             &()
         }
 
-        fn console_service(&self) -> &Self::ConsoleService {
+        fn console_print_service(&self) -> &Self::ConsolePrintService {
             &self.console_service
         }
     }

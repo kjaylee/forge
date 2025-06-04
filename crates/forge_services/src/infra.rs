@@ -2,7 +2,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::{Buffer, CommandOutput, JsonlIterator, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
+use forge_domain::{
+    Buffer, CommandOutput, JsonlIterator, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
+};
 use forge_snaps::Snapshot;
 
 use crate::services::EnvironmentService;
@@ -152,7 +154,7 @@ pub trait BufferService: Send + Sync + 'static {
 }
 
 #[async_trait::async_trait]
-pub trait ConsoleService: Send + Sync + 'static {
+pub trait ConsolePrintService: Send + Sync + 'static {
     async fn print(&self, output: &str) -> anyhow::Result<()>;
 }
 
@@ -168,7 +170,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     type InquireService: InquireService;
     type McpServer: McpServer;
     type BufferService: BufferService;
-    type ConsoleService: ConsoleService;
+    type ConsolePrintService: ConsolePrintService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FsMetaService;
@@ -181,5 +183,5 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn inquire_service(&self) -> &Self::InquireService;
     fn mcp_server(&self) -> &Self::McpServer;
     fn buffer_service(&self) -> &Self::BufferService;
-    fn console_service(&self) -> &Self::ConsoleService;
+    fn console_print_service(&self) -> &Self::ConsolePrintService;
 }
