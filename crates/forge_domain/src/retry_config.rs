@@ -43,6 +43,7 @@ impl Default for RetryConfig {
 }
 
 impl RetryConfig {
+    //TODO: retry can't be in domain
     /// Retry wrapper for operations that may fail with retryable errors
     pub async fn retry<T, FutureFn, Fut>(&self, operation: FutureFn) -> anyhow::Result<T>
     where
