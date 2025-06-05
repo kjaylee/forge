@@ -1,4 +1,4 @@
-use std::future::Future;
+use std::{future::Future, time::Duration};
 
 use anyhow::Context;
 use backon::{ExponentialBuilder, Retryable};
@@ -48,13 +48,14 @@ impl RetryConfig {
         FutureFn: FnMut() -> Fut,
         Fut: Future<Output = anyhow::Result<T>>,
     {
+        let strategy = ExponentialBuilder::default()
+            .with_min_delay(Duration::from_millis(0))
+            .with_factor(self.backoff_factor as f32)
+            .with_max_times(self.max_retry_attempts)
+            .with_jitter();
+
         operation
-            .retry(
-                ExponentialBuilder::default()
-                    .with_factor(self.backoff_factor as f32)
-                    .with_max_times(self.max_retry_attempts)
-                    .with_jitter(),
-            )
+            .retry(strategy)
             .when(should_retry)
             .await
             .with_context(|| "Failed to execute operation with retry")
@@ -65,7 +66,7 @@ impl RetryConfig {
 ///
 /// This function checks if the error is a retryable domain error.
 /// Currently, only `Error::Retryable` errors will trigger retries.
-pub fn should_retry(error: &anyhow::Error) -> bool {
+fn should_retry(error: &anyhow::Error) -> bool {
     let retry = error
         .downcast_ref::<Error>()
         .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
@@ -109,31 +110,28 @@ mod tests {
         use crate::Error;
 
         // Fixture: Create retry config and operation that fails then succeeds
-        let retry_config = RetryConfig::default().max_retry_attempts(2usize);
+        let total_count = 5usize;
+        let retry_config = RetryConfig::default()
+            .max_retry_attempts(total_count)
+            .initial_backoff_ms(0u64)
+            .backoff_factor(1u64);
         let call_count = Arc::new(Mutex::new(0));
         let call_count_clone = call_count.clone();
 
         // Actual: Execute operation that fails once then succeeds
-        let actual = retry_config
-            .retry(|| {
+        let actual: anyhow::Result<()> = retry_config
+            .retry(|| async {
                 let mut count = call_count_clone.lock().unwrap();
                 *count += 1;
-                async move {
-                    if *count == 1 {
-                        Err(anyhow::anyhow!(Error::Retryable(
-                            1,
-                            anyhow::anyhow!("Test retryable error")
-                        )))
-                    } else {
-                        Ok::<i32, anyhow::Error>(42)
-                    }
-                }
+                Err(anyhow::anyhow!(Error::Retryable(
+                    1,
+                    anyhow::anyhow!("Test retryable error")
+                )))
             })
             .await;
 
         // Expected: Should succeed after retry
-        assert!(actual.is_ok());
-        assert_eq!(actual.unwrap(), 42);
-        assert_eq!(*call_count.lock().unwrap(), 2);
+        assert!(actual.is_err());
+        assert_eq!(*call_count.lock().unwrap(), total_count + 1);
     }
 }
