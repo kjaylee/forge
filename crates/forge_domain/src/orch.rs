@@ -1,6 +1,5 @@
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
-use std::future::Future;
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
@@ -83,15 +82,6 @@ impl<S: AgentService> Orchestrator<S> {
             tool_definitions: Default::default(),
             models: Default::default(),
         }
-    }
-
-    /// Retry wrapper for async operations that may fail with retryable errors
-    async fn attempt_retry<T, FutureFn, Fut>(&self, f: FutureFn) -> anyhow::Result<T>
-    where
-        FutureFn: FnMut() -> Fut,
-        Fut: Future<Output = anyhow::Result<T>>,
-    {
-        self.environment.retry_config.retry(f).await
     }
 
     /// Get a reference to the internal conversation
@@ -554,7 +544,9 @@ impl<S: AgentService> Orchestrator<S> {
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let services = self.services.clone();
         let response = self
-            .attempt_retry(|| services.chat(model_id, context.clone()))
+            .environment
+            .retry_config
+            .retry(|| services.chat(model_id, context.clone()))
             .await?;
         self.collect_messages(agent, &context, response).await
     }
