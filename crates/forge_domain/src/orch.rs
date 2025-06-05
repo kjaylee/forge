@@ -777,7 +777,7 @@ mod tests {
         let actual = render_template("{{> partial-summary-frame.hbs}}", &data).unwrap();
 
         // Expected: Result should contain the framed summary text
-        let expected = "I want to continue from a prior analysis. Below is a compacted summary of what I've been working on. Please use this summary as authoritative context for your reasoning and decision-making. You do not need to repeat or reanalyze it unless I specifically ask: <summary>This is a test summary of the conversation</summary> Proceed based on this context.";
+        let expected = "Use the following summary as the authoritative reference for all coding\nsuggestions and decisions. Do not re-explain or revisit it unless I ask.\n\n<summary>\nThis is a test summary of the conversation\n</summary>\n\nProceed with implementation based on this context.";
         assert_eq!(actual.trim(), expected);
     }
 }
