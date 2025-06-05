@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
-use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use derive_setters::Setters;
 use forge_walker::Walker;
@@ -92,16 +91,7 @@ impl<S: AgentService> Orchestrator<S> {
         FutureFn: FnMut() -> Fut,
         Fut: Future<Output = anyhow::Result<T>>,
     {
-        let retry_config = &self.environment.retry_config;
-        f.retry(
-            ExponentialBuilder::default()
-                .with_factor(retry_config.backoff_factor as f32)
-                .with_max_times(retry_config.max_retry_attempts)
-                .with_jitter(),
-        )
-        .when(should_retry)
-        .await
-        .context("Failed to execute operation with retry")
+        self.environment.retry_config.retry(f).await
     }
 
     /// Get a reference to the internal conversation
@@ -729,15 +719,6 @@ impl<S: AgentService> Orchestrator<S> {
 
         Ok(context)
     }
-}
-
-fn should_retry(error: &anyhow::Error) -> bool {
-    let retry = error
-        .downcast_ref::<Error>()
-        .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
-
-    warn!(error = %error, retry = retry, "Retrying on error");
-    retry
 }
 
 #[cfg(test)]

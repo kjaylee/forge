@@ -1,6 +1,13 @@
+use std::future::Future;
+
+use anyhow::Context;
+use backon::{ExponentialBuilder, Retryable};
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
+
+use crate::Error;
 
 // Maximum number of retry attempts for retryable operations
 const MAX_RETRY_ATTEMPTS: usize = 3;
@@ -36,5 +43,102 @@ impl Default for RetryConfig {
             max_retry_attempts: MAX_RETRY_ATTEMPTS,
             retry_status_codes: RETRY_STATUS_CODES.to_vec(),
         }
+    }
+}
+
+impl RetryConfig {
+    /// Retry wrapper for operations that may fail with retryable errors
+    pub async fn retry<T, FutureFn, Fut>(&self, operation: FutureFn) -> anyhow::Result<T>
+    where
+        FutureFn: FnMut() -> Fut,
+        Fut: Future<Output = anyhow::Result<T>>,
+    {
+        operation
+            .retry(
+                ExponentialBuilder::default()
+                    .with_factor(self.backoff_factor as f32)
+                    .with_max_times(self.max_retry_attempts)
+                    .with_jitter(),
+            )
+            .when(should_retry)
+            .await
+            .with_context(|| "Failed to execute operation with retry")
+    }
+}
+
+/// Determines if an error should trigger a retry attempt.
+///
+/// This function checks if the error is a retryable domain error.
+/// Currently, only `Error::Retryable` errors will trigger retries.
+pub fn should_retry(error: &anyhow::Error) -> bool {
+    let retry = error
+        .downcast_ref::<Error>()
+        .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
+
+    warn!(error = %error, retry = retry, "Retrying on error");
+    retry
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_retry_success_on_first_attempt() {
+        // Fixture: Create retry config and successful operation
+        let retry_config = RetryConfig::default();
+        let call_count = Arc::new(Mutex::new(0));
+        let call_count_clone = call_count.clone();
+
+        // Actual: Execute operation that succeeds immediately
+        let actual = retry_config
+            .retry(|| {
+                let mut count = call_count_clone.lock().unwrap();
+                *count += 1;
+                async move { Ok::<i32, anyhow::Error>(42) }
+            })
+            .await;
+
+        // Expected: Should succeed on first try
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), 42);
+        assert_eq!(*call_count.lock().unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_retry_with_retryable_error() {
+        use crate::Error;
+
+        // Fixture: Create retry config and operation that fails then succeeds
+        let retry_config = RetryConfig::default().max_retry_attempts(2usize);
+        let call_count = Arc::new(Mutex::new(0));
+        let call_count_clone = call_count.clone();
+
+        // Actual: Execute operation that fails once then succeeds
+        let actual = retry_config
+            .retry(|| {
+                let mut count = call_count_clone.lock().unwrap();
+                *count += 1;
+                async move {
+                    if *count == 1 {
+                        Err(anyhow::anyhow!(Error::Retryable(
+                            1,
+                            anyhow::anyhow!("Test retryable error")
+                        )))
+                    } else {
+                        Ok::<i32, anyhow::Error>(42)
+                    }
+                }
+            })
+            .await;
+
+        // Expected: Should succeed after retry
+        assert!(actual.is_ok());
+        assert_eq!(actual.unwrap(), 42);
+        assert_eq!(*call_count.lock().unwrap(), 2);
     }
 }
