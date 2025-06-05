@@ -13,7 +13,8 @@ use rust_embed::Embed;
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
-use crate::{*, compaction::Compactor};
+use crate::compaction::Compactor;
+use crate::*;
 
 /// Minimal trait that defines only the methods Orchestrator needs from services
 #[async_trait::async_trait]
@@ -184,8 +185,6 @@ impl<S: AgentService> Orchestrator<S> {
         );
         Ok(tool_supported)
     }
-
-
 
     async fn set_system_prompt(
         &mut self,

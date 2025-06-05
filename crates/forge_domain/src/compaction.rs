@@ -4,7 +4,11 @@ use anyhow::Context as AnyhowContext;
 use futures::{Stream, StreamExt};
 use tracing::{debug, info};
 
-use crate::{find_compact_sequence, orch::render_template, Agent, AgentService, ChatCompletionMessage, Compact, Context, ContextMessage, text_utils};
+use crate::orch::render_template;
+use crate::{
+    find_compact_sequence, text_utils, Agent, AgentService, ChatCompletionMessage, Compact,
+    Context, ContextMessage,
+};
 
 /// A service dedicated to handling context compaction.
 pub struct Compactor<S> {
@@ -104,8 +108,8 @@ impl<S: AgentService> Compactor<S> {
             &ctx,
         )?;
 
-        let mut context =
-            Context::default().add_message(ContextMessage::user(prompt, compact.model.clone().into()));
+        let mut context = Context::default()
+            .add_message(ContextMessage::user(prompt, compact.model.clone().into()));
 
         if let Some(max_token) = compact.max_tokens {
             context = context.max_tokens(max_token);
@@ -125,7 +129,8 @@ impl<S: AgentService> Compactor<S> {
     ) -> anyhow::Result<String> {
         let mut content = String::new();
         while let Some(message) = stream.next().await {
-            let message = message.with_context(|| "Failed to process message stream for compaction")?;
+            let message =
+                message.with_context(|| "Failed to process message stream for compaction")?;
             if let Some(content_part) = message.content {
                 content.push_str(content_part.as_str());
             }
