@@ -242,16 +242,16 @@ impl<S: AgentService> Orchestrator<S> {
             "Created context compaction summary"
         );
 
-        let summary = format!(
-            r#"Continuing from a prior analysis. Below is a compacted summary of the ongoing session. Use this summary as authoritative context for your reasoning and decision-making. You do not need to repeat or reanalyze it unless specifically asked: <summary>{summary}</summary> Proceed based on this context.
-        "#
-        );
+        let summary = render_template(
+            "{{> partial-summary-frame.hbs}}",
+            &serde_json::json!({ "summary": summary }),
+        )?;
 
         // Replace the sequence with a single summary message using splice
         // This removes the sequence and inserts the summary message in-place
         context.messages.splice(
             start..=end,
-            std::iter::once(ContextMessage::assistant(summary, None)),
+            std::iter::once(ContextMessage::user(summary, None)),
         );
 
         Ok(context)
@@ -762,5 +762,22 @@ mod tests {
         // Expected: Result should contain the rendered system info with substituted
         // values
         assert!(actual.contains("<operating_system>test-os</operating_system>"));
+    }
+
+    #[test]
+    fn test_render_template_summary_frame() {
+        use pretty_assertions::assert_eq;
+
+        // Fixture: Create test data for the summary frame template
+        let data = serde_json::json!({
+            "summary": "This is a test summary of the conversation"
+        });
+
+        // Actual: Render the partial-summary-frame template
+        let actual = render_template("{{> partial-summary-frame.hbs}}", &data).unwrap();
+
+        // Expected: Result should contain the framed summary text
+        let expected = "I want to continue from a prior analysis. Below is a compacted summary of what I've been working on. Please use this summary as authoritative context for your reasoning and decision-making. You do not need to repeat or reanalyze it unless I specifically ask: <summary>This is a test summary of the conversation</summary> Proceed based on this context.";
+        assert_eq!(actual.trim(), expected);
     }
 }
