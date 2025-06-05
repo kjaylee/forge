@@ -102,7 +102,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         for tool_call in tool_calls {
             // Send the start notification
-            self.send(agent, ChatResponse::ToolCallStart(tool_call.clone()))
+            self.send(ChatResponse::ToolCallStart(tool_call.clone()))
                 .await?;
 
             // Execute the tool
@@ -122,7 +122,7 @@ impl<S: AgentService> Orchestrator<S> {
             }
 
             // Send the end notification
-            self.send(agent, ChatResponse::ToolCallEnd(tool_result.clone()))
+            self.send(ChatResponse::ToolCallEnd(tool_result.clone()))
                 .await?;
 
             // Ensure all tool calls and results are recorded
@@ -133,7 +133,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(tool_call_records)
     }
 
-    async fn send(&mut self, _agent: &Agent, message: ChatResponse) -> anyhow::Result<()> {
+    async fn send(&mut self, message: ChatResponse) -> anyhow::Result<()> {
         if let Some(sender) = &self.sender {
             sender.send(Ok(message)).await?
         }
@@ -425,15 +425,12 @@ impl<S: AgentService> Orchestrator<S> {
                 content.push_str(&content_part);
 
                 // Send partial content to the client
-                self.send(
-                    agent,
-                    ChatResponse::Text {
-                        text: content_part,
-                        is_complete: false,
-                        is_md: false,
-                        is_summary: false,
-                    },
-                )
+                self.send(ChatResponse::Text {
+                    text: content_part,
+                    is_complete: false,
+                    is_md: false,
+                    is_summary: false,
+                })
                 .await?;
 
                 // Check for XML tool calls in the content, but only interrupt if tool_supported
@@ -480,17 +477,14 @@ impl<S: AgentService> Orchestrator<S> {
         }
 
         // Send the complete message
-        self.send(
-            agent,
-            ChatResponse::Text {
-                text: remove_tag_with_prefix(&content, "forge_")
-                    .as_str()
-                    .to_string(),
-                is_complete: true,
-                is_md: true,
-                is_summary: false,
-            },
-        )
+        self.send(ChatResponse::Text {
+            text: remove_tag_with_prefix(&content, "forge_")
+                .as_str()
+                .to_string(),
+            is_complete: true,
+            is_md: true,
+            is_summary: false,
+        })
         .await?;
 
         // Extract all tool calls in a fully declarative way with combined sources
@@ -627,8 +621,7 @@ impl<S: AgentService> Orchestrator<S> {
                 content_length = usage.content_length,
                 "Processing usage information"
             );
-            self.send(&agent, ChatResponse::Usage(usage.clone()))
-                .await?;
+            self.send(ChatResponse::Usage(usage.clone())).await?;
 
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
