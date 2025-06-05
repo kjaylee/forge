@@ -495,7 +495,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(ChatCompletionMessageFull { content, tool_calls, usage })
     }
 
-    pub async fn dispatch(&mut self, event: Event) -> anyhow::Result<()> {
+    pub async fn chat(&mut self, event: Event) -> anyhow::Result<()> {
         let target_agents = {
             debug!(
                 conversation_id = %self.conversation.id.clone(),
@@ -514,7 +514,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(())
     }
 
-    async fn chat(
+    async fn execute_chat_turn(
         &self,
         agent: &Agent,
         model_id: &ModelId,
@@ -597,7 +597,7 @@ impl<S: AgentService> Orchestrator<S> {
             let ChatCompletionMessageFull { tool_calls, content, mut usage } = self
                 .environment
                 .retry_config
-                .retry(|| self.chat(&agent, &model_id, context.clone()))
+                .retry(|| self.execute_chat_turn(&agent, &model_id, context.clone()))
                 .await?;
 
             // Set estimated tokens

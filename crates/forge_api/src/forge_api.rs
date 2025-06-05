@@ -80,7 +80,7 @@ impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
 
                 // Execute dispatch and always save conversation afterwards
                 let mut orch = orch.sender(tx.clone());
-                let dispatch_result = orch.dispatch(chat.event).await;
+                let dispatch_result = orch.chat(chat.event).await;
 
                 // Always save conversation using get_conversation()
                 let conversation = orch.get_conversation().clone();
