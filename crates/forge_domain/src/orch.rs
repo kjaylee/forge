@@ -1,9 +1,11 @@
 use std::cmp::max;
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
+use backon::{ExponentialBuilder, Retryable};
 use chrono::Local;
 use derive_setters::Setters;
 use forge_walker::Walker;
@@ -82,6 +84,24 @@ impl<S: AgentService> Orchestrator<S> {
             tool_definitions: Default::default(),
             models: Default::default(),
         }
+    }
+
+    /// Retry wrapper for async operations that may fail with retryable errors
+    async fn attempt_retry<T, FutureFn, Fut>(&self, f: FutureFn) -> anyhow::Result<T>
+    where
+        FutureFn: FnMut() -> Fut,
+        Fut: Future<Output = anyhow::Result<T>>,
+    {
+        let retry_config = &self.environment.retry_config;
+        f.retry(
+            ExponentialBuilder::default()
+                .with_factor(retry_config.backoff_factor as f32)
+                .with_max_times(retry_config.max_retry_attempts)
+                .with_jitter(),
+        )
+        .when(should_retry)
+        .await
+        .context("Failed to execute operation with retry")
     }
 
     /// Get a reference to the internal conversation
@@ -542,7 +562,10 @@ impl<S: AgentService> Orchestrator<S> {
         model_id: &ModelId,
         context: Context,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
-        let response = self.services.chat(model_id, context.clone()).await?;
+        let services = self.services.clone();
+        let response = self
+            .attempt_retry(|| services.chat(model_id, context.clone()))
+            .await?;
         self.collect_messages(agent, &context, response).await
     }
 
@@ -706,6 +729,15 @@ impl<S: AgentService> Orchestrator<S> {
 
         Ok(context)
     }
+}
+
+fn should_retry(error: &anyhow::Error) -> bool {
+    let retry = error
+        .downcast_ref::<Error>()
+        .is_some_and(|error| matches!(error, Error::Retryable(_, _)));
+
+    warn!(error = %error, retry = retry, "Retrying on error");
+    retry
 }
 
 #[cfg(test)]
