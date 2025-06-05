@@ -9,11 +9,6 @@ use tracing::warn;
 
 use crate::Error;
 
-// Maximum number of retry attempts for retryable operations
-const MAX_RETRY_ATTEMPTS: usize = 3;
-
-const RETRY_STATUS_CODES: &[u16] = &[429, 500, 502, 503, 504];
-
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq)]
 #[setters(into)]
 pub struct RetryConfig {
@@ -40,8 +35,8 @@ impl Default for RetryConfig {
         Self {
             initial_backoff_ms: 200,
             backoff_factor: 2,
-            max_retry_attempts: MAX_RETRY_ATTEMPTS,
-            retry_status_codes: RETRY_STATUS_CODES.to_vec(),
+            max_retry_attempts: 8,
+            retry_status_codes: vec![429, 500, 502, 503, 504],
         }
     }
 }
