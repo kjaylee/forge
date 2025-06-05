@@ -304,16 +304,16 @@ impl<S: AgentService> Orchestrator<S> {
     async fn collect_completion_stream_content(
         &mut self,
         compact: &Compact,
-        mut stream: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
+        stream: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
     ) -> anyhow::Result<String> {
-        let mut result_content = String::new();
+        // For compaction, we don't need XML tool call interruption
+        let should_interrupt_for_xml = false;
 
-        while let Some(message_result) = stream.next().await {
-            let message = message_result?;
-            if let Some(content) = message.content {
-                result_content.push_str(content.as_str());
-            }
-        }
+        // Use the existing collect_messages method to handle the stream
+        let completion = self
+            .collect_messages(stream, should_interrupt_for_xml)
+            .await?;
+        let result_content = completion.content;
 
         // Extract content from within configured tags if present and if tag is
         // configured
@@ -381,17 +381,14 @@ impl<S: AgentService> Orchestrator<S> {
 
     async fn collect_messages(
         &self,
-        agent: &Agent,
         mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
+        should_interrupt_for_xml: bool,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut messages = Vec::new();
         let mut usage: Usage = Default::default();
         let mut content = String::new();
         let mut xml_tool_calls = None;
         let mut tool_interrupted = false;
-
-        // Only interrupt the loop for XML tool calls if tool_supported is false
-        let should_interrupt_for_xml = !self.is_tool_supported(agent)?;
 
         while let Some(message) = response.next().await {
             let message = message.with_context(|| "Failed to process message stream")?;
@@ -415,8 +412,7 @@ impl<S: AgentService> Orchestrator<S> {
                 })
                 .await?;
 
-                // Check for XML tool calls in the content, but only interrupt if tool_supported
-                // is false
+                // Check for XML tool calls in the content, but only interrupt if flag is set
                 if should_interrupt_for_xml {
                     // Use match instead of ? to avoid propagating errors
                     if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
@@ -428,8 +424,8 @@ impl<S: AgentService> Orchestrator<S> {
                         xml_tool_calls = Some(tool_call);
                         tool_interrupted = true;
 
-                        // Break the loop since we found an XML tool call and tool_supported is
-                        // false
+                        // Break the loop since we found an XML tool call and interruption is
+                        // enabled
                         break;
                     }
                 }
@@ -526,7 +522,12 @@ impl<S: AgentService> Orchestrator<S> {
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let services = self.services.clone();
         let response = services.chat(model_id, context).await?;
-        self.collect_messages(agent, response).await
+
+        // Only interrupt for XML tool calls if tool_supported is false
+        let should_interrupt_for_xml = !self.is_tool_supported(agent)?;
+
+        self.collect_messages(response, should_interrupt_for_xml)
+            .await
     }
 
     // Create a helper method with the core functionality
