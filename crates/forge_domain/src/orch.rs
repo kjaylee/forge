@@ -379,27 +379,9 @@ impl<S: AgentService> Orchestrator<S> {
         })
     }
 
-    /// Process usage information from a chat completion message
-    fn estimate_usage(
-        &self,
-        message: &ChatCompletionMessage,
-        context: &Context,
-        request_usage: Usage,
-    ) -> Usage {
-        // If usage information is provided by provider use that else depend on
-        // estimates.
-
-        let mut usage = message.usage.clone().unwrap_or(request_usage);
-        let content_length = context.to_text().len();
-        usage.estimated_tokens = estimate_token_count(content_length) as u64;
-        usage.content_length = content_length as u64;
-        usage
-    }
-
     async fn collect_messages(
         &self,
         agent: &Agent,
-        context: &Context,
         mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut messages = Vec::new();
@@ -416,7 +398,7 @@ impl<S: AgentService> Orchestrator<S> {
             messages.push(message.clone());
 
             // Process usage information
-            usage = self.estimate_usage(&message, context, usage);
+            usage = message.usage.unwrap_or_default();
 
             // Process content
             if let Some(content_part) = message.content.as_ref() {
@@ -543,8 +525,8 @@ impl<S: AgentService> Orchestrator<S> {
         context: Context,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let services = self.services.clone();
-        let response = services.chat(model_id, context.clone()).await?;
-        self.collect_messages(agent, &context, response).await
+        let response = services.chat(model_id, context).await?;
+        self.collect_messages(agent, response).await
     }
 
     // Create a helper method with the core functionality
@@ -611,11 +593,14 @@ impl<S: AgentService> Orchestrator<S> {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
 
-            let ChatCompletionMessageFull { tool_calls, content, usage } = self
+            let ChatCompletionMessageFull { tool_calls, content, mut usage } = self
                 .environment
                 .retry_config
                 .retry(|| self.chat(&agent, &model_id, context.clone()))
                 .await?;
+
+            // Set estimated tokens
+            usage.estimated_tokens = estimate_token_count(context.to_text().len() as usize) as u64;
 
             // Send the usage information if available
 
