@@ -13,7 +13,7 @@ use rust_embed::Embed;
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
-use crate::{find_compact_sequence, *};
+use crate::{*, compaction::Compactor};
 
 /// Minimal trait that defines only the methods Orchestrator needs from services
 #[async_trait::async_trait]
@@ -39,7 +39,7 @@ pub trait AgentService: Send + Sync + Clone + 'static {
 struct Templates;
 
 /// Pure function to render templates without service dependency
-fn render_template(template: &str, object: &impl serde::Serialize) -> anyhow::Result<String> {
+pub fn render_template(template: &str, object: &impl serde::Serialize) -> anyhow::Result<String> {
     // Create handlebars instance with same configuration as ForgeTemplateService
     let mut hb = Handlebars::new();
     hb.set_strict_mode(true);
@@ -185,155 +185,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(tool_supported)
     }
 
-    /// Apply compaction to the context if requested
-    async fn compact_context(
-        &mut self,
-        agent: &Agent,
-        context: Context,
-    ) -> anyhow::Result<Context> {
-        // Return early if agent doesn't have compaction configured
-        if let Some(ref compact) = agent.compact {
-            debug!(agent_id = %agent.id, "Context compaction triggered");
 
-            // Identify and compress the first compressible sequence
-            // Get all compressible sequences, considering the preservation window
-            match find_compact_sequence(&context, compact.retention_window)
-                .into_iter()
-                .next()
-            {
-                Some(sequence) => {
-                    debug!(agent_id = %agent.id, "Compressing sequence");
-                    self.compress_single_sequence(compact, context, sequence)
-                        .await
-                }
-                None => {
-                    debug!(agent_id = %agent.id, "No compressible sequences found");
-                    Ok(context)
-                }
-            }
-        } else {
-            Ok(context)
-        }
-    }
-
-    /// Compress a single identified sequence of assistant messages
-    async fn compress_single_sequence(
-        &mut self,
-        compact: &Compact,
-        mut context: Context,
-        sequence: (usize, usize),
-    ) -> anyhow::Result<Context> {
-        let (start, end) = sequence;
-
-        // Extract the sequence to summarize
-        let sequence_messages = &context.messages[start..=end].to_vec();
-
-        // Generate summary for this sequence
-        let summary = self
-            .generate_summary_for_sequence(compact, sequence_messages)
-            .await?;
-
-        // Log the summary for debugging
-        info!(
-            summary = %summary,
-            sequence_start = sequence.0,
-            sequence_end = sequence.1,
-            sequence_length = sequence_messages.len(),
-            "Created context compaction summary"
-        );
-
-        let summary = render_template(
-            "{{> partial-summary-frame.hbs}}",
-            &serde_json::json!({ "summary": summary }),
-        )?;
-
-        // Replace the sequence with a single summary message using splice
-        // This removes the sequence and inserts the summary message in-place
-        context.messages.splice(
-            start..=end,
-            std::iter::once(ContextMessage::user(summary, None)),
-        );
-
-        Ok(context)
-    }
-
-    /// Generate a summary for a specific sequence of assistant messages
-    async fn generate_summary_for_sequence(
-        &mut self,
-        compact: &Compact,
-        messages: &[ContextMessage],
-    ) -> anyhow::Result<String> {
-        // Create a temporary context with just the sequence for summarization
-        let sequence_context = messages
-            .iter()
-            .fold(Context::default(), |ctx, msg| ctx.add_message(msg.clone()));
-
-        // Render the summarization prompt
-        let summary_tag = compact.summary_tag.as_ref().cloned().unwrap_or_default();
-        let ctx = serde_json::json!({
-            "context": sequence_context.to_text(),
-            "summary_tag": summary_tag
-        });
-
-        let prompt = render_template(
-            compact
-                .prompt
-                .as_deref()
-                .unwrap_or("{{> system-prompt-context-summarizer.hbs}}"),
-            &ctx,
-        )?;
-
-        // Create a new context
-        let mut context = Context::default()
-            .add_message(ContextMessage::user(prompt, compact.model.clone().into()));
-
-        // Set max_tokens for summary
-        if let Some(max_token) = compact.max_tokens {
-            context = context.max_tokens(max_token);
-        }
-
-        // Get summary from the provider
-        let response = self.services.chat(&compact.model, context).await?;
-
-        self.collect_completion_stream_content(compact, response)
-            .await
-    }
-
-    /// Collects the content from a streaming ChatCompletionMessage response
-    /// and extracts text within the configured tag if present
-    async fn collect_completion_stream_content(
-        &mut self,
-        compact: &Compact,
-        stream: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
-    ) -> anyhow::Result<String> {
-        // For compaction, we don't need XML tool call interruption
-        let should_interrupt_for_xml = false;
-
-        // Use the existing collect_messages method to handle the stream
-        let completion = self
-            .collect_messages(stream, should_interrupt_for_xml)
-            .await?;
-        let result_content = completion.content;
-
-        // Extract content from within configured tags if present and if tag is
-        // configured
-        // TODO: If no tag is found, it could be a misformed LLM call. We should
-        // consider retrying.
-        if let Some(extracted) = extract_tag_content(
-            &result_content,
-            compact
-                .summary_tag
-                .as_ref()
-                .cloned()
-                .unwrap_or_default()
-                .as_str(),
-        ) {
-            return Ok(extracted.to_string());
-        }
-
-        // If no tag extraction performed, return the original content
-        Ok(result_content)
-    }
 
     async fn set_system_prompt(
         &mut self,
@@ -616,7 +468,8 @@ impl<S: AgentService> Orchestrator<S> {
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
-                context = self.compact_context(&agent, context).await?;
+                let compactor = Compactor::new(self.services.clone());
+                context = compactor.compact_context(&agent, context).await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
