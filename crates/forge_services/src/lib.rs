@@ -6,7 +6,7 @@ mod infra;
 mod mcp;
 mod metadata;
 mod provider;
-mod services;
+
 mod suggestion;
 mod template;
 mod tool_service;
@@ -17,5 +17,4 @@ mod workflow;
 pub use clipper::*;
 pub use forge_services::*;
 pub use infra::*;
-pub use services::*;
 pub use suggestion::*;

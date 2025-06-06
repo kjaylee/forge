@@ -950,6 +950,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bytes",
+ "forge_app",
  "forge_domain",
  "forge_infra",
  "forge_services",
@@ -965,6 +966,16 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "forge_app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "forge_domain",
+ "serde",
 ]
 
 [[package]]
@@ -1056,6 +1067,7 @@ dependencies = [
  "bytes",
  "dirs",
  "dotenv",
+ "forge_app",
  "forge_domain",
  "forge_fs",
  "forge_services",
@@ -1168,6 +1180,7 @@ dependencies = [
  "derive_more",
  "derive_setters",
  "dissimilar",
+ "forge_app",
  "forge_display",
  "forge_domain",
  "forge_fs",
