@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use forge_api::{
-    AgentMessage, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
-    Workflow, API,
+    ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId, Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Scope};
@@ -86,7 +85,6 @@ impl<F: API> UI<F> {
 
     // Set the current mode and update conversation variable
     async fn on_mode_change(&mut self, mode: Mode) -> Result<()> {
-        self.on_new().await?;
         // Set the mode variable in the conversation if a conversation exists
         let conversation_id = self.init_conversation().await?;
 
@@ -109,7 +107,7 @@ impl<F: API> UI<F> {
             .await?;
 
         self.writeln(TitleFormat::action(format!(
-            "Switched to '{}' mode (context cleared)",
+            "Switched to '{}' mode",
             self.state.mode
         )))?;
 
@@ -230,18 +228,16 @@ impl<F: API> UI<F> {
         match subcommand {
             TopLevelCommand::Mcp(mcp_command) => match mcp_command.command {
                 McpCommand::Add(add) => {
-                    let name = add.name.context("Server name is required")?;
+                    let name = add.name;
                     let scope: Scope = add.scope.into();
                     // Create the appropriate server type based on transport
                     let server = match add.transport {
                         Transport::Stdio => McpServerConfig::new_stdio(
-                            add.command_or_url.clone().unwrap_or_default(),
+                            add.command_or_url.clone(),
                             add.args.clone(),
                             Some(parse_env(add.env.clone())),
                         ),
-                        Transport::Sse => {
-                            McpServerConfig::new_sse(add.command_or_url.clone().unwrap_or_default())
-                        }
+                        Transport::Sse => McpServerConfig::new_sse(add.command_or_url.clone()),
                     };
                     // Command/URL already set in the constructor
 
@@ -599,8 +595,8 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    fn handle_chat_response(&mut self, message: AgentMessage<ChatResponse>) -> Result<()> {
-        match message.message {
+    fn handle_chat_response(&mut self, message: ChatResponse) -> Result<()> {
+        match message {
             ChatResponse::Text { mut text, is_complete, is_md, is_summary } => {
                 if is_complete && !text.trim().is_empty() {
                     if is_md || is_summary {

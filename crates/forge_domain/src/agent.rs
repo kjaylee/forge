@@ -1,17 +1,15 @@
-use std::collections::HashSet;
-
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use merge::Merge;
 use serde::{Deserialize, Serialize};
-use tracing::debug;
 
+use crate::compact::Compact;
 use crate::merge::Key;
 use crate::temperature::Temperature;
 use crate::template::Template;
 use crate::{
-    Context, Error, Event, EventContext, ModelId, Result, Role, SystemContext, ToolDefinition,
-    ToolName, TopK, TopP,
+    Context, Error, EventContext, ModelId, Result, SystemContext, ToolDefinition, ToolName, TopK,
+    TopP,
 };
 
 // Unique identifier for an agent
@@ -30,133 +28,9 @@ impl AgentId {
     }
 }
 
-/// Configuration for automatic context compaction
-#[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
-#[setters(strip_option, into)]
-pub struct Compact {
-    /// Number of most recent messages to preserve during compaction
-    /// These messages won't be considered for summarization
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub retention_window: usize,
-    /// Maximum number of tokens to keep after compaction
-    #[merge(strategy = crate::merge::option)]
-    pub max_tokens: Option<usize>,
-
-    /// Maximum number of tokens before triggering compaction
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub token_threshold: Option<u64>,
-
-    /// Maximum number of conversation turns before triggering compaction
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub turn_threshold: Option<usize>,
-
-    /// Maximum number of messages before triggering compaction
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub message_threshold: Option<usize>,
-
-    /// Optional custom prompt template to use during compaction
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub prompt: Option<String>,
-
-    /// Model ID to use for compaction, useful when compacting with a
-    /// cheaper/faster model
-    #[merge(strategy = crate::merge::std::overwrite)]
-    pub model: ModelId,
-    /// Optional tag name to extract content from when summarizing (e.g.,
-    /// "summary")
-    #[merge(strategy = crate::merge::std::overwrite)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary_tag: Option<SummaryTag>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(transparent)]
-pub struct SummaryTag(String);
-
-impl Default for SummaryTag {
-    fn default() -> Self {
-        SummaryTag("forge_context_summary".to_string())
-    }
-}
-
-impl SummaryTag {
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl Compact {
-    /// Creates a new compaction configuration with the specified maximum token
-    /// limit
-    pub fn new(model: ModelId) -> Self {
-        Self {
-            max_tokens: None,
-            token_threshold: None,
-            turn_threshold: None,
-            message_threshold: None,
-            prompt: None,
-            summary_tag: None,
-            model,
-            retention_window: 0,
-        }
-    }
-
-    /// Determines if compaction should be triggered based on the current
-    /// context
-    pub fn should_compact(&self, context: &Context, token_count: u64) -> bool {
-        // Check if any of the thresholds have been exceeded
-        if let Some(token_threshold) = self.token_threshold {
-            debug!(tokens = ?token_count, "Token count");
-            // use provided prompt_tokens if available, otherwise estimate token count
-            if token_count >= token_threshold {
-                return true;
-            }
-        }
-
-        if let Some(turn_threshold) = self.turn_threshold {
-            if context
-                .messages
-                .iter()
-                .filter(|message| message.has_role(Role::User))
-                .count()
-                >= turn_threshold
-            {
-                return true;
-            }
-        }
-
-        if let Some(message_threshold) = self.message_threshold {
-            // Count messages directly from context
-            let msg_count = context.messages.len();
-            if msg_count >= message_threshold {
-                return true;
-            }
-        }
-
-        false
-    }
-}
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Agent {
-    /// Controls whether this agent's output should be hidden from the console
-    /// When false (default), output is not displayed
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub hide_content: Option<bool>,
-
-    /// Flag to disable this agent, when true agent will not be activated
-    /// Default is false (agent is enabled)
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub disable: Option<bool>,
-
     /// Flag to enable/disable tool support for this agent.
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -186,12 +60,6 @@ pub struct Agent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[merge(strategy = crate::merge::option)]
     pub user_prompt: Option<Template<EventContext>>,
-
-    /// Suggests if the agent needs to maintain its state for the lifetime of
-    /// the program.    
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[merge(strategy = crate::merge::option)]
-    pub ephemeral: Option<bool>,
 
     /// Tools that the agent can use    
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -280,13 +148,11 @@ impl Agent {
     pub fn new(id: impl ToString) -> Self {
         Self {
             id: AgentId::new(id),
-            disable: None,
             tool_supported: None,
             model: None,
             description: None,
             system_prompt: None,
             user_prompt: None,
-            ephemeral: None,
             tools: None,
             // transforms field removed
             subscribe: None,
@@ -294,7 +160,6 @@ impl Agent {
             max_walker_depth: None,
             compact: None,
             custom_rules: None,
-            hide_content: None,
             temperature: None,
             top_p: None,
             top_k: None,
@@ -316,30 +181,6 @@ impl Agent {
         } else {
             false
         }
-    }
-
-    pub fn init_context(
-        &self,
-        mut forge_tools: Vec<ToolDefinition>,
-        tool_supported: bool,
-    ) -> Result<Context> {
-        let allowed = self.tools.iter().flatten().collect::<HashSet<_>>();
-
-        // Adding Event tool to the list of tool definitions
-        forge_tools.push(Event::tool_definition());
-
-        let tool_defs = forge_tools
-            .into_iter()
-            .filter(|tool| allowed.contains(&tool.name))
-            .collect::<Vec<_>>();
-
-        let context = Context::default();
-
-        Ok(context.extend_tools(if tool_supported {
-            tool_defs
-        } else {
-            Vec::new()
-        }))
     }
 }
 
@@ -365,28 +206,6 @@ pub fn estimate_token_count(count: usize) -> usize {
 }
 
 // The Transform enum has been removed
-
-#[cfg(test)]
-mod hide_content_tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn test_merge_hide_content() {
-        // Base has no value, other has value
-        let mut base = Agent::new("Base"); // No hide_content set
-        let other = Agent::new("Other").hide_content(true);
-        base.merge(other);
-        assert_eq!(base.hide_content, Some(true));
-
-        // Base has a value, other has another value
-        let mut base = Agent::new("Base").hide_content(false);
-        let other = Agent::new("Other").hide_content(true);
-        base.merge(other);
-        assert_eq!(base.hide_content, Some(true));
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -423,30 +242,6 @@ mod tests {
         let other = Agent::new("Other").tool_supported(true);
         base.merge(other);
         assert_eq!(base.tool_supported, Some(true));
-    }
-
-    #[test]
-    fn test_merge_disable() {
-        // Base has no value, should use other's value
-        let mut base = Agent::new("Base"); // No disable set
-        let other = Agent::new("Other").disable(true);
-        base.merge(other);
-        assert_eq!(base.disable, Some(true));
-
-        // Base has a value, should be overwritten
-        let mut base = Agent::new("Base").disable(false);
-        let other = Agent::new("Other").disable(true);
-        base.merge(other);
-        assert_eq!(base.disable, Some(true));
-    }
-
-    #[test]
-    fn test_merge_ephemeral_flag() {
-        // Test ephemeral flag with option strategy
-        let mut base = Agent::new("Base").ephemeral(true);
-        let other = Agent::new("Other").ephemeral(false);
-        base.merge(other);
-        assert_eq!(base.ephemeral, Some(false));
     }
 
     #[test]
