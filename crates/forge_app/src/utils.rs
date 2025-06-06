@@ -1,3 +1,7 @@
+use forge_domain::ToolCallFull;
+
+use crate::Error;
+
 /// Extracts content between the specified XML-style tags
 ///
 /// # Arguments
@@ -66,20 +70,14 @@ pub fn remove_tag_with_prefix(text: &str, prefix: &str) -> String {
     result
 }
 
-/// Removes content within specific XML-style tags from text
-pub fn remove_tag_content(text: &str, tag_names: &[&str]) -> String {
-    let mut result = text.to_string();
-
-    for tag_name in tag_names {
-        let pattern = format!("<{tag_name}>[\\s\\S]*?</{tag_name}>");
-
-        // Create regex to match tag content including nested tags
-        if let Ok(regex) = regex::Regex::new(&pattern) {
-            result = regex.replace_all(&result, "").to_string();
-        }
+/// Parse multiple tool calls from XML format.
+pub fn try_from_xml(input: &str) -> std::result::Result<Vec<ToolCallFull>, Error> {
+    match extract_tag_content(input, "forge_tool_call") {
+        None => Ok(Default::default()),
+        Some(content) => Ok(vec![
+            serde_json::from_str(content).map_err(Error::ToolCallArgument)?,
+        ]),
     }
-
-    result
 }
 
 #[cfg(test)]
@@ -121,40 +119,6 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_tag_content() {
-        let fixture = "Regular text <thinking>Internal thoughts</thinking> more text";
-        let actual = remove_tag_content(fixture, &["thinking"]);
-        let expected = "Regular text  more text";
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_remove_multiple_tag_content() {
-        let fixture =
-            "Text <thinking>thoughts</thinking> and <analysis>deep analysis</analysis> end";
-        let actual = remove_tag_content(fixture, &["thinking", "analysis"]);
-        let expected = "Text  and  end";
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_remove_nested_tag_content() {
-        let fixture =
-            "Text <thinking>thoughts <analysis>deep analysis</analysis> more</thinking> end";
-        let actual = remove_tag_content(fixture, &["thinking"]);
-        let expected = "Text  end";
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn test_remove_non_existent_tag_content() {
-        let fixture = "Just regular text with no tags";
-        let actual = remove_tag_content(fixture, &["thinking"]);
-        let expected = "Just regular text with no tags";
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
     fn test_extract_tag_names_with_prefix() {
         let fixture = "<forge_tool>Something</forge_tool> <forge_tool_call>Content</forge_tool_call> <other>More</other>";
         let actual = remove_tag_with_prefix(fixture, "forge");
@@ -191,8 +155,7 @@ mod tests {
 
     #[test]
     fn test_extract_tag_names_with_prefix_attributes() {
-        let fixture =
-            "<forge_tool id=\"1\">Content</forge_tool> <forge_tool_call class=\"important\">More</forge_tool_call>";
+        let fixture = "<forge_tool id=\"1\">Content</forge_tool> <forge_tool_call class=\"important\">More</forge_tool_call>";
         let actual = remove_tag_with_prefix(fixture, "forge");
         // Check that both tool tags have been removed
         assert!(!actual.contains("<forge_tool"));
@@ -223,5 +186,14 @@ mod tests {
         let actual = extract_tag_content(fixture, "foo").unwrap();
         let expected = "1<foo>2</foo>3";
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_real_example() {
+        let message = include_str!("./fixtures/tool_call_01.md");
+        let tool_call = try_from_xml(message).unwrap();
+        let actual = tool_call.first().unwrap().name.to_string();
+        let expected = "forge_tool_attempt_completion";
+        assert_eq!(actual, expected)
     }
 }

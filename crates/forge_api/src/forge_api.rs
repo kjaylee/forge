@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    AttachmentService, ConversationService, EnvironmentService, McpConfigManager, ProviderService,
-    Services, SuggestionService, ToolService, WorkflowService,
+    AgentService, AttachmentService, ConversationService, EnvironmentService, McpConfigManager, Orchestrator, ProviderService, Services, SuggestionService, ToolService, WorkflowService
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;

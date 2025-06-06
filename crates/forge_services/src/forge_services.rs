@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use forge_app::{ProviderService, Services, ToolService};
-use forge_domain::{Agent, AgentService};
+use forge_app::{AgentService, ProviderService, Services, ToolService};
+use forge_domain::Agent;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;

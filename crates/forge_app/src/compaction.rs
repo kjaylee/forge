@@ -4,10 +4,9 @@ use anyhow::Context as AnyhowContext;
 use futures::{Stream, StreamExt};
 use tracing::{debug, info};
 
-use crate::orch::render_template;
-use crate::{
-    find_compact_sequence, text_utils, Agent, AgentService, ChatCompletionMessage, Compact,
-    Context, ContextMessage,
+use crate::{AgentService, render_template, utils};
+use forge_domain::{
+    Agent, ChatCompletionMessage, Compact, Context, ContextMessage, find_compact_sequence,
 };
 
 /// A service dedicated to handling context compaction.
@@ -136,7 +135,7 @@ impl<S: AgentService> Compactor<S> {
             }
         }
 
-        if let Some(extracted) = text_utils::extract_tag_content(
+        if let Some(extracted) = utils::extract_tag_content(
             &content,
             compact
                 .summary_tag

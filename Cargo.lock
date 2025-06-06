@@ -973,9 +973,22 @@ name = "forge_app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-recursion",
  "async-trait",
+ "chrono",
+ "derive_setters",
  "forge_domain",
+ "forge_walker",
+ "futures",
+ "handlebars",
+ "pretty_assertions",
+ "regex",
+ "rust-embed",
  "serde",
+ "serde_json",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

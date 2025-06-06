@@ -14,7 +14,8 @@ use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::compaction::Compactor;
-use crate::*;
+use crate::utils::{remove_tag_with_prefix, try_from_xml};
+use forge_domain::*;
 
 /// Minimal trait that defines only the methods Orchestrator needs from services
 #[async_trait::async_trait]
@@ -266,7 +267,7 @@ impl<S: AgentService> Orchestrator<S> {
                 // Check for XML tool calls in the content, but only interrupt if flag is set
                 if should_interrupt_for_xml {
                     // Use match instead of ? to avoid propagating errors
-                    if let Some(tool_call) = ToolCallFull::try_from_xml(&content)
+                    if let Some(tool_call) = try_from_xml(&content)
                         .ok()
                         .into_iter()
                         .flatten()
