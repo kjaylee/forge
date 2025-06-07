@@ -17,8 +17,7 @@ use crate::forge_provider::request::Request;
 /// let conditional_transformer = my_transformer.when(when_model("claude"));
 /// ```
 pub fn when_model(pattern: &str) -> impl Fn(&Request) -> bool {
-    let regex =
-        Regex::new(pattern).unwrap_or_else(|_| panic!("Invalid regex pattern: {pattern}"));
+    let regex = Regex::new(pattern).unwrap_or_else(|_| panic!("Invalid regex pattern: {pattern}"));
 
     move |req: &Request| {
         req.model
