@@ -22,12 +22,12 @@ messages:
       name: mixed_tool
       call_id: call1
       output:
+        is_error: false
         values:
           - text: Before image
           - text: "[The image with ID 0 will be sent as an attachment in the next message]"
           - text: After image
           - empty
-        is_error: false
   - text:
       role: User
       content: "[Here is the image attachment for ID 0]"
