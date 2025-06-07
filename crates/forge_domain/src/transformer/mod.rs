@@ -1,18 +1,15 @@
 use std::marker::PhantomData;
 
-pub trait Transformer {
+pub trait Transformer: Sized {
     type Value;
 
     fn transform(&mut self, value: Self::Value) -> Self::Value;
 
-    fn pipe<B>(self, other: B) -> Pipe<Self, B>
-    where
-        Self: Sized,
-    {
+    fn pipe<B>(self, other: B) -> Pipe<Self, B> {
         Pipe(self, other)
     }
 
-    fn when<F: Fn() -> bool>(self, cond: F) -> Cond<Self, F>
+    fn when<F: Fn(&Self::Value) -> bool>(self, cond: F) -> Cond<Self, F>
     where
         Self: Sized,
     {
@@ -21,6 +18,18 @@ pub trait Transformer {
 }
 
 pub struct DefaultTransformation<T>(PhantomData<T>);
+
+impl<T> DefaultTransformation<T> {
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<T> Default for DefaultTransformation<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<T> Transformer for DefaultTransformation<T> {
     type Value = T;
@@ -35,13 +44,13 @@ pub struct Cond<A, F>(A, F);
 impl<A, F> Transformer for Cond<A, F>
 where
     A: Transformer,
-    F: Fn() -> bool,
+    F: Fn(&A::Value) -> bool,
 {
     type Value = A::Value;
 
     fn transform(&mut self, value: Self::Value) -> Self::Value {
         let f = &self.1;
-        if f() {
+        if f(&value) {
             self.0.transform(value)
         } else {
             value
@@ -120,7 +129,7 @@ mod tests {
     fn test_default_transformation() {
         let fixture = Context::default().add_message(ContextMessage::user("Test message", None));
 
-        let mut transformer = DefaultTransformation::<Context>(std::marker::PhantomData);
+        let mut transformer = DefaultTransformation::<Context>::new();
         let actual = transformer.transform(fixture.clone());
         let expected = fixture;
 

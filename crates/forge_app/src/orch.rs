@@ -213,7 +213,7 @@ impl<S: AgentService> Orchestrator<S> {
         tool_supported: bool,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut transformers = TransformToolCalls::new()
-            .when(|| !tool_supported)
+            .when(|_| !tool_supported)
             .pipe(ImageHandling::new());
         let response = self
             .services
