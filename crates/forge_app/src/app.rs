@@ -88,11 +88,10 @@ impl<S: Services> ForgeApp<S> {
                     let save_result = services.conversation_service().upsert(conversation).await;
 
                     // Send any error to the stream (prioritize dispatch error over save error)
-                    if let Some(err) = dispatch_result.err().or(save_result.err()) {
-                        if let Err(e) = tx.send(Err(err)).await {
+                    if let Some(err) = dispatch_result.err().or(save_result.err())
+                        && let Err(e) = tx.send(Err(err)).await {
                             tracing::error!("Failed to send error to stream: {}", e);
                         }
-                    }
                 }
             },
         );
