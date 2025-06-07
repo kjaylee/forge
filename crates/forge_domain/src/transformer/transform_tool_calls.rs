@@ -61,6 +61,7 @@ impl Transformer for TransformToolCalls {
         }
 
         value.messages = new_messages;
+        value.tools = Vec::new();
         value
     }
 }
@@ -195,5 +196,21 @@ mod tests {
 
         let snapshot = TransformationSnapshot::new("TransformToolCalls", fixture, actual);
         assert_yaml_snapshot!(snapshot);
+    }
+
+    #[test]
+    fn test_transform_tool_calls_clears_tools_field() {
+        let fixture = Context::default()
+            .add_tool(crate::ToolDefinition {
+                name: crate::ToolName::new("test_tool"),
+                description: "A test tool".to_string(),
+                input_schema: schemars::schema_for!(()),
+            })
+            .add_message(ContextMessage::user("Test message", None));
+
+        let mut transformer = TransformToolCalls::new();
+        let actual = transformer.transform(fixture);
+
+        assert_eq!(actual.tools.len(), 0);
     }
 }

@@ -61,8 +61,7 @@ mod tests {
                 }),
                 ContextMessage::Tool(tool_result),
             ],
-            tools: vec![forge_domain::ToolDefinition::new("test_tool")
-                .description("A test tool")],
+            tools: vec![forge_domain::ToolDefinition::new("test_tool").description("A test tool")],
             tool_choice: None,
             max_tokens: None,
             temperature: None,
