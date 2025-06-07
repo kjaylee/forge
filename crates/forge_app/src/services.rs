@@ -114,7 +114,7 @@ pub trait WorkflowService {
 
 #[async_trait::async_trait]
 pub trait FileDiscoveryService: Send + Sync {
-    async fn discover(&self) -> anyhow::Result<Vec<File>>;
+    async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>>;
 }
 
 /// Core app trait providing access to services and repositories.

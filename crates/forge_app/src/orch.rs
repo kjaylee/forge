@@ -266,8 +266,8 @@ impl<S: Services> Orchestrator<S> {
             .collect::<Vec<_>>()
             .join("");
 
-        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>")
-            && let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
+        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>") {
+            if let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
                 content.truncate(i + right.len());
 
                 // Add a comment for the assistant to signal interruption
@@ -278,6 +278,7 @@ impl<S: Services> Orchestrator<S> {
                 );
                 content.push_str("</forge_feedback>");
             }
+        }
 
         // Send the complete message
         self.send(ChatResponse::Text {

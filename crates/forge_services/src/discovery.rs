@@ -18,14 +18,18 @@ impl<F> ForgeDiscoveryService<F> {
 }
 
 impl<F: Infrastructure> ForgeDiscoveryService<F> {
-    async fn discover(&self) -> Result<Vec<File>> {
+    async fn discover_with_depth(&self, max_depth: Option<usize>) -> Result<Vec<File>> {
         let cwd = self
             .domain
             .environment_service()
             .get_environment()
             .cwd
             .clone();
-        let walker = Walker::max_all().cwd(cwd);
+
+        let mut walker = Walker::max_all().cwd(cwd);
+        if let Some(depth) = max_depth {
+            walker = walker.max_depth(depth);
+        }
 
         let files = walker.get().await?;
         Ok(files
@@ -37,7 +41,7 @@ impl<F: Infrastructure> ForgeDiscoveryService<F> {
 
 #[async_trait::async_trait]
 impl<F: Infrastructure + Send + Sync> FileDiscoveryService for ForgeDiscoveryService<F> {
-    async fn discover(&self) -> Result<Vec<File>> {
-        self.discover().await
+    async fn collect(&self, max_depth: Option<usize>) -> Result<Vec<File>> {
+        self.discover_with_depth(max_depth).await
     }
 }
