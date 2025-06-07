@@ -3,14 +3,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
-    McpConfigManager, Orchestrator, ProviderService, Services, ToolService, WorkflowService,
+    ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
+    ProviderService, Services, ToolService, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
-use tracing::error;
 
 use crate::API;
 
@@ -49,66 +48,11 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
 
     async fn chat(
         &self,
-        mut chat: ChatRequest,
+        chat: ChatRequest,
     ) -> anyhow::Result<MpscStream<Result<ChatResponse, anyhow::Error>>> {
-        let app = self.app.clone();
-        let conversation = app
-            .conversation_service()
-            .find(&chat.conversation_id)
-            .await
-            .unwrap_or_default()
-            .expect("conversation for the request should've been created at this point.");
-
-        let tool_definitions = app.tool_service().list().await?;
-        let models = app.provider_service().models().await?;
-
-        // Discover files using the discovery service
-        let workflow = app.workflow_service().read(None).await.unwrap_or_default();
-        let max_depth = workflow.max_walker_depth;
-        let files = app
-            .file_discovery_service()
-            .collect(max_depth)
-            .await?
-            .into_iter()
-            .map(|f| f.path)
-            .collect::<Vec<_>>();
-
-        // Get environment for orchestrator creation
-        let environment = app.environment_service().get_environment();
-
-        // Always try to get attachments and overwrite them
-        let attachments = app
-            .attachment_service()
-            .attachments(&chat.event.value.to_string())
-            .await?;
-        chat.event = chat.event.attachments(attachments);
-        let orch = Orchestrator::new(app.clone(), environment.clone(), conversation)
-            .tool_definitions(tool_definitions)
-            .models(models)
-            .files(files);
-
-        let stream = MpscStream::spawn(|tx| {
-            async move {
-                let tx = Arc::new(tx);
-
-                // Execute dispatch and always save conversation afterwards
-                let mut orch = orch.sender(tx.clone());
-                let dispatch_result = orch.chat(chat.event).await;
-
-                // Always save conversation using get_conversation()
-                let conversation = orch.get_conversation().clone();
-                let save_result = app.conversation_service().upsert(conversation).await;
-
-                // Send any error to the stream (prioritize dispatch error over save error)
-                if let Some(err) = dispatch_result.err().or(save_result.err()) {
-                    if let Err(e) = tx.send(Err(err)).await {
-                        error!("Failed to send error to stream: {:#?}", e);
-                    }
-                }
-            }
-        });
-
-        Ok(stream)
+        // Create a ForgeApp instance and delegate the chat logic to it
+        let forge_app = ForgeApp::new(self.app.clone());
+        forge_app.chat(chat).await
     }
 
     async fn init_conversation<W: Into<Workflow> + Send + Sync>(

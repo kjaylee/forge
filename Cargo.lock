@@ -978,6 +978,7 @@ dependencies = [
  "chrono",
  "derive_setters",
  "forge_domain",
+ "forge_stream",
  "forge_walker",
  "futures",
  "handlebars",
