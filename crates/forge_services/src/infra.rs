@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_domain::{CommandOutput, EnvironmentService, McpServerConfig, ToolDefinition, ToolName};
+use forge_app::EnvironmentService;
+use forge_domain::{CommandOutput, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
 use forge_snaps::Snapshot;
 
 /// Repository for accessing system environment information
@@ -98,11 +99,7 @@ pub trait CommandExecutorService: Send + Sync {
     ) -> anyhow::Result<CommandOutput>;
 
     /// execute the shell command on present stdio.
-    async fn execute_command_raw(
-        &self,
-        command: &str,
-        args: &[&str],
-    ) -> anyhow::Result<std::process::ExitStatus>;
+    async fn execute_command_raw(&self, command: &str) -> anyhow::Result<std::process::ExitStatus>;
 }
 
 #[async_trait::async_trait]
@@ -131,7 +128,11 @@ pub trait InquireService: Send + Sync {
 #[async_trait::async_trait]
 pub trait McpClient: Send + Sync + 'static {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
-    async fn call(&self, tool_name: &ToolName, input: serde_json::Value) -> anyhow::Result<String>;
+    async fn call(
+        &self,
+        tool_name: &ToolName,
+        input: serde_json::Value,
+    ) -> anyhow::Result<ToolOutput>;
 }
 
 #[async_trait::async_trait]

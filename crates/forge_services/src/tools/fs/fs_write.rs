@@ -5,18 +5,18 @@ use std::sync::Arc;
 use anyhow::Context;
 use bytes::Bytes;
 use console::strip_ansi_codes;
+use forge_app::EnvironmentService;
 use forge_display::{DiffFormat, TitleFormat};
+// Using FSWriteInput from forge_domain
+use forge_domain::ToolOutput;
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription,
-    ToolName,
+    ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 
 use crate::tools::syn;
-use crate::tools::utils::{assert_absolute_path, format_display_path};
+use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsMetaService, FsReadService, FsWriteService, Infrastructure};
-
-// Using FSWriteInput from forge_domain
 
 /// Use it to create a new file at a specified path with the provided content.
 /// Always provide absolute paths for file locations. The tool
@@ -57,7 +57,11 @@ impl<F> NamedTool for FSWrite<F> {
 impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
     type Input = FSWriteInput;
 
-    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        context: &mut ToolCallContext,
+        input: Self::Input,
+    ) -> anyhow::Result<ToolOutput> {
         // Validate absolute path requirement
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
@@ -138,7 +142,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
 
         context.send_text(diff).await?;
 
-        Ok(result)
+        Ok(ToolOutput::text(result))
     }
 }
 
@@ -152,7 +156,7 @@ mod test {
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
-    use crate::tools::utils::TempDir;
+    use crate::utils::{TempDir, ToolContentExtension};
     use crate::{FsMetaService, FsReadService};
 
     async fn assert_path_exists(path: impl AsRef<Path>, infra: &MockInfrastructure) {
@@ -177,15 +181,17 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let output = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: file_path.to_string_lossy().to_string(),
                     content: content.to_string(),
                     overwrite: false,
                 },
             )
             .await
-            .unwrap();
+            .unwrap()
+            .into_string();
 
         // Normalize the output to remove temp directory paths
         let normalized_output = TempDir::normalize(&output);
@@ -209,8 +215,9 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: file_path.to_string_lossy().to_string(),
                     content: "fn main() { let x = ".to_string(),
                     overwrite: false,
@@ -218,7 +225,7 @@ mod test {
             )
             .await;
 
-        let output = result.unwrap();
+        let output = result.unwrap().into_string();
         // Normalize the output to remove temp directory paths
         let normalized_output = TempDir::normalize(&output);
         assert_snapshot!(normalized_output);
@@ -234,8 +241,9 @@ mod test {
         let content = "fn main() { let x = 42; }";
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: file_path.to_string_lossy().to_string(),
                     content: content.to_string(),
                     overwrite: false,
@@ -243,7 +251,7 @@ mod test {
             )
             .await;
 
-        let output = result.unwrap();
+        let output = result.unwrap().into_string();
         // Normalize the output to remove temp directory paths
         let normalized_output = TempDir::normalize(&output);
         assert_snapshot!(normalized_output);
@@ -269,8 +277,9 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: nested_path.to_string_lossy().to_string(),
                     content: content.to_string(),
                     overwrite: false,
@@ -280,7 +289,7 @@ mod test {
             .unwrap();
 
         // Normalize the output to remove temp directory paths
-        let normalized_result = TempDir::normalize(&result);
+        let normalized_result = TempDir::normalize(&result.into_string());
         assert_snapshot!(normalized_result);
 
         // Verify both directory and file were created
@@ -311,8 +320,9 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: deep_path.to_string_lossy().to_string(),
                     content: content.to_string(),
                     overwrite: false,
@@ -322,7 +332,7 @@ mod test {
             .unwrap();
 
         // Normalize the output to remove temp directory paths
-        let normalized_result = TempDir::normalize(&result);
+        let normalized_result = TempDir::normalize(&result.into_string());
         assert_snapshot!(normalized_result);
 
         // Verify entire path was created
@@ -354,8 +364,9 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: path_str,
                     content: content.to_string(),
                     overwrite: false,
@@ -365,7 +376,7 @@ mod test {
             .unwrap();
 
         // Normalize the output to remove temp directory paths
-        let normalized_result = TempDir::normalize(&result);
+        let normalized_result = TempDir::normalize(&result.into_string());
         assert_snapshot!(normalized_result);
 
         // Convert to platform path and verify
@@ -391,8 +402,9 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
+                    explanation: None,
                     path: "relative/path/file.txt".to_string(),
                     content: "test content".to_string(),
                     overwrite: false,
@@ -425,11 +437,12 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     path: file_path.to_string_lossy().to_string(),
                     content: "New content".to_string(),
                     overwrite: false,
+                    explanation: None,
                 },
             )
             .await;
@@ -490,18 +503,19 @@ mod test {
         let fs_write = FSWrite::new(infra.clone());
         let result = fs_write
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSWriteInput {
                     path: file_path.to_string_lossy().to_string(),
                     content: new_content.to_string(),
                     overwrite: true,
+                    explanation: None,
                 },
             )
             .await;
 
         // Should be successful
         assert!(result.is_ok());
-        let success_msg = result.unwrap();
+        let success_msg = result.unwrap().into_string();
 
         // Normalize the output to remove temp directory paths
         let normalized_msg = TempDir::normalize(&success_msg);

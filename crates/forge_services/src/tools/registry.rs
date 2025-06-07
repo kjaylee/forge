@@ -44,8 +44,9 @@ pub mod tests {
     use std::path::{Path, PathBuf};
 
     use bytes::Bytes;
+    use forge_app::EnvironmentService;
     use forge_domain::{
-        CommandOutput, Environment, EnvironmentService, Provider, ToolDefinition, ToolName,
+        CommandOutput, Environment, Provider, ToolDefinition, ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
     use serde_json::Value;
@@ -166,11 +167,7 @@ pub mod tests {
         async fn execute_command(&self, _: String, _: PathBuf) -> anyhow::Result<CommandOutput> {
             unimplemented!()
         }
-        async fn execute_command_raw(
-            &self,
-            _: &str,
-            _: &[&str],
-        ) -> anyhow::Result<std::process::ExitStatus> {
+        async fn execute_command_raw(&self, _: &str) -> anyhow::Result<std::process::ExitStatus> {
             unimplemented!()
         }
     }
@@ -216,8 +213,8 @@ pub mod tests {
             Ok(vec![])
         }
 
-        async fn call(&self, _: &ToolName, _: Value) -> anyhow::Result<String> {
-            Ok(String::new())
+        async fn call(&self, _: &ToolName, _: Value) -> anyhow::Result<ToolOutput> {
+            Ok(ToolOutput::default())
         }
     }
 
@@ -289,14 +286,14 @@ pub mod tests {
     fn test_tool_description_length() {
         const MAX_DESCRIPTION_LENGTH: usize = 1024;
 
-        println!("\nTool description lengths:");
+        eprintln!("\nTool description lengths:");
 
         let mut any_exceeded = false;
         let stub = Arc::new(stub());
         let registry = ToolRegistry::new(stub.clone());
         for tool in registry.tools() {
             let desc_len = tool.definition.description.len();
-            println!(
+            eprintln!(
                 "{:?}: {} chars {}",
                 tool.definition.name,
                 desc_len,

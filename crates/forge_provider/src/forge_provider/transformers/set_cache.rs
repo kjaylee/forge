@@ -40,30 +40,31 @@ impl Transformer for SetCache {
 mod tests {
     use std::collections::HashSet;
 
-    use forge_domain::{ContentMessage, Context, ContextMessage, ModelId, Role};
+    use forge_domain::{Context, ContextMessage, ModelId, Role, TextMessage};
     use pretty_assertions::assert_eq;
 
     use super::*;
 
     fn create_test_context(message: impl ToString) -> String {
         let context = Context {
+            conversation_id: None,
             messages: message
                 .to_string()
                 .chars()
                 .map(|c| match c {
-                    's' => ContextMessage::ContentMessage(ContentMessage {
+                    's' => ContextMessage::Text(TextMessage {
                         role: Role::System,
                         content: c.to_string(),
                         tool_calls: None,
                         model: None,
                     }),
-                    'u' => ContextMessage::ContentMessage(ContentMessage {
+                    'u' => ContextMessage::Text(TextMessage {
                         role: Role::User,
                         content: c.to_string(),
                         tool_calls: None,
                         model: ModelId::new("gpt-4").into(),
                     }),
-                    'a' => ContextMessage::ContentMessage(ContentMessage {
+                    'a' => ContextMessage::Text(TextMessage {
                         role: Role::Assistant,
                         content: c.to_string(),
                         tool_calls: None,
@@ -78,6 +79,8 @@ mod tests {
             tool_choice: None,
             max_tokens: None,
             temperature: None,
+            top_p: None,
+            top_k: None,
         };
 
         let request = Request::from(context);

@@ -9,7 +9,7 @@ use crate::*;
 pub trait API: Sync + Send {
     /// Provides a list of files in the current working directory for auto
     /// completion
-    async fn suggestions(&self) -> Result<Vec<crate::File>>;
+    async fn discover(&self) -> Result<Vec<crate::File>>;
 
     /// Provides information about the tools available in the current
     /// environment
@@ -19,10 +19,7 @@ pub trait API: Sync + Send {
     async fn models(&self) -> Result<Vec<Model>>;
 
     /// Executes a chat request and returns a stream of responses
-    async fn chat(
-        &self,
-        chat: ChatRequest,
-    ) -> Result<MpscStream<Result<AgentMessage<ChatResponse>>>>;
+    async fn chat(&self, chat: ChatRequest) -> Result<MpscStream<Result<ChatResponse>>>;
 
     /// Returns the current environment
     fn environment(&self) -> Environment;
@@ -73,11 +70,7 @@ pub trait API: Sync + Send {
     ) -> Result<CommandOutput>;
 
     /// Executes the shell command on present stdio.
-    async fn execute_shell_command_raw(
-        &self,
-        command: &str,
-        args: &[&str],
-    ) -> Result<std::process::ExitStatus>;
+    async fn execute_shell_command_raw(&self, command: &str) -> Result<std::process::ExitStatus>;
 
     /// Reads and merges MCP configurations from all available configuration
     /// files This combines both user-level and local configurations with

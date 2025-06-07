@@ -3,17 +3,18 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
+use forge_app::EnvironmentService;
 use forge_display::{GrepFormat, TitleFormat};
 use forge_domain::{
-    EnvironmentService, ExecutableTool, FSSearchInput, NamedTool, ToolCallContext, ToolDescription,
-    ToolName,
+    ExecutableTool, FSSearchInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 use forge_walker::Walker;
 use regex::Regex;
 
 use crate::metadata::Metadata;
-use crate::tools::utils::{assert_absolute_path, format_display_path};
+use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{Clipper, FsWriteService, Infrastructure};
 
 const MAX_SEARCH_CHAR_LIMIT: usize = 40_000;
@@ -116,7 +117,7 @@ impl<F: Infrastructure> FSFind<F> {
 
     async fn call_inner(
         &self,
-        context: ToolCallContext,
+        context: &mut ToolCallContext,
         input: FSSearchInput,
         max_char_limit: usize,
     ) -> anyhow::Result<String> {
@@ -156,11 +157,14 @@ impl<F: Infrastructure> FSFind<F> {
             }
 
             // Content matching mode - read and search file contents
-            let content = match tokio::fs::read_to_string(&path).await {
+            let content = match forge_fs::ForgeFS::read_to_string(&path).await {
                 Ok(content) => content,
                 Err(e) => {
                     // Skip binary or unreadable files silently
-                    if e.kind() != std::io::ErrorKind::InvalidData {
+                    if let Some(e) = e
+                        .downcast_ref::<std::io::ErrorKind>()
+                        .map(|e| std::io::ErrorKind::InvalidData.eq(e))
+                    {
                         matches.push(format!(
                             "Error reading {}: {}",
                             self.format_display_path(&path)?,
@@ -275,8 +279,15 @@ impl<F> NamedTool for FSFind<F> {
 impl<F: Infrastructure> ExecutableTool for FSFind<F> {
     type Input = FSSearchInput;
 
-    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
-        self.call_inner(context, input, MAX_SEARCH_CHAR_LIMIT).await
+    async fn call(
+        &self,
+        context: &mut ToolCallContext,
+        input: Self::Input,
+    ) -> anyhow::Result<ToolOutput> {
+        let result = self
+            .call_inner(context, input, MAX_SEARCH_CHAR_LIMIT)
+            .await?;
+        Ok(ToolOutput::text(result))
     }
 }
 
@@ -287,7 +298,7 @@ mod test {
 
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
-    use crate::tools::utils::TempDir;
+    use crate::utils::{TempDir, ToolContentExtension};
 
     #[tokio::test]
     async fn test_fs_search_content() {
@@ -307,8 +318,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -336,8 +348,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: Some("*.rs".to_string()),
@@ -367,8 +380,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: None,
                     file_pattern: Some("test*.txt".to_string()),
@@ -395,8 +409,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -429,8 +444,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -459,8 +475,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -485,8 +502,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("nonexistent".to_string()),
                     file_pattern: None,
@@ -513,8 +531,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: None,
                     file_pattern: None,
@@ -535,8 +554,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("[invalid".to_string()),
                     file_pattern: None,
@@ -557,8 +577,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: "relative/path".to_string(),
                     regex: Some("test".to_string()),
                     file_pattern: None,
@@ -613,8 +634,9 @@ mod test {
         // case 1: search within a specific file
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().join("best.txt").display().to_string(),
                     regex: Some("nice".to_string()),
                     file_pattern: None,
@@ -631,8 +653,9 @@ mod test {
         // case 2: check if file is present or not by using search tool.
         let result = fs_search
             .call(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().join("best.txt").display().to_string(),
                     regex: None,
                     file_pattern: None,
@@ -656,8 +679,9 @@ mod test {
         let fs_search = FSFind::new(infra);
         let result = fs_search
             .call_inner(
-                ToolCallContext::default(),
+                &mut ToolCallContext::default(),
                 FSSearchInput {
+                    explanation: None,
                     path: temp_dir.path().to_string_lossy().to_string(),
                     regex: Some("content*".into()),
                     file_pattern: None,

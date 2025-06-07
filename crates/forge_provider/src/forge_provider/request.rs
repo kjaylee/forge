@@ -1,7 +1,10 @@
+use std::vec;
+
 use derive_more::derive::Display;
 use derive_setters::Setters;
 use forge_domain::{
     Context, ContextMessage, ModelId, ToolCallFull, ToolCallId, ToolDefinition, ToolName,
+    ToolOutputValue, ToolResult,
 };
 use serde::{Deserialize, Serialize};
 
@@ -184,6 +187,8 @@ pub struct Request {
     pub provider: Option<ProviderPreferences>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parallel_tool_calls: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 impl Request {
@@ -207,7 +212,7 @@ impl Request {
 }
 
 /// ref: https://openrouter.ai/docs/transforms
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Transform {
     #[default]
     #[serde(rename = "middle-out")]
@@ -260,8 +265,8 @@ impl From<Context> for Request {
             temperature: request.temperature.map(|t| t.value()),
             tool_choice: request.tool_choice.map(|tc| tc.into()),
             seed: Default::default(),
-            top_p: Default::default(),
-            top_k: Default::default(),
+            top_p: request.top_p.map(|t| t.value()),
+            top_k: request.top_k.map(|t| t.value()),
             frequency_penalty: Default::default(),
             presence_penalty: Default::default(),
             repetition_penalty: Default::default(),
@@ -270,11 +275,12 @@ impl From<Context> for Request {
             min_p: Default::default(),
             top_a: Default::default(),
             prediction: Default::default(),
-            transforms: Default::default(),
+            transforms: Some(vec![Transform::MiddleOut]),
             models: Default::default(),
             route: Default::default(),
             provider: Default::default(),
             parallel_tool_calls: Some(false),
+            session_id: request.conversation_id.map(|id| id.to_string()),
         }
     }
 }
@@ -295,7 +301,7 @@ impl From<ToolCallFull> for ToolCall {
 impl From<ContextMessage> for Message {
     fn from(value: ContextMessage) -> Self {
         match value {
-            ContextMessage::ContentMessage(chat_message) => Message {
+            ContextMessage::Text(chat_message) => Message {
                 role: chat_message.role.into(),
                 content: Some(MessageContent::Text(chat_message.content)),
                 name: None,
@@ -304,16 +310,17 @@ impl From<ContextMessage> for Message {
                     .tool_calls
                     .map(|tool_calls| tool_calls.into_iter().map(ToolCall::from).collect()),
             },
-            ContextMessage::ToolMessage(tool_result) => Message {
+            ContextMessage::Tool(tool_result) => Message {
                 role: Role::Tool,
-                content: Some(MessageContent::Text(tool_result.to_string())),
-                name: Some(tool_result.name),
-                tool_call_id: tool_result.call_id,
+                tool_call_id: tool_result.call_id.clone(),
+                name: Some(tool_result.name.clone()),
+                content: Some(tool_result.into()),
                 tool_calls: None,
             },
-            ContextMessage::Image(url) => {
-                let content =
-                    vec![ContentPart::ImageUrl { image_url: ImageUrl { url, detail: None } }];
+            ContextMessage::Image(img) => {
+                let content = vec![ContentPart::ImageUrl {
+                    image_url: ImageUrl { url: img.url().clone(), detail: None },
+                }];
                 Message {
                     role: Role::User,
                     content: Some(MessageContent::Parts(content)),
@@ -323,6 +330,35 @@ impl From<ContextMessage> for Message {
                 }
             }
         }
+    }
+}
+
+impl From<ToolResult> for MessageContent {
+    fn from(result: ToolResult) -> Self {
+        if result.output.values.len() == 1 {
+            if let Some(text) = result.output.as_str() {
+                return MessageContent::Text(text.to_string());
+            }
+        }
+        let mut parts = Vec::new();
+        for value in result.output.values.into_iter() {
+            match value {
+                ToolOutputValue::Text(text) => {
+                    parts.push(ContentPart::Text { text, cache_control: None });
+                }
+                ToolOutputValue::Image(img) => {
+                    let content = ContentPart::ImageUrl {
+                        image_url: ImageUrl { url: img.url().clone(), detail: None },
+                    };
+                    parts.push(content);
+                }
+                ToolOutputValue::Empty => {
+                    // Handle empty case if needed
+                }
+            }
+        }
+
+        MessageContent::Parts(parts)
     }
 }
 
@@ -348,7 +384,7 @@ pub enum Role {
 #[cfg(test)]
 mod tests {
     use forge_domain::{
-        ContentMessage, ContextMessage, Role, ToolCallFull, ToolCallId, ToolName, ToolResult,
+        ContextMessage, Role, TextMessage, ToolCallFull, ToolCallId, ToolName, ToolResult,
     };
     use insta::assert_json_snapshot;
     use serde_json::json;
@@ -357,7 +393,7 @@ mod tests {
 
     #[test]
     fn test_user_message_conversion() {
-        let user_message = ContextMessage::ContentMessage(ContentMessage {
+        let user_message = ContextMessage::Text(TextMessage {
             role: Role::User,
             content: "Hello".to_string(),
             tool_calls: None,
@@ -379,7 +415,7 @@ mod tests {
     </data>
 </task>"#;
 
-        let message = ContextMessage::ContentMessage(ContentMessage {
+        let message = ContextMessage::Text(TextMessage {
             role: Role::User,
             content: xml_content.to_string(),
             tool_calls: None,
@@ -397,7 +433,7 @@ mod tests {
             arguments: json!({"key": "value"}),
         };
 
-        let assistant_message = ContextMessage::ContentMessage(ContentMessage {
+        let assistant_message = ContextMessage::Text(TextMessage {
             role: Role::Assistant,
             content: "Using tool".to_string(),
             tool_calls: Some(vec![tool_call]),
@@ -419,7 +455,7 @@ mod tests {
             }"#,
             );
 
-        let tool_message = ContextMessage::ToolMessage(tool_result);
+        let tool_message = ContextMessage::Tool(tool_result);
         let router_message = Message::from(tool_message);
         assert_json_snapshot!(router_message);
     }
@@ -439,7 +475,7 @@ mod tests {
             }"#,
             );
 
-        let tool_message = ContextMessage::ToolMessage(tool_result);
+        let tool_message = ContextMessage::Tool(tool_result);
         let router_message = Message::from(tool_message);
         assert_json_snapshot!(router_message);
     }
@@ -450,7 +486,7 @@ mod tests {
             .call_id(ToolCallId::new("456"))
             .success(r#"{ "code": "fn main<T>(gt: T) {let b = &gt; }"}"#);
 
-        let tool_message = ContextMessage::ToolMessage(tool_result);
+        let tool_message = ContextMessage::Tool(tool_result);
         let router_message = Message::from(tool_message);
         assert_json_snapshot!(router_message);
     }

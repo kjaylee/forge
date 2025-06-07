@@ -50,7 +50,7 @@ impl App {
                 self.state.is_first = true;
                 self.attempt_conversation(commands);
             }
-            Message::Chat(message) => match message.message {
+            Message::Chat(chat_response) => match chat_response {
                 ChatResponse::Text { text, is_complete, is_md: _, is_summary: _ } => {
                     if !is_complete {
                         self.state.messages.push_str(text.as_str());

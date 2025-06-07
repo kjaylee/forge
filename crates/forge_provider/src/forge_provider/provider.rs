@@ -1,8 +1,7 @@
 use anyhow::{Context as _, Result};
 use derive_builder::Builder;
 use forge_domain::{
-    self, ChatCompletionMessage, Context as ChatContext, ModelId, Provider, ProviderService,
-    ResultStream,
+    self, ChatCompletionMessage, Context as ChatContext, ModelId, Provider, ResultStream,
 };
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use reqwest::{Client, Url};
@@ -13,6 +12,7 @@ use tracing::debug;
 use super::model::{ListModelResponse, Model};
 use super::request::Request;
 use super::response::Response;
+use crate::error::Error;
 use crate::forge_provider::transformers::{ProviderPipeline, Transformer};
 use crate::utils::format_http_context;
 
@@ -20,6 +20,7 @@ use crate::utils::format_http_context;
 pub struct ForgeProvider {
     client: Client,
     provider: Provider,
+    version: String,
 }
 
 impl ForgeProvider {
@@ -45,6 +46,9 @@ impl ForgeProvider {
         })
     }
 
+    // OpenRouter optional headers ref: https://openrouter.ai/docs/api-reference/overview#headers
+    // - `HTTP-Referer`: Identifies your app on openrouter.ai
+    // - `X-Title`: Sets/modifies your app's title
     fn headers(&self) -> HeaderMap {
         let mut headers = HeaderMap::new();
         if let Some(ref api_key) = self.provider.key() {
@@ -54,6 +58,11 @@ impl ForgeProvider {
             );
         }
         headers.insert("X-Title", HeaderValue::from_static("forge"));
+        headers.insert(
+            "x-app-version",
+            HeaderValue::from_str(format!("v{}", self.version).as_str())
+                .unwrap_or(HeaderValue::from_static("v0.1.0-dev")),
+        );
         headers.insert(
             "HTTP-Referer",
             HeaderValue::from_static("https://github.com/antinomyhq/forge"),
@@ -89,7 +98,7 @@ impl ForgeProvider {
             .headers(self.headers())
             .json(&request)
             .eventsource()
-            .context(format_http_context(None, "POST", &url))?;
+            .with_context(|| format_http_context(None, "POST", &url))?;
 
         let stream = es
             .take_while(|message| !matches!(message, Err(reqwest_eventsource::Error::StreamEnded)))
@@ -103,34 +112,44 @@ impl ForgeProvider {
                         }
                         Event::Message(message) => Some(
                             serde_json::from_str::<Response>(&message.data)
-                                .with_context(|| format!("Failed to parse Forge Provider response: {}", message.data))
-                                .and_then(|event| {
-                                    ChatCompletionMessage::try_from(event.clone())
-                                        .with_context(|| format!("Failed to create completion message: {}", message.data))
+                                .with_context(|| {
+                                    format!(
+                                        "Failed to parse Forge Provider response: {}",
+                                        message.data
+                                    )
+                                })
+                                .and_then(|response| {
+                                    ChatCompletionMessage::try_from(response.clone()).with_context(
+                                        || {
+                                            format!(
+                                                "Failed to create completion message: {}",
+                                                message.data
+                                            )
+                                        },
+                                    )
                                 }),
                         ),
                     },
                     Err(error) => match error {
                         reqwest_eventsource::Error::StreamEnded => None,
                         reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                            let headers = response.headers().clone();
                             let status = response.status();
-                            match response.text().await {
-                                Ok(ref body) => {
-                                    debug!(status = ?status, headers = ?headers, body = body, "Invalid status code");
-                                    Some(Err(anyhow::anyhow!("Invalid status code: {} Reason: {}", status, body)))
-                                }
-                                Err(error) => {
-                                    debug!(status = ?status, headers = ?headers, body = ?error, "Invalid status code (body not available)");
-                                    Some(Err(anyhow::anyhow!("Invalid status code: {}", status)))
-                                }
-                            }
+                            let body = response.text().await.ok();
+                            Some(Err(Error::InvalidStatusCode(status.as_u16())).with_context(
+                                || match body {
+                                    Some(body) => {
+                                        format!("{status} Reason: {body}")
+                                    }
+                                    None => {
+                                        format!("{status} Reason: [Unknown]")
+                                    }
+                                },
+                            ))
                         }
                         reqwest_eventsource::Error::InvalidContentType(_, ref response) => {
                             let status_code = response.status();
                             debug!(response = ?response, "Invalid content type");
-                            Some(Err(anyhow::anyhow!(error).context(format!("Http Status: {status_code}" ))))
-
+                            Some(Err(error).with_context(|| format!("Http Status: {status_code}")))
                         }
                         error => {
                             debug!(error = %error, "Failed to receive chat completion event");
@@ -138,14 +157,13 @@ impl ForgeProvider {
                         }
                     },
                 }
-            }).map(move |response| {
-                match response {
-                    Some(Err(err)) => Some(Err(anyhow::anyhow!(err).context(format_http_context(None, "POST", &url)))),
-                    _ => response,
-                }
+            })
+            .filter_map(move |response| {
+                response
+                    .map(|result| result.with_context(|| format_http_context(None, "POST", &url)))
             });
 
-        Ok(Box::pin(stream.filter_map(|x| x)))
+        Ok(Box::pin(stream))
     }
 
     async fn inner_models(&self) -> Result<Vec<forge_domain::Model>> {
@@ -158,8 +176,8 @@ impl ForgeProvider {
             }
             Ok(response) => {
                 let data: ListModelResponse = serde_json::from_str(&response)
-                    .context(format_http_context(None, "GET", &url))
-                    .context("Failed to deserialize models response")?;
+                    .with_context(|| format_http_context(None, "GET", &url))
+                    .with_context(|| "Failed to deserialize models response")?;
                 Ok(data.data.into_iter().map(Into::into).collect())
             }
         }
@@ -179,26 +197,25 @@ impl ForgeProvider {
                     Ok(response) => Ok(response
                         .text()
                         .await
-                        .context(ctx_message)
-                        .context("Failed to decode response into text")?),
-                    Err(err) => Err(anyhow::anyhow!(err)
-                        .context(ctx_message)
-                        .context("Failed because of a non 200 status code")),
+                        .with_context(|| ctx_message)
+                        .with_context(|| "Failed to decode response into text")?),
+                    Err(err) => Err(err)
+                        .with_context(|| ctx_message)
+                        .with_context(|| "Failed because of a non 200 status code"),
                 }
             }
             Err(err) => {
                 let ctx_msg = format_http_context(err.status(), "GET", &url);
-                Err(anyhow::anyhow!(err)
-                    .context(ctx_msg)
-                    .context("Failed to fetch the models"))
+                Err(err)
+                    .with_context(|| ctx_msg)
+                    .with_context(|| "Failed to fetch the models")
             }
         }
     }
 }
 
-#[async_trait::async_trait]
-impl ProviderService for ForgeProvider {
-    async fn chat(
+impl ForgeProvider {
+    pub async fn chat(
         &self,
         model: &ModelId,
         context: ChatContext,
@@ -206,18 +223,24 @@ impl ProviderService for ForgeProvider {
         self.inner_chat(model, context).await
     }
 
-    async fn models(&self) -> Result<Vec<forge_domain::Model>> {
+    pub async fn models(&self) -> Result<Vec<forge_domain::Model>> {
         self.inner_models().await
     }
 }
 
 impl From<Model> for forge_domain::Model {
     fn from(value: Model) -> Self {
+        let tools_supported = value
+            .supported_parameters
+            .iter()
+            .flatten()
+            .any(|param| param == "tools");
         forge_domain::Model {
             id: value.id,
             name: value.name,
             description: value.description,
             context_length: value.context_length,
+            tools_supported: Some(tools_supported),
         }
     }
 }
@@ -237,8 +260,8 @@ mod tests {
           }
         }))
         .unwrap();
-        let message =
-            serde_json::from_str::<Response>(&content).context("Failed to parse response")?;
+        let message = serde_json::from_str::<Response>(&content)
+            .with_context(|| "Failed to parse response")?;
         let message = ChatCompletionMessage::try_from(message.clone());
 
         assert!(message.is_err());

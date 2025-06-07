@@ -29,41 +29,36 @@ impl McpServerConfig {
         args: Vec<String>,
         env: Option<BTreeMap<String, String>>,
     ) -> Self {
-        Self::Stdio(McpStdioServer { command: Some(command.into()), args, env })
+        Self::Stdio(McpStdioServer { command: command.into(), args, env: env.unwrap_or_default() })
     }
 
     /// Create a new SSE-based MCP server
     pub fn new_sse(url: impl Into<String>) -> Self {
-        Self::Sse(McpSseServer { url: Some(url.into()) })
+        Self::Sse(McpSseServer { url: url.into() })
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, Setters, PartialEq, Hash)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Setters, PartialEq, Hash)]
 #[setters(strip_option, into)]
 pub struct McpStdioServer {
     /// Command to execute for starting this MCP server
-    #[merge(strategy = crate::merge::option)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub command: Option<String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub command: String,
 
     /// Arguments to pass to the command
-    #[merge(strategy = crate::merge::vec::append)]
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub args: Vec<String>,
 
     /// Environment variables to pass to the command
-    #[merge(strategy = crate::merge::option)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub env: Option<BTreeMap<String, String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, Merge, PartialEq, Hash)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
 pub struct McpSseServer {
     /// Url of the MCP server
-    #[merge(strategy = crate::merge::option)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub url: String,
 }
 
 impl Display for McpServerConfig {
@@ -71,23 +66,17 @@ impl Display for McpServerConfig {
         let mut output = String::new();
         match self {
             McpServerConfig::Stdio(stdio) => {
-                if let Some(command) = stdio.command.as_ref() {
-                    output.push_str(&format!("{command} "));
-                    stdio.args.iter().for_each(|arg| {
-                        output.push_str(&format!("{arg} "));
-                    });
+                output.push_str(&format!("{} ", stdio.command));
+                stdio.args.iter().for_each(|arg| {
+                    output.push_str(&format!("{arg} "));
+                });
 
-                    if let Some(env) = stdio.env.as_ref() {
-                        env.iter().for_each(|(key, value)| {
-                            output.push_str(&format!("{key}={value} "));
-                        });
-                    }
-                }
+                stdio.env.iter().for_each(|(key, value)| {
+                    output.push_str(&format!("{key}={value} "));
+                });
             }
             McpServerConfig::Sse(sse) => {
-                if let Some(url) = sse.url.as_ref() {
-                    output.push_str(&format!("{url} "));
-                }
+                output.push_str(&format!("{} ", sse.url));
             }
         }
 
@@ -95,9 +84,10 @@ impl Display for McpServerConfig {
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Hash, Merge)]
 #[serde(rename_all = "camelCase")]
 pub struct McpConfig {
+    #[merge(strategy = std::collections::BTreeMap::extend)]
     pub mcp_servers: BTreeMap<String, McpServerConfig>,
 }
 

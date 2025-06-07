@@ -3,9 +3,8 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{
-    McpConfig, McpConfigManager, McpServerConfig, McpService, Tool, ToolDefinition, ToolName,
-};
+use forge_app::{McpConfigManager, McpService};
+use forge_domain::{McpConfig, McpServerConfig, Tool, ToolDefinition, ToolName};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::mcp::tool::McpExecutor;
@@ -43,10 +42,7 @@ impl<M: McpConfigManager, I: Infrastructure> ForgeMcpService<M, I> {
         server_name: &str,
         client: Arc<T>,
     ) -> anyhow::Result<()> {
-        let tools = client
-            .list()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to list tools: {e}"))?;
+        let tools = client.list().await?;
 
         let mut tool_map = self.tools.write().await;
 
@@ -66,9 +62,7 @@ impl<M: McpConfigManager, I: Infrastructure> ForgeMcpService<M, I> {
 
     async fn connect(&self, server_name: &str, config: McpServerConfig) -> anyhow::Result<()> {
         let client = Arc::new(self.infra.mcp_server().connect(config).await?);
-        self.insert_clients(server_name, client)
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to insert tools: {e}"))?;
+        self.insert_clients(server_name, client).await?;
 
         Ok(())
     }

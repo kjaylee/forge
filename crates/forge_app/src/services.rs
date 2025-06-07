@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::{
-    Agent, Attachment, ChatCompletionMessage, CompactionResult, Context, Conversation,
-    ConversationId, Environment, File, McpConfig, Model, ModelId, ResultStream, Scope, Tool,
-    ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
+use forge_domain::{
+    Agent, Attachment, ChatCompletionMessage, Context, Conversation, ConversationId, Environment,
+    File, McpConfig, Model, ModelId, ResultStream, Scope, Tool, ToolCallContext, ToolCallFull,
+    ToolDefinition, ToolName, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -22,9 +22,10 @@ pub trait ToolService: Send + Sync {
     // TODO: should take `call` by reference
     async fn call(
         &self,
-        context: ToolCallContext,
+        agent: &Agent,
+        context: &mut ToolCallContext,
         call: ToolCallFull,
-    ) -> anyhow::Result<ToolResult>;
+    ) -> ToolResult;
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
     async fn find(&self, name: &ToolName) -> anyhow::Result<Option<Arc<Tool>>>;
 }
@@ -45,11 +46,6 @@ pub trait McpService: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait CompactionService: Send + Sync {
-    async fn compact_context(&self, agent: &Agent, context: Context) -> anyhow::Result<Context>;
-}
-
-#[async_trait::async_trait]
 pub trait ConversationService: Send + Sync {
     async fn find(&self, id: &ConversationId) -> anyhow::Result<Option<Conversation>>;
 
@@ -62,11 +58,6 @@ pub trait ConversationService: Send + Sync {
     async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
     where
         F: FnOnce(&mut Conversation) -> T + Send;
-
-    /// Compacts the context of the main agent for the given conversation and
-    /// persists it. Returns metrics about the compaction (original vs.
-    /// compacted tokens and messages).
-    async fn compact_conversation(&self, id: &ConversationId) -> anyhow::Result<CompactionResult>;
 }
 
 #[async_trait::async_trait]
@@ -117,8 +108,8 @@ pub trait WorkflowService {
 }
 
 #[async_trait::async_trait]
-pub trait SuggestionService: Send + Sync {
-    async fn suggestions(&self) -> anyhow::Result<Vec<File>>;
+pub trait FileDiscoveryService: Send + Sync {
+    async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>>;
 }
 
 /// Core app trait providing access to services and repositories.
@@ -131,9 +122,8 @@ pub trait Services: Send + Sync + 'static + Clone {
     type TemplateService: TemplateService;
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
-    type CompactionService: CompactionService;
     type WorkflowService: WorkflowService;
-    type SuggestionService: SuggestionService;
+    type FileDiscoveryService: FileDiscoveryService;
     type McpConfigManager: McpConfigManager;
 
     fn tool_service(&self) -> &Self::ToolService;
@@ -142,8 +132,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn template_service(&self) -> &Self::TemplateService;
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
-    fn compaction_service(&self) -> &Self::CompactionService;
     fn workflow_service(&self) -> &Self::WorkflowService;
-    fn suggestion_service(&self) -> &Self::SuggestionService;
+    fn file_discovery_service(&self) -> &Self::FileDiscoveryService;
     fn mcp_config_manager(&self) -> &Self::McpConfigManager;
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use forge_domain::TemplateService;
+use forge_app::TemplateService;
 use handlebars::Handlebars;
 use rust_embed::Embed;
 

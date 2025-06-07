@@ -23,3 +23,5 @@ tempfile.workspace = true
 rmcp.workspace = true
 tracing.workspace = true
 backon.workspace = true
+thiserror.workspace = true
+forge_app.workspace = true

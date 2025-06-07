@@ -25,7 +25,7 @@ pub struct ForgePrompt {
 }
 
 impl Prompt for ForgePrompt {
-    fn render_prompt_left(&self) -> Cow<str> {
+    fn render_prompt_left(&self) -> Cow<'_, str> {
         // Pre-compute styles to avoid repeated style creation
         let mode_style = Style::new().fg(Color::White).bold();
         let folder_style = Style::new().fg(Color::Cyan);
@@ -68,7 +68,7 @@ impl Prompt for ForgePrompt {
         Cow::Owned(result)
     }
 
-    fn render_prompt_right(&self) -> Cow<str> {
+    fn render_prompt_right(&self) -> Cow<'_, str> {
         // Use a string buffer with pre-allocation to reduce allocations
         let mut result = String::with_capacity(32);
 
@@ -92,11 +92,7 @@ impl Prompt for ForgePrompt {
             .unwrap_or(&Usage::default())
             .prompt_tokens;
 
-        let estimated = self
-            .usage
-            .as_ref()
-            .and_then(|u| u.estimated_tokens)
-            .unwrap_or(0);
+        let estimated = self.usage.as_ref().map_or(0, |u| u.estimated_tokens);
 
         if estimated > reported {
             write!(result, "/~{estimated}").unwrap();
@@ -116,18 +112,18 @@ impl Prompt for ForgePrompt {
         )
     }
 
-    fn render_prompt_indicator(&self, _prompt_mode: reedline::PromptEditMode) -> Cow<str> {
+    fn render_prompt_indicator(&self, _prompt_mode: reedline::PromptEditMode) -> Cow<'_, str> {
         Cow::Borrowed("")
     }
 
-    fn render_prompt_multiline_indicator(&self) -> Cow<str> {
+    fn render_prompt_multiline_indicator(&self) -> Cow<'_, str> {
         Cow::Borrowed(MULTILINE_INDICATOR)
     }
 
     fn render_prompt_history_search_indicator(
         &self,
         history_search: reedline::PromptHistorySearch,
-    ) -> Cow<str> {
+    ) -> Cow<'_, str> {
         let prefix = match history_search.status {
             PromptHistorySearchStatus::Passing => "",
             PromptHistorySearchStatus::Failing => "failing ",
@@ -219,7 +215,7 @@ mod tests {
             prompt_tokens: 10,
             completion_tokens: 20,
             total_tokens: 30,
-            estimated_tokens: None,
+            ..Default::default()
         };
         let mut prompt = ForgePrompt::default();
         prompt.usage(usage);
@@ -296,7 +292,7 @@ mod tests {
             prompt_tokens: 10,
             completion_tokens: 20,
             total_tokens: 30,
-            estimated_tokens: None,
+            ..Default::default()
         };
         let mut prompt = ForgePrompt::default();
         prompt.usage(usage);

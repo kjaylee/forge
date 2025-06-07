@@ -1,7 +1,8 @@
 use derive_setters::Setters;
-use forge_domain::ContextMessage;
-use regex::Regex;
+use forge_domain::{ContextMessage, Image};
 use serde::{Deserialize, Serialize};
+
+use crate::error::Error;
 
 #[derive(Serialize, Default, Setters)]
 #[setters(into, strip_option)]
@@ -36,7 +37,7 @@ impl TryFrom<forge_domain::Context> for Request {
         // context we pick the first system message available.
         // ref: https://docs.anthropic.com/en/api/messages#body-system
         let system = request.messages.iter().find_map(|message| {
-            if let ContextMessage::ContentMessage(chat_message) = message {
+            if let ContextMessage::Text(chat_message) = message {
                 if chat_message.role == forge_domain::Role::System {
                     Some(chat_message.content.clone())
                 } else {
@@ -53,7 +54,7 @@ impl TryFrom<forge_domain::Context> for Request {
                 .into_iter()
                 .filter(|message| {
                     // note: Anthropic does not support system messages in message field.
-                    if let ContextMessage::ContentMessage(chat_message) = message {
+                    if let ContextMessage::Text(chat_message) = message {
                         chat_message.role != forge_domain::Role::System
                     } else {
                         true
@@ -68,6 +69,8 @@ impl TryFrom<forge_domain::Context> for Request {
                 .collect::<std::result::Result<Vec<_>, _>>()?,
             system,
             temperature: request.temperature.map(|t| t.value()),
+            top_p: request.top_p.map(|t| t.value()),
+            top_k: request.top_k.map(|t| t.value() as u64),
             tool_choice: request.tool_choice.map(ToolChoice::from),
             ..Default::default()
         })
@@ -90,7 +93,7 @@ impl TryFrom<ContextMessage> for Message {
     type Error = anyhow::Error;
     fn try_from(value: ContextMessage) -> std::result::Result<Self, Self::Error> {
         Ok(match value {
-            ContextMessage::ContentMessage(chat_message) => {
+            ContextMessage::Text(chat_message) => {
                 let mut content = Vec::with_capacity(
                     chat_message
                         .tool_calls
@@ -115,55 +118,30 @@ impl TryFrom<ContextMessage> for Message {
                     forge_domain::Role::System => {
                         // note: Anthropic doesn't support system role messages and they're already
                         // filtered out. so this state is unreachable.
-                        return Err(anyhow::anyhow!("system role messages are not supported in the context for anthropic provider".to_string()));
+                        return Err(Error::UnsupportedRole("System".to_string()).into());
                     }
                 }
             }
-            ContextMessage::ToolMessage(tool_result) => {
+            ContextMessage::Tool(tool_result) => {
                 Message { role: Role::User, content: vec![tool_result.try_into()?] }
             }
-            ContextMessage::Image(url) => {
-                Message { content: vec![Content::from(url)], role: Role::User }
+            ContextMessage::Image(img) => {
+                Message { content: vec![Content::from(img)], role: Role::User }
             }
         })
     }
 }
 
-impl From<String> for Content {
-    fn from(value: String) -> Self {
-        match extract_image_and_base64(&value) {
-            Some((media_type, data)) => Content::Image {
-                source: ImageSource {
-                    type_: "base64".to_string(),
-                    media_type: Some(format!("image/{media_type}")),
-                    data: Some(data),
-                    url: None,
-                },
-            },
-            None => Content::Image {
-                source: ImageSource {
-                    type_: "url".to_string(),
-                    media_type: None,
-                    data: None,
-                    url: Some(value),
-                },
+impl From<Image> for Content {
+    fn from(value: Image) -> Self {
+        Content::Image {
+            source: ImageSource {
+                type_: "url".to_string(),
+                media_type: None,
+                data: None,
+                url: Some(value.url().clone()),
             },
         }
-    }
-}
-
-fn extract_image_and_base64(data_uri: &str) -> Option<(String, String)> {
-    // Regular expression to match the data URI pattern
-    let re = Regex::new(r"^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$").unwrap();
-
-    // Match the data URI against the regular expression
-    if let Some(captures) = re.captures(data_uri) {
-        // Extract image type and base64 part
-        let image_type = captures.get(1).map_or("", |m| m.as_str()).to_string();
-        let base64_data = captures.get(2).map_or("", |m| m.as_str()).to_string();
-        Some((image_type, base64_data))
-    } else {
-        None
     }
 }
 
@@ -211,10 +189,7 @@ enum Content {
 impl TryFrom<forge_domain::ToolCallFull> for Content {
     type Error = anyhow::Error;
     fn try_from(value: forge_domain::ToolCallFull) -> std::result::Result<Self, Self::Error> {
-        let call_id = value
-            .call_id
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("`call_id` is required for tool_call"))?;
+        let call_id = value.call_id.as_ref().ok_or(Error::ToolCallMissingId)?;
 
         Ok(Content::ToolUse {
             id: call_id.as_str().to_string(),
@@ -228,15 +203,17 @@ impl TryFrom<forge_domain::ToolCallFull> for Content {
 impl TryFrom<forge_domain::ToolResult> for Content {
     type Error = anyhow::Error;
     fn try_from(value: forge_domain::ToolResult) -> std::result::Result<Self, Self::Error> {
-        let call_id = value
-            .call_id
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("`call_id` is required for tool_result"))?;
+        let call_id = value.call_id.as_ref().ok_or(Error::ToolCallMissingId)?;
         Ok(Content::ToolResult {
             tool_use_id: call_id.as_str().to_string(),
             cache_control: None,
-            content: Some(value.content),
-            is_error: Some(value.is_error),
+            content: value
+                .output
+                .values
+                .iter()
+                .filter_map(|item| item.as_str().map(|s| s.to_string()))
+                .next(),
+            is_error: Some(value.is_error()),
         })
     }
 }

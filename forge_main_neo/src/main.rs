@@ -8,8 +8,11 @@ use tracing::debug;
 
 fn main() -> Result<()> {
     let terminal = ratatui::init();
-    let logger = forge_tracker::init_tracing(Path::new(".").to_path_buf())
-        .context("failed to initialize logger")?;
+    let logger = forge_tracker::init_tracing(
+        Path::new(".").to_path_buf(),
+        forge_tracker::Tracker::default(),
+    )
+    .context("failed to initialize logger")?;
 
     ratatui::crossterm::execute!(
         std::io::stdout(),

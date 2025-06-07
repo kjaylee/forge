@@ -1,16 +1,15 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use forge_app::EnvironmentService;
 use forge_display::TitleFormat;
 use forge_domain::{
-    EnvironmentService, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName, ToolOutput, UndoInput,
 };
 use forge_tool_macros::ToolDescription;
-use schemars::JsonSchema;
-use serde::Deserialize;
 
 use crate::infra::FsSnapshotService;
-use crate::tools::utils::{assert_absolute_path, format_display_path};
+use crate::utils::{assert_absolute_path, format_display_path};
 use crate::Infrastructure;
 
 /// Reverts the most recent file operation (create/modify/delete) on a specific
@@ -47,20 +46,14 @@ impl<F> NamedTool for FsUndo<F> {
     }
 }
 
-#[derive(Deserialize, JsonSchema)]
-pub struct UndoInput {
-    /// The absolute path of the file to revert to its previous state. Must be
-    /// the exact path that was previously modified, created, or deleted by
-    /// a Forge file operation. If the file was deleted, provide the
-    /// original path it had before deletion. The system requires a prior
-    /// snapshot for this path.
-    pub path: String,
-}
-
 #[async_trait::async_trait]
 impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
     type Input = UndoInput;
-    async fn call(&self, context: ToolCallContext, input: Self::Input) -> anyhow::Result<String> {
+    async fn call(
+        &self,
+        context: &mut ToolCallContext,
+        input: Self::Input,
+    ) -> anyhow::Result<ToolOutput> {
         let path = Path::new(&input.path);
         assert_absolute_path(path)?;
 
@@ -73,9 +66,9 @@ impl<F: Infrastructure> ExecutableTool for FsUndo<F> {
         let message = TitleFormat::debug("Undo").sub_title(display_path.clone());
         context.send_text(message).await?;
 
-        Ok(format!(
+        Ok(ToolOutput::text(format!(
             "Successfully undid last operation on path: {display_path}"
-        ))
+        )))
     }
 }
 
@@ -100,8 +93,11 @@ mod tests {
         // Act
         let result = undo
             .call(
-                ToolCallContext::default(),
-                UndoInput { path: test_path.to_string_lossy().to_string() },
+                &mut ToolCallContext::default(),
+                UndoInput {
+                    path: test_path.to_string_lossy().to_string(),
+                    explanation: None,
+                },
             )
             .await;
 
@@ -109,10 +105,10 @@ mod tests {
         assert!(result.is_ok(), "Expected successful undo operation");
         assert_eq!(
             result.unwrap(),
-            format!(
+            ToolOutput::text(format!(
                 "Successfully undid last operation on path: {}",
                 test_path.display()
-            ),
+            ),),
             "Unexpected success message"
         );
     }

@@ -3,7 +3,7 @@ use derive_setters::Setters;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{extract_tag_content, Error, Result, ToolName};
+use crate::{Error, Result, ToolName};
 
 /// Unique identifier for a using a tool
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -83,19 +83,20 @@ impl ToolCallFull {
 
         let mut tool_calls = Vec::new();
 
-        let mut input = String::new();
+        let mut arguments = String::new();
         for part in parts.iter() {
             if let Some(value) = &part.call_id {
                 if let Some(tool_name) = tool_name {
-                    if !input.is_empty() {
-                        tool_calls.push(ToolCallFull {
-                            name: tool_name.clone(),
-                            call_id: tool_call_id,
-                            arguments: serde_json::from_str(&input)
-                                .map_err(Error::ToolCallArgument)?,
-                        });
-                        input.clear();
-                    }
+                    tool_calls.push(ToolCallFull {
+                        name: tool_name.clone(),
+                        call_id: tool_call_id,
+                        arguments: if arguments.is_empty() {
+                            Value::default()
+                        } else {
+                            serde_json::from_str(&arguments).map_err(Error::ToolCallArgument)?
+                        },
+                    });
+                    arguments.clear();
                 }
                 tool_call_id = Some(value.clone());
             }
@@ -104,40 +105,29 @@ impl ToolCallFull {
                 tool_name = Some(value);
             }
 
-            input.push_str(&part.arguments_part);
+            arguments.push_str(&part.arguments_part);
         }
 
-        if !input.is_empty() {
-            if let Some(tool_name) = tool_name {
-                tool_calls.push(ToolCallFull {
-                    name: tool_name.clone(),
-                    call_id: tool_call_id,
-                    arguments: serde_json::from_str(&input).map_err(Error::ToolCallArgument)?,
-                });
-                input.clear();
-            }
+        if let Some(tool_name) = tool_name {
+            tool_calls.push(ToolCallFull {
+                name: tool_name.clone(),
+                call_id: tool_call_id,
+                arguments: if arguments.is_empty() {
+                    Value::default()
+                } else {
+                    serde_json::from_str(&arguments).map_err(Error::ToolCallArgument)?
+                },
+            });
         }
 
-        if !tool_calls.is_empty() {
-            Ok(tool_calls)
-        } else {
-            Err(Error::ToolCallMissingName)
-        }
-    }
-
-    /// Parse multiple tool calls from XML format.
-    pub fn try_from_xml(input: &str) -> std::result::Result<Vec<Self>, Error> {
-        match extract_tag_content(input, "forge_tool_call") {
-            None => Ok(Default::default()),
-            Some(content) => Ok(vec![
-                serde_json::from_str(content).map_err(Error::ToolCallArgument)?
-            ]),
-        }
+        Ok(tool_calls)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     #[test]
@@ -212,11 +202,20 @@ mod tests {
     }
 
     #[test]
-    fn test_real_example() {
-        let message = include_str!("./fixtures/tool_call_01.md");
-        let tool_call = ToolCallFull::try_from_xml(message).unwrap();
-        let actual = tool_call.first().unwrap().name.to_string();
-        let expected = "forge_tool_attempt_completion";
-        assert_eq!(actual, expected)
+    fn test_empty_arguments() {
+        let input = [ToolCallPart {
+            call_id: Some(ToolCallId("call_1".to_string())),
+            name: Some(ToolName::new("screenshot")),
+            arguments_part: "".to_string(),
+        }];
+
+        let actual = ToolCallFull::try_from_parts(&input).unwrap();
+        let expected = vec![ToolCallFull {
+            call_id: Some(ToolCallId("call_1".to_string())),
+            name: ToolName::new("screenshot"),
+            arguments: Value::default(),
+        }];
+
+        assert_eq!(actual, expected);
     }
 }

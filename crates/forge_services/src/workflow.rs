@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Context;
-use forge_domain::{Workflow, WorkflowService};
+use forge_app::WorkflowService;
+use forge_domain::Workflow;
 
 use crate::{FsReadService, FsWriteService, Infrastructure};
 

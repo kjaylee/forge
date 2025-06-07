@@ -1,9 +1,8 @@
-use std::fmt::{self, Display, Formatter};
-
 use forge_domain::{ChatCompletionMessage, Content, ModelId, ToolCallId, ToolCallPart, ToolName};
 use serde::Deserialize;
 
 use super::request::Role;
+use crate::error::{AnthropicErrorResponse, Error};
 
 #[derive(Deserialize)]
 pub struct ListModelResponse {
@@ -23,6 +22,7 @@ impl From<Model> for forge_domain::Model {
             name: Some(value.display_name),
             description: None,
             context_length: None,
+            tools_supported: Some(true),
         }
     }
 }
@@ -51,7 +51,7 @@ impl From<Usage> for forge_domain::Usage {
             prompt_tokens: usage.input_tokens.unwrap_or(0),
             completion_tokens: usage.output_tokens.unwrap_or(0),
             total_tokens: usage.input_tokens.unwrap_or(0) + usage.output_tokens.unwrap_or(0),
-            estimated_tokens: None,
+            ..Default::default()
         }
     }
 }
@@ -80,7 +80,7 @@ impl From<StopReason> for forge_domain::FinishReason {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum Event {
     Error {
-        error: ErrorData,
+        error: AnthropicErrorResponse,
     },
     MessageStart {
         message: MessageStart,
@@ -111,20 +111,6 @@ pub enum EventData {
     // To handle any unknown events:
     // ref: https://docs.anthropic.com/en/api/messages-streaming#other-events
     Unknown(serde_json::Value),
-}
-
-#[derive(Debug, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "snake_case", tag = "type")]
-pub enum ErrorData {
-    OverloadedError { message: String },
-}
-
-impl Display for ErrorData {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ErrorData::OverloadedError { message } => write!(f, "OverloadedError: {message}"),
-        }
-    }
 }
 
 #[derive(Deserialize, Clone, PartialEq, Debug)]
@@ -178,7 +164,7 @@ impl TryFrom<Event> for ChatCompletionMessage {
                 ChatCompletionMessage::assistant(Content::part("")).finish_reason(delta.stop_reason)
             }
             Event::Error { error } => {
-                return Err(anyhow::anyhow!("Anthropic API error: {}", error));
+                return Err(Error::Anthropic(error).into());
             }
             _ => ChatCompletionMessage::assistant(Content::part("")),
         };
@@ -240,7 +226,9 @@ mod tests {
                 "error",
                 r#"{"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}"#,
                 Event::Error {
-                    error: ErrorData::OverloadedError { message: "Overloaded".to_string() },
+                    error: AnthropicErrorResponse::OverloadedError {
+                        message: "Overloaded".to_string(),
+                    },
                 },
             ),
             (
