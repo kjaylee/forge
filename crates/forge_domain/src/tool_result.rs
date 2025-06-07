@@ -61,8 +61,8 @@ impl From<ToolCallFull> for ToolResult {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Setters)]
 #[setters(into, strip_option)]
 pub struct ToolOutput {
-    pub values: Vec<ToolOutputValue>,
     pub is_error: bool,
+    pub values: Vec<ToolOutputValue>,
 }
 
 impl ToolOutput {
