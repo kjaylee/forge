@@ -441,7 +441,8 @@ mod tests {
             "files": [
                 "/file1.txt",
                 "/file2.txt"
-            ]
+            ],
+            "current_time": "2024-01-01 12:00:00 +00:00"
         });
 
         // Actual: Render the partial-system-info template
