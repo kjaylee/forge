@@ -49,11 +49,16 @@ impl crate::ForgeFS {
         let (start_pos, end_pos) =
             Self::validate_line_range_bounds(total_lines, start_line, end_line)?;
         // Debug logging
-        eprintln!("DEBUG: read_range_utf8 called with start_line={}, end_line={}", start_line, end_line);
-        eprintln!("DEBUG: total_lines={}", total_lines);
-        eprintln!("DEBUG: start_pos={}, end_pos={}", start_pos, end_pos);
-        eprintln!("DEBUG: first few lines: {:?}", &lines[..cmp::min(3, lines.len())]);
-        
+        eprintln!(
+            "DEBUG: read_range_utf8 called with start_line={start_line}, end_line={end_line}"
+        );
+        eprintln!("DEBUG: total_lines={total_lines}");
+        eprintln!("DEBUG: start_pos={start_pos}, end_pos={end_pos}");
+        eprintln!(
+            "DEBUG: first few lines: {:?}",
+            &lines[..cmp::min(3, lines.len())]
+        );
+
         let info = FileInfo::new(start_line, end_line, total_lines);
 
         // Return empty result for empty ranges
@@ -90,7 +95,9 @@ impl crate::ForgeFS {
 
         // Check if start is beyond file size
         if start_pos >= total_lines {
-            return Err(Error::StartBeyondFileSize { start: start_line, total: total_lines }.into());
+            return Err(
+                Error::StartBeyondFileSize { start: start_line, total: total_lines }.into(),
+            );
         }
 
         // Cap end position at file size - 1 (since we're using 0-based indexing)
@@ -171,7 +178,7 @@ mod test {
 
         assert_eq!(result, "Line 5", "Single line 5 should return just Line 5");
         assert_eq!(info.start_line, 5);
-        assert_eq!(info.end_line, 5);        // Test reading line 1 specifically to debug the issue
+        assert_eq!(info.end_line, 5); // Test reading line 1 specifically to debug the issue
         let (result, info) = crate::ForgeFS::read_range_utf8(file.path(), 1, 1).await?;
         assert_eq!(result, "Line 1", "Line 1 should return the first line");
         assert_eq!(info.start_line, 1);
