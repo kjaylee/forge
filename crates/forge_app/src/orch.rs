@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_recursion::async_recursion;
-use chrono::Local;
 use derive_setters::Setters;
 use forge_domain::*;
 use serde_json::Value;
@@ -25,10 +24,16 @@ pub struct Orchestrator<S> {
     tool_definitions: Vec<ToolDefinition>,
     models: Vec<Model>,
     files: Vec<String>,
+    current_time: chrono::DateTime<chrono::Local>,
 }
 
 impl<S: AgentService> Orchestrator<S> {
-    pub fn new(services: Arc<S>, environment: Environment, conversation: Conversation) -> Self {
+    pub fn new(
+        services: Arc<S>,
+        environment: Environment,
+        conversation: Conversation,
+        current_time: chrono::DateTime<chrono::Local>,
+    ) -> Self {
         Self {
             conversation,
             environment,
@@ -37,6 +42,7 @@ impl<S: AgentService> Orchestrator<S> {
             tool_definitions: Default::default(),
             models: Default::default(),
             files: Default::default(),
+            current_time,
         }
     }
 
@@ -141,7 +147,7 @@ impl<S: AgentService> Orchestrator<S> {
         Ok(tool_supported)
     }
 
-    async fn set_system_prompt(
+    fn set_system_prompt(
         &mut self,
         context: Context,
         agent: &Agent,
@@ -152,7 +158,10 @@ impl<S: AgentService> Orchestrator<S> {
             let mut files = self.files.clone();
             files.sort();
 
-            let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
+            let current_time = self
+                .current_time
+                .format("%Y-%m-%d %H:%M:%S %:z")
+                .to_string();
 
             let tool_supported = self.is_tool_supported(agent)?;
             let tool_information = match tool_supported {
@@ -231,7 +240,7 @@ impl<S: AgentService> Orchestrator<S> {
         context = context.tools(self.get_allowed_tools(&agent)?);
 
         // Render the system prompts with the variables
-        context = self.set_system_prompt(context, &agent, &variables).await?;
+        context = self.set_system_prompt(context, &agent, &variables)?;
 
         // Render user prompts
         context = self.set_user_prompt(context, &agent, &variables, event)?;
@@ -372,7 +381,13 @@ impl<S: AgentService> Orchestrator<S> {
         event: &Event,
     ) -> anyhow::Result<Context> {
         let content = if let Some(user_prompt) = &agent.user_prompt {
-            let event_context = EventContext::new(event.clone()).variables(variables.clone());
+            let event_context = EventContext::new(event.clone())
+                .variables(variables.clone())
+                .current_time(
+                    self.current_time
+                        .format("%Y-%m-%d %H:%M:%S %:z")
+                        .to_string(),
+                );
             debug!(event_context = ?event_context, "Event context");
             Templates::render(user_prompt.template.as_str(), &event_context)?
         } else {
