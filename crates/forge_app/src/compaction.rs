@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use anyhow::Context as AnyhowContext;
 use forge_domain::{
-    Agent, ChatCompletionMessage, Compact, Context, ContextMessage, find_compact_sequence,
+    Agent, ChatCompletionMessage, ChatCompletionMessageFull, Compact, Context, ContextMessage,
+    ResultStreamExt, extract_tag_content, find_compact_sequence,
 };
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use tracing::{debug, info};
 
 use crate::services::ProviderService;
-use crate::{Services, render_template, utils};
+use crate::{Services, render_template};
 
 /// A service dedicated to handling context compaction.
 pub struct Compactor<S> {
@@ -129,18 +129,12 @@ impl<S: Services> Compactor<S> {
     async fn collect_completion_stream_content(
         &self,
         compact: &Compact,
-        mut stream: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
+        stream: impl Stream<Item = anyhow::Result<ChatCompletionMessage>>
+        + std::marker::Unpin
+        + ResultStreamExt<anyhow::Error>,
     ) -> anyhow::Result<String> {
-        let mut content = String::new();
-        while let Some(message) = stream.next().await {
-            let message =
-                message.with_context(|| "Failed to process message stream for compaction")?;
-            if let Some(content_part) = message.content {
-                content.push_str(content_part.as_str());
-            }
-        }
-
-        if let Some(extracted) = utils::extract_tag_content(
+        let ChatCompletionMessageFull { content, .. } = stream.into_full(false).await?;
+        if let Some(extracted) = extract_tag_content(
             &content,
             compact
                 .summary_tag

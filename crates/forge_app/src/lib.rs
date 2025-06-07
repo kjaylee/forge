@@ -3,7 +3,6 @@ mod compaction;
 mod error;
 mod orch;
 mod services;
-mod utils;
 
 pub use app::*;
 pub use compaction::*;

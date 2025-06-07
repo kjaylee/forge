@@ -2,12 +2,10 @@ use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use chrono::Local;
 use derive_setters::Setters;
 use forge_domain::*;
-use futures::{Stream, StreamExt};
 use handlebars::Handlebars;
 use rust_embed::Embed;
 use serde_json::Value;
@@ -15,7 +13,6 @@ use tracing::{debug, info, warn};
 
 use crate::compaction::Compactor;
 use crate::services::{ProviderService, Services, ToolService};
-use crate::utils::{remove_tag_with_prefix, try_from_xml};
 
 #[derive(Embed)]
 #[folder = "../../templates/"]
@@ -48,12 +45,6 @@ pub struct Orchestrator<S> {
     tool_definitions: Vec<ToolDefinition>,
     models: Vec<Model>,
     files: Vec<String>,
-}
-
-struct ChatCompletionMessageFull {
-    pub content: String,
-    pub tool_calls: Vec<ToolCallFull>,
-    pub usage: Usage,
 }
 
 impl<S: Services> Orchestrator<S> {
@@ -208,120 +199,6 @@ impl<S: Services> Orchestrator<S> {
         })
     }
 
-    async fn collect_messages(
-        &self,
-        mut response: impl Stream<Item = anyhow::Result<ChatCompletionMessage>> + std::marker::Unpin,
-        should_interrupt_for_xml: bool,
-    ) -> anyhow::Result<ChatCompletionMessageFull> {
-        let mut messages = Vec::new();
-        let mut usage: Usage = Default::default();
-        let mut content = String::new();
-        let mut xml_tool_calls = None;
-        let mut tool_interrupted = false;
-
-        while let Some(message) = response.next().await {
-            let message = message.with_context(|| "Failed to process message stream")?;
-            messages.push(message.clone());
-
-            // Process usage information
-            usage = message.usage.unwrap_or_default();
-
-            // Process content
-            if let Some(content_part) = message.content.as_ref() {
-                let content_part = content_part.as_str().to_string();
-
-                content.push_str(&content_part);
-
-                // Send partial content to the client
-                self.send(ChatResponse::Text {
-                    text: content_part,
-                    is_complete: false,
-                    is_md: false,
-                    is_summary: false,
-                })
-                .await?;
-
-                // Check for XML tool calls in the content, but only interrupt if flag is set
-                if should_interrupt_for_xml {
-                    // Use match instead of ? to avoid propagating errors
-                    if let Some(tool_call) =
-                        try_from_xml(&content).ok().into_iter().flatten().next()
-                    {
-                        xml_tool_calls = Some(tool_call);
-                        tool_interrupted = true;
-
-                        // Break the loop since we found an XML tool call and interruption is
-                        // enabled
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Get the full content from all messages
-        let mut content = messages
-            .iter()
-            .flat_map(|m| m.content.iter())
-            .map(|content| content.as_str())
-            .collect::<Vec<_>>()
-            .join("");
-
-        #[allow(clippy::collapsible_if)]
-        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>") {
-            if let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
-                content.truncate(i + right.len());
-
-                // Add a comment for the assistant to signal interruption
-                content.push('\n');
-                content.push_str("<forge_feedback>");
-                content.push_str(
-                    "Response interrupted by tool result. Use only one tool at the end of the message",
-                );
-                content.push_str("</forge_feedback>");
-            }
-        }
-
-        // Send the complete message
-        self.send(ChatResponse::Text {
-            text: remove_tag_with_prefix(&content, "forge_")
-                .as_str()
-                .to_string(),
-            is_complete: true,
-            is_md: true,
-            is_summary: false,
-        })
-        .await?;
-
-        // Extract all tool calls in a fully declarative way with combined sources
-        // Start with complete tool calls (for non-streaming mode)
-        let initial_tool_calls: Vec<ToolCallFull> = messages
-            .iter()
-            .flat_map(|message| &message.tool_calls)
-            .filter_map(|tool_call| tool_call.as_full().cloned())
-            .collect();
-
-        // Get partial tool calls
-        let tool_call_parts: Vec<ToolCallPart> = messages
-            .iter()
-            .flat_map(|message| &message.tool_calls)
-            .filter_map(|tool_call| tool_call.as_partial().cloned())
-            .collect();
-
-        // Process partial tool calls
-        // TODO: Parse failure should be retried
-        let partial_tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)
-            .with_context(|| format!("Failed to parse tool call: {tool_call_parts:?}"))?;
-
-        // Combine all sources of tool calls
-        let tool_calls: Vec<ToolCallFull> = initial_tool_calls
-            .into_iter()
-            .chain(partial_tool_calls)
-            .chain(xml_tool_calls)
-            .collect();
-
-        Ok(ChatCompletionMessageFull { content, tool_calls, usage })
-    }
-
     pub async fn chat(&mut self, event: Event) -> anyhow::Result<()> {
         let target_agents = {
             debug!(
@@ -353,8 +230,7 @@ impl<S: Services> Orchestrator<S> {
         // Only interrupt for XML tool calls if tool_supported is false
         let should_interrupt_for_xml = !self.is_tool_supported(agent)?;
 
-        self.collect_messages(response, should_interrupt_for_xml)
-            .await
+        response.into_full(should_interrupt_for_xml).await
     }
 
     // Create a helper method with the core functionality
@@ -429,6 +305,16 @@ impl<S: Services> Orchestrator<S> {
                 .retry_config
                 .retry(|| self.execute_chat_turn(&agent, &model_id, context.clone()))
                 .await?;
+
+            self.send(ChatResponse::Text {
+                text: remove_tag_with_prefix(&content, "forge_")
+                    .as_str()
+                    .to_string(),
+                is_complete: true,
+                is_md: true,
+                is_summary: false,
+            })
+            .await?;
 
             // Set estimated tokens
             usage.estimated_tokens = estimate_token_count(context.to_text().len()) as u64;
