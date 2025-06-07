@@ -10,7 +10,7 @@ use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::compact::Compactor;
-use crate::services::AgentService;
+use crate::agent::AgentService;
 use crate::template::Templates;
 
 pub type ArcSender = Arc<tokio::sync::mpsc::Sender<anyhow::Result<ChatResponse>>>;

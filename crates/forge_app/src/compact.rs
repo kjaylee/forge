@@ -7,7 +7,7 @@ use forge_domain::{
 use futures::Stream;
 use tracing::{debug, info};
 
-use crate::services::AgentService;
+use crate::agent::AgentService;
 use crate::template::Templates;
 
 /// A service dedicated to handling context compaction.
