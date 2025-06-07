@@ -3,7 +3,7 @@ use forge_domain::{
     ToolResult,
 };
 
-use crate::Services;
+use crate::{ProviderService, Services, ToolService};
 
 /// Agent service trait that provides core chat and tool call functionality.
 /// This trait abstracts the essential operations needed by the Orchestrator.
