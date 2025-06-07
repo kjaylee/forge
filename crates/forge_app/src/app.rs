@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_domain::*;
 use forge_stream::MpscStream;
-use tracing::error;
 
 use crate::{
     AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService, Orchestrator,
@@ -89,10 +88,10 @@ impl<S: Services> ForgeApp<S> {
                     let save_result = services.conversation_service().upsert(conversation).await;
 
                     // Send any error to the stream (prioritize dispatch error over save error)
-                    if let Some(err) = dispatch_result.err().or(save_result.err())
-                        && let Err(e) = tx.send(Err(err)).await
-                    {
-                        error!("Failed to send error to stream: {:#?}", e);
+                    if let Some(err) = dispatch_result.err().or(save_result.err()) {
+                        if let Err(e) = tx.send(Err(err)).await {
+                            tracing::error!("Failed to send error to stream: {}", e);
+                        }
                     }
                 }
             },
