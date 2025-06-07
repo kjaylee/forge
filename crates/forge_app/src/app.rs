@@ -106,10 +106,76 @@ impl<S: Services> ForgeApp<S> {
     /// compacted tokens and messages).
     pub async fn compact_conversation(
         &self,
-        _conversation_id: &ConversationId,
+        conversation_id: &ConversationId,
     ) -> Result<CompactionResult> {
-        // TODO: Implement actual compaction logic
-        // For now, return a dummy result indicating no compaction was performed
-        Ok(CompactionResult::new(0, 0, 0, 0))
+        use crate::compaction::Compactor;
+
+        // Get the conversation
+        let mut conversation = self
+            .services
+            .conversation_service()
+            .find(conversation_id)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Conversation not found: {}", conversation_id))?;
+
+        // Get the context from the conversation
+        let context = match conversation.context.as_ref() {
+            Some(context) => context.clone(),
+            None => {
+                // No context to compact, return zero metrics
+                return Ok(CompactionResult::new(0, 0, 0, 0));
+            }
+        };
+
+        // Calculate original metrics
+        let original_messages = context.messages.len();
+        let original_text = context.to_text();
+        let original_tokens = estimate_token_count(original_text.len());
+
+        // Find the main agent (first agent in the conversation)
+        // In most cases, there should be a primary agent for compaction
+        let agent = conversation
+            .agents
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("No agents found in conversation"))?
+            .clone();
+
+        // Check if the agent has compaction configured
+        if agent.compact.is_none() {
+            // No compaction configured, return original metrics as both original and
+            // compacted
+            return Ok(CompactionResult::new(
+                original_tokens,
+                original_tokens,
+                original_messages,
+                original_messages,
+            ));
+        }
+
+        // Apply compaction using the Compactor
+        let compactor = Compactor::new(self.services.clone());
+        let compacted_context = compactor.compact_context(&agent, context).await?;
+
+        // Calculate compacted metrics
+        let compacted_messages = compacted_context.messages.len();
+        let compacted_text = compacted_context.to_text();
+        let compacted_tokens = estimate_token_count(compacted_text.len());
+
+        // Update the conversation with the compacted context
+        conversation.context = Some(compacted_context);
+
+        // Save the updated conversation
+        self.services
+            .conversation_service()
+            .upsert(conversation)
+            .await?;
+
+        // Return the compaction metrics
+        Ok(CompactionResult::new(
+            original_tokens,
+            compacted_tokens,
+            original_messages,
+            compacted_messages,
+        ))
     }
 }
