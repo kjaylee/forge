@@ -112,7 +112,6 @@ pub trait FileDiscoveryService: Send + Sync {
     async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>>;
 }
 
-
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
