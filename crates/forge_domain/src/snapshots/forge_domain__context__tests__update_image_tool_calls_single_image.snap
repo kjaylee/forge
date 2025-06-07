@@ -13,7 +13,7 @@ messages:
       call_id: call1
       output:
         values:
-          - Text: "[The image with ID 0 will be sent as an attachment in the next message]"
+          - text: "[The image with ID 0 will be sent as an attachment in the next message]"
         is_error: false
   - text:
       role: User

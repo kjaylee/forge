@@ -99,6 +99,7 @@ where
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[serde(rename_all = "camelCase")]
 pub enum ToolOutputValue {
     Text(String),
     Image(Image),
