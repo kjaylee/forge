@@ -6,7 +6,7 @@ use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
-use crate::suggestion::ForgeSuggestionService;
+use crate::suggestion::ForgeDiscoveryService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::workflow::ForgeWorkflowService;
@@ -29,7 +29,7 @@ pub struct ForgeServices<F> {
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
     workflow_service: Arc<ForgeWorkflowService<F>>,
-    suggestion_service: Arc<ForgeSuggestionService<F>>,
+    discovery_service: Arc<ForgeDiscoveryService<F>>,
     mcp_manager: Arc<ForgeMcpManager<F>>,
 }
 
@@ -45,7 +45,7 @@ impl<F: Infrastructure> ForgeServices<F> {
         let conversation_service = Arc::new(ForgeConversationService::new(mcp_service));
 
         let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
-        let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
+        let suggestion_service = Arc::new(ForgeDiscoveryService::new(infra.clone()));
         Self {
             infra,
             conversation_service,
@@ -54,7 +54,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             provider_service,
             template_service,
             workflow_service,
-            suggestion_service,
+            discovery_service: suggestion_service,
             mcp_manager,
         }
     }
@@ -68,7 +68,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
     type WorkflowService = ForgeWorkflowService<F>;
-    type SuggestionService = ForgeSuggestionService<F>;
+    type FileDiscoveryService = ForgeDiscoveryService<F>;
     type McpConfigManager = ForgeMcpManager<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
@@ -99,8 +99,8 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
         self.workflow_service.as_ref()
     }
 
-    fn suggestion_service(&self) -> &Self::SuggestionService {
-        self.suggestion_service.as_ref()
+    fn file_discovery_service(&self) -> &Self::FileDiscoveryService {
+        self.discovery_service.as_ref()
     }
 
     fn mcp_config_manager(&self) -> &Self::McpConfigManager {

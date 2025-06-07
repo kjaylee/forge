@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    AttachmentService, ConversationService, EnvironmentService, McpConfigManager, Orchestrator,
-    ProviderService, Services, SuggestionService, ToolService, WorkflowService,
+    AttachmentService, ConversationService, EnvironmentService, FileDiscoveryService,
+    McpConfigManager, Orchestrator, ProviderService, Services, ToolService, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -36,8 +36,8 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 
 #[async_trait::async_trait]
 impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
-    async fn suggestions(&self) -> Result<Vec<File>> {
-        self.app.suggestion_service().suggestions().await
+    async fn discover(&self) -> Result<Vec<File>> {
+        self.app.file_discovery_service().discover().await
     }
 
     async fn tools(&self) -> anyhow::Result<Vec<ToolDefinition>> {
@@ -65,11 +65,11 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
 
         // Discover files for the orchestrator
         let environment = app.environment_service().get_environment();
-        
+
         // Use workflow max_walker_depth if available, otherwise default to 1
         let workflow = app.workflow_service().read(None).await.unwrap_or_default();
         let max_depth = workflow.max_walker_depth.unwrap_or(1);
-        
+
         let walker = Walker::max_all().max_depth(max_depth);
         let files = walker
             .cwd(environment.cwd.clone())
@@ -85,14 +85,10 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
             .attachments(&chat.event.value.to_string())
             .await?;
         chat.event = chat.event.attachments(attachments);
-        let orch = Orchestrator::new(
-            app.clone(),
-            environment.clone(),
-            conversation,
-        )
-        .tool_definitions(tool_definitions)
-        .models(models)
-        .files(files);
+        let orch = Orchestrator::new(app.clone(), environment.clone(), conversation)
+            .tool_definitions(tool_definitions)
+            .models(models)
+            .files(files);
 
         let stream = MpscStream::spawn(|tx| {
             async move {

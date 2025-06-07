@@ -113,8 +113,8 @@ pub trait WorkflowService {
 }
 
 #[async_trait::async_trait]
-pub trait SuggestionService: Send + Sync {
-    async fn suggestions(&self) -> anyhow::Result<Vec<File>>;
+pub trait FileDiscoveryService: Send + Sync {
+    async fn discover(&self) -> anyhow::Result<Vec<File>>;
 }
 
 /// Core app trait providing access to services and repositories.
@@ -128,7 +128,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
     type WorkflowService: WorkflowService;
-    type SuggestionService: SuggestionService;
+    type FileDiscoveryService: FileDiscoveryService;
     type McpConfigManager: McpConfigManager;
 
     fn tool_service(&self) -> &Self::ToolService;
@@ -138,6 +138,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn workflow_service(&self) -> &Self::WorkflowService;
-    fn suggestion_service(&self) -> &Self::SuggestionService;
+    fn file_discovery_service(&self) -> &Self::FileDiscoveryService;
     fn mcp_config_manager(&self) -> &Self::McpConfigManager;
 }

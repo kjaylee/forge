@@ -1,24 +1,24 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, SuggestionService};
+use forge_app::{EnvironmentService, FileDiscoveryService};
 use forge_domain::File;
 use forge_walker::Walker;
 
 use crate::Infrastructure;
 
-pub struct ForgeSuggestionService<F> {
+pub struct ForgeDiscoveryService<F> {
     domain: Arc<F>,
 }
 
-impl<F> ForgeSuggestionService<F> {
+impl<F> ForgeDiscoveryService<F> {
     pub fn new(domain: Arc<F>) -> Self {
         Self { domain }
     }
 }
 
-impl<F: Infrastructure> ForgeSuggestionService<F> {
-    async fn get_suggestions(&self) -> Result<Vec<File>> {
+impl<F: Infrastructure> ForgeDiscoveryService<F> {
+    async fn discover(&self) -> Result<Vec<File>> {
         let cwd = self
             .domain
             .environment_service()
@@ -36,8 +36,8 @@ impl<F: Infrastructure> ForgeSuggestionService<F> {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure + Send + Sync> SuggestionService for ForgeSuggestionService<F> {
-    async fn suggestions(&self) -> Result<Vec<File>> {
-        self.get_suggestions().await
+impl<F: Infrastructure + Send + Sync> FileDiscoveryService for ForgeDiscoveryService<F> {
+    async fn discover(&self) -> Result<Vec<File>> {
+        self.discover().await
     }
 }
