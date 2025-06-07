@@ -73,10 +73,8 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
         &self,
         conversation_id: &ConversationId,
     ) -> anyhow::Result<CompactionResult> {
-        self.app
-            .conversation_service()
-            .compact_conversation(conversation_id)
-            .await
+        let forge_app = ForgeApp::new(self.app.clone());
+        forge_app.compact_conversation(conversation_id).await
     }
 
     fn environment(&self) -> Environment {

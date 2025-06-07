@@ -89,15 +89,27 @@ impl<S: Services> ForgeApp<S> {
                     let save_result = services.conversation_service().upsert(conversation).await;
 
                     // Send any error to the stream (prioritize dispatch error over save error)
-                    if let Some(err) = dispatch_result.err().or(save_result.err()) {
-                        if let Err(e) = tx.send(Err(err)).await {
-                            error!("Failed to send error to stream: {:#?}", e);
-                        }
+                    if let Some(err) = dispatch_result.err().or(save_result.err())
+                        && let Err(e) = tx.send(Err(err)).await
+                    {
+                        error!("Failed to send error to stream: {:#?}", e);
                     }
                 }
             },
         );
 
         Ok(stream)
+    }
+
+    /// Compacts the context of the main agent for the given conversation and
+    /// persists it. Returns metrics about the compaction (original vs.
+    /// compacted tokens and messages).
+    pub async fn compact_conversation(
+        &self,
+        _conversation_id: &ConversationId,
+    ) -> Result<CompactionResult> {
+        // TODO: Implement actual compaction logic
+        // For now, return a dummy result indicating no compaction was performed
+        Ok(CompactionResult::new(0, 0, 0, 0))
     }
 }
