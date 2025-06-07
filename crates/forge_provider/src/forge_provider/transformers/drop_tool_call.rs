@@ -22,6 +22,9 @@ impl Transformer for DropToolCalls {
             }
         }
 
+        // Reset the tools field
+        request.tools = None;
+
         request
     }
 }
@@ -58,7 +61,8 @@ mod tests {
                 }),
                 ContextMessage::Tool(tool_result),
             ],
-            tools: vec![],
+            tools: vec![forge_domain::ToolDefinition::new("test_tool")
+                .description("A test tool")],
             tool_choice: None,
             max_tokens: None,
             temperature: None,
@@ -75,5 +79,7 @@ mod tests {
         assert!(messages[0].tool_calls.is_none());
         // Converted tool message
         assert_eq!(messages[1].role, Role::User.into());
+        // Tools field should be reset
+        assert!(transformed.tools.is_none());
     }
 }
