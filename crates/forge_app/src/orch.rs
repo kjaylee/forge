@@ -306,6 +306,7 @@ impl<S: AgentService> Orchestrator<S> {
                 content_length = usage.content_length,
                 "Processing usage information"
             );
+
             self.send(ChatResponse::Usage(usage.clone())).await?;
 
             // Check if context requires compression and decide to compact
@@ -362,15 +363,19 @@ impl<S: AgentService> Orchestrator<S> {
             } else {
                 empty_tool_call_count = 0;
 
-                self.send(ChatResponse::Text {
-                    text: remove_tag_with_prefix(&content, "forge_")
-                        .as_str()
-                        .to_string(),
-                    is_complete: true,
-                    is_md: true,
-                    is_summary: false,
-                })
-                .await?;
+                if !tool_context.is_complete {
+                    // If task is completed we would have already displayed a message so we can
+                    // ignore the content that's collected from the stream
+                    self.send(ChatResponse::Text {
+                        text: remove_tag_with_prefix(&content, "forge_")
+                            .as_str()
+                            .to_string(),
+                        is_complete: true,
+                        is_md: true,
+                        is_summary: false,
+                    })
+                    .await?;
+                }
             }
 
             // Update context in the conversation
