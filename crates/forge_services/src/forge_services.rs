@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use forge_app::{AgentService, ProviderService, Services, ToolService};
-use forge_domain::Agent;
+use forge_app::Services;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -159,25 +158,5 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
 
     fn mcp_server(&self) -> &Self::McpServer {
         self.infra.mcp_server()
-    }
-}
-
-#[async_trait::async_trait]
-impl<F: Infrastructure> AgentService for ForgeServices<F> {
-    async fn chat(
-        &self,
-        model_id: &forge_domain::ModelId,
-        context: forge_domain::Context,
-    ) -> forge_domain::ResultStream<forge_domain::ChatCompletionMessage, anyhow::Error> {
-        self.provider_service().chat(model_id, context).await
-    }
-
-    async fn call(
-        &self,
-        agent: &Agent,
-        context: &mut forge_domain::ToolCallContext,
-        call: forge_domain::ToolCallFull,
-    ) -> forge_domain::ToolResult {
-        self.tool_service().call(agent, context, call).await
     }
 }

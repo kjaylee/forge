@@ -6,6 +6,7 @@ use anyhow::Context as AnyhowContext;
 use async_recursion::async_recursion;
 use chrono::Local;
 use derive_setters::Setters;
+use forge_domain::*;
 use forge_walker::Walker;
 use futures::{Stream, StreamExt};
 use handlebars::Handlebars;
@@ -14,27 +15,8 @@ use serde_json::Value;
 use tracing::{debug, info, warn};
 
 use crate::compaction::Compactor;
+use crate::services::{ProviderService, Services, ToolService};
 use crate::utils::{remove_tag_with_prefix, try_from_xml};
-use forge_domain::*;
-
-/// Minimal trait that defines only the methods Orchestrator needs from services
-#[async_trait::async_trait]
-pub trait AgentService: Send + Sync + Clone + 'static {
-    /// Perform a chat request with the provider
-    async fn chat(
-        &self,
-        model_id: &ModelId,
-        context: Context,
-    ) -> ResultStream<ChatCompletionMessage, anyhow::Error>;
-
-    /// Execute a tool call
-    async fn call(
-        &self,
-        agent: &Agent,
-        context: &mut ToolCallContext,
-        call: ToolCallFull,
-    ) -> ToolResult;
-}
 
 #[derive(Embed)]
 #[folder = "../../templates/"]
@@ -74,7 +56,7 @@ struct ChatCompletionMessageFull {
     pub usage: Usage,
 }
 
-impl<S: AgentService> Orchestrator<S> {
+impl<S: Services> Orchestrator<S> {
     pub fn new(services: Arc<S>, environment: Environment, conversation: Conversation) -> Self {
         Self {
             conversation,
@@ -110,6 +92,7 @@ impl<S: AgentService> Orchestrator<S> {
             // Execute the tool
             let tool_result = self
                 .services
+                .tool_service()
                 .call(agent, tool_context, tool_call.clone())
                 .await;
 
@@ -267,11 +250,8 @@ impl<S: AgentService> Orchestrator<S> {
                 // Check for XML tool calls in the content, but only interrupt if flag is set
                 if should_interrupt_for_xml {
                     // Use match instead of ? to avoid propagating errors
-                    if let Some(tool_call) = try_from_xml(&content)
-                        .ok()
-                        .into_iter()
-                        .flatten()
-                        .next()
+                    if let Some(tool_call) =
+                        try_from_xml(&content).ok().into_iter().flatten().next()
                     {
                         xml_tool_calls = Some(tool_call);
                         tool_interrupted = true;
@@ -292,8 +272,8 @@ impl<S: AgentService> Orchestrator<S> {
             .collect::<Vec<_>>()
             .join("");
 
-        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>") {
-            if let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
+        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>")
+            && let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
                 content.truncate(i + right.len());
 
                 // Add a comment for the assistant to signal interruption
@@ -304,7 +284,6 @@ impl<S: AgentService> Orchestrator<S> {
                  );
                 content.push_str("</forge_feedback>");
             }
-        }
 
         // Send the complete message
         self.send(ChatResponse::Text {
@@ -373,7 +352,7 @@ impl<S: AgentService> Orchestrator<S> {
         context: Context,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let services = self.services.clone();
-        let response = services.chat(model_id, context).await?;
+        let response = services.provider_service().chat(model_id, context).await?;
 
         // Only interrupt for XML tool calls if tool_supported is false
         let should_interrupt_for_xml = !self.is_tool_supported(agent)?;

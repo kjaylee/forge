@@ -1,20 +1,21 @@
 use std::sync::Arc;
 
 use anyhow::Context as AnyhowContext;
-use futures::{Stream, StreamExt};
-use tracing::{debug, info};
-
-use crate::{AgentService, render_template, utils};
 use forge_domain::{
     Agent, ChatCompletionMessage, Compact, Context, ContextMessage, find_compact_sequence,
 };
+use futures::{Stream, StreamExt};
+use tracing::{debug, info};
+
+use crate::services::ProviderService;
+use crate::{Services, render_template, utils};
 
 /// A service dedicated to handling context compaction.
 pub struct Compactor<S> {
     services: Arc<S>,
 }
 
-impl<S: AgentService> Compactor<S> {
+impl<S: Services> Compactor<S> {
     pub fn new(services: Arc<S>) -> Self {
         Self { services }
     }
@@ -114,7 +115,11 @@ impl<S: AgentService> Compactor<S> {
             context = context.max_tokens(max_token);
         }
 
-        let response = self.services.chat(&compact.model, context).await?;
+        let response = self
+            .services
+            .provider_service()
+            .chat(&compact.model, context)
+            .await?;
 
         self.collect_completion_stream_content(compact, response)
             .await

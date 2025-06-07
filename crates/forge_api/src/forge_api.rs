@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    AgentService, AttachmentService, ConversationService, EnvironmentService, McpConfigManager, Orchestrator, ProviderService, Services, SuggestionService, ToolService, WorkflowService
+    AttachmentService, ConversationService, EnvironmentService, McpConfigManager, Orchestrator,
+    ProviderService, Services, SuggestionService, ToolService, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -16,7 +17,7 @@ pub struct ForgeAPI<A, F> {
     infra: Arc<F>,
 }
 
-impl<A: Services + AgentService, F: Infrastructure> ForgeAPI<A, F> {
+impl<A: Services, F: Infrastructure> ForgeAPI<A, F> {
     pub fn new(app: Arc<A>, infra: Arc<F>) -> Self {
         Self { app, infra }
     }
@@ -31,7 +32,7 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 }
 
 #[async_trait::async_trait]
-impl<A: Services + AgentService, F: Infrastructure> API for ForgeAPI<A, F> {
+impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
     async fn suggestions(&self) -> Result<Vec<File>> {
         self.app.suggestion_service().suggestions().await
     }

@@ -201,7 +201,6 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-
     #[test]
     fn test_empty_arguments() {
         let input = [ToolCallPart {
