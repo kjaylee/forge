@@ -338,6 +338,8 @@ impl<S: AgentService> Orchestrator<S> {
                     .await?,
             );
 
+            context = SetModel::new(model_id.clone()).transform(context);
+
             if empty_tool_calls {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.

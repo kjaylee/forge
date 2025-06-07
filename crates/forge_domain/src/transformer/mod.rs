@@ -64,10 +64,12 @@ where
 }
 
 // Re-export specific transformers
-pub mod image_handling;
-pub mod transform_tool_calls;
+mod image_handling;
+mod set_model;
+mod transform_tool_calls;
 
 pub use image_handling::ImageHandling;
+pub use set_model::SetModel;
 pub use transform_tool_calls::TransformToolCalls;
 
 #[cfg(test)]
