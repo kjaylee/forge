@@ -7,8 +7,8 @@ use forge_domain::{
 use futures::Stream;
 use tracing::{debug, info};
 
-use crate::render_template;
 use crate::services::AgentService;
+use crate::template::Templates;
 
 /// A service dedicated to handling context compaction.
 pub struct Compactor<S> {
@@ -71,7 +71,7 @@ impl<S: AgentService> Compactor<S> {
             "Created context compaction summary"
         );
 
-        let summary = render_template(
+        let summary = Templates::render(
             "{{> partial-summary-frame.hbs}}",
             &serde_json::json!({ "summary": summary }),
         )?;
@@ -100,7 +100,7 @@ impl<S: AgentService> Compactor<S> {
             "summary_tag": summary_tag
         });
 
-        let prompt = render_template(
+        let prompt = Templates::render(
             compact
                 .prompt
                 .as_deref()

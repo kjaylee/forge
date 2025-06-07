@@ -3,6 +3,7 @@ mod compact;
 mod error;
 mod orch;
 mod services;
+mod template;
 
 pub use app::*;
 pub use compact::*;
