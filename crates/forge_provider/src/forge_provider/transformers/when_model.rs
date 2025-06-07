@@ -18,7 +18,7 @@ use crate::forge_provider::request::Request;
 /// ```
 pub fn when_model(pattern: &str) -> impl Fn(&Request) -> bool {
     let regex =
-        Regex::new(pattern).unwrap_or_else(|_| panic!("Invalid regex pattern: {}", pattern));
+        Regex::new(pattern).unwrap_or_else(|_| panic!("Invalid regex pattern: {pattern}"));
 
     move |req: &Request| {
         req.model
