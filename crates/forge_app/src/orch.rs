@@ -295,16 +295,6 @@ impl<S: AgentService> Orchestrator<S> {
                 .retry(|| self.execute_chat_turn(&model_id, context.clone(), is_tool_supported))
                 .await?;
 
-            self.send(ChatResponse::Text {
-                text: remove_tag_with_prefix(&content, "forge_")
-                    .as_str()
-                    .to_string(),
-                is_complete: true,
-                is_md: true,
-                is_summary: false,
-            })
-            .await?;
-
             // Set estimated tokens
             usage.estimated_tokens = estimate_token_count(context.to_text().len()) as u64;
 
@@ -333,7 +323,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Process tool calls and update context
             context = context.append_message(
-                content,
+                content.clone(),
                 self.execute_tool_calls(&agent, &tool_calls, &mut tool_context)
                     .await?,
             );
@@ -371,6 +361,16 @@ impl<S: AgentService> Orchestrator<S> {
                 }
             } else {
                 empty_tool_call_count = 0;
+
+                self.send(ChatResponse::Text {
+                    text: remove_tag_with_prefix(&content, "forge_")
+                        .as_str()
+                        .to_string(),
+                    is_complete: true,
+                    is_md: true,
+                    is_summary: false,
+                })
+                .await?;
             }
 
             // Update context in the conversation
