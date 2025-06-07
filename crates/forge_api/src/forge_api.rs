@@ -10,6 +10,7 @@ use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
+use forge_walker::Walker;
 use tracing::error;
 
 use crate::API;
@@ -62,6 +63,22 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
         let tool_definitions = app.tool_service().list().await?;
         let models = app.provider_service().models().await?;
 
+        // Discover files for the orchestrator
+        let environment = app.environment_service().get_environment();
+        
+        // Use workflow max_walker_depth if available, otherwise default to 1
+        let workflow = app.workflow_service().read(None).await.unwrap_or_default();
+        let max_depth = workflow.max_walker_depth.unwrap_or(1);
+        
+        let walker = Walker::max_all().max_depth(max_depth);
+        let files = walker
+            .cwd(environment.cwd.clone())
+            .get()
+            .await?
+            .into_iter()
+            .map(|f| f.path)
+            .collect::<Vec<_>>();
+
         // Always try to get attachments and overwrite them
         let attachments = app
             .attachment_service()
@@ -70,11 +87,12 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
         chat.event = chat.event.attachments(attachments);
         let orch = Orchestrator::new(
             app.clone(),
-            app.environment_service().get_environment().clone(),
+            environment.clone(),
             conversation,
         )
         .tool_definitions(tool_definitions)
-        .models(models);
+        .models(models)
+        .files(files);
 
         let stream = MpscStream::spawn(|tx| {
             async move {

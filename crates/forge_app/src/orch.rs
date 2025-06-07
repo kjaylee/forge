@@ -7,7 +7,6 @@ use async_recursion::async_recursion;
 use chrono::Local;
 use derive_setters::Setters;
 use forge_domain::*;
-use forge_walker::Walker;
 use futures::{Stream, StreamExt};
 use handlebars::Handlebars;
 use rust_embed::Embed;
@@ -48,6 +47,7 @@ pub struct Orchestrator<S> {
     environment: Environment,
     tool_definitions: Vec<ToolDefinition>,
     models: Vec<Model>,
+    files: Vec<String>,
 }
 
 struct ChatCompletionMessageFull {
@@ -65,6 +65,7 @@ impl<S: Services> Orchestrator<S> {
             sender: Default::default(),
             tool_definitions: Default::default(),
             models: Default::default(),
+            files: Default::default(),
         }
     }
 
@@ -178,14 +179,7 @@ impl<S: Services> Orchestrator<S> {
     ) -> anyhow::Result<Context> {
         Ok(if let Some(system_prompt) = &agent.system_prompt {
             let env = self.environment.clone();
-            let walker = Walker::max_all().max_depth(agent.max_walker_depth.unwrap_or(1));
-            let mut files = walker
-                .cwd(env.cwd.clone())
-                .get()
-                .await?
-                .into_iter()
-                .map(|f| f.path)
-                .collect::<Vec<_>>();
+            let mut files = self.files.clone();
             files.sort();
 
             let current_time = Local::now().format("%Y-%m-%d %H:%M:%S %:z").to_string();
@@ -272,19 +266,18 @@ impl<S: Services> Orchestrator<S> {
             .collect::<Vec<_>>()
             .join("");
 
-        if tool_interrupted
-            && !content.trim().ends_with("</forge_tool_call>")
-            && let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next()
-        {
-            content.truncate(i + right.len());
+        if tool_interrupted && !content.trim().ends_with("</forge_tool_call>") {
+            if let Some((i, right)) = content.rmatch_indices("</forge_tool_call>").next() {
+                content.truncate(i + right.len());
 
-            // Add a comment for the assistant to signal interruption
-            content.push('\n');
-            content.push_str("<forge_feedback>");
-            content.push_str(
-                "Response interrupted by tool result. Use only one tool at the end of the message",
-            );
-            content.push_str("</forge_feedback>");
+                // Add a comment for the assistant to signal interruption
+                content.push('\n');
+                content.push_str("<forge_feedback>");
+                content.push_str(
+                    "Response interrupted by tool result. Use only one tool at the end of the message",
+                );
+                content.push_str("</forge_feedback>");
+            }
         }
 
         // Send the complete message
