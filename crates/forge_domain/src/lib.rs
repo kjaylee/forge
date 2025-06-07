@@ -1,5 +1,4 @@
 mod agent;
-
 mod attachment;
 mod chat_request;
 mod chat_response;
@@ -38,6 +37,7 @@ mod tool_result;
 mod tool_usage;
 mod top_k;
 mod top_p;
+mod transformer;
 mod update;
 mod workflow;
 mod xml;
@@ -80,6 +80,7 @@ pub use tool_result::*;
 pub use tool_usage::*;
 pub use top_k::*;
 pub use top_p::*;
+pub use transformer::*;
 pub use update::*;
 pub use workflow::*;
 pub use xml::*;

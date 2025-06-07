@@ -210,8 +210,15 @@ impl<S: AgentService> Orchestrator<S> {
         &self,
         model_id: &ModelId,
         context: Context,
+        tool_supported: bool,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
-        let response = self.services.chat(model_id, context).await?;
+        let mut transformers = TransformToolCalls::new()
+            .when(|| !tool_supported)
+            .pipe(ImageHandling::new());
+        let response = self
+            .services
+            .chat(model_id, transformers.transform(context))
+            .await?;
         response.into_full(true).await
     }
 
@@ -277,7 +284,7 @@ impl<S: AgentService> Orchestrator<S> {
         let mut tool_context = ToolCallContext::default().sender(self.sender.clone());
 
         let mut empty_tool_call_count = 0;
-
+        let is_tool_supported = self.is_tool_supported(&agent)?;
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
@@ -285,7 +292,7 @@ impl<S: AgentService> Orchestrator<S> {
             let ChatCompletionMessageFull { tool_calls, content, mut usage } = self
                 .environment
                 .retry_config
-                .retry(|| self.execute_chat_turn(&model_id, context.clone()))
+                .retry(|| self.execute_chat_turn(&model_id, context.clone(), is_tool_supported))
                 .await?;
 
             self.send(ChatResponse::Text {
@@ -327,10 +334,8 @@ impl<S: AgentService> Orchestrator<S> {
             // Process tool calls and update context
             context = context.append_message(
                 content,
-                model_id.clone(),
                 self.execute_tool_calls(&agent, &tool_calls, &mut tool_context)
                     .await?,
-                tool_supported,
             );
 
             if empty_tool_calls {
