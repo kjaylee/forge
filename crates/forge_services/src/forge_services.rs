@@ -4,9 +4,9 @@ use forge_app::Services;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
+use crate::discovery::ForgeDiscoveryService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
-use crate::suggestion::ForgeDiscoveryService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::workflow::ForgeWorkflowService;
