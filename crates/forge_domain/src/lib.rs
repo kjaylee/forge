@@ -1,5 +1,5 @@
 mod agent;
-mod api;
+
 mod attachment;
 mod chat_request;
 mod chat_response;
@@ -42,7 +42,6 @@ mod top_p;
 mod workflow;
 
 pub use agent::*;
-pub use api::*;
 pub use attachment::*;
 pub use chat_request::*;
 pub use chat_response::*;

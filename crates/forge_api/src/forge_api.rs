@@ -12,6 +12,8 @@ use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
 use forge_stream::MpscStream;
 use tracing::error;
 
+use crate::API;
+
 pub struct ForgeAPI<A, F> {
     app: Arc<A>,
     infra: Arc<F>,
