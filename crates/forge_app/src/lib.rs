@@ -1,11 +1,11 @@
 mod app;
-mod compaction;
+mod compact;
 mod error;
 mod orch;
 mod services;
 
 pub use app::*;
-pub use compaction::*;
+pub use compact::*;
 pub use error::*;
 pub use orch::*;
 pub use services::*;

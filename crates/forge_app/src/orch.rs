@@ -11,8 +11,8 @@ use rust_embed::Embed;
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
-use crate::compaction::Compactor;
-use crate::services::{ProviderService, Services, ToolService};
+use crate::compact::Compactor;
+use crate::services::AgentService;
 
 #[derive(Embed)]
 #[folder = "../../templates/"]
@@ -47,7 +47,7 @@ pub struct Orchestrator<S> {
     files: Vec<String>,
 }
 
-impl<S: Services> Orchestrator<S> {
+impl<S: AgentService> Orchestrator<S> {
     pub fn new(services: Arc<S>, environment: Environment, conversation: Conversation) -> Self {
         Self {
             conversation,
@@ -84,7 +84,6 @@ impl<S: Services> Orchestrator<S> {
             // Execute the tool
             let tool_result = self
                 .services
-                .tool_service()
                 .call(agent, tool_context, tool_call.clone())
                 .await;
 
@@ -225,7 +224,7 @@ impl<S: Services> Orchestrator<S> {
         context: Context,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let services = self.services.clone();
-        let response = services.provider_service().chat(model_id, context).await?;
+        let response = services.chat(model_id, context).await?;
 
         // Only interrupt for XML tool calls if tool_supported is false
         let should_interrupt_for_xml = !self.is_tool_supported(agent)?;

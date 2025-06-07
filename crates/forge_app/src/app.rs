@@ -108,7 +108,7 @@ impl<S: Services> ForgeApp<S> {
         &self,
         conversation_id: &ConversationId,
     ) -> Result<CompactionResult> {
-        use crate::compaction::Compactor;
+        use crate::compact::Compactor;
 
         // Get the conversation
         let mut conversation = self
