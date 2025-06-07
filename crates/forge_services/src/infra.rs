@@ -27,8 +27,8 @@ pub trait FsReadService: Send + Sync {
     /// Returns the file content within the range as a UTF-8 string along with
     /// metadata.
     ///
-    /// - start_line specifies the starting line position (0-based, inclusive).
-    /// - end_line specifies the ending line position (inclusive).
+    /// - start_line specifies the starting line position (1-based, inclusive).
+    /// - end_line specifies the ending line position (1-based, inclusive).
     /// - Both start_line and end_line are inclusive bounds.
     /// - Binary files are automatically detected and rejected.
     ///
