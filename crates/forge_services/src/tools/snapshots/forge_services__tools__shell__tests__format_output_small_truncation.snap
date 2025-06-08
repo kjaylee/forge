@@ -1,7 +1,6 @@
 ---
 source: crates/forge_services/src/tools/shell.rs
 expression: "TempDir::normalize(&small_result)"
-snapshot_kind: text
 ---
 ---
 command: echo

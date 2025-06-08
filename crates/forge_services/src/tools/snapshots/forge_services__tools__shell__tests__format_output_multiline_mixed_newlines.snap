@@ -1,7 +1,6 @@
 ---
 source: crates/forge_services/src/tools/shell.rs
 expression: actual
-snapshot_kind: text
 ---
 ---
 command: mixed newlines
@@ -18,5 +17,4 @@ line6
 <stderr>
 error1
 error2
-
 </stderr>
