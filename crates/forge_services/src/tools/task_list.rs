@@ -187,7 +187,7 @@ impl<F: Infrastructure> TaskList<F> {
     }
 
     /// Handle the list operation, returning all tasks in the list.
-    async fn list(&self) -> Result<TaskListResult> {
+    async fn _list(&self) -> Result<TaskListResult> {
         let stats = self.calculate_stats().await?;
         let tasks = self.0.task_service().list().await?;
         Ok(TaskListResult { message: None, next_task: None, stats, tasks: Some(tasks) })
