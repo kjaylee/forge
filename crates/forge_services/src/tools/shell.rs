@@ -20,10 +20,10 @@ fn strip_ansi(content: String) -> String {
 }
 
 /// Number of lines to keep at the start of truncated output
-const PREFIX_LINES: usize = 1_000;
+const PREFIX_LINES: usize = 200;
 
 /// Number of lines to keep at the end of truncated output
-const SUFFIX_LINES: usize = 1_000;
+const SUFFIX_LINES: usize = 200;
 
 // Using ShellInput from forge_domain
 
