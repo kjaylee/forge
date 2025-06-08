@@ -2,9 +2,9 @@ use std::path::Path;
 use std::sync::Arc;
 
 use forge_domain::{
-    Agent, Attachment, Buffer, ChatCompletionMessage, CompactionResult, Context, Conversation,
-    ConversationId, Environment, File, McpConfig, Model, ModelId, ResultStream, Scope, Tool,
-    ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
+    Agent, Attachment, Buffer, ChatCompletionMessage, Context, Conversation, ConversationId, Environment,
+    File, McpConfig, Model, ModelId, ResultStream, Scope, Tool, ToolCallContext, ToolCallFull,
+    ToolDefinition, ToolName, ToolResult, Workflow,
 };
 
 #[async_trait::async_trait]
@@ -58,11 +58,6 @@ pub trait ConversationService: Send + Sync {
     async fn update<F, T>(&self, id: &ConversationId, f: F) -> anyhow::Result<T>
     where
         F: FnOnce(&mut Conversation) -> T + Send;
-
-    /// Compacts the context of the main agent for the given conversation and
-    /// persists it. Returns metrics about the compaction (original vs.
-    /// compacted tokens and messages).
-    async fn compact_conversation(&self, id: &ConversationId) -> anyhow::Result<CompactionResult>;
 }
 
 #[async_trait::async_trait]
@@ -113,8 +108,8 @@ pub trait WorkflowService {
 }
 
 #[async_trait::async_trait]
-pub trait SuggestionService: Send + Sync {
-    async fn suggestions(&self) -> anyhow::Result<Vec<File>>;
+pub trait FileDiscoveryService: Send + Sync {
+    async fn collect(&self, max_depth: Option<usize>) -> anyhow::Result<Vec<File>>;
 }
 
 #[async_trait::async_trait]
@@ -142,7 +137,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     type AttachmentService: AttachmentService;
     type EnvironmentService: EnvironmentService;
     type WorkflowService: WorkflowService;
-    type SuggestionService: SuggestionService;
+    type FileDiscoveryService: FileDiscoveryService;
     type McpConfigManager: McpConfigManager;
     type ConversationSessionManager: ConversationSessionManager;
     type ConsoleService: ConsoleService;
@@ -154,7 +149,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn attachment_service(&self) -> &Self::AttachmentService;
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn workflow_service(&self) -> &Self::WorkflowService;
-    fn suggestion_service(&self) -> &Self::SuggestionService;
+    fn file_discovery_service(&self) -> &Self::FileDiscoveryService;
     fn mcp_config_manager(&self) -> &Self::McpConfigManager;
     fn conversation_session_manager(&self) -> &Self::ConversationSessionManager;
     fn console_service(&self) -> &Self::ConsoleService;

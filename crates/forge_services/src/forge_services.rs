@@ -1,19 +1,18 @@
 use std::sync::Arc;
 
-use forge_domain::{Agent, AgentService};
+use forge_app::Services;
 
 use crate::attachment::ForgeChatRequest;
 use crate::console::ForgeConsoleService;
 use crate::conversation::ForgeConversationService;
 use crate::convo_manager_service::ForgeConversationSessionManager;
+use crate::discovery::ForgeDiscoveryService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
-use crate::services::{Services, ToolService};
-use crate::suggestion::ForgeSuggestionService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::workflow::ForgeWorkflowService;
-use crate::{Infrastructure, ProviderService};
+use crate::Infrastructure;
 
 type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F>;
 type ConversationService<F> =
@@ -36,7 +35,7 @@ pub struct ForgeServices<F> {
     template_service: Arc<ForgeTemplateService>,
     attachment_service: Arc<ForgeChatRequest<F>>,
     workflow_service: Arc<ForgeWorkflowService<F>>,
-    suggestion_service: Arc<ForgeSuggestionService<F>>,
+    discovery_service: Arc<ForgeDiscoveryService<F>>,
     mcp_manager: Arc<ForgeMcpManager<F>>,
     convo_session_manager: Arc<ForgeConversationSessionManager<F>>,
     console_service: Arc<ConsoleService<F>>,
@@ -52,7 +51,7 @@ impl<F: Infrastructure> ForgeServices<F> {
         let attachment_service = Arc::new(ForgeChatRequest::new(infra.clone()));
 
         let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
-        let suggestion_service = Arc::new(ForgeSuggestionService::new(infra.clone()));
+        let suggestion_service = Arc::new(ForgeDiscoveryService::new(infra.clone()));
 
         let convo_session_manager = Arc::new(ForgeConversationSessionManager::new(infra.clone()));
         let conversation_service = Arc::new(ForgeConversationService::new(
@@ -72,7 +71,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             provider_service,
             template_service,
             workflow_service,
-            suggestion_service,
+            discovery_service: suggestion_service,
             mcp_manager,
             convo_session_manager,
             console_service,
@@ -88,7 +87,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type AttachmentService = ForgeChatRequest<F>;
     type EnvironmentService = F::EnvironmentService;
     type WorkflowService = ForgeWorkflowService<F>;
-    type SuggestionService = ForgeSuggestionService<F>;
+    type FileDiscoveryService = ForgeDiscoveryService<F>;
     type McpConfigManager = ForgeMcpManager<F>;
     type ConversationSessionManager = ForgeConversationSessionManager<F>;
     type ConsoleService = ConsoleService<F>;
@@ -121,8 +120,8 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
         self.workflow_service.as_ref()
     }
 
-    fn suggestion_service(&self) -> &Self::SuggestionService {
-        self.suggestion_service.as_ref()
+    fn file_discovery_service(&self) -> &Self::FileDiscoveryService {
+        self.discovery_service.as_ref()
     }
 
     fn mcp_config_manager(&self) -> &Self::McpConfigManager {
@@ -198,25 +197,5 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
 
     fn console_print_service(&self) -> &Self::ConsolePrintService {
         self.infra.console_print_service()
-    }
-}
-
-#[async_trait::async_trait]
-impl<F: Infrastructure> AgentService for ForgeServices<F> {
-    async fn chat(
-        &self,
-        model_id: &forge_domain::ModelId,
-        context: forge_domain::Context,
-    ) -> forge_domain::ResultStream<forge_domain::ChatCompletionMessage, anyhow::Error> {
-        self.provider_service().chat(model_id, context).await
-    }
-
-    async fn call(
-        &self,
-        agent: &Agent,
-        context: &mut forge_domain::ToolCallContext,
-        call: forge_domain::ToolCallFull,
-    ) -> forge_domain::ToolResult {
-        self.tool_service().call(agent, context, call).await
     }
 }
