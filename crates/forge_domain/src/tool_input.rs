@@ -50,6 +50,10 @@ pub enum ToolInput {
     /// Input for the completion tool
     #[serde(rename = "forge_tool_attempt_completion")]
     AttemptCompletion(AttemptCompletionInput),
+
+    /// Input for the task list tool
+    #[serde(rename = "forge_tool_task_list")]
+    TaskList(Vec<Operation>),
 }
 
 /// Input type for the file read tool
@@ -272,6 +276,60 @@ pub struct AttemptCompletionInput {
     /// contributes to the goal.
     #[serde(default)]
     pub explanation: Option<String>,
+}
+
+#[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
+pub enum Operation {
+    Append(Task),
+    Prepend(Task),
+    Next,
+    Done(TaskId),
+}
+
+#[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
+pub struct TaskId(String);
+
+impl Default for TaskId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TaskId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4().to_string())
+    }
+}
+
+#[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
+pub struct Task {
+    /// Unique identifier for the task.
+    id: TaskId,
+    /// Description of the task.
+    description: String,
+    /// Current status of the task.
+    status: TaskStatus,
+}
+
+/// Represents the status of a task in the TaskList.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq, Default)]
+pub enum TaskStatus {
+    /// Task is waiting to be started.
+    #[default]
+    Pending,
+    /// Task is currently being worked on.
+    InProgress,
+    /// Task has been completed.
+    Done,
+}
+impl Task {
+    fn new(description: String) -> Self {
+        Self {
+            id: TaskId::new(),
+            description,
+            status: TaskStatus::default(),
+        }
+    }
 }
 
 fn default_raw() -> Option<bool> {
