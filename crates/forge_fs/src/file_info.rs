@@ -21,14 +21,4 @@ impl FileInfo {
     pub fn is_partial(&self) -> bool {
         self.start_line > 0 || self.end_line < self.total_lines
     }
-
-    /// Returns the percentage of the file that was read (0.0 to 1.0)
-    pub fn percent_read(&self) -> f64 {
-        if self.total_lines == 0 {
-            return 0.0;
-        }
-
-        let lines_read = self.end_line - self.start_line;
-        lines_read as f64 / self.total_lines as f64
-    }
 }

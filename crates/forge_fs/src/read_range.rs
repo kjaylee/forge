@@ -48,16 +48,6 @@ impl crate::ForgeFS {
         // Validate and normalize the line range (convert from 1-based to 0-based)
         let (start_pos, end_pos) =
             Self::validate_line_range_bounds(total_lines, start_line, end_line)?;
-        // Debug logging
-        eprintln!(
-            "DEBUG: read_range_utf8 called with start_line={start_line}, end_line={end_line}"
-        );
-        eprintln!("DEBUG: total_lines={total_lines}");
-        eprintln!("DEBUG: start_pos={start_pos}, end_pos={end_pos}");
-        eprintln!(
-            "DEBUG: first few lines: {:?}",
-            &lines[..cmp::min(3, lines.len())]
-        );
 
         let info = FileInfo::new(start_line, end_line, total_lines);
 

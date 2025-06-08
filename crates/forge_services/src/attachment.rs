@@ -8,8 +8,9 @@ use forge_domain::{Attachment, AttachmentContent, Image};
 
 use crate::{FsReadService, Infrastructure};
 
-#[derive(Clone)]
+const MAX_LINES: u64 = 500;
 
+#[derive(Clone)]
 pub struct ForgeChatRequest<F> {
     infra: Arc<F>,
 }
@@ -29,7 +30,6 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         path: &Path,
         infra: &impl FsReadService,
     ) -> anyhow::Result<String> {
-        const MAX_LINES: u64 = 2_000;
         let (content, file_info) = infra.range_read_utf8(path, 1, MAX_LINES).await?;
         let mut response = String::new();
         writeln!(response, "---")?;
