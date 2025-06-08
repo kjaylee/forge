@@ -28,7 +28,11 @@ const SUFFIX_LINES: usize = 200;
 // Using ShellInput from forge_domain
 
 /// Clips text content based on line count
-fn clip_by_lines(content: &str, prefix_lines: usize, suffix_lines: usize) -> (Vec<String>, Option<(usize, usize)>) {
+fn clip_by_lines(
+    content: &str,
+    prefix_lines: usize,
+    suffix_lines: usize,
+) -> (Vec<String>, Option<(usize, usize)>) {
     let lines: Vec<&str> = content.lines().collect();
     let total_lines = lines.len();
 
@@ -39,33 +43,38 @@ fn clip_by_lines(content: &str, prefix_lines: usize, suffix_lines: usize) -> (Ve
 
     // Collect prefix and suffix lines
     let mut result_lines = Vec::new();
-    
+
     // Add prefix lines
     for line in lines.iter().take(prefix_lines) {
         result_lines.push(line.to_string());
     }
-    
+
     // Add suffix lines
     for line in lines.iter().skip(total_lines - suffix_lines) {
         result_lines.push(line.to_string());
     }
-    
+
     // Return lines and truncation info (number of lines hidden)
     let hidden_lines = total_lines - prefix_lines - suffix_lines;
     (result_lines, Some((prefix_lines, hidden_lines)))
 }
 
 /// Helper to process a stream and return (formatted_output, is_truncated)
-fn process_stream(content: &str, tag: &str, prefix_lines: usize, suffix_lines: usize) -> (String, bool) {
+fn process_stream(
+    content: &str,
+    tag: &str,
+    prefix_lines: usize,
+    suffix_lines: usize,
+) -> (String, bool) {
     if content.trim().is_empty() {
         return (String::new(), false);
     }
-    
+
     let (lines, truncation_info) = clip_by_lines(content, prefix_lines, suffix_lines);
     let is_truncated = truncation_info.is_some();
     let total_lines = content.lines().count();
     let output = tag_output(lines, truncation_info, tag, total_lines);
-    
+
     (output, is_truncated)
 }
 
@@ -93,9 +102,11 @@ async fn format_output<F: Infrastructure>(
         .add_optional("exit_code", output.exit_code);
 
     // Process streams
-    let (stdout_output, stdout_truncated) = process_stream(&output.stdout, "stdout", prefix_lines, suffix_lines);
-    let (stderr_output, stderr_truncated) = process_stream(&output.stderr, "stderr", prefix_lines, suffix_lines);
-    
+    let (stdout_output, stdout_truncated) =
+        process_stream(&output.stdout, "stdout", prefix_lines, suffix_lines);
+    let (stderr_output, stderr_truncated) =
+        process_stream(&output.stderr, "stderr", prefix_lines, suffix_lines);
+
     // Update metadata for truncations
     if stdout_truncated {
         metadata = metadata.add("total_stdout_lines", output.stdout.lines().count());
@@ -112,10 +123,16 @@ async fn format_output<F: Infrastructure>(
     if !stderr_output.is_empty() {
         outputs.push(stderr_output);
     }
-    
+
     let mut result = if outputs.is_empty() {
-        format!("Command {} with no output.", 
-            if output.success() { "executed successfully" } else { "failed" })
+        format!(
+            "Command {} with no output.",
+            if output.success() {
+                "executed successfully"
+            } else {
+                "failed"
+            }
+        )
     } else {
         outputs.join("\n")
     };
@@ -133,7 +150,7 @@ async fn format_output<F: Infrastructure>(
                 ),
             )
             .await?;
-            
+
         metadata = metadata
             .add("temp_file", path.display())
             .add("truncated", "true");
@@ -153,14 +170,19 @@ async fn format_output<F: Infrastructure>(
 }
 
 /// Helper function to format potentially truncated output for stdout or stderr
-fn tag_output(lines: Vec<String>, truncation_info: Option<(usize, usize)>, tag: &str, total_lines: usize) -> String {
+fn tag_output(
+    lines: Vec<String>,
+    truncation_info: Option<(usize, usize)>,
+    tag: &str,
+    total_lines: usize,
+) -> String {
     match truncation_info {
         Some((prefix_count, hidden_count)) => {
             let suffix_start_line = prefix_count + hidden_count + 1;
             let _suffix_count = lines.len() - prefix_count;
-            
+
             let mut output = String::new();
-            
+
             // Add prefix lines
             output.push_str(&format!("<{tag} lines=\"1-{prefix_count}\">\n"));
             for line in lines.iter().take(prefix_count) {
@@ -168,18 +190,22 @@ fn tag_output(lines: Vec<String>, truncation_info: Option<(usize, usize)>, tag: 
                 output.push('\n');
             }
             output.push_str(&format!("</{tag}>\n"));
-            
+
             // Add truncation marker
-            output.push_str(&format!("<truncated>...{tag} truncated ({hidden_count} lines not shown)...</truncated>\n"));
-            
+            output.push_str(&format!(
+                "<truncated>...{tag} truncated ({hidden_count} lines not shown)...</truncated>\n"
+            ));
+
             // Add suffix lines
-            output.push_str(&format!("<{tag} lines=\"{suffix_start_line}-{total_lines}\">\n"));
+            output.push_str(&format!(
+                "<{tag} lines=\"{suffix_start_line}-{total_lines}\">\n"
+            ));
             for line in lines.iter().skip(prefix_count) {
                 output.push_str(line);
                 output.push('\n');
             }
             output.push_str(&format!("</{tag}>\n"));
-            
+
             output
         }
         None => {
@@ -216,7 +242,7 @@ impl<I: Infrastructure> Shell<I> {
         let env = infra.environment_service().get_environment();
         Self { env, infra }
     }
-    
+
     fn validate_command(command: &str) -> anyhow::Result<()> {
         if command.trim().is_empty() {
             bail!("Command string is empty or contains only whitespace");
@@ -241,7 +267,7 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         Self::validate_command(&input.command)?;
-        
+
         let title_format = TitleFormat::debug(format!("Execute [{}]", self.env.shell.as_str()))
             .sub_title(&input.command);
 
@@ -270,12 +296,17 @@ mod tests {
     /// Test helper module to reduce boilerplate in tests
     mod helpers {
         use super::*;
-        
+
         pub fn create_test_infra() -> Arc<MockInfrastructure> {
             Arc::new(MockInfrastructure::new())
         }
-        
-        pub fn create_command_output(stdout: &str, stderr: &str, command: &str, exit_code: Option<i32>) -> CommandOutput {
+
+        pub fn create_command_output(
+            stdout: &str,
+            stderr: &str,
+            command: &str,
+            exit_code: Option<i32>,
+        ) -> CommandOutput {
             CommandOutput {
                 stdout: stdout.to_string(),
                 stderr: stderr.to_string(),
@@ -283,7 +314,7 @@ mod tests {
                 exit_code,
             }
         }
-        
+
         pub async fn format_output_test(
             stdout: &str,
             stderr: &str,
@@ -298,7 +329,7 @@ mod tests {
             format_output(&infra, output, keep_ansi, prefix_lines, suffix_lines).await
         }
     }
-    
+
     use helpers::*;
     #[tokio::test]
     async fn test_format_output_with_different_max_chars() {
@@ -353,7 +384,7 @@ mod tests {
         let (prefix_count, hidden_count) = truncation.unwrap();
         assert_eq!(prefix_count, 2);
         assert_eq!(hidden_count, 4); // 8 total - 2 prefix - 2 suffix = 4 hidden
-        
+
         // Check the returned lines
         assert_eq!(lines.len(), 4); // 2 prefix + 2 suffix
         assert_eq!(lines[0], "line1");
@@ -396,7 +427,7 @@ mod tests {
         let (prefix_count, hidden_count) = truncation.unwrap();
         assert_eq!(prefix_count, 2);
         assert_eq!(hidden_count, 3); // 6 total - 2 prefix - 1 suffix = 3 hidden
-        
+
         assert_eq!(lines.len(), 3); // 2 prefix + 1 suffix
         assert_eq!(lines[0], "line1");
         assert_eq!(lines[1], "line2");
@@ -437,7 +468,12 @@ mod tests {
 
     #[test]
     fn test_tag_output_with_truncation() {
-        let lines = vec!["line1".to_string(), "line2".to_string(), "line8".to_string(), "line9".to_string()];
+        let lines = vec![
+            "line1".to_string(),
+            "line2".to_string(),
+            "line8".to_string(),
+            "line9".to_string(),
+        ];
         let truncation_info = Some((2, 4)); // 2 prefix lines, 4 hidden lines
         let actual = tag_output(lines, truncation_info, "stderr", 9);
 
