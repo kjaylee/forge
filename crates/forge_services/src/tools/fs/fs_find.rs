@@ -17,7 +17,7 @@ use crate::metadata::Metadata;
 use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsWriteService, Infrastructure};
 
-const MAX_SEARCH_LINE_LIMIT: u64 = 500;
+const MAX_SEARCH_LINE_LIMIT: u64 = 200;
 
 // Using FSSearchInput from forge_domain
 
@@ -73,7 +73,7 @@ impl FSSearchHelper<'_> {
 /// (when regex omitted). Uses case-insensitive Rust regex syntax. Requires
 /// absolute paths. Avoids binary files and excluded directories. Best for code
 /// exploration, API usage discovery, configuration settings, or finding
-/// patterns across projects. For large pages, returns the first 2,000
+/// patterns across projects. For large pages, returns the first 200
 /// lines and stores the complete content in a temporary file for
 /// subsequent access.
 #[derive(ToolDescription)]
