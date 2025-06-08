@@ -98,7 +98,8 @@ where
     }
 }
 
-/// Like serde_json::Value, ToolValue represents all the primitive values that tools can produce.
+/// Like serde_json::Value, ToolValue represents all the primitive values that
+/// tools can produce.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[serde(rename_all = "camelCase")]
 pub enum ToolValue {

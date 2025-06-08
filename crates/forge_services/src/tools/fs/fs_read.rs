@@ -15,7 +15,7 @@ use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsReadService, Infrastructure};
 
 // Define maximum line limits
-const MAX_RANGE_SIZE: u64 = 2_000;
+const MAX_RANGE_SIZE: u64 = 500;
 
 /// Ensures that the given line range is valid and doesn't exceed the
 /// maximum size
@@ -415,7 +415,7 @@ mod test {
                         "".to_string(),
                         forge_fs::FileInfo::new(0, 0, 50_000), // Simulate a large file (50k lines)
                     ));
-                } else if start_line == 1 && end_line == 2000 {
+                } else if start_line == 1 && end_line == MAX_RANGE_SIZE {
                     // This is the expected auto-limit range that should be requested for large
                     // files
                     return Err(anyhow::anyhow!(
@@ -512,13 +512,17 @@ mod test {
         // to fail
         assert!(result.is_err());
 
-        // Verify that our auto-limit was applied (should be 1-2000)
+        // Verify that our auto-limit was applied (should be 1-MAX_RANGE_SIZE)
         let range_call = tracking_infra.get_last_range_call();
         assert!(range_call.is_some(), "Range read should have been called");
 
         if let Some((start, end)) = range_call {
             assert_eq!(start, Some(1), "Auto-limit should start at line 1");
-            assert_eq!(end, Some(2000), "Auto-limit should end at line 2000");
+            assert_eq!(
+                end,
+                Some(MAX_RANGE_SIZE),
+                "Auto-limit should end at line {MAX_RANGE_SIZE}"
+            );
         }
     }
 

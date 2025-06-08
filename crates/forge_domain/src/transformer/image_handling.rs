@@ -69,7 +69,7 @@ mod tests {
     use serde::Serialize;
 
     use super::*;
-    use crate::{Image, ToolCallId, ToolName, ToolOutput, ToolValue, ToolResult};
+    use crate::{Image, ToolCallId, ToolName, ToolOutput, ToolResult, ToolValue};
 
     #[derive(Serialize)]
     struct TransformationSnapshot {
