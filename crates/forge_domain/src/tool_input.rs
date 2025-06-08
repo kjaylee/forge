@@ -58,7 +58,7 @@ pub struct FSReadInput {
     /// The path of the file to read, always provide absolute paths.
     pub path: String,
 
-    /// Optional start position in lines (0-based). If provided, reading
+    /// Optional start position in lines (1-based). If provided, reading
     /// will start from this line position.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start_line: Option<u64>,
