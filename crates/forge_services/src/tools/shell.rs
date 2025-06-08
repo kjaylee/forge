@@ -12,7 +12,7 @@ use forge_tool_macros::ToolDescription;
 use strip_ansi_escapes::strip;
 
 use crate::metadata::Metadata;
-use crate::{ClipperResult, CommandExecutorService, FsWriteService, Infrastructure};
+use crate::{CommandExecutorService, FsWriteService, Infrastructure};
 
 // Strips out the ansi codes from content.
 fn strip_ansi(content: String) -> String {
@@ -27,57 +27,46 @@ const SUFFIX_LINES: usize = 200;
 
 // Using ShellInput from forge_domain
 
-/// Clips text content based on line count instead of character count
-fn clip_by_lines(content: &str, prefix_lines: usize, suffix_lines: usize) -> ClipperResult<'_> {
+/// Clips text content based on line count
+fn clip_by_lines(content: &str, prefix_lines: usize, suffix_lines: usize) -> (Vec<String>, Option<(usize, usize)>) {
     let lines: Vec<&str> = content.lines().collect();
     let total_lines = lines.len();
 
-    // If content fits within limits, return it as-is
+    // If content fits within limits, return all lines
     if total_lines <= prefix_lines + suffix_lines {
-        return ClipperResult { prefix: None, suffix: None, actual: content };
+        return (lines.into_iter().map(String::from).collect(), None);
     }
 
-    // Calculate character positions for line-based ranges
-    let mut char_pos = 0;
-    let mut prefix_end_char = 0;
-    let mut suffix_start_char = 0;
-
-    // Find character position for end of prefix lines
-    for (i, line) in lines.iter().enumerate() {
-        if i < prefix_lines {
-            char_pos += line.len();
-            if i < lines.len() - 1 {
-                // Add newline except for last line
-                char_pos += 1;
-            }
-            prefix_end_char = char_pos;
-        } else if i >= total_lines - suffix_lines {
-            if suffix_start_char == 0 {
-                suffix_start_char = char_pos;
-            }
-            break;
-        } else {
-            char_pos += line.len() + 1; // Include newline
-        }
+    // Collect prefix and suffix lines
+    let mut result_lines = Vec::new();
+    
+    // Add prefix lines
+    for line in lines.iter().take(prefix_lines) {
+        result_lines.push(line.to_string());
     }
-
-    // Calculate suffix start position
-    if suffix_start_char == 0 {
-        char_pos = 0;
-        for (i, line) in lines.iter().enumerate() {
-            if i >= total_lines - suffix_lines {
-                suffix_start_char = char_pos;
-                break;
-            }
-            char_pos += line.len() + 1;
-        }
+    
+    // Add suffix lines
+    for line in lines.iter().skip(total_lines - suffix_lines) {
+        result_lines.push(line.to_string());
     }
+    
+    // Return lines and truncation info (number of lines hidden)
+    let hidden_lines = total_lines - prefix_lines - suffix_lines;
+    (result_lines, Some((prefix_lines, hidden_lines)))
+}
 
-    ClipperResult {
-        prefix: Some(0..prefix_end_char),
-        suffix: Some(suffix_start_char..content.len()),
-        actual: content,
+/// Helper to process a stream and return (formatted_output, is_truncated)
+fn process_stream(content: &str, tag: &str, prefix_lines: usize, suffix_lines: usize) -> (String, bool) {
+    if content.trim().is_empty() {
+        return (String::new(), false);
     }
+    
+    let (lines, truncation_info) = clip_by_lines(content, prefix_lines, suffix_lines);
+    let is_truncated = truncation_info.is_some();
+    let total_lines = content.lines().count();
+    let output = tag_output(lines, truncation_info, tag, total_lines);
+    
+    (output, is_truncated)
 }
 
 /// Formats command output by wrapping non-empty stdout/stderr in XML tags.
@@ -92,47 +81,47 @@ async fn format_output<F: Infrastructure>(
     prefix_lines: usize,
     suffix_lines: usize,
 ) -> anyhow::Result<String> {
-    let mut formatted_output = String::new();
-
+    // Strip ANSI if needed
     if !keep_ansi {
-        output.stderr = strip_ansi(output.stderr);
         output.stdout = strip_ansi(output.stdout);
+        output.stderr = strip_ansi(output.stderr);
     }
 
-    // Create metadata
+    // Build base metadata
     let mut metadata = Metadata::default()
         .add("command", &output.command)
         .add_optional("exit_code", output.exit_code);
 
-    let mut is_truncated = false;
-
-    // Format stdout if not empty
-    if !output.stdout.trim().is_empty() {
-        let result = clip_by_lines(&output.stdout, prefix_lines, suffix_lines);
-
-        if result.is_truncated() {
-            metadata = metadata.add("total_stdout_chars", output.stdout.len());
-            is_truncated = true;
-        }
-        formatted_output.push_str(&tag_output(result, "stdout", &output.stdout));
+    // Process streams
+    let (stdout_output, stdout_truncated) = process_stream(&output.stdout, "stdout", prefix_lines, suffix_lines);
+    let (stderr_output, stderr_truncated) = process_stream(&output.stderr, "stderr", prefix_lines, suffix_lines);
+    
+    // Update metadata for truncations
+    if stdout_truncated {
+        metadata = metadata.add("total_stdout_lines", output.stdout.lines().count());
+    }
+    if stderr_truncated {
+        metadata = metadata.add("total_stderr_lines", output.stderr.lines().count());
     }
 
-    // Format stderr if not empty
-    if !output.stderr.trim().is_empty() {
-        if !formatted_output.is_empty() {
-            formatted_output.push('\n');
-        }
-        let result = clip_by_lines(&output.stderr, prefix_lines, suffix_lines);
-
-        if result.is_truncated() {
-            metadata = metadata.add("total_stderr_chars", output.stderr.len());
-            is_truncated = true;
-        }
-        formatted_output.push_str(&tag_output(result, "stderr", &output.stderr));
+    // Combine outputs
+    let mut outputs = vec![];
+    if !stdout_output.is_empty() {
+        outputs.push(stdout_output);
     }
+    if !stderr_output.is_empty() {
+        outputs.push(stderr_output);
+    }
+    
+    let mut result = if outputs.is_empty() {
+        format!("Command {} with no output.", 
+            if output.success() { "executed successfully" } else { "failed" })
+    } else {
+        outputs.join("\n")
+    };
 
-    // Add temp file path if output is truncated
-    if is_truncated {
+    // Handle truncation file if needed
+    if stdout_truncated || stderr_truncated {
         let path = infra
             .file_write_service()
             .write_temp(
@@ -144,59 +133,68 @@ async fn format_output<F: Infrastructure>(
                 ),
             )
             .await?;
-
+            
         metadata = metadata
             .add("temp_file", path.display())
             .add("truncated", "true");
-        formatted_output.push_str(&format!(
-            "<truncate>content is truncated, remaining content can be read from path:{}</truncate>",
+        result.push_str(&format!(
+            "\n<truncate>content is truncated, remaining content can be read from path:{}</truncate>",
             path.display()
         ));
     }
 
-    // Handle empty outputs
-    let result = if formatted_output.is_empty() {
-        if output.success() {
-            "Command executed successfully with no output.".to_string()
-        } else {
-            "Command failed with no output.".to_string()
-        }
-    } else {
-        formatted_output
-    };
-
+    // Return with appropriate error handling
+    let final_output = format!("{metadata}{result}");
     if output.success() {
-        Ok(format!("{metadata}{result}"))
+        Ok(final_output)
     } else {
-        bail!(format!("{metadata}{result}"))
+        bail!(final_output)
     }
 }
 
 /// Helper function to format potentially truncated output for stdout or stderr
-fn tag_output(result: ClipperResult, tag: &str, content: &str) -> String {
-    let mut formatted_output = String::default();
-    match (result.prefix, result.suffix) {
-        (Some(prefix), Some(suffix)) => {
-            let truncated_chars = content.len() - prefix.len() - suffix.len();
-            let prefix_content = &content[prefix.clone()];
-            let suffix_content = &content[suffix.clone()];
-
-            formatted_output.push_str(&format!(
-                "<{} chars=\"{}-{}\">\n{}\n</{}>\n",
-                tag, prefix.start, prefix.end, prefix_content, tag
-            ));
-            formatted_output.push_str(&format!(
-                "<truncated>...{tag} truncated ({truncated_chars} characters not shown)...</truncated>\n"
-            ));
-            formatted_output.push_str(&format!(
-                "<{} chars=\"{}-{}\">\n{}\n</{}>\n",
-                tag, suffix.start, suffix.end, suffix_content, tag
-            ));
+fn tag_output(lines: Vec<String>, truncation_info: Option<(usize, usize)>, tag: &str, total_lines: usize) -> String {
+    match truncation_info {
+        Some((prefix_count, hidden_count)) => {
+            let suffix_start_line = prefix_count + hidden_count + 1;
+            let _suffix_count = lines.len() - prefix_count;
+            
+            let mut output = String::new();
+            
+            // Add prefix lines
+            output.push_str(&format!("<{tag} lines=\"1-{prefix_count}\">\n"));
+            for line in lines.iter().take(prefix_count) {
+                output.push_str(line);
+                output.push('\n');
+            }
+            output.push_str(&format!("</{tag}>\n"));
+            
+            // Add truncation marker
+            output.push_str(&format!("<truncated>...{tag} truncated ({hidden_count} lines not shown)...</truncated>\n"));
+            
+            // Add suffix lines
+            output.push_str(&format!("<{tag} lines=\"{suffix_start_line}-{total_lines}\">\n"));
+            for line in lines.iter().skip(prefix_count) {
+                output.push_str(line);
+                output.push('\n');
+            }
+            output.push_str(&format!("</{tag}>\n"));
+            
+            output
         }
-        _ => formatted_output.push_str(&format!("<{tag}>\n{content}\n</{tag}>")),
+        None => {
+            // No truncation, output all lines
+            let mut output = format!("<{tag}>\n");
+            for (i, line) in lines.iter().enumerate() {
+                output.push_str(line);
+                if i < lines.len() - 1 {
+                    output.push('\n');
+                }
+            }
+            output.push_str(&format!("\n</{tag}>"));
+            output
+        }
     }
-
-    formatted_output
 }
 
 /// Executes shell commands with safety measures using restricted bash (rbash).
@@ -218,6 +216,13 @@ impl<I: Infrastructure> Shell<I> {
         let env = infra.environment_service().get_environment();
         Self { env, infra }
     }
+    
+    fn validate_command(command: &str) -> anyhow::Result<()> {
+        if command.trim().is_empty() {
+            bail!("Command string is empty or contains only whitespace");
+        }
+        Ok(())
+    }
 }
 
 impl<I> NamedTool for Shell<I> {
@@ -235,10 +240,8 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
         context: &mut ToolCallContext,
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
-        // Validate empty command
-        if input.command.trim().is_empty() {
-            bail!("Command string is empty or contains only whitespace".to_string());
-        }
+        Self::validate_command(&input.command)?;
+        
         let title_format = TitleFormat::debug(format!("Execute [{}]", self.env.shell.as_str()))
             .sub_title(&input.command);
 
@@ -264,6 +267,39 @@ impl<I: Infrastructure> ExecutableTool for Shell<I> {
 
 #[cfg(test)]
 mod tests {
+    /// Test helper module to reduce boilerplate in tests
+    mod helpers {
+        use super::*;
+        
+        pub fn create_test_infra() -> Arc<MockInfrastructure> {
+            Arc::new(MockInfrastructure::new())
+        }
+        
+        pub fn create_command_output(stdout: &str, stderr: &str, command: &str, exit_code: Option<i32>) -> CommandOutput {
+            CommandOutput {
+                stdout: stdout.to_string(),
+                stderr: stderr.to_string(),
+                command: command.into(),
+                exit_code,
+            }
+        }
+        
+        pub async fn format_output_test(
+            stdout: &str,
+            stderr: &str,
+            command: &str,
+            exit_code: Option<i32>,
+            keep_ansi: bool,
+            prefix_lines: usize,
+            suffix_lines: usize,
+        ) -> anyhow::Result<String> {
+            let infra = create_test_infra();
+            let output = create_command_output(stdout, stderr, command, exit_code);
+            format_output(&infra, output, keep_ansi, prefix_lines, suffix_lines).await
+        }
+    }
+    
+    use helpers::*;
     #[tokio::test]
     async fn test_format_output_with_different_max_chars() {
         let infra = Arc::new(MockInfrastructure::new());
@@ -302,68 +338,69 @@ mod tests {
     #[test]
     fn test_clip_by_lines_no_truncation() {
         let fixture = "line1\nline2\nline3";
-        let actual = clip_by_lines(fixture, 5, 5);
-        let expected = ClipperResult { prefix: None, suffix: None, actual: fixture };
-        assert_eq!(actual.prefix, expected.prefix);
-        assert_eq!(actual.suffix, expected.suffix);
-        assert_eq!(actual.actual, expected.actual);
-        assert_eq!(actual.is_truncated(), false);
+        let (lines, truncation) = clip_by_lines(fixture, 5, 5);
+        assert_eq!(lines, vec!["line1", "line2", "line3"]);
+        assert_eq!(truncation, None);
     }
 
     #[test]
     fn test_clip_by_lines_with_truncation() {
         let fixture = "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8";
-        let actual = clip_by_lines(fixture, 2, 2);
+        let (lines, truncation) = clip_by_lines(fixture, 2, 2);
 
-        // Should have both prefix and suffix ranges
-        assert!(actual.is_truncated());
-        assert!(actual.prefix.is_some());
-        assert!(actual.suffix.is_some());
-
-        let prefix_content = actual.prefix_content().unwrap();
-        let suffix_content = actual.suffix_content().unwrap();
-
-        assert_eq!(prefix_content, "line1\nline2\n");
-        assert_eq!(suffix_content, "line7\nline8");
+        // Should have truncation info
+        assert!(truncation.is_some());
+        let (prefix_count, hidden_count) = truncation.unwrap();
+        assert_eq!(prefix_count, 2);
+        assert_eq!(hidden_count, 4); // 8 total - 2 prefix - 2 suffix = 4 hidden
+        
+        // Check the returned lines
+        assert_eq!(lines.len(), 4); // 2 prefix + 2 suffix
+        assert_eq!(lines[0], "line1");
+        assert_eq!(lines[1], "line2");
+        assert_eq!(lines[2], "line7");
+        assert_eq!(lines[3], "line8");
     }
 
     #[test]
     fn test_clip_by_lines_single_line() {
         let fixture = "single line";
-        let actual = clip_by_lines(fixture, 1, 1);
-        let expected = ClipperResult { prefix: None, suffix: None, actual: fixture };
-        assert_eq!(actual.prefix, expected.prefix);
-        assert_eq!(actual.suffix, expected.suffix);
-        assert_eq!(actual.is_truncated(), false);
+        let (lines, truncation) = clip_by_lines(fixture, 1, 1);
+        assert_eq!(lines, vec!["single line"]);
+        assert_eq!(truncation, None);
     }
 
     #[test]
     fn test_clip_by_lines_empty_content() {
         let fixture = "";
-        let actual = clip_by_lines(fixture, 5, 5);
-        assert_eq!(actual.is_truncated(), false);
-        assert_eq!(actual.actual, "");
+        let (lines, truncation) = clip_by_lines(fixture, 5, 5);
+        assert_eq!(lines.len(), 0);
+        assert_eq!(truncation, None);
     }
 
     #[test]
     fn test_clip_by_lines_exact_boundary() {
         let fixture = "line1\nline2\nline3\nline4";
-        let actual = clip_by_lines(fixture, 2, 2);
+        let (lines, truncation) = clip_by_lines(fixture, 2, 2);
         // Exactly 4 lines with 2+2 limit should not truncate
-        assert_eq!(actual.is_truncated(), false);
+        assert_eq!(truncation, None);
+        assert_eq!(lines.len(), 4);
     }
 
     #[test]
     fn test_clip_by_lines_newline_handling() {
         let fixture = "line1\nline2\nline3\nline4\nline5\nline6";
-        let actual = clip_by_lines(fixture, 2, 1);
+        let (lines, truncation) = clip_by_lines(fixture, 2, 1);
 
-        assert!(actual.is_truncated());
-        let prefix_content = actual.prefix_content().unwrap();
-        let suffix_content = actual.suffix_content().unwrap();
-
-        assert_eq!(prefix_content, "line1\nline2\n");
-        assert_eq!(suffix_content, "line6");
+        assert!(truncation.is_some());
+        let (prefix_count, hidden_count) = truncation.unwrap();
+        assert_eq!(prefix_count, 2);
+        assert_eq!(hidden_count, 3); // 6 total - 2 prefix - 1 suffix = 3 hidden
+        
+        assert_eq!(lines.len(), 3); // 2 prefix + 1 suffix
+        assert_eq!(lines[0], "line1");
+        assert_eq!(lines[1], "line2");
+        assert_eq!(lines[2], "line6");
     }
 
     #[test]
@@ -392,40 +429,29 @@ mod tests {
 
     #[test]
     fn test_tag_output_no_truncation() {
-        let fixture = "simple output";
-        let result = ClipperResult { prefix: None, suffix: None, actual: fixture };
-        let actual = tag_output(result, "stdout", fixture);
+        let lines = vec!["simple output".to_string()];
+        let actual = tag_output(lines, None, "stdout", 1);
         let expected = "<stdout>\nsimple output\n</stdout>";
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_tag_output_with_truncation() {
-        let fixture = "This is a long line that will be truncated";
-        let result = ClipperResult {
-            prefix: Some(0..8),   // "This is "
-            suffix: Some(35..42), // "cated"
-            actual: fixture,
-        };
-        let actual = tag_output(result, "stderr", fixture);
+        let lines = vec!["line1".to_string(), "line2".to_string(), "line8".to_string(), "line9".to_string()];
+        let truncation_info = Some((2, 4)); // 2 prefix lines, 4 hidden lines
+        let actual = tag_output(lines, truncation_info, "stderr", 9);
 
-        assert!(actual.contains("<stderr chars=\"0-8\">"));
-        assert!(actual.contains("This is "));
-        assert!(actual.contains("<stderr chars=\"35-42\">"));
-        assert!(actual.contains("cated"));
-        assert!(actual.contains("truncated"));
+        // Check for expected content
+        assert!(actual.contains("<stderr lines=\"1-2\">"));
+        assert!(actual.contains("line1\nline2\n"));
+        assert!(actual.contains("<stderr lines=\"7-9\">"));
+        assert!(actual.contains("line8\nline9\n"));
+        assert!(actual.contains("truncated (4 lines not shown)"));
     }
 
     #[tokio::test]
     async fn test_format_output_empty_stdout_stderr() {
-        let infra = Arc::new(MockInfrastructure::new());
-        let fixture = CommandOutput {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
-            command: "true".into(),
-            exit_code: Some(0),
-        };
-        let actual = format_output(&infra, fixture, false, 100, 100)
+        let actual = format_output_test("", "", "true", Some(0), false, 100, 100)
             .await
             .unwrap();
         assert!(actual.contains("Command executed successfully with no output"));
@@ -433,14 +459,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_format_output_empty_with_failure() {
-        let infra = Arc::new(MockInfrastructure::new());
-        let fixture = CommandOutput {
-            stdout: "".to_string(),
-            stderr: "".to_string(),
-            command: "false".into(),
-            exit_code: Some(-1), // Negative exit code indicates failure
-        };
-        let result = format_output(&infra, fixture, false, 100, 100).await;
+        let result = format_output_test("", "", "false", Some(-1), false, 100, 100).await;
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
@@ -450,14 +469,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_format_output_whitespace_only() {
-        let infra = Arc::new(MockInfrastructure::new());
-        let fixture = CommandOutput {
-            stdout: "   \t\n  ".to_string(),
-            stderr: "  \n\t  ".to_string(),
-            command: "echo".into(),
-            exit_code: Some(0),
-        };
-        let actual = format_output(&infra, fixture, false, 100, 100)
+        let actual = format_output_test("   \t\n  ", "  \n\t  ", "echo", Some(0), false, 100, 100)
             .await
             .unwrap();
         // Whitespace-only output should be treated as empty
