@@ -249,7 +249,6 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
 
         writeln!(result, "---")?;
         writeln!(result, "path: {}", path.display())?;
-        writeln!(result, "total_chars: {}", current_content.len())?;
 
         // Check for syntax errors
         if let Some(warning) = syn::validate(path, &current_content).map(|e| e.to_string()) {

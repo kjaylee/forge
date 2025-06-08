@@ -171,7 +171,6 @@ impl<F: Infrastructure> ExecutableTool for Fetch<F> {
         // Build metadata with all required fields in a single fluent chain
         let metadata = Metadata::default()
             .add("URL", url)
-            .add("total_chars", original_length)
             .add("start_char", "0")
             .add("end_char", end.to_string())
             .add("context", prefix)

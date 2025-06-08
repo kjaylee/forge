@@ -114,7 +114,7 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         } else {
             writeln!(result, "operation: CREATE")?;
         }
-        writeln!(result, "total_chars: {}", input.content.len())?;
+
         if let Some(warning) = syntax_warning {
             writeln!(result, "Warning: {}", &warning.to_string())?;
         }

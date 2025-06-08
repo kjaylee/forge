@@ -29,15 +29,17 @@ impl<F: Infrastructure> ForgeChatRequest<F> {
         path: &Path,
         infra: &impl FsReadService,
     ) -> anyhow::Result<String> {
-        const MAX_CHARS: u64 = 40_000;
-        let (content, file_info) = infra.range_read_utf8(path, 0, MAX_CHARS).await?;
+        const MAX_LINES: u64 = 1000; // Reasonable limit for line-based reading
+        let (content, file_info) = infra
+            .range_read_lines_utf8(path, Some(1), Some(MAX_LINES))
+            .await?;
         let mut response = String::new();
         writeln!(response, "---")?;
         writeln!(response, "path: {}", path.display())?;
 
-        writeln!(response, "start_char: {}", file_info.start_char)?;
-        writeln!(response, "end_char: {}", file_info.end_char)?;
-        writeln!(response, "total_chars: {}", file_info.total_chars)?;
+        writeln!(response, "start_line: {}", file_info.start_line)?;
+        writeln!(response, "end_line: {}", file_info.end_line)?;
+        writeln!(response, "total_lines: {}", file_info.total_lines)?;
 
         writeln!(response, "---")?;
 
@@ -204,21 +206,17 @@ pub mod tests {
             }
         }
 
-        async fn range_read_utf8(
+        async fn range_read_lines_utf8(
             &self,
             path: &Path,
-            _start_char: u64,
-            _end_char: u64,
+            _start_line: Option<u64>,
+            _end_line: Option<u64>,
         ) -> anyhow::Result<(String, forge_fs::FileInfo)> {
             // For tests, we'll just read the entire file and return it
             let content = self.read_utf8(path).await?;
-            let total_chars = content.len() as u64;
 
             // Return the entire content for simplicity in tests
-            Ok((
-                content,
-                forge_fs::FileInfo::new(0, total_chars, total_chars),
-            ))
+            Ok((content, forge_fs::FileInfo::new(1, 1, 1)))
         }
     }
 
@@ -573,9 +571,8 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("This is a text file content"));
-        assert!(attachment.content.contains("start_char:"));
-        assert!(attachment.content.contains("end_char:"));
-        assert!(attachment.content.contains("total_chars:"));
+        assert!(attachment.content.contains("start_line:"));
+        assert!(attachment.content.contains("end_line:"));
     }
 
     #[tokio::test]
@@ -729,8 +726,7 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("Some content"));
-        assert!(attachment.content.contains("start_char:"));
-        assert!(attachment.content.contains("end_char:"));
-        assert!(attachment.content.contains("total_chars:"));
+        assert!(attachment.content.contains("start_line:"));
+        assert!(attachment.content.contains("end_line:"));
     }
 }

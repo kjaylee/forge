@@ -22,26 +22,24 @@ pub trait FsReadService: Send + Sync {
     /// Returns the file content as raw bytes.
     async fn read(&self, path: &Path) -> anyhow::Result<Vec<u8>>;
 
-    /// Reads a specific character range from a file at the specified path.
-    /// Returns the file content within the range as a UTF-8 string along with
-    /// metadata.
+    /// Reads a specific line range from a file at the specified path.
+    /// Returns the file content within the line range as a UTF-8 string along
+    /// with metadata.
     ///
-    /// - start_char specifies the starting character position (0-based,
-    ///   inclusive).
-    /// - end_char specifies the ending character position (inclusive).
-    /// - Both start_char and end_char are inclusive bounds.
+    /// - start_line specifies the starting line number (1-based, inclusive).
+    /// - end_line specifies the ending line number (inclusive).
     /// - Binary files are automatically detected and rejected.
     ///
     /// Returns a tuple containing the file content and FileInfo with metadata
     /// about the read operation:
-    /// - FileInfo.start_char: starting character position
-    /// - FileInfo.end_char: ending character position
-    /// - FileInfo.total_chars: total character count in file
-    async fn range_read_utf8(
+    /// - FileInfo.start_line: starting line number
+    /// - FileInfo.end_line: ending line number
+    /// - FileInfo.total_lines: total line count in file
+    async fn range_read_lines_utf8(
         &self,
         path: &Path,
-        start_char: u64,
-        end_char: u64,
+        start_line: Option<u64>,
+        end_line: Option<u64>,
     ) -> anyhow::Result<(String, forge_fs::FileInfo)>;
 }
 

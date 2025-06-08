@@ -219,7 +219,6 @@ impl<F: Infrastructure> FSFind<F> {
             .add("path", input.path)
             .add_optional("regex", input.regex)
             .add_optional("file_pattern", input.file_pattern)
-            .add("total_chars", matches.len())
             .add("start_char", 0);
 
         let truncated_result = Clipper::from_start(max_char_limit).clip(&matches);

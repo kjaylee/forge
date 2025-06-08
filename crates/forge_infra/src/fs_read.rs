@@ -27,12 +27,12 @@ impl FsReadService for ForgeFileReadService {
         forge_fs::ForgeFS::read(path).await
     }
 
-    async fn range_read_utf8(
+    async fn range_read_lines_utf8(
         &self,
         path: &Path,
-        start_char: u64,
-        end_char: u64,
+        start_line: Option<u64>,
+        end_line: Option<u64>,
     ) -> Result<(String, forge_fs::FileInfo)> {
-        forge_fs::ForgeFS::read_range_utf8(path, start_char, end_char).await
+        forge_fs::ForgeFS::read_range_lines_utf8(path, start_line, end_line).await
     }
 }

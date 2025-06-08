@@ -1,9 +1,9 @@
 ---
 source: crates/forge_services/src/tools/fs/fs_write.rs
 expression: normalized_output
+snapshot_kind: text
 ---
 ---
 path: [TEMP_DIR]/test.rs
 operation: CREATE
-total_chars: 25
 ---
