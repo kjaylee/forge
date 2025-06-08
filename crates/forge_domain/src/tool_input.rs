@@ -1,5 +1,7 @@
+use std::fmt::Display;
 use std::path::PathBuf;
 
+use derive_more::Display;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -53,7 +55,7 @@ pub enum ToolInput {
 
     /// Input for the task list tool
     #[serde(rename = "forge_tool_task_list")]
-    TaskList(Vec<Operation>),
+    TaskList(Operation),
 }
 
 /// Input type for the file read tool
@@ -280,13 +282,15 @@ pub struct AttemptCompletionInput {
 
 #[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
 pub enum Operation {
-    Append(Task),
-    Prepend(Task),
+    Append(String),
+    Prepend(String),
     Next,
     Done(TaskId),
 }
 
-#[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, JsonSchema, Serialize, Deserialize, Display, PartialEq, Eq, Hash, PartialOrd, Ord,
+)]
 pub struct TaskId(String);
 
 impl Default for TaskId {
@@ -299,16 +303,46 @@ impl TaskId {
     pub fn new() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
     }
+
+    #[cfg(test)]
+    pub fn new_deterministic(seed: u8) -> Self {
+        // Create a deterministic UUID for testing
+        // Using a simple pattern that produces consistent UUIDs
+        let uuid_str = match seed {
+            0 => "00000000-0000-0000-0000-000000000000",
+            1 => "11111111-1111-1111-1111-111111111111",
+            2 => "22222222-2222-2222-2222-222222222222",
+            3 => "33333333-3333-3333-3333-333333333333",
+            4 => "44444444-4444-4444-4444-444444444444",
+            _ => "99999999-9999-9999-9999-999999999999",
+        };
+        Self(uuid_str.to_string())
+    }
+
+    /// Create a TaskId from a string - primarily for testing
+    pub fn from_string(id: String) -> Self {
+        Self(id)
+    }
 }
 
 #[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
 pub struct Task {
     /// Unique identifier for the task.
-    id: TaskId,
+    pub id: TaskId,
     /// Description of the task.
-    description: String,
+    pub description: String,
     /// Current status of the task.
-    status: TaskStatus,
+    pub status: TaskStatus,
+}
+
+impl Display for Task {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "<task id=\"{}\">\n<content>{}</content>\n<status>{}</status>\n</task>",
+            self.id, self.description, self.status
+        )
+    }
 }
 
 /// Represents the status of a task in the TaskList.
@@ -322,10 +356,29 @@ pub enum TaskStatus {
     /// Task has been completed.
     Done,
 }
+
+impl Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskStatus::Pending => write!(f, "Pending"),
+            TaskStatus::InProgress => write!(f, "In Progress"),
+            TaskStatus::Done => write!(f, "Done"),
+        }
+    }
+}
 impl Task {
-    fn new(description: String) -> Self {
+    pub fn new(description: String) -> Self {
         Self {
             id: TaskId::new(),
+            description,
+            status: TaskStatus::default(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_deterministic(description: String, seed: u8) -> Self {
+        Self {
+            id: TaskId::new_deterministic(seed),
             description,
             status: TaskStatus::default(),
         }

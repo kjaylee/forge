@@ -6,6 +6,7 @@ mod infra;
 mod mcp;
 mod metadata;
 mod provider;
+mod task;
 
 mod discovery;
 mod template;

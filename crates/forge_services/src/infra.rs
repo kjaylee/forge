@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use bytes::Bytes;
-use forge_app::EnvironmentService;
+use forge_app::{EnvironmentService, TaskService};
 use forge_domain::{CommandOutput, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
 use forge_snaps::Snapshot;
 
@@ -152,6 +152,7 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     type CommandExecutorService: CommandExecutorService;
     type InquireService: InquireService;
     type McpServer: McpServer;
+    type TaskService: TaskService;
 
     fn environment_service(&self) -> &Self::EnvironmentService;
     fn file_meta_service(&self) -> &Self::FsMetaService;
@@ -163,4 +164,5 @@ pub trait Infrastructure: Send + Sync + Clone + 'static {
     fn command_executor_service(&self) -> &Self::CommandExecutorService;
     fn inquire_service(&self) -> &Self::InquireService;
     fn mcp_server(&self) -> &Self::McpServer;
+    fn task_service(&self) -> &Self::TaskService;
 }

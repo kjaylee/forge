@@ -1,0 +1,536 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use forge_app::{EnvironmentService, TaskService};
+use forge_domain::{Task, TaskId, TaskStatus};
+use tokio::sync::Mutex;
+
+use crate::{FsWriteService, Infrastructure};
+
+/// Statistics about the TaskList.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TaskStats {
+    /// Total number of tasks in the list.
+    pub total_tasks: u32,
+    /// Number of completed tasks.
+    pub done_tasks: u32,
+    /// Number of pending tasks.
+    pub pending_tasks: u32,
+    /// Number of in-progress tasks.
+    pub in_progress_tasks: u32,
+}
+
+/// Service for managing tasks, including creation, status updates, and
+/// retrieval
+#[derive(Clone)]
+pub struct ForgeTaskService<F> {
+    tasks: Arc<Mutex<Vec<Task>>>,
+    infra: Arc<F>,
+}
+
+impl<F: Infrastructure> ForgeTaskService<F> {
+    /// Creates a new ForgeTaskService with the provided infrastructure
+    pub fn new(infra: Arc<F>) -> Self {
+        Self { tasks: Arc::new(Mutex::new(Vec::new())), infra }
+    }
+
+    /// Calculate statistics for the current task list.
+    async fn calculate_stats(&self) -> TaskStats {
+        let tasks = self.tasks.lock().await;
+        let total_tasks = tasks.len() as u32;
+        let done_tasks = tasks
+            .iter()
+            .filter(|task| task.status == TaskStatus::Done)
+            .count() as u32;
+        let in_progress_tasks = tasks
+            .iter()
+            .filter(|task| task.status == TaskStatus::InProgress)
+            .count() as u32;
+        let pending_tasks = tasks
+            .iter()
+            .filter(|task| task.status == TaskStatus::Pending)
+            .count() as u32;
+
+        TaskStats { total_tasks, done_tasks, pending_tasks, in_progress_tasks }
+    }
+
+    /// Write tasks to markdown file
+    async fn write_markdown_file(&self) -> Result<()> {
+        let markdown = self.format_markdown().await?;
+        let cwd = self
+            .infra
+            .environment_service()
+            .get_environment()
+            .cwd
+            .join("task_list.md");
+        self.infra
+            .file_write_service()
+            .write(cwd.as_path(), markdown.into())
+            .await?;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
+    /// Appends a task to the end of the task list
+    async fn append(&self, description: String) -> Result<()> {
+        let task = Task::new(description);
+        {
+            let mut tasks = self.tasks.lock().await;
+            tasks.push(task);
+        }
+        self.write_markdown_file().await?;
+        Ok(())
+    }
+
+    /// Prepends a task to the beginning of the task list
+    async fn prepend(&self, description: String) -> Result<()> {
+        let task = Task::new(description);
+        {
+            let mut tasks = self.tasks.lock().await;
+            tasks.insert(0, task);
+        }
+        self.write_markdown_file().await?;
+        Ok(())
+    }
+
+    /// Marks the first pending task as in progress and returns it
+    async fn pop_front(&self) -> Result<Option<Task>> {
+        let task_option = {
+            let mut tasks = self.tasks.lock().await;
+            if tasks.is_empty() {
+                None
+            } else {
+                let pending_index = tasks
+                    .iter()
+                    .position(|task| task.status == TaskStatus::Pending);
+
+                if let Some(index) = pending_index {
+                    tasks[index].status = TaskStatus::InProgress;
+                    Some(tasks[index].clone())
+                } else {
+                    None
+                }
+            }
+        };
+
+        if task_option.is_some() {
+            self.write_markdown_file().await?;
+        }
+
+        Ok(task_option)
+    }
+
+    /// Marks the last pending task as in progress and returns it
+    async fn pop_back(&self) -> Result<Option<Task>> {
+        let task_option = {
+            let mut tasks = self.tasks.lock().await;
+            if tasks.is_empty() {
+                None
+            } else {
+                let pending_task_index = tasks
+                    .iter()
+                    .rposition(|task| task.status == TaskStatus::Pending);
+
+                if let Some(index) = pending_task_index {
+                    tasks[index].status = TaskStatus::InProgress;
+                    Some(tasks[index].clone())
+                } else {
+                    None
+                }
+            }
+        };
+
+        if task_option.is_some() {
+            self.write_markdown_file().await?;
+        }
+
+        Ok(task_option)
+    }
+
+    /// Marks a task as done by its ID
+    async fn mark_done(&self, id: TaskId) -> Result<Option<Task>> {
+        let found_task = {
+            let mut tasks = self.tasks.lock().await;
+            let mut found_task = None;
+
+            for task in tasks.iter_mut() {
+                if task.id == id {
+                    task.status = TaskStatus::Done;
+                    found_task = Some(task.clone());
+                    break;
+                }
+            }
+
+            found_task
+        };
+
+        if found_task.is_some() {
+            self.write_markdown_file().await?;
+        }
+
+        Ok(found_task)
+    }
+
+    /// Lists all tasks in the current task list
+    async fn list(&self) -> Result<Vec<Task>> {
+        let tasks = self.tasks.lock().await;
+        Ok(tasks.clone())
+    }
+
+    /// Gets statistics about the current task list
+    async fn stats(&self) -> Result<(u32, u32, u32, u32)> {
+        let stats = self.calculate_stats().await;
+        Ok((
+            stats.total_tasks,
+            stats.done_tasks,
+            stats.pending_tasks,
+            stats.in_progress_tasks,
+        ))
+    }
+
+    /// Finds the next pending task
+    async fn find_next_pending(&self) -> Result<Option<Task>> {
+        let tasks = self.tasks.lock().await;
+        Ok(tasks
+            .iter()
+            .find(|task| task.status == TaskStatus::Pending)
+            .cloned())
+    }
+
+    /// Formats tasks as markdown
+    async fn format_markdown(&self) -> Result<String> {
+        let tasks = self.tasks.lock().await;
+
+        if tasks.is_empty() {
+            return Ok("No tasks available.".to_string());
+        }
+
+        let mut markdown = String::new();
+
+        // Sort tasks by ID for consistent display
+        let mut sorted_tasks = tasks.clone();
+        sorted_tasks.sort_by_key(|task| task.id.clone());
+
+        for task in sorted_tasks {
+            let checkbox = match task.status {
+                TaskStatus::Done => "[x]",
+                TaskStatus::Pending => "[ ]",
+                TaskStatus::InProgress => "[ ]",
+            };
+
+            let formatted_task = match task.status {
+                TaskStatus::Done => format!("- {} {}", checkbox, task.description),
+                TaskStatus::Pending => format!("- {} {}", checkbox, task.description),
+                TaskStatus::InProgress => {
+                    format!("- {} __{} (In Progress)__ ", checkbox, task.description)
+                }
+            };
+
+            markdown.push_str(&formatted_task);
+            markdown.push('\n');
+        }
+
+        Ok(markdown)
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use std::sync::Arc;
+
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::attachment::tests::MockInfrastructure;
+
+    #[derive(Clone, Debug)]
+    pub struct MockTaskService {
+        tasks: Arc<Mutex<Vec<Task>>>,
+        counter: Arc<Mutex<u8>>,
+    }
+
+    impl MockTaskService {
+        pub fn new() -> Self {
+            Self {
+                tasks: Arc::new(Mutex::new(Vec::new())),
+                counter: Arc::new(Mutex::new(0)),
+            }
+        }
+
+        fn create_deterministic_task(&self, description: String, counter: u8) -> Task {
+            // Create a task with deterministic ID for testing
+            let uuid_str = match counter {
+                0 => "00000000-0000-0000-0000-000000000000",
+                1 => "11111111-1111-1111-1111-111111111111",
+                2 => "22222222-2222-2222-2222-222222222222",
+                3 => "33333333-3333-3333-3333-333333333333",
+                4 => "44444444-4444-4444-4444-444444444444",
+                _ => "99999999-9999-9999-9999-999999999999",
+            };
+            Task {
+                id: TaskId::from_string(uuid_str.to_string()),
+                description,
+                status: TaskStatus::default(),
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl TaskService for MockTaskService {
+        async fn append(&self, description: String) -> anyhow::Result<()> {
+            let mut tasks = self.tasks.lock().await;
+            let mut counter = self.counter.lock().await;
+            let task = self.create_deterministic_task(description, *counter);
+            *counter += 1;
+            tasks.push(task);
+            Ok(())
+        }
+
+        async fn prepend(&self, description: String) -> anyhow::Result<()> {
+            let mut tasks = self.tasks.lock().await;
+            let mut counter = self.counter.lock().await;
+            let task = self.create_deterministic_task(description, *counter);
+            *counter += 1;
+            tasks.insert(0, task);
+            Ok(())
+        }
+
+        async fn pop_front(&self) -> anyhow::Result<Option<Task>> {
+            let mut tasks = self.tasks.lock().await;
+            if tasks.is_empty() {
+                Ok(None)
+            } else {
+                let pending_index = tasks
+                    .iter()
+                    .position(|task| task.status == TaskStatus::Pending);
+
+                if let Some(index) = pending_index {
+                    tasks[index].status = TaskStatus::InProgress;
+                    Ok(Some(tasks[index].clone()))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+
+        async fn pop_back(&self) -> anyhow::Result<Option<Task>> {
+            let mut tasks = self.tasks.lock().await;
+            if tasks.is_empty() {
+                Ok(None)
+            } else {
+                let pending_index = tasks
+                    .iter()
+                    .rposition(|task| task.status == TaskStatus::Pending);
+
+                if let Some(index) = pending_index {
+                    tasks[index].status = TaskStatus::InProgress;
+                    Ok(Some(tasks[index].clone()))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+
+        async fn mark_done(&self, id: TaskId) -> anyhow::Result<Option<Task>> {
+            let mut tasks = self.tasks.lock().await;
+            for task in tasks.iter_mut() {
+                if task.id == id {
+                    task.status = TaskStatus::Done;
+                    return Ok(Some(task.clone()));
+                }
+            }
+            Ok(None)
+        }
+
+        async fn list(&self) -> anyhow::Result<Vec<Task>> {
+            let tasks = self.tasks.lock().await;
+            Ok(tasks.clone())
+        }
+
+        async fn stats(&self) -> anyhow::Result<(u32, u32, u32, u32)> {
+            let tasks = self.tasks.lock().await;
+            let total = tasks.len() as u32;
+            let done = tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Done)
+                .count() as u32;
+            let pending = tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Pending)
+                .count() as u32;
+            let in_progress = tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::InProgress)
+                .count() as u32;
+            Ok((total, done, pending, in_progress))
+        }
+
+        async fn find_next_pending(&self) -> anyhow::Result<Option<Task>> {
+            let tasks = self.tasks.lock().await;
+            Ok(tasks
+                .iter()
+                .find(|t| t.status == TaskStatus::Pending)
+                .cloned())
+        }
+
+        async fn format_markdown(&self) -> anyhow::Result<String> {
+            let tasks = self.tasks.lock().await;
+
+            if tasks.is_empty() {
+                return Ok("No tasks available.".to_string());
+            }
+
+            let mut markdown = String::new();
+            let mut sorted_tasks = tasks.clone();
+            sorted_tasks.sort_by_key(|task| task.id.clone());
+
+            for task in sorted_tasks {
+                let checkbox = match task.status {
+                    TaskStatus::Done => "[x]",
+                    TaskStatus::Pending => "[ ]",
+                    TaskStatus::InProgress => "[ ]",
+                };
+
+                let formatted_task = match task.status {
+                    TaskStatus::Done => {
+                        format!("- {} {}", checkbox, task.description)
+                    }
+                    TaskStatus::Pending => {
+                        format!("- {} {}", checkbox, task.description)
+                    }
+                    TaskStatus::InProgress => {
+                        format!("- {} __{} (In Progress)__ ", checkbox, task.description)
+                    }
+                };
+
+                markdown.push_str(&formatted_task);
+                markdown.push('\n');
+            }
+
+            Ok(markdown)
+        }
+    }
+
+    fn create_task_service() -> ForgeTaskService<MockInfrastructure> {
+        let infra = Arc::new(MockInfrastructure::new());
+        ForgeTaskService::new(infra)
+    }
+
+    #[tokio::test]
+    async fn test_append_task() {
+        // Fixture: Create task service
+        let service = create_task_service();
+
+        // Actual: Append a task
+        let actual = service.append("Test task".to_string()).await;
+
+        // Expected: Operation should succeed
+        assert!(actual.is_ok());
+
+        // Verify task was added
+        let tasks = service.list().await.unwrap();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].description, "Test task");
+        assert_eq!(tasks[0].status, TaskStatus::Pending);
+    }
+
+    #[tokio::test]
+    async fn test_prepend_task() {
+        // Fixture: Create task service with existing task
+        let service = create_task_service();
+        service.append("Task 1".to_string()).await.unwrap();
+
+        // Actual: Prepend a task
+        service.prepend("Task 2".to_string()).await.unwrap();
+
+        // Expected: Task 2 should be first
+        let tasks = service.list().await.unwrap();
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].description, "Task 2");
+        assert_eq!(tasks[1].description, "Task 1");
+    }
+
+    #[tokio::test]
+    async fn test_pop_front() {
+        // Fixture: Create task service with tasks
+        let service = create_task_service();
+        service.append("Task to pop".to_string()).await.unwrap();
+
+        // Actual: Pop front task
+        let actual = service.pop_front().await.unwrap();
+
+        // Expected: Task should be returned and marked in progress
+        assert!(actual.is_some());
+        let task = actual.unwrap();
+        assert_eq!(task.description, "Task to pop");
+        assert_eq!(task.status, TaskStatus::InProgress);
+    }
+
+    #[tokio::test]
+    async fn test_mark_done() {
+        // Fixture: Create task service with task
+        let service = create_task_service();
+        service
+            .append("Task to complete".to_string())
+            .await
+            .unwrap();
+        let tasks = service.list().await.unwrap();
+        let task_id = tasks[0].id.clone();
+
+        // Actual: Mark task as done
+        let actual = service.mark_done(task_id).await.unwrap();
+
+        // Expected: Task should be marked as done
+        assert!(actual.is_some());
+        let completed_task = actual.unwrap();
+        assert_eq!(completed_task.status, TaskStatus::Done);
+    }
+
+    #[tokio::test]
+    async fn test_stats() {
+        // Fixture: Create task service with various tasks
+        let service = create_task_service();
+        service.append("Pending task".to_string()).await.unwrap();
+        service
+            .append("Task to progress".to_string())
+            .await
+            .unwrap();
+        service
+            .append("Task to complete".to_string())
+            .await
+            .unwrap();
+
+        // Set up different statuses
+        service.pop_front().await.unwrap(); // Mark first as in progress
+        let tasks = service.list().await.unwrap();
+        service.mark_done(tasks[2].id.clone()).await.unwrap(); // Mark last as done
+
+        // Actual: Get stats
+        let actual = service.stats().await.unwrap();
+
+        // Expected: Should have correct counts
+        let expected = (3, 1, 1, 1); // (total, done, pending, in_progress)
+        assert_eq!(actual, expected);
+    }
+
+    #[tokio::test]
+    async fn test_format_markdown() {
+        // Fixture: Create task service with tasks
+        let service = create_task_service();
+        service.append("Pending task".to_string()).await.unwrap();
+        service
+            .append("In progress task".to_string())
+            .await
+            .unwrap();
+        service.pop_back().await.unwrap(); // Mark second as in progress
+
+        // Actual: Format as markdown
+        let actual = service.format_markdown().await.unwrap();
+
+        // Expected: Should contain checkbox format
+        assert!(actual.contains("[ ] Pending task"));
+        assert!(actual.contains("__In progress task (In Progress)__"));
+    }
+}

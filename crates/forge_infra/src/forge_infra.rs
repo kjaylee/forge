@@ -13,6 +13,7 @@ use crate::fs_snap::ForgeFileSnapshotService;
 use crate::fs_write::ForgeFileWriteService;
 use crate::inquire::ForgeInquire;
 use crate::mcp_server::ForgeMcpServer;
+use crate::task_service::ForgeTaskService;
 
 #[derive(Clone)]
 pub struct ForgeInfra {
@@ -26,6 +27,7 @@ pub struct ForgeInfra {
     command_executor_service: Arc<ForgeCommandExecutorService>,
     inquire_service: Arc<ForgeInquire>,
     mcp_server: ForgeMcpServer,
+    task_service: Arc<ForgeTaskService>,
 }
 
 impl ForgeInfra {
@@ -49,6 +51,7 @@ impl ForgeInfra {
             )),
             inquire_service: Arc::new(ForgeInquire::new()),
             mcp_server: ForgeMcpServer,
+            task_service: Arc::new(ForgeTaskService::new()),
         }
     }
 }
@@ -64,6 +67,7 @@ impl Infrastructure for ForgeInfra {
     type CommandExecutorService = ForgeCommandExecutorService;
     type InquireService = ForgeInquire;
     type McpServer = ForgeMcpServer;
+    type TaskService = ForgeTaskService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         &self.environment_service
@@ -103,5 +107,9 @@ impl Infrastructure for ForgeInfra {
 
     fn mcp_server(&self) -> &Self::McpServer {
         &self.mcp_server
+    }
+
+    fn task_service(&self) -> &Self::TaskService {
+        &self.task_service
     }
 }
