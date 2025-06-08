@@ -109,7 +109,7 @@ impl<F: Infrastructure> FSFind<F> {
             }
             (Some(regex), None) => format!("Search for '{regex}' at {formatted_dir}"),
             (None, Some(pattern)) => format!("Search for '{pattern}' at {formatted_dir}"),
-            (None, None) => format!("at {formatted_dir}"),
+            (None, None) => format!("Search at {formatted_dir}"),
         };
 
         Ok(TitleFormat::debug(title))
