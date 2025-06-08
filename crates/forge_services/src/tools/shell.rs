@@ -2,6 +2,7 @@
 use std::sync::Arc;
 
 use anyhow::bail;
+use forge_app::EnvironmentService;
 use forge_display::TitleFormat;
 use forge_domain::{
     CommandOutput, Environment, ExecutableTool, NamedTool, ShellInput, ToolCallContext,
@@ -11,7 +12,6 @@ use forge_tool_macros::ToolDescription;
 use strip_ansi_escapes::strip;
 
 use crate::metadata::Metadata;
-use crate::services::EnvironmentService;
 use crate::{ClipperResult, CommandExecutorService, FsWriteService, Infrastructure};
 
 // Strips out the ansi codes from content.
