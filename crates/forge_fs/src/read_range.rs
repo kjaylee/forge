@@ -16,7 +16,8 @@ impl crate::ForgeFS {
     ///
     /// Returns a tuple containing:
     /// - The file content as a UTF-8 string.
-    /// - FileInfo containing metadata about the read operation including line positions.
+    /// - FileInfo containing metadata about the read operation including line
+    ///   positions.
     pub async fn read_range_utf8<T: AsRef<Path>>(
         path: T,
         start_line: u64,
