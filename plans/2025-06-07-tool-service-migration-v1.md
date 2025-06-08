@@ -27,7 +27,7 @@ Migrate all tools from direct infrastructure dependencies to service-based archi
 
 ### 2. **Design Service Interface Standards**
 - Dependencies: Task 1
-- Notes: Create standardized patterns for tool services including error handling, input validation, and output formatting. Define naming conventions and service trait structure. **Important**: Services must NOT use ToolCallContext - this is UI-specific and stays in tools. Services should be pure business logic with simple input/output.
+- Notes: Create standardized patterns for tool services including error handling, input validation, and output formatting. Define naming conventions and service trait structure. **Important**: Services must NOT use ToolCallContext - this is UI-specific and stays in tools. Services should be pure business logic with simple input/output. **Critical**: Services must use Infrastructure traits (FsReadService, FsWriteService, etc.) instead of direct tokio::fs calls.
 - Files: 
   - New service trait definitions in `crates/forge_services/src/`
   - Service interface documentation
@@ -43,7 +43,7 @@ Migrate all tools from direct infrastructure dependencies to service-based archi
 
 ### 4. **Implement Service for Template Tool (FSRead as Example)**
 - Dependencies: Task 3
-- Notes: Create complete service implementation for FSRead tool as a **template example** that demonstrates the migration pattern. This is not the final implementation but a reference pattern to be applied to all tools. **Critical**: Service must NOT use ToolCallContext - extract only pure business logic. All UI concerns (titles, progress) remain in tool.
+- Notes: Create complete service implementation for FSRead tool as a **template example** that demonstrates the migration pattern. This is not the final implementation but a reference pattern to be applied to all tools. **Critical**: Service must NOT use ToolCallContext - extract only pure business logic. All UI concerns (titles, progress) remain in tool. **Important**: Service must use Infrastructure traits (FsReadService, etc.) instead of direct tokio::fs calls.
 - Files:
   - `crates/forge_services/src/fs_read_service.rs` (new - template example)
   - Updated `crates/forge_services/src/mod.rs`
@@ -150,12 +150,14 @@ Each tool migration should follow the **FSRead template pattern** and include:
 - Services contain only pure business logic with simple input/output
 - Tools retain ToolCallContext for UI concerns (titles, progress, user interaction)
 - Existing tests migrate from tools to services where they test business logic
+- **IMPORTANT**: Services must use Infrastructure traits (FsReadService, FsWriteService, etc.) instead of direct tokio::fs calls. This ensures proper abstraction, testability, and consistency with the project's architecture.
 
 ## Verification Criteria
 
 - All tools are thin wrappers that make single calls to their corresponding services
 - Each tool has a dedicated service implementing business logic in `crates/forge_services/src/`
 - Services do NOT use ToolCallContext - they have pure input/output interfaces
+- Services use Infrastructure traits (FsReadService, FsWriteService, etc.) instead of direct tokio::fs calls
 - Tools retain ToolCallContext for UI concerns (titles, progress, user interaction)
 - Services are properly integrated into the Services trait and ForgeServices implementation
 - Tool registry uses Services trait instead of raw Infrastructure for tool instantiation
