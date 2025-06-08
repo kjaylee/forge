@@ -23,35 +23,49 @@ Extract task-related business logic from the TaskList tool into a dedicated Task
    - Files: `crates/forge_app/src/services.rs`, `crates/forge_services/src/forge_services.rs`
    - Status: Not Started
 
-4. **Refactor TaskList Tool to Use Service**
+4. **Refactor TaskList Tool to Use Infrastructure (NOT Services)**
    - Dependencies: Task 1, Task 2, Task 3
-   - Notes: Simplify tool to be a thin wrapper, delegate all business logic to service, maintain tool responsibilities like context updates and formatting
+   - Notes: Change TaskList tool to use Infrastructure directly like other tools (FSRead, FSWrite, etc.), remove Services dependency, access TaskService through Infrastructure
    - Files: `crates/forge_services/src/tools/task_list.rs`
    - Status: Not Started
 
-5. **Update Infrastructure Integration**
+5. **Update Infrastructure Trait to Include TaskService**
    - Dependencies: Task 2
-   - Notes: Ensure service has proper access to FsWriteService and EnvironmentService for markdown file generation
-   - Files: `crates/forge_services/src/infra.rs` (if needed)
+   - Notes: Add TaskService to Infrastructure trait so tools can access it, following the same pattern as other services
+   - Files: `crates/forge_services/src/infra.rs`
    - Status: Not Started
 
-6. **Create Service Tests**
+6. **Update ToolRegistry to Use Infrastructure**
+   - Dependencies: Task 4, Task 5
+   - Notes: Change ToolRegistry from using Services to using Infrastructure for TaskList construction
+   - Files: `crates/forge_services/src/tools/registry.rs`
+   - Status: Not Started
+
+7. **Create Service Tests**
    - Dependencies: Task 2
    - Notes: Write comprehensive tests for the service layer using MockInfrastructure, test all operations and edge cases
    - Files: `crates/forge_services/src/task.rs`
    - Status: Not Started
 
-7. **Update Tool Tests**
+8. **Update Tool Tests**
    - Dependencies: Task 4
    - Notes: Adapt existing tool tests to work with the new service-based implementation, ensure snapshot tests still pass
    - Files: `crates/forge_services/src/tools/task_list.rs`
    - Status: Not Started
 
-8. **Compilation and Integration Testing**
+9. **Compilation and Integration Testing**
    - Dependencies: All previous tasks
    - Notes: Run cargo commands to ensure compilation and test success, verify tool functionality end-to-end
    - Files: All modified files
    - Status: Not Started
+
+## Key Architectural Corrections
+
+**IMPORTANT**: Based on feedback, the plan has been updated to follow the correct architectural pattern:
+
+- **Tools should only depend on Infrastructure, NOT Services**: Following the established pattern of tools like FSRead, FSWrite, Shell, etc.
+- **TaskService will be accessible through Infrastructure trait**: Similar to how FsWriteService and EnvironmentService are accessed
+- **ToolRegistry will use Infrastructure**: Changed from Services to Infrastructure for tool construction
 
 ## Verification Criteria
 - All existing tests pass with the new service-based implementation
