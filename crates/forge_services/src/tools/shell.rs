@@ -1198,23 +1198,27 @@ mod tests {
     async fn test_format_output_mixed_content_truncation() {
         let infra = Arc::new(MockInfrastructure::new());
         // Test with mixed content including empty lines and special characters
-        let mixed_stdout = ["normal line 1",
+        let mixed_stdout = [
+            "normal line 1",
             "",
             "line with special chars: !@#$%^&*()",
             "line with unicode: 🚀 🎉 ✨",
             "",
             "another normal line",
             "line with tabs:\tindented",
-            "final line"]
+            "final line",
+        ]
         .join("\n");
 
-        let mixed_stderr = ["error: something went wrong",
+        let mixed_stderr = [
+            "error: something went wrong",
             "",
             "stack trace line 1",
             "stack trace line 2",
             "stack trace line 3",
             "",
-            "final error message"]
+            "final error message",
+        ]
         .join("\n");
 
         let fixture = CommandOutput {
