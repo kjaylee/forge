@@ -1,6 +1,7 @@
 ---
 source: crates/forge_services/src/tools/shell.rs
 expression: "TempDir::normalize(&actual)"
+snapshot_kind: text
 ---
 ---
 command: generate many lines
@@ -34,4 +35,4 @@ This is line number 19
 This is line number 20
 </stderr>
 
-<truncate>content is truncated, remaining content can be read from path:[TEMP_DIR]</truncate>
+<truncated>content is truncated, remaining content can be read from path:[TEMP_DIR]</truncated>

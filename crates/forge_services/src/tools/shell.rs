@@ -155,7 +155,7 @@ async fn format_output<F: Infrastructure>(
             .add("temp_file", path.display())
             .add("truncated", "true");
         result.push_str(&format!(
-            "\n<truncate>content is truncated, remaining content can be read from path:{}</truncate>",
+            "\n<truncated>content is truncated, remaining content can be read from path:{}</truncated>",
             path.display()
         ));
     }
@@ -814,7 +814,11 @@ mod tests {
     #[tokio::test]
     async fn test_shell_pwd() {
         let shell = Shell::new(Arc::new(MockInfrastructure::new()));
-        let current_dir = env::current_dir().unwrap();
+
+        // Use a temporary directory to make the test more predictable
+        let temp_dir = TempDir::new().unwrap();
+        let temp_path = temp_dir.path().to_path_buf();
+
         let result = shell
             .call(
                 &mut ToolCallContext::default(),
@@ -824,7 +828,7 @@ mod tests {
                     } else {
                         "pwd".to_string()
                     },
-                    cwd: current_dir.clone(),
+                    cwd: temp_path.clone(),
                     keep_ansi: true,
                     explanation: None,
                 },
@@ -832,24 +836,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(
-            result.into_string(),
-            format!(
-                "{}<stdout>\n{}\n\n</stdout>",
-                Metadata::default()
-                    .add(
-                        "command",
-                        if cfg!(target_os = "windows") {
-                            "cd"
-                        } else {
-                            "pwd"
-                        }
-                    )
-                    .add("exit_code", 0)
-                    .to_string(),
-                current_dir.display()
-            )
-        );
+        insta::assert_snapshot!("test_shell_pwd", TempDir::normalize(&result.into_string()));
     }
 
     #[tokio::test]
@@ -1081,6 +1068,204 @@ mod tests {
         let actual = format_output(&infra, fixture, false, 3, 3).await.unwrap();
         insta::assert_snapshot!(
             "format_output_multiline_line_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_stdout_only_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Create content where only stdout gets truncated
+        let many_stdout_lines = (1..=15)
+            .map(|i| format!("stdout line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let few_stderr_lines = "error line 1\nerror line 2".to_string();
+
+        let fixture = CommandOutput {
+            stdout: many_stdout_lines,
+            stderr: few_stderr_lines,
+            command: "stdout truncation test".into(),
+            exit_code: Some(0),
+        };
+
+        // Use limits that will truncate stdout but not stderr
+        let actual = format_output(&infra, fixture, false, 3, 3).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_stdout_only_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_stderr_only_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Create content where only stderr gets truncated
+        let few_stdout_lines = "output line 1\noutput line 2".to_string();
+        let many_stderr_lines = (1..=15)
+            .map(|i| format!("stderr line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: few_stdout_lines,
+            stderr: many_stderr_lines,
+            command: "stderr truncation test".into(),
+            exit_code: Some(1),
+        };
+
+        // Use limits that will truncate stderr but not stdout
+        let actual = format_output(&infra, fixture, false, 3, 3).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_stderr_only_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_single_line_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Test truncation with very minimal limits
+        let single_long_output = (1..=10)
+            .map(|i| format!("line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: single_long_output,
+            stderr: "".to_string(),
+            command: "single line truncation test".into(),
+            exit_code: Some(0),
+        };
+
+        // Use very small limits to test edge case
+        let actual = format_output(&infra, fixture, false, 1, 1).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_single_line_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_asymmetric_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Test with different prefix/suffix ratios
+        let many_lines = (1..=20)
+            .map(|i| format!("asymmetric line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: many_lines,
+            stderr: "".to_string(),
+            command: "asymmetric truncation test".into(),
+            exit_code: Some(0),
+        };
+
+        // Use asymmetric limits (more prefix than suffix)
+        let actual = format_output(&infra, fixture, false, 5, 2).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_asymmetric_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_boundary_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Test exactly at the boundary where truncation would occur
+        let exact_boundary_lines = (1..=10)
+            .map(|i| format!("boundary line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: exact_boundary_lines,
+            stderr: "".to_string(),
+            command: "boundary truncation test".into(),
+            exit_code: Some(0),
+        };
+
+        // Use limits that exactly match the content (should not truncate)
+        let actual = format_output(&infra, fixture, false, 5, 5).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_boundary_no_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_mixed_content_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Test with mixed content including empty lines and special characters
+        let mixed_stdout = vec![
+            "normal line 1",
+            "",
+            "line with special chars: !@#$%^&*()",
+            "line with unicode: 🚀 🎉 ✨",
+            "",
+            "another normal line",
+            "line with tabs:\tindented",
+            "final line",
+        ]
+        .join("\n");
+
+        let mixed_stderr = vec![
+            "error: something went wrong",
+            "",
+            "stack trace line 1",
+            "stack trace line 2",
+            "stack trace line 3",
+            "",
+            "final error message",
+        ]
+        .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: mixed_stdout,
+            stderr: mixed_stderr,
+            command: "mixed content test".into(),
+            exit_code: Some(1),
+        };
+
+        // Use small limits to force truncation of mixed content
+        let actual = format_output(&infra, fixture, false, 2, 2).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_mixed_content_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_large_content_with_temp_file() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Create very large content that will trigger temp file creation
+        let large_stdout = (1..=500)
+            .map(|i| format!("This is a very long stdout line number {} with lots of content to make it exceed normal limits", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let large_stderr = (1..=300)
+            .map(|i| {
+                format!(
+                    "This is a very long stderr line number {} with error details and stack traces",
+                    i
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: large_stdout,
+            stderr: large_stderr,
+            command: "large content generation".into(),
+            exit_code: Some(0),
+        };
+
+        // Use small limits to force both truncation and temp file creation
+        let actual = format_output(&infra, fixture, false, 5, 5).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_large_content_with_temp_file",
             TempDir::normalize(&actual)
         );
     }
