@@ -17,7 +17,7 @@ use crate::metadata::Metadata;
 use crate::utils::{assert_absolute_path, format_display_path};
 use crate::{FsWriteService, Infrastructure};
 
-const MAX_SEARCH_LINE_LIMIT: u64 = 2_000;
+const MAX_SEARCH_LINE_LIMIT: u64 = 500;
 
 // Using FSSearchInput from forge_domain
 
