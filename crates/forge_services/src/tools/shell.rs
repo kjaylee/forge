@@ -968,4 +968,190 @@ mod tests {
             TempDir::normalize(&preserved)
         );
     }
+    #[tokio::test]
+    async fn test_format_output_multiline_stdout() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let fixture = CommandOutput {
+            stdout: "line1\nline2\nline3\nline4\nline5".to_string(),
+            stderr: "".to_string(),
+            command: "echo multiline".into(),
+            exit_code: Some(0),
+        };
+        let actual = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_stdout", actual);
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_stderr() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let fixture = CommandOutput {
+            stdout: "".to_string(),
+            stderr: "error line 1\nerror line 2\nerror line 3".to_string(),
+            command: "test command".into(),
+            exit_code: Some(0),
+        };
+        let actual = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_stderr", actual);
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_both_streams() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let fixture = CommandOutput {
+            stdout: "stdout line 1\nstdout line 2\nstdout line 3".to_string(),
+            stderr: "stderr line 1\nstderr line 2".to_string(),
+            command: "complex command".into(),
+            exit_code: Some(0),
+        };
+        let actual = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_both_streams", actual);
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_with_line_truncation() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Create content with many lines to test line-based truncation
+        let many_lines = (1..=20)
+            .map(|i| format!("This is line number {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let fixture = CommandOutput {
+            stdout: many_lines.clone(),
+            stderr: many_lines,
+            command: "generate many lines".into(),
+            exit_code: Some(0),
+        };
+
+        // Use small line limits to force truncation
+        let actual = format_output(&infra, fixture, false, 3, 3).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_multiline_line_truncation",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_mixed_newlines() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let fixture = CommandOutput {
+            stdout: "line1\n\nline3\n\n\nline6".to_string(), // Mixed empty lines
+            stderr: "error1\nerror2\n".to_string(),          // Trailing newline
+            command: "mixed newlines".into(),
+            exit_code: Some(0),
+        };
+        let actual = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_mixed_newlines", actual);
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_very_long_lines() {
+        let infra = Arc::new(MockInfrastructure::new());
+        // Create a few very long lines
+        let long_line1 = "A".repeat(200);
+        let long_line2 = "B".repeat(150);
+        let long_line3 = "C".repeat(100);
+
+        let fixture = CommandOutput {
+            stdout: format!("{}\n{}\n{}", long_line1, long_line2, long_line3),
+            stderr: "".to_string(),
+            command: "long lines".into(),
+            exit_code: Some(0),
+        };
+
+        // Test with line-based truncation on long lines
+        let actual = format_output(&infra, fixture, false, 2, 1).await.unwrap();
+        insta::assert_snapshot!(
+            "format_output_multiline_long_lines",
+            TempDir::normalize(&actual)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_with_ansi_codes() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let fixture = CommandOutput {
+            stdout:
+                "\x1b[32mGreen line 1\x1b[0m\n\x1b[31mRed line 2\x1b[0m\n\x1b[1mBold line 3\x1b[0m"
+                    .to_string(),
+            stderr: "\x1b[33mYellow error 1\x1b[0m\n\x1b[35mMagenta error 2\x1b[0m".to_string(),
+            command: "colorized output".into(),
+            exit_code: Some(0),
+        };
+
+        // Test with ANSI codes preserved
+        let actual_preserved = format_output(&infra, CommandOutput {
+            stdout: "\x1b[32mGreen line 1\x1b[0m\n\x1b[31mRed line 2\x1b[0m\n\x1b[1mBold line 3\x1b[0m".to_string(),
+            stderr: "\x1b[33mYellow error 1\x1b[0m\n\x1b[35mMagenta error 2\x1b[0m".to_string(),
+            command: "colorized output".into(),
+            exit_code: Some(0),
+        }, true, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_ansi_preserved", actual_preserved);
+
+        // Test with ANSI codes stripped
+        let actual_stripped = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_ansi_stripped", actual_stripped);
+    }
+
+    #[tokio::test]
+    async fn test_format_output_multiline_edge_cases() {
+        let infra = Arc::new(MockInfrastructure::new());
+
+        // Test with only newlines
+        let fixture = CommandOutput {
+            stdout: "\n\n\n".to_string(),
+            stderr: "".to_string(),
+            command: "only newlines".into(),
+            exit_code: Some(0),
+        };
+        let actual = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_only_newlines", actual);
+
+        // Test with no trailing newline
+        let fixture = CommandOutput {
+            stdout: "line1\nline2\nline3".to_string(), // No trailing newline
+            stderr: "".to_string(),
+            command: "no trailing newline".into(),
+            exit_code: Some(0),
+        };
+        let actual = format_output(&infra, fixture, false, 100, 100)
+            .await
+            .unwrap();
+        insta::assert_snapshot!("format_output_multiline_no_trailing_newline", actual);
+    }
+
+    #[tokio::test]
+    async fn test_shell_multiline_output_integration() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
+
+        // Test a command that would produce multiline output
+        let result = shell
+            .call(
+                &mut ToolCallContext::default(),
+                ShellInput {
+                    command: "echo -e 'line1\\nline2\\nline3'".to_string(),
+                    cwd: env::current_dir().unwrap(),
+                    keep_ansi: false,
+                    explanation: None,
+                },
+            )
+            .await
+            .unwrap();
+        insta::assert_snapshot!("shell_multiline_output_integration", &result.into_string());
+    }
 }

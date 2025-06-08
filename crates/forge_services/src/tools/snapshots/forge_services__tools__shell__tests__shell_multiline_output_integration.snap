@@ -1,0 +1,13 @@
+---
+source: crates/forge_services/src/tools/shell.rs
+expression: "&result.into_string()"
+snapshot_kind: text
+---
+---
+command: echo -e 'line1\nline2\nline3'
+exit_code: 0
+---
+<stdout>
+-e 'line1\nline2\nline3
+
+</stdout>
