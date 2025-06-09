@@ -5,14 +5,14 @@ use anyhow::Result;
 use forge_app::TaskService;
 use forge_display::TitleFormat;
 use forge_domain::{
-    ExecutableTool, NamedTool, Operation, Task, TaskId, ToolCallContext, ToolDescription, ToolName,
-    ToolOutput,
+    ExecutableTool, NamedTool, Operation, OperationType, Task, TaskId, ToolCallContext,
+    ToolDescription, ToolName, ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::Infrastructure;
+use crate::{Infrastructure, TaskDisplayService};
 
 /// Statistics about the TaskList.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -89,25 +89,29 @@ impl Display for TaskListResult {
 /// Ideal for sequential workflows, project planning, and tracking multi-step
 /// processes.
 #[derive(Debug, ToolDescription)]
-pub struct TaskList<F>(Arc<F>);
+pub struct TaskList<F> {
+    infra: Arc<F>,
+    task_display: TaskDisplayService<F>,
+}
 
 impl<F: Infrastructure> TaskList<F> {
     /// Creates a new TaskList tool with the given infrastructure.
     pub fn new(infra: Arc<F>) -> Self {
-        Self(infra)
+        let task_display = TaskDisplayService::new(infra.clone());
+        Self { infra, task_display }
     }
 
     /// Calculate statistics for the current task list.
     async fn calculate_stats(&self) -> Result<Stats> {
         let (total_tasks, done_tasks, pending_tasks, in_progress_tasks) =
-            self.0.task_service().stats().await?;
+            self.infra.task_service().stats().await?;
 
         Ok(Stats { total_tasks, done_tasks, pending_tasks, in_progress_tasks })
     }
 
     /// Handle the append operation, adding a task to the end of the list.
     async fn append(&self, description: String) -> Result<TaskListResult> {
-        self.0.task_service().append(description).await?;
+        self.infra.task_service().append(description).await?;
 
         let stats = self.calculate_stats().await?;
 
@@ -122,7 +126,7 @@ impl<F: Infrastructure> TaskList<F> {
     /// Handle the prepend operation, adding a task to the beginning of the
     /// list.
     async fn prepend(&self, description: String) -> Result<TaskListResult> {
-        self.0.task_service().prepend(description).await?;
+        self.infra.task_service().prepend(description).await?;
 
         let stats = self.calculate_stats().await?;
 
@@ -137,7 +141,7 @@ impl<F: Infrastructure> TaskList<F> {
     /// Handle the pop_front operation, marking the first pending task as
     /// InProgress without removing it.
     async fn pop_front(&self) -> Result<TaskListResult> {
-        let task_option = self.0.task_service().pop_front().await?;
+        let task_option = self.infra.task_service().pop_front().await?;
 
         let stats = self.calculate_stats().await?;
 
@@ -156,7 +160,7 @@ impl<F: Infrastructure> TaskList<F> {
     /// Handle the mark_done operation, marking a task as completed and finding
     /// the next pending task.
     async fn mark_done(&self, id: TaskId) -> Result<TaskListResult> {
-        let found_task = self.0.task_service().mark_done(id.clone()).await?;
+        let found_task = self.infra.task_service().mark_done(id.clone()).await?;
 
         if found_task.is_none() {
             return Ok(TaskListResult {
@@ -167,7 +171,7 @@ impl<F: Infrastructure> TaskList<F> {
             });
         }
 
-        let next_task = self.0.task_service().find_next_pending().await?;
+        let next_task = self.infra.task_service().find_next_pending().await?;
         let stats = self.calculate_stats().await?;
 
         Ok(TaskListResult {
@@ -186,11 +190,20 @@ impl<F: Infrastructure> TaskList<F> {
         })
     }
 
-    /// Handle the list operation, returning all tasks in the list.
-    async fn _list(&self) -> Result<TaskListResult> {
+    /// Handle the list operation, returning all tasks in markdown format.
+    async fn list(&self) -> Result<TaskListResult> {
+        let tasks = self.infra.task_service().list().await?;
         let stats = self.calculate_stats().await?;
-        let tasks = self.0.task_service().list().await?;
-        Ok(TaskListResult { message: None, next_task: None, stats, tasks: Some(tasks) })
+
+        // Use TaskDisplayService for consistent formatting
+        let markdown = self.task_display.format_task_list().await?;
+
+        Ok(TaskListResult {
+            message: Some(markdown),
+            next_task: None,
+            stats,
+            tasks: Some(tasks),
+        })
     }
 }
 
@@ -201,11 +214,30 @@ impl<F> NamedTool for TaskList<F> {
 }
 
 fn format_input(input: &Operation) -> String {
-    match input {
-        Operation::Append(task) => format!("Append: {task}"),
-        Operation::Prepend(task) => format!("Prepend: {task}"),
-        Operation::Next => "Next".to_string(),
-        Operation::Done(task_id) => format!("Done: {task_id}"),
+    match input.operation_type {
+        OperationType::Append => {
+            format!(
+                "Append: {}",
+                input
+                    .description
+                    .as_ref()
+                    .unwrap_or(&"<missing description>".to_string())
+            )
+        }
+        OperationType::Prepend => {
+            format!(
+                "Prepend: {}",
+                input
+                    .description
+                    .as_ref()
+                    .unwrap_or(&"<missing description>".to_string())
+            )
+        }
+        OperationType::Next => "Next".to_string(),
+        OperationType::Done => {
+            format!("Done: {}", input.task_id.as_ref().unwrap_or(&TaskId::new()))
+        }
+        OperationType::List => "List".to_string(),
     }
 }
 
@@ -218,11 +250,27 @@ impl<F: Infrastructure> ExecutableTool for TaskList<F> {
             .send_text(TitleFormat::debug("TaskList").sub_title(format_input(&input)))
             .await?;
 
-        let result = match input {
-            Operation::Append(task) => self.append(task).await?,
-            Operation::Prepend(task) => self.prepend(task).await?,
-            Operation::Next => self.pop_front().await?,
-            Operation::Done(task_id) => self.mark_done(task_id).await?,
+        let result = match input.operation_type {
+            OperationType::Append => {
+                let description = input
+                    .description
+                    .ok_or_else(|| anyhow::anyhow!("Description required for append operation"))?;
+                self.append(description).await?
+            }
+            OperationType::Prepend => {
+                let description = input
+                    .description
+                    .ok_or_else(|| anyhow::anyhow!("Description required for prepend operation"))?;
+                self.prepend(description).await?
+            }
+            OperationType::Next => self.pop_front().await?,
+            OperationType::Done => {
+                let task_id = input
+                    .task_id
+                    .ok_or_else(|| anyhow::anyhow!("Task ID required for done operation"))?;
+                self.mark_done(task_id).await?
+            }
+            OperationType::List => self.list().await?,
         };
 
         Ok(ToolOutput::text(result.to_string()))
@@ -248,7 +296,7 @@ mod tests {
         // Create fixture
         let task_list = create_task_list();
 
-        let input = Operation::Append("Test task".to_string());
+        let input = Operation::append("Test task".to_string());
 
         // Execute the fixture
         let result = task_list
@@ -267,8 +315,8 @@ mod tests {
         // Create fixture
         let task_list = create_task_list();
 
-        let input1 = Operation::Append("Task 1".to_string());
-        let input2 = Operation::Prepend("Task 2".to_string());
+        let input1 = Operation::append("Task 1".to_string());
+        let input2 = Operation::prepend("Task 2".to_string());
 
         // Execute the fixture
         task_list
@@ -291,8 +339,8 @@ mod tests {
         // Create fixture
         let task_list = create_task_list();
 
-        let input1 = Operation::Append("Task to pop".to_string());
-        let input2 = Operation::Next;
+        let input1 = Operation::append("Task to pop".to_string());
+        let input2 = Operation::next();
 
         // Execute the fixture
         task_list
@@ -314,7 +362,7 @@ mod tests {
     async fn test_mark_done() {
         // Create fixture
         let task_list = create_task_list();
-        let input1 = Operation::Append("Task to mark done".to_string());
+        let input1 = Operation::append("Task to mark done".to_string());
 
         // Execute the fixture - first add a task
         task_list
@@ -323,11 +371,11 @@ mod tests {
             .unwrap();
 
         // Get the task ID from the service (we know it will be deterministic)
-        let tasks = task_list.0.task_service().list().await.unwrap();
+        let tasks = task_list.infra.task_service().list().await.unwrap();
         let task_id = tasks[0].id.clone();
 
         // Mark the task as done
-        let input2 = Operation::Done(task_id);
+        let input2 = Operation::done(task_id);
         let result = task_list
             .call(&mut ToolCallContext::default(), input2)
             .await
@@ -343,7 +391,7 @@ mod tests {
     async fn test_empty_list() {
         // Create fixture
         let task_list = create_task_list();
-        let input = Operation::Next;
+        let input = Operation::next();
 
         // Execute the fixture
         let actual = task_list
@@ -355,5 +403,36 @@ mod tests {
             .to_string();
 
         insta::assert_snapshot!(actual);
+    }
+
+    #[tokio::test]
+    async fn test_list_operation() {
+        // Create fixture
+        let task_list = create_task_list();
+
+        // Add some tasks first
+        let input1 = Operation::append("Task 1".to_string());
+        let input2 = Operation::append("Task 2".to_string());
+        let input3 = Operation::list();
+
+        // Execute the fixture
+        task_list
+            .call(&mut ToolCallContext::default(), input1)
+            .await
+            .unwrap();
+        task_list
+            .call(&mut ToolCallContext::default(), input2)
+            .await
+            .unwrap();
+
+        let result = task_list
+            .call(&mut ToolCallContext::default(), input3)
+            .await
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        insta::assert_snapshot!(result);
     }
 }

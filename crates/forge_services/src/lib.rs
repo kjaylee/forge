@@ -7,6 +7,7 @@ mod mcp;
 mod metadata;
 mod provider;
 mod task;
+mod task_display;
 
 mod discovery;
 mod template;
@@ -19,3 +20,4 @@ pub use clipper::*;
 pub use discovery::*;
 pub use forge_services::*;
 pub use infra::*;
+pub use task_display::*;

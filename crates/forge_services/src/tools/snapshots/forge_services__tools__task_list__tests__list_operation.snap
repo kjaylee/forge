@@ -1,0 +1,36 @@
+---
+source: crates/forge_services/src/tools/task_list.rs
+expression: result
+---
+<task_list_result>
+<message># Task List
+
+## 📋 Pending Tasks
+
+1. [ ] Task 1 `00000000-0000-0000-0000-000000000000`
+2. [ ] Task 2 `11111111-1111-1111-1111-111111111111`
+
+## 📊 Summary
+
+- **Total Tasks:** 2
+- **Pending:** 2
+- **In Progress:** 0
+- **Completed:** 0
+</message>
+<stats>
+<total_tasks>2</total_tasks>
+<done_tasks>0</done_tasks>
+<pending_tasks>2</pending_tasks>
+<in_progress_tasks>0</in_progress_tasks>
+</stats>
+<tasks_list>
+<task id="00000000-0000-0000-0000-000000000000">
+<content>Task 1</content>
+<status>Pending</status>
+</task>
+<task id="11111111-1111-1111-1111-111111111111">
+<content>Task 2</content>
+<status>Pending</status>
+</task>
+</tasks_list>
+</task_list_result>

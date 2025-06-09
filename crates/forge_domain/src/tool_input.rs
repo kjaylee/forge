@@ -55,7 +55,7 @@ pub enum ToolInput {
 
     /// Input for the task list tool
     #[serde(rename = "forge_tool_task_list")]
-    TaskList(Operation),
+    TaskList(TaskListInput),
 }
 
 /// Input type for the file read tool
@@ -280,17 +280,99 @@ pub struct AttemptCompletionInput {
     pub explanation: Option<String>,
 }
 
-#[derive(Debug, Clone, JsonSchema, Serialize, Deserialize)]
-pub enum Operation {
-    Append(String),
-    Prepend(String),
+// Input type for the task list tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskListInput {
+    /// The operation to perform on the task list
+    pub operation: Operation,
+
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Represents the operation to be performed on the task list
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct Operation {
+    /// The type of operation to perform
+    #[serde(rename = "type")]
+    pub operation_type: OperationType,
+    /// Description for append/prepend operations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Task ID for done operations
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub task_id: Option<TaskId>,
+}
+
+/// Types of operations that can be performed on the task list
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum OperationType {
+    /// Append a task to the end of the list
+    Append,
+    /// Prepend a task to the beginning of the list
+    Prepend,
+    /// Pop the first task from the task list
     Next,
-    Done(TaskId),
+    /// Mark a task as done
+    Done,
+    /// List all tasks in markdown format
+    List,
+}
+
+impl Operation {
+    /// Create an append operation
+    pub fn append(description: String) -> Self {
+        Self {
+            operation_type: OperationType::Append,
+            description: Some(description),
+            task_id: None,
+        }
+    }
+
+    /// Create a prepend operation
+    pub fn prepend(description: String) -> Self {
+        Self {
+            operation_type: OperationType::Prepend,
+            description: Some(description),
+            task_id: None,
+        }
+    }
+
+    /// Create a next operation
+    pub fn next() -> Self {
+        Self {
+            operation_type: OperationType::Next,
+            description: None,
+            task_id: None,
+        }
+    }
+
+    /// Create a done operation
+    pub fn done(task_id: TaskId) -> Self {
+        Self {
+            operation_type: OperationType::Done,
+            description: None,
+            task_id: Some(task_id),
+        }
+    }
+
+    /// Create a list operation to display all tasks
+    pub fn list() -> Self {
+        Self {
+            operation_type: OperationType::List,
+            description: None,
+            task_id: None,
+        }
+    }
 }
 
 #[derive(
     Debug, Clone, JsonSchema, Serialize, Deserialize, Display, PartialEq, Eq, Hash, PartialOrd, Ord,
 )]
+#[serde(transparent)]
 pub struct TaskId(String);
 
 impl Default for TaskId {

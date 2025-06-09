@@ -140,4 +140,10 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
             .execute_command_raw(command)
             .await
     }
+
+    async fn format_task_list(&self) -> Result<String> {
+        use forge_services::TaskDisplayService;
+        let task_display = TaskDisplayService::new(self.infra.clone());
+        task_display.format_task_list().await
+    }
 }
