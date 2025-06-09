@@ -25,6 +25,12 @@ pub struct ForgeTaskService {
     tasks: Arc<Mutex<Vec<Task>>>,
 }
 
+impl Default for ForgeTaskService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ForgeTaskService {
     /// Creates a new ForgeTaskService with the provided infrastructure
     pub fn new() -> Self {
