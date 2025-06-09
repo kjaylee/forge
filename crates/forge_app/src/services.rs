@@ -115,7 +115,7 @@ pub trait FileDiscoveryService: Send + Sync {
 #[async_trait::async_trait]
 pub trait ConversationSessionManager: Send + Sync {
     async fn load(&self) -> anyhow::Result<Conversation>;
-    async fn state(&self, n: usize) -> anyhow::Result<Vec<Buffer>>;
+    async fn state(&self, buffer_size: usize) -> anyhow::Result<Vec<Buffer>>;
     async fn buffer_update(&self, state: Buffer) -> anyhow::Result<()>;
     async fn conversation_update(&self, conversation: &Conversation) -> anyhow::Result<()>;
     async fn clear(&self) -> anyhow::Result<()>;

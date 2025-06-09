@@ -132,9 +132,12 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
         let mut result = Vec::new();
         let mut total_size = 0;
 
-        let buffer_stream = buffer.filter_map(|v| async { v.ok() });
-        futures::pin_mut!(buffer_stream);
-        while let Some(buffer) = buffer_stream.next().await {
+        let buffer_stream = buffer
+            .filter_map(|v| async { v.ok() })
+            .collect::<Vec<_>>()
+            .await;
+
+        for buffer in buffer_stream.into_iter().rev() {
             let content_size = buffer.content.len();
             if total_size + content_size > buffer_size {
                 break;
