@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use forge_app::EnvironmentService;
-use forge_services::Infrastructure;
+use forge_services::{ForgeTaskService, Infrastructure};
 
 use crate::env::ForgeEnvironmentService;
 use crate::executor::ForgeCommandExecutorService;
@@ -13,7 +13,6 @@ use crate::fs_snap::ForgeFileSnapshotService;
 use crate::fs_write::ForgeFileWriteService;
 use crate::inquire::ForgeInquire;
 use crate::mcp_server::ForgeMcpServer;
-use crate::task_service::ForgeTaskService;
 
 #[derive(Clone)]
 pub struct ForgeInfra {

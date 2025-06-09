@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_app::{
     ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
-    ProviderService, Services, ToolService, WorkflowService,
+    ProviderService, Services, TaskService, ToolService, WorkflowService,
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -142,8 +142,8 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
     }
 
     async fn format_task_list(&self) -> Result<String> {
-        use forge_services::TaskDisplayService;
-        let task_display = TaskDisplayService::new(self.infra.clone());
-        task_display.format_task_list().await
+        let task_service = self.app.task_service();
+        let tasks = task_service.format_markdown().await?;
+        Ok(tasks)
     }
 }

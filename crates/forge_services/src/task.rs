@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{EnvironmentService, TaskService};
+use forge_app::TaskService;
 use forge_domain::{Task, TaskId, TaskStatus};
 use tokio::sync::Mutex;
-
-use crate::{FsWriteService, Infrastructure};
 
 /// Statistics about the TaskList.
 #[derive(Debug, Clone, PartialEq)]
@@ -23,15 +21,14 @@ pub struct TaskStats {
 /// Service for managing tasks, including creation, status updates, and
 /// retrieval
 #[derive(Clone)]
-pub struct ForgeTaskService<F> {
+pub struct ForgeTaskService {
     tasks: Arc<Mutex<Vec<Task>>>,
-    infra: Arc<F>,
 }
 
-impl<F: Infrastructure> ForgeTaskService<F> {
+impl ForgeTaskService {
     /// Creates a new ForgeTaskService with the provided infrastructure
-    pub fn new(infra: Arc<F>) -> Self {
-        Self { tasks: Arc::new(Mutex::new(Vec::new())), infra }
+    pub fn new() -> Self {
+        Self { tasks: Arc::new(Mutex::new(Vec::new())) }
     }
 
     /// Calculate statistics for the current task list.
@@ -53,26 +50,10 @@ impl<F: Infrastructure> ForgeTaskService<F> {
 
         TaskStats { total_tasks, done_tasks, pending_tasks, in_progress_tasks }
     }
-
-    /// Write tasks to markdown file
-    async fn write_markdown_file(&self) -> Result<()> {
-        let markdown = self.format_markdown().await?;
-        let cwd = self
-            .infra
-            .environment_service()
-            .get_environment()
-            .cwd
-            .join("task_list.md");
-        self.infra
-            .file_write_service()
-            .write(cwd.as_path(), markdown.into())
-            .await?;
-        Ok(())
-    }
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
+impl TaskService for ForgeTaskService {
     /// Appends a task to the end of the task list
     async fn append(&self, description: String) -> Result<()> {
         let task = Task::new(description);
@@ -80,7 +61,6 @@ impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
             let mut tasks = self.tasks.lock().await;
             tasks.push(task);
         }
-        self.write_markdown_file().await?;
         Ok(())
     }
 
@@ -91,7 +71,6 @@ impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
             let mut tasks = self.tasks.lock().await;
             tasks.insert(0, task);
         }
-        self.write_markdown_file().await?;
         Ok(())
     }
 
@@ -114,10 +93,6 @@ impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
                 }
             }
         };
-
-        if task_option.is_some() {
-            self.write_markdown_file().await?;
-        }
 
         Ok(task_option)
     }
@@ -142,10 +117,6 @@ impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
             }
         };
 
-        if task_option.is_some() {
-            self.write_markdown_file().await?;
-        }
-
         Ok(task_option)
     }
 
@@ -165,10 +136,6 @@ impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
 
             found_task
         };
-
-        if found_task.is_some() {
-            self.write_markdown_file().await?;
-        }
 
         Ok(found_task)
     }
@@ -201,36 +168,75 @@ impl<F: Infrastructure> TaskService for ForgeTaskService<F> {
 
     /// Formats tasks as markdown
     async fn format_markdown(&self) -> Result<String> {
-        let tasks = self.tasks.lock().await;
+        let tasks = self.list().await?;
+        let (total_tasks, done_tasks, pending_tasks, in_progress_tasks) = self.stats().await?;
+
+        // Generate markdown format
+        let mut markdown = String::from("# Task List\n\n");
 
         if tasks.is_empty() {
-            return Ok("No tasks available.".to_string());
-        }
+            markdown.push_str("*No tasks in the list.*\n\n");
+        } else {
+            // Group tasks by status
+            let pending_tasks_list: Vec<_> = tasks
+                .iter()
+                .filter(|t| matches!(t.status, TaskStatus::Pending))
+                .collect();
+            let in_progress_tasks_list: Vec<_> = tasks
+                .iter()
+                .filter(|t| matches!(t.status, TaskStatus::InProgress))
+                .collect();
+            let done_tasks_list: Vec<_> = tasks
+                .iter()
+                .filter(|t| matches!(t.status, TaskStatus::Done))
+                .collect();
 
-        let mut markdown = String::new();
-
-        // Sort tasks by ID for consistent display
-        let mut sorted_tasks = tasks.clone();
-        sorted_tasks.sort_by_key(|task| task.id.clone());
-
-        for task in sorted_tasks {
-            let checkbox = match task.status {
-                TaskStatus::Done => "[x]",
-                TaskStatus::Pending => "[ ]",
-                TaskStatus::InProgress => "[ ]",
-            };
-
-            let formatted_task = match task.status {
-                TaskStatus::Done => format!("- {} {}", checkbox, task.description),
-                TaskStatus::Pending => format!("- {} {}", checkbox, task.description),
-                TaskStatus::InProgress => {
-                    format!("- {} __{} (In Progress)__ ", checkbox, task.description)
+            if !pending_tasks_list.is_empty() {
+                markdown.push_str("## 📋 Pending Tasks\n\n");
+                for (i, task) in pending_tasks_list.iter().enumerate() {
+                    markdown.push_str(&format!(
+                        "{}. [ ] {} `{}`\n",
+                        i + 1,
+                        task.description,
+                        task.id
+                    ));
                 }
-            };
+                markdown.push('\n');
+            }
 
-            markdown.push_str(&formatted_task);
-            markdown.push('\n');
+            if !in_progress_tasks_list.is_empty() {
+                markdown.push_str("## 🚧 In Progress\n\n");
+                for (i, task) in in_progress_tasks_list.iter().enumerate() {
+                    markdown.push_str(&format!(
+                        "{}. [⚡] {} `{}`\n",
+                        i + 1,
+                        task.description,
+                        task.id
+                    ));
+                }
+                markdown.push('\n');
+            }
+
+            if !done_tasks_list.is_empty() {
+                markdown.push_str("## ✅ Completed Tasks\n\n");
+                for (i, task) in done_tasks_list.iter().enumerate() {
+                    markdown.push_str(&format!(
+                        "{}. [x] {} `{}`\n",
+                        i + 1,
+                        task.description,
+                        task.id
+                    ));
+                }
+                markdown.push('\n');
+            }
         }
+
+        // Add summary
+        markdown.push_str("## 📊 Summary\n\n");
+        markdown.push_str(&format!("- **Total Tasks:** {total_tasks}\n"));
+        markdown.push_str(&format!("- **Pending:** {pending_tasks}\n"));
+        markdown.push_str(&format!("- **In Progress:** {in_progress_tasks}\n"));
+        markdown.push_str(&format!("- **Completed:** {done_tasks}\n"));
 
         Ok(markdown)
     }
@@ -243,12 +249,17 @@ pub mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::attachment::tests::MockInfrastructure;
 
     #[derive(Clone, Debug)]
     pub struct MockTaskService {
         tasks: Arc<Mutex<Vec<Task>>>,
         counter: Arc<Mutex<u8>>,
+    }
+
+    impl Default for MockTaskService {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl MockTaskService {
@@ -413,15 +424,10 @@ pub mod tests {
         }
     }
 
-    fn create_task_service() -> ForgeTaskService<MockInfrastructure> {
-        let infra = Arc::new(MockInfrastructure::new());
-        ForgeTaskService::new(infra)
-    }
-
     #[tokio::test]
     async fn test_append_task() {
         // Fixture: Create task service
-        let service = create_task_service();
+        let service = ForgeTaskService::new();
 
         // Actual: Append a task
         let actual = service.append("Test task".to_string()).await;
@@ -439,7 +445,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_prepend_task() {
         // Fixture: Create task service with existing task
-        let service = create_task_service();
+        let service = ForgeTaskService::new();
         service.append("Task 1".to_string()).await.unwrap();
 
         // Actual: Prepend a task
@@ -455,7 +461,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_pop_front() {
         // Fixture: Create task service with tasks
-        let service = create_task_service();
+        let service = ForgeTaskService::new();
         service.append("Task to pop".to_string()).await.unwrap();
 
         // Actual: Pop front task
@@ -471,7 +477,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_mark_done() {
         // Fixture: Create task service with task
-        let service = create_task_service();
+        let service = ForgeTaskService::new();
         service
             .append("Task to complete".to_string())
             .await
@@ -491,7 +497,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_stats() {
         // Fixture: Create task service with various tasks
-        let service = create_task_service();
+        let service = ForgeTaskService::new();
         service.append("Pending task".to_string()).await.unwrap();
         service
             .append("Task to progress".to_string())
@@ -518,7 +524,7 @@ pub mod tests {
     #[tokio::test]
     async fn test_format_markdown() {
         // Fixture: Create task service with tasks
-        let service = create_task_service();
+        let service = ForgeTaskService::new();
         service.append("Pending task".to_string()).await.unwrap();
         service
             .append("In progress task".to_string())

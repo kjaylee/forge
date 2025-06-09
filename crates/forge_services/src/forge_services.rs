@@ -7,7 +7,6 @@ use crate::conversation::ForgeConversationService;
 use crate::discovery::ForgeDiscoveryService;
 use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
-use crate::task::ForgeTaskService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
 use crate::workflow::ForgeWorkflowService;
@@ -32,7 +31,6 @@ pub struct ForgeServices<F> {
     workflow_service: Arc<ForgeWorkflowService<F>>,
     discovery_service: Arc<ForgeDiscoveryService<F>>,
     mcp_manager: Arc<ForgeMcpManager<F>>,
-    task_service: Arc<ForgeTaskService<F>>,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
@@ -48,7 +46,7 @@ impl<F: Infrastructure> ForgeServices<F> {
 
         let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
         let suggestion_service = Arc::new(ForgeDiscoveryService::new(infra.clone()));
-        let task_service = Arc::new(ForgeTaskService::new(infra.clone()));
+
         Self {
             infra,
             conversation_service,
@@ -59,7 +57,6 @@ impl<F: Infrastructure> ForgeServices<F> {
             workflow_service,
             discovery_service: suggestion_service,
             mcp_manager,
-            task_service,
         }
     }
 }
@@ -74,7 +71,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type WorkflowService = ForgeWorkflowService<F>;
     type FileDiscoveryService = ForgeDiscoveryService<F>;
     type McpConfigManager = ForgeMcpManager<F>;
-    type TaskService = ForgeTaskService<F>;
+    type TaskService = F::TaskService;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -113,7 +110,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     }
 
     fn task_service(&self) -> &Self::TaskService {
-        &self.task_service
+        self.infra.task_service()
     }
 }
 
@@ -128,7 +125,7 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
     type CommandExecutorService = F::CommandExecutorService;
     type InquireService = F::InquireService;
     type McpServer = F::McpServer;
-    type TaskService = ForgeTaskService<F>;
+    type TaskService = F::TaskService;
 
     fn environment_service(&self) -> &Self::EnvironmentService {
         self.infra.environment_service()
@@ -171,6 +168,6 @@ impl<F: Infrastructure> Infrastructure for ForgeServices<F> {
     }
 
     fn task_service(&self) -> &Self::TaskService {
-        &self.task_service
+        self.infra.task_service()
     }
 }

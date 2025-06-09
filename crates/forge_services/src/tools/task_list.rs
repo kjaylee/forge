@@ -12,7 +12,7 @@ use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Infrastructure, TaskDisplayService};
+use crate::Infrastructure;
 
 /// Statistics about the TaskList.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
@@ -91,14 +91,12 @@ impl Display for TaskListResult {
 #[derive(Debug, ToolDescription)]
 pub struct TaskList<F> {
     infra: Arc<F>,
-    task_display: TaskDisplayService<F>,
 }
 
 impl<F: Infrastructure> TaskList<F> {
     /// Creates a new TaskList tool with the given infrastructure.
     pub fn new(infra: Arc<F>) -> Self {
-        let task_display = TaskDisplayService::new(infra.clone());
-        Self { infra, task_display }
+        Self { infra }
     }
 
     /// Calculate statistics for the current task list.
@@ -194,9 +192,9 @@ impl<F: Infrastructure> TaskList<F> {
     async fn list(&self) -> Result<TaskListResult> {
         let tasks = self.infra.task_service().list().await?;
         let stats = self.calculate_stats().await?;
+        let markdown = self.infra.task_service().format_markdown().await?;
 
         // Use TaskDisplayService for consistent formatting
-        let markdown = self.task_display.format_task_list().await?;
 
         Ok(TaskListResult {
             message: Some(markdown),
