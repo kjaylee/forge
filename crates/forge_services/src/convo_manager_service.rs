@@ -5,7 +5,6 @@ use std::sync::Arc;
 use bytes::Bytes;
 use forge_app::{ConversationSessionManager, EnvironmentService};
 use forge_domain::{Buffer, Conversation};
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use thiserror::__private::AsDisplay;
 use tokio::sync::RwLock;
@@ -129,21 +128,16 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
             .read_last(&state_path, usize::MAX)
             .await?;
 
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(buffer.len());
         let mut total_size = 0;
 
-        let buffer_stream = buffer
-            .filter_map(|v| async { v.ok() })
-            .collect::<Vec<_>>()
-            .await;
-
-        for buffer in buffer_stream.into_iter().rev() {
+        for (i, buffer) in buffer.into_iter().flatten().rev().enumerate() {
             let content_size = buffer.content.len();
             if total_size + content_size > buffer_size {
                 break;
             }
             total_size += content_size;
-            result.push(buffer);
+            result[i] = buffer;
         }
 
         Ok(result)

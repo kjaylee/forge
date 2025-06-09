@@ -470,7 +470,11 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl BufferService for () {
-        async fn read_last(&self, _: &Path, _: usize) -> anyhow::Result<JsonlIterator> {
+        async fn read_last(
+            &self,
+            _: &Path,
+            _: usize,
+        ) -> anyhow::Result<Vec<anyhow::Result<Buffer>>> {
             unimplemented!()
         }
 
