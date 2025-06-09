@@ -5,7 +5,7 @@ use strum_macros::EnumString;
 
 use super::{ToolCall, ToolCallFull};
 
-#[derive(Default, Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, Serialize, PartialEq)]
 pub struct Usage {
     pub prompt_tokens: u64,
     pub completion_tokens: u64,
@@ -13,6 +13,7 @@ pub struct Usage {
     pub estimated_tokens: u64,
     pub content_length: u64,
     pub cached_tokens: u64,
+    pub cost: Option<f64>,
 }
 
 /// Represents a message that was received from the LLM provider
@@ -123,7 +124,7 @@ impl ChatCompletionMessage {
 /// Represents a complete message from the LLM provider with all content
 /// collected This is typically used after processing a stream of
 /// ChatCompletionMessage
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ChatCompletionMessageFull {
     pub content: String,
     pub tool_calls: Vec<ToolCallFull>,
