@@ -556,3 +556,56 @@ pub struct SelectInput {
 fn is_default<T: Default + PartialEq>(t: &T) -> bool {
     t == &T::default()
 }
+/// Input type for the task add tool (append operation)
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskAddInput {
+    /// Description of the task to add to the end of the list
+    pub description: String,
+
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Input type for the task prepend tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskPrependInput {
+    /// Description of the task to add to the beginning of the list
+    pub description: String,
+
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Input type for the task next tool (pop front operation)
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskNextInput {
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Input type for the task done tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskDoneInput {
+    /// The task ID to mark as completed
+    pub task_id: TaskId,
+
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}
+
+/// Input type for the task list tool
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskListDisplayInput {
+    /// One sentence explanation as to why this tool is being used, and how it
+    /// contributes to the goal.
+    #[serde(default)]
+    pub explanation: Option<String>,
+}

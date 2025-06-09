@@ -3,11 +3,13 @@ use std::sync::Arc;
 use anyhow::Result;
 use forge_app::TaskService;
 use forge_domain::{Task, TaskId, TaskStatus};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
 /// Statistics about the TaskList.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TaskStats {
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+pub struct Stats {
     /// Total number of tasks in the list.
     pub total_tasks: u32,
     /// Number of completed tasks.
@@ -16,6 +18,13 @@ pub struct TaskStats {
     pub pending_tasks: u32,
     /// Number of in-progress tasks.
     pub in_progress_tasks: u32,
+}
+
+impl std::fmt::Display for Stats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<stats>\n<total_tasks>{}</total_tasks>\n<done_tasks>{}</done_tasks>\n<pending_tasks>{}</pending_tasks>\n<in_progress_tasks>{}</in_progress_tasks>\n</stats>",
+            self.total_tasks, self.done_tasks, self.pending_tasks, self.in_progress_tasks)
+    }
 }
 
 /// Service for managing tasks, including creation, status updates, and
@@ -38,7 +47,7 @@ impl ForgeTaskService {
     }
 
     /// Calculate statistics for the current task list.
-    async fn calculate_stats(&self) -> TaskStats {
+    async fn calculate_stats(&self) -> Stats {
         let tasks = self.tasks.lock().await;
         let total_tasks = tasks.len() as u32;
         let done_tasks = tasks
@@ -54,7 +63,18 @@ impl ForgeTaskService {
             .filter(|task| task.status == TaskStatus::Pending)
             .count() as u32;
 
-        TaskStats { total_tasks, done_tasks, pending_tasks, in_progress_tasks }
+        Stats { total_tasks, done_tasks, pending_tasks, in_progress_tasks }
+    }
+
+    /// Helper method to create a TaskListResult with current stats
+    pub async fn create_result(
+        &self,
+        message: Option<String>,
+        next_task: Option<Task>,
+        tasks: Option<Vec<Task>>,
+    ) -> Result<TaskListResult> {
+        let stats = self.calculate_stats().await;
+        Ok(TaskListResult { message, next_task, stats, tasks })
     }
 }
 
@@ -541,8 +561,57 @@ pub mod tests {
         // Actual: Format as markdown
         let actual = service.format_markdown().await.unwrap();
 
-        // Expected: Should contain checkbox format
-        assert!(actual.contains("[ ] Pending task"));
-        assert!(actual.contains("__In progress task (In Progress)__"));
+        // Expected: Should contain structured markdown format
+        assert!(actual.contains("# Task List"));
+        assert!(actual.contains("## 📋 Pending Tasks"));
+        assert!(actual.contains("1. [ ] Pending task"));
+        assert!(actual.contains("## 🚧 In Progress"));
+        assert!(actual.contains("1. [⚡] In progress task"));
+    }
+}
+/// TaskList operation result.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskListResult {
+    /// Message describing the result of the operation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    /// The task that was affected by the operation, if applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_task: Option<Task>,
+    /// Statistics about the task list.
+    pub stats: Stats,
+    /// List of tasks
+    pub tasks: Option<Vec<Task>>,
+}
+
+impl std::fmt::Display for TaskListResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut result = String::from("<task_list_result>\n");
+
+        if let Some(message) = &self.message {
+            result.push_str(&format!("<message>{message}</message>\n"));
+        }
+
+        if let Some(task) = &self.next_task {
+            result.push_str("<next_task>\n");
+            result.push_str(&format!("{task}\n"));
+            result.push_str("\n</next_task>\n");
+        }
+
+        result.push_str(&format!("{}\n", self.stats));
+
+        if let Some(tasks) = &self.tasks {
+            if !tasks.is_empty() {
+                result.push_str("<tasks_list>\n");
+                for task in tasks {
+                    result.push_str(&format!("{task}\n"));
+                }
+                result.push_str("</tasks_list>\n");
+            }
+        }
+
+        result.push_str("</task_list_result>");
+
+        write!(f, "{result}")
     }
 }
