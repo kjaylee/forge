@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use forge_domain::{
     Agent, Attachment, Buffer, ChatCompletionMessage, Context, Conversation, ConversationId,
-    Environment, File, Image, McpConfig, Model, ModelId, PatchOperation,ResultStream, Scope, Tool, ToolCallContext,
-    ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
+    Environment, File, Image, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Tool,
+    ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
 };
 
 pub struct ShellOutput {

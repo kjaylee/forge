@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use bytes::Bytes;
 use forge_app::EnvironmentService;
-use forge_domain::{
-    Buffer, CommandOutput, McpServerConfig, ToolDefinition, ToolName, ToolOutput,
-};
+use forge_domain::{Buffer, CommandOutput, McpServerConfig, ToolDefinition, ToolName, ToolOutput};
 use forge_snaps::Snapshot;
 
 /// Repository for accessing system environment information
@@ -145,7 +143,8 @@ pub trait McpServer: Send + Sync + 'static {
 #[async_trait::async_trait]
 pub trait BufferService: Send + Sync + 'static {
     /// Returns an iterator that yields Buffer items from JSONL format
-    async fn read_last(&self, path: &Path, n: usize) -> anyhow::Result<Vec<anyhow::Result<Buffer>>>;
+    async fn read_last(&self, path: &Path, n: usize)
+        -> anyhow::Result<Vec<anyhow::Result<Buffer>>>;
 
     /// Update the input/output buffer state.
     async fn write(&self, path: &Path, buffer: Buffer) -> anyhow::Result<()>;

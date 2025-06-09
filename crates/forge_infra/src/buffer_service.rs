@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use async_jsonl::{JsonlDeserialize, JsonlReader};
-use futures::StreamExt;
 use forge_domain::Buffer;
 use forge_services::BufferService;
+use futures::StreamExt;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 
@@ -36,7 +36,11 @@ impl ForgeBufferService {
 
 #[async_trait::async_trait]
 impl BufferService for ForgeBufferService {
-    async fn read_last(&self, path: &Path, n: usize) -> anyhow::Result<Vec<anyhow::Result<Buffer>>> {
+    async fn read_last(
+        &self,
+        path: &Path,
+        n: usize,
+    ) -> anyhow::Result<Vec<anyhow::Result<Buffer>>> {
         let file = File::open(path)
             .await
             .map_err(|e| anyhow::anyhow!("Failed to open file: {}", e))?;
