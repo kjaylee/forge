@@ -119,7 +119,10 @@ mod tests {
         // Create fixture
         let task_done = create_task_done();
 
-        let input = TaskDoneInput { task_id: TaskId::new(), explanation: None };
+        let input = TaskDoneInput {
+            task_id: TaskId::from_string("00000000-0000-0000-0000-000000000000".to_string()),
+            explanation: None,
+        };
 
         // Execute the fixture
         let result = task_done

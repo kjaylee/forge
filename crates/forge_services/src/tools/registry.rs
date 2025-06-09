@@ -104,6 +104,14 @@ pub mod tests {
             Ok(())
         }
 
+        async fn append_bulk(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
+            Ok(())
+        }
+
+        async fn prepend_bulk(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
+            Ok(())
+        }
+
         async fn pop_front(&self) -> anyhow::Result<Option<Task>> {
             Ok(None)
         }

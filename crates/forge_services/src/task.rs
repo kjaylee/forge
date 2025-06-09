@@ -100,6 +100,37 @@ impl TaskService for ForgeTaskService {
         Ok(())
     }
 
+    /// Appends multiple tasks to the end of the task list atomically
+    async fn append_bulk(&self, descriptions: Vec<String>) -> Result<()> {
+        if descriptions.is_empty() {
+            return Err(anyhow::anyhow!("Cannot append empty list of tasks"));
+        }
+
+        let new_tasks: Vec<Task> = descriptions.into_iter().map(Task::new).collect();
+        {
+            let mut tasks = self.tasks.lock().await;
+            tasks.extend(new_tasks);
+        }
+        Ok(())
+    }
+
+    /// Prepends multiple tasks to the beginning of the task list atomically
+    async fn prepend_bulk(&self, descriptions: Vec<String>) -> Result<()> {
+        if descriptions.is_empty() {
+            return Err(anyhow::anyhow!("Cannot prepend empty list of tasks"));
+        }
+
+        let new_tasks: Vec<Task> = descriptions.into_iter().map(Task::new).collect();
+        {
+            let mut tasks = self.tasks.lock().await;
+            // Insert in reverse order to maintain the order of the input
+            for (i, task) in new_tasks.into_iter().enumerate() {
+                tasks.insert(i, task);
+            }
+        }
+        Ok(())
+    }
+
     /// Marks the first pending task as in progress and returns it
     async fn pop_front(&self) -> Result<Option<Task>> {
         let task_option = {
@@ -331,6 +362,51 @@ pub mod tests {
             let task = self.create_deterministic_task(description, *counter);
             *counter += 1;
             tasks.insert(0, task);
+            Ok(())
+        }
+
+        async fn append_bulk(&self, descriptions: Vec<String>) -> anyhow::Result<()> {
+            if descriptions.is_empty() {
+                return Err(anyhow::anyhow!("Cannot append empty list of tasks"));
+            }
+
+            let mut tasks = self.tasks.lock().await;
+            let mut counter = self.counter.lock().await;
+
+            let new_tasks: Vec<Task> = descriptions
+                .into_iter()
+                .map(|desc| {
+                    let task = self.create_deterministic_task(desc, *counter);
+                    *counter += 1;
+                    task
+                })
+                .collect();
+
+            tasks.extend(new_tasks);
+            Ok(())
+        }
+
+        async fn prepend_bulk(&self, descriptions: Vec<String>) -> anyhow::Result<()> {
+            if descriptions.is_empty() {
+                return Err(anyhow::anyhow!("Cannot prepend empty list of tasks"));
+            }
+
+            let mut tasks = self.tasks.lock().await;
+            let mut counter = self.counter.lock().await;
+
+            let new_tasks: Vec<Task> = descriptions
+                .into_iter()
+                .map(|desc| {
+                    let task = self.create_deterministic_task(desc, *counter);
+                    *counter += 1;
+                    task
+                })
+                .collect();
+
+            // Insert in reverse order to maintain the order of the input
+            for (i, task) in new_tasks.into_iter().enumerate() {
+                tasks.insert(i, task);
+            }
             Ok(())
         }
 

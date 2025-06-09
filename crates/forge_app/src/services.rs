@@ -145,6 +145,12 @@ pub trait TaskService: Send + Sync {
     /// Prepends a task to the beginning of the task list
     async fn prepend(&self, description: String) -> anyhow::Result<()>;
 
+    /// Appends multiple tasks to the end of the task list atomically
+    async fn append_bulk(&self, descriptions: Vec<String>) -> anyhow::Result<()>;
+
+    /// Prepends multiple tasks to the beginning of the task list atomically
+    async fn prepend_bulk(&self, descriptions: Vec<String>) -> anyhow::Result<()>;
+
     /// Marks the first pending task as in progress and returns it
     async fn pop_front(&self) -> anyhow::Result<Option<Task>>;
 

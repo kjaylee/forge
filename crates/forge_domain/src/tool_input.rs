@@ -375,12 +375,6 @@ impl Operation {
 #[serde(transparent)]
 pub struct TaskId(String);
 
-impl Default for TaskId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TaskId {
     pub fn new() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
@@ -559,8 +553,8 @@ fn is_default<T: Default + PartialEq>(t: &T) -> bool {
 /// Input type for the task add tool (append operation)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TaskAddInput {
-    /// Description of the task to add to the end of the list
-    pub description: String,
+    /// List of task descriptions to add to the end of the list in bulk
+    pub descriptions: Vec<String>,
 
     /// One sentence explanation as to why this tool is being used, and how it
     /// contributes to the goal.
@@ -571,8 +565,8 @@ pub struct TaskAddInput {
 /// Input type for the task prepend tool
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TaskPrependInput {
-    /// Description of the task to add to the beginning of the list
-    pub description: String,
+    /// List of task descriptions to add to the beginning of the list in bulk
+    pub descriptions: Vec<String>,
 
     /// One sentence explanation as to why this tool is being used, and how it
     /// contributes to the goal.
