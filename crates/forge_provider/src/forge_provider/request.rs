@@ -190,12 +190,12 @@ pub struct Request {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub usage: Option<Usage>,
+    pub stream_options: Option<StreamOptions>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct Usage {
-    include: bool,
+pub struct StreamOptions {
+    pub include_usage: Option<bool>,
 }
 
 impl Request {
@@ -287,7 +287,7 @@ impl From<Context> for Request {
             route: Default::default(),
             provider: Default::default(),
             parallel_tool_calls: Some(false),
-            usage: Some(Usage { include: true }),
+            stream_options: Some(StreamOptions { include_usage: Some(true) }),
             session_id: request.conversation_id.map(|id| id.to_string()),
         }
     }
