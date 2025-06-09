@@ -46,8 +46,7 @@ pub mod tests {
     use bytes::Bytes;
     use forge_app::EnvironmentService;
     use forge_domain::{
-        Buffer, CommandOutput, Environment, JsonlIterator, Provider, ToolDefinition, ToolName,
-        ToolOutput,
+        Buffer, CommandOutput, Environment, Provider, ToolDefinition, ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
     use serde_json::Value;
@@ -222,7 +221,11 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl BufferService for Stub {
-        async fn read_last(&self, _: &Path, _: usize) -> anyhow::Result<JsonlIterator> {
+        async fn read_last(
+            &self,
+            _: &Path,
+            _: usize,
+        ) -> anyhow::Result<Vec<anyhow::Result<Buffer>>> {
             unimplemented!()
         }
 

@@ -116,7 +116,7 @@ pub mod tests {
     use bytes::Bytes;
     use forge_app::{AttachmentService, EnvironmentService};
     use forge_domain::{
-        AttachmentContent, Buffer, CommandOutput, Environment, JsonlIterator, Provider,
+        AttachmentContent, Buffer, CommandOutput, Environment, Provider,
         ToolDefinition, ToolName, ToolOutput,
     };
     use forge_snaps::Snapshot;
