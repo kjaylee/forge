@@ -512,7 +512,7 @@ impl<F: API> UI<F> {
 
     async fn restore_conversation(&mut self) -> Result<bool> {
         if let Ok(conversation) = self.api.restore_conversation().await {
-            if let Ok(buffer_events) = self.api.restore_buffer_state(10).await {
+            if let Ok(buffer_events) = self.api.restore_buffer_state(10_000).await {
                 // Iterate over buffer events and handle them appropriately
                 for buffer in buffer_events {
                     match buffer.event {

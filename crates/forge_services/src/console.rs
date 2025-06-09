@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
+use forge_app::{ConsoleService, ConversationSessionManager};
 use forge_domain::Buffer;
 
 use crate::infra::{ConsolePrintService as _, Infrastructure};
-use crate::services::ConsoleService;
-use crate::ConversationSessionManager;
 
 pub struct ForgeConsoleService<I, S> {
     infra: Arc<I>,

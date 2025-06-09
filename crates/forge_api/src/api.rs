@@ -88,7 +88,7 @@ pub trait API: Sync + Send {
     async fn restore_conversation(&self) -> Result<Conversation>;
 
     /// Returns buffer state of last n conversations
-    async fn restore_buffer_state(&self, n: usize) -> Result<Vec<Buffer>>;
+    async fn restore_buffer_state(&self, buffer_size: usize) -> Result<Vec<Buffer>>;
 
     /// Adds state to the buffer
     async fn set_buffer_state(&self, state: Buffer) -> Result<()>;

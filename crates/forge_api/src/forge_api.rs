@@ -2,7 +2,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::Result;
-use forge_app::{ConsoleService, ConversationService, ConversationSessionManager, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager, ProviderService, Services, ToolService, WorkflowService};
+use forge_app::{
+    ConsoleService, ConversationService, ConversationSessionManager, EnvironmentService,
+    FileDiscoveryService, ForgeApp, McpConfigManager, ProviderService, Services, ToolService,
+    WorkflowService,
+};
 use forge_domain::*;
 use forge_infra::ForgeInfra;
 use forge_services::{CommandExecutorService, ForgeServices, Infrastructure};
@@ -142,8 +146,11 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
         self.app.conversation_session_manager().load().await
     }
 
-    async fn restore_buffer_state(&self, n: usize) -> Result<Vec<Buffer>> {
-        self.app.conversation_session_manager().state(n).await
+    async fn restore_buffer_state(&self, buffer_size: usize) -> Result<Vec<Buffer>> {
+        self.app
+            .conversation_session_manager()
+            .state(buffer_size)
+            .await
     }
 
     async fn set_buffer_state(&self, state: Buffer) -> Result<()> {

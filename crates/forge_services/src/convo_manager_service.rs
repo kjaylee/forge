@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bytes::Bytes;
+use forge_app::{ConversationSessionManager, EnvironmentService};
 use forge_domain::{Buffer, Conversation};
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -10,8 +11,8 @@ use thiserror::__private::AsDisplay;
 use tokio::sync::RwLock;
 
 use crate::{
-    BufferService, ConversationSessionManager, EnvironmentService, FileRemoveService,
-    FsCreateDirsService, FsMetaService, FsReadService, FsWriteService, Infrastructure,
+    BufferService, FileRemoveService, FsCreateDirsService, FsMetaService, FsReadService,
+    FsWriteService, Infrastructure,
 };
 
 pub struct ForgeConversationSessionManager<I> {
@@ -120,19 +121,29 @@ impl<I: Infrastructure> ConversationSessionManager for ForgeConversationSessionM
         Ok(conversation)
     }
 
-    async fn state(&self, n: usize) -> anyhow::Result<Vec<Buffer>> {
+    async fn state(&self, buffer_size: usize) -> anyhow::Result<Vec<Buffer>> {
         let state_path = self.state_path().await?;
         let buffer = self
             .infra
             .buffer_service()
-            .read_last(&state_path, n)
+            .read_last(&state_path, usize::MAX)
             .await?;
 
-        let buffer = buffer
-            .filter_map(|v| async { v.ok() })
-            .collect::<Vec<_>>()
-            .await;
-        Ok(buffer)
+        let mut result = Vec::new();
+        let mut total_size = 0;
+
+        let buffer_stream = buffer.filter_map(|v| async { v.ok() });
+        futures::pin_mut!(buffer_stream);
+        while let Some(buffer) = buffer_stream.next().await {
+            let content_size = buffer.content.len();
+            if total_size + content_size > buffer_size {
+                break;
+            }
+            total_size += content_size;
+            result.push(buffer);
+        }
+
+        Ok(result)
     }
 
     async fn buffer_update(&self, state: Buffer) -> anyhow::Result<()> {
