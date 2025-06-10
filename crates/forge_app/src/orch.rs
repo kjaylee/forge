@@ -180,8 +180,6 @@ impl<S: Services> Orchestrator<S> {
 
     /// Checks if the agent supports task management by having both required
     /// tools:
-    /// - forge_tool_task_done: for marking tasks as complete
-    /// - forge_tool_attempt_completion: for attempting completion
     fn agent_supports_task_management(&self, agent: &Agent) -> bool {
         if let Some(tools) = &agent.tools {
             let has_task_done = tools
