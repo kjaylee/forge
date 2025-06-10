@@ -69,7 +69,7 @@ impl<S: Services> Orchestrator<S> {
                 .await?;
 
             // Check if this is an attempt completion call and validate pending tasks
-            let tool_result = if tool_call.name.as_str() == "forge_tool_task_manage"
+            let tool_result = if tool_call.name.as_str() == "forge_tool_task_list"
                 && self.agent_supports_task_management(agent)
             {
                 // Validate pending tasks before allowing completion
@@ -563,7 +563,7 @@ mod tests {
 
         // Fixture: Agent with both required tools
         let agent_with_both = Agent::new("test").tools(vec![
-            ToolName::new("forge_tool_task_manage"),
+            ToolName::new("forge_tool_task_list"),
             ToolName::new("forge_tool_attempt_completion"),
         ]);
 
@@ -579,7 +579,7 @@ mod tests {
             if let Some(tools) = &agent.tools {
                 let has_task_done = tools
                     .iter()
-                    .any(|tool| tool.as_str() == "forge_tool_task_manage");
+                    .any(|tool| tool.as_str() == "forge_tool_task_list");
                 let has_attempt_completion = tools
                     .iter()
                     .any(|tool| tool.as_str() == "forge_tool_attempt_completion");

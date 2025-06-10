@@ -165,7 +165,7 @@ impl<S: Services> ToolRegistry<S> {
                 send_completion_context(context, input).await?;
                 Ok(crate::ExecutionResult::AttemptCompletion)
             }
-            Tools::TaskManage(input) => {
+            Tools::ForgeToolTaskList(input) => {
                 let operation = input.operation.clone();
                 let result = match operation.operation_type {
                     forge_domain::OperationType::Append => {

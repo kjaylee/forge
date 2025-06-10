@@ -33,10 +33,7 @@ pub enum Tools {
     ForgeToolNetFetch(NetFetch),
     ForgeToolFollowup(Followup),
     ForgeToolAttemptCompletion(AttemptCompletion),
-
-    /// Input for the task management tool
-    #[serde(rename = "forge_tool_task_manage")]
-    TaskManage(TaskManage),
+    ForgeToolTaskList(TaskList),
 }
 
 /// Reads file contents from the specified absolute path. Ideal for analyzing
@@ -314,15 +311,20 @@ pub struct AttemptCompletion {
     pub explanation: Option<String>,
 }
 
-/// A stateful task management tool that maintains an ordered list of tasks with
-/// status tracking. Provides operations to add tasks (append/prepend), mark
-/// tasks as in-progress (pop_front/pop_back), complete tasks (mark_done), and
-/// view the current state (list). Automatically identifies the next pending
-/// task when completing items and provides detailed statistics on task status.
-/// Ideal for sequential workflows, project planning, and tracking multi-step
-/// processes.
+/// A powerful task management system designed for handling complex, multi-step workflows.
+/// Use this tool when planning or executing tasks that require structured organization, 
+/// especially for complex projects with multiple steps. Ideal for:
+/// 1) Breaking down large problems into manageable subtasks
+/// 2) Creating and managing step-by-step action plans
+/// 3) Tracking progress across interconnected work items
+/// 4) Ensuring sequential completion of dependent tasks
+/// 
+/// The tool maintains an ordered task list with status tracking (pending, in-progress, complete),
+/// provides statistics on overall progress, and automatically identifies the next task to tackle.
+/// Choose this tool whenever you need to organize work that's too complex for a simple checklist
+/// or when systematic tracking of completion status is required.
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription, PartialEq)]
-pub struct TaskManage {
+pub struct TaskList {
     /// The operation to perform on the task list
     pub operation: Operation,
     /// One sentence explanation as to why this tool is being used, and how it
@@ -746,7 +748,7 @@ impl ToolDescription for Tools {
             Tools::ForgeToolFsRemove(v) => v.description(),
             Tools::ForgeToolFsUndo(v) => v.description(),
             Tools::ForgeToolFsCreate(v) => v.description(),
-            Tools::TaskManage(v) => v.description(),
+            Tools::ForgeToolTaskList(v) => v.description(),
         }
     }
 }
@@ -770,7 +772,7 @@ impl Tools {
             Tools::ForgeToolFsRemove(_) => schemars::schema_for!(FSRemove),
             Tools::ForgeToolFsUndo(_) => schemars::schema_for!(FSUndo),
             Tools::ForgeToolFsCreate(_) => schemars::schema_for!(FSWrite),
-            Tools::TaskManage(_) => schemars::schema_for!(TaskManage),
+            Tools::ForgeToolTaskList(_) => schemars::schema_for!(TaskList),
         }
     }
 
