@@ -37,6 +37,7 @@ pub struct Conversation {
     pub variables: HashMap<String, Value>,
     pub agents: Vec<Agent>,
     pub events: Vec<Event>,
+    pub operating_agent: Option<AgentId>,
 }
 
 impl Conversation {
@@ -150,6 +151,8 @@ impl Conversation {
             agents.push(agent);
         }
 
+        let operating_agent = agents.first().map(|agent| agent.id.clone());
+
         Self {
             id,
             archived: false,
@@ -157,6 +160,7 @@ impl Conversation {
             variables: workflow.variables.clone(),
             agents,
             events: Default::default(),
+            operating_agent,
         }
     }
 

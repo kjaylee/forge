@@ -496,12 +496,7 @@ impl<F: API> UI<F> {
                 self.spinner.start(Some("Initializing"))?;
 
                 // Select a model if workflow doesn't have one
-                let operating_agent = self.state.operating_agent.clone();
                 let workflow = self.init_state().await?;
-                if let Some(operating_agent) = operating_agent {
-                    self.state.operating_agent = Some(operating_agent);
-                }
-
                 // We need to try and get the conversation ID first before fetching the model
                 let id = if let Some(ref path) = self.cli.conversation {
                     let conversation: Conversation = serde_json::from_str(
@@ -511,12 +506,14 @@ impl<F: API> UI<F> {
 
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
+                    self.state.operating_agent = conversation.operating_agent.clone();
                     self.update_model(conversation.main_model()?);
                     self.api.upsert_conversation(conversation).await?;
                     conversation_id
                 } else {
                     let conversation = self.api.init_conversation(workflow).await?;
                     self.state.conversation_id = Some(conversation.id.clone());
+                    self.state.operating_agent = conversation.operating_agent.clone();
                     self.update_model(conversation.main_model()?);
                     conversation.id
                 };
