@@ -10,7 +10,7 @@ use forge_display::{DiffFormat, TitleFormat};
 // Using FSWriteInput from forge_domain
 use forge_domain::ToolOutput;
 use forge_domain::{
-    ExecutableTool, FSWriteInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    ExecutableTool, FSWrite as FSWriteInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
 };
 use forge_tool_macros::ToolDescription;
 
@@ -102,7 +102,11 @@ impl<F: Infrastructure> ExecutableTool for FSWrite<F> {
         // Write file only after validation passes and directories are created
         self.0
             .file_write_service()
-            .write(Path::new(&input.path), Bytes::from(input.content.clone()))
+            .write(
+                Path::new(&input.path),
+                Bytes::from(input.content.clone()),
+                true,
+            )
             .await?;
 
         let mut result = String::new();
@@ -429,7 +433,7 @@ mod test {
         // First, create the file
         infra
             .file_write_service()
-            .write(&file_path, Bytes::from(original_content))
+            .write(&file_path, Bytes::from(original_content), true)
             .await
             .unwrap();
 
@@ -495,7 +499,7 @@ mod test {
         // First, create the file
         infra
             .file_write_service()
-            .write(&file_path, Bytes::from(original_content))
+            .write(&file_path, Bytes::from(original_content), true)
             .await
             .unwrap();
 
