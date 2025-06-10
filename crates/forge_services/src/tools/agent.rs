@@ -37,7 +37,7 @@ impl ExecutableTool for AgentTool {
     ) -> anyhow::Result<ToolOutput> {
         // Send a message back to the stream indicating we're calling another agent
         let title_format =
-            TitleFormat::debug(format!("Agent [{}]", self.id)).sub_title(&input.task);
+            TitleFormat::debug(format!("Agent [{}]: ", self.id)).sub_title(&format!("Task: '{}'", input.task));
         context.send_text(title_format).await?;
 
         Ok(ToolOutput::text("Tool called successfully".into()))
