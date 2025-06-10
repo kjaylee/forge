@@ -3,7 +3,7 @@ source: crates/forge_services/src/tools/task/task_done.rs
 expression: result
 ---
 <task_list_result>
-<message>No task found with ID 00000000-0000-0000-0000-000000000000.</message>
+<message>No task found with ID 0.</message>
 <stats>
 <total_tasks>0</total_tasks>
 <done_tasks>0</done_tasks>

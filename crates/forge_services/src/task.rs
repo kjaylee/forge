@@ -82,21 +82,20 @@ impl ForgeTaskService {
 impl TaskService for ForgeTaskService {
     /// Appends a task to the end of the task list
     async fn append(&self, description: String) -> Result<()> {
-        let task = Task::new(description);
-        {
-            let mut tasks = self.tasks.lock().await;
-            tasks.push(task);
-        }
+        let mut tasks_guard = self.tasks.lock().await;
+        let next_id = TaskId::next(&tasks_guard.iter().map(|t| t.id.clone()).collect::<Vec<_>>());
+        tasks_guard.push(Task { id: next_id, description, status: TaskStatus::Pending });
         Ok(())
     }
 
     /// Prepends a task to the beginning of the task list
     async fn prepend(&self, description: String) -> Result<()> {
-        let task = Task::new(description);
-        {
-            let mut tasks = self.tasks.lock().await;
-            tasks.insert(0, task);
-        }
+        let mut tasks_guard = self.tasks.lock().await;
+        let next_id = TaskId::next(&tasks_guard.iter().map(|t| t.id.clone()).collect::<Vec<_>>());
+        tasks_guard.insert(
+            0,
+            Task { id: next_id, description, status: TaskStatus::Pending },
+        );
         Ok(())
     }
 
@@ -106,10 +105,12 @@ impl TaskService for ForgeTaskService {
             return Err(anyhow::anyhow!("Cannot append empty list of tasks"));
         }
 
-        let new_tasks: Vec<Task> = descriptions.into_iter().map(Task::new).collect();
-        {
-            let mut tasks = self.tasks.lock().await;
-            tasks.extend(new_tasks);
+        let mut tasks_guard = self.tasks.lock().await;
+        let mut existing_ids: Vec<TaskId> = tasks_guard.iter().map(|t| t.id.clone()).collect();
+        for description in descriptions {
+            let next_id = TaskId::next(&existing_ids);
+            existing_ids.push(next_id.clone());
+            tasks_guard.push(Task { id: next_id, description, status: TaskStatus::Pending });
         }
         Ok(())
     }
@@ -120,13 +121,15 @@ impl TaskService for ForgeTaskService {
             return Err(anyhow::anyhow!("Cannot prepend empty list of tasks"));
         }
 
-        let new_tasks: Vec<Task> = descriptions.into_iter().map(Task::new).collect();
-        {
-            let mut tasks = self.tasks.lock().await;
-            // Insert in reverse order to maintain the order of the input
-            for (i, task) in new_tasks.into_iter().enumerate() {
-                tasks.insert(i, task);
-            }
+        let mut tasks_guard = self.tasks.lock().await;
+        let mut existing_ids: Vec<TaskId> = tasks_guard.iter().map(|t| t.id.clone()).collect();
+        for (i, description) in descriptions.into_iter().enumerate() {
+            let next_id = TaskId::next(&existing_ids);
+            existing_ids.push(next_id.clone());
+            tasks_guard.insert(
+                i,
+                Task { id: next_id, description, status: TaskStatus::Pending },
+            );
         }
         Ok(())
     }
@@ -335,17 +338,8 @@ pub mod tests {
         }
 
         fn create_deterministic_task(&self, description: String, counter: u8) -> Task {
-            // Create a task with deterministic ID for testing
-            let uuid_str = match counter {
-                0 => "00000000-0000-0000-0000-000000000000",
-                1 => "11111111-1111-1111-1111-111111111111",
-                2 => "22222222-2222-2222-2222-222222222222",
-                3 => "33333333-3333-3333-3333-333333333333",
-                4 => "44444444-4444-4444-4444-444444444444",
-                _ => "99999999-9999-9999-9999-999999999999",
-            };
             Task {
-                id: TaskId::from_string(uuid_str.to_string()),
+                id: TaskId::from_u64(counter as u64),
                 description,
                 status: TaskStatus::default(),
             }

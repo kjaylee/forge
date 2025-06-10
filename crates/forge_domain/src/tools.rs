@@ -396,37 +396,32 @@ pub struct TaskListDisplayInput {
     pub explanation: Option<String>,
 }
 
-
-
-
 #[derive(
     Debug, Clone, JsonSchema, Serialize, Deserialize, Display, PartialEq, Eq, Hash, PartialOrd, Ord,
 )]
 #[serde(transparent)]
-pub struct TaskId(String);
+pub struct TaskId(u64);
+
+impl Default for TaskId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TaskId {
     pub fn new() -> Self {
-        Self(uuid::Uuid::new_v4().to_string())
+        Self(0)
     }
 
-    #[cfg(test)]
-    pub fn new_deterministic(seed: u8) -> Self {
-        // Create a deterministic UUID for testing
-        // Using a simple pattern that produces consistent UUIDs
-        let uuid_str = match seed {
-            0 => "00000000-0000-0000-0000-000000000000",
-            1 => "11111111-1111-1111-1111-111111111111",
-            2 => "22222222-2222-2222-2222-222222222222",
-            3 => "33333333-3333-3333-3333-333333333333",
-            4 => "44444444-4444-4444-4444-444444444444",
-            _ => "99999999-9999-9999-9999-999999999999",
-        };
-        Self(uuid_str.to_string())
+    /// Generate the next sequential TaskId by taking max of existing IDs plus
+    /// one.
+    pub fn next(existing: &[TaskId]) -> Self {
+        let max_id = existing.iter().map(|id| id.0).max().unwrap_or(0);
+        Self(max_id + 1)
     }
 
-    /// Create a TaskId from a string - primarily for testing
-    pub fn from_string(id: String) -> Self {
+    /// Create a new TaskId from an existing u64 value.
+    pub fn from_u64(id: u64) -> Self {
         Self(id)
     }
 }
@@ -476,15 +471,6 @@ impl Task {
     pub fn new(description: String) -> Self {
         Self {
             id: TaskId::new(),
-            description,
-            status: TaskStatus::default(),
-        }
-    }
-
-    #[cfg(test)]
-    pub fn new_deterministic(description: String, seed: u8) -> Self {
-        Self {
-            id: TaskId::new_deterministic(seed),
             description,
             status: TaskStatus::default(),
         }
