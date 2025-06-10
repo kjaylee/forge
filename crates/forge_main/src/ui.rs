@@ -637,9 +637,7 @@ impl<F: API> UI<F> {
             }
             ChatResponse::Usage(mut usage) => {
                 // accumulate the cost
-                usage.cost = usage.cost.and_then(|cost| {
-                    Some(cost + self.state.usage.cost.as_ref().map_or(0.0, |c| *c))
-                });
+                usage.cost = usage.cost.map(|cost| cost + self.state.usage.cost.as_ref().map_or(0.0, |c| *c));
                 self.state.usage = usage;
             }
         }
