@@ -19,11 +19,11 @@ use crate::Infrastructure;
 /// Ideal for sequential workflows, project planning, and tracking multi-step
 /// processes.
 #[derive(Debug, ToolDescription)]
-pub struct TaskManage<F> {
+pub struct TaskList<F> {
     infra: Arc<F>,
 }
 
-impl<F: Infrastructure> TaskManage<F> {
+impl<F: Infrastructure> TaskList<F> {
     /// Creates a new TaskList tool with the given infrastructure.
     pub fn new(infra: Arc<F>) -> Self {
         Self { infra }
@@ -135,9 +135,9 @@ impl<F: Infrastructure> TaskManage<F> {
     }
 }
 
-impl<F> NamedTool for TaskManage<F> {
+impl<F> NamedTool for TaskList<F> {
     fn tool_name() -> ToolName {
-        ToolName::new("forge_tool_task_manage")
+        ToolName::new("forge_tool_task_list")
     }
 }
 
@@ -158,7 +158,7 @@ fn format_input(input: &Operation) -> String {
 }
 
 #[async_trait::async_trait]
-impl<F: Infrastructure> ExecutableTool for TaskManage<F> {
+impl<F: Infrastructure> ExecutableTool for TaskList<F> {
     type Input = Operation;
 
     async fn call(&self, context: &mut ToolCallContext, input: Self::Input) -> Result<ToolOutput> {
@@ -192,9 +192,9 @@ mod tests {
     use super::*;
     use crate::attachment::tests::MockInfrastructure;
 
-    fn create_task_list() -> TaskManage<MockInfrastructure> {
+    fn create_task_list() -> TaskList<MockInfrastructure> {
         let infra = Arc::new(MockInfrastructure::new());
-        TaskManage::new(infra)
+        TaskList::new(infra)
     }
 
     #[tokio::test]

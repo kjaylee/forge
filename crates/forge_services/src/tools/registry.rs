@@ -8,7 +8,7 @@ use super::followup::Followup;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
-use super::task::TaskManage;
+use super::task::TaskList;
 use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
@@ -35,7 +35,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Completion.into(),
             Followup::new(self.infra.clone()).into(),
             Fetch::new(self.infra.clone()).into(),
-            TaskManage::new(self.infra.clone()).into(),
+            TaskList::new(self.infra.clone()).into(),
         ]
     }
 }
