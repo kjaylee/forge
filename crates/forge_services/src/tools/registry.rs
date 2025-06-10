@@ -8,7 +8,7 @@ use super::followup::Followup;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
-use super::task::TaskList;
+use super::task_list::TaskList;
 use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
