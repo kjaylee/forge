@@ -565,7 +565,7 @@ mod tests {
 
         // Fixture: Agent with both required tools
         let agent_with_both = Agent::new("test").tools(vec![
-            ToolName::new("forge_tool_task_done"),
+            ToolName::new("forge_tool_task_manage"),
             ToolName::new("forge_tool_attempt_completion"),
         ]);
 
@@ -581,7 +581,7 @@ mod tests {
             if let Some(tools) = &agent.tools {
                 let has_task_done = tools
                     .iter()
-                    .any(|tool| tool.as_str() == "forge_tool_task_done");
+                    .any(|tool| tool.as_str() == "forge_tool_task_manage");
                 let has_attempt_completion = tools
                     .iter()
                     .any(|tool| tool.as_str() == "forge_tool_attempt_completion");
