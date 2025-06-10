@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use forge_app::Services;
+use forge_domain::Workflow;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -91,6 +92,7 @@ impl<F: Infrastructure> ForgeServices<F> {
     }
 }
 
+#[async_trait::async_trait]
 impl<F: Infrastructure> Services for ForgeServices<F> {
     type ToolService = ForgeToolService<McpService<F>>;
     type ProviderService = ForgeProviderService;
@@ -181,6 +183,13 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn shell_service(&self) -> &Self::ShellService {
         &self.shell_service
+    }
+
+    /// Register agent tools from a workflow
+    async fn register_agent_tools(&self, workflow: &Workflow) {
+        self.tool_service
+            .register_agent_tools(self.infra.clone(), workflow)
+            .await;
     }
 }
 

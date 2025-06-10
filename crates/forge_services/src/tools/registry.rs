@@ -20,6 +20,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
     }
 
     /// Returns all available tools configured with the given infrastructure
+    /// Optionally includes agent tools if workflow is provided
     pub fn tools(&self) -> Vec<Tool> {
         vec![
             FSRead::new(self.infra.clone()).into(),

@@ -1,3 +1,4 @@
+pub mod agent;
 mod completion;
 mod fetch;
 mod followup;

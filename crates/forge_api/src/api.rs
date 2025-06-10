@@ -83,4 +83,8 @@ pub trait API: Sync + Send {
     /// user's home directory Local configuration is stored in the current
     /// project directory
     async fn write_mcp_config(&self, scope: &Scope, config: &McpConfig) -> Result<()>;
+    /// Registers agent tools based on the provided workflow
+    /// This should be called when a workflow is loaded to make agents available
+    /// as tools
+    async fn register_agent_tools(&self, workflow: &Workflow) -> Result<()>;
 }

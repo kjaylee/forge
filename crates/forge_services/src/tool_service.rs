@@ -5,7 +5,9 @@ use anyhow::Context as _;
 use forge_app::{McpService, ToolService};
 use forge_domain::{
     Agent, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult,
+    Workflow,
 };
+use tokio::sync::RwLock;
 use tokio::time::{timeout, Duration};
 use tracing::info;
 
@@ -17,28 +19,51 @@ const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone)]
 pub struct ForgeToolService<M> {
-    tools: Arc<HashMap<ToolName, Arc<Tool>>>,
+    tools: Arc<RwLock<HashMap<ToolName, Arc<Tool>>>>, // All tools in one place
     mcp: Arc<M>,
 }
 
 impl<M: McpService> ForgeToolService<M> {
     pub fn new<F: Infrastructure>(infra: Arc<F>, mcp: Arc<M>) -> Self {
         let registry = ToolRegistry::new(infra.clone());
-        let tools = registry.tools();
-        let tools: HashMap<ToolName, Arc<Tool>> = tools
+        let tools: HashMap<ToolName, Arc<Tool>> = registry
+            .tools()
             .into_iter()
             .map(|tool| (tool.definition.name.clone(), Arc::new(tool)))
             .collect::<HashMap<_, _>>();
 
-        Self { tools: Arc::new(tools), mcp }
+        Self { tools: Arc::new(RwLock::new(tools)), mcp }
+    }
+
+    /// Registers agent tools from a workflow
+    pub async fn register_agent_tools<F: Infrastructure>(
+        &self,
+        infra: Arc<F>,
+        workflow: &Workflow,
+    ) {
+        use crate::tools::agent::AgentTool;
+
+        let mut tools_map = self.tools.write().await;
+
+        // Register all agents as tools
+        for agent in &workflow.agents {
+            // Skip agents that don't have descriptions as they can't be called
+            if agent.description.is_none() || agent.description.as_ref().unwrap().is_empty() {
+                continue;
+            }
+
+            // Create an agent tool for this agent
+            let tool = AgentTool::<F>::for_agent(infra.clone(), agent).to_tool();
+            tools_map.insert(tool.definition.name.clone(), Arc::new(tool));
+        }
     }
 
     /// Get a tool by its name. If the tool is not found, it returns an error
     /// with a list of available tools.
     async fn get_tool(&self, name: &ToolName) -> anyhow::Result<Arc<Tool>> {
         self.find(name).await?.ok_or_else(|| {
-            let mut available_tools = self
-                .tools
+            let tools = self.tools.try_read().unwrap();
+            let mut available_tools = tools
                 .keys()
                 .map(|name| name.to_string())
                 .collect::<Vec<_>>();
@@ -133,11 +158,14 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
     }
 
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let mut tools: Vec<_> = self
-            .tools
-            .values()
-            .map(|tool| tool.definition.clone())
-            .collect();
+        let mut tools: Vec<_> = {
+            let tools_map = self.tools.read().await;
+            tools_map
+                .values()
+                .map(|tool| tool.definition.clone())
+                .collect()
+        };
+
         let mcp_tools = self.mcp.list().await?;
         tools.extend(mcp_tools);
 
@@ -147,7 +175,16 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
         Ok(tools)
     }
     async fn find(&self, name: &ToolName) -> anyhow::Result<Option<Arc<Tool>>> {
-        Ok(self.tools.get(name).cloned().or(self.mcp.find(name).await?))
+        // First check unified tools storage
+        {
+            let tools = self.tools.read().await;
+            if let Some(tool) = tools.get(name) {
+                return Ok(Some(tool.clone()));
+            }
+        }
+
+        // Then check MCP tools
+        self.mcp.find(name).await
     }
 }
 
@@ -178,7 +215,7 @@ mod test {
                 .map(|tool| (tool.definition.name.clone(), Arc::new(tool)))
                 .collect::<HashMap<_, _>>();
 
-            Self { tools: Arc::new(tools), mcp: Arc::new(Stub) }
+            Self { tools: Arc::new(RwLock::new(tools)), mcp: Arc::new(Stub) }
         }
     }
 

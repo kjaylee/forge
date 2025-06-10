@@ -259,6 +259,7 @@ pub trait ShellService: Send + Sync {
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
+#[async_trait::async_trait]
 pub trait Services: Send + Sync + 'static + Clone {
     type ToolService: ToolService;
     type ProviderService: ProviderService;
@@ -297,4 +298,7 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn fs_undo_service(&self) -> &Self::FsUndoService;
     fn net_fetch_service(&self) -> &Self::NetFetchService;
     fn shell_service(&self) -> &Self::ShellService;
+
+    /// Register agent tools from a workflow
+    async fn register_agent_tools(&self, workflow: &Workflow);
 }

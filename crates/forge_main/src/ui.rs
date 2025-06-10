@@ -523,6 +523,9 @@ impl<F: API> UI<F> {
             .write_workflow(self.cli.workflow.as_deref(), &workflow)
             .await?;
 
+        // Register agent tools from the workflow
+        self.api.register_agent_tools(&base_workflow).await?;
+
         self.command.register_all(&base_workflow);
         self.state = UIState::new(base_workflow).provider(self.api.environment().provider);
 
