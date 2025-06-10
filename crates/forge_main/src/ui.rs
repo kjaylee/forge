@@ -5,7 +5,8 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use forge_api::{
-    ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId, Workflow, API,
+    AgentId, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
+    Workflow, API,
 };
 use forge_display::{MarkdownFormat, TitleFormat};
 use forge_domain::{McpConfig, McpServerConfig, Scope};
@@ -24,7 +25,7 @@ use crate::cli::{Cli, McpCommand, TopLevelCommand, Transport};
 use crate::info::Info;
 use crate::input::Console;
 use crate::model::{Command, ForgeCommandManager};
-use crate::state::{Mode, UIState};
+use crate::state::UIState;
 use crate::update::on_update;
 use crate::{banner, TRACKER};
 
@@ -85,45 +86,40 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    // Set the current mode and update conversation variable
-    async fn on_mode_change(&mut self, mode: Mode) -> Result<()> {
-        // Set the mode variable in the conversation if a conversation exists
-        let conversation_id = self.init_conversation().await?;
+    async fn active_workflow(&self) -> Result<Workflow> {
+        // Read the current workflow to validate the agent
+        let workflow = self.api.read_workflow(self.cli.workflow.as_deref()).await?;
+        let mut base_workflow = Workflow::default();
+        base_workflow.merge(workflow.clone());
+        Ok(base_workflow)
+    }
 
-        // Override the mode that was reset by the conversation
-        self.state.mode = mode.clone();
+    // Set the current mode and update conversation variable
+    async fn on_mode_change(&mut self, agent_id: String) -> Result<()> {
+        let workflow = self.active_workflow().await?;
+
+        // Convert string to AgentId for validation
+        let agent_id_typed = AgentId::new(agent_id);
+        let agent = workflow.get_agent(&agent_id_typed)?;
+        self.state.operating_agent = Some(agent.id.clone());
 
         // Reset is_first to true when switching modes
         self.state.is_first = true;
 
-        // Retrieve the conversation, update it, and save it back
-        if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
-            conversation.set_variable("mode".to_string(), Value::from(mode.to_string()));
-            self.api.upsert_conversation(conversation).await?;
-        }
-
-        // Update the workflow with the new mode
-        self.api
-            .update_workflow(self.cli.workflow.as_deref(), |workflow| {
-                workflow
-                    .variables
-                    .insert("mode".to_string(), Value::from(mode.to_string()));
-            })
-            .await?;
-
         self.writeln(TitleFormat::action(format!(
-            "Switched to '{}' mode",
-            self.state.mode
+            "Switched to '{}' agent",
+            agent.id
         )))?;
 
         Ok(())
     }
+
     // Helper functions for creating events with the specific event names
     fn create_task_init_event<V: Into<Value>>(&self, content: V) -> Event {
         Event::new(
             format!(
                 "{}/{}",
-                self.state.mode.to_string().to_lowercase(),
+                self.state.operating_agent.as_ref().unwrap(),
                 EVENT_USER_TASK_INIT
             ),
             content,
@@ -134,7 +130,7 @@ impl<F: API> UI<F> {
         Event::new(
             format!(
                 "{}/{}",
-                self.state.mode.to_string().to_lowercase(),
+                self.state.operating_agent.as_ref().unwrap(),
                 EVENT_USER_TASK_UPDATE
             ),
             content,
@@ -330,10 +326,10 @@ impl<F: API> UI<F> {
                 self.on_message(content.clone()).await?;
             }
             Command::Act => {
-                self.on_mode_change(Mode::Act).await?;
+                self.on_mode_change("act".to_string()).await?;
             }
             Command::Plan => {
-                self.on_mode_change(Mode::Plan).await?;
+                self.on_mode_change("plan".to_string()).await?;
             }
             Command::Help => {
                 let info = Info::from(self.command.as_ref());
@@ -364,11 +360,31 @@ impl<F: API> UI<F> {
             Command::Shell(ref command) => {
                 self.api.execute_shell_command_raw(command).await?;
             }
+            Command::Agents => {
+                // Read the current workflow to validate the agent
+                let workflow = self.active_workflow().await?;
+
+                let agents = workflow
+                    .agents
+                    .into_iter()
+                    .map(|agent| {
+                        if let Some(desc) = agent.description {
+                            format!("{}: {}", agent.id, desc)
+                        } else {
+                            agent.id.to_string()
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                let select_prompt =
+                    inquire::Select::new("select the agent from following list", agents);
+                let selected_option = select_prompt.prompt()?;
+                self.on_mode_change(selected_option).await?;
+            }
         }
 
         Ok(false)
     }
-
     async fn on_compaction(&mut self) -> Result<(), anyhow::Error> {
         let conversation_id = self.init_conversation().await?;
         let compaction_result = self.api.compact_conversation(&conversation_id).await?;
@@ -480,7 +496,11 @@ impl<F: API> UI<F> {
                 self.spinner.start(Some("Initializing"))?;
 
                 // Select a model if workflow doesn't have one
+                let operating_agent = self.state.operating_agent.clone();
                 let workflow = self.init_state().await?;
+                if let Some(operating_agent) = operating_agent {
+                    self.state.operating_agent = Some(operating_agent);
+                }
 
                 // We need to try and get the conversation ID first before fetching the model
                 let id = if let Some(ref path) = self.cli.conversation {

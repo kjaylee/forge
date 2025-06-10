@@ -182,6 +182,7 @@ impl ForgeCommandManager {
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
+            "/agents" => Ok(Command::Agents),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -263,6 +264,12 @@ pub enum Command {
     /// This can be triggered with commands starting with '!' character.
     #[strum(props(usage = "Execute a native shell command"))]
     Shell(String),
+
+    /// Allows user to switch the operating agent.
+    #[strum(props(
+        usage = "Allows user to select the operating agent from the list of available agents"
+    ))]
+    Agents,
 }
 
 impl Command {
@@ -282,6 +289,7 @@ impl Command {
             Command::Tools => "/tools",
             Command::Custom(event) => &event.name,
             Command::Shell(_) => "!shell",
+            Command::Agents => "/agents",
         }
     }
 

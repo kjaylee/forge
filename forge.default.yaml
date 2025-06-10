@@ -14,7 +14,7 @@ models:
   - &advanced_model anthropic/claude-sonnet-4
 
 agents:
-  - id: software-engineer
+  - id: act
     compact:
       max_tokens: 2000
       token_threshold: 160000
@@ -46,7 +46,7 @@ agents:
       - act/user_task_update
     max_walker_depth: 1
 
-  - id: software-designer
+  - id: plan
     compact:
       max_tokens: 2000
       token_threshold: 120000

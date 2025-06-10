@@ -4,12 +4,10 @@ use std::fmt::Write;
 use std::process::Command;
 
 use derive_setters::Setters;
-use forge_api::{ModelId, Usage};
+use forge_api::{AgentId, ModelId, Usage};
 use forge_tracker::VERSION;
 use nu_ansi_term::{Color, Style};
 use reedline::{Prompt, PromptHistorySearchStatus};
-
-use crate::state::Mode;
 
 // Constants
 const MULTILINE_INDICATOR: &str = "::: ";
@@ -20,7 +18,7 @@ const RIGHT_CHEVRON: &str = "❯";
 #[setters(strip_option, borrow_self)]
 pub struct ForgePrompt {
     pub usage: Option<Usage>,
-    pub mode: Mode,
+    pub agent_id: Option<AgentId>,
     pub model: Option<ModelId>,
 }
 
@@ -51,7 +49,12 @@ impl Prompt for ForgePrompt {
         write!(
             result,
             "{} {}",
-            mode_style.paint(self.mode.to_string()),
+            mode_style.paint(
+                self.agent_id
+                    .as_ref()
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
+            ),
             folder_style.paint(&current_dir)
         )
         .unwrap();
@@ -189,7 +192,7 @@ mod tests {
         let actual = prompt.render_prompt_left();
 
         // Check that it has the expected format with mode and directory displayed
-        assert!(actual.contains("ACT"));
+        assert!(actual.contains("unknown"));
         assert!(actual.contains(RIGHT_CHEVRON));
     }
 
@@ -205,7 +208,7 @@ mod tests {
         env::remove_var("PROMPT");
 
         // Verify the prompt contains expected elements regardless of $PROMPT var
-        assert!(actual.contains("ACT"));
+        assert!(actual.contains("unknown"));
         assert!(actual.contains(RIGHT_CHEVRON));
     }
 
