@@ -25,7 +25,7 @@ impl<F> Followup<F> {
 }
 
 impl<F: Infrastructure> NamedTool for Followup<F> {
-    fn tool_name() -> forge_domain::ToolName {
+    fn tool_name(&self) -> forge_domain::ToolName {
         forge_domain::ToolName::new("forge_tool_followup")
     }
 }

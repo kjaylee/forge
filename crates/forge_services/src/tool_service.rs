@@ -173,7 +173,7 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
     }
 
     async fn register_agent_tool(&self, agent: &Agent) -> anyhow::Result<()> {
-        self.register_tool(AgentTool::from(agent).to_tool()).await
+        self.register_tool(AgentTool::from(agent)).await
     }
 }
 

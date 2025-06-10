@@ -252,7 +252,7 @@ impl<I: Infrastructure> Shell<I> {
 }
 
 impl<I> NamedTool for Shell<I> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_process_shell")
     }
 }
@@ -633,7 +633,9 @@ mod tests {
 
     #[test]
     fn test_tool_name() {
-        let actual = Shell::<MockInfrastructure>::tool_name();
+        let infra = Arc::new(MockInfrastructure::new());
+        let shell = Shell::new(infra);
+        let actual = shell.tool_name();
         let expected = ToolName::new("forge_tool_process_shell");
         assert_eq!(actual, expected);
     }

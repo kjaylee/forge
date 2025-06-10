@@ -5,7 +5,7 @@ use crate::{
     ExecutableTool, NamedTool, ToolCallContext, ToolDefinition, ToolDescription, ToolOutput,
 };
 
-pub struct JsonTool<T>(T);
+struct JsonTool<T>(T);
 
 impl<T> JsonTool<T> {
     pub fn new(tool: T) -> Self {

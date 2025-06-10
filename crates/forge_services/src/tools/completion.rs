@@ -20,7 +20,7 @@ use forge_tool_macros::ToolDescription;
 pub struct Completion;
 
 impl NamedTool for Completion {
-    fn tool_name() -> forge_domain::ToolName {
+    fn tool_name(&self) -> forge_domain::ToolName {
         forge_domain::ToolName::new("forge_tool_attempt_completion")
     }
 }

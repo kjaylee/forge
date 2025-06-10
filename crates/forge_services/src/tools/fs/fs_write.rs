@@ -48,7 +48,7 @@ impl<F: Infrastructure> FSWrite<F> {
 }
 
 impl<F> NamedTool for FSWrite<F> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_create")
     }
 }

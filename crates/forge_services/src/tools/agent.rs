@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use forge_domain::{
-    Agent, ChatResponse, ExecutableTool, JsonTool, NamedTool, Tool, ToolCallContext,
-    ToolDefinition, ToolDescription, ToolName, ToolOutput,
+    Agent, ChatResponse, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
+    ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
@@ -21,17 +21,8 @@ pub struct AgentTool {
 }
 
 impl AgentTool {
-    pub fn new(agent_id: String, agent_description: Option<String>) -> Self {
+    fn new(agent_id: String, agent_description: Option<String>) -> Self {
         Self { id: agent_id, description: agent_description }
-    }
-
-    pub fn to_tool(self) -> Tool {
-        let definition = ToolDefinition {
-            name: ToolName::new(self.id.clone()),
-            description: self.description.clone().unwrap_or_default(),
-            input_schema: schemars::schema_for!(AgentInput),
-        };
-        Tool { definition, executable: Box::new(JsonTool::new(self)) }
     }
 }
 
@@ -63,14 +54,14 @@ impl ExecutableTool for AgentTool {
 }
 
 impl NamedTool for AgentTool {
-    fn tool_name() -> ToolName {
-        unreachable!("This tool does not have a static name. Use `to_tool()` to get the full tool definition.")
+    fn tool_name(&self) -> ToolName {
+        ToolName::new(self.id.as_str())
     }
 }
 
 impl ToolDescription for AgentTool {
     fn description(&self) -> String {
-        unreachable!("This tool does not have a static description. Use `to_tool()` to get the full tool definition.")
+        self.description.clone().unwrap_or_default()
     }
 }
 

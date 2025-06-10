@@ -201,7 +201,7 @@ impl<F: Infrastructure> FSRead<F> {
 }
 
 impl<F> NamedTool for FSRead<F> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_read")
     }
 }

@@ -52,7 +52,7 @@ impl EventContext {
 }
 
 impl NamedTool for Event {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_event_dispatch")
     }
 }
@@ -60,7 +60,7 @@ impl NamedTool for Event {
 impl Event {
     pub fn tool_definition() -> ToolDefinition {
         ToolDefinition {
-            name: Self::tool_name(),
+            name: ToolName::new("forge_tool_event_dispatch"),
             description: "Dispatches an event with the provided name and value".to_string(),
             input_schema: schema_for!(EventMessage),
         }

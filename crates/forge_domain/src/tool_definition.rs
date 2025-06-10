@@ -37,7 +37,7 @@ where
         let input: RootSchema = schemars::schema_for!(T::Input);
 
         ToolDefinition {
-            name: T::tool_name(),
+            name: t.tool_name(),
             description: t.description(),
             input_schema: input,
         }

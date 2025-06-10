@@ -278,7 +278,7 @@ async fn retrieve_file_paths(dir: &Path) -> anyhow::Result<Vec<std::path::PathBu
 }
 
 impl<F> NamedTool for FSFind<F> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_search")
     }
 }

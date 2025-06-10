@@ -41,7 +41,7 @@ impl<F: Infrastructure> FsUndo<F> {
 }
 
 impl<F> NamedTool for FsUndo<F> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_undo")
     }
 }
@@ -115,8 +115,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_tool_name() {
+        let infra = Arc::new(MockInfrastructure::new());
+        let fs_undo = FsUndo::new(infra);
         assert_eq!(
-            FsUndo::<Stub>::tool_name().to_string(),
+            fs_undo.tool_name().to_string(),
             "forge_tool_fs_undo",
             "Tool name should match expected value"
         );

@@ -180,7 +180,7 @@ fn apply_replacement(
 pub struct ApplyPatchJson<F>(Arc<F>);
 
 impl<F: Infrastructure> NamedTool for ApplyPatchJson<F> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_patch")
     }
 }

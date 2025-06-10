@@ -127,7 +127,7 @@ mod tests {
     }
 
     impl NamedTool for MangoTool {
-        fn tool_name() -> ToolName {
+        fn tool_name(&self) -> ToolName {
             ToolName::new("forge_tool_mango")
         }
     }

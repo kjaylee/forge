@@ -23,7 +23,7 @@ impl ToolName {
 }
 
 pub trait NamedTool {
-    fn tool_name() -> ToolName;
+    fn tool_name(&self) -> ToolName;
 }
 
 impl Display for ToolName {

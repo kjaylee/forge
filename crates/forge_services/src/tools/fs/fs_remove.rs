@@ -61,7 +61,7 @@ impl<T: Infrastructure> FSRemove<T> {
 }
 
 impl<T> NamedTool for FSRemove<T> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_remove")
     }
 }

@@ -30,7 +30,7 @@ impl<F: Infrastructure> FSFileInfo<F> {
 }
 
 impl<F> NamedTool for FSFileInfo<F> {
-    fn tool_name() -> ToolName {
+    fn tool_name(&self) -> ToolName {
         ToolName::new("forge_tool_fs_info")
     }
 }
