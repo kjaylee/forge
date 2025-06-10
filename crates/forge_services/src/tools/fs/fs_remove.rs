@@ -4,8 +4,8 @@ use std::sync::Arc;
 use forge_app::EnvironmentService;
 use forge_display::TitleFormat;
 use forge_domain::{
-    ExecutableTool, FSRemoveInput, NamedTool, ToolCallContext, ToolDescription, ToolName,
-    ToolOutput,
+    ExecutableTool, FSRemove as FSRemoveInput, NamedTool, ToolCallContext, ToolDescription,
+    ToolName, ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 
@@ -126,6 +126,7 @@ mod test {
             .write(
                 file_path.as_path(),
                 Bytes::from("test content".as_bytes().to_vec()),
+                true,
             )
             .await
             .unwrap();

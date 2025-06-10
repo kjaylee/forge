@@ -6,8 +6,8 @@ use bytes::Bytes;
 use forge_app::EnvironmentService;
 use forge_display::{DiffFormat, TitleFormat};
 use forge_domain::{
-    ExecutableTool, FSPatchInput, NamedTool, PatchOperation, ToolCallContext, ToolDescription,
-    ToolName, ToolOutput,
+    ExecutableTool, FSPatch, NamedTool, PatchOperation, ToolCallContext, ToolDescription, ToolName,
+    ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 use thiserror::Error;
@@ -207,7 +207,7 @@ impl<F: Infrastructure> ApplyPatchJson<F> {
 
 #[async_trait::async_trait]
 impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
-    type Input = FSPatchInput;
+    type Input = FSPatch;
 
     async fn call(
         &self,
@@ -242,7 +242,7 @@ impl<F: Infrastructure> ExecutableTool for ApplyPatchJson<F> {
         // Write final content to file after all patches are applied
         self.0
             .file_write_service()
-            .write(path, Bytes::from(current_content.clone()))
+            .write(path, Bytes::from(current_content.clone()), true)
             .await?;
 
         let mut result = String::new();
