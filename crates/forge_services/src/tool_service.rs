@@ -35,7 +35,7 @@ impl<M: McpService> ForgeToolService<M> {
         Self { tools: Arc::new(RwLock::new(tools)), mcp }
     }
 
-    /// Registers agent tools from a workflow
+    /// Registers agent as tool
     pub async fn register_tool<T: Into<Tool>>(&self, tool: T) -> anyhow::Result<()> {
         let mut tools_map = self.tools.write().await;
         let tool: Tool = tool.into();
