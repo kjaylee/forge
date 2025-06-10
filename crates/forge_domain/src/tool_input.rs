@@ -375,6 +375,12 @@ impl Operation {
 #[serde(transparent)]
 pub struct TaskId(String);
 
+impl Default for TaskId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskId {
     pub fn new() -> Self {
         Self(uuid::Uuid::new_v4().to_string())
