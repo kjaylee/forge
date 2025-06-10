@@ -171,6 +171,8 @@ pub trait TaskService: Send + Sync {
 
     /// Formats tasks as markdown
     async fn format_markdown(&self) -> anyhow::Result<String>;
+    /// Clears all tasks from the task list
+    async fn clear(&self) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]

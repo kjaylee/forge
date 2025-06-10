@@ -79,6 +79,9 @@ impl<F: API> UI<F> {
 
     // Handle creating a new conversation
     async fn on_new(&mut self) -> Result<()> {
+        // Clear all existing tasks when starting a new conversation
+        self.api.clear_task_list().await?;
+
         self.init_state().await?;
         banner::display()?;
 

@@ -146,4 +146,10 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
         let tasks = task_service.format_markdown().await?;
         Ok(tasks)
     }
+
+    async fn clear_task_list(&self) -> Result<()> {
+        let task_service = self.app.task_service();
+        task_service.clear().await?;
+        Ok(())
+    }
 }

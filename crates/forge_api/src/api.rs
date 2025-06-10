@@ -86,4 +86,6 @@ pub trait API: Sync + Send {
 
     /// Formats the current task list for display in user commands
     async fn format_task_list(&self) -> Result<String>;
+    /// Clears all tasks from the task list
+    async fn clear_task_list(&self) -> Result<()>;
 }

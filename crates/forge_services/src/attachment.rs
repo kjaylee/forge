@@ -370,6 +370,10 @@ pub mod tests {
         async fn format_markdown(&self) -> anyhow::Result<String> {
             Ok("No tasks available.".to_string())
         }
+
+        async fn clear(&self) -> anyhow::Result<()> {
+            Ok(())
+        }
     }
 
     #[async_trait::async_trait]

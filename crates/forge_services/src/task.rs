@@ -223,6 +223,13 @@ impl TaskService for ForgeTaskService {
             .cloned())
     }
 
+    /// Clears all tasks from the task list
+    async fn clear(&self) -> Result<()> {
+        let mut tasks = self.tasks.lock().await;
+        tasks.clear();
+        Ok(())
+    }
+
     /// Formats tasks as markdown
     async fn format_markdown(&self) -> Result<String> {
         let tasks = self.list().await?;
@@ -524,6 +531,39 @@ pub mod tests {
 
             Ok(markdown)
         }
+
+        async fn clear(&self) -> anyhow::Result<()> {
+            let mut tasks = self.tasks.lock().await;
+            let mut counter = self.counter.lock().await;
+            tasks.clear();
+            *counter = 0;
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_clear_tasks() {
+        // Fixture: Create task service with multiple tasks
+        let service = ForgeTaskService::new();
+        service.append("Task 1".to_string()).await.unwrap();
+        service.append("Task 2".to_string()).await.unwrap();
+        service.append("Task 3".to_string()).await.unwrap();
+
+        // Verify tasks exist
+        let tasks_before = service.list().await.unwrap();
+        assert_eq!(tasks_before.len(), 3);
+
+        // Actual: Clear all tasks
+        let actual = service.clear().await;
+
+        // Expected: Operation should succeed and all tasks should be removed
+        assert!(actual.is_ok());
+        let tasks_after = service.list().await.unwrap();
+        assert_eq!(tasks_after.len(), 0);
+
+        // Verify stats are updated
+        let stats = service.stats().await.unwrap();
+        assert_eq!(stats, (0, 0, 0, 0)); // (total, done, pending, in_progress)
     }
 
     #[tokio::test]
