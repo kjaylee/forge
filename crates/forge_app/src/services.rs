@@ -83,6 +83,7 @@ pub trait ToolService: Send + Sync {
     ) -> ToolResult;
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
     async fn find(&self, name: &ToolName) -> anyhow::Result<Option<Arc<Tool>>>;
+    async fn register_agent_tool(&self, agent: &Agent) -> anyhow::Result<()>;
 }
 
 #[async_trait::async_trait]
@@ -259,7 +260,6 @@ pub trait ShellService: Send + Sync {
 /// Core app trait providing access to services and repositories.
 /// This trait follows clean architecture principles for dependency management
 /// and service/repository composition.
-#[async_trait::async_trait]
 pub trait Services: Send + Sync + 'static + Clone {
     type ToolService: ToolService;
     type ProviderService: ProviderService;
@@ -298,7 +298,4 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn fs_undo_service(&self) -> &Self::FsUndoService;
     fn net_fetch_service(&self) -> &Self::NetFetchService;
     fn shell_service(&self) -> &Self::ShellService;
-
-    /// Register agent as tool into tool service.
-    async fn register_agent_tool(&self, agent: &Agent) -> anyhow::Result<()>;
 }

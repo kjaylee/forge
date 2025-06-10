@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use forge_app::Services;
-use forge_domain::Agent;
 
 use crate::attachment::ForgeChatRequest;
 use crate::conversation::ForgeConversationService;
@@ -10,7 +9,6 @@ use crate::mcp::{ForgeMcpManager, ForgeMcpService};
 use crate::provider::ForgeProviderService;
 use crate::template::ForgeTemplateService;
 use crate::tool_service::ForgeToolService;
-use crate::tools::agent::AgentTool;
 use crate::tools_v2::{
     ForgeFetch, ForgeFollowup, ForgeFsCreate, ForgeFsPatch, ForgeFsRead, ForgeFsRemove,
     ForgeFsSearch, ForgeFsUndo, ForgeShell,
@@ -93,7 +91,6 @@ impl<F: Infrastructure> ForgeServices<F> {
     }
 }
 
-#[async_trait::async_trait]
 impl<F: Infrastructure> Services for ForgeServices<F> {
     type ToolService = ForgeToolService<McpService<F>>;
     type ProviderService = ForgeProviderService;
@@ -184,14 +181,6 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn shell_service(&self) -> &Self::ShellService {
         &self.shell_service
-    }
-
-    /// Register agent as tool into tool service.
-    async fn register_agent_tool(&self, agent: &Agent) -> anyhow::Result<()> {
-        self.tool_service
-            .register_tool(AgentTool::from(agent).to_tool())
-            .await?;
-        Ok(())
     }
 }
 

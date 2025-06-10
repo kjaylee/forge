@@ -4,7 +4,7 @@ use forge_domain::{
     ToolDefinition, ToolDescription, ToolName, ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
-use schemars::{schema::RootSchema, JsonSchema};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Input schema for calling another agent
@@ -26,15 +26,12 @@ impl AgentTool {
     }
 
     pub fn to_tool(self) -> Tool {
-        let input: RootSchema = schemars::schema_for!(AgentInput);
-        let def = ToolDefinition {
+        let definition = ToolDefinition {
             name: ToolName::new(self.id.clone()),
             description: self.description.clone().unwrap_or_default(),
-            input_schema: input,
+            input_schema: schemars::schema_for!(AgentInput),
         };
-        let exec = Box::new(JsonTool::new(self));
-        let tool = Tool { definition: def, executable: exec };
-        tool
+        Tool { definition, executable: Box::new(JsonTool::new(self)) }
     }
 }
 
@@ -67,19 +64,13 @@ impl ExecutableTool for AgentTool {
 
 impl NamedTool for AgentTool {
     fn tool_name() -> ToolName {
-        ToolName::new("agent_tool")
+        unreachable!("This tool does not have a static name. Use `to_tool()` to get the full tool definition.")
     }
 }
 
 impl ToolDescription for AgentTool {
     fn description(&self) -> String {
-        format!(
-            "Call the {} agent when {}",
-            self.id,
-            self.description
-                .as_deref()
-                .unwrap_or("No description available.")
-        )
+        unreachable!("This tool does not have a static description. Use `to_tool()` to get the full tool definition.")
     }
 }
 

@@ -10,6 +10,7 @@ use tokio::sync::RwLock;
 use tokio::time::{timeout, Duration};
 use tracing::info;
 
+use crate::tools::agent::AgentTool;
 use crate::tools::ToolRegistry;
 use crate::Infrastructure;
 
@@ -169,6 +170,10 @@ impl<M: McpService> ToolService for ForgeToolService<M> {
 
         // Then check MCP tools
         self.mcp.find(name).await
+    }
+
+    async fn register_agent_tool(&self, agent: &Agent) -> anyhow::Result<()> {
+        self.register_tool(AgentTool::from(agent).to_tool()).await
     }
 }
 

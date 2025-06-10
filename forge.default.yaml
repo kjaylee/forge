@@ -41,12 +41,16 @@ agents:
       - forge_tool_fs_search
       - forge_tool_fs_undo
       - forge_tool_attempt_completion
+      - software-designer
+      - agent_tool
     subscribe:
       - act/user_task_init
       - act/user_task_update
     max_walker_depth: 1
 
   - id: software-designer
+    description: |
+      A specialized agent for software design and planning. Creates technical plans and designs without modifying code files.
     compact:
       max_tokens: 2000
       token_threshold: 120000
@@ -76,3 +80,20 @@ agents:
       - plan/user_task_init
       - plan/user_task_update
     max_walker_depth: 1
+
+  - id: codebase_agent
+    description: |
+      A specialized agent for codebase-related tasks, capable of answering any questions about the codebase and assisting with tasks related to it.
+    model: *advanced_model
+    system_prompt: |
+      You are Forge, a Codebase agent responsible for answering any questions about the codebase and assisting with tasks related to it.
+    user_prompt: <task>{{event.value}}</task>
+    tools:
+    - forge_tool_fs_read
+    - forge_tool_process_shell
+    - forge_tool_net_fetch
+    - forge_tool_fs_search
+    - forge_tool_attempt_completion
+    subscribe:
+    - ask/user_task_init
+    - ask/user_task_update
