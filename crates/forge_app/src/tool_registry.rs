@@ -177,7 +177,7 @@ impl<S: Services> ToolRegistry<S> {
         let truncation_path = out.to_create_temp(self.services.as_ref()).await?;
         let env = self.services.environment_service().get_environment();
 
-        out.into_tool_output(Some(tool_input), truncation_path, &env)
+        out.into_tool_output(tool_input, truncation_path, &env)
     }
 
     async fn call_mcp_tool(
