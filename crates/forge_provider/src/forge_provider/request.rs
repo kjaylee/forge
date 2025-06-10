@@ -279,7 +279,7 @@ impl From<Context> for Request {
             models: Default::default(),
             route: Default::default(),
             provider: Default::default(),
-            parallel_tool_calls: Some(false),
+            parallel_tool_calls: request.parallel_tool_calls,
             session_id: request.conversation_id.map(|id| id.to_string()),
         }
     }

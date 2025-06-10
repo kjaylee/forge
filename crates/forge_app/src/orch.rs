@@ -255,6 +255,9 @@ impl<S: AgentService> Orchestrator<S> {
         // attach the conversation ID to the context
         context = context.conversation_id(self.conversation.id.clone());
 
+        // check if parallel tool calls are supported by the agent
+        context = context.parallel_tool_calls(self.is_parallel_tool_call_supported(&agent));
+
         // Reset all the available tools
         context = context.tools(self.get_allowed_tools(&agent)?);
 

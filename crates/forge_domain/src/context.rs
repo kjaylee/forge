@@ -125,6 +125,8 @@ pub struct Context {
     pub top_p: Option<TopP>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub top_k: Option<TopK>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
 }
 
 impl Context {
