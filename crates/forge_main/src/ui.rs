@@ -351,7 +351,6 @@ impl<F: API> UI<F> {
                 self.writeln(output)?;
             }
             Command::Tasks => {
-                self.spinner.start(Some("Loading"))?;
                 self.on_tasks().await?;
             }
             Command::Update => {
