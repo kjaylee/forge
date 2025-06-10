@@ -1,8 +1,7 @@
 use async_trait::async_trait;
 use forge_display::TitleFormat;
 use forge_domain::{
-    Agent, ChatResponse, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
-    ToolOutput,
+    Agent, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName, ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::JsonSchema;
