@@ -2,30 +2,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::TaskService;
-use forge_domain::{Task, TaskId, TaskStatus};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use forge_domain::{Stats, Task, TaskId, TaskListResult, TaskStatus};
 use tokio::sync::Mutex;
-
-/// Statistics about the TaskList.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
-pub struct Stats {
-    /// Total number of tasks in the list.
-    pub total_tasks: u32,
-    /// Number of completed tasks.
-    pub done_tasks: u32,
-    /// Number of pending tasks.
-    pub pending_tasks: u32,
-    /// Number of in-progress tasks.
-    pub in_progress_tasks: u32,
-}
-
-impl std::fmt::Display for Stats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<stats>\n<total_tasks>{}</total_tasks>\n<done_tasks>{}</done_tasks>\n<pending_tasks>{}</pending_tasks>\n<in_progress_tasks>{}</in_progress_tasks>\n</stats>",
-            self.total_tasks, self.done_tasks, self.pending_tasks, self.in_progress_tasks)
-    }
-}
 
 /// Service for managing tasks, including creation, status updates, and
 /// retrieval
@@ -80,27 +58,8 @@ impl ForgeTaskService {
 
 #[async_trait::async_trait]
 impl TaskService for ForgeTaskService {
-    /// Appends a task to the end of the task list
-    async fn append(&self, description: String) -> Result<()> {
-        let mut tasks_guard = self.tasks.lock().await;
-        let next_id = TaskId::next(&tasks_guard.iter().map(|t| t.id.clone()).collect::<Vec<_>>());
-        tasks_guard.push(Task { id: next_id, description, status: TaskStatus::Pending });
-        Ok(())
-    }
-
-    /// Prepends a task to the beginning of the task list
-    async fn prepend(&self, description: String) -> Result<()> {
-        let mut tasks_guard = self.tasks.lock().await;
-        let next_id = TaskId::next(&tasks_guard.iter().map(|t| t.id.clone()).collect::<Vec<_>>());
-        tasks_guard.insert(
-            0,
-            Task { id: next_id, description, status: TaskStatus::Pending },
-        );
-        Ok(())
-    }
-
     /// Appends multiple tasks to the end of the task list atomically
-    async fn append_bulk(&self, descriptions: Vec<String>) -> Result<()> {
+    async fn append(&self, descriptions: Vec<String>) -> Result<()> {
         if descriptions.is_empty() {
             return Err(anyhow::anyhow!("Cannot append empty list of tasks"));
         }
@@ -116,7 +75,7 @@ impl TaskService for ForgeTaskService {
     }
 
     /// Prepends multiple tasks to the beginning of the task list atomically
-    async fn prepend_bulk(&self, descriptions: Vec<String>) -> Result<()> {
+    async fn prepend(&self, descriptions: Vec<String>) -> Result<()> {
         if descriptions.is_empty() {
             return Err(anyhow::anyhow!("Cannot prepend empty list of tasks"));
         }
@@ -348,25 +307,7 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl TaskService for MockTaskService {
-        async fn append(&self, description: String) -> anyhow::Result<()> {
-            let mut tasks = self.tasks.lock().await;
-            let mut counter = self.counter.lock().await;
-            let task = self.create_deterministic_task(description, *counter);
-            *counter += 1;
-            tasks.push(task);
-            Ok(())
-        }
-
-        async fn prepend(&self, description: String) -> anyhow::Result<()> {
-            let mut tasks = self.tasks.lock().await;
-            let mut counter = self.counter.lock().await;
-            let task = self.create_deterministic_task(description, *counter);
-            *counter += 1;
-            tasks.insert(0, task);
-            Ok(())
-        }
-
-        async fn append_bulk(&self, descriptions: Vec<String>) -> anyhow::Result<()> {
+        async fn append(&self, descriptions: Vec<String>) -> anyhow::Result<()> {
             if descriptions.is_empty() {
                 return Err(anyhow::anyhow!("Cannot append empty list of tasks"));
             }
@@ -387,7 +328,7 @@ pub mod tests {
             Ok(())
         }
 
-        async fn prepend_bulk(&self, descriptions: Vec<String>) -> anyhow::Result<()> {
+        async fn prepend(&self, descriptions: Vec<String>) -> anyhow::Result<()> {
             if descriptions.is_empty() {
                 return Err(anyhow::anyhow!("Cannot prepend empty list of tasks"));
             }
@@ -539,9 +480,14 @@ pub mod tests {
     async fn test_clear_tasks() {
         // Fixture: Create task service with multiple tasks
         let service = ForgeTaskService::new();
-        service.append("Task 1".to_string()).await.unwrap();
-        service.append("Task 2".to_string()).await.unwrap();
-        service.append("Task 3".to_string()).await.unwrap();
+        service
+            .append(vec![
+                "Task 1".to_string(),
+                "Task 2".to_string(),
+                "Task 3".to_string(),
+            ])
+            .await
+            .unwrap();
 
         // Verify tasks exist
         let tasks_before = service.list().await.unwrap();
@@ -566,7 +512,7 @@ pub mod tests {
         let service = ForgeTaskService::new();
 
         // Actual: Append a task
-        let actual = service.append("Test task".to_string()).await;
+        let actual = service.append(vec!["Test task".to_string()]).await;
 
         // Expected: Operation should succeed
         assert!(actual.is_ok());
@@ -582,10 +528,10 @@ pub mod tests {
     async fn test_prepend_task() {
         // Fixture: Create task service with existing task
         let service = ForgeTaskService::new();
-        service.append("Task 1".to_string()).await.unwrap();
+        service.append(vec!["Task 1".to_string()]).await.unwrap();
 
         // Actual: Prepend a task
-        service.prepend("Task 2".to_string()).await.unwrap();
+        service.prepend(vec!["Task 2".to_string()]).await.unwrap();
 
         // Expected: Task 2 should be first
         let tasks = service.list().await.unwrap();
@@ -598,7 +544,10 @@ pub mod tests {
     async fn test_pop_front() {
         // Fixture: Create task service with tasks
         let service = ForgeTaskService::new();
-        service.append("Task to pop".to_string()).await.unwrap();
+        service
+            .append(vec!["Task to pop".to_string()])
+            .await
+            .unwrap();
 
         // Actual: Pop front task
         let actual = service.pop_front().await.unwrap();
@@ -615,7 +564,7 @@ pub mod tests {
         // Fixture: Create task service with task
         let service = ForgeTaskService::new();
         service
-            .append("Task to complete".to_string())
+            .append(vec!["Task to complete".to_string()])
             .await
             .unwrap();
         let tasks = service.list().await.unwrap();
@@ -634,13 +583,12 @@ pub mod tests {
     async fn test_stats() {
         // Fixture: Create task service with various tasks
         let service = ForgeTaskService::new();
-        service.append("Pending task".to_string()).await.unwrap();
         service
-            .append("Task to progress".to_string())
-            .await
-            .unwrap();
-        service
-            .append("Task to complete".to_string())
+            .append(vec![
+                "Pending task".to_string(),
+                "Task to progress".to_string(),
+                "Task to complete".to_string(),
+            ])
             .await
             .unwrap();
 
@@ -661,9 +609,11 @@ pub mod tests {
     async fn test_format_markdown() {
         // Fixture: Create task service with tasks
         let service = ForgeTaskService::new();
-        service.append("Pending task".to_string()).await.unwrap();
         service
-            .append("In progress task".to_string())
+            .append(vec![
+                "Pending task".to_string(),
+                "In progress task".to_string(),
+            ])
             .await
             .unwrap();
         service.pop_back().await.unwrap(); // Mark second as in progress
@@ -677,51 +627,5 @@ pub mod tests {
         assert!(actual.contains("1. [ ] Pending task"));
         assert!(actual.contains("## 🚧 In Progress"));
         assert!(actual.contains("1. [⚡] In progress task"));
-    }
-}
-/// TaskList operation result.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TaskListResult {
-    /// Message describing the result of the operation.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    /// The task that was affected by the operation, if applicable.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_task: Option<Task>,
-    /// Statistics about the task list.
-    pub stats: Stats,
-    /// List of tasks
-    pub tasks: Option<Vec<Task>>,
-}
-
-impl std::fmt::Display for TaskListResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut result = String::from("<task_list_result>\n");
-
-        if let Some(message) = &self.message {
-            result.push_str(&format!("<message>{message}</message>\n"));
-        }
-
-        if let Some(task) = &self.next_task {
-            result.push_str("<next_task>\n");
-            result.push_str(&format!("{task}\n"));
-            result.push_str("\n</next_task>\n");
-        }
-
-        result.push_str(&format!("{}\n", self.stats));
-
-        if let Some(tasks) = &self.tasks {
-            if !tasks.is_empty() {
-                result.push_str("<tasks_list>\n");
-                for task in tasks {
-                    result.push_str(&format!("{task}\n"));
-                }
-                result.push_str("</tasks_list>\n");
-            }
-        }
-
-        result.push_str("</task_list_result>");
-
-        write!(f, "{result}")
     }
 }

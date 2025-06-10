@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use forge_display::DiffFormat;
-use forge_domain::{Environment, ToolName, ToolResult, Tools};
+use forge_domain::{Environment, TaskListResult, ToolName, ToolResult, Tools};
 
 use crate::front_matter::FrontMatter;
 use crate::truncation::FETCH_MAX_LENGTH;
@@ -23,6 +23,7 @@ pub enum ToolOutput {
     Shell(ShellOutput),
     FollowUp(Option<String>),
     AttemptCompletion,
+    TaskManage(TaskListResult),
 }
 
 impl ToolOutput {
@@ -269,6 +270,9 @@ impl ToolOutput {
                 )),
                 Some(o) => Ok(forge_domain::ToolOutput::text(o.to_string())),
             },
+            ToolOutput::TaskManage(result) => {
+                Ok(forge_domain::ToolOutput::text(result.to_string()))
+            }
             ToolOutput::AttemptCompletion => Ok(forge_domain::ToolOutput::text(
                 "[Task was completed successfully. Now wait for user feedback]".to_string(),
             )),
@@ -347,6 +351,7 @@ impl ToolOutput {
                 }
             }
             ToolOutput::FollowUp(_) => Ok(None),
+            ToolOutput::TaskManage(_) => Ok(None),
             ToolOutput::AttemptCompletion => Ok(None),
         }
     }

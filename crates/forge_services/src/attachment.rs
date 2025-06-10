@@ -332,19 +332,11 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl TaskService for MockFileService {
-        async fn append(&self, _description: String) -> anyhow::Result<()> {
+        async fn append(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
             Ok(())
         }
 
-        async fn prepend(&self, _description: String) -> anyhow::Result<()> {
-            Ok(())
-        }
-
-        async fn append_bulk(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
-            Ok(())
-        }
-
-        async fn prepend_bulk(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
+        async fn prepend(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
             Ok(())
         }
 

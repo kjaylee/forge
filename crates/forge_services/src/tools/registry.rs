@@ -8,7 +8,7 @@ use super::followup::Followup;
 use super::fs::*;
 use super::patch::*;
 use super::shell::Shell;
-use super::task::*;
+use super::task::TaskManage;
 use crate::Infrastructure;
 
 pub struct ToolRegistry<F> {
@@ -35,11 +35,7 @@ impl<F: Infrastructure> ToolRegistry<F> {
             Completion.into(),
             Followup::new(self.infra.clone()).into(),
             Fetch::new(self.infra.clone()).into(),
-            TaskAppend::new(self.infra.clone()).into(),
-            TaskPrepend::new(self.infra.clone()).into(),
-            TaskNext::new(self.infra.clone()).into(),
-            TaskDone::new(self.infra.clone()).into(),
-            TaskListDisplay::new(self.infra.clone()).into(),
+            TaskManage::new(self.infra.clone()).into(),
         ]
     }
 }
@@ -96,19 +92,11 @@ pub mod tests {
 
     #[async_trait::async_trait]
     impl TaskService for Stub {
-        async fn append(&self, _description: String) -> anyhow::Result<()> {
+        async fn append(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
             Ok(())
         }
 
-        async fn prepend(&self, _description: String) -> anyhow::Result<()> {
-            Ok(())
-        }
-
-        async fn append_bulk(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
-            Ok(())
-        }
-
-        async fn prepend_bulk(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
+        async fn prepend(&self, _descriptions: Vec<String>) -> anyhow::Result<()> {
             Ok(())
         }
 
