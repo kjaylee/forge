@@ -2,4 +2,4 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<file lines="1-100" total-lines="200">Truncated content</file>
+<file_content path="/home/user/large_file.txt" start-line="1" end-line="100" total-lines="1">Truncated content</file_content>

@@ -2,6 +2,6 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<file lines="2-3" total-lines="5">Line 1
+<file_content path="/home/user/test.txt" start-line="2" end-line="3" total-lines="3">Line 1
 Line 2
-Line 3</file>
+Line 3</file_content>

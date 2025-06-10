@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 
 use forge_display::DiffFormat;
 use forge_domain::{Environment, Tools};
+use forge_template::Element;
 
 use crate::front_matter::FrontMatter;
 use crate::truncation::FETCH_MAX_LENGTH;
@@ -37,14 +38,14 @@ impl ExecutionResult {
                 if let Some(Tools::ForgeToolFsRead(input)) = input {
                     match &out.content {
                         Content::File(content) => {
-                            let start = out.start_line;
-                            let end = out.end_line;
-                            let total = out.total_lines;
+                            let elm = Element::new("file_content")
+                                .attr("path", input.path)
+                                .attr("start-line", out.start_line)
+                                .attr("end-line", out.end_line)
+                                .attr("total-lines", content.lines().count())
+                                .text(content);
 
-                            let tool = format!(
-                                r#"<file lines="{start}-{end}" total-lines="{total}">{content}</file>"#
-                            );
-                            Ok(forge_domain::ToolOutput::text(tool))
+                            Ok(forge_domain::ToolOutput::text(elm))
                         }
                     }
                 } else {

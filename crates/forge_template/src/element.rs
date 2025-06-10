@@ -102,6 +102,12 @@ where
     }
 }
 
+impl ToString for Element {
+    fn to_string(&self) -> String {
+        self.render()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use pretty_assertions::assert_eq;
