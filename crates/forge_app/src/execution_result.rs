@@ -35,22 +35,17 @@ impl ExecutionResult {
         match self {
             ExecutionResult::FsRead(out) => {
                 if let Some(Tools::ForgeToolFsRead(input)) = input {
-                    let is_explicit_range = input.start_line.is_some() | input.end_line.is_some();
-                    let is_range_relevant = is_explicit_range || truncation_path.is_some();
-
-                    let mut metadata = FrontMatter::default().add("path", input.path);
-
-                    if is_range_relevant {
-                        metadata = metadata
-                            .add("start_line", out.start_line)
-                            .add("end_line", out.end_line)
-                            .add("total_lines", out.total_lines);
-                    }
-
                     match &out.content {
-                        Content::File(content) => Ok(forge_domain::ToolOutput::text(format!(
-                            "{metadata}{content}"
-                        ))),
+                        Content::File(content) => {
+                            let start = out.start_line;
+                            let end = out.end_line;
+                            let total = out.total_lines;
+
+                            let tool = format!(
+                                r#"<file lines="{start}-{end}" total-lines="{total}">{content}</file>"#
+                            );
+                            Ok(forge_domain::ToolOutput::text(tool))
+                        }
                     }
                 } else {
                     unreachable!()
