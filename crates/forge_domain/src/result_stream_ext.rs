@@ -142,6 +142,7 @@ mod tests {
                     estimated_tokens: 15,
                     content_length: 6,
                     cached_tokens: 0,
+                    cost: None,
                 })),
             Ok(ChatCompletionMessage::default()
                 .content(Content::part("world!"))
@@ -152,6 +153,7 @@ mod tests {
                     estimated_tokens: 20,
                     content_length: 12,
                     cached_tokens: 0,
+                    cost: None,
                 })),
         ];
 
@@ -172,6 +174,7 @@ mod tests {
                 estimated_tokens: 20,
                 content_length: 12,
                 cached_tokens: 0,
+                cost: None,
             },
         };
 
