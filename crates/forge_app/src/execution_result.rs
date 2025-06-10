@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use forge_display::DiffFormat;
-use forge_domain::{Environment, TaskListResult, ToolName, ToolResult, Tools};
+use forge_domain::{Environment, TaskListResult, Tools};
 
 use crate::front_matter::FrontMatter;
 use crate::truncation::FETCH_MAX_LENGTH;
@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(derive_more::From)]
-pub enum ToolOutput {
+pub enum ExecutionResult {
     FsRead(ReadOutput),
     FsCreate(FsCreateOutput),
     FsRemove(FsRemoveOutput),
@@ -26,25 +26,16 @@ pub enum ToolOutput {
     TaskManage(TaskListResult),
 }
 
-impl ToolOutput {
-    pub fn to_tool_result(
-        &self,
-        tool_name: ToolName,
-        input: Option<Tools>,
-        truncation_path: Option<PathBuf>,
-        env: &Environment,
-    ) -> ToolResult {
-        ToolResult::new(tool_name).output(self.to_tool_result_inner(input, truncation_path, env))
-    }
-    fn to_tool_result_inner(
-        &self,
+impl ExecutionResult {
+    pub fn into_tool_output(
+        self,
         input: Option<Tools>,
         truncation_path: Option<PathBuf>,
         env: &Environment,
     ) -> anyhow::Result<forge_domain::ToolOutput> {
         match self {
-            ToolOutput::FsRead(out) => {
-                if let Some(Tools::FSRead(input)) = input {
+            ExecutionResult::FsRead(out) => {
+                if let Some(Tools::ForgeToolFsRead(input)) = input {
                     let is_explicit_range = input.start_line.is_some() | input.end_line.is_some();
                     let is_range_relevant = is_explicit_range || truncation_path.is_some();
 
@@ -66,8 +57,8 @@ impl ToolOutput {
                     unreachable!()
                 }
             }
-            ToolOutput::FsCreate(out) => {
-                if let Some(Tools::FSWrite(input)) = input {
+            ExecutionResult::FsCreate(out) => {
+                if let Some(Tools::ForgeToolFsCreate(input)) = input {
                     let chars = input.content.len();
                     let operation = if out.previous.is_some() {
                         "OVERWRITE"
@@ -86,8 +77,8 @@ impl ToolOutput {
                     unreachable!()
                 }
             }
-            ToolOutput::FsRemove(out) => {
-                if let Some(Tools::FSRemove(input)) = input {
+            ExecutionResult::FsRemove(out) => {
+                if let Some(Tools::ForgeToolFsRemove(input)) = input {
                     let display_path = display_path(env, Path::new(&input.path))?;
                     if out.completed {
                         Ok(forge_domain::ToolOutput::text(format!(
@@ -102,8 +93,8 @@ impl ToolOutput {
                     unreachable!()
                 }
             }
-            ToolOutput::FsSearch(output) => {
-                if let Some(Tools::FSSearch(input)) = input {
+            ExecutionResult::FsSearch(output) => {
+                if let Some(Tools::ForgeToolFsSearch(input)) = input {
                     match output {
                         Some(out) => {
                             let truncated_output = truncate_search_output(
@@ -132,10 +123,10 @@ impl ToolOutput {
                             // Create temp file if needed
                             if let Some(path) = truncation_path {
                                 result.push_str(&format!(
-                                    "\n<truncation>content is truncated to {} lines, remaining content can be read from path:{}</truncation>",
-                                    truncated_output.max_lines,
-                                    path.display()
-                                ));
+                                            "\n<truncation>content is truncated to {} lines, remaining content can be read from path:{}</truncation>",
+                                            truncated_output.max_lines,
+                                            path.display()
+                                        ));
                             }
 
                             Ok(forge_domain::ToolOutput::text(result))
@@ -148,8 +139,8 @@ impl ToolOutput {
                     unreachable!()
                 }
             }
-            ToolOutput::FsPatch(output) => {
-                if let Some(Tools::FSPatch(input)) = input {
+            ExecutionResult::FsPatch(output) => {
+                if let Some(Tools::ForgeToolFsPatch(input)) = input {
                     let diff = console::strip_ansi_codes(&DiffFormat::format(
                         &output.before,
                         &output.after,
@@ -166,12 +157,12 @@ impl ToolOutput {
                     unreachable!()
                 }
             }
-            ToolOutput::FsUndo(output) => Ok(forge_domain::ToolOutput::text(format!(
+            ExecutionResult::FsUndo(output) => Ok(forge_domain::ToolOutput::text(format!(
                 "Successfully undid last operation on path: {}",
                 output.as_str()
             ))),
-            ToolOutput::NetFetch(output) => {
-                if let Some(Tools::NetFetch(input)) = input {
+            ExecutionResult::NetFetch(output) => {
+                if let Some(Tools::ForgeToolNetFetch(input)) = input {
                     let mut metadata = FrontMatter::default()
                         .add("URL", &input.url)
                         .add("total_chars", output.content.len())
@@ -180,13 +171,13 @@ impl ToolOutput {
                         .add("context", &output.context);
                     if let Some(path) = truncation_path.as_ref() {
                         metadata = metadata.add(
-                            "truncation",
-                            format!(
-                                "Content is truncated to {} chars; Remaining content can be read from path: {}",
-                                FETCH_MAX_LENGTH,
-                                path.display()
-                            ),
-                        );
+                                    "truncation",
+                                    format!(
+                                        "Content is truncated to {} chars; Remaining content can be read from path: {}",
+                                        FETCH_MAX_LENGTH,
+                                        path.display()
+                                    ),
+                                );
                     }
                     let truncation_tag = match truncation_path.as_ref() {
                         Some(path) => {
@@ -206,7 +197,7 @@ impl ToolOutput {
                     unreachable!()
                 }
             }
-            ToolOutput::Shell(output) => {
+            ExecutionResult::Shell(output) => {
                 let mut metadata = FrontMatter::default().add("command", &output.output.command);
                 if let Some(exit_code) = output.output.exit_code {
                     metadata = metadata.add("exit_code", exit_code);
@@ -226,19 +217,22 @@ impl ToolOutput {
                 if stderr_truncated {
                     metadata = metadata.add("total_stderr_lines", stderr_lines);
                 }
+
+                let is_success = output.output.success();
+
                 // Combine outputs
                 let mut outputs = vec![];
                 if !output.output.stdout.is_empty() {
-                    outputs.push(output.output.stdout.clone());
+                    outputs.push(output.output.stdout);
                 }
                 if !output.output.stderr.is_empty() {
-                    outputs.push(output.output.stderr.clone());
+                    outputs.push(output.output.stderr);
                 }
 
                 let mut result = if outputs.is_empty() {
                     format!(
                         "Command {} with no output.",
-                        if output.output.success() {
+                        if is_success {
                             "executed successfully"
                         } else {
                             "failed"
@@ -253,29 +247,29 @@ impl ToolOutput {
                 // Create temp file if needed
                 if let Some(path) = truncation_path.as_ref() {
                     result.push_str(&format!(
-                        "\n<truncated>content is truncated, remaining content can be read from path:{}</truncated>",
-                        path.display()
-                    ));
+                                "\n<truncated>content is truncated, remaining content can be read from path:{}</truncated>",
+                                path.display()
+                            ));
                 }
 
-                if output.output.success() {
+                if is_success {
                     Ok(forge_domain::ToolOutput::text(result))
                 } else {
                     anyhow::bail!(result)
                 }
             }
-            ToolOutput::FollowUp(output) => match output {
+            ExecutionResult::FollowUp(output) => match output {
                 None => Ok(forge_domain::ToolOutput::text(
                     "User interrupted the selection".to_string(),
                 )),
                 Some(o) => Ok(forge_domain::ToolOutput::text(o.to_string())),
             },
-            ToolOutput::TaskManage(result) => {
-                Ok(forge_domain::ToolOutput::text(result.to_string()))
-            }
-            ToolOutput::AttemptCompletion => Ok(forge_domain::ToolOutput::text(
+            ExecutionResult::AttemptCompletion => Ok(forge_domain::ToolOutput::text(
                 "[Task was completed successfully. Now wait for user feedback]".to_string(),
             )),
+            ExecutionResult::TaskManage(task_list_result) => {
+                Ok(forge_domain::ToolOutput::text(task_list_result.to_string()))
+            }
         }
     }
 
@@ -284,10 +278,10 @@ impl ToolOutput {
         services: &S,
     ) -> anyhow::Result<Option<PathBuf>> {
         match self {
-            ToolOutput::FsRead(_) => Ok(None),
-            ToolOutput::FsCreate(_) => Ok(None),
-            ToolOutput::FsRemove(_) => Ok(None),
-            ToolOutput::FsSearch(search_result) => {
+            ExecutionResult::FsRead(_) => Ok(None),
+            ExecutionResult::FsCreate(_) => Ok(None),
+            ExecutionResult::FsRemove(_) => Ok(None),
+            ExecutionResult::FsSearch(search_result) => {
                 if let Some(search_result) = search_result {
                     let output = search_result.matches.join("\n");
                     let is_truncated =
@@ -310,9 +304,9 @@ impl ToolOutput {
                     Ok(None)
                 }
             }
-            ToolOutput::FsPatch(_) => Ok(None),
-            ToolOutput::FsUndo(_) => Ok(None),
-            ToolOutput::NetFetch(out) => {
+            ExecutionResult::FsPatch(_) => Ok(None),
+            ExecutionResult::FsUndo(_) => Ok(None),
+            ExecutionResult::NetFetch(out) => {
                 let original_length = out.content.len();
                 let is_truncated = original_length > crate::truncation::FETCH_MAX_LENGTH;
 
@@ -325,7 +319,7 @@ impl ToolOutput {
                     Ok(None)
                 }
             }
-            ToolOutput::Shell(out) => {
+            ExecutionResult::Shell(out) => {
                 let stdout_lines = out.output.stdout.lines().count();
                 let stderr_lines = out.output.stderr.lines().count();
                 let stdout_truncated = stdout_lines
@@ -350,9 +344,9 @@ impl ToolOutput {
                     Ok(None)
                 }
             }
-            ToolOutput::FollowUp(_) => Ok(None),
-            ToolOutput::TaskManage(_) => Ok(None),
-            ToolOutput::AttemptCompletion => Ok(None),
+            ExecutionResult::FollowUp(_) => Ok(None),
+            ExecutionResult::TaskManage(_) => Ok(None),
+            ExecutionResult::AttemptCompletion => Ok(None),
         }
     }
 }

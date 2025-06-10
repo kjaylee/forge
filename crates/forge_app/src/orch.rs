@@ -69,7 +69,7 @@ impl<S: Services> Orchestrator<S> {
                 .await?;
 
             // Check if this is an attempt completion call and validate pending tasks
-            let tool_result = if tool_call.name.as_str() == "forge_tool_attempt_completion"
+            let tool_result = if tool_call.name.as_str() == "forge_tool_task_manage"
                 && self.agent_supports_task_management(agent)
             {
                 // Validate pending tasks before allowing completion
