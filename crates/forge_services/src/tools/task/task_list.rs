@@ -11,17 +11,19 @@ use forge_tool_macros::ToolDescription;
 
 use crate::Infrastructure;
 
-/// A powerful task management system designed for handling complex, multi-step workflows.
-/// Use this tool when planning or executing tasks that require structured organization, 
-/// especially for complex projects with multiple steps. Ideal for:
+/// A powerful task management system designed for handling complex, multi-step
+/// workflows. Use this tool when planning or executing tasks that require
+/// structured organization, especially for complex projects with multiple
+/// steps. Ideal for:
 /// 1) Breaking down large problems into manageable subtasks
 /// 2) Creating and managing step-by-step action plans
 /// 3) Tracking progress across interconnected work items
 /// 4) Ensuring sequential completion of dependent tasks
-/// 
-/// The tool maintains an ordered task list with status tracking (pending, in-progress, complete),
-/// provides statistics on overall progress, and automatically identifies the next task to tackle.
-/// Choose this tool whenever you need to organize work that's too complex for a simple checklist
+///
+/// The tool maintains an ordered task list with status tracking (pending,
+/// in-progress, complete), provides statistics on overall progress, and
+/// automatically identifies the next task to tackle. Choose this tool whenever
+/// you need to organize work that's too complex for a simple checklist
 /// or when systematic tracking of completion status is required.
 #[derive(Debug, ToolDescription)]
 pub struct TaskList<F> {
