@@ -142,7 +142,9 @@ impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
     }
 
     async fn register_agent_tools(&self, workflow: &Workflow) -> anyhow::Result<()> {
-        self.app.register_agent_tools(workflow).await;
+        for agent in &workflow.agents {
+            self.app.register_agent_tool(agent).await?;
+        }
         Ok(())
     }
 }

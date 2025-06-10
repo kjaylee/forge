@@ -299,6 +299,6 @@ pub trait Services: Send + Sync + 'static + Clone {
     fn net_fetch_service(&self) -> &Self::NetFetchService;
     fn shell_service(&self) -> &Self::ShellService;
 
-    /// Register agent tools from a workflow
-    async fn register_agent_tools(&self, workflow: &Workflow);
+    /// Register agent as tool into tool service.
+    async fn register_agent_tool(&self, agent: &Agent) -> anyhow::Result<()>;
 }

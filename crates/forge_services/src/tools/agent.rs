@@ -1,14 +1,11 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
 use forge_domain::{
-    Agent, ChatResponse, ExecutableTool, JsonTool, NamedTool, Tool, ToolCallContext, ToolDefinition, ToolDescription, ToolName, ToolOutput
+    Agent, ChatResponse, ExecutableTool, JsonTool, NamedTool, Tool, ToolCallContext,
+    ToolDefinition, ToolDescription, ToolName, ToolOutput,
 };
 use forge_tool_macros::ToolDescription;
 use schemars::{schema::RootSchema, JsonSchema};
 use serde::{Deserialize, Serialize};
-
-use crate::Infrastructure;
 
 /// Input schema for calling another agent
 #[derive(Default, Debug, Clone, Serialize, Deserialize, JsonSchema, ToolDescription)]
@@ -18,16 +15,14 @@ pub struct AgentInput {
 }
 
 /// Tool for calling other agents
-pub struct AgentTool<F> {
+pub struct AgentTool {
     id: String,
     description: Option<String>,
-    #[allow(dead_code)]
-    infra: Arc<F>,
 }
 
-impl<F: Infrastructure> AgentTool<F> {
-    pub fn new(infra: Arc<F>, agent_id: String, agent_description: Option<String>) -> Self {
-        Self { infra, id: agent_id, description: agent_description }
+impl AgentTool {
+    pub fn new(agent_id: String, agent_description: Option<String>) -> Self {
+        Self { id: agent_id, description: agent_description }
     }
 
     pub fn to_tool(self) -> Tool {
@@ -41,19 +36,10 @@ impl<F: Infrastructure> AgentTool<F> {
         let tool = Tool { definition: def, executable: exec };
         tool
     }
-
-    /// Create an AgentTool instance for a specific agent
-    pub fn for_agent<I: Infrastructure>(infra: Arc<I>, agent: &Agent) -> AgentTool<I> {
-        AgentTool::new(
-            infra,
-            agent.id.as_str().to_string(),
-            agent.description.clone(),
-        )
-    }
 }
 
 #[async_trait]
-impl<F: Infrastructure> ExecutableTool for AgentTool<F> {
+impl ExecutableTool for AgentTool {
     type Input = AgentInput;
 
     async fn call(
@@ -63,10 +49,7 @@ impl<F: Infrastructure> ExecutableTool for AgentTool<F> {
     ) -> anyhow::Result<ToolOutput> {
         // Send a message back to the stream indicating we're calling another agent
         if let Some(sender) = context.sender.as_ref() {
-            let message = format!(
-                "🔄 Calling agent '{}' with task: {}",
-                self.id, input.task
-            );
+            let message = format!("🔄 Calling agent '{}' with task: {}", self.id, input.task);
 
             let _ = sender
                 .send(Ok(ChatResponse::Text {
@@ -82,13 +65,13 @@ impl<F: Infrastructure> ExecutableTool for AgentTool<F> {
     }
 }
 
-impl<F: Infrastructure> NamedTool for AgentTool<F> {
+impl NamedTool for AgentTool {
     fn tool_name() -> ToolName {
         ToolName::new("agent_tool")
     }
 }
 
-impl<F: Infrastructure> ToolDescription for AgentTool<F> {
+impl ToolDescription for AgentTool {
     fn description(&self) -> String {
         format!(
             "Call the {} agent when {}",
@@ -97,6 +80,12 @@ impl<F: Infrastructure> ToolDescription for AgentTool<F> {
                 .as_deref()
                 .unwrap_or("No description available.")
         )
+    }
+}
+
+impl From<&Agent> for AgentTool {
+    fn from(agent: &Agent) -> Self {
+        AgentTool::new(agent.id.as_str().to_string(), agent.description.clone())
     }
 }
 

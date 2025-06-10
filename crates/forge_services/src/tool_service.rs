@@ -5,7 +5,6 @@ use anyhow::Context as _;
 use forge_app::{McpService, ToolService};
 use forge_domain::{
     Agent, Tool, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult,
-    Workflow,
 };
 use tokio::sync::RwLock;
 use tokio::time::{timeout, Duration};
@@ -36,26 +35,11 @@ impl<M: McpService> ForgeToolService<M> {
     }
 
     /// Registers agent tools from a workflow
-    pub async fn register_agent_tools<F: Infrastructure>(
-        &self,
-        infra: Arc<F>,
-        workflow: &Workflow,
-    ) {
-        use crate::tools::agent::AgentTool;
-
+    pub async fn register_tool<T: Into<Tool>>(&self, tool: T) -> anyhow::Result<()> {
         let mut tools_map = self.tools.write().await;
-
-        // Register all agents as tools
-        for agent in &workflow.agents {
-            // Skip agents that don't have descriptions as they can't be called
-            if agent.description.is_none() || agent.description.as_ref().unwrap().is_empty() {
-                continue;
-            }
-
-            // Create an agent tool for this agent
-            let tool = AgentTool::<F>::for_agent(infra.clone(), agent).to_tool();
-            tools_map.insert(tool.definition.name.clone(), Arc::new(tool));
-        }
+        let tool: Tool = tool.into();
+        tools_map.insert(tool.definition.name.clone(), Arc::new(tool));
+        Ok(())
     }
 
     /// Get a tool by its name. If the tool is not found, it returns an error
