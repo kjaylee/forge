@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use forge_display::TitleFormat;
 use forge_domain::{
     Agent, ChatResponse, ExecutableTool, NamedTool, ToolCallContext, ToolDescription, ToolName,
     ToolOutput,
@@ -36,18 +37,9 @@ impl ExecutableTool for AgentTool {
         input: Self::Input,
     ) -> anyhow::Result<ToolOutput> {
         // Send a message back to the stream indicating we're calling another agent
-        if let Some(sender) = context.sender.as_ref() {
-            let message = format!("🔄 Calling agent '{}' with task: {}", self.id, input.task);
-
-            let _ = sender
-                .send(Ok(ChatResponse::Text {
-                    text: message,
-                    is_complete: false,
-                    is_md: false,
-                    is_summary: false,
-                }))
-                .await;
-        }
+        let title_format =
+            TitleFormat::debug(format!("Agent [{}]", self.id)).sub_title(&input.task);
+        context.send_text(title_format).await?;
 
         Ok(ToolOutput::text("Tool called successfully".into()))
     }
