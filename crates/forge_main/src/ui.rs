@@ -164,7 +164,7 @@ impl<F: API> UI<F> {
 
     async fn prompt(&self) -> Result<Command> {
         // Prompt the user for input
-        self.console.prompt(Some(self.state.clone().into())).await
+        self.console.prompt(self.state.clone().into()).await
     }
 
     pub async fn run(&mut self) {

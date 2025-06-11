@@ -14,11 +14,11 @@ const MULTILINE_INDICATOR: &str = "::: ";
 const RIGHT_CHEVRON: &str = "❯";
 
 /// Very Specialized Prompt for the Agent Chat
-#[derive(Clone, Default, Setters)]
+#[derive(Clone, Setters)]
 #[setters(strip_option, borrow_self)]
 pub struct ForgePrompt {
     pub usage: Option<Usage>,
-    pub agent_id: Option<AgentId>,
+    pub agent_id: AgentId,
     pub model: Option<ModelId>,
 }
 
@@ -49,12 +49,7 @@ impl Prompt for ForgePrompt {
         write!(
             result,
             "{} {}",
-            mode_style.paint(
-                self.agent_id
-                    .as_ref()
-                    .map(|id| id.to_string().to_uppercase())
-                    .unwrap_or_else(|| "ACT".to_string())
-            ),
+            mode_style.paint(self.agent_id.to_string().to_uppercase()),
             folder_style.paint(&current_dir)
         )
         .unwrap();
@@ -184,6 +179,17 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    impl Default for ForgePrompt {
+        fn default() -> Self {
+            ForgePrompt {
+                usage: None,
+                agent_id: AgentId::new("act"),
+                model: None,
+            }
+        }
+    }
+
 
     #[test]
     fn test_render_prompt_left() {
