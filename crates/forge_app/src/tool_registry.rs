@@ -36,17 +36,17 @@ impl<S: Services> ToolRegistry<S> {
     }
 
     /// Discovers all agents available in the system by reading the workflow.
-    async fn discover_agents(&self) -> anyhow::Result<Vec<Agent>> {
+    async fn get_workflow(&self) -> anyhow::Result<Workflow> {
         let workflow = self.services.workflow_service().read(None).await?;
         let mut base_workflow = Workflow::default();
         base_workflow.merge(workflow);
-        Ok(base_workflow.agents)
+        Ok(base_workflow)
     }
 
     /// Returns a list of tool definitions for all available agents.
     async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let agents = self.discover_agents().await?;
-        Ok(agents.into_iter().map(Into::into).collect())
+        let workflow = self.get_workflow().await?;
+        Ok(workflow.agents.into_iter().map(Into::into).collect())
     }
 
     /// Executes an agent tool call by creating a new chat request for the
@@ -64,20 +64,22 @@ impl<S: Services> ToolRegistry<S> {
             )
             .await?;
 
-        let workflow = self.services.workflow_service().read(None).await?;
-        let mut base_workflow = Workflow::default();
-        base_workflow.merge(workflow);
-
+        // Create a new conversation for agent execution
+        let workflow = self.get_workflow().await?;
         let conversation = self
             .services
             .conversation_service()
-            .create(base_workflow)
+            .create(workflow)
             .await?;
-        let chat_request = ChatRequest::new(Event::new(agent_id, task), conversation.id);
 
-        // // Execute the agent chat through the ForgeApp
+        // Execute the request through the ForgeApp
         let app = crate::ForgeApp::new(self.services.clone());
-        let mut response_stream = app.chat(chat_request).await?;
+        let mut response_stream = app
+            .chat(ChatRequest::new(
+                Event::new(agent_id, task),
+                conversation.id,
+            ))
+            .await?;
 
         // // Collect responses from the agent
         let mut agent_result = String::new();
