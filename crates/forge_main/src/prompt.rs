@@ -1,4 +1,4 @@
-:use std::borrow::Cow;
+use std::borrow::Cow;
 use std::env;
 use std::fmt::Write;
 use std::process::Command;

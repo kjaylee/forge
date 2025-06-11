@@ -15,7 +15,7 @@ models:
 
 agents:
   - id: act
-    description: Implementation-focused agent that executes tasks by making actual changes to your codebase.
+    description: "Implementation focussed"
     compact:
       max_tokens: 2000
       token_threshold: 160000
@@ -48,7 +48,7 @@ agents:
     max_walker_depth: 1
 
   - id: plan
-    description: Analysis and planning agent that examines codebases and creates detailed implementation plans without making changes.
+    description: "Analysis and planning focussed"
     compact:
       max_tokens: 2000
       token_threshold: 120000

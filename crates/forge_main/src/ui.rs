@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use colored::Colorize;
+use convert_case::{Case, Casing};
 use forge_api::{
     AgentId, ChatRequest, ChatResponse, Conversation, ConversationId, Event, Model, ModelId,
     Workflow, API,
@@ -376,40 +377,47 @@ impl<F: API> UI<F> {
                 #[derive(Clone)]
                 struct Agent {
                     id: String,
-                    description: Option<String>,
+                    label: String,
                 }
 
                 impl Display for Agent {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                        if let Some(desc) = &self.description {
-                            write!(
-                                f,
-                                "{}: {}",
-                                self.id,
-                                desc.lines().collect::<Vec<_>>().join(" ")
-                            )
-                        } else {
-                            write!(f, "{}", self.id)
-                        }
+                        write!(f, "{}", self.label)
                     }
                 }
-
+                let n = workflow
+                    .agents
+                    .iter()
+                    .map(|a| a.id.as_str().len())
+                    .max()
+                    .unwrap_or_default();
                 let display_agents = workflow
                     .agents
                     .into_iter()
                     .map(|agent| {
-                        if let Some(desc) = agent.description {
-                            Agent { id: agent.id.to_string(), description: Some(desc) }
+                        if let Some(desc) = &agent.description {
+                            let label = format!(
+                                "{:<n$} {}",
+                                agent.id.as_str().to_case(Case::UpperSnake).bold(),
+                                desc.lines().collect::<Vec<_>>().join(" ").dimmed()
+                            );
+                            Agent { label, id: agent.id.to_string() }
                         } else {
-                            Agent { id: agent.id.to_string(), description: None }
+                            Agent {
+                                id: agent.id.to_string(),
+                                label: "<Missing agent description>".to_string(),
+                            }
                         }
                     })
                     .collect::<Vec<_>>();
 
-                let select_prompt =
-                    inquire::Select::new("select the agent from following list", display_agents);
-                let selected_agent = select_prompt.prompt()?;
-                self.on_agent_change(selected_agent.id).await?;
+                let select_prompt = inquire::Select::new(
+                    "select the agent from following list",
+                    display_agents.clone(),
+                );
+                if let Ok(selected_agent) = select_prompt.prompt() {
+                    self.on_agent_change(selected_agent.id).await?;
+                }
             }
         }
 
