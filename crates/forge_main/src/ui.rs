@@ -133,7 +133,7 @@ impl<F: API> UI<F> {
     fn create_task_init_event<V: Into<Value>>(&self, content: V) -> anyhow::Result<Event> {
         if let Some(operating_agent) = &self.state.operating_agent {
             Ok(Event::new(
-                format!("{}/{}", operating_agent, EVENT_USER_TASK_INIT),
+                format!("{operating_agent}/{EVENT_USER_TASK_INIT}"),
                 content,
             ))
         } else {
@@ -146,7 +146,7 @@ impl<F: API> UI<F> {
     fn create_task_update_event<V: Into<Value>>(&self, content: V) -> anyhow::Result<Event> {
         if let Some(operating_agent) = &self.state.operating_agent {
             Ok(Event::new(
-                format!("{}/{}", operating_agent, EVENT_USER_TASK_UPDATE),
+                format!("{operating_agent}/{EVENT_USER_TASK_UPDATE}"),
                 content,
             ))
         } else {
