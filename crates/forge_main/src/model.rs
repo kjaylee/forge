@@ -182,7 +182,7 @@ impl ForgeCommandManager {
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
-            "/agents" => Ok(Command::Agents),
+            "/agent" => Ok(Command::Agents),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -289,7 +289,7 @@ impl Command {
             Command::Tools => "/tools",
             Command::Custom(event) => &event.name,
             Command::Shell(_) => "!shell",
-            Command::Agents => "/agents",
+            Command::Agents => "/agent",
         }
     }
 
