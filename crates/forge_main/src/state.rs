@@ -21,7 +21,7 @@ impl UIState {
         let operating_agent = workflow
             .variables
             .get("operating_agent")
-            .map(|value| AgentId::new(value))
+            .map(AgentId::new)
             .or_else(|| workflow.agents.first().map(|agent| agent.id.clone()));
 
         Self {
