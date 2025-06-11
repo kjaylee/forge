@@ -512,8 +512,9 @@ impl<F: API> UI<F> {
                     conversation_id
                 } else {
                     let conversation = self.api.init_conversation(workflow).await?;
+                    let conversation =
+                        conversation.operating_agent(self.state.operating_agent.clone());
                     self.state.conversation_id = Some(conversation.id.clone());
-                    self.state.operating_agent = conversation.operating_agent.clone();
                     self.update_model(conversation.main_model()?);
                     conversation.id
                 };
@@ -541,7 +542,15 @@ impl<F: API> UI<F> {
             .await?;
 
         self.command.register_all(&base_workflow);
+
+        let operating_agent = self.state.operating_agent.clone();
         self.state = UIState::new(base_workflow).provider(self.api.environment().provider);
+
+        // if user had changed the operating agent, we need to set it again
+        // This is useful when the user switches modes before initializing the state.
+        if let Some(operating_agent) = operating_agent {
+            self.state.operating_agent = Some(operating_agent);
+        }
 
         Ok(workflow)
     }
