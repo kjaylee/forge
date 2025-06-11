@@ -52,8 +52,8 @@ impl Prompt for ForgePrompt {
             mode_style.paint(
                 self.agent_id
                     .as_ref()
-                    .map(|id| id.to_string())
-                    .unwrap_or_else(|| "unknown".to_string())
+                    .map(|id| id.to_string().to_uppercase())
+                    .unwrap_or_else(|| "ACT".to_string())
             ),
             folder_style.paint(&current_dir)
         )
