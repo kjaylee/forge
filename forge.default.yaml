@@ -14,7 +14,7 @@ models:
   - &advanced_model anthropic/claude-sonnet-4
 
 agents:
-  - id: Forge
+  - id: forge
     title: "Implementation focussed"
     description: |-
       Implementation-focused agent designed to execute tasks by making actual changes to your codebase,
@@ -53,7 +53,7 @@ agents:
       - forge/user_task_update
     max_walker_depth: 1
 
-  - id: Muse
+  - id: muse
     title: "Analysis and planning focussed"
     description: |-
       Analysis and planning-focused agent designed to examine your codebase, create detailed

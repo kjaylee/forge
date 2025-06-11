@@ -470,14 +470,14 @@ async fn send_read_context(
 
 #[cfg(test)]
 mod tests {
-    use forge_domain::{Agent, ToolName, Tools};
+    use forge_domain::{Agent, AgentId, ToolName, Tools};
     use pretty_assertions::assert_eq;
 
     use crate::tool_registry::ToolRegistry;
 
     fn agent() -> Agent {
         // only allow FsRead tool for this agent
-        Agent::new("test_agent").tools(vec![
+        Agent::new(AgentId::new("test_agent")).tools(vec![
             ToolName::new("forge_tool_fs_read"),
             ToolName::new("forge_tool_fs_find"),
         ])

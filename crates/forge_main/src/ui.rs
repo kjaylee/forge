@@ -96,7 +96,7 @@ impl<F: API> UI<F> {
     }
 
     // Set the current mode and update conversation variable
-    async fn on_agent_change(&mut self, agent_id: String) -> Result<()> {
+    async fn on_agent_change(&mut self, agent_id: AgentId) -> Result<()> {
         let workflow = self.active_workflow().await?;
 
         // Convert string to AgentId for validation
@@ -110,7 +110,7 @@ impl<F: API> UI<F> {
 
         // Reset is_first to true when switching agents
         self.state.is_first = true;
-        self.state.operating_agent = Some(agent.id.clone());
+        self.state.operating_agent = agent.id.clone();
 
         // Update the workflow with the new operating agent.
         self.api
@@ -124,7 +124,7 @@ impl<F: API> UI<F> {
 
         self.writeln(TitleFormat::action(format!(
             "Switched to agent {}",
-            agent.id.as_str().to_case(Case::UpperSnake).bold()
+            agent.id.to_string().to_case(Case::UpperSnake).bold()
         )))?;
 
         Ok(())
@@ -135,16 +135,11 @@ impl<F: API> UI<F> {
         content: V,
         event_name: &str,
     ) -> anyhow::Result<Event> {
-        if let Some(operating_agent) = &self.state.operating_agent {
-            Ok(Event::new(
-                format!("{operating_agent}/{event_name}"),
-                content,
-            ))
-        } else {
-            Err(anyhow::anyhow!(
-                "Operating agent is not set, use /agents command to set it"
-            ))
-        }
+        let operating_agent = &self.state.operating_agent;
+        Ok(Event::new(
+            format!("{operating_agent}/{event_name}"),
+            content,
+        ))
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -336,10 +331,10 @@ impl<F: API> UI<F> {
                 self.on_message(content.clone()).await?;
             }
             Command::Act => {
-                self.on_agent_change("Forge".to_string()).await?;
+                self.on_agent_change(AgentId::FORGE).await?;
             }
             Command::Plan => {
-                self.on_agent_change("Muse".to_string()).await?;
+                self.on_agent_change(AgentId::MUSE).await?;
             }
             Command::Help => {
                 let info = Info::from(self.command.as_ref());
@@ -376,7 +371,7 @@ impl<F: API> UI<F> {
 
                 #[derive(Clone)]
                 struct Agent {
-                    id: String,
+                    id: AgentId,
                     label: String,
                 }
 
@@ -388,7 +383,7 @@ impl<F: API> UI<F> {
                 let n = workflow
                     .agents
                     .iter()
-                    .map(|a| a.id.as_str().len())
+                    .map(|a| a.id.to_string().len())
                     .max()
                     .unwrap_or_default();
                 let display_agents = workflow
@@ -398,15 +393,12 @@ impl<F: API> UI<F> {
                         if let Some(title) = &agent.title {
                             let label = format!(
                                 "{:<n$} {}",
-                                agent.id.as_str().to_case(Case::UpperSnake).bold(),
+                                agent.id.to_string().to_case(Case::UpperSnake).bold(),
                                 title.lines().collect::<Vec<_>>().join(" ").dimmed()
                             );
-                            Agent { label, id: agent.id.to_string() }
+                            Agent { label, id: agent.id }
                         } else {
-                            Agent {
-                                id: agent.id.to_string(),
-                                label: "<Missing agent title>".to_string(),
-                            }
+                            Agent { id: agent.id, label: "<Missing agent title>".to_string() }
                         }
                     })
                     .collect::<Vec<_>>();

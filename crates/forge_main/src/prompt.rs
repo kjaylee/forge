@@ -183,7 +183,7 @@ mod tests {
 
     impl Default for ForgePrompt {
         fn default() -> Self {
-            ForgePrompt { usage: None, agent_id: AgentId::new("act"), model: None }
+            ForgePrompt { usage: None, agent_id: AgentId::default(), model: None }
         }
     }
 
