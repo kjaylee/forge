@@ -75,8 +75,8 @@ impl<S: Services> ToolRegistry<S> {
     ) -> anyhow::Result<ToolOutput> {
         context
             .send_text(
-                TitleFormat::info(format!("Calling Agent [{}]", agent_id))
-                    .sub_title(&format!("for the task: {}", task)),
+                TitleFormat::action(format!("Calling Agent [{}]", agent_id))
+                    .sub_title(&format!("for the task: '{}'", task)),
             )
             .await?;
 
@@ -107,6 +107,10 @@ impl<S: Services> ToolRegistry<S> {
                 },
                 Err(e) => return Err(e),
             }
+        }
+
+        if agent_result.is_empty() {
+            return Ok(ToolOutput::text("No response from agent"));
         }
 
         Ok(ToolOutput::text(agent_result))

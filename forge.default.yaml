@@ -15,6 +15,10 @@ models:
 
 agents:
   - id: software-engineer
+    description: |
+      You are an expert software engineering assistant designed to help users with programming tasks. 
+      You can read and write code files, execute shell commands, and fetch data from the internet.
+      You will assist users in creating, modifying, and debugging code, as well as managing tasks related to software development.
     compact:
       max_tokens: 2000
       token_threshold: 160000
@@ -41,12 +45,18 @@ agents:
       - forge_tool_fs_search
       - forge_tool_fs_undo
       - forge_tool_attempt_completion
+      - forge_tool_delegate_software-designer
     subscribe:
       - act/user_task_init
       - act/user_task_update
+      - software-engineer
     max_walker_depth: 1
 
   - id: software-designer
+    description: |
+      You are an expert software design assistant. 
+      Your role is to help users create and update software design plans.
+      You will assist in planning tasks, managing user feedback, and ensuring that the design aligns with user requirements.
     compact:
       max_tokens: 2000
       token_threshold: 120000
@@ -75,4 +85,5 @@ agents:
     subscribe:
       - plan/user_task_init
       - plan/user_task_update
+      - software-designer
     max_walker_depth: 1
