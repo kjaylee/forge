@@ -115,7 +115,7 @@ impl<S: Services> ToolRegistry<S> {
                     .read(input.path.clone(), input.start_line, input.end_line)
                     .await?;
                 let env = self.services.environment_service().get_environment();
-                let display_path = display_path(&env, Path::new(&input.path))?;
+                let display_path = display_path(&env, Path::new(&input.path));
                 let is_truncated = output.total_lines > output.end_line;
 
                 send_read_context(
@@ -250,7 +250,7 @@ impl<S: Services> ToolRegistry<S> {
         let truncation_path = out.to_create_temp(self.services.as_ref()).await?;
         let env = self.services.environment_service().get_environment();
 
-        out.into_tool_output(tool_input, truncation_path, &env)
+        Ok(out.into_tool_output(tool_input, truncation_path, &env))
     }
 
     async fn call_with_timeout<F, Fut>(
@@ -413,7 +413,7 @@ async fn send_fs_patch_context<S: Services>(
 ) -> anyhow::Result<()> {
     let env = services.environment_service().get_environment();
 
-    let display_path = display_path(&env, Path::new(&path))?;
+    let display_path = display_path(&env, Path::new(&path));
     // Generate diff between old and new content
     let diff =
         console::strip_ansi_codes(&DiffFormat::format(&output.before, &output.after)).to_string();
@@ -436,7 +436,7 @@ async fn send_fs_remove_context<S: Services>(
     service: &S,
 ) -> anyhow::Result<()> {
     let env = service.environment_service().get_environment();
-    let display_path = display_path(&env, Path::new(path))?;
+    let display_path = display_path(&env, Path::new(path));
 
     let message = TitleFormat::debug("Remove").sub_title(&display_path);
 
@@ -452,7 +452,7 @@ async fn send_fs_search_context<S: Services>(
     output: &Option<SearchResult>,
 ) -> anyhow::Result<()> {
     let env = services.environment_service().get_environment();
-    let formatted_dir = display_path(&env, Path::new(&input.path))?;
+    let formatted_dir = display_path(&env, Path::new(&input.path));
 
     let title = match (&input.regex, &input.file_pattern) {
         (Some(regex), Some(pattern)) => {
@@ -482,7 +482,7 @@ async fn send_write_context<S: Services>(
     services: &S,
 ) -> anyhow::Result<()> {
     let env = services.environment_service().get_environment();
-    let formatted_path = display_path(&env, Path::new(&out.path))?;
+    let formatted_path = display_path(&env, Path::new(&out.path));
     let new_content = services
         .fs_read_service()
         .read(path.to_string(), None, None)
