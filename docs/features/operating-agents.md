@@ -1,17 +1,17 @@
 ---
 layout: default
-title: Operation Modes
+title: Operating Agents
 parent: Features
 nav_order: 6
 ---
 
-# Operation Modes
+# Operating Agents
 
 Forge uses different specialized agents to provide flexible assistance based on your needs. You can switch between these agents to get the right type of help for your current task:
 
-## Acting Agent (Default)
+## Forge Agent(Default)
 
-The Acting Agent is the default when you start Forge and is empowered to directly implement changes to your codebase and execute commands:
+Forge is the default agent when you start the application and is empowered to directly implement changes to your codebase and execute commands:
 
 - **Full Execution**: Forge can modify files, create new ones, and execute shell commands
 - **Implementation**: Directly implements the solutions it proposes
@@ -21,16 +21,16 @@ The Acting Agent is the default when you start Forge and is empowered to directl
 **Example**:
 
 ```bash
-# Switch to Acting Agent within a Forge session
+# Switches to Forge Agent within a session
 /act
 
-# Or use the general agent command and then from drop down select `act` agent
+# Or use the general agent command and then from drop down select `Forge` agent
 /agent
 ```
 
-## Planning Agent
+## Muse Agent
 
-The Planning Agent analyzes and plans but doesn't modify your codebase:
+Muse analyzes and plans but doesn't modify your codebase:
 
 - **Read-Only Operations**: Can only read files and run non-destructive commands
 - **Detailed Analysis**: Thoroughly examines code, identifies issues, and proposes solutions
@@ -40,11 +40,11 @@ The Planning Agent analyzes and plans but doesn't modify your codebase:
 **Example**:
 
 ```bash
-# Switch to Planning Agent within a Forge session
+# Switch to Muse Agent within a session
 /plan
 
-# Or use the general agent command and then from drop down select `plan` agent
+# Or use the general agent command and then from drop down select `Muse` agent
 /agent 
 ```
 
-You can easily switch between agents during a session using the `/act`, `/plan`, or `/agent` commands. The Planning Agent is especially useful for reviewing potential changes before they're implemented, while the Acting Agent streamlines the development process by handling implementation details for you.
+You can easily switch between agents during a session using the `/act`, `/plan`, or `/agent` commands. Muse is especially useful for reviewing potential changes before they're implemented, while Forge streamlines the development process by handling implementation details for you.
