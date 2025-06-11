@@ -153,6 +153,7 @@ impl Agent {
     pub fn new(id: impl ToString) -> Self {
         Self {
             id: AgentId::new(id),
+            title: None,
             tool_supported: None,
             model: None,
             description: None,
