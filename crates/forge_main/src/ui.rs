@@ -330,10 +330,10 @@ impl<F: API> UI<F> {
                 self.spinner.start(None)?;
                 self.on_message(content.clone()).await?;
             }
-            Command::Act => {
+            Command::Forge => {
                 self.on_agent_change(AgentId::FORGE).await?;
             }
-            Command::Plan => {
+            Command::Muse => {
                 self.on_agent_change(AgentId::MUSE).await?;
             }
             Command::Help => {

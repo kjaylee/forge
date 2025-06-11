@@ -177,8 +177,8 @@ impl ForgeCommandManager {
                     Ok(Command::Dump(None))
                 }
             }
-            "/act" => Ok(Command::Act),
-            "/plan" => Ok(Command::Plan),
+            "/act" | "/forge" => Ok(Command::Forge),
+            "/plan" | "/muse" => Ok(Command::Muse),
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
@@ -238,11 +238,11 @@ pub enum Command {
     /// Switch to "act" mode.
     /// This can be triggered with the '/act' command.
     #[strum(props(usage = "Enable implementation mode with code changes"))]
-    Act,
+    Forge,
     /// Switch to "plan" mode.
     /// This can be triggered with the '/plan' command.
     #[strum(props(usage = "Enable planning mode without code changes"))]
-    Plan,
+    Muse,
     /// Switch to "help" mode.
     /// This can be triggered with the '/help' command.
     #[strum(props(usage = "Enable help mode for tool questions"))]
@@ -281,8 +281,8 @@ impl Command {
             Command::Update => "/update",
             Command::Info => "/info",
             Command::Exit => "/exit",
-            Command::Act => "/act",
-            Command::Plan => "/plan",
+            Command::Forge => "/act",
+            Command::Muse => "/plan",
             Command::Help => "/help",
             Command::Dump(_) => "/dump",
             Command::Model => "/model",
