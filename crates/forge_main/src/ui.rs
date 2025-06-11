@@ -373,34 +373,41 @@ impl<F: API> UI<F> {
                 // Read the current workflow to validate the agent
                 let workflow = self.active_workflow().await?;
 
+                #[derive(Clone)]
+                struct Agent {
+                    label: String,
+                    id: String,
+                }
+
+                impl Display for Agent {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        write!(f, "{}", self.label)
+                    }
+                }
+
                 let display_agents = workflow
                     .agents
                     .iter()
                     .map(|agent| {
-                        let display = if let Some(desc) = &agent.description {
-                            format!(
+                        if let Some(desc) = &agent.description {
+                            let lable = format!(
                                 "{}: {}",
                                 agent.id,
                                 desc.lines().collect::<Vec<_>>().join(" ")
-                            )
+                            );
+                            Agent { label: lable, id: agent.id.to_string() }
                         } else {
-                            agent.id.to_string()
-                        };
-                        (agent.id.as_str(), display)
+                            Agent { label: agent.id.to_string(), id: agent.id.to_string() }
+                        }
                     })
                     .collect::<Vec<_>>();
 
                 let select_prompt = inquire::Select::new(
                     "select the agent from following list",
-                    display_agents.iter().map(|(_, s)| s).collect::<Vec<_>>(),
+                    display_agents.clone(),
                 );
-                let selected_option = select_prompt.prompt()?;
-                if let Some((selected_agent, _)) = display_agents
-                    .iter()
-                    .find(|(agent_id, _)| agent_id == selected_option)
-                {
-                    self.on_agent_change(selected_agent.to_string()).await?;
-                }
+                let selected_agent = select_prompt.prompt()?;
+                self.on_agent_change(selected_agent.id).await?;
             }
         }
 
