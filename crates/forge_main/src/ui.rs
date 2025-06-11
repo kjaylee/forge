@@ -130,26 +130,30 @@ impl<F: API> UI<F> {
     }
 
     // Helper functions for creating events with the specific event names
-    fn create_task_init_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(
-            format!(
-                "{}/{}",
-                self.state.operating_agent.as_ref().unwrap(),
-                EVENT_USER_TASK_INIT
-            ),
-            content,
-        )
+    fn create_task_init_event<V: Into<Value>>(&self, content: V) -> anyhow::Result<Event> {
+        if let Some(operating_agent) = &self.state.operating_agent {
+            Ok(Event::new(
+                format!("{}/{}", operating_agent, EVENT_USER_TASK_INIT),
+                content,
+            ))
+        } else {
+            Err(anyhow::anyhow!(
+                "Operating agent is not set, use /agents command to set it"
+            ))
+        }
     }
 
-    fn create_task_update_event<V: Into<Value>>(&self, content: V) -> Event {
-        Event::new(
-            format!(
-                "{}/{}",
-                self.state.operating_agent.as_ref().unwrap(),
-                EVENT_USER_TASK_UPDATE
-            ),
-            content,
-        )
+    fn create_task_update_event<V: Into<Value>>(&self, content: V) -> anyhow::Result<Event> {
+        if let Some(operating_agent) = &self.state.operating_agent {
+            Ok(Event::new(
+                format!("{}/{}", operating_agent, EVENT_USER_TASK_UPDATE),
+                content,
+            ))
+        } else {
+            Err(anyhow::anyhow!(
+                "Operating agent is not set, use /agents command to set it"
+            ))
+        }
     }
 
     pub fn init(cli: Cli, api: Arc<F>) -> Result<Self> {
@@ -565,9 +569,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            self.create_task_init_event(content.clone())
+            self.create_task_init_event(content.clone())?
         } else {
-            self.create_task_update_event(content.clone())
+            self.create_task_update_event(content.clone())?
         };
 
         // Create the chat request with the event
