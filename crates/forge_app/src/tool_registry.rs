@@ -76,7 +76,7 @@ impl<S: Services> ToolRegistry<S> {
         let app = crate::ForgeApp::new(self.services.clone());
         let mut response_stream = app
             .chat(ChatRequest::new(
-                Event::new(agent_id, task),
+                Event::new(format!("{}/user_task_init", agent_id), task),
                 conversation.id,
             ))
             .await?;
