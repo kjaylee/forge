@@ -35,8 +35,7 @@ impl<S: Services> ToolRegistry<S> {
         Self { services }
     }
 
-    /// Discovers all available agents from the workflow configuration
-    /// and returns them as a list for tool registration.
+    /// Discovers all agents available in the system by reading the workflow.
     async fn discover_agents(&self) -> anyhow::Result<Vec<Agent>> {
         let workflow = self.services.workflow_service().read(None).await?;
         let mut base_workflow = Workflow::default();
@@ -44,8 +43,7 @@ impl<S: Services> ToolRegistry<S> {
         Ok(base_workflow.agents)
     }
 
-    /// Converts agents to tool definitions with agent-specific names and
-    /// descriptions.
+    /// Returns a list of tool definitions for all available agents.
     async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
         let agents = self.discover_agents().await?;
         Ok(agents.into_iter().map(Into::into).collect())
