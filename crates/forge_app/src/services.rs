@@ -7,17 +7,20 @@ use forge_domain::{
     ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolResult, Workflow,
 };
 
+#[derive(Debug)]
 pub struct ShellOutput {
     pub output: CommandOutput,
     pub shell: String,
 }
 
+#[derive(Debug)]
 pub struct PatchOutput {
     pub warning: Option<String>,
     pub before: String,
     pub after: String,
 }
 
+#[derive(Debug)]
 pub struct ReadOutput {
     pub content: Content,
     pub start_line: u64,
@@ -25,20 +28,24 @@ pub struct ReadOutput {
     pub total_lines: u64,
 }
 
+#[derive(Debug)]
 pub enum Content {
     File(String),
 }
 
+#[derive(Debug)]
 pub struct SearchResult {
     pub matches: Vec<String>,
 }
 
+#[derive(Debug)]
 pub struct FetchOutput {
     pub content: String,
     pub code: u16,
     pub context: String,
 }
 
+#[derive(Debug)]
 pub struct FsCreateOutput {
     pub path: String,
     // Set when the file already exists
@@ -46,11 +53,12 @@ pub struct FsCreateOutput {
     pub warning: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct FsRemoveOutput {
     pub completed: bool,
 }
 
-#[derive(derive_more::From)]
+#[derive(Debug, derive_more::From)]
 pub struct FsUndoOutput(String);
 
 impl FsUndoOutput {

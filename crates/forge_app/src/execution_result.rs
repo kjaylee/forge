@@ -12,7 +12,7 @@ use crate::{
     SearchResult, Services, ShellOutput, create_temp_file, truncate_search_output,
 };
 
-#[derive(derive_more::From)]
+#[derive(Debug, derive_more::From)]
 pub enum ExecutionResult {
     FsRead(ReadOutput),
     FsCreate(FsCreateOutput),
@@ -46,25 +46,27 @@ impl ExecutionResult {
                     Ok(forge_domain::ToolOutput::text(elm))
                 }
             },
-            (Tools::ForgeToolFsCreate(input), ExecutionResult::FsCreate(out)) => {
-                let chars = input.content.len();
-                let operation = if out.previous.is_some() {
-                    "OVERWRITE"
+            (Tools::ForgeToolFsCreate(input), ExecutionResult::FsCreate(output)) => {
+                let mut elm = if let Some(before) = output.previous {
+                    let diff = forge_display::DiffFormat::format(&before, &input.content);
+                    Element::new("file_diff").text(diff)
                 } else {
-                    "CREATE"
+                    Element::new("file_content").text(&input.content)
                 };
 
-                let metadata = FrontMatter::default()
-                    .add("path", &out.path)
-                    .add("operation", operation)
-                    .add("total_chars", chars)
-                    .add_optional("Warning", out.warning.as_ref());
+                elm = elm
+                    .attr("path", input.path)
+                    .attr("total-lines", input.content.lines().count());
 
-                Ok(forge_domain::ToolOutput::text(metadata.to_string()))
+                if let Some(warning) = output.warning {
+                    elm = elm.append(Element::new("warning").text(warning));
+                }
+
+                Ok(forge_domain::ToolOutput::text(elm))
             }
-            (Tools::ForgeToolFsRemove(input), ExecutionResult::FsRemove(out)) => {
+            (Tools::ForgeToolFsRemove(input), ExecutionResult::FsRemove(output)) => {
                 let display_path = display_path(env, Path::new(&input.path))?;
-                if out.completed {
+                if output.completed {
                     Ok(forge_domain::ToolOutput::text(format!(
                         "Successfully removed file: {display_path}"
                     )))
@@ -76,9 +78,9 @@ impl ExecutionResult {
             }
             (Tools::ForgeToolFsSearch(input), ExecutionResult::FsSearch(output)) => {
                 match output {
-                    Some(out) => {
+                    Some(output) => {
                         let truncated_output = truncate_search_output(
-                            &out.matches,
+                            &output.matches,
                             &input.path,
                             input.regex.as_ref(),
                             input.file_pattern.as_ref(),
@@ -233,11 +235,8 @@ impl ExecutionResult {
             )),
             // Panic case for mismatched execution result and input tool types
             (input_tool, execution_result) => {
-                let execution_result_name = std::mem::discriminant(&execution_result);
-                let input_tool_name = std::mem::discriminant(&input_tool);
-
                 panic!(
-                    "Unhandled tool execution result: input_tool={input_tool_name:?}, execution_result={execution_result_name:?}"
+                    "Unhandled tool execution result: input_tool={input_tool:?}, execution_result={execution_result:?}"
                 );
             }
         }
@@ -276,22 +275,22 @@ impl ExecutionResult {
             }
             ExecutionResult::FsPatch(_) => Ok(None),
             ExecutionResult::FsUndo(_) => Ok(None),
-            ExecutionResult::NetFetch(out) => {
-                let original_length = out.content.len();
+            ExecutionResult::NetFetch(output) => {
+                let original_length = output.content.len();
                 let is_truncated = original_length > crate::truncation::FETCH_MAX_LENGTH;
 
                 if is_truncated {
                     let path =
-                        create_temp_file(services, "forge_fetch_", ".txt", &out.content).await?;
+                        create_temp_file(services, "forge_fetch_", ".txt", &output.content).await?;
 
                     Ok(Some(path))
                 } else {
                     Ok(None)
                 }
             }
-            ExecutionResult::Shell(out) => {
-                let stdout_lines = out.output.stdout.lines().count();
-                let stderr_lines = out.output.stderr.lines().count();
+            ExecutionResult::Shell(output) => {
+                let stdout_lines = output.output.stdout.lines().count();
+                let stderr_lines = output.output.stderr.lines().count();
                 let stdout_truncated = stdout_lines
                     > crate::truncation::PREFIX_LINES + crate::truncation::SUFFIX_LINES;
                 let stderr_truncated = stderr_lines
@@ -304,7 +303,7 @@ impl ExecutionResult {
                         ".md",
                         &format!(
                             "command:{}\n<stdout>{}</stdout>\n<stderr>{}</stderr>",
-                            out.output.command, out.output.stdout, out.output.stderr
+                            output.output.command, output.output.stdout, output.output.stderr
                         ),
                     )
                     .await?;
@@ -737,7 +736,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Mismatched execution result and input tool: input_tool=ForgeToolFsCreate, execution_result=FsRead"
+        expected = r#"Unhandled tool execution result: input_tool=ForgeToolFsCreate(FSWrite { path: "/home/user/test.txt", content: "test", overwrite: false, explanation: Some("Test explanation") }), execution_result=FsRead(ReadOutput { content: File("test content"), start_line: 1, end_line: 1, total_lines: 1 })"#
     )]
     fn test_mismatch_error() {
         let fixture = ExecutionResult::FsRead(ReadOutput {

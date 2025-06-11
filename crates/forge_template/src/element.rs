@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub struct Element {
     pub name: String,
     pub attr: Vec<(String, String)>,
@@ -102,9 +104,9 @@ where
     }
 }
 
-impl ToString for Element {
-    fn to_string(&self) -> String {
-        self.render()
+impl Display for Element {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.render())
     }
 }
 
