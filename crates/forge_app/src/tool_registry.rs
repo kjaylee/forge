@@ -288,10 +288,7 @@ impl<S: Services> ToolRegistry<S> {
         if Tools::contains(&input.name) {
             self.call_with_timeout(&tool_name, || self.call_forge_tool(input.clone(), context))
                 .await
-        } else if agent_as_tools
-            .iter()
-            .any(|tool| tool.name == input.name)
-        {
+        } else if agent_as_tools.iter().any(|tool| tool.name == input.name) {
             // Handle agent delegation tool calls
             let agent_input: AgentInput =
                 serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
