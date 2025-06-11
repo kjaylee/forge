@@ -38,9 +38,9 @@ impl ExecutionResult {
                 Content::File(content) => {
                     let elm = Element::new("file_content")
                         .attr("path", input.path)
-                        .attr("start-line", out.start_line)
-                        .attr("end-line", out.end_line)
-                        .attr("total-lines", content.lines().count())
+                        .attr("start_line", out.start_line)
+                        .attr("end_line", out.end_line)
+                        .attr("total_lines", content.lines().count())
                         .cdata(content);
 
                     Ok(forge_domain::ToolOutput::text(elm))
@@ -48,7 +48,11 @@ impl ExecutionResult {
             },
             (Tools::ForgeToolFsCreate(input), ExecutionResult::FsCreate(output)) => {
                 let mut elm = if let Some(before) = output.previous {
-                    let diff = forge_display::DiffFormat::format(&before, &input.content);
+                    let diff = console::strip_ansi_codes(&forge_display::DiffFormat::format(
+                        &before,
+                        &input.content,
+                    ))
+                    .to_string();
                     Element::new("file_diff").cdata(diff)
                 } else {
                     Element::new("file_content").cdata(&input.content)
@@ -56,7 +60,7 @@ impl ExecutionResult {
 
                 elm = elm
                     .attr("path", input.path)
-                    .attr("total-lines", input.content.lines().count());
+                    .attr("total_lines", input.content.lines().count());
 
                 if let Some(warning) = output.warning {
                     elm = elm.append(Element::new("warning").text(warning));
@@ -122,12 +126,16 @@ impl ExecutionResult {
                     console::strip_ansi_codes(&DiffFormat::format(&output.before, &output.after))
                         .to_string();
 
-                let metadata = FrontMatter::default()
-                    .add("path", &input.path)
-                    .add("total_chars", output.after.len())
-                    .add_optional("warning", output.warning.as_ref());
+                let mut elm = Element::new("file_diff")
+                    .attr("path", &input.path)
+                    .attr("total_lines", output.after.lines().count())
+                    .cdata(diff);
 
-                Ok(forge_domain::ToolOutput::text(format!("{metadata}{diff}")))
+                if let Some(warning) = &output.warning {
+                    elm = elm.append(Element::new("warning").text(warning));
+                }
+
+                Ok(forge_domain::ToolOutput::text(elm))
             }
             (_, ExecutionResult::FsUndo(output)) => Ok(forge_domain::ToolOutput::text(format!(
                 "Successfully undid last operation on path: {}",
