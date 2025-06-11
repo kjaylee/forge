@@ -335,8 +335,7 @@ async fn send_fs_patch_context<S: Services>(
 
     let display_path = display_path(&env, Path::new(&path));
     // Generate diff between old and new content
-    let diff =
-        console::strip_ansi_codes(&DiffFormat::format(&output.before, &output.after)).to_string();
+    let diff = DiffFormat::format(&output.before, &output.after);
 
     ctx.send_text(format!(
         "{}",
