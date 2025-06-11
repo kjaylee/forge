@@ -14,7 +14,7 @@ models:
   - &advanced_model anthropic/claude-sonnet-4
 
 agents:
-  - id: act
+  - id: Forge
     description: "Implementation focussed"
     compact:
       max_tokens: 2000
@@ -47,7 +47,7 @@ agents:
       - act/user_task_update
     max_walker_depth: 1
 
-  - id: plan
+  - id: Muse
     description: "Analysis and planning focussed"
     compact:
       max_tokens: 2000

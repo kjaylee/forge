@@ -336,10 +336,10 @@ impl<F: API> UI<F> {
                 self.on_message(content.clone()).await?;
             }
             Command::Act => {
-                self.on_agent_change("act".to_string()).await?;
+                self.on_agent_change("Forge".to_string()).await?;
             }
             Command::Plan => {
-                self.on_agent_change("plan".to_string()).await?;
+                self.on_agent_change("Muse".to_string()).await?;
             }
             Command::Help => {
                 let info = Info::from(self.command.as_ref());
