@@ -18,14 +18,18 @@ pub struct UIState {
 
 impl UIState {
     pub fn new(workflow: Workflow) -> Self {
-        let first_agent = workflow.agents.first().map(|agent| agent.id.clone());
+        let operating_agent = workflow
+            .variables
+            .get("operating_agent")
+            .map(|value| AgentId::new(value))
+            .or_else(|| workflow.agents.first().map(|agent| agent.id.clone()));
 
         Self {
             conversation_id: Default::default(),
             usage: Default::default(),
             is_first: true,
             model: workflow.model,
-            operating_agent: first_agent,
+            operating_agent,
             provider: Default::default(),
         }
     }

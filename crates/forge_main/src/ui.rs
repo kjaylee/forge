@@ -106,6 +106,22 @@ impl<F: API> UI<F> {
         // Reset is_first to true when switching modes
         self.state.is_first = true;
 
+        let conversation_id = self.init_conversation().await?;
+        if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
+            conversation.set_variable("operating_agent".into(), Value::from(agent.id.to_string()));
+            self.api.upsert_conversation(conversation).await?;
+        }
+
+        // Update the workflow with the new operating agent.
+        self.api
+            .update_workflow(self.cli.workflow.as_deref(), |workflow| {
+                workflow.variables.insert(
+                    "operating_agent".to_string(),
+                    Value::from(agent.id.to_string()),
+                );
+            })
+            .await?;
+
         self.writeln(TitleFormat::action(format!(
             "Switched to '{}' agent",
             agent.id
@@ -506,14 +522,11 @@ impl<F: API> UI<F> {
 
                     let conversation_id = conversation.id.clone();
                     self.state.conversation_id = Some(conversation_id.clone());
-                    self.state.operating_agent = conversation.operating_agent.clone();
                     self.update_model(conversation.main_model()?);
                     self.api.upsert_conversation(conversation).await?;
                     conversation_id
                 } else {
                     let conversation = self.api.init_conversation(workflow).await?;
-                    let conversation =
-                        conversation.operating_agent(self.state.operating_agent.clone());
                     self.state.conversation_id = Some(conversation.id.clone());
                     self.update_model(conversation.main_model()?);
                     conversation.id
