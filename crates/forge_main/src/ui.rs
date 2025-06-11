@@ -123,8 +123,8 @@ impl<F: API> UI<F> {
             .await?;
 
         self.writeln(TitleFormat::action(format!(
-            "Switched to '{}' agent",
-            agent.id
+            "Switched to agent {}",
+            agent.id.as_str().to_case(Case::UpperSnake).bold()
         )))?;
 
         Ok(())
