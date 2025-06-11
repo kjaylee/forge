@@ -99,18 +99,17 @@ impl<F: API> UI<F> {
         let workflow = self.active_workflow().await?;
 
         // Convert string to AgentId for validation
-        let agent_id_typed = AgentId::new(agent_id);
-        let agent = workflow.get_agent(&agent_id_typed)?;
-        self.state.operating_agent = Some(agent.id.clone());
-
-        // Reset is_first to true when switching modes
-        self.state.is_first = true;
+        let agent = workflow.get_agent(&AgentId::new(agent_id))?;
 
         let conversation_id = self.init_conversation().await?;
         if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
             conversation.set_variable("operating_agent".into(), Value::from(agent.id.to_string()));
             self.api.upsert_conversation(conversation).await?;
         }
+
+        // Reset is_first to true when switching modes
+        self.state.is_first = true;
+        self.state.operating_agent = Some(agent.id.clone());
 
         // Update the workflow with the new operating agent.
         self.api
@@ -555,15 +554,7 @@ impl<F: API> UI<F> {
             .await?;
 
         self.command.register_all(&base_workflow);
-
-        let operating_agent = self.state.operating_agent.clone();
         self.state = UIState::new(base_workflow).provider(self.api.environment().provider);
-
-        // if user had changed the operating agent, we need to set it again
-        // This is useful when the user switches modes before initializing the state.
-        if let Some(operating_agent) = operating_agent {
-            self.state.operating_agent = Some(operating_agent);
-        }
 
         Ok(workflow)
     }
