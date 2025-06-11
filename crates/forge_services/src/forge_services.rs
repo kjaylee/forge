@@ -14,9 +14,10 @@ use crate::tools_v2::{
     ForgeFsSearch, ForgeFsUndo, ForgeShell,
 };
 use crate::workflow::ForgeWorkflowService;
-use crate::Infrastructure;
+use crate::{Infrastructure, McpServer};
 
-type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F>;
+type McpService<F> =
+    ForgeMcpService<ForgeMcpManager<F>, F, <<F as Infrastructure>::McpServer as McpServer>::Client>;
 
 /// ForgeApp is the main application container that implements the App trait.
 /// It provides access to all core services required by the application.
@@ -25,7 +26,7 @@ type McpService<F> = ForgeMcpService<ForgeMcpManager<F>, F>;
 /// - F: The infrastructure implementation that provides core services like
 ///   environment, file reading, vector indexing, and embedding.
 #[derive(Clone)]
-pub struct ForgeServices<F> {
+pub struct ForgeServices<F: Infrastructure> {
     infra: Arc<F>,
     tool_service: Arc<ForgeToolService<McpService<F>>>,
     provider_service: Arc<ForgeProviderService>,
@@ -44,6 +45,7 @@ pub struct ForgeServices<F> {
     shell_service: Arc<ForgeShell<F>>,
     fetch_service: Arc<ForgeFetch>,
     followup_service: Arc<ForgeFollowup<F>>,
+    mcp_service: Arc<McpService<F>>,
 }
 
 impl<F: Infrastructure> ForgeServices<F> {
@@ -55,7 +57,7 @@ impl<F: Infrastructure> ForgeServices<F> {
         let provider_service = Arc::new(ForgeProviderService::new(infra.clone()));
         let attachment_service = Arc::new(ForgeChatRequest::new(infra.clone()));
 
-        let conversation_service = Arc::new(ForgeConversationService::new(mcp_service));
+        let conversation_service = Arc::new(ForgeConversationService::new(mcp_service.clone()));
 
         let workflow_service = Arc::new(ForgeWorkflowService::new(infra.clone()));
         let suggestion_service = Arc::new(ForgeDiscoveryService::new(infra.clone()));
@@ -87,6 +89,7 @@ impl<F: Infrastructure> ForgeServices<F> {
             shell_service,
             fetch_service,
             followup_service,
+            mcp_service,
         }
     }
 }
@@ -110,6 +113,7 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
     type FsUndoService = ForgeFsUndo<F>;
     type NetFetchService = ForgeFetch;
     type ShellService = ForgeShell<F>;
+    type McpService = McpService<F>;
 
     fn tool_service(&self) -> &Self::ToolService {
         &self.tool_service
@@ -181,6 +185,10 @@ impl<F: Infrastructure> Services for ForgeServices<F> {
 
     fn shell_service(&self) -> &Self::ShellService {
         &self.shell_service
+    }
+
+    fn mcp_service(&self) -> &Self::McpService {
+        &self.mcp_service
     }
 }
 
