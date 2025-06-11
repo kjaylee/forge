@@ -207,9 +207,8 @@ pub fn estimate_token_count(count: usize) -> usize {
 
 impl From<Agent> for ToolDefinition {
     fn from(value: Agent) -> Self {
-        let agent_id = value.id.clone();
         let description = value.description.unwrap_or_default();
-        let name = ToolName::new(agent_id);
+        let name = ToolName::new(value.id);
         ToolDefinition {
             name,
             description,
