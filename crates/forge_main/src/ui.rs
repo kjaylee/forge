@@ -569,9 +569,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            self.create_task_init_event(content.clone())?
+            self.create_task_init_event(content)?
         } else {
-            self.create_task_update_event(content.clone())?
+            self.create_task_update_event(content)?
         };
 
         // Create the chat request with the event
