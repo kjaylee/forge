@@ -406,10 +406,8 @@ impl<F: API> UI<F> {
                     })
                     .collect::<Vec<_>>();
 
-                let select_prompt = inquire::Select::new(
-                    "select the agent from following list",
-                    display_agents.clone(),
-                );
+                let select_prompt =
+                    inquire::Select::new("select the agent from following list", display_agents);
                 let selected_agent = select_prompt.prompt()?;
                 self.on_agent_change(selected_agent.id).await?;
             }
