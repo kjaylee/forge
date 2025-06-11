@@ -54,8 +54,8 @@ impl<S: Services> ToolRegistry<S> {
                 let agent_description = agent
                     .description
                     .clone()
-                    .unwrap_or_else(|| format!("Agent: {}", agent_id));
-                let tool_name = ToolName::new(format!("forge_tool_delegate_{}", agent_id));
+                    .unwrap_or_else(|| format!("Agent: {agent_id}"));
+                let tool_name = ToolName::new(format!("forge_tool_delegate_{agent_id}"));
                 ToolDefinition {
                     name: tool_name,
                     description: agent_description,
@@ -75,8 +75,8 @@ impl<S: Services> ToolRegistry<S> {
     ) -> anyhow::Result<ToolOutput> {
         context
             .send_text(
-                TitleFormat::action(format!("Calling Agent [{}]", agent_id))
-                    .sub_title(&format!("for the task: '{}'", task)),
+                TitleFormat::action(format!("Calling Agent [{agent_id}]"))
+                    .sub_title(format!("for the task: '{task}'")),
             )
             .await?;
 
