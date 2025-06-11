@@ -267,7 +267,7 @@ pub enum Command {
 
     /// Allows user to switch the operating agent.
     #[strum(props(
-        usage = "Allows user to select the operating agent from the list of available agents"
+        usage = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options."
     ))]
     Agents,
 }
