@@ -29,6 +29,7 @@ const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 pub struct ToolRegistry<S> {
     services: Arc<S>,
 }
+
 impl<S: Services> ToolRegistry<S> {
     pub fn new(services: Arc<S>) -> Self {
         Self { services }
@@ -47,22 +48,7 @@ impl<S: Services> ToolRegistry<S> {
     /// descriptions.
     async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
         let agents = self.discover_agents().await?;
-        Ok(agents
-            .into_iter()
-            .map(|agent| {
-                let agent_id = agent.id.clone();
-                let agent_description = agent
-                    .description
-                    .clone()
-                    .unwrap_or_else(|| format!("Agent: {agent_id}"));
-                let tool_name = ToolName::new(format!("forge_tool_delegate_{agent_id}"));
-                ToolDefinition {
-                    name: tool_name,
-                    description: agent_description,
-                    input_schema: schemars::schema_for!(AgentInput),
-                }
-            })
-            .collect())
+        Ok(agents.into_iter().map(Into::into).collect())
     }
 
     /// Executes an agent tool call by creating a new chat request for the
@@ -293,6 +279,7 @@ impl<S: Services> ToolRegistry<S> {
         context: &mut ToolCallContext,
     ) -> anyhow::Result<ToolOutput> {
         Self::validate_tool_call(agent, &input.name).await?;
+        let agent_as_tools = self.tool_agents().await?;
 
         tracing::info!(tool_name = %input.name, arguments = %input.arguments, "Executing tool call");
         let tool_name = input.name.clone();
@@ -301,20 +288,16 @@ impl<S: Services> ToolRegistry<S> {
         if Tools::contains(&input.name) {
             self.call_with_timeout(&tool_name, || self.call_forge_tool(input.clone(), context))
                 .await
-        } else if input.name.as_str().starts_with("forge_tool_delegate_") {
+        } else if agent_as_tools
+            .iter()
+            .find(|tool| tool.name == input.name)
+            .is_some()
+        {
             // Handle agent delegation tool calls
             let agent_input: AgentInput =
                 serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
-
-            let agent_id = input
-                .name
-                .as_str()
-                .strip_prefix("forge_tool_delegate_")
-                .map(|s| s.to_string())
-                .ok_or_else(|| anyhow::anyhow!("Invalid agent tool name"))?;
-
             self.call_with_timeout(&tool_name, || {
-                self.call_agent_tool(agent_id, agent_input.task, context)
+                self.call_agent_tool(input.name.to_string(), agent_input.task, context)
             })
             .await
         } else if self

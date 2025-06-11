@@ -205,6 +205,19 @@ pub fn estimate_token_count(count: usize) -> usize {
     count / 4
 }
 
+impl From<Agent> for ToolDefinition {
+    fn from(value: Agent) -> Self {
+        let agent_id = value.id.clone();
+        let description = value.description.unwrap_or_default();
+        let name = ToolName::new(agent_id);
+        ToolDefinition {
+            name,
+            description,
+            input_schema: schemars::schema_for!(crate::AgentInput),
+        }
+    }
+}
+
 // The Transform enum has been removed
 
 #[cfg(test)]
