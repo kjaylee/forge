@@ -129,24 +129,14 @@ impl<F: API> UI<F> {
         Ok(())
     }
 
-    // Helper functions for creating events with the specific event names
-    fn create_task_init_event<V: Into<Value>>(&self, content: V) -> anyhow::Result<Event> {
+    fn create_task_event<V: Into<Value>>(
+        &self,
+        content: V,
+        event_name: &str,
+    ) -> anyhow::Result<Event> {
         if let Some(operating_agent) = &self.state.operating_agent {
             Ok(Event::new(
-                format!("{operating_agent}/{EVENT_USER_TASK_INIT}"),
-                content,
-            ))
-        } else {
-            Err(anyhow::anyhow!(
-                "Operating agent is not set, use /agents command to set it"
-            ))
-        }
-    }
-
-    fn create_task_update_event<V: Into<Value>>(&self, content: V) -> anyhow::Result<Event> {
-        if let Some(operating_agent) = &self.state.operating_agent {
-            Ok(Event::new(
-                format!("{operating_agent}/{EVENT_USER_TASK_UPDATE}"),
+                format!("{}/{}", operating_agent, event_name),
                 content,
             ))
         } else {
@@ -569,9 +559,9 @@ impl<F: API> UI<F> {
         // Create a ChatRequest with the appropriate event type
         let event = if self.state.is_first {
             self.state.is_first = false;
-            self.create_task_init_event(content)?
+            self.create_task_event(content, EVENT_USER_TASK_INIT)?
         } else {
-            self.create_task_update_event(content)?
+            self.create_task_event(content, EVENT_USER_TASK_UPDATE)?
         };
 
         // Create the chat request with the event
