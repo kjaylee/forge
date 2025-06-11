@@ -6,19 +6,22 @@ use std::time::Duration;
 use anyhow::Context;
 use forge_display::{DiffFormat, GrepFormat, TitleFormat};
 use forge_domain::{
-    Agent, AttemptCompletion, FSSearch, ToolCallContext, ToolCallFull, ToolDefinition, ToolName,
-    ToolOutput, ToolResult, Tools,
+    Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Event, FSSearch,
+    ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, Tools,
+    Workflow,
 };
+use futures::StreamExt;
+use merge::Merge;
 use regex::Regex;
 use strum::IntoEnumIterator;
 use tokio::time::timeout;
 
 use crate::utils::display_path;
 use crate::{
-    Content, EnvironmentService, Error, FetchOutput, FollowUpService, FsCreateOutput,
-    FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService,
-    FsUndoService, McpService, NetFetchService, PatchOutput, ReadOutput, SearchResult, Services,
-    ShellOutput, ShellService,
+    Content, ConversationService, EnvironmentService, Error, FetchOutput, FollowUpService,
+    FsCreateOutput, FsCreateService, FsPatchService, FsReadService, FsRemoveService,
+    FsSearchService, FsUndoService, McpService, NetFetchService, PatchOutput, ReadOutput,
+    SearchResult, Services, ShellOutput, ShellService, WorkflowService,
 };
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
@@ -29,6 +32,84 @@ pub struct ToolRegistry<S> {
 impl<S: Services> ToolRegistry<S> {
     pub fn new(services: Arc<S>) -> Self {
         Self { services }
+    }
+
+    /// Discovers all available agents from the workflow configuration
+    /// and returns them as a list for tool registration.
+    async fn discover_agents(&self) -> anyhow::Result<Vec<Agent>> {
+        let workflow = self.services.workflow_service().read(None).await?;
+        let mut base_workflow = Workflow::default();
+        base_workflow.merge(workflow);
+        Ok(base_workflow.agents)
+    }
+
+    /// Converts agents to tool definitions with agent-specific names and
+    /// descriptions.
+    async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
+        let agents = self.discover_agents().await?;
+        Ok(agents
+            .into_iter()
+            .map(|agent| {
+                let agent_id = agent.id.clone();
+                let agent_description = agent
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| format!("Agent: {}", agent_id));
+                let tool_name = ToolName::new(format!("forge_tool_delegate_{}", agent_id));
+                ToolDefinition {
+                    name: tool_name,
+                    description: agent_description,
+                    input_schema: schemars::schema_for!(AgentInput),
+                }
+            })
+            .collect())
+    }
+
+    /// Executes an agent tool call by creating a new chat request for the
+    /// specified agent.
+    async fn call_agent_tool(
+        &self,
+        agent_id: String,
+        task: String,
+        context: &mut ToolCallContext,
+    ) -> anyhow::Result<ToolOutput> {
+        context
+            .send_text(
+                TitleFormat::info(format!("Calling Agent [{}]", agent_id))
+                    .sub_title(&format!("for the task: {}", task)),
+            )
+            .await?;
+
+        let workflow = self.services.workflow_service().read(None).await?;
+        let mut base_workflow = Workflow::default();
+        base_workflow.merge(workflow);
+
+        let conversation = self
+            .services
+            .conversation_service()
+            .create(base_workflow)
+            .await?;
+        let chat_request = ChatRequest::new(Event::new(agent_id, task), conversation.id);
+
+        // // Execute the agent chat through the ForgeApp
+        let app = crate::ForgeApp::new(self.services.clone());
+        let mut response_stream = app.chat(chat_request).await?;
+
+        // // Collect responses from the agent
+        let mut agent_result = String::new();
+        while let Some(response_result) = response_stream.next().await {
+            match response_result {
+                Ok(response) => match response {
+                    ChatResponse::Text { text, is_complete, .. } if is_complete => {
+                        agent_result.push_str(&text);
+                    }
+                    _ => {}
+                },
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(ToolOutput::text(agent_result))
     }
 
     async fn call_internal(
@@ -216,6 +297,22 @@ impl<S: Services> ToolRegistry<S> {
         if Tools::contains(&input.name) {
             self.call_with_timeout(&tool_name, || self.call_forge_tool(input.clone(), context))
                 .await
+        } else if input.name.as_str().starts_with("forge_tool_delegate_") {
+            // Handle agent delegation tool calls
+            let agent_input: AgentInput =
+                serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
+
+            let agent_id = input
+                .name
+                .as_str()
+                .strip_prefix("forge_tool_delegate_")
+                .map(|s| s.to_string())
+                .ok_or_else(|| anyhow::anyhow!("Invalid agent tool name"))?;
+
+            self.call_with_timeout(&tool_name, || {
+                self.call_agent_tool(agent_id, agent_input.task, context)
+            })
+            .await
         } else if self
             .services
             .mcp_service()
@@ -250,10 +347,12 @@ impl<S: Services> ToolRegistry<S> {
 
     pub async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
         let mcp_tools = self.services.mcp_service().list().await?;
+        let agent_as_tools = self.tool_agents().await?;
 
         let tools = Tools::iter()
             .map(|tool| tool.definition())
             .chain(mcp_tools.into_iter())
+            .chain(agent_as_tools.into_iter())
             .collect::<Vec<_>>();
 
         Ok(tools)
