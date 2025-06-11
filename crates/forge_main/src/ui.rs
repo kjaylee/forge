@@ -136,7 +136,7 @@ impl<F: API> UI<F> {
     ) -> anyhow::Result<Event> {
         if let Some(operating_agent) = &self.state.operating_agent {
             Ok(Event::new(
-                format!("{}/{}", operating_agent, event_name),
+                format!("{operating_agent}/{event_name}"),
                 content,
             ))
         } else {
