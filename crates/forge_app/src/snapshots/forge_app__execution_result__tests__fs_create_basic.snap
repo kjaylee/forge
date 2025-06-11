@@ -2,4 +2,4 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<file_content path="/home/user/new_file.txt" total-lines="1">Hello, world!</file_content>
+<file_content path="/home/user/new_file.txt" total-lines="1"><![CDATA[Hello, world!]]></file_content>

@@ -49,9 +49,9 @@ impl ExecutionResult {
             (Tools::ForgeToolFsCreate(input), ExecutionResult::FsCreate(output)) => {
                 let mut elm = if let Some(before) = output.previous {
                     let diff = forge_display::DiffFormat::format(&before, &input.content);
-                    Element::new("file_diff").text(diff)
+                    Element::new("file_diff").cdata(diff)
                 } else {
-                    Element::new("file_content").text(&input.content)
+                    Element::new("file_content").cdata(&input.content)
                 };
 
                 elm = elm
