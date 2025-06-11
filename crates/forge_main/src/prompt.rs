@@ -1,8 +1,9 @@
-use std::borrow::Cow;
+:use std::borrow::Cow;
 use std::env;
 use std::fmt::Write;
 use std::process::Command;
 
+use convert_case::{Case, Casing};
 use derive_setters::Setters;
 use forge_api::{AgentId, ModelId, Usage};
 use forge_tracker::VERSION;
@@ -49,7 +50,7 @@ impl Prompt for ForgePrompt {
         write!(
             result,
             "{} {}",
-            mode_style.paint(self.agent_id.to_string().to_uppercase()),
+            mode_style.paint(self.agent_id.to_string().to_case(Case::UpperSnake)),
             folder_style.paint(&current_dir)
         )
         .unwrap();
