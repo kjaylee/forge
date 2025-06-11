@@ -373,22 +373,34 @@ impl<F: API> UI<F> {
                 // Read the current workflow to validate the agent
                 let workflow = self.active_workflow().await?;
 
-                let agents = workflow
+                let display_agents = workflow
                     .agents
-                    .into_iter()
+                    .iter()
                     .map(|agent| {
-                        if let Some(desc) = agent.description {
-                            format!("{}: {}", agent.id, desc)
+                        let display = if let Some(desc) = &agent.description {
+                            format!(
+                                "{}: {}",
+                                agent.id,
+                                desc.lines().collect::<Vec<_>>().join(" ")
+                            )
                         } else {
                             agent.id.to_string()
-                        }
+                        };
+                        (agent.id.as_str(), display)
                     })
                     .collect::<Vec<_>>();
 
-                let select_prompt =
-                    inquire::Select::new("select the agent from following list", agents);
+                let select_prompt = inquire::Select::new(
+                    "select the agent from following list",
+                    display_agents.iter().map(|(_, s)| s).collect::<Vec<_>>(),
+                );
                 let selected_option = select_prompt.prompt()?;
-                self.on_agent_change(selected_option).await?;
+                if let Some((selected_agent, _)) = display_agents
+                    .iter()
+                    .find(|(agent_id, _)| agent_id == &selected_option)
+                {
+                    self.on_agent_change(selected_agent.to_string()).await?;
+                }
             }
         }
 
