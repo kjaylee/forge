@@ -95,7 +95,7 @@ impl<F: API> UI<F> {
     }
 
     // Set the current mode and update conversation variable
-    async fn on_mode_change(&mut self, agent_id: String) -> Result<()> {
+    async fn on_agent_change(&mut self, agent_id: String) -> Result<()> {
         let workflow = self.active_workflow().await?;
 
         // Convert string to AgentId for validation
@@ -107,7 +107,7 @@ impl<F: API> UI<F> {
             self.api.upsert_conversation(conversation).await?;
         }
 
-        // Reset is_first to true when switching modes
+        // Reset is_first to true when switching agents
         self.state.is_first = true;
         self.state.operating_agent = Some(agent.id.clone());
 
@@ -341,10 +341,10 @@ impl<F: API> UI<F> {
                 self.on_message(content.clone()).await?;
             }
             Command::Act => {
-                self.on_mode_change("act".to_string()).await?;
+                self.on_agent_change("act".to_string()).await?;
             }
             Command::Plan => {
-                self.on_mode_change("plan".to_string()).await?;
+                self.on_agent_change("plan".to_string()).await?;
             }
             Command::Help => {
                 let info = Info::from(self.command.as_ref());
@@ -394,7 +394,7 @@ impl<F: API> UI<F> {
                 let select_prompt =
                     inquire::Select::new("select the agent from following list", agents);
                 let selected_option = select_prompt.prompt()?;
-                self.on_mode_change(selected_option).await?;
+                self.on_agent_change(selected_option).await?;
             }
         }
 
