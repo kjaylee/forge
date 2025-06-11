@@ -194,7 +194,7 @@ mod tests {
         let actual = prompt.render_prompt_left();
 
         // Check that it has the expected format with mode and directory displayed
-        assert!(actual.contains("ACT"));
+        assert!(actual.contains("FORGE"));
         assert!(actual.contains(RIGHT_CHEVRON));
     }
 
@@ -210,7 +210,7 @@ mod tests {
         env::remove_var("PROMPT");
 
         // Verify the prompt contains expected elements regardless of $PROMPT var
-        assert!(actual.contains("ACT"));
+        assert!(actual.contains("FORGE"));
         assert!(actual.contains(RIGHT_CHEVRON));
     }
 

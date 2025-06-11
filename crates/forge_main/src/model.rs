@@ -235,12 +235,12 @@ pub enum Command {
     /// Updates the forge version
     #[strum(props(usage = "Updates to the latest compatible version of forge"))]
     Update,
-    /// Switch to "act" mode.
-    /// This can be triggered with the '/act' command.
+    /// Switch to "forge" agent.
+    /// This can be triggered with the '/forge' command.
     #[strum(props(usage = "Enable implementation mode with code changes"))]
     Forge,
-    /// Switch to "plan" mode.
-    /// This can be triggered with the '/plan' command.
+    /// Switch to "muse" agent.
+    /// This can be triggered with the '/must' command.
     #[strum(props(usage = "Enable planning mode without code changes"))]
     Muse,
     /// Switch to "help" mode.
