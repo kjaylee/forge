@@ -277,7 +277,7 @@ impl<S: Services> ToolRegistry<S> {
         context: &mut ToolCallContext,
     ) -> anyhow::Result<ToolOutput> {
         Self::validate_tool_call(agent, &input.name).await?;
-        let agent_as_tools = self.tool_agents().await?;
+        let agent_tools = self.tool_agents().await?;
 
         tracing::info!(tool_name = %input.name, arguments = %input.arguments, "Executing tool call");
         let tool_name = input.name.clone();
@@ -286,7 +286,7 @@ impl<S: Services> ToolRegistry<S> {
         if Tools::contains(&input.name) {
             self.call_with_timeout(&tool_name, || self.call_forge_tool(input.clone(), context))
                 .await
-        } else if agent_as_tools.iter().any(|tool| tool.name == input.name) {
+        } else if agent_tools.iter().any(|tool| tool.name == input.name) {
             // Handle agent delegation tool calls
             let agent_input: AgentInput =
                 serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
@@ -328,12 +328,12 @@ impl<S: Services> ToolRegistry<S> {
 
     pub async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>> {
         let mcp_tools = self.services.mcp_service().list().await?;
-        let agent_as_tools = self.tool_agents().await?;
+        let agent_tools = self.tool_agents().await?;
 
         let tools = Tools::iter()
             .map(|tool| tool.definition())
             .chain(mcp_tools.into_iter())
-            .chain(agent_as_tools.into_iter())
+            .chain(agent_tools.into_iter())
             .collect::<Vec<_>>();
 
         Ok(tools)
