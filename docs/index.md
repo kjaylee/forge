@@ -30,7 +30,7 @@ Code-Forge provides several powerful features:
 - [Enhanced Security](features/security.html) - Optional restricted shell mode and security features
 - [Built-in Commands](features/commands.html) - Useful commands for managing your environment
 - [Autocomplete](features/autocomplete.html) - Intelligent command completion
-- [Operation Modes](features/operation-modes.html) - ACT and PLAN modes for flexible assistance
+- [Operating Agents](features/operating-agents.html) - Forge and Muse agents for flexible assistance
 - [Multi-Agent Architecture](features/multi-agent.html) - Specialized AI agents working collaboratively
 
 ### Additional Features

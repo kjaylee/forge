@@ -13,8 +13,8 @@ Forge offers several built-in commands to enhance your interaction:
 - `/info` - View environment summary, logs folder location, and command history
 - `/model` - Select and set a specific model in your forge.yaml configuration
 - `/dump` - Save the current conversation in JSON format to a file for reference
-- `/act` - Switch to Forge agent (default), allowing Forge to execute commands and implement changes
-- `/plan` - Switch to Muse agent, where Muse analyzes and plans but doesn't modify files
+- `/forge` - Switch to Forge agent (default), allowing Forge to execute commands and implement changes
+- `/muse` - Switch to Muse agent, where Muse analyzes and plans but doesn't modify files
 
 ## Native Shell Commands
 

@@ -22,7 +22,7 @@ Forge is the default agent when you start the application and is empowered to di
 
 ```bash
 # Switches to Forge Agent within a session
-/act
+/forge
 
 # Or use the general agent command and then from drop down select `Forge` agent
 /agent
@@ -41,10 +41,10 @@ Muse analyzes and plans but doesn't modify your codebase:
 
 ```bash
 # Switch to Muse Agent within a session
-/plan
+/muse
 
 # Or use the general agent command and then from drop down select `Muse` agent
 /agent 
 ```
 
-You can easily switch between agents during a session using the `/act`, `/plan`, or `/agent` commands. Muse is especially useful for reviewing potential changes before they're implemented, while Forge streamlines the development process by handling implementation details for you.
+You can easily switch between agents during a session using the `/forge`, `/muse`, or `/agent` commands. Muse is especially useful for reviewing potential changes before they're implemented, while Forge streamlines the development process by handling implementation details for you.

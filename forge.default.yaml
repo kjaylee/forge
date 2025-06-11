@@ -33,7 +33,7 @@ agents:
     system_prompt: |-
       {{> system-prompt-engineer-act.hbs }}
     user_prompt: |-
-      {{#if (eq event.name 'act/user_task_update')}}
+      {{#if (eq event.name 'forge/user_task_update')}}
       <feedback>{{event.value}}</feedback>
       {{else}}
       <task>{{event.value}}</task>
@@ -49,8 +49,8 @@ agents:
       - forge_tool_fs_undo
       - forge_tool_attempt_completion
     subscribe:
-      - Forge/user_task_init
-      - Forge/user_task_update
+      - forge/user_task_init
+      - forge/user_task_update
     max_walker_depth: 1
 
   - id: Muse
@@ -73,7 +73,7 @@ agents:
     system_prompt: |-
       {{> system-prompt-engineer-plan.hbs }}
     user_prompt: |-
-      {{#if (eq event.name 'plan/user_task_update')}}
+      {{#if (eq event.name 'muse/user_task_update')}}
       <feedback>{{event.value}}</feedback>
       {{else}}
       <task>{{event.value}}</task>
@@ -88,6 +88,6 @@ agents:
       - forge_tool_fs_patch
       - forge_tool_attempt_completion
     subscribe:
-      - Muse/user_task_init
-      - Muse/user_task_update
+      - muse/user_task_init
+      - muse/user_task_update
     max_walker_depth: 1

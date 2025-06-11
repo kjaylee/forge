@@ -17,7 +17,7 @@ Forge provides a comprehensive set of features designed to enhance your developm
 - [Enhanced Security](security.html) - Optional restricted shell mode and security features
 - [Built-in Commands](commands.html) - Useful commands for managing your environment
 - [Autocomplete](autocomplete.html) - Intelligent command completion
-- [Operation Modes](operation-modes.html) - ACT and PLAN modes for flexible assistance
+- [Operating Agents](operating-agents.html) - Forge and Muse agents for flexible assistance
 - [Multi-Agent Architecture](multi-agent.html) - Specialized AI agents working collaboratively
 
 ## Additional Features
