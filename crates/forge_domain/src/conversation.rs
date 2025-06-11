@@ -40,7 +40,7 @@ pub struct Conversation {
 }
 
 impl Conversation {
-    pub const MAIN_AGENT_NAME: &str = "act";
+    pub const MAIN_AGENT_NAME: &str = "Forge";
 
     /// Returns the model of the main agent
     ///
