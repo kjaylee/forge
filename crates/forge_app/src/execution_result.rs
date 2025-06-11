@@ -66,15 +66,17 @@ impl ExecutionResult {
             }
             (Tools::ForgeToolFsRemove(input), ExecutionResult::FsRemove(output)) => {
                 let display_path = display_path(env, Path::new(&input.path))?;
-                if output.completed {
-                    Ok(forge_domain::ToolOutput::text(format!(
-                        "Successfully removed file: {display_path}"
-                    )))
+                let elm = if output.completed {
+                    Element::new("file_removed")
+                        .attr("path", display_path)
+                        .attr("status", "success")
                 } else {
-                    Ok(forge_domain::ToolOutput::text(format!(
-                        "File not found or already removed: {display_path}"
-                    )))
-                }
+                    Element::new("file_removed")
+                        .attr("path", display_path)
+                        .attr("status", "not_found")
+                };
+
+                Ok(forge_domain::ToolOutput::text(elm))
             }
             (Tools::ForgeToolFsSearch(input), ExecutionResult::FsSearch(output)) => {
                 match output {

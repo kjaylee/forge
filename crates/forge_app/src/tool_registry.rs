@@ -457,7 +457,7 @@ async fn send_read_context(
     // Add range info if relevant
     if is_range_relevant {
         // Add range info for explicit ranges or truncated files
-        subtitle.push_str(&format!(" ({range_info})"));
+        subtitle.push_str(&format!(" [{range_info}]"));
     }
     let message = TitleFormat::debug(title).sub_title(subtitle);
     ctx.send_text(message).await?;
