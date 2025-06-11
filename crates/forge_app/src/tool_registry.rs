@@ -89,7 +89,9 @@ impl<S: Services> ToolRegistry<S> {
                 ChatResponse::Text { text, is_complete, .. } if is_complete => {
                     agent_result.push_str(&text);
                 }
-                _ => {}
+                _ => {
+                    context.send(message).await?;
+                }
             }
         }
 
