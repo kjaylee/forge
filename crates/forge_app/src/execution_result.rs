@@ -41,7 +41,7 @@ impl ExecutionResult {
                         .attr("start-line", out.start_line)
                         .attr("end-line", out.end_line)
                         .attr("total-lines", content.lines().count())
-                        .text(content);
+                        .cdata(content);
 
                     Ok(forge_domain::ToolOutput::text(elm))
                 }
@@ -59,7 +59,7 @@ impl ExecutionResult {
                     .attr("total-lines", input.content.lines().count());
 
                 if let Some(warning) = output.warning {
-                    elm = elm.append(Element::new("warning").text(warning));
+                    elm = elm.append(Element::new("warning").cdata(warning));
                 }
 
                 Ok(forge_domain::ToolOutput::text(elm))
@@ -375,6 +375,29 @@ mod tests {
             start_line: 1,
             end_line: 2,
             total_lines: 2,
+        });
+
+        let input = Tools::ForgeToolFsRead(FSRead {
+            path: "/home/user/test.txt".to_string(),
+            start_line: None,
+            end_line: None,
+            explanation: Some("Test explanation".to_string()),
+        });
+
+        let env = fixture_environment();
+
+        let actual = fixture.into_tool_output(input, None, &env).unwrap();
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+      #[test]
+    fn test_fs_read_basic_special_chars() {
+        let fixture = ExecutionResult::FsRead(ReadOutput {
+            content: Content::File("struct Foo<T>{ name: T }".to_string()),
+            start_line: 1,
+            end_line: 1,
+            total_lines: 1,
         });
 
         let input = Tools::ForgeToolFsRead(FSRead {

@@ -37,6 +37,11 @@ impl Element {
         self
     }
 
+    pub fn cdata(mut self, text: impl ToString) -> Self {
+        self.text = Some(format!("<![CDATA[{}]]>", text.to_string()));
+        self
+    }
+
     pub fn attr(mut self, key: impl ToString, value: impl ToString) -> Self {
         self.attr.push((key.to_string(), value.to_string()));
         self
