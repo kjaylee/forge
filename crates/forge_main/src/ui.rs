@@ -375,29 +375,33 @@ impl<F: API> UI<F> {
 
                 #[derive(Clone)]
                 struct Agent {
-                    label: String,
                     id: String,
+                    description: Option<String>,
                 }
 
                 impl Display for Agent {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                        write!(f, "{}", self.label)
+                        if let Some(desc) = &self.description {
+                            write!(
+                                f,
+                                "{}: {}",
+                                self.id,
+                                desc.lines().collect::<Vec<_>>().join(" ")
+                            )
+                        } else {
+                            write!(f, "{}", self.id)
+                        }
                     }
                 }
 
                 let display_agents = workflow
                     .agents
-                    .iter()
+                    .into_iter()
                     .map(|agent| {
-                        if let Some(desc) = &agent.description {
-                            let lable = format!(
-                                "{}: {}",
-                                agent.id,
-                                desc.lines().collect::<Vec<_>>().join(" ")
-                            );
-                            Agent { label: lable, id: agent.id.to_string() }
+                        if let Some(desc) = agent.description {
+                            Agent { id: agent.id.to_string(), description: Some(desc) }
                         } else {
-                            Agent { label: agent.id.to_string(), id: agent.id.to_string() }
+                            Agent { id: agent.id.to_string(), description: None }
                         }
                     })
                     .collect::<Vec<_>>();
