@@ -41,7 +41,7 @@ impl From<UIState> for ForgePrompt {
         ForgePrompt {
             usage: Some(state.usage),
             model: state.model,
-            agent_id: state.operating_agent,
+            agent_id: state.operating_agent.unwrap_or(AgentId::new("act")),
         }
     }
 }
