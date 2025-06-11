@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
+use convert_case::{Case, Casing};
 use forge_display::{DiffFormat, GrepFormat, TitleFormat};
 use forge_domain::{
     Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Event, FSSearch,
@@ -59,8 +60,8 @@ impl<S: Services> ToolRegistry<S> {
     ) -> anyhow::Result<ToolOutput> {
         context
             .send_text(
-                TitleFormat::action(format!("Calling Agent [{agent_id}]"))
-                    .sub_title(format!("for the task: '{task}'")),
+                TitleFormat::debug(agent_id.as_str().to_case(Case::UpperSnake))
+                    .sub_title(task.as_str()),
             )
             .await?;
 
