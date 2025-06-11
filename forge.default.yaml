@@ -1,5 +1,5 @@
 variables:
-  mode: ACT
+  operating_agent: act
 
 top_p: 0.8
 top_k: 30
