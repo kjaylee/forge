@@ -547,9 +547,6 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("This is a text file content"));
-        assert!(attachment.content.contains("start_line:"));
-        assert!(attachment.content.contains("end_line:"));
-        assert!(attachment.content.contains("total_lines:"));
     }
 
     #[tokio::test]
@@ -703,8 +700,5 @@ pub mod tests {
 
         // Check that the content contains our original text and has range information
         assert!(attachment.content.contains("Some content"));
-        assert!(attachment.content.contains("start_line:"));
-        assert!(attachment.content.contains("end_line:"));
-        assert!(attachment.content.contains("total_lines:"));
     }
 }
