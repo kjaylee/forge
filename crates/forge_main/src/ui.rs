@@ -397,7 +397,7 @@ impl<F: API> UI<F> {
                 let selected_option = select_prompt.prompt()?;
                 if let Some((selected_agent, _)) = display_agents
                     .iter()
-                    .find(|(agent_id, _)| agent_id == &selected_option)
+                    .find(|(agent_id, _)| agent_id == selected_option)
                 {
                     self.on_agent_change(selected_agent.to_string()).await?;
                 }
