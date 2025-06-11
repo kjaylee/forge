@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use console::strip_ansi_codes;
 use forge_display::DiffFormat;
 use forge_domain::{Environment, Tools};
 use forge_template::Element;
@@ -48,11 +49,9 @@ impl ExecutionResult {
             },
             (Tools::ForgeToolFsCreate(input), ExecutionResult::FsCreate(output)) => {
                 let mut elm = if let Some(before) = output.previous {
-                    let diff = console::strip_ansi_codes(&forge_display::DiffFormat::format(
-                        &before,
-                        &input.content,
-                    ))
-                    .to_string();
+                    let diff =
+                        console::strip_ansi_codes(&DiffFormat::format(&before, &input.content))
+                            .to_string();
                     Element::new("file_diff").cdata(diff)
                 } else {
                     Element::new("file_content").cdata(&input.content)
@@ -137,10 +136,15 @@ impl ExecutionResult {
 
                 Ok(forge_domain::ToolOutput::text(elm))
             }
-            (_, ExecutionResult::FsUndo(output)) => Ok(forge_domain::ToolOutput::text(format!(
-                "Successfully undid last operation on path: {}",
-                output.as_str()
-            ))),
+            (Tools::ForgeToolFsUndo(input), ExecutionResult::FsUndo(output)) => {
+                let diff = DiffFormat::format(&output.before_undo, &output.after_undo);
+                let elm = Element::new("file_diff")
+                    .attr("path", input.path)
+                    .attr("status", "restored")
+                    .cdata(strip_ansi_codes(&diff));
+
+                Ok(forge_domain::ToolOutput::text(elm))
+            }
             (Tools::ForgeToolNetFetch(input), ExecutionResult::NetFetch(output)) => {
                 let mut metadata = FrontMatter::default()
                     .add("URL", &input.url)
@@ -235,10 +239,14 @@ impl ExecutionResult {
                 }
             }
             (_, ExecutionResult::FollowUp(output)) => match output {
-                None => Ok(forge_domain::ToolOutput::text(
-                    "User interrupted the selection".to_string(),
-                )),
-                Some(o) => Ok(forge_domain::ToolOutput::text(o.to_string())),
+                None => {
+                    let elm = Element::new("interrupted").text("No feedback provided");
+                    Ok(forge_domain::ToolOutput::text(elm))
+                }
+                Some(content) => {
+                    let elm = Element::new("feedback").text(content);
+                    Ok(forge_domain::ToolOutput::text(elm))
+                }
             },
             (_, ExecutionResult::AttemptCompletion) => Ok(forge_domain::ToolOutput::text(
                 "[Task was completed successfully. Now wait for user feedback]".to_string(),
@@ -660,8 +668,10 @@ mod tests {
 
     #[test]
     fn test_fs_undo_success() {
-        let fixture =
-            ExecutionResult::FsUndo(FsUndoOutput::from("File reverted successfully".to_string()));
+        let fixture = ExecutionResult::FsUndo(FsUndoOutput {
+            before_undo: "ABC".to_string(),
+            after_undo: "PQR".to_string(),
+        });
 
         let input = Tools::ForgeToolFsUndo(forge_domain::FSUndo {
             path: "/home/user/test.txt".to_string(),

@@ -59,15 +59,9 @@ pub struct FsRemoveOutput {
 }
 
 #[derive(Debug, derive_more::From)]
-pub struct FsUndoOutput(String);
-
-impl FsUndoOutput {
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-    pub fn into_inner(self) -> String {
-        self.0
-    }
+pub struct FsUndoOutput {
+    pub before_undo: String,
+    pub after_undo: String,
 }
 
 #[async_trait::async_trait]
