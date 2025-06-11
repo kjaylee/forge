@@ -45,7 +45,7 @@ agents:
       - forge_tool_fs_search
       - forge_tool_fs_undo
       - forge_tool_attempt_completion
-      - forge_tool_delegate_software-designer
+      - software-designer
     subscribe:
       - act/user_task_init
       - act/user_task_update
@@ -82,6 +82,7 @@ agents:
       - forge_tool_fs_create
       - forge_tool_fs_patch
       - forge_tool_attempt_completion
+      - software-engineer
     subscribe:
       - plan/user_task_init
       - plan/user_task_update

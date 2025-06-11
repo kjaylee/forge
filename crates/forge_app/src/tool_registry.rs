@@ -83,15 +83,13 @@ impl<S: Services> ToolRegistry<S> {
 
         // // Collect responses from the agent
         let mut agent_result = String::new();
-        while let Some(response_result) = response_stream.next().await {
-            match response_result {
-                Ok(response) => match response {
-                    ChatResponse::Text { text, is_complete, .. } if is_complete => {
-                        agent_result.push_str(&text);
-                    }
-                    _ => {}
-                },
-                Err(e) => return Err(e),
+        while let Some(message) = response_stream.next().await {
+            let message = message?;
+            match message {
+                ChatResponse::Text { text, is_complete, .. } if is_complete => {
+                    agent_result.push_str(&text);
+                }
+                _ => {}
             }
         }
 
