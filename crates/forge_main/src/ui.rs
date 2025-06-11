@@ -104,7 +104,7 @@ impl<F: API> UI<F> {
 
         let conversation_id = self.init_conversation().await?;
         if let Some(mut conversation) = self.api.conversation(&conversation_id).await? {
-            conversation.set_variable("operating_agent".into(), Value::from(agent.id.to_string()));
+            conversation.set_variable("operating_agent".into(), Value::from(agent.id.as_str()));
             self.api.upsert_conversation(conversation).await?;
         }
 
@@ -117,14 +117,14 @@ impl<F: API> UI<F> {
             .update_workflow(self.cli.workflow.as_deref(), |workflow| {
                 workflow.variables.insert(
                     "operating_agent".to_string(),
-                    Value::from(agent.id.to_string()),
+                    Value::from(agent.id.as_str()),
                 );
             })
             .await?;
 
         self.writeln(TitleFormat::action(format!(
             "Switched to agent {}",
-            agent.id.to_string().to_case(Case::UpperSnake).bold()
+            agent.id.as_str().to_case(Case::UpperSnake).bold()
         )))?;
 
         Ok(())
@@ -383,7 +383,7 @@ impl<F: API> UI<F> {
                 let n = workflow
                     .agents
                     .iter()
-                    .map(|a| a.id.to_string().len())
+                    .map(|a| a.id.as_str().len())
                     .max()
                     .unwrap_or_default();
                 let display_agents = workflow
@@ -393,7 +393,7 @@ impl<F: API> UI<F> {
                         if let Some(title) = &agent.title {
                             let label = format!(
                                 "{:<n$} {}",
-                                agent.id.to_string().to_case(Case::UpperSnake).bold(),
+                                agent.id.as_str().to_case(Case::UpperSnake).bold(),
                                 title.lines().collect::<Vec<_>>().join(" ").dimmed()
                             );
                             Agent { label, id: agent.id }

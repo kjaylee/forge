@@ -25,8 +25,8 @@ impl AgentId {
     }
 
     // Returns the agent ID as a string reference
-    pub fn to_string(&self) -> String {
-        self.0.clone().into_owned()
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
     }
 
     pub const FORGE: AgentId = AgentId(Cow::Borrowed("forge"));
@@ -187,7 +187,7 @@ impl Agent {
         if self.description.is_none() || self.description.as_ref().is_none_or(|d| d.is_empty()) {
             return Err(Error::MissingAgentDescription(self.id.clone()));
         }
-        Ok(ToolDefinition::new(self.id.to_string().to_string())
+        Ok(ToolDefinition::new(self.id.as_str().to_string())
             .description(self.description.clone().unwrap()))
     }
     /// Checks if compaction should be applied

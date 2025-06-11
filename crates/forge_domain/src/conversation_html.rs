@@ -179,7 +179,7 @@ fn create_all_subscriptions_section(conversation: &Conversation) -> Element {
                     Element::new("tr")
                         .append(
                             Element::new("td")
-                                .append(Element::new("strong").text(agent.id.to_string())),
+                                .append(Element::new("strong").text(agent.id.as_str())),
                         )
                         .append(Element::new("td").text(events_list))
                         .append(Element::new("td").text(count.to_string()))

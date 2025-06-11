@@ -50,7 +50,7 @@ impl Prompt for ForgePrompt {
         write!(
             result,
             "{} {}",
-            mode_style.paint(self.agent_id.to_string().to_case(Case::UpperSnake)),
+            mode_style.paint(self.agent_id.as_str().to_case(Case::UpperSnake)),
             folder_style.paint(&current_dir)
         )
         .unwrap();

@@ -358,7 +358,7 @@ mod tests {
         let agent1 = conversation
             .agents
             .iter()
-            .find(|a| a.id.to_string() == "agent1")
+            .find(|a| a.id.as_str() == "agent1")
             .unwrap();
         assert_eq!(agent1.model, Some(ModelId::new("default-model")));
         assert_eq!(agent1.max_walker_depth, Some(5));
@@ -370,7 +370,7 @@ mod tests {
         let agent2 = conversation
             .agents
             .iter()
-            .find(|a| a.id.to_string() == "agent2")
+            .find(|a| a.id.as_str() == "agent2")
             .unwrap();
         assert_eq!(agent2.model, Some(ModelId::new("default-model")));
         assert_eq!(agent2.max_walker_depth, Some(5));
@@ -430,7 +430,7 @@ mod tests {
         let other_agent = conversation
             .agents
             .iter()
-            .find(|a| a.id.to_string() == "other-agent")
+            .find(|a| a.id.as_str() == "other-agent")
             .unwrap();
 
         if other_agent.subscribe.is_some() {
@@ -631,7 +631,7 @@ mod tests {
         let agent1 = conversation
             .agents
             .iter()
-            .find(|a| a.id.to_string() == "agent1")
+            .find(|a| a.id.as_str() == "agent1")
             .unwrap();
         assert_eq!(agent1.tool_supported, Some(true));
 
@@ -639,7 +639,7 @@ mod tests {
         let agent2 = conversation
             .agents
             .iter()
-            .find(|a| a.id.to_string() == "agent2")
+            .find(|a| a.id.as_str() == "agent2")
             .unwrap();
         assert_eq!(agent2.tool_supported, Some(true));
     }
