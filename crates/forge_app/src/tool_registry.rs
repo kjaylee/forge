@@ -292,10 +292,9 @@ impl<S: Services> ToolRegistry<S> {
             // Handle agent delegation tool calls
             let agent_input: AgentInput =
                 serde_json::from_value(input.arguments).context("Failed to parse agent input")?;
-            self.call_with_timeout(&tool_name, || {
-                self.call_agent_tool(input.name.to_string(), agent_input.task, context)
-            })
-            .await
+            // NOTE: Agents should not timeout
+            self.call_agent_tool(input.name.to_string(), agent_input.task, context)
+                .await
         } else if self
             .services
             .mcp_service()
