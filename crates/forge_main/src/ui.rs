@@ -369,7 +369,7 @@ impl<F: API> UI<F> {
             Command::Shell(ref command) => {
                 self.api.execute_shell_command_raw(command).await?;
             }
-            Command::Agents => {
+            Command::Agent => {
                 // Read the current workflow to validate the agent
                 let workflow = self.active_workflow().await?;
 

@@ -182,7 +182,7 @@ impl ForgeCommandManager {
             "/help" => Ok(Command::Help),
             "/model" => Ok(Command::Model),
             "/tools" => Ok(Command::Tools),
-            "/agent" => Ok(Command::Agents),
+            "/agent" => Ok(Command::Agent),
             text => {
                 let parts = text.split_ascii_whitespace().collect::<Vec<&str>>();
 
@@ -269,7 +269,7 @@ pub enum Command {
     #[strum(props(
         usage = "Switch between different AI agents. Use this command to change which agent handles your requests and see available options."
     ))]
-    Agents,
+    Agent,
 }
 
 impl Command {
@@ -289,7 +289,7 @@ impl Command {
             Command::Tools => "/tools",
             Command::Custom(event) => &event.name,
             Command::Shell(_) => "!shell",
-            Command::Agents => "/agent",
+            Command::Agent => "/agent",
         }
     }
 
