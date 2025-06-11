@@ -399,7 +399,7 @@ impl<F: API> UI<F> {
                             let label = format!(
                                 "{:<n$} {}",
                                 agent.id.as_str().to_case(Case::UpperSnake).bold(),
-                                desc.lines().collect::<Vec<_>>().join(" ").dimmed()
+                                title.lines().collect::<Vec<_>>().join(" ").dimmed()
                             );
                             Agent { label, id: agent.id.to_string() }
                         } else {
