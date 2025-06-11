@@ -290,8 +290,7 @@ impl<S: Services> ToolRegistry<S> {
                 .await
         } else if agent_as_tools
             .iter()
-            .find(|tool| tool.name == input.name)
-            .is_some()
+            .any(|tool| tool.name == input.name)
         {
             // Handle agent delegation tool calls
             let agent_input: AgentInput =
