@@ -391,7 +391,7 @@ mod tests {
         insta::assert_snapshot!(to_value(actual));
     }
 
-      #[test]
+    #[test]
     fn test_fs_read_basic_special_chars() {
         let fixture = ExecutionResult::FsRead(ReadOutput {
             content: Content::File("struct Foo<T>{ name: T }".to_string()),
