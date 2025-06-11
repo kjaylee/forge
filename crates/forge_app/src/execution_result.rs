@@ -59,7 +59,7 @@ impl ExecutionResult {
                     .attr("total-lines", input.content.lines().count());
 
                 if let Some(warning) = output.warning {
-                    elm = elm.append(Element::new("warning").cdata(warning));
+                    elm = elm.append(Element::new("warning").text(warning));
                 }
 
                 Ok(forge_domain::ToolOutput::text(elm))
