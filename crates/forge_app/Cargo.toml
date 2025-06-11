@@ -28,7 +28,6 @@ tempfile.workspace = true
 strum.workspace = true
 forge_template.workspace = true
 merge.workspace = true
-schemars.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
