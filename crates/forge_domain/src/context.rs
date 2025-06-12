@@ -700,7 +700,8 @@ mod tests {
 
         let actual = fixture.message_groups(None);
 
-        // Should have 2 groups, System and User and Assistant with tool call won't be in group as it's not completed yet.
+        // Should have 2 groups, System and User and Assistant with tool call won't be
+        // in group as it's not completed yet.
         assert_eq!(actual.len(), 2);
     }
 }
