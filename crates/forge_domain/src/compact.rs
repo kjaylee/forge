@@ -9,10 +9,12 @@ use crate::{Context, ModelId, Role};
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Compact {
-    /// Number of most recent messages to preserve during compaction
-    /// These messages won't be considered for summarization
+    /// Percentage of the context to drop during compaction.
+    /// valid values are between 0.0 and 1.0, where 0.0 means no compaction
+    /// and 1.0 means dropping all the messages.
     #[merge(strategy = crate::merge::std::overwrite)]
-    pub retention_window: usize,
+    pub percentage: f64,
+
     /// Maximum number of tokens to keep after compaction
     #[merge(strategy = crate::merge::option)]
     pub max_tokens: Option<usize>,

@@ -29,7 +29,7 @@ impl<S: AgentService> Compactor<S> {
         if let Some(ref compact) = agent.compact {
             debug!(agent_id = %agent.id, "Context compaction triggered");
 
-            match find_compact_sequence(&context, compact.retention_window)
+            match find_sequence(&context, compact.percentage)
                 .into_iter()
                 .next()
             {
