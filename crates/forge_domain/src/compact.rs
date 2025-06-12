@@ -78,7 +78,7 @@ impl Compact {
             prompt: None,
             summary_tag: None,
             model,
-            retention_window: 0,
+            percentage: 0.2, // Default to 20% compaction
         }
     }
 
