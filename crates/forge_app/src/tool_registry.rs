@@ -9,10 +9,8 @@ use forge_display::{DiffFormat, GrepFormat, TitleFormat};
 use forge_domain::{
     Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Event, FSSearch,
     ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, Tools,
-    Workflow,
 };
 use futures::StreamExt;
-use merge::Merge;
 use regex::Regex;
 use strum::IntoEnumIterator;
 use tokio::time::timeout;
@@ -37,17 +35,13 @@ impl<S: Services> ToolRegistry<S> {
         Self { services }
     }
 
-    /// Discovers all agents available in the system by reading the workflow.
-    async fn get_workflow(&self) -> anyhow::Result<Workflow> {
-        let workflow = self.services.workflow_service().read(None).await?;
-        let mut base_workflow = Workflow::default();
-        base_workflow.merge(workflow);
-        Ok(base_workflow)
-    }
-
     /// Returns a list of tool definitions for all available agents.
     async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let workflow = self.get_workflow().await?;
+        let workflow = self
+            .services
+            .workflow_service()
+            .read_merged(None)
+            .await?;
         Ok(workflow.agents.into_iter().map(Into::into).collect())
     }
 
@@ -67,7 +61,7 @@ impl<S: Services> ToolRegistry<S> {
             .await?;
 
         // Create a new conversation for agent execution
-        let workflow = self.get_workflow().await?;
+        let workflow = self.services.workflow_service().read_merged(None).await?;
         let conversation = self
             .services
             .conversation_service()
