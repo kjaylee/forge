@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::path::{Path, PathBuf};
 
 use console::strip_ansi_codes;
@@ -5,12 +6,13 @@ use forge_display::DiffFormat;
 use forge_domain::{Environment, Tools};
 use forge_template::Element;
 
-use crate::front_matter::FrontMatter;
-use crate::truncation::FETCH_MAX_LENGTH;
+use crate::truncation::{
+    create_temp_file, truncate_fetch_content, truncate_search_output, truncate_shell_output,
+};
 use crate::utils::display_path;
 use crate::{
-    Content, FetchOutput, FsCreateOutput, FsRemoveOutput, FsUndoOutput, PatchOutput, ReadOutput,
-    SearchResult, Services, ShellOutput, create_temp_file, truncate_search_output,
+    Content, EnvironmentService, FsCreateOutput, FsRemoveOutput, FsUndoOutput, HttpResponse,
+    PatchOutput, ReadOutput, ResponseContext, SearchResult, Services, ShellOutput,
 };
 
 #[derive(Debug, derive_more::From)]
@@ -21,7 +23,7 @@ pub enum ExecutionResult {
     FsSearch(Option<SearchResult>),
     FsPatch(PatchOutput),
     FsUndo(FsUndoOutput),
-    NetFetch(FetchOutput),
+    NetFetch(HttpResponse),
     Shell(ShellOutput),
     FollowUp(Option<String>),
     AttemptCompletion,
@@ -67,57 +69,46 @@ impl ExecutionResult {
 
                 forge_domain::ToolOutput::text(elm)
             }
-            (Tools::ForgeToolFsRemove(input), ExecutionResult::FsRemove(output)) => {
+            (Tools::ForgeToolFsRemove(input), ExecutionResult::FsRemove(_)) => {
                 let display_path = display_path(env, Path::new(&input.path));
-                let elm = if output.completed {
-                    Element::new("file_removed")
-                        .attr("path", display_path)
-                        .attr("status", "success")
-                } else {
-                    Element::new("file_removed")
-                        .attr("path", display_path)
-                        .attr("status", "not_found")
-                };
+                let elem = Element::new("file_removed")
+                    .attr("path", display_path)
+                    .attr("status", "completed");
 
-                forge_domain::ToolOutput::text(elm)
+                forge_domain::ToolOutput::text(elem)
             }
-            (Tools::ForgeToolFsSearch(input), ExecutionResult::FsSearch(output)) => {
-                match output {
-                    Some(output) => {
-                        let truncated_output = truncate_search_output(
-                            &output.matches,
-                            &input.path,
-                            input.regex.as_ref(),
-                            input.file_pattern.as_ref(),
-                        );
-                        let metadata = FrontMatter::default()
-                            .add("path", &truncated_output.path)
-                            .add_optional("regex", truncated_output.regex.as_ref())
-                            .add_optional("file_pattern", truncated_output.file_pattern.as_ref())
-                            .add("total_lines", truncated_output.total_lines)
-                            .add("start_line", 1)
-                            .add(
-                                "end_line",
-                                truncated_output.total_lines.min(truncated_output.max_lines),
-                            );
+            (Tools::ForgeToolFsSearch(input), ExecutionResult::FsSearch(output)) => match output {
+                Some(out) => {
+                    let max_lines = min(
+                        env.max_search_lines,
+                        input.max_search_lines.unwrap_or(u64::MAX),
+                    );
+                    let start_index = input.start_index.unwrap_or(1);
+                    let start_index = if start_index > 0 { start_index - 1 } else { 0 };
+                    let truncated_output =
+                        truncate_search_output(&out.matches, start_index, max_lines, env);
 
-                        let mut result = metadata.to_string();
-                        result.push_str(&truncated_output.output);
+                    let mut elm = Element::new("search_results")
+                        .attr("path", &input.path)
+                        .attr("total_lines", truncated_output.total_lines)
+                        .attr("start_line", truncated_output.start_line)
+                        .attr("end_line", truncated_output.end_line);
 
-                        // Create temp file if needed
-                        if let Some(path) = truncation_path {
-                            result.push_str(&format!(
-                                "\n<truncation>content is truncated to {} lines, remaining content can be read from path:{}</truncation>",
-                                truncated_output.max_lines,
-                                path.display()
-                            ));
-                        }
+                    elm = elm.attr_if_some("regex", input.regex);
+                    elm = elm.attr_if_some("file_pattern", input.file_pattern);
 
-                        forge_domain::ToolOutput::text(result)
-                    }
-                    None => forge_domain::ToolOutput::text("No matches found".to_string()),
+                    elm = elm.cdata(truncated_output.output.trim());
+
+                    forge_domain::ToolOutput::text(elm)
                 }
-            }
+                None => {
+                    let mut elm = Element::new("search_results").attr("path", &input.path);
+                    elm = elm.attr_if_some("regex", input.regex);
+                    elm = elm.attr_if_some("file_pattern", input.file_pattern);
+
+                    forge_domain::ToolOutput::text(elm)
+                }
+            },
             (Tools::ForgeToolFsPatch(input), ExecutionResult::FsPatch(output)) => {
                 let diff =
                     console::strip_ansi_codes(&DiffFormat::format(&output.before, &output.after))
@@ -144,54 +135,51 @@ impl ExecutionResult {
                 forge_domain::ToolOutput::text(elm)
             }
             (Tools::ForgeToolNetFetch(input), ExecutionResult::NetFetch(output)) => {
-                let mut metadata = FrontMatter::default()
-                    .add("URL", &input.url)
-                    .add("total_chars", output.content.len())
-                    .add("start_char", 0)
-                    .add("end_char", FETCH_MAX_LENGTH.min(output.content.len()))
-                    .add("context", &output.context);
-                if let Some(path) = truncation_path.as_ref() {
-                    metadata = metadata.add(
-                        "truncation",
-                        format!(
-                            "Content is truncated to {} chars; Remaining content can be read from path: {}",
-                            FETCH_MAX_LENGTH,
-                            path.display()
-                        ),
-                    );
-                }
-                let truncation_tag = match truncation_path.as_ref() {
-                    Some(path) => {
-                        format!(
-                            "\n<truncation>content is truncated to {} chars, remaining content can be read from path: {}</truncation>",
-                            FETCH_MAX_LENGTH,
-                            path.to_string_lossy()
-                        )
-                    }
-                    _ => String::new(),
+                let content_type = match output.context {
+                    ResponseContext::Parsed => "text/markdown".to_string(),
+                    ResponseContext::Raw => output.content_type,
                 };
+                let truncated_content =
+                    truncate_fetch_content(&output.content, env.fetch_truncation_limit);
+                let mut elm = Element::new("http_response")
+                    .attr("url", &input.url)
+                    .attr("status_code", output.code)
+                    .attr("start_char", 0)
+                    .attr(
+                        "end_char",
+                        env.fetch_truncation_limit.min(output.content.len()),
+                    )
+                    .attr("total_chars", output.content.len())
+                    .attr("content_type", content_type);
 
-                forge_domain::ToolOutput::text(format!("{metadata}{truncation_tag}"))
+                elm = elm.append(Element::new("body").cdata(truncated_content.content));
+                if let Some(path) = truncation_path.as_ref() {
+                    elm = elm.append(Element::new("truncated").text(
+                        format!(
+                            "Content is truncated to {} chars, remaining content can be read from path: {}",
+                            env.fetch_truncation_limit, path.display())
+                    ));
+                }
+
+                forge_domain::ToolOutput::text(elm)
             }
             (_, ExecutionResult::Shell(output)) => {
-                let mut metadata = FrontMatter::default().add("command", &output.output.command);
+                let mut elem = Element::new("shell_output").attr("command", &output.output.command);
                 if let Some(exit_code) = output.output.exit_code {
-                    metadata = metadata.add("exit_code", exit_code);
+                    elem = elem.attr("exit_code", exit_code);
                 }
+                let truncated_output =
+                    truncate_shell_output(&output.output.stdout, &output.output.stderr);
 
                 let stdout_lines = output.output.stdout.lines().count();
                 let stderr_lines = output.output.stderr.lines().count();
-                let stdout_truncated = stdout_lines
-                    > crate::truncation::PREFIX_LINES + crate::truncation::SUFFIX_LINES;
-                let stderr_truncated = stderr_lines
-                    > crate::truncation::PREFIX_LINES + crate::truncation::SUFFIX_LINES;
 
-                if stdout_truncated {
-                    metadata = metadata.add("total_stdout_lines", stdout_lines);
+                if truncated_output.stdout_truncated {
+                    elem = elem.attr("total_stdout_lines", stdout_lines);
                 }
 
-                if stderr_truncated {
-                    metadata = metadata.add("total_stderr_lines", stderr_lines);
+                if truncated_output.stderr_truncated {
+                    elem = elem.attr("total_stderr_lines", stderr_lines);
                 }
 
                 let is_success = output.output.success();
@@ -199,39 +187,37 @@ impl ExecutionResult {
                 // Combine outputs
                 let mut outputs = vec![];
                 if !output.output.stdout.is_empty() {
-                    outputs.push(output.output.stdout);
+                    outputs.push(truncated_output.stdout);
                 }
                 if !output.output.stderr.is_empty() {
-                    outputs.push(output.output.stderr);
+                    outputs.push(truncated_output.stderr);
                 }
 
-                let mut result = if outputs.is_empty() {
-                    format!(
+                if truncated_output.stderr_truncated || truncated_output.stdout_truncated {
+                    // Create temp file if needed
+                    if let Some(path) = truncation_path.as_ref() {
+                        elem = elem
+                            .attr("temp_file", path.display())
+                            .attr("truncated", "true");
+                    }
+                }
+                if outputs.is_empty() {
+                    elem = elem.text(format!(
                         "Command {} with no output.",
                         if is_success {
                             "executed successfully"
                         } else {
                             "failed"
                         }
-                    )
+                    ));
                 } else {
-                    outputs.join("\n")
+                    elem = elem.cdata(outputs.join("\n"));
                 };
 
-                result = format!("{metadata}{result}");
-
-                // Create temp file if needed
-                if let Some(path) = truncation_path.as_ref() {
-                    result.push_str(&format!(
-                        "\n<truncated>content is truncated, remaining content can be read from path:{}</truncated>",
-                        path.display()
-                    ));
-                }
-
                 if is_success {
-                    forge_domain::ToolOutput::text(result)
+                    forge_domain::ToolOutput::text(elem)
                 } else {
-                    panic!("{}", result)
+                    panic!("{}", elem)
                 }
             }
             (_, ExecutionResult::FollowUp(output)) => match output {
@@ -265,34 +251,16 @@ impl ExecutionResult {
             ExecutionResult::FsRead(_) => Ok(None),
             ExecutionResult::FsCreate(_) => Ok(None),
             ExecutionResult::FsRemove(_) => Ok(None),
-            ExecutionResult::FsSearch(search_result) => {
-                if let Some(search_result) = search_result {
-                    let output = search_result.matches.join("\n");
-                    let is_truncated =
-                        output.lines().count() as u64 > crate::truncation::SEARCH_MAX_LINES;
-
-                    if is_truncated {
-                        let path = crate::truncation::create_temp_file(
-                            services,
-                            "forge_find_",
-                            ".md",
-                            &output,
-                        )
-                        .await?;
-
-                        Ok(Some(path))
-                    } else {
-                        Ok(None)
-                    }
-                } else {
-                    Ok(None)
-                }
-            }
+            ExecutionResult::FsSearch(_) => Ok(None),
             ExecutionResult::FsPatch(_) => Ok(None),
             ExecutionResult::FsUndo(_) => Ok(None),
             ExecutionResult::NetFetch(output) => {
                 let original_length = output.content.len();
-                let is_truncated = original_length > crate::truncation::FETCH_MAX_LENGTH;
+                let is_truncated = original_length
+                    > services
+                        .environment_service()
+                        .get_environment()
+                        .fetch_truncation_limit;
 
                 if is_truncated {
                     let path =
@@ -342,6 +310,7 @@ mod tests {
     use forge_domain::{FSRead, ToolValue, Tools};
 
     use super::*;
+    use crate::{Match, MatchResult};
 
     fn fixture_environment() -> Environment {
         Environment {
@@ -362,6 +331,8 @@ mod tests {
                 max_retry_attempts: 3,
                 retry_status_codes: vec![429, 500, 502, 503, 504],
             },
+            max_search_lines: 25,
+            fetch_truncation_limit: 55,
         }
     }
 
@@ -514,6 +485,93 @@ mod tests {
         });
 
         let env = fixture_environment();
+        let actual = fixture.into_tool_output(input, None, &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_fs_search_output() {
+        // Create a large number of search matches to trigger truncation
+        let mut matches = Vec::new();
+        let total_lines = 50;
+        for i in 1..=total_lines {
+            matches.push(Match {
+                path: "/home/user/project/foo.txt".to_string(),
+                result: Some(MatchResult::Found {
+                    line: format!("Match line {}: Test", i),
+                    line_number: i,
+                }),
+            });
+        }
+
+        let fixture = ExecutionResult::FsSearch(Some(SearchResult { matches }));
+
+        let input = Tools::ForgeToolFsSearch(forge_domain::FSSearch {
+            path: "/home/user/project".to_string(),
+            regex: Some("search".to_string()),
+            start_index: Some(6),
+            max_search_lines: Some(30), // This will be limited by env.max_search_lines (25)
+            file_pattern: Some("*.txt".to_string()),
+            explanation: Some("Testing truncated search output".to_string()),
+        });
+
+        let env = fixture_environment(); // max_search_lines is 25
+
+        let actual = fixture.into_tool_output(input, None, &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_fs_search_max_output() {
+        // Create a large number of search matches to trigger truncation
+        let mut matches = Vec::new();
+        let total_lines = 50; // Total lines found.
+        for i in 1..=total_lines {
+            matches.push(Match {
+                path: "/home/user/project/foo.txt".to_string(),
+                result: Some(MatchResult::Found {
+                    line: format!("Match line {}: Test", i),
+                    line_number: i,
+                }),
+            });
+        }
+
+        let fixture = ExecutionResult::FsSearch(Some(SearchResult { matches }));
+
+        let input = Tools::ForgeToolFsSearch(forge_domain::FSSearch {
+            path: "/home/user/project".to_string(),
+            regex: Some("search".to_string()),
+            start_index: Some(6),
+            max_search_lines: Some(30), // This will be limited by env.max_search_lines (25)
+            file_pattern: Some("*.txt".to_string()),
+            explanation: Some("Testing truncated search output".to_string()),
+        });
+
+        let mut env = fixture_environment();
+        // Total lines found are 50, but we limit to 10 for this test
+        env.max_search_lines = 10;
+
+        let actual = fixture.into_tool_output(input, None, &env);
+
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_fs_search_no_matches() {
+        let fixture = ExecutionResult::FsSearch(None);
+
+        let input = Tools::ForgeToolFsSearch(forge_domain::FSSearch {
+            path: "/home/user/empty_project".to_string(),
+            regex: Some("nonexistent".to_string()),
+            start_index: None,
+            max_search_lines: None,
+            file_pattern: None,
+            explanation: Some("Testing search with no matches".to_string()),
+        });
+
+        let env = fixture_environment();
 
         let actual = fixture.into_tool_output(input, None, &env);
 
@@ -544,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_fs_remove_success() {
-        let fixture = ExecutionResult::FsRemove(FsRemoveOutput { completed: true });
+        let fixture = ExecutionResult::FsRemove(FsRemoveOutput {});
 
         let input = Tools::ForgeToolFsRemove(forge_domain::FSRemove {
             path: "/home/user/file_to_delete.txt".to_string(),
@@ -559,33 +617,31 @@ mod tests {
     }
 
     #[test]
-    fn test_fs_remove_not_found() {
-        let fixture = ExecutionResult::FsRemove(FsRemoveOutput { completed: false });
-
-        let input = Tools::ForgeToolFsRemove(forge_domain::FSRemove {
-            path: "/home/user/nonexistent_file.txt".to_string(),
-            explanation: Some("Trying to remove file that doesn't exist".to_string()),
-        });
-
-        let env = fixture_environment();
-
-        let actual = fixture.into_tool_output(input, None, &env);
-
-        insta::assert_snapshot!(to_value(actual));
-    }
-
-    #[test]
     fn test_fs_search_with_results() {
         let fixture = ExecutionResult::FsSearch(Some(SearchResult {
             matches: vec![
-                "file1.txt:1:Hello world".to_string(),
-                "file2.txt:3:Hello universe".to_string(),
+                Match {
+                    path: "file1.txt".to_string(),
+                    result: Some(MatchResult::Found {
+                        line_number: 1,
+                        line: "Hello world".to_string(),
+                    }),
+                },
+                Match {
+                    path: "file2.txt".to_string(),
+                    result: Some(MatchResult::Found {
+                        line_number: 3,
+                        line: "Hello universe".to_string(),
+                    }),
+                },
             ],
         }));
 
         let input = Tools::ForgeToolFsSearch(forge_domain::FSSearch {
             path: "/home/user/project".to_string(),
             regex: Some("Hello".to_string()),
+            start_index: None,
+            max_search_lines: None,
             file_pattern: Some("*.txt".to_string()),
             explanation: Some("Searching for Hello pattern".to_string()),
         });
@@ -604,6 +660,8 @@ mod tests {
         let input = Tools::ForgeToolFsSearch(forge_domain::FSSearch {
             path: "/home/user/project".to_string(),
             regex: Some("NonExistentPattern".to_string()),
+            start_index: None,
+            max_search_lines: None,
             file_pattern: None,
             explanation: Some("Searching for non-existent pattern".to_string()),
         });
@@ -682,10 +740,11 @@ mod tests {
 
     #[test]
     fn test_net_fetch_success() {
-        let fixture = ExecutionResult::NetFetch(FetchOutput {
+        let fixture = ExecutionResult::NetFetch(HttpResponse {
             content: "# Example Website\n\nThis is some content from a website.".to_string(),
             code: 200,
-            context: "https://example.com".to_string(),
+            context: ResponseContext::Raw,
+            content_type: "text/plain".to_string(),
         });
 
         let input = Tools::ForgeToolNetFetch(forge_domain::NetFetch {
@@ -698,6 +757,44 @@ mod tests {
 
         let actual = fixture.into_tool_output(input, None, &env);
 
+        insta::assert_snapshot!(to_value(actual));
+    }
+
+    #[test]
+    fn test_net_fetch_truncated() {
+        let env = fixture_environment();
+        let truncated_content = "Truncated Content".to_string();
+        let long_content = format!(
+            "{}{}",
+            "A".repeat(env.fetch_truncation_limit),
+            &truncated_content
+        );
+        let fixture = ExecutionResult::NetFetch(HttpResponse {
+            content: long_content,
+            code: 200,
+            context: ResponseContext::Parsed,
+            content_type: "text/html".to_string(),
+        });
+        let input = Tools::ForgeToolNetFetch(forge_domain::NetFetch {
+            url: "https://example.com/large-page".to_string(),
+            raw: Some(false),
+            explanation: Some("Fetching large content that will be truncated".to_string()),
+        });
+
+        let truncation_path = Some(std::path::PathBuf::from("/tmp/forge_fetch_abc123.txt"));
+
+        let actual = fixture.into_tool_output(input, truncation_path, &env);
+
+        // make sure that the content is truncated
+        assert!(
+            !actual
+                .values
+                .get(0)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .ends_with(&truncated_content)
+        );
         insta::assert_snapshot!(to_value(actual));
     }
 

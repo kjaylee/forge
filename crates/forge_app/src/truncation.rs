@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 
-use crate::{FsCreateService, Services};
+use forge_domain::Environment;
+
+use crate::utils::format_match;
+use crate::{FsCreateService, Match, Services};
 
 /// Number of lines to keep at the start of truncated output
 pub(crate) const PREFIX_LINES: usize = 200;
 
 /// Number of lines to keep at the end of truncated output
 pub(crate) const SUFFIX_LINES: usize = 200;
-
-/// Maximum characters for fetch content
-pub(crate) const FETCH_MAX_LENGTH: usize = 40_000;
 
 pub async fn create_temp_file<S: Services>(
     services: &S,
@@ -142,7 +142,7 @@ fn tag_output(
 }
 
 /// Truncates shell output and creates a temporary file if needed
-pub fn truncate_shell_output(stdout: &str, stderr: &str, command: &str) -> TruncatedShellOutput {
+pub fn truncate_shell_output(stdout: &str, stderr: &str) -> TruncatedShellOutput {
     let (stdout_output, stdout_truncated) =
         process_stream(stdout, "stdout", PREFIX_LINES, SUFFIX_LINES);
     let (stderr_output, stderr_truncated) =
@@ -153,9 +153,6 @@ pub fn truncate_shell_output(stdout: &str, stderr: &str, command: &str) -> Trunc
         stderr: stderr_output,
         stdout_truncated,
         stderr_truncated,
-        command: command.to_string(),
-        original_stdout: stdout.to_string(),
-        original_stderr: stderr.to_string(),
     }
 }
 
@@ -165,161 +162,71 @@ pub struct TruncatedShellOutput {
     pub stderr: String,
     pub stdout_truncated: bool,
     pub stderr_truncated: bool,
-    pub command: String,
-    pub original_stdout: String,
-    pub original_stderr: String,
-}
-
-impl TruncatedShellOutput {
-    /// Creates a temporary file if truncation occurred
-    pub async fn create_temp_file_if_needed<S: Services>(
-        &self,
-        services: &S,
-    ) -> anyhow::Result<Option<PathBuf>> {
-        if self.stdout_truncated || self.stderr_truncated {
-            let path = create_temp_file(
-                services,
-                "forge_shell_",
-                ".md",
-                &format!(
-                    "command:{}\n<stdout>{}</stdout>\n<stderr>{}</stderr>",
-                    self.command, self.original_stdout, self.original_stderr
-                ),
-            )
-            .await?;
-
-            Ok(Some(path))
-        } else {
-            Ok(None)
-        }
-    }
 }
 
 /// Represents the result of fetch content truncation
 #[derive(Debug)]
 pub struct TruncatedFetchOutput {
     pub content: String,
-    pub url: String,
-    pub code: u16,
-    pub context: String,
-    pub original_length: usize,
-    pub start_char: usize,
-    pub end_char: usize,
-    pub max_length: usize,
-    pub is_truncated: bool,
-    pub original_content: String,
-}
-
-impl TruncatedFetchOutput {
-    /// Creates a temp file if content was truncated
-    pub async fn create_temp_file_if_needed<S: Services>(
-        &self,
-        services: &S,
-    ) -> anyhow::Result<Option<PathBuf>> {
-        if self.is_truncated {
-            let path =
-                create_temp_file(services, "forge_fetch_", ".txt", &self.original_content).await?;
-
-            Ok(Some(path))
-        } else {
-            Ok(None)
-        }
-    }
 }
 
 /// Truncates fetch content based on character limit
-pub fn truncate_fetch_content(
-    content: &str,
-    url: &str,
-    code: u16,
-    context: &str,
-) -> TruncatedFetchOutput {
+pub fn truncate_fetch_content(content: &str, truncation_limit: usize) -> TruncatedFetchOutput {
     let original_length = content.len();
-    let end = FETCH_MAX_LENGTH.min(original_length);
-    let is_truncated = original_length > FETCH_MAX_LENGTH;
+    let is_truncated = original_length > truncation_limit;
 
     let truncated_content = if is_truncated {
-        content.chars().take(FETCH_MAX_LENGTH).collect()
+        content.chars().take(truncation_limit).collect()
     } else {
         content.to_string()
     };
 
-    TruncatedFetchOutput {
-        content: truncated_content,
-        url: url.to_string(),
-        code,
-        context: context.to_string(),
-        original_length,
-        start_char: 0,
-        end_char: end,
-        max_length: FETCH_MAX_LENGTH,
-        is_truncated,
-        original_content: content.to_string(),
-    }
+    TruncatedFetchOutput { content: truncated_content }
 }
-
-/// Maximum search lines before truncation
-pub const SEARCH_MAX_LINES: u64 = 200;
 
 /// Represents the result of fs_search truncation
 #[derive(Debug)]
 pub struct TruncatedSearchOutput {
     pub output: String,
-    pub path: String,
-    pub regex: Option<String>,
-    pub file_pattern: Option<String>,
     pub total_lines: u64,
-    pub max_lines: u64,
-    pub is_truncated: bool,
-    pub original_output: String,
-}
-
-impl TruncatedSearchOutput {
-    /// Creates a temp file if content was truncated
-    pub async fn create_temp_file_if_needed<S: Services>(
-        &self,
-        services: &S,
-    ) -> anyhow::Result<Option<PathBuf>> {
-        if self.is_truncated {
-            let path =
-                create_temp_file(services, "forge_find_", ".md", &self.original_output).await?;
-
-            Ok(Some(path))
-        } else {
-            Ok(None)
-        }
-    }
+    pub start_line: u64,
+    pub end_line: u64,
 }
 
 /// Truncates search output based on line limit
 pub fn truncate_search_output(
-    output: &[String],
-    path: &str,
-    regex: Option<&String>,
-    file_pattern: Option<&String>,
+    output: &[Match],
+    start_line: u64,
+    count: u64,
+    env: &Environment,
 ) -> TruncatedSearchOutput {
-    let output = output.join("\n");
-    let total_lines = output.lines().count() as u64;
-    let is_truncated = total_lines > SEARCH_MAX_LINES;
+    let total_outputs = output.len() as u64;
+    let is_truncated = total_outputs > count;
+    let output = output
+        .iter()
+        .map(|v| format_match(v, env))
+        .collect::<Vec<_>>();
 
     let truncated_output = if is_truncated {
         output
-            .lines()
-            .take(SEARCH_MAX_LINES as usize)
+            .iter()
+            .skip(start_line as usize)
+            .take(count as usize)
+            .map(String::from)
             .collect::<Vec<_>>()
             .join("\n")
     } else {
-        output.to_string()
+        output.join("\n")
     };
 
     TruncatedSearchOutput {
         output: truncated_output,
-        path: path.to_string(),
-        regex: regex.map(|s| s.to_string()),
-        file_pattern: file_pattern.map(|s| s.to_string()),
-        total_lines,
-        max_lines: SEARCH_MAX_LINES,
-        is_truncated,
-        original_output: output.to_string(),
+        total_lines: total_outputs,
+        start_line,
+        end_line: if is_truncated {
+            start_line + count
+        } else {
+            total_outputs
+        },
     }
 }
