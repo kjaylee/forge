@@ -183,6 +183,7 @@ impl Context {
                         groups.push(vec![message.clone()]);
                     }
 
+                    // If it's the last message, finish any existing group
                     if index == self.messages.len() - 1 {
                         if let Some(group) = current_group.take() {
                             groups.push(group);
