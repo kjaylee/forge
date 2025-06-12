@@ -191,15 +191,11 @@ impl Context {
     pub fn message_groups(&self, skip: Option<usize>) -> Vec<Vec<ContextMessage>> {
         let mut groups = Vec::new();
         let mut current_group: Option<Vec<ContextMessage>> = None;
-
-        let total_messages = self.messages.len();
         let skip = skip.unwrap_or(0);
-        for (index, message) in self.messages.iter().enumerate() {
-            if index < skip {
-                // Skip messages if skip is set
-                continue;
-            }
 
+        let mut iter = self.messages.iter().skip(skip).peekable();
+
+        while let Some(message) = iter.next() {
             match message {
                 // Assistant with tool calls starts a new group
                 ContextMessage::Text(text) if Self::is_assistant_with_tools(text) => {
@@ -218,7 +214,7 @@ impl Context {
                     }
 
                     // If it's the last message, finish any existing group
-                    if (index + 1) == total_messages {
+                    if iter.peek().is_none() {
                         if let Some(group) = current_group.take() {
                             groups.push(group);
                         }
