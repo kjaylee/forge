@@ -182,10 +182,12 @@ fn find_sequence(context: &Context, percentage: f64) -> Option<(usize, usize)> {
             break;
         }
 
-        ans = Some((
-            start_index,
-            start_index.saturating_add(end_index).saturating_sub(1),
-        ));
+        // there should be atleast two messages.
+        let end_index = start_index.saturating_add(end_index).saturating_sub(1);
+        if end_index.saturating_sub(start_index) < 1 {
+            continue;
+        }
+        ans = Some((start_index, end_index));
     }
 
     ans
@@ -269,7 +271,7 @@ mod tests {
         // 25% of 31 = 7.75 tokens, Groups: [u](3) < 7.75, but adding [tr](15) = 18 >
         // 7.75
         let actual = seq("sutruaa", 0.25);
-        assert_eq!(actual, "s[u]truaa");
+        assert_eq!(actual, "sutruaa");
 
         // Pattern: s-u-t-r-u-a-a, Total: u(3) + tr(15) + u(3) + a(5) + a(5) = 31 tokens
         // 95% of 31 = 29.45 tokens, Groups: [u](3) + [tr](15) + [u](3) + [a](5) = 26 <
@@ -281,7 +283,7 @@ mod tests {
         // 55% of 31 = 17.05 tokens, Groups: [u](3) < 17.05, but adding [tr](15) = 18 >
         // 17.05
         let actual = seq("utruaa", 0.55);
-        assert_eq!(actual, "[u]truaa");
+        assert_eq!(actual, "utruaa");
 
         // Edge case: 0% percentage should return no sequence
         // Any percentage of 0% means no tokens can be included
@@ -309,21 +311,21 @@ mod tests {
         // Pattern: u-u-u, Total: u(3) + u(3) + u(3) = 9 tokens
         // 50% of 9 = 4.5 tokens, Groups: [u](3) < 4.5, but adding [u](3) = 6 > 4.5
         let actual = seq("uuu", 0.5);
-        assert_eq!(actual, "[u]uu");
+        assert_eq!(actual, "uuu");
 
         // Test with tool calls and results pattern - tr is grouped together (15 tokens)
         // Pattern: s-u-t-r-u, Total: u(3) + tr(15) + u(3) = 21 tokens
         // 60% of 21 = 12.6 tokens, Groups: [u](3) < 12.6, but adding [tr](15) = 18 >
         // 12.6
         let actual = seq("sutru", 0.6);
-        assert_eq!(actual, "s[u]tru");
+        assert_eq!(actual, "sutru");
 
         // Test with mixed pattern - tr is grouped, so we get u(3) + tr(15) = 18 tokens
         // Pattern: s-u-t-r-t-r-u, Total: u(3) + tr(15) + tr(15) + u(3) = 36 tokens
         // 40% of 36 = 14.4 tokens, Groups: [u](3) < 14.4, but adding [tr](15) = 18 >
         // 14.4
         let actual = seq("sutrtru", 0.4);
-        assert_eq!(actual, "s[u]trtru");
+        assert_eq!(actual, "sutrtru");
 
         // Test with very small percentage
         // Pattern: s-u-a-a-a-a, Total: u(3) + a(5) + a(5) + a(5) + a(5) = 23 tokens
@@ -363,21 +365,21 @@ mod tests {
         // tokens 30% of 24 = 7.2 tokens, Groups: [u](3) < 7.2, but adding
         // [a](5) = 8 > 7.2
         let actual = seq("suauaua", 0.3);
-        assert_eq!(actual, "s[u]auaua");
+        assert_eq!(actual, "suauaua");
 
         // Test with tool call followed by multiple results (if that's possible)
         // Pattern: s-u-t-r-u, Total: u(3) + tr(15) + u(3) = 21 tokens
         // 50% of 21 = 10.5 tokens, Groups: [u](3) < 10.5, but adding [tr](15) = 18 >
         // 10.5
         let actual = seq("sutru", 0.5);
-        assert_eq!(actual, "s[u]tru");
+        assert_eq!(actual, "sutru");
 
         // Test where tool call group fits within percentage
         // Pattern: s-u-t-r, Total: u(3) + tr(15) = 18 tokens
         // 90% of 18 = 16.2 tokens, Groups: [u](3) < 16.2, but adding [tr](15) = 18 >
         // 16.2
         let actual = seq("sutr", 0.9);
-        assert_eq!(actual, "s[u]tr");
+        assert_eq!(actual, "sutr");
 
         // Test where tool call group actually fits within percentage
         // Pattern: s-u-t-r, Total: u(3) + tr(15) = 18 tokens
