@@ -163,9 +163,9 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn message_groups(&self, skip: Option<usize>) -> Vec<Vec<ContextMessage>> {
+    pub fn message_groups(&self, skip: Option<usize>) -> Vec<Vec<&ContextMessage>> {
         let mut groups = Vec::new();
-        let mut current_group: Option<Vec<ContextMessage>> = None;
+        let mut current_group: Option<Vec<&ContextMessage>> = None;
         let skip = skip.unwrap_or(0);
 
         let mut iter = self.messages.iter().skip(skip).peekable();
@@ -179,13 +179,13 @@ impl Context {
                         groups.push(group);
                     }
                     // Start new group with this message
-                    current_group = Some(vec![message.clone()]);
+                    current_group = Some(vec![message]);
                 }
                 // Tool results are added to current group if one exists, otherwise treated as
                 // single
                 ContextMessage::Tool(_) => {
                     if let Some(ref mut group) = current_group {
-                        group.push(message.clone());
+                        group.push(message);
                     }
 
                     // If it's the last message, finish any existing group
@@ -202,7 +202,7 @@ impl Context {
                         groups.push(group);
                     }
                     // Add this message as a single-message group
-                    groups.push(vec![message.clone()]);
+                    groups.push(vec![message]);
                 }
             }
         }
