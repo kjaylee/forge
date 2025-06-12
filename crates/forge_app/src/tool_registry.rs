@@ -20,7 +20,10 @@ use tokio::time::timeout;
 use crate::error::Error;
 use crate::utils::{display_path, format_match};
 use crate::{
-    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput, FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService, FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput, SearchResult, Services, ShellOutput, ShellService, WorkflowService
+    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput,
+    FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService,
+    FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput,
+    SearchResult, Services, ShellOutput, ShellService, WorkflowService,
 };
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
