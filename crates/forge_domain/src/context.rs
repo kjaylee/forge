@@ -128,6 +128,60 @@ pub struct Context {
 }
 
 impl Context {
+    pub fn message_groups(&self, skip: Option<usize>) -> Vec<Vec<ContextMessage>> {
+        let mut groups = Vec::new();
+        let mut current_group: Option<Vec<ContextMessage>> = None;
+
+        for message in self.messages.iter().skip(skip.unwrap_or_default()) {
+            match message {
+                // Assistant with tool calls starts a new group
+                ContextMessage::Text(text) if Self::is_assistant_with_tools(text) => {
+                    // Finish any existing group first
+                    if let Some(group) = current_group.take() {
+                        groups.push(group);
+                    }
+                    // Start new group with this message
+                    current_group = Some(vec![message.clone()]);
+                }
+                // Tool results are added to current group if one exists, otherwise treated as
+                // single
+                ContextMessage::Tool(_) => {
+                    if let Some(ref mut group) = current_group {
+                        group.push(message.clone());
+                    } else {
+                        // Orphaned tool result - add as single message group
+                        groups.push(vec![message.clone()]);
+                    }
+                }
+                // Any other message: finish current group and add this as single message
+                _ => {
+                    // Finish any existing group first
+                    if let Some(group) = current_group.take() {
+                        groups.push(group);
+                    }
+                    // Add this message as a single-message group
+                    groups.push(vec![message.clone()]);
+                }
+            }
+        }
+
+        // Don't forget any remaining group
+        if let Some(group) = current_group.take() {
+            groups.push(group);
+        }
+
+        groups
+    }
+
+    /// Checks if a text message is an assistant message with tool calls
+    fn is_assistant_with_tools(text_message: &TextMessage) -> bool {
+        text_message.role == Role::Assistant
+            && text_message
+                .tool_calls
+                .as_ref()
+                .is_some_and(|calls| !calls.is_empty())
+    }
+
     pub fn add_base64_url(mut self, image: Image) -> Self {
         self.messages.push(ContextMessage::Image(image));
         self
@@ -466,5 +520,134 @@ mod tests {
         let actual = transformer.transform(fixture);
 
         assert_yaml_snapshot!(actual);
+    }
+    #[test]
+    fn test_message_iter_groups_tool_calls_and_results() {
+        use crate::{ToolCallFull, ToolCallId, ToolName, ToolOutput, ToolResult};
+
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
+            .add_message(ContextMessage::user("User message", None))
+            .add_message(ContextMessage::assistant(
+                "I'll use a tool",
+                Some(vec![ToolCallFull {
+                    call_id: Some(ToolCallId::new("call1")),
+                    name: ToolName::new("test_tool"),
+                    arguments: serde_json::json!({"param": "value"}),
+                }]),
+            ))
+            .add_tool_results(vec![ToolResult {
+                name: ToolName::new("test_tool"),
+                call_id: Some(ToolCallId::new("call1")),
+                output: ToolOutput::text("Tool result".to_string()),
+            }])
+            .add_message(ContextMessage::assistant("Final response", None));
+
+        let actual = fixture.message_groups(None);
+
+        // Should have 4 groups:
+        // 1. System message
+        // 2. User message
+        // 3. Assistant with tool call + tool result
+        // 4. Final assistant message
+        assert_eq!(actual.len(), 4);
+        assert_eq!(actual[0].len(), 1); // System message alone
+        assert_eq!(actual[1].len(), 1); // User message alone
+        assert_eq!(actual[2].len(), 2); // Assistant + tool result together
+        assert_eq!(actual[3].len(), 1); // Final assistant message alone
+    }
+
+    #[test]
+    fn test_message_iter_single_messages() {
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System"))
+            .add_message(ContextMessage::user("User", None))
+            .add_message(ContextMessage::assistant("Assistant", None));
+
+        let actual = fixture.message_groups(None);
+
+        // Each message should be in its own group
+        assert_eq!(actual.len(), 3);
+        assert_eq!(actual[0].len(), 1);
+        assert_eq!(actual[1].len(), 1);
+        assert_eq!(actual[2].len(), 1);
+    }
+
+    #[test]
+    fn test_message_iter_multiple_tool_calls() {
+        use crate::{ToolCallFull, ToolCallId, ToolName, ToolOutput, ToolResult};
+
+        let fixture = Context::default()
+            .add_message(ContextMessage::assistant(
+                "First tool call",
+                Some(vec![ToolCallFull {
+                    call_id: Some(ToolCallId::new("call1")),
+                    name: ToolName::new("tool1"),
+                    arguments: serde_json::json!({}),
+                }]),
+            ))
+            .add_tool_results(vec![ToolResult {
+                name: ToolName::new("tool1"),
+                call_id: Some(ToolCallId::new("call1")),
+                output: ToolOutput::text("Result 1".to_string()),
+            }])
+            .add_message(ContextMessage::assistant(
+                "Second tool call",
+                Some(vec![ToolCallFull {
+                    call_id: Some(ToolCallId::new("call2")),
+                    name: ToolName::new("tool2"),
+                    arguments: serde_json::json!({}),
+                }]),
+            ))
+            .add_tool_results(vec![ToolResult {
+                name: ToolName::new("tool2"),
+                call_id: Some(ToolCallId::new("call2")),
+                output: ToolOutput::text("Result 2".to_string()),
+            }]);
+
+        let actual = fixture.message_groups(None);
+
+        // Should have 2 groups, each with assistant + tool result
+        assert_eq!(actual.len(), 2);
+        assert_eq!(actual[0].len(), 2); // First assistant + result
+        assert_eq!(actual[1].len(), 2); // Second assistant + result
+    }
+
+    #[test]
+    fn test_message_iter_parallel_tool_calls() {
+        use crate::{ToolCallFull, ToolCallId, ToolName, ToolOutput, ToolResult};
+
+        let fixture = Context::default()
+            .add_message(ContextMessage::assistant(
+                "First tool call",
+                Some(vec![
+                    ToolCallFull {
+                        call_id: Some(ToolCallId::new("call1")),
+                        name: ToolName::new("tool1"),
+                        arguments: serde_json::json!({}),
+                    },
+                    ToolCallFull {
+                        call_id: Some(ToolCallId::new("call2")),
+                        name: ToolName::new("tool2"),
+                        arguments: serde_json::json!({}),
+                    },
+                ]),
+            ))
+            .add_tool_results(vec![ToolResult {
+                name: ToolName::new("tool1"),
+                call_id: Some(ToolCallId::new("call1")),
+                output: ToolOutput::text("Result 1".to_string()),
+            }])
+            .add_tool_results(vec![ToolResult {
+                name: ToolName::new("tool2"),
+                call_id: Some(ToolCallId::new("call2")),
+                output: ToolOutput::text("Result 2".to_string()),
+            }]);
+
+        let actual = fixture.message_groups(None);
+
+        // Should have 2 groups, each with assistant + tool result
+        assert_eq!(actual.len(), 1);
+        assert_eq!(actual[0].len(), 3); // First assistant + result
     }
 }
