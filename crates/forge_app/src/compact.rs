@@ -171,14 +171,16 @@ fn find_sequence(context: &Context, percentage: f64) -> Option<(usize, usize)> {
         let group_tokens: f64 = group.iter().map(count_tokens).sum();
         accumulated_tokens += group_tokens;
         end_index += group.len();
-        if accumulated_tokens <= token_limit {
-            ans = Some((
-                start_index,
-                start_index.saturating_add(end_index).saturating_sub(1),
-            ));
-        } else {
+
+        if accumulated_tokens > token_limit {
+            // We exceeded the token limit, so we stop here
             break;
         }
+
+        ans = Some((
+            start_index,
+            start_index.saturating_add(end_index).saturating_sub(1),
+        ));
     }
 
     ans
