@@ -259,22 +259,26 @@ mod tests {
         // Original test cases with detailed calculations
 
         // Pattern: s-u-a-t-r-u, Total: u(3) + a(5) + tr(15) + u(3) = 26 tokens
-        // 35% of 26 = 9.1 tokens, Groups: [u](3) + [a](5) = 8 < 9.1, but adding [tr](15) = 23 > 9.1
+        // 35% of 26 = 9.1 tokens, Groups: [u](3) + [a](5) = 8 < 9.1, but adding
+        // [tr](15) = 23 > 9.1
         let actual = seq("suatru", 0.35);
         assert_eq!(actual, "s[ua]tru");
 
         // Pattern: s-u-t-r-u-a-a, Total: u(3) + tr(15) + u(3) + a(5) + a(5) = 31 tokens
-        // 25% of 31 = 7.75 tokens, Groups: [u](3) < 7.75, but adding [tr](15) = 18 > 7.75
+        // 25% of 31 = 7.75 tokens, Groups: [u](3) < 7.75, but adding [tr](15) = 18 >
+        // 7.75
         let actual = seq("sutruaa", 0.25);
         assert_eq!(actual, "s[u]truaa");
 
         // Pattern: s-u-t-r-u-a-a, Total: u(3) + tr(15) + u(3) + a(5) + a(5) = 31 tokens
-        // 95% of 31 = 29.45 tokens, Groups: [u](3) + [tr](15) + [u](3) + [a](5) = 26 < 29.45
+        // 95% of 31 = 29.45 tokens, Groups: [u](3) + [tr](15) + [u](3) + [a](5) = 26 <
+        // 29.45
         let actual = seq("sutruaa", 0.95);
         assert_eq!(actual, "s[utrua]a");
 
         // Pattern: u-t-r-u-a-a, Total: u(3) + tr(15) + u(3) + a(5) + a(5) = 31 tokens
-        // 55% of 31 = 17.05 tokens, Groups: [u](3) < 17.05, but adding [tr](15) = 18 > 17.05
+        // 55% of 31 = 17.05 tokens, Groups: [u](3) < 17.05, but adding [tr](15) = 18 >
+        // 17.05
         let actual = seq("utruaa", 0.55);
         assert_eq!(actual, "[u]truaa");
 
@@ -285,7 +289,8 @@ mod tests {
 
         // Edge case: 100% percentage should include all non-system messages
         // Pattern: s-u-a-t-r-u, Total: u(3) + a(5) + tr(15) + u(3) = 26 tokens
-        // 100% of 26 = 26 tokens, all groups fit: [u](3) + [a](5) + [tr](15) + [u](3) = 26
+        // 100% of 26 = 26 tokens, all groups fit: [u](3) + [a](5) + [tr](15) + [u](3) =
+        // 26
         let actual = seq("suatru", 1.0);
         assert_eq!(actual, "s[uatru]");
 
@@ -307,13 +312,15 @@ mod tests {
 
         // Test with tool calls and results pattern - tr is grouped together (15 tokens)
         // Pattern: s-u-t-r-u, Total: u(3) + tr(15) + u(3) = 21 tokens
-        // 60% of 21 = 12.6 tokens, Groups: [u](3) < 12.6, but adding [tr](15) = 18 > 12.6
+        // 60% of 21 = 12.6 tokens, Groups: [u](3) < 12.6, but adding [tr](15) = 18 >
+        // 12.6
         let actual = seq("sutru", 0.6);
         assert_eq!(actual, "s[u]tru");
 
         // Test with mixed pattern - tr is grouped, so we get u(3) + tr(15) = 18 tokens
         // Pattern: s-u-t-r-t-r-u, Total: u(3) + tr(15) + tr(15) + u(3) = 36 tokens
-        // 40% of 36 = 14.4 tokens, Groups: [u](3) < 14.4, but adding [tr](15) = 18 > 14.4
+        // 40% of 36 = 14.4 tokens, Groups: [u](3) < 14.4, but adding [tr](15) = 18 >
+        // 14.4
         let actual = seq("sutrtru", 0.4);
         assert_eq!(actual, "s[u]trtru");
 
@@ -325,19 +332,22 @@ mod tests {
 
         // Test with pattern starting with user message (no system)
         // Pattern: u-a-t-r-u, Total: u(3) + a(5) + tr(15) + u(3) = 26 tokens
-        // 40% of 26 = 10.4 tokens, Groups: [u](3) + [a](5) = 8 < 10.4, but adding [tr](15) = 23 > 10.4
+        // 40% of 26 = 10.4 tokens, Groups: [u](3) + [a](5) = 8 < 10.4, but adding
+        // [tr](15) = 23 > 10.4
         let actual = seq("uatru", 0.4);
         assert_eq!(actual, "[ua]tru");
 
         // Test with all assistant messages
         // Pattern: s-a-a-a-a, Total: a(5) + a(5) + a(5) + a(5) = 20 tokens
-        // 60% of 20 = 12 tokens, Groups: [a](5) + [a](5) = 10 < 12, but adding [a](5) = 15 > 12
+        // 60% of 20 = 12 tokens, Groups: [a](5) + [a](5) = 10 < 12, but adding [a](5) =
+        // 15 > 12
         let actual = seq("saaaa", 0.6);
         assert_eq!(actual, "s[aa]aa");
 
         // Test complex pattern with tool calls - each tr is a group
-        // Pattern: s-u-t-r-t-r-a-a, Total: u(3) + tr(15) + tr(15) + a(5) + a(5) = 43 tokens
-        // 50% of 43 = 21.5 tokens, Groups: [u](3) + [tr](15) = 18 < 21.5, but adding [tr](15) = 33 > 21.5
+        // Pattern: s-u-t-r-t-r-a-a, Total: u(3) + tr(15) + tr(15) + a(5) + a(5) = 43
+        // tokens 50% of 43 = 21.5 tokens, Groups: [u](3) + [tr](15) = 18 <
+        // 21.5, but adding [tr](15) = 33 > 21.5
         let actual = seq("sutrtraa", 0.5);
         assert_eq!(actual, "s[utr]traa");
 
@@ -348,26 +358,30 @@ mod tests {
         assert_eq!(actual, "su");
 
         // Test pattern with alternating messages
-        // Pattern: s-u-a-u-a-u-a, Total: u(3) + a(5) + u(3) + a(5) + u(3) + a(5) = 24 tokens
-        // 30% of 24 = 7.2 tokens, Groups: [u](3) < 7.2, but adding [a](5) = 8 > 7.2
+        // Pattern: s-u-a-u-a-u-a, Total: u(3) + a(5) + u(3) + a(5) + u(3) + a(5) = 24
+        // tokens 30% of 24 = 7.2 tokens, Groups: [u](3) < 7.2, but adding
+        // [a](5) = 8 > 7.2
         let actual = seq("suauaua", 0.3);
         assert_eq!(actual, "s[u]auaua");
 
         // Test with tool call followed by multiple results (if that's possible)
         // Pattern: s-u-t-r-u, Total: u(3) + tr(15) + u(3) = 21 tokens
-        // 50% of 21 = 10.5 tokens, Groups: [u](3) < 10.5, but adding [tr](15) = 18 > 10.5
+        // 50% of 21 = 10.5 tokens, Groups: [u](3) < 10.5, but adding [tr](15) = 18 >
+        // 10.5
         let actual = seq("sutru", 0.5);
         assert_eq!(actual, "s[u]tru");
 
         // Test where tool call group fits within percentage
         // Pattern: s-u-t-r, Total: u(3) + tr(15) = 18 tokens
-        // 90% of 18 = 16.2 tokens, Groups: [u](3) < 16.2, but adding [tr](15) = 18 > 16.2
+        // 90% of 18 = 16.2 tokens, Groups: [u](3) < 16.2, but adding [tr](15) = 18 >
+        // 16.2
         let actual = seq("sutr", 0.9);
         assert_eq!(actual, "s[u]tr");
 
         // Test where tool call group actually fits within percentage
         // Pattern: s-u-t-r, Total: u(3) + tr(15) = 18 tokens
-        // 100% of 18 = 18 tokens, Groups: [u](3) + [tr](15) = 18 = 18, so both fit exactly
+        // 100% of 18 = 18 tokens, Groups: [u](3) + [tr](15) = 18 = 18, so both fit
+        // exactly
         let actual = seq("sutr", 1.0);
         assert_eq!(actual, "s[utr]");
     }
