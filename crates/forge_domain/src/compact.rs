@@ -9,9 +9,9 @@ use crate::{Context, ModelId, Role};
 #[derive(Debug, Clone, Serialize, Deserialize, Merge, Setters)]
 #[setters(strip_option, into)]
 pub struct Compact {
-    /// Percentage of the context to drop during compaction.
-    /// valid values are between 0.0 and 1.0, where 0.0 means no compaction
-    /// and 1.0 means dropping all the messages.
+    /// Maximum percentage of the context that can be summarized during compaction.
+    /// Valid values are between 0.0 and 1.0, where 0.0 means no compaction
+    /// and 1.0 allows summarizing all messages.
     #[merge(strategy = crate::merge::std::overwrite)]
     pub percentage: f64,
 
