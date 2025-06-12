@@ -84,7 +84,7 @@ pub trait API: Sync + Send {
     /// project directory
     async fn write_mcp_config(&self, scope: &Scope, config: &McpConfig) -> Result<()>;
 
-
-    /// Loads the templates from given glob patterns and registers it with template service for dynamic rendering.
+    /// Loads the templates from given glob patterns and registers it with
+    /// template service for dynamic rendering.
     async fn register_template(&self, templates: String) -> anyhow::Result<()>;
 }

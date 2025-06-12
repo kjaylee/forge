@@ -68,9 +68,8 @@ mod tests {
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
-    use crate::attachment::tests::MockInfrastructure;
-
     use super::*;
+    use crate::attachment::tests::MockInfrastructure;
 
     #[tokio::test]
     async fn test_render_simple_template() {
