@@ -60,8 +60,7 @@ where
     let value = f64::deserialize(deserializer)?;
     if !(0.0..=1.0).contains(&value) {
         return Err(Error::custom(format!(
-            "percentage must be between 0.0 and 1.0, got {}",
-            value
+            "percentage must be between 0.0 and 1.0, got {value}"
         )));
     }
     Ok(value)
