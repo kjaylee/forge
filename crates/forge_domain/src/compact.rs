@@ -13,6 +13,7 @@ pub struct Compact {
     /// compaction. Valid values are between 0.0 and 1.0, where 0.0 means no
     /// compaction and 1.0 allows summarizing all messages.
     #[merge(strategy = crate::merge::std::overwrite)]
+    #[serde(deserialize_with = "deserialize_percentage")]
     pub percentage: f64,
 
     /// Maximum number of tokens to keep after compaction
@@ -48,6 +49,22 @@ pub struct Compact {
     #[merge(strategy = crate::merge::std::overwrite)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary_tag: Option<SummaryTag>,
+}
+
+fn deserialize_percentage<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    let value = f64::deserialize(deserializer)?;
+    if !(0.0..=1.0).contains(&value) {
+        return Err(Error::custom(format!(
+            "percentage must be between 0.0 and 1.0, got {}",
+            value
+        )));
+    }
+    Ok(value)
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
