@@ -157,7 +157,12 @@ impl Context {
         let mut groups = Vec::new();
         let mut current_group: Option<Vec<ContextMessage>> = None;
 
-        for message in self.messages.iter().skip(skip.unwrap_or_default()) {
+        for (index, message) in self
+            .messages
+            .iter()
+            .skip(skip.unwrap_or_default())
+            .enumerate()
+        {
             match message {
                 // Assistant with tool calls starts a new group
                 ContextMessage::Text(text) if Self::is_assistant_with_tools(text) => {
@@ -177,6 +182,12 @@ impl Context {
                         // Orphaned tool result - add as single message group
                         groups.push(vec![message.clone()]);
                     }
+
+                    if index == self.messages.len() - 1 {
+                        if let Some(group) = current_group.take() {
+                            groups.push(group);
+                        }
+                    }
                 }
                 // Any other message: finish current group and add this as single message
                 _ => {
@@ -188,11 +199,6 @@ impl Context {
                     groups.push(vec![message.clone()]);
                 }
             }
-        }
-
-        // Don't forget any remaining group
-        if let Some(group) = current_group.take() {
-            groups.push(group);
         }
 
         groups
@@ -674,5 +680,27 @@ mod tests {
         // Should have 2 groups, each with assistant + tool result
         assert_eq!(actual.len(), 1);
         assert_eq!(actual[0].len(), 3); // First assistant + result
+    }
+
+    #[test]
+    fn test_message_iter_assistance_tool_call_but_no_result() {
+        use crate::{ToolCallFull, ToolCallId, ToolName};
+
+        let fixture = Context::default()
+            .add_message(ContextMessage::system("System"))
+            .add_message(ContextMessage::user("User", None))
+            .add_message(ContextMessage::assistant(
+                "First tool call",
+                Some(vec![ToolCallFull {
+                    call_id: Some(ToolCallId::new("call1")),
+                    name: ToolName::new("tool1"),
+                    arguments: serde_json::json!({}),
+                }]),
+            ));
+
+        let actual = fixture.message_groups(None);
+
+        // Should have 2 groups, System and User and Assistant with tool call won't be in group as it's not completed yet.
+        assert_eq!(actual.len(), 2);
     }
 }
