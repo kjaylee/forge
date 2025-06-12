@@ -34,10 +34,7 @@ pub struct ToolRegistry<S> {
 
 impl<S: Services> ToolRegistry<S> {
     pub fn new(services: Arc<S>) -> Self {
-        Self {
-            services,
-            tool_agents:Arc::new(RwLock::new(None)),
-        }
+        Self { services, tool_agents: Arc::new(RwLock::new(None)) }
     }
 
     /// Returns a list of tool definitions for all available agents.
@@ -45,11 +42,7 @@ impl<S: Services> ToolRegistry<S> {
         if let Some(tool_agents) = self.tool_agents.read().await.clone() {
             return Ok(tool_agents);
         }
-        let workflow = self
-            .services
-            .workflow_service()
-            .read_merged(None)
-            .await?;
+        let workflow = self.services.workflow_service().read_merged(None).await?;
 
         let agents: Vec<ToolDefinition> = workflow.agents.into_iter().map(Into::into).collect();
         *self.tool_agents.write().await = Some(agents.clone());
