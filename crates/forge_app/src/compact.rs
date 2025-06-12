@@ -25,11 +25,12 @@ impl<S: AgentService> Compactor<S> {
         &self,
         agent: &Agent,
         context: Context,
+        percentage: Option<f64>,
     ) -> anyhow::Result<Context> {
         if let Some(ref compact) = agent.compact {
             debug!(agent_id = %agent.id, "Context compaction triggered");
 
-            match find_sequence(&context, compact.percentage)
+            match find_sequence(&context, percentage.unwrap_or(compact.percentage))
                 .into_iter()
                 .next()
             {

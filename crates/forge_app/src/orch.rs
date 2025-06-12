@@ -333,7 +333,7 @@ impl<S: AgentService> Orchestrator<S> {
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
                 let compactor = Compactor::new(self.services.clone());
-                context = compactor.compact_context(&agent, context).await?;
+                context = compactor.compact_context(&agent, context, None).await?;
             } else {
                 debug!(agent_id = %agent.id, "Compaction not needed");
             }
@@ -401,6 +401,11 @@ impl<S: AgentService> Orchestrator<S> {
             // Update context in the conversation
             self.conversation.context = Some(context.clone());
         }
+
+        // agent has yielded and so now compact everything.
+        Compactor::new(self.services.clone())
+            .compact_context(&agent, context, Some(1.0))
+            .await?;
 
         Ok(())
     }

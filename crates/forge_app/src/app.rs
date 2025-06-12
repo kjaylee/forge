@@ -163,7 +163,7 @@ impl<S: Services> ForgeApp<S> {
 
         // Apply compaction using the Compactor
         let compactor = Compactor::new(self.services.clone());
-        let compacted_context = compactor.compact_context(&agent, context).await?;
+        let compacted_context = compactor.compact_context(&agent, context, None).await?;
 
         // Calculate compacted metrics
         let compacted_messages = compacted_context.messages.len();
