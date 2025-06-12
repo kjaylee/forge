@@ -181,8 +181,8 @@ impl Context {
                     // Start new group with this message
                     current_group = Some(vec![message]);
                 }
-                // Tool results are added to current group if one exists, else ignored as tool result will always comes
-                // with it's tool call.
+                // Tool results are added to current group if one exists, else ignored as tool
+                // result will always comes with it's tool call.
                 ContextMessage::Tool(_) => {
                     if let Some(ref mut group) = current_group {
                         group.push(message);
