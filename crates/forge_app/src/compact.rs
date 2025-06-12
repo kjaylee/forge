@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{
     Agent, ChatCompletionMessage, ChatCompletionMessageFull, Compact, Context, ContextMessage,
-    ResultStreamExt, Role, ToolValue, extract_tag_content, find_compact_sequence,
+    ResultStreamExt, extract_tag_content, find_compact_sequence,
 };
 use futures::Stream;
 use tracing::{debug, info};
@@ -160,7 +160,11 @@ fn find_sequence(context: &Context, percentage: f64) -> Option<(usize, usize)> {
         .position(|msg| !msg.has_role(forge_domain::Role::System))?;
 
     // Calculate total tokens from the start index onwards
-    let total_tokens: f64 = messages.iter().skip(start_index).map(count_tokens).sum();
+    let total_tokens = messages
+        .iter()
+        .skip(start_index)
+        .map(|msg| msg.count_tokens() as f64)
+        .sum::<f64>();
     let token_limit = (total_tokens * percentage).floor();
     let mut accumulated_tokens = 0.0;
     let mut end_index = 0;
@@ -168,7 +172,7 @@ fn find_sequence(context: &Context, percentage: f64) -> Option<(usize, usize)> {
 
     // Process message groups to find where we exceed the target token count
     for group in context.message_groups(Some(start_index)) {
-        let group_tokens: f64 = group.iter().map(count_tokens).sum();
+        let group_tokens: f64 = group.iter().map(|msg| msg.count_tokens() as f64).sum();
         accumulated_tokens += group_tokens;
         end_index += group.len();
 
@@ -184,33 +188,6 @@ fn find_sequence(context: &Context, percentage: f64) -> Option<(usize, usize)> {
     }
 
     ans
-}
-
-/// Estimates the number of tokens in a message using character-based
-/// approximation.
-/// # Reference
-/// https://github.com/openai/codex/blob/main/codex-cli/src/utils/approximate-tokens-used.ts
-fn count_tokens(message: &ContextMessage) -> f64 {
-    let char_count = match message {
-        ContextMessage::Text(text_message)
-            if matches!(text_message.role, Role::User | Role::Assistant) =>
-        {
-            text_message.content.chars().count()
-        }
-        ContextMessage::Tool(tool_result) => tool_result
-            .output
-            .values
-            .iter()
-            .map(|result| match result {
-                ToolValue::Text(text) => text.chars().count(),
-                _ => 0,
-            })
-            .sum(),
-        _ => 0,
-    };
-
-    // Convert character count to token estimate using 4:1 ratio, then round up
-    (char_count as f64 / 4.0).ceil()
 }
 
 #[cfg(test)]
@@ -274,7 +251,9 @@ mod tests {
     }
 
     /// u - 3 tokens
-    /// t and r - 15 tokens
+    /// t - 8 tokens
+    /// r - 7 tokens
+    /// a - 5 tokens
     #[test]
     fn test_sequence_finding() {
         let actual = seq("suatru", 0.35);
