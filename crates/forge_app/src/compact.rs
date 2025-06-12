@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use forge_domain::{
     Agent, ChatCompletionMessage, ChatCompletionMessageFull, Compact, Context, ContextMessage,
-    ResultStreamExt, extract_tag_content, find_compact_sequence,
+    ResultStreamExt, extract_tag_content,
 };
 use futures::Stream;
 use tracing::{debug, info};
