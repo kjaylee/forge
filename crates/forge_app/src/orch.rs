@@ -343,10 +343,8 @@ impl<S: AgentService> Orchestrator<S> {
             let empty_tool_calls = tool_calls.is_empty();
 
             debug!(agent_id = %agent.id, tool_call_count = tool_calls.len(), "Tool call count");
-            let completion_calls = vec![
-                Tools::ForgeToolAttemptCompletion(Default::default()).to_string(),
-                Tools::ForgeToolFollowup(Default::default()).to_string(),
-            ];
+            let completion_calls = [Tools::ForgeToolAttemptCompletion(Default::default()).to_string(),
+                Tools::ForgeToolFollowup(Default::default()).to_string()];
 
             is_complete = tool_calls
                 .iter()
