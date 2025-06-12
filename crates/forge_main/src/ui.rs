@@ -83,7 +83,6 @@ impl<F: API> UI<F> {
     async fn on_new(&mut self) -> Result<()> {
         self.init_state().await?;
         banner::display()?;
-
         Ok(())
     }
 
@@ -567,6 +566,11 @@ impl<F: API> UI<F> {
         self.api
             .write_workflow(self.cli.workflow.as_deref(), &workflow)
             .await?;
+
+        // register the templates.
+        if let Some(templates) = base_workflow.templates.as_ref() {
+            self.api.register_template(templates.to_string()).await?;
+        }
 
         self.command.register_all(&base_workflow);
         self.state = UIState::new(base_workflow).provider(self.api.environment().provider);

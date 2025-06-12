@@ -3,8 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use forge_app::{
-    ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager,
-    ProviderService, Services, WorkflowService,
+    ConversationService, EnvironmentService, FileDiscoveryService, ForgeApp, McpConfigManager, ProviderService, Services, TemplateService, WorkflowService
 };
 use forge_domain::*;
 use forge_infra::ForgeInfra;
@@ -34,6 +33,10 @@ impl ForgeAPI<ForgeServices<ForgeInfra>, ForgeInfra> {
 
 #[async_trait::async_trait]
 impl<A: Services, F: Infrastructure> API for ForgeAPI<A, F> {
+    async fn register_template(&self, templates: String) -> anyhow::Result<()> {
+        self.app.template_service().register_template(templates).await
+    }
+    
     async fn discover(&self) -> Result<Vec<File>> {
         self.app.file_discovery_service().collect(None).await
     }
