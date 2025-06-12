@@ -5,12 +5,6 @@ use forge_domain::Environment;
 use crate::utils::format_match;
 use crate::{FsCreateService, Match, Services};
 
-/// Number of lines to keep at the start of truncated output
-pub(crate) const PREFIX_LINES: usize = 200;
-
-/// Number of lines to keep at the end of truncated output
-pub(crate) const SUFFIX_LINES: usize = 200;
-
 pub async fn create_temp_file<S: Services>(
     services: &S,
     prefix: &str,
@@ -142,11 +136,16 @@ fn tag_output(
 }
 
 /// Truncates shell output and creates a temporary file if needed
-pub fn truncate_shell_output(stdout: &str, stderr: &str) -> TruncatedShellOutput {
+pub fn truncate_shell_output(
+    stdout: &str,
+    stderr: &str,
+    prefix_lines: usize,
+    suffix_lines: usize,
+) -> TruncatedShellOutput {
     let (stdout_output, stdout_truncated) =
-        process_stream(stdout, "stdout", PREFIX_LINES, SUFFIX_LINES);
+        process_stream(stdout, "stdout", prefix_lines, suffix_lines);
     let (stderr_output, stderr_truncated) =
-        process_stream(stderr, "stderr", PREFIX_LINES, SUFFIX_LINES);
+        process_stream(stderr, "stderr", prefix_lines, suffix_lines);
 
     TruncatedShellOutput {
         stdout: stdout_output,

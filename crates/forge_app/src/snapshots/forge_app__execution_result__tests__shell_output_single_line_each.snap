@@ -1,0 +1,9 @@
+---
+source: crates/forge_app/src/execution_result.rs
+expression: to_value(actual)
+---
+<shell_output command="simple_command" exit_code="0"><stdout truncated="false"><![CDATA[<stdout>
+single stdout line
+</stdout>]]></stdout><stderr truncated="false"><![CDATA[<stderr>
+single stderr line
+</stderr>]]></stderr></shell_output>

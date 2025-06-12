@@ -1,0 +1,30 @@
+---
+source: crates/forge_app/src/execution_result.rs
+expression: to_value(actual)
+---
+<shell_output command="error_command" exit_code="1" total_stderr_lines="25" temp_file="/tmp/shell_output.md" stderr_start_line="1" stderr_end_line="26"><stdout truncated="false"><![CDATA[]]></stdout><stderr truncated="true"><![CDATA[<stderr lines="1-10">
+stderr line 1
+stderr line 2
+stderr line 3
+stderr line 4
+stderr line 5
+stderr line 6
+stderr line 7
+stderr line 8
+stderr line 9
+stderr line 10
+</stderr>
+<truncated>...stderr truncated (5 lines not shown)...</truncated>
+<stderr lines="16-25">
+stderr line 16
+stderr line 17
+stderr line 18
+stderr line 19
+stderr line 20
+stderr line 21
+stderr line 22
+stderr line 23
+stderr line 24
+stderr line 25
+</stderr>
+]]></stderr></shell_output>
