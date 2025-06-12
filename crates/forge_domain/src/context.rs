@@ -21,6 +21,41 @@ pub enum ContextMessage {
 }
 
 impl ContextMessage {
+    pub fn to_text(&self) -> String {
+        let mut lines = String::new();
+        match self {
+            ContextMessage::Text(message) => {
+                lines.push_str(&format!("<message role=\"{}\">", message.role));
+                lines.push_str(&format!("<content>{}</content>", message.content));
+                if let Some(tool_calls) = &message.tool_calls {
+                    for call in tool_calls {
+                        lines.push_str(&format!(
+                            "<forge_tool_call name=\"{}\"><![CDATA[{}]]></forge_tool_call>",
+                            call.name,
+                            serde_json::to_string(&call.arguments).unwrap()
+                        ));
+                    }
+                }
+
+                lines.push_str("</message>");
+            }
+            ContextMessage::Tool(result) => {
+                lines.push_str("<message role=\"tool\">");
+
+                lines.push_str(&format!(
+                    "<forge_tool_result name=\"{}\"><![CDATA[{}]]></forge_tool_result>",
+                    result.name,
+                    serde_json::to_string(&result.output).unwrap()
+                ));
+                lines.push_str("</message>");
+            }
+            ContextMessage::Image(_) => {
+                lines.push_str("<image path=\"[base64 URL]\">".to_string().as_str());
+            }
+        }
+        lines
+    }
+
     /// Estimates the number of tokens in a message using character-based
     /// approximation.
     /// # Reference
@@ -157,12 +192,14 @@ impl Context {
         let mut groups = Vec::new();
         let mut current_group: Option<Vec<ContextMessage>> = None;
 
-        for (index, message) in self
-            .messages
-            .iter()
-            .skip(skip.unwrap_or_default())
-            .enumerate()
-        {
+        let total_messages = self.messages.len();
+        let skip = skip.unwrap_or(0);
+        for (index, message) in self.messages.iter().enumerate() {
+            if index < skip {
+                // Skip messages if skip is set
+                continue;
+            }
+
             match message {
                 // Assistant with tool calls starts a new group
                 ContextMessage::Text(text) if Self::is_assistant_with_tools(text) => {
@@ -178,13 +215,10 @@ impl Context {
                 ContextMessage::Tool(_) => {
                     if let Some(ref mut group) = current_group {
                         group.push(message.clone());
-                    } else {
-                        // Orphaned tool result - add as single message group
-                        groups.push(vec![message.clone()]);
                     }
 
                     // If it's the last message, finish any existing group
-                    if index == self.messages.len() - 1 {
+                    if (index + 1) == total_messages {
                         if let Some(group) = current_group.take() {
                             groups.push(group);
                         }
@@ -266,36 +300,7 @@ impl Context {
         let mut lines = String::new();
 
         for message in self.messages.iter() {
-            match message {
-                ContextMessage::Text(message) => {
-                    lines.push_str(&format!("<message role=\"{}\">", message.role));
-                    lines.push_str(&format!("<content>{}</content>", message.content));
-                    if let Some(tool_calls) = &message.tool_calls {
-                        for call in tool_calls {
-                            lines.push_str(&format!(
-                                "<forge_tool_call name=\"{}\"><![CDATA[{}]]></forge_tool_call>",
-                                call.name,
-                                serde_json::to_string(&call.arguments).unwrap()
-                            ));
-                        }
-                    }
-
-                    lines.push_str("</message>");
-                }
-                ContextMessage::Tool(result) => {
-                    lines.push_str("<message role=\"tool\">");
-
-                    lines.push_str(&format!(
-                        "<forge_tool_result name=\"{}\"><![CDATA[{}]]></forge_tool_result>",
-                        result.name,
-                        serde_json::to_string(&result.output).unwrap()
-                    ));
-                    lines.push_str("</message>");
-                }
-                ContextMessage::Image(_) => {
-                    lines.push_str("<image path=\"[base64 URL]\">".to_string().as_str());
-                }
-            }
+            lines.push_str(&message.to_text());
         }
 
         format!("<chat_history>{lines}</chat_history>")
