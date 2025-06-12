@@ -13,6 +13,7 @@ use forge_domain::{
 use futures::StreamExt;
 use regex::Regex;
 use strum::IntoEnumIterator;
+use tokio::sync::RwLock;
 use tokio::time::timeout;
 
 use crate::error::Error;
@@ -28,17 +29,31 @@ const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
 
 pub struct ToolRegistry<S> {
     services: Arc<S>,
+    tool_agents: Arc<RwLock<Option<Vec<ToolDefinition>>>>,
 }
 
 impl<S: Services> ToolRegistry<S> {
     pub fn new(services: Arc<S>) -> Self {
-        Self { services }
+        Self {
+            services,
+            tool_agents:Arc::new(RwLock::new(None)),
+        }
     }
 
     /// Returns a list of tool definitions for all available agents.
     async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let workflow = self.services.workflow_service().read_merged(None).await?;
-        Ok(workflow.agents.into_iter().map(Into::into).collect())
+        if let Some(tool_agents) = self.tool_agents.read().await.clone() {
+            return Ok(tool_agents);
+        }
+        let workflow = self
+            .services
+            .workflow_service()
+            .read_merged(None)
+            .await?;
+
+        let agents: Vec<ToolDefinition> = workflow.agents.into_iter().map(Into::into).collect();
+        *self.tool_agents.write().await = Some(agents.clone());
+        Ok(agents)
     }
 
     /// Executes an agent tool call by creating a new chat request for the
