@@ -37,11 +37,7 @@ impl<S: Services> ToolRegistry<S> {
 
     /// Returns a list of tool definitions for all available agents.
     async fn tool_agents(&self) -> anyhow::Result<Vec<ToolDefinition>> {
-        let workflow = self
-            .services
-            .workflow_service()
-            .read_merged(None)
-            .await?;
+        let workflow = self.services.workflow_service().read_merged(None).await?;
         Ok(workflow.agents.into_iter().map(Into::into).collect())
     }
 
