@@ -615,6 +615,7 @@ mod tests {
         use crate::{ToolCallFull, ToolCallId, ToolName, ToolOutput, ToolResult};
 
         let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::assistant(
                 "First tool call",
                 Some(vec![ToolCallFull {
@@ -642,7 +643,7 @@ mod tests {
                 output: ToolOutput::text("Result 2".to_string()),
             }]);
 
-        let actual = fixture.message_groups(None);
+        let actual = fixture.message_groups(Some(1));
 
         // Should have 2 groups, each with assistant + tool result
         assert_eq!(actual.len(), 2);
@@ -655,6 +656,7 @@ mod tests {
         use crate::{ToolCallFull, ToolCallId, ToolName, ToolOutput, ToolResult};
 
         let fixture = Context::default()
+            .add_message(ContextMessage::system("System message"))
             .add_message(ContextMessage::assistant(
                 "First tool call",
                 Some(vec![
@@ -681,7 +683,7 @@ mod tests {
                 output: ToolOutput::text("Result 2".to_string()),
             }]);
 
-        let actual = fixture.message_groups(None);
+        let actual = fixture.message_groups(Some(1));
 
         // Should have 2 groups, each with assistant + tool result
         assert_eq!(actual.len(), 1);
@@ -704,10 +706,10 @@ mod tests {
                 }]),
             ));
 
-        let actual = fixture.message_groups(None);
+        let actual = fixture.message_groups(Some(1));
 
         // Should have 2 groups, System and User and Assistant with tool call won't be
         // in group as it's not completed yet.
-        assert_eq!(actual.len(), 2);
+        assert_eq!(actual.len(), 1);
     }
 }
