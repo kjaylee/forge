@@ -65,7 +65,7 @@ mod tests {
         });
 
         // Actual: Render the partial-system-info template
-        let actual = Templates::render("{{> partial-system-info.hbs }}", &data).unwrap();
+        let actual = Templates::render("{{> forge-partial-system-info.hbs }}", &data).unwrap();
 
         // Expected: Result should contain the rendered system info with substituted
         // values
@@ -82,7 +82,7 @@ mod tests {
         });
 
         // Actual: Render the partial-summary-frame template
-        let actual = Templates::render("{{> partial-summary-frame.hbs}}", &data).unwrap();
+        let actual = Templates::render("{{> forge-partial-summary-frame.hbs}}", &data).unwrap();
 
         // Expected: Result should contain the framed summary text
         let expected = "Use the following summary as the authoritative reference for all coding\nsuggestions and decisions. Do not re-explain or revisit it unless I ask.\n\n<summary>\nThis is a test summary of the conversation\n</summary>\n\nProceed with implementation based on this context.";

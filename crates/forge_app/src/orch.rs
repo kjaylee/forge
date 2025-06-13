@@ -372,7 +372,7 @@ impl<S: AgentService> Orchestrator<S> {
                 // No tool calls present, which doesn't mean task is complete so reprompt the
                 // agent to ensure the task complete.
                 let content = self.services.render(
-                    "{{> partial-tool-required.hbs}}",
+                    "{{> forge-partial-tool-required.hbs}}",
                     &serde_json::json!({
                         "tool_supported": tool_supported
                     }),
