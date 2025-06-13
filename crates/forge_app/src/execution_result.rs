@@ -215,7 +215,7 @@ impl ExecutionResult {
                 }
 
                 let total_stdout = output.output.stdout.lines().count();
-                let suffix_stdout = total_stdout - truncated_output.stdout_suffix_start_line + 1;
+                let suffix_stdout = truncated_output.stdout_suffix_size;
                 parent_elem = parent_elem.append(
                     Element::new("stdout")
                         .append(Element::new("truncated").text("true"))
@@ -231,8 +231,8 @@ impl ExecutionResult {
                         ))
                         .append(Element::new("content").cdata(truncated_output.stdout)),
                 );
-                let total_stderr = output.output.stdout.lines().count();
-                let suffix_stderr = total_stderr - truncated_output.stderr_suffix_start_line + 1;
+                let total_stderr = output.output.stderr.lines().count();
+                let suffix_stderr = truncated_output.stderr_suffix_size;
 
                 parent_elem = parent_elem.append(
                     Element::new("stderr")

@@ -2,6 +2,6 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<shell_output><metadata><command><![CDATA[ls -la]]></command><shell>/bin/bash</shell><exit_code>0</exit_code></metadata><stdout><truncated>true</truncated><displayed_lines>7</displayed_lines><total_lines>3</total_lines><truncation_info><head_lines>3</head_lines><tail_lines>4</tail_lines><omitted_lines>0</omitted_lines></truncation_info><content><![CDATA[total 8
+<shell_output><metadata><command><![CDATA[ls -la]]></command><shell>/bin/bash</shell><exit_code>0</exit_code></metadata><stdout><truncated>true</truncated><displayed_lines>6</displayed_lines><total_lines>3</total_lines><truncation_info><head_lines>3</head_lines><tail_lines>3</tail_lines><omitted_lines>0</omitted_lines></truncation_info><content><![CDATA[total 8
 drwxr-xr-x  2 user user 4096 Jan  1 12:00 .
-drwxr-xr-x 10 user user 4096 Jan  1 12:00 ..]]></content></stdout><stderr><truncated>true</truncated><displayed_lines>4</displayed_lines><total_lines>3</total_lines><truncation_info><head_lines>0</head_lines><tail_lines>4</tail_lines><omitted_lines>0</omitted_lines></truncation_info><content><![CDATA[]]></content></stderr></shell_output>
+drwxr-xr-x 10 user user 4096 Jan  1 12:00 ..]]></content></stdout><stderr><truncated>true</truncated><displayed_lines>0</displayed_lines><total_lines>0</total_lines><truncation_info><head_lines>0</head_lines><tail_lines>0</tail_lines><omitted_lines>0</omitted_lines></truncation_info><content><![CDATA[]]></content></stderr></shell_output>
