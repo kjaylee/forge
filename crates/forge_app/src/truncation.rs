@@ -107,16 +107,15 @@ fn tag_output(
             }
 
             Element::new(tag)
-                .attr("truncated", "true")
-                .attr("displayed_lines", prefix_count)
-                .attr("total_lines", total_lines)
-                .append(
-                    Element::new("truncation_info")
-                        .attr("head_lines", prefix_count)
-                        .attr("tail_lines", total_lines - suffix_start_line)
-                        .attr("omitted_lines", hidden_count),
-                )
-                .cdata(output)
+                .append(Element::new("truncated").text("true"))
+                .append(Element::new("displayed_lines").text(prefix_count))
+                .append(Element::new("total_lines").text(total_lines))
+                .append(create_truncation_info(
+                    prefix_count,
+                    total_lines - suffix_start_line,
+                    hidden_count,
+                ))
+                .append(Element::new("content").cdata(output))
         }
         None => {
             // No truncation, output all lines
@@ -128,11 +127,23 @@ fn tag_output(
                 }
             }
             Element::new(tag)
-                .attr("truncated", "false")
-                .attr("total_lines", total_lines)
-                .cdata(output)
+                .append(Element::new("truncated").text("false"))
+                .append(Element::new("total_lines").text(total_lines))
+                .append(create_truncation_info(output.len(), 0, 0))
+                .append(Element::new("content").cdata(output))
         }
     }
+}
+
+fn create_truncation_info(
+    prefix_count: usize,
+    suffix_count: usize,
+    hidden_count: usize,
+) -> Element {
+    Element::new("truncation_info")
+        .append(Element::new("head_lines").text(prefix_count))
+        .append(Element::new("tail_lines").text(suffix_count))
+        .append(Element::new("omitted_lines").text(hidden_count))
 }
 
 /// Truncates shell output and creates a temporary file if needed

@@ -165,10 +165,13 @@ impl ExecutionResult {
             }
             (_, ExecutionResult::Shell(output)) => {
                 let mut parent_elem = Element::new("shell_output");
-                let metadata_elem = Element::new("metadata")
-                    .attr("command", &output.output.command)
-                    .attr_if_some("exit_code", output.output.exit_code)
-                    .attr("shell", &output.shell);
+                let mut metadata_elem = Element::new("metadata")
+                    .append(Element::new("command").cdata(&output.output.command))
+                    .append(Element::new("shell").text(&output.shell));
+                if let Some(exit_code) = output.output.exit_code {
+                    metadata_elem = metadata_elem.append(Element::new("exit_code").text(exit_code))
+                }
+
                 parent_elem = parent_elem.append(metadata_elem);
 
                 let truncated_output = truncate_shell_output(
@@ -181,13 +184,14 @@ impl ExecutionResult {
                 let stdout_lines = output.output.stdout.lines().count();
                 let stderr_lines = output.output.stderr.lines().count();
 
-                let mut full_content_file = Element::new("full_content_file");
+                let mut full_content_file = Element::new("full_content_file")
+                    .append(Element::new("total_lines").text(stdout_lines + stderr_lines));
 
                 if truncated_output.stdout_truncated || truncated_output.stderr_truncated {
-                    full_content_file = full_content_file.attr_if_some(
-                        "path",
-                        truncation_path.as_ref().map(|p| p.display().to_string()),
-                    );
+                    if let Some(path) = truncation_path.as_ref().map(|p| p.display().to_string()) {
+                        full_content_file =
+                            full_content_file.append(Element::new("path").text(path))
+                    }
                 }
 
                 if truncated_output.stdout_truncated {
@@ -204,22 +208,14 @@ impl ExecutionResult {
                     full_content_file = full_content_file.append(
                         Element::new("stdout_line_range")
                             .attr("start", start)
-                            .attr("end", end),
+                            .attr("end", end)
                     );
                 }
 
                 parent_elem = parent_elem.append(full_content_file);
 
-                parent_elem = parent_elem.append(
-                    Element::new("stdout")
-                        .append(truncated_output.stdout)
-                        .attr("truncated", truncated_output.stdout_truncated),
-                );
-                parent_elem = parent_elem.append(
-                    Element::new("stderr")
-                        .append(truncated_output.stderr)
-                        .attr("truncated", truncated_output.stderr_truncated),
-                );
+                parent_elem = parent_elem.append(truncated_output.stdout);
+                parent_elem = parent_elem.append(truncated_output.stderr);
 
                 forge_domain::ToolOutput::text(parent_elem)
             }
