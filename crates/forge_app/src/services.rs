@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use forge_domain::{
     Attachment, ChatCompletionMessage, CommandOutput, Context, Conversation, ConversationId,
-    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Tool, ToolCallFull, ToolDefinition, ToolName, ToolOutput, Workflow,
+    Environment, File, McpConfig, Model, ModelId, PatchOperation, ResultStream, Scope, Tool,
+    ToolCallFull, ToolDefinition, ToolName, ToolOutput, Workflow,
 };
 use merge::Merge;
 
