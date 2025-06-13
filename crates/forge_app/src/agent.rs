@@ -28,7 +28,7 @@ pub trait AgentService: Send + Sync + 'static {
     ) -> ToolResult;
 
     /// Synchronize the on-going conversation
-    async fn sync_conversation(&self, conversation: Conversation) -> anyhow::Result<()>;
+    async fn update(&self, conversation: Conversation) -> anyhow::Result<()>;
 }
 
 /// Blanket implementation of AgentService for any type that implements Services
@@ -55,7 +55,7 @@ where
         registry.call(agent, context, call).await
     }
 
-    async fn sync_conversation(&self, conversation: Conversation) -> anyhow::Result<()> {
+    async fn update(&self, conversation: Conversation) -> anyhow::Result<()> {
         self.conversation_service().upsert(conversation).await
     }
 }
