@@ -1,8 +1,8 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context;
 use forge_app::TemplateService;
+use futures::future;
 use handlebars::Handlebars;
 use rust_embed::Embed;
 use tokio::sync::RwLock;
@@ -35,41 +35,45 @@ impl<F: Infrastructure> ForgeTemplateService<F> {
 #[async_trait::async_trait]
 impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
     async fn register_template(&self, path: String) -> anyhow::Result<()> {
-        let path_buf = Path::new(&path).to_path_buf();
+        // Always treat the input as a glob pattern
+        let template_paths: Vec<std::path::PathBuf> = glob::glob(&path)
+            .with_context(|| format!("Invalid glob pattern: {path}"))?
+            .collect::<Result<Vec<_>, _>>()
+            .with_context(|| "Failed to read glob entries")?
+            .into_iter()
+            .filter(|p| p.is_file()) // Only include files, not directories
+            .collect();
 
-        let template_paths: Vec<std::path::PathBuf> = if path_buf.is_dir() {
-            // If it's a directory, scan for all files recursively
-            let dir_pattern = format!("{path}/**/*");
-            glob::glob(&dir_pattern)
-                .with_context(|| format!("Failed to scan directory for templates: {path}"))?
-                .collect::<Result<Vec<_>, _>>()
-                .with_context(|| "Failed to read directory entries")?
-                .into_iter()
-                .filter(|p| p.is_file()) // Only include files, not directories
-                .collect()
-        } else {
-            // If it's not a directory, treat it as a glob pattern (original behavior)
-            glob::glob(&path)
-                .with_context(|| format!("Invalid glob pattern: {path}"))?
-                .collect::<Result<Vec<_>, _>>()
-                .with_context(|| "Failed to read glob entries")?
-        };
+        // Read all template files in parallel
+        let file_read_futures: Vec<_> = template_paths
+            .iter()
+            .map(|template_path| async move {
+                let content = self
+                    .infra
+                    .file_read_service()
+                    .read_utf8(template_path)
+                    .await?;
 
-        for template_path in &template_paths {
-            let template_content = self
-                .infra
-                .file_read_service()
-                .read_utf8(template_path)
-                .await?;
+                let template_name = template_path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
 
-            let template_name = template_path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
-            self.hb
-                .write()
-                .await
-                .register_template_string(template_name, template_content)
+                anyhow::Ok((template_name.to_string(), content))
+            })
+            .collect();
+
+        // Await all futures to read template contents
+        let results = future::join_all(file_read_futures)
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Register all templates
+        let mut guard = self.hb.write().await;
+        for (template_name, template_content) in results {
+            guard
+                .register_template_string(&template_name, template_content)
                 .with_context(|| format!("Failed to register template: {template_name}"))?;
         }
         Ok(())
