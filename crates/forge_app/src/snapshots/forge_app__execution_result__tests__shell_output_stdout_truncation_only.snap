@@ -2,7 +2,7 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<shell_output><metadata command="long_command" exit_code="0" shell="/bin/bash"></metadata><full_content_file path="/tmp/shell_output.md"><stdout_line_range start="2" end="26"></stdout_line_range></full_content_file><stdout truncated="true"><![CDATA[<stdout truncated="true" displayed_lines="10" total_lines="25"><![CDATA[stdout line 1
+<shell_output><metadata command="long_command" exit_code="0" shell="/bin/bash"></metadata><full_content_file path="/tmp/shell_output.md"><stdout_line_range start="2" end="26"></stdout_line_range></full_content_file><stdout truncated="true"><stdout truncated="true" displayed_lines="10" total_lines="25"><![CDATA[stdout line 1
 stdout line 2
 stdout line 3
 stdout line 4
@@ -12,7 +12,8 @@ stdout line 7
 stdout line 8
 stdout line 9
 stdout line 10
-... [5 lines omitted] ...stdout line 16
+... [5 lines omitted] ...
+stdout line 16
 stdout line 17
 stdout line 18
 stdout line 19
@@ -22,4 +23,4 @@ stdout line 22
 stdout line 23
 stdout line 24
 stdout line 25
-]]><truncation_info head_lines="10" tail_lines="9" omitted_lines="5"></truncation_info></stdout>]]></stdout><stderr truncated="false"><![CDATA[]]></stderr></shell_output>
+]]><truncation_info head_lines="10" tail_lines="9" omitted_lines="5"></truncation_info></stdout></stdout><stderr truncated="false"><stderr truncated="false" total_lines="0"><![CDATA[]]></stderr></stderr></shell_output>

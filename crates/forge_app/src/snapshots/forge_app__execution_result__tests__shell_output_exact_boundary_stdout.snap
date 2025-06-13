@@ -2,7 +2,7 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<shell_output><metadata command="boundary_command" exit_code="0" shell="/bin/bash"></metadata><full_content_file></full_content_file><stdout truncated="false"><![CDATA[<stdout truncated="false" total_lines="20"><![CDATA[stdout line 1
+<shell_output><metadata command="boundary_command" exit_code="0" shell="/bin/bash"></metadata><full_content_file></full_content_file><stdout truncated="false"><stdout truncated="false" total_lines="20"><![CDATA[stdout line 1
 stdout line 2
 stdout line 3
 stdout line 4
@@ -21,4 +21,4 @@ stdout line 16
 stdout line 17
 stdout line 18
 stdout line 19
-stdout line 20]]></stdout>]]></stdout><stderr truncated="false"><![CDATA[]]></stderr></shell_output>
+stdout line 20]]></stdout></stdout><stderr truncated="false"><stderr truncated="false" total_lines="0"><![CDATA[]]></stderr></stderr></shell_output>

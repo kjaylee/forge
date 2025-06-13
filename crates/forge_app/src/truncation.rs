@@ -69,11 +69,7 @@ fn process_stream(
     tag: &str,
     prefix_lines: usize,
     suffix_lines: usize,
-) -> (String, bool) {
-    if content.trim().is_empty() {
-        return (String::new(), false);
-    }
-
+) -> (Element, bool) {
     let (lines, truncation_info) = clip_by_lines(content, prefix_lines, suffix_lines);
     let is_truncated = truncation_info.is_some();
     let total_lines = content.lines().count();
@@ -88,7 +84,7 @@ fn tag_output(
     truncation_info: Option<(usize, usize)>,
     tag: &str,
     total_lines: usize,
-) -> String {
+) -> Element {
     match truncation_info {
         Some((prefix_count, hidden_count)) => {
             let suffix_start_line = prefix_count + hidden_count + 1;
@@ -102,7 +98,7 @@ fn tag_output(
             }
 
             // Add truncation marker
-            output.push_str(&format!("... [{hidden_count} lines omitted] ..."));
+            output.push_str(&format!("... [{hidden_count} lines omitted] ...\n"));
 
             // Add suffix lines
             for line in lines.iter().skip(prefix_count) {
@@ -121,7 +117,6 @@ fn tag_output(
                         .attr("omitted_lines", hidden_count),
                 )
                 .cdata(output)
-                .to_string()
         }
         None => {
             // No truncation, output all lines
@@ -136,7 +131,6 @@ fn tag_output(
                 .attr("truncated", "false")
                 .attr("total_lines", total_lines)
                 .cdata(output)
-                .to_string()
         }
     }
 }
@@ -163,8 +157,8 @@ pub fn truncate_shell_output(
 
 /// Result of shell output truncation
 pub struct TruncatedShellOutput {
-    pub stdout: String,
-    pub stderr: String,
+    pub stdout: Element,
+    pub stderr: Element,
     pub stdout_truncated: bool,
     pub stderr_truncated: bool,
 }

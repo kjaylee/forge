@@ -212,12 +212,12 @@ impl ExecutionResult {
 
                 parent_elem = parent_elem.append(
                     Element::new("stdout")
-                        .cdata(truncated_output.stdout)
+                        .append(truncated_output.stdout)
                         .attr("truncated", truncated_output.stdout_truncated),
                 );
                 parent_elem = parent_elem.append(
                     Element::new("stderr")
-                        .cdata(truncated_output.stderr)
+                        .append(truncated_output.stderr)
                         .attr("truncated", truncated_output.stderr_truncated),
                 );
 
