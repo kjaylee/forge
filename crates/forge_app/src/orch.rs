@@ -1,12 +1,12 @@
-use std::cmp::max;
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-
 use async_recursion::async_recursion;
 use derive_setters::Setters;
 use forge_domain::*;
 use forge_template::Element;
 use serde_json::Value;
+use std::cmp::max;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tracing::{debug, info, warn};
 
 use crate::agent::AgentService;
@@ -224,6 +224,7 @@ impl<S: AgentService> Orchestrator<S> {
         model_id: &ModelId,
         context: Context,
         tool_supported: bool,
+        attempt: usize,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut transformers = TransformToolCalls::new()
             .when(|_| !tool_supported)
@@ -232,7 +233,7 @@ impl<S: AgentService> Orchestrator<S> {
             .services
             .chat(model_id, transformers.transform(context))
             .await?;
-        response.into_full(true).await
+        response.into_full(true, attempt).await
     }
 
     // Create a helper method with the core functionality
@@ -308,11 +309,16 @@ impl<S: AgentService> Orchestrator<S> {
         while !tool_context.get_complete().await {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
+            let attempt = AtomicUsize::new(0);
 
             let ChatCompletionMessageFull { tool_calls, content, mut usage } = self
                 .environment
                 .retry_config
-                .retry(|| self.execute_chat_turn(&model_id, context.clone(), is_tool_supported))
+                .retry(|| {
+                    let attempt = attempt.fetch_add(1, Ordering::SeqCst);
+
+                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported, attempt)
+                })
                 .await?;
 
             // Set estimated tokens

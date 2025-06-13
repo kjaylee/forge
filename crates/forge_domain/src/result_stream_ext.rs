@@ -19,6 +19,7 @@ pub trait ResultStreamExt<E> {
     async fn into_full(
         self,
         should_interrupt_for_xml: bool,
+        attempt: usize,
     ) -> Result<ChatCompletionMessageFull, E>;
 }
 
@@ -27,6 +28,7 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
     async fn into_full(
         mut self,
         should_interrupt_for_xml: bool,
+        attempt: usize,
     ) -> anyhow::Result<ChatCompletionMessageFull> {
         let mut messages = Vec::new();
         let mut usage: Usage = Default::default();
@@ -109,18 +111,7 @@ impl ResultStreamExt<anyhow::Error> for crate::BoxStream<ChatCompletionMessage, 
         // Convert parse failures to retryable errors so they can be retried by asking
         // LLM to try again
         let partial_tool_calls = ToolCallFull::try_from_parts(&tool_call_parts)
-            .map_err(|e| match e {
-                crate::Error::ToolCallArgument(_) => {
-                    // Convert JSON parsing errors to retryable errors
-                    crate::Error::Retryable(
-                        1,
-                        anyhow::anyhow!(e).context(format!(
-                            "Failed to parse tool call arguments: {tool_call_parts:?}"
-                        )),
-                    )
-                }
-                other => other,
-            })
+            .map_err(|e| crate::Error::Retryable(attempt, anyhow::anyhow!(e)))
             .with_context(|| format!("Failed to parse tool call: {tool_call_parts:?}"))?;
 
         // Combine all sources of tool calls
@@ -174,7 +165,7 @@ mod tests {
             Box::pin(tokio_stream::iter(messages));
 
         // Actual: Convert stream to full message
-        let actual = result_stream.into_full(false).await.unwrap();
+        let actual = result_stream.into_full(false,0).await.unwrap();
 
         // Expected: Combined content and latest usage
         let expected = ChatCompletionMessageFull {
@@ -211,7 +202,7 @@ mod tests {
             Box::pin(tokio_stream::iter(messages));
 
         // Actual: Convert stream to full message
-        let actual = result_stream.into_full(false).await.unwrap();
+        let actual = result_stream.into_full(false,0).await.unwrap();
 
         // Expected: Content and tool calls
         let expected = ChatCompletionMessageFull {
@@ -242,7 +233,7 @@ mod tests {
             Box::pin(tokio_stream::iter(messages));
 
         // Actual: Convert stream to full message
-        let actual = result_stream.into_full(false).await;
+        let actual = result_stream.into_full(false,1).await;
 
         // Expected: Should return a retryable error
         assert!(actual.is_err());
