@@ -307,6 +307,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         let mut empty_tool_call_count = 0;
         let is_tool_supported = self.is_tool_supported(&agent)?;
+        let compactor = Compactor::new(self.services.clone());
         while !is_complete {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
@@ -334,7 +335,6 @@ impl<S: AgentService> Orchestrator<S> {
             // Check if context requires compression and decide to compact
             if agent.should_compact(&context, max(usage.prompt_tokens, usage.estimated_tokens)) {
                 info!(agent_id = %agent.id, "Compaction needed, applying compaction");
-                let compactor = Compactor::new(self.services.clone());
                 let percentage = agent
                     .compact
                     .as_ref()
@@ -415,7 +415,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         // agent has yielded and so now compact everything.
         self.conversation.context = Some(
-            Compactor::new(self.services.clone())
+            compactor
                 .compact_context(&agent, context, CompactStrategy::percentage(1.0))
                 .await?,
         );
