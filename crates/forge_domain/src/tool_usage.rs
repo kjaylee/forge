@@ -102,9 +102,7 @@ mod tests {
     use strum::IntoEnumIterator;
 
     use super::*;
-    use crate::{
-        NamedTool, ToolCallContext, ToolDefinition, ToolDescription, ToolName, ToolOutput, Tools,
-    };
+    use crate::{NamedTool, ToolDescription, ToolName, Tools};
 
     #[derive(Default)]
     pub struct MangoTool;
