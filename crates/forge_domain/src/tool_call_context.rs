@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use derive_setters::Setters;
 use tokio::sync::mpsc::Sender;
 
 use crate::ChatResponse;
@@ -9,15 +8,15 @@ use crate::ChatResponse;
 type ArcSender = Arc<Sender<anyhow::Result<ChatResponse>>>;
 
 /// Provides additional context for tool calls.
-#[derive(Default, Clone, Debug, Setters)]
+#[derive(Default, Clone, Debug)]
 pub struct ToolCallContext {
-    pub sender: Option<ArcSender>,
+    sender: Option<ArcSender>,
 }
 
 impl ToolCallContext {
     /// Creates a new ToolCallContext with default values
-    pub fn new() -> Self {
-        Self { sender: None }
+    pub fn new(sender: Option<ArcSender>) -> Self {
+        Self { sender }
     }
 
     /// Send a message through the sender if available

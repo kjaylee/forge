@@ -301,7 +301,7 @@ impl<S: AgentService> Orchestrator<S> {
 
         self.conversation.context = Some(context.clone());
 
-        let mut tool_context = ToolCallContext::default().sender(self.sender.clone());
+        let mut tool_context = ToolCallContext::new(self.sender.clone());
         // Indicates whether the tool execution has been completed
         let mut is_complete = false;
 
@@ -343,16 +343,14 @@ impl<S: AgentService> Orchestrator<S> {
             let empty_tool_calls = tool_calls.is_empty();
 
             debug!(agent_id = %agent.id, tool_call_count = tool_calls.len(), "Tool call count");
-            let completion_calls = [
-                Tools::ForgeToolAttemptCompletion(Default::default()).to_string(),
-                Tools::ForgeToolFollowup(Default::default()).to_string(),
-            ];
 
             is_complete = tool_calls
                 .iter()
-                .any(|call| completion_calls.iter().any(|val| call.name.as_str() == val));
+                .any(|call| Tools::is_complete(call.name.as_str()));
 
             if !is_complete {
+                // If task is completed we would have already displayed a message so we can
+                // ignore the content that's collected from the stream
                 self.send(ChatResponse::Text {
                     text: remove_tag_with_prefix(&content, "forge_")
                         .as_str()
