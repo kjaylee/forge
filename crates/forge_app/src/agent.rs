@@ -6,7 +6,7 @@ use forge_domain::{
 };
 
 use crate::tool_registry::ToolRegistry;
-use crate::{ProviderService, Services};
+use crate::{ProviderService, Services, TemplateService};
 
 /// Agent service trait that provides core chat and tool call functionality.
 /// This trait abstracts the essential operations needed by the Orchestrator.
@@ -26,6 +26,13 @@ pub trait AgentService: Send + Sync + 'static {
         context: &mut ToolCallContext,
         call: ToolCallFull,
     ) -> ToolResult;
+
+    /// Render a template with the provided object
+    async fn render(
+        &self,
+        template: &str,
+        object: &(impl serde::Serialize + Sync),
+    ) -> anyhow::Result<String>;
 }
 
 /// Blanket implementation of AgentService for any type that implements Services
@@ -50,5 +57,13 @@ where
     ) -> ToolResult {
         let registry = ToolRegistry::new(Arc::new(self.clone()));
         registry.call(agent, context, call).await
+    }
+
+    async fn render(
+        &self,
+        template: &str,
+        object: &(impl serde::Serialize + Sync),
+    ) -> anyhow::Result<String> {
+        self.template_service().render(template, object).await
     }
 }
