@@ -82,7 +82,6 @@ impl<F: API> UI<F> {
     async fn on_new(&mut self) -> Result<()> {
         self.init_state().await?;
         banner::display()?;
-
         Ok(())
     }
 
@@ -166,7 +165,8 @@ impl<F: API> UI<F> {
         match self.run_inner().await {
             Ok(_) => {}
             Err(error) => {
-                eprintln!("{}", TitleFormat::error(format!("{error:?}")));
+                tracing::error!(error = ?error);
+                eprintln!("{}", TitleFormat::error(format!("{error}")));
             }
         }
     }
@@ -215,8 +215,9 @@ impl<F: API> UI<F> {
                             tokio::spawn(
                                 TRACKER.dispatch(forge_tracker::EventKind::Error(format!("{error:?}"))),
                             );
+                            tracing::error!(error = ?error);
                             self.spinner.stop(None)?;
-                            eprintln!("{}", TitleFormat::error(format!("{error:?}")));
+                            eprintln!("{}", TitleFormat::error(format!("{error}")));
                         },
                     }
                 }
@@ -389,15 +390,14 @@ impl<F: API> UI<F> {
                     .agents
                     .into_iter()
                     .map(|agent| {
-                        if let Some(title) = &agent.title {
+                        let title = &agent.title.unwrap_or("<Missing agent.title>".to_string());
+                        {
                             let label = format!(
                                 "{:<n$} {}",
                                 agent.id.as_str().to_case(Case::UpperSnake).bold(),
                                 title.lines().collect::<Vec<_>>().join(" ").dimmed()
                             );
-                            Agent { label, id: agent.id }
-                        } else {
-                            Agent { id: agent.id, label: "<Missing agent title>".to_string() }
+                            Agent { label, id: agent.id.clone() }
                         }
                     })
                     .collect::<Vec<_>>();

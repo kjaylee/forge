@@ -63,6 +63,10 @@ impl Environment {
         self.base_path.join(".mcp.json")
     }
 
+    pub fn templates(&self) -> PathBuf {
+        self.base_path.join("templates")
+    }
+
     pub fn mcp_local_config(&self) -> PathBuf {
         self.cwd.join(".mcp.json")
     }
