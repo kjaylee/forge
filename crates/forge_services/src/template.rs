@@ -45,7 +45,8 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                 p.file_name()
                     .and_then(|name| name.to_str())
                     .map(|name| guard.get_template(name).is_none())
-                    .unwrap_or(true) // Keep files with invalid names for error handling
+                    .unwrap_or(true) // Keep files with invalid names for error
+                                     // handling
             })
             .collect();
         drop(guard);
@@ -57,7 +58,11 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                 .and_then(|name| name.to_str())
                 .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
 
-            let content = self.infra.file_read_service().read_utf8(template_path).await?;
+            let content = self
+                .infra
+                .file_read_service()
+                .read_utf8(template_path)
+                .await?;
             Ok::<_, anyhow::Error>((template_name.to_string(), content))
         });
 
@@ -70,7 +75,8 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
         if !templates.is_empty() {
             let mut guard = self.hb.write().await;
             for (name, content) in templates {
-                guard.register_template_string(&name, content)
+                guard
+                    .register_template_string(&name, content)
                     .with_context(|| format!("Failed to register template: {name}"))?;
             }
         }
