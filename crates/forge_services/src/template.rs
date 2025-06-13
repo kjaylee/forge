@@ -35,47 +35,46 @@ impl<F: Infrastructure> ForgeTemplateService<F> {
 #[async_trait::async_trait]
 impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
     async fn register_template(&self, path: String) -> anyhow::Result<()> {
-        // Always treat the input as a glob pattern
-        let template_paths: Vec<std::path::PathBuf> = glob::glob(&path)
+        // Discover and filter unregistered templates in one pass
+        let guard = self.hb.read().await;
+        let unregistered_files: Vec<_> = glob::glob(&path)
             .with_context(|| format!("Invalid glob pattern: {path}"))?
-            .collect::<Result<Vec<_>, _>>()
-            .with_context(|| "Failed to read glob entries")?
-            .into_iter()
-            .filter(|p| p.is_file()) // Only include files, not directories
-            .collect();
-
-        // Read all template files in parallel
-        let file_read_futures: Vec<_> = template_paths
-            .iter()
-            .map(|template_path| async move {
-                let content = self
-                    .infra
-                    .file_read_service()
-                    .read_utf8(template_path)
-                    .await?;
-
-                let template_name = template_path
-                    .file_name()
+            .filter_map(|entry| entry.ok())
+            .filter(|p| p.is_file())
+            .filter(|p| {
+                p.file_name()
                     .and_then(|name| name.to_str())
-                    .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
-
-                anyhow::Ok((template_name.to_string(), content))
+                    .map(|name| guard.get_template(name).is_none())
+                    .unwrap_or(true) // Keep files with invalid names for error handling
             })
             .collect();
+        drop(guard);
 
-        // Await all futures to read template contents
-        let results = future::join_all(file_read_futures)
+        // Read all files concurrently
+        let futures = unregistered_files.iter().map(|template_path| async {
+            let template_name = template_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
+
+            let content = self.infra.file_read_service().read_utf8(template_path).await?;
+            Ok::<_, anyhow::Error>((template_name.to_string(), content))
+        });
+
+        let templates = future::join_all(futures)
             .await
             .into_iter()
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Register all templates
-        let mut guard = self.hb.write().await;
-        for (template_name, template_content) in results {
-            guard
-                .register_template_string(&template_name, template_content)
-                .with_context(|| format!("Failed to register template: {template_name}"))?;
+        // Register all templates if any were found
+        if !templates.is_empty() {
+            let mut guard = self.hb.write().await;
+            for (name, content) in templates {
+                guard.register_template_string(&name, content)
+                    .with_context(|| format!("Failed to register template: {name}"))?;
+            }
         }
+
         Ok(())
     }
 
