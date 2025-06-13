@@ -29,6 +29,7 @@ strum.workspace = true
 forge_template.workspace = true
 merge.workspace = true
 convert_case.workspace = true
+backon.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true

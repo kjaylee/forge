@@ -975,6 +975,7 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
+ "backon",
  "chrono",
  "console",
  "convert_case",
@@ -1034,7 +1035,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "backon",
  "base64 0.22.1",
  "chrono",
  "convert_case",
@@ -1191,7 +1191,6 @@ dependencies = [
  "anyhow",
  "async-recursion",
  "async-trait",
- "backon",
  "base64 0.22.1",
  "bytes",
  "chrono",
