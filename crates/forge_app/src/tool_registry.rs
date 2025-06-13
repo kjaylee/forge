@@ -112,9 +112,7 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .fs_read_service()
                     .read(input.path.clone(), input.start_line, input.end_line)
-                    .await;
-                let output = send_if_error(context, output).await?;
-
+                    .await?;
                 let env = self.services.environment_service().get_environment();
                 let display_path = display_path(&env, Path::new(&input.path));
                 let is_truncated = output.total_lines > output.end_line;
@@ -135,9 +133,7 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .fs_create_service()
                     .create(input.path.clone(), input.content, input.overwrite, true)
-                    .await;
-                let out = send_if_error(context, out).await?;
-
+                    .await?;
                 send_write_context(context, &out, &input.path, self.services.as_ref()).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(out))
@@ -151,8 +147,7 @@ impl<S: Services> ToolRegistry<S> {
                         input.regex.clone(),
                         input.file_pattern.clone(),
                     )
-                    .await;
-                let output = send_if_error(context, output).await?;
+                    .await?;
 
                 send_fs_search_context(self.services.as_ref(), context, &input, &output).await?;
 
@@ -164,8 +159,7 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .fs_remove_service()
                     .remove(input.path.clone())
-                    .await;
-                let output = send_if_error(context, output).await?;
+                    .await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -179,9 +173,7 @@ impl<S: Services> ToolRegistry<S> {
                         input.operation,
                         input.content,
                     )
-                    .await;
-                let output = send_if_error(context, output).await?;
-
+                    .await?;
                 send_fs_patch_context(context, &input.path, &output, self.services.as_ref())
                     .await?;
 
@@ -189,8 +181,7 @@ impl<S: Services> ToolRegistry<S> {
             }
             Tools::ForgeToolFsUndo(input) => {
                 send_fs_undo_context(context, input.clone(), self.services.as_ref()).await?;
-                let output = self.services.fs_undo_service().undo(input.path).await;
-                let output = send_if_error(context, output).await?;
+                let output = self.services.fs_undo_service().undo(input.path).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -205,8 +196,7 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .shell_service()
                     .execute(input.command, input.cwd, input.keep_ansi)
-                    .await;
-                let output = send_if_error(context, output).await?;
+                    .await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -215,8 +205,7 @@ impl<S: Services> ToolRegistry<S> {
                     .services
                     .net_fetch_service()
                     .fetch(input.url.clone(), input.raw)
-                    .await;
-                let output = send_if_error(context, output).await?;
+                    .await?;
 
                 send_net_fetch_context(context, &output, &input.url).await?;
 
@@ -238,8 +227,7 @@ impl<S: Services> ToolRegistry<S> {
                             .collect(),
                         input.multiple,
                     )
-                    .await;
-                let output = send_if_error(context, output).await?;
+                    .await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -256,7 +244,8 @@ impl<S: Services> ToolRegistry<S> {
     ) -> anyhow::Result<ToolOutput> {
         let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
 
-        let out = self.call_internal(tool_input.clone(), context).await?;
+        let out = self.call_internal(tool_input.clone(), context).await;
+        let out = send_if_error(context, out).await?;
         let truncation_path = out.to_create_temp(self.services.as_ref()).await?;
         let env = self.services.environment_service().get_environment();
 
