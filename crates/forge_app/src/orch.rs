@@ -314,11 +314,12 @@ impl<S: AgentService> Orchestrator<S> {
         while !is_complete {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
+            self.services.update(self.conversation.clone()).await?;
 
-            let ChatCompletionMessageFull { tool_calls, content, mut usage } = self
-                .environment
-                .retry_config
-                .retry(|| self.execute_chat_turn(&model_id, context.clone(), is_tool_supported))
+            let ChatCompletionMessageFull { tool_calls, content, mut usage } =
+                crate::retry::retry_with_config(&self.environment.retry_config, || {
+                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported)
+                })
                 .await?;
 
             // Set estimated tokens
@@ -410,6 +411,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Update context in the conversation
             self.conversation.context = Some(context.clone());
+            self.services.update(self.conversation.clone()).await?;
         }
 
         Ok(())
