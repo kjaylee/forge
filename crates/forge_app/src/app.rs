@@ -138,7 +138,11 @@ impl<S: Services> ForgeApp<S> {
 
         // Calculate original metrics
         let original_messages = context.messages.len();
-        let original_tokens = context.messages.iter().map(|m| m.count_tokens() as usize).sum();
+        let original_tokens = context
+            .messages
+            .iter()
+            .map(|m| m.count_tokens() as usize)
+            .sum();
 
         // Find the main agent (first agent in the conversation)
         // In most cases, there should be a primary agent for compaction
@@ -166,7 +170,11 @@ impl<S: Services> ForgeApp<S> {
 
         // Calculate compacted metrics
         let compacted_messages = compacted_context.messages.len();
-        let compacted_tokens = compacted_context.messages.iter().map(|m| m.count_tokens() as usize).sum();
+        let compacted_tokens = compacted_context
+            .messages
+            .iter()
+            .map(|m| m.count_tokens() as usize)
+            .sum();
 
         // Update the conversation with the compacted context
         conversation.context = Some(compacted_context);

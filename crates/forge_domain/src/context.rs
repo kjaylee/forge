@@ -37,10 +37,7 @@ impl ContextMessage {
                             tool_calls
                                 .iter()
                                 .map(|tc| {
-                                    tc.arguments
-                                        .to_string()
-                                        .chars()
-                                        .count()
+                                    tc.arguments.to_string().chars().count()
                                         + tc.name.as_str().chars().count()
                                 })
                                 .sum()
@@ -722,5 +719,87 @@ mod tests {
         // Should have 2 groups, System and User and Assistant with tool call won't be
         // in group as it's not completed yet.
         assert_eq!(actual.len(), 1);
+    }
+
+    #[test]
+    fn test_count_tokens_text_messages() {
+        // Test user message
+        let fixture = ContextMessage::user("Hello world", None);
+        let actual = fixture.count_tokens();
+        let expected = 3; // "Hello world" = 11 chars, 11/4 = 2.75, ceil = 3
+        assert_eq!(actual, expected);
+
+        // Test assistant message
+        let fixture = ContextMessage::assistant("How can I help you?", None);
+        let actual = fixture.count_tokens();
+        let expected = 5; // "How can I help you?" = 19 chars, 19/4 = 4.75, ceil = 5
+        assert_eq!(actual, expected);
+
+        // Test system message (not counted)
+        let fixture = ContextMessage::system("You are a helpful assistant");
+        let actual = fixture.count_tokens();
+        let expected = 0; // System messages are not counted
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_count_tokens_text_message_with_tool_calls() {
+        use crate::{ToolCallFull, ToolCallId, ToolName};
+
+        let tool_call1 = ToolCallFull {
+            call_id: Some(ToolCallId::new("call1")),
+            name: ToolName::new("tool1"),           // 5 chars
+            arguments: serde_json::json!({"a": 1}), // {"a":1} = 7 chars
+        };
+
+        let tool_call2 = ToolCallFull {
+            call_id: Some(ToolCallId::new("call2")),
+            name: ToolName::new("tool2"),           // 5 chars
+            arguments: serde_json::json!({"b": 2}), // {"b":2} = 7 chars
+        };
+
+        let fixture =
+            ContextMessage::assistant("Multiple tools", Some(vec![tool_call1, tool_call2]));
+        let actual = fixture.count_tokens();
+
+        // "Multiple tools" = 14 chars
+        // "tool1" = 5 chars, {"a":1} = 7 chars
+        // "tool2" = 5 chars, {"b":2} = 7 chars
+        // Total: 14 + 5 + 7 + 5 + 7 = 38 chars, 38/4 = 9.5, ceil = 10
+        let expected = 10;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_count_tokens_tool_result() {
+        use crate::{ToolCallId, ToolName, ToolOutput, ToolResult, ToolValue};
+
+        let fixture = ContextMessage::Tool(ToolResult {
+            name: ToolName::new("test_tool"),
+            call_id: Some(ToolCallId::new("call1")),
+            output: ToolOutput {
+                values: vec![
+                    ToolValue::Text("First text".to_string()),  // 10 chars
+                    ToolValue::Text("Second text".to_string()), // 11 chars
+                ],
+                is_error: false,
+            },
+        });
+
+        let actual = fixture.count_tokens();
+        let expected = 6; // 10 + 11 = 21 chars, 21/4 = 5.25, ceil = 6
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_count_tokens_image_message() {
+        use crate::Image;
+
+        let image = Image::new_base64("base64data".to_string(), "image/png");
+        let fixture = ContextMessage::Image(image);
+
+        let actual = fixture.count_tokens();
+        let expected = 0; // Images are not counted
+        assert_eq!(actual, expected);
     }
 }
