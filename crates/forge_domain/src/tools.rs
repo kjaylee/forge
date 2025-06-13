@@ -484,14 +484,14 @@ impl Tools {
     pub fn contains(tool_name: &ToolName) -> bool {
         FORGE_TOOLS.contains(tool_name)
     }
-    pub fn is_complete(val: &str) -> bool {
-        let allowed_tools = [
+    pub fn is_complete(tool_name: &ToolName) -> bool {
+        // Tools that convey that the execution should yield
+        [
             ToolCompletion::ForgeToolFollowup,
             ToolCompletion::ForgeToolAttemptCompletion,
-        ];
-        allowed_tools
-            .iter()
-            .any(|v| v.to_string().to_case(Case::Snake).eq(val))
+        ]
+        .iter()
+        .any(|v| v.to_string().to_case(Case::Snake).eq(tool_name.as_str()))
     }
 }
 
@@ -532,10 +532,10 @@ mod tests {
     }
     #[test]
     fn test_is_complete() {
-        let complete_tool = "forge_tool_attempt_completion";
-        let incomplete_tool = "forge_tool_fs_read";
+        let complete_tool = ToolName::new("forge_tool_attempt_completion");
+        let incomplete_tool = ToolName::new("forge_tool_fs_read");
 
-        assert!(Tools::is_complete(complete_tool));
-        assert!(!Tools::is_complete(incomplete_tool));
+        assert!(Tools::is_complete(&complete_tool));
+        assert!(!Tools::is_complete(&incomplete_tool));
     }
 }
