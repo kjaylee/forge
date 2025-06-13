@@ -74,20 +74,32 @@ impl Element {
     pub fn render(&self) -> String {
         let mut result = String::new();
 
-        result.push_str(&format!("<{}", self.name));
-        for (key, value) in &self.attr {
-            result.push_str(&format!(" {key}=\"{value}\""));
+        if self.attr.is_empty() {
+            result.push_str(&format!("<{}>", self.name));
+        } else {
+            result.push_str(&format!("<{}", self.name));
+            for (key, value) in &self.attr {
+                result.push_str(&format!("\n  {key}=\"{value}\""));
+            }
+
+            result.push_str("\n>");
         }
-        result.push('>');
 
         if let Some(ref text) = self.text {
             result.push_str(text);
         }
 
         for child in &self.children {
+            result.push('\n');
             result.push_str(&child.render());
         }
-        result.push_str(&format!("</{}>", self.name));
+
+        if self.children.is_empty() && self.attr.is_empty() {
+            result.push_str(&format!("</{}>", self.name));
+        } else {
+            result.push_str(&format!("\n</{}>", self.name));
+        }
+
         result
     }
 }
