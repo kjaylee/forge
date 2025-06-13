@@ -232,7 +232,7 @@ impl ExecutionResult {
                         let start = stdout_lines + 2;
                         let end = stdout_lines + stderr_lines + 2;
                         full_content_file = full_content_file.append(
-                            Element::new("stdout_line_range")
+                            Element::new("stderr_line_range")
                                 .attr("start", start)
                                 .attr("end", end),
                         );
