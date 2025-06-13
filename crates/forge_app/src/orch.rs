@@ -64,10 +64,6 @@ impl<S: AgentService> Orchestrator<S> {
         let mut tool_call_records = Vec::with_capacity(tool_calls.len());
 
         for tool_call in tool_calls {
-            // Send the start notification
-            self.send(ChatResponse::ToolCallStart(tool_call.clone()))
-                .await?;
-
             // Execute the tool
             let tool_result = self
                 .services
@@ -83,10 +79,6 @@ impl<S: AgentService> Orchestrator<S> {
                     "Tool call failed",
                 );
             }
-
-            // Send the end notification
-            self.send(ChatResponse::ToolCallEnd(tool_result.clone()))
-                .await?;
 
             // Ensure all tool calls and results are recorded
             // Adding task completion records is critical for compaction to work correctly
@@ -310,11 +302,12 @@ impl<S: AgentService> Orchestrator<S> {
         while !is_complete {
             // Set context for the current loop iteration
             self.conversation.context = Some(context.clone());
+            self.services.update(self.conversation.clone()).await?;
 
-            let ChatCompletionMessageFull { tool_calls, content, mut usage } = self
-                .environment
-                .retry_config
-                .retry(|| self.execute_chat_turn(&model_id, context.clone(), is_tool_supported))
+            let ChatCompletionMessageFull { tool_calls, content, mut usage } =
+                crate::retry::retry_with_config(&self.environment.retry_config, || {
+                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported)
+                })
                 .await?;
 
             // Set estimated tokens
@@ -403,6 +396,7 @@ impl<S: AgentService> Orchestrator<S> {
 
             // Update context in the conversation
             self.conversation.context = Some(context.clone());
+            self.services.update(self.conversation.clone()).await?;
         }
 
         Ok(())
