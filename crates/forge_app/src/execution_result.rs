@@ -180,6 +180,28 @@ impl ExecutionResult {
                     env.stdout_max_prefix_length,
                     env.stdout_max_suffix_length,
                 );
+                let total_stdout = output.output.stdout.lines().count();
+                let suffix_stdout = truncated_output.stdout_suffix_size;
+
+                let mut stdout_elem = Element::new("stdout")
+                    .append(Element::new("truncated").text("true"))
+                    .append(
+                        Element::new("displayed_lines")
+                            .text(truncated_output.stdout_prefix_count + suffix_stdout),
+                    )
+                    .append(Element::new("total_lines").text(total_stdout))
+                    .append(Element::new("content").cdata(truncated_output.stdout));
+
+                let total_stderr = output.output.stderr.lines().count();
+                let suffix_stderr = truncated_output.stderr_suffix_size;
+                let mut stderr_elem = Element::new("stderr")
+                    .append(Element::new("truncated").text("true"))
+                    .append(
+                        Element::new("displayed_lines")
+                            .text(truncated_output.stderr_prefix_count + suffix_stderr),
+                    )
+                    .append(Element::new("total_lines").text(total_stderr))
+                    .append(Element::new("content").cdata(truncated_output.stderr));
 
                 let stdout_lines = output.output.stdout.lines().count();
                 let stderr_lines = output.output.stderr.lines().count();
@@ -199,6 +221,11 @@ impl ExecutionResult {
                                 .attr("start", 2)
                                 .attr("end", stdout_lines + 1),
                         );
+                        stdout_elem = stdout_elem.append(create_truncation_info(
+                            truncated_output.stdout_prefix_count,
+                            suffix_stdout,
+                            truncated_output.stdout_hidden_count,
+                        ));
                     }
 
                     if truncated_output.stderr_truncated {
@@ -209,46 +236,18 @@ impl ExecutionResult {
                                 .attr("start", start)
                                 .attr("end", end),
                         );
+                        stderr_elem = stderr_elem.append(create_truncation_info(
+                            truncated_output.stderr_prefix_count,
+                            suffix_stderr,
+                            truncated_output.stderr_hidden_count,
+                        ));
                     }
 
                     parent_elem = parent_elem.append(full_content_file);
                 }
 
-                let total_stdout = output.output.stdout.lines().count();
-                let suffix_stdout = truncated_output.stdout_suffix_size;
-                parent_elem = parent_elem.append(
-                    Element::new("stdout")
-                        .append(Element::new("truncated").text("true"))
-                        .append(
-                            Element::new("displayed_lines")
-                                .text(truncated_output.stdout_prefix_count + suffix_stdout),
-                        )
-                        .append(Element::new("total_lines").text(total_stdout))
-                        .append(create_truncation_info(
-                            truncated_output.stdout_prefix_count,
-                            suffix_stdout,
-                            truncated_output.stdout_hidden_count,
-                        ))
-                        .append(Element::new("content").cdata(truncated_output.stdout)),
-                );
-                let total_stderr = output.output.stderr.lines().count();
-                let suffix_stderr = truncated_output.stderr_suffix_size;
-
-                parent_elem = parent_elem.append(
-                    Element::new("stderr")
-                        .append(Element::new("truncated").text("true"))
-                        .append(
-                            Element::new("displayed_lines")
-                                .text(truncated_output.stderr_prefix_count + suffix_stderr),
-                        )
-                        .append(Element::new("total_lines").text(total_stderr))
-                        .append(create_truncation_info(
-                            truncated_output.stderr_prefix_count,
-                            suffix_stderr,
-                            truncated_output.stderr_hidden_count,
-                        ))
-                        .append(Element::new("content").cdata(truncated_output.stderr)),
-                );
+                parent_elem = parent_elem.append(stdout_elem);
+                parent_elem = parent_elem.append(stderr_elem);
 
                 forge_domain::ToolOutput::text(parent_elem)
             }
