@@ -61,9 +61,9 @@ impl<F: Infrastructure> TemplateService for ForgeTemplateService<F> {
                 .file_read_service()
                 .read_utf8(template_path)
                 .await?;
-            // Use the filename (without extension) as the template name
+
             let template_name = template_path
-                .file_stem()
+                .file_name()
                 .and_then(|name| name.to_str())
                 .with_context(|| format!("Invalid filename: {}", template_path.display()))?;
             self.hb
