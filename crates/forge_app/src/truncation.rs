@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use forge_domain::Environment;
+use forge_template::Element;
 
 use crate::utils::format_match;
 use crate::{FsCreateService, Match, Services};
@@ -91,46 +92,51 @@ fn tag_output(
     match truncation_info {
         Some((prefix_count, hidden_count)) => {
             let suffix_start_line = prefix_count + hidden_count + 1;
-            let _suffix_count = lines.len() - prefix_count;
 
             let mut output = String::new();
 
             // Add prefix lines
-            output.push_str(&format!("<{tag} lines=\"1-{prefix_count}\">\n"));
             for line in lines.iter().take(prefix_count) {
                 output.push_str(line);
                 output.push('\n');
             }
-            output.push_str(&format!("</{tag}>\n"));
 
             // Add truncation marker
-            output.push_str(&format!(
-                "<truncated>...{tag} truncated ({hidden_count} lines not shown)...</truncated>\n"
-            ));
+            output.push_str(&format!("... [{hidden_count} lines omitted] ..."));
 
             // Add suffix lines
-            output.push_str(&format!(
-                "<{tag} lines=\"{suffix_start_line}-{total_lines}\">\n"
-            ));
             for line in lines.iter().skip(prefix_count) {
                 output.push_str(line);
                 output.push('\n');
             }
-            output.push_str(&format!("</{tag}>\n"));
 
-            output
+            Element::new(tag)
+                .attr("truncated", "true")
+                .attr("displayed_lines", prefix_count)
+                .attr("total_lines", total_lines)
+                .append(
+                    Element::new("truncation_info")
+                        .attr("head_lines", prefix_count)
+                        .attr("tail_lines", total_lines - suffix_start_line)
+                        .attr("omitted_lines", hidden_count),
+                )
+                .cdata(output)
+                .to_string()
         }
         None => {
             // No truncation, output all lines
-            let mut output = format!("<{tag}>\n");
+            let mut output = String::new();
             for (i, line) in lines.iter().enumerate() {
                 output.push_str(line);
                 if i < lines.len() - 1 {
                     output.push('\n');
                 }
             }
-            output.push_str(&format!("\n</{tag}>"));
-            output
+            Element::new(tag)
+                .attr("truncated", "false")
+                .attr("total_lines", total_lines)
+                .cdata(output)
+                .to_string()
         }
     }
 }

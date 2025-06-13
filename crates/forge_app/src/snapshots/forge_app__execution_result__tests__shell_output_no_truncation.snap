@@ -2,7 +2,5 @@
 source: crates/forge_app/src/execution_result.rs
 expression: to_value(actual)
 ---
-<shell_output><metadata command="echo hello" exit_code="0" shell="/bin/bash"></metadata><full_content_file></full_content_file><stdout truncated="false"><![CDATA[<stdout>
-hello
-world
-</stdout>]]></stdout><stderr truncated="false"><![CDATA[]]></stderr></shell_output>
+<shell_output><metadata command="echo hello" exit_code="0" shell="/bin/bash"></metadata><full_content_file></full_content_file><stdout truncated="false"><![CDATA[<stdout truncated="false" total_lines="2"><![CDATA[hello
+world]]></stdout>]]></stdout><stderr truncated="false"><![CDATA[]]></stderr></shell_output>
