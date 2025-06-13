@@ -193,7 +193,8 @@ mod test {
             .text("Hello, world!")
             .append([Element::new("span").attr("class", "child")]);
         let actual = html.render();
-        let expected = "<div\n  class=\"test\"\n>Hello, world!\n<span\n  class=\"child\"\n>\n</span>\n</div>";
+        let expected =
+            "<div\n  class=\"test\"\n>Hello, world!\n<span\n  class=\"child\"\n>\n</span>\n</div>";
         assert_eq!(actual, expected);
     }
     #[test]
