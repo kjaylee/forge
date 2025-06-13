@@ -103,7 +103,6 @@ pub trait McpConfigManager: Send + Sync {
 #[async_trait::async_trait]
 pub trait McpService: Send + Sync {
     async fn list(&self) -> anyhow::Result<Vec<ToolDefinition>>;
-    // async fn find(&self, name: &ToolName) -> anyhow::Result<Option<Arc<Tool>>>;
     async fn call(&self, call: ToolCallFull) -> anyhow::Result<ToolOutput>;
 }
 
