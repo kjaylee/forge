@@ -184,7 +184,6 @@ impl ExecutionResult {
                 let suffix_stdout = truncated_output.stdout_suffix_size;
 
                 let mut stdout_elem = Element::new("stdout")
-                    .append(Element::new("truncated").text("true"))
                     .append(
                         Element::new("displayed_lines")
                             .text(truncated_output.stdout_prefix_count + suffix_stdout),
@@ -195,7 +194,6 @@ impl ExecutionResult {
                 let total_stderr = output.output.stderr.lines().count();
                 let suffix_stderr = truncated_output.stderr_suffix_size;
                 let mut stderr_elem = Element::new("stderr")
-                    .append(Element::new("truncated").text("true"))
                     .append(
                         Element::new("displayed_lines")
                             .text(truncated_output.stderr_prefix_count + suffix_stderr),
