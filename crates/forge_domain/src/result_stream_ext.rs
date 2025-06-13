@@ -165,7 +165,7 @@ mod tests {
             Box::pin(tokio_stream::iter(messages));
 
         // Actual: Convert stream to full message
-        let actual = result_stream.into_full(false,0).await.unwrap();
+        let actual = result_stream.into_full(false, 0).await.unwrap();
 
         // Expected: Combined content and latest usage
         let expected = ChatCompletionMessageFull {
@@ -202,7 +202,7 @@ mod tests {
             Box::pin(tokio_stream::iter(messages));
 
         // Actual: Convert stream to full message
-        let actual = result_stream.into_full(false,0).await.unwrap();
+        let actual = result_stream.into_full(false, 0).await.unwrap();
 
         // Expected: Content and tool calls
         let expected = ChatCompletionMessageFull {
@@ -233,7 +233,7 @@ mod tests {
             Box::pin(tokio_stream::iter(messages));
 
         // Actual: Convert stream to full message
-        let actual = result_stream.into_full(false,1).await;
+        let actual = result_stream.into_full(false, 1).await;
 
         // Expected: Should return a retryable error
         assert!(actual.is_err());
