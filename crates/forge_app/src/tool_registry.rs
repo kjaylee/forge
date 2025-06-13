@@ -7,7 +7,8 @@ use anyhow::Context;
 use convert_case::{Case, Casing};
 use forge_display::{DiffFormat, GrepFormat, TitleFormat};
 use forge_domain::{
-    Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Environment, Event, FSSearch, Shell, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, Tools
+    Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Environment, Event, FSSearch,
+    Shell, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, Tools,
 };
 use futures::StreamExt;
 use regex::Regex;
@@ -18,7 +19,10 @@ use tokio::time::timeout;
 use crate::error::Error;
 use crate::utils::{display_path, format_match};
 use crate::{
-    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput, FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService, FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput, SearchResult, Services, ShellService, WorkflowService
+    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput,
+    FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService,
+    FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput,
+    SearchResult, Services, ShellService, WorkflowService,
 };
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
