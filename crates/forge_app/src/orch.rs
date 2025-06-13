@@ -414,9 +414,11 @@ impl<S: AgentService> Orchestrator<S> {
         }
 
         // agent has yielded and so now compact everything.
-        Compactor::new(self.services.clone())
-            .compact_context(&agent, context, CompactStrategy::percentage(1.0))
-            .await?;
+        self.conversation.context = Some(
+            Compactor::new(self.services.clone())
+                .compact_context(&agent, context, CompactStrategy::percentage(1.0))
+                .await?,
+        );
 
         Ok(())
     }
