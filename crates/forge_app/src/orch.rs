@@ -315,9 +315,12 @@ impl<S: AgentService> Orchestrator<S> {
                 .environment
                 .retry_config
                 .retry(|| {
-                    attempt.fetch_add(1, Ordering::SeqCst);
-                    let attempt = attempt.load(Ordering::SeqCst);
-                    self.execute_chat_turn(&model_id, context.clone(), is_tool_supported, attempt)
+                    self.execute_chat_turn(
+                        &model_id,
+                        context.clone(),
+                        is_tool_supported,
+                        attempt.fetch_add(1, Ordering::SeqCst),
+                    )
                 })
                 .await?;
 
