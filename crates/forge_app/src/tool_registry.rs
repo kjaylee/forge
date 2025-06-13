@@ -245,10 +245,12 @@ impl<S: Services> ToolRegistry<S> {
         let tool_input = Tools::try_from(input).map_err(Error::CallArgument)?;
 
         let out = self.call_internal(tool_input.clone(), context).await;
-        let out = send_if_error(context, out).await?;
+        if let Err(ref e) = out {
+            context.send_text(TitleFormat::error(e.to_string())).await?;
+        }
+        let out = out?;
         let truncation_path = out.to_create_temp(self.services.as_ref()).await?;
         let env = self.services.environment_service().get_environment();
-
         Ok(out.into_tool_output(tool_input, truncation_path, &env))
     }
 
@@ -480,17 +482,6 @@ async fn send_fs_search_context<S: Services>(
     }
 
     Ok(())
-}
-
-async fn send_if_error<T>(
-    ctx: &mut ToolCallContext,
-    result: anyhow::Result<T>,
-) -> anyhow::Result<T> {
-    if let Err(e) = &result {
-        ctx.send_text(TitleFormat::error(e.to_string())).await?;
-    }
-
-    result
 }
 
 async fn send_write_context<S: Services>(
