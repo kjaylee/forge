@@ -184,36 +184,35 @@ impl ExecutionResult {
                 let stdout_lines = output.output.stdout.lines().count();
                 let stderr_lines = output.output.stderr.lines().count();
 
-                let mut full_content_file = Element::new("full_content_file")
-                    .append(Element::new("total_lines").text(stdout_lines + stderr_lines));
-
                 if let Some(path) = (truncated_output.stdout_truncated
                     || truncated_output.stderr_truncated)
                     .then(|| truncation_path.as_ref().map(|p| p.display().to_string()))
                     .flatten()
                 {
-                    full_content_file = full_content_file.append(Element::new("path").text(path))
-                }
+                    let mut full_content_file = Element::new("full_content_file")
+                        .append(Element::new("total_lines").text(stdout_lines + stderr_lines))
+                        .append(Element::new("path").text(path));
 
-                if truncated_output.stdout_truncated {
-                    full_content_file = full_content_file.append(
-                        Element::new("stdout_line_range")
-                            .attr("start", 2)
-                            .attr("end", stdout_lines + 1),
-                    );
-                }
+                    if truncated_output.stdout_truncated {
+                        full_content_file = full_content_file.append(
+                            Element::new("stdout_line_range")
+                                .attr("start", 2)
+                                .attr("end", stdout_lines + 1),
+                        );
+                    }
 
-                if truncated_output.stderr_truncated {
-                    let start = stdout_lines + 2;
-                    let end = stdout_lines + stderr_lines + 2;
-                    full_content_file = full_content_file.append(
-                        Element::new("stdout_line_range")
-                            .attr("start", start)
-                            .attr("end", end),
-                    );
-                }
+                    if truncated_output.stderr_truncated {
+                        let start = stdout_lines + 2;
+                        let end = stdout_lines + stderr_lines + 2;
+                        full_content_file = full_content_file.append(
+                            Element::new("stdout_line_range")
+                                .attr("start", start)
+                                .attr("end", end),
+                        );
+                    }
 
-                parent_elem = parent_elem.append(full_content_file);
+                    parent_elem = parent_elem.append(full_content_file);
+                }
 
                 parent_elem = parent_elem.append(truncated_output.stdout);
                 parent_elem = parent_elem.append(truncated_output.stderr);
