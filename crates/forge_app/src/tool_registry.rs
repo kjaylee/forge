@@ -7,8 +7,7 @@ use anyhow::Context;
 use convert_case::{Case, Casing};
 use forge_display::{DiffFormat, GrepFormat, TitleFormat};
 use forge_domain::{
-    Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Event, FSSearch,
-    ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, Tools,
+    Agent, AgentInput, AttemptCompletion, ChatRequest, ChatResponse, Environment, Event, FSSearch, Shell, ToolCallContext, ToolCallFull, ToolDefinition, ToolName, ToolOutput, ToolResult, Tools
 };
 use futures::StreamExt;
 use regex::Regex;
@@ -19,10 +18,7 @@ use tokio::time::timeout;
 use crate::error::Error;
 use crate::utils::{display_path, format_match};
 use crate::{
-    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput,
-    FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService,
-    FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput,
-    SearchResult, Services, ShellOutput, ShellService, WorkflowService,
+    Content, ConversationService, EnvironmentService, FollowUpService, FsCreateOutput, FsCreateService, FsPatchService, FsReadService, FsRemoveService, FsSearchService, FsUndoService, HttpResponse, McpService, NetFetchService, PatchOutput, ReadOutput, SearchResult, Services, ShellService, WorkflowService
 };
 
 const TOOL_CALL_TIMEOUT: Duration = Duration::from_secs(300);
@@ -159,13 +155,12 @@ impl<S: Services> ToolRegistry<S> {
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
             Tools::ForgeToolFsRemove(input) => {
+                send_fs_remove_context(context, &input.path, self.services.as_ref()).await?;
                 let output = self
                     .services
                     .fs_remove_service()
                     .remove(input.path.clone())
                     .await?;
-
-                send_fs_remove_context(context, &input.path, self.services.as_ref()).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -186,22 +181,23 @@ impl<S: Services> ToolRegistry<S> {
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
             Tools::ForgeToolFsUndo(input) => {
-                let output = self
-                    .services
-                    .fs_undo_service()
-                    .undo(input.path.clone())
-                    .await?;
-                send_fs_undo_context(context, input).await?;
+                send_fs_undo_context(context, input.clone(), self.services.as_ref()).await?;
+                let output = self.services.fs_undo_service().undo(input.path).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
             Tools::ForgeToolProcessShell(input) => {
+                send_shell_output_context(
+                    context,
+                    &input,
+                    self.services.environment_service().get_environment(),
+                )
+                .await?;
                 let output = self
                     .services
                     .shell_service()
                     .execute(input.command, input.cwd, input.keep_ansi)
                     .await?;
-                send_shell_output_context(context, &output).await?;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -233,7 +229,6 @@ impl<S: Services> ToolRegistry<S> {
                         input.multiple,
                     )
                     .await?;
-                context.set_complete().await;
 
                 Ok(crate::execution_result::ExecutionResult::from(output))
             }
@@ -373,7 +368,6 @@ async fn send_completion_context(
     input: AttemptCompletion,
 ) -> anyhow::Result<()> {
     ctx.send_summary(input.result).await?;
-    ctx.set_complete().await;
 
     Ok(())
 }
@@ -381,9 +375,12 @@ async fn send_completion_context(
 async fn send_fs_undo_context(
     ctx: &mut ToolCallContext,
     input: forge_domain::FSUndo,
+    services: &impl Services,
 ) -> anyhow::Result<()> {
+    let env = services.environment_service().get_environment();
+
     // Display a message about the file being undone
-    let message = TitleFormat::debug("Undo").sub_title(input.path);
+    let message = TitleFormat::debug("Undo").sub_title(display_path(&env, Path::new(&input.path)));
     ctx.send_text(message).await
 }
 
@@ -400,10 +397,11 @@ async fn send_net_fetch_context(
 
 async fn send_shell_output_context(
     ctx: &mut ToolCallContext,
-    output: &ShellOutput,
+    output: &Shell,
+    environment: Environment,
 ) -> anyhow::Result<()> {
-    let title_format = TitleFormat::debug(format!("Execute [{}]", output.shell.as_str()))
-        .sub_title(&output.output.command);
+    let title_format =
+        TitleFormat::debug(format!("Execute [{}]", environment.shell)).sub_title(&output.command);
     ctx.send_text(title_format).await?;
     Ok(())
 }
@@ -466,7 +464,7 @@ async fn send_fs_search_context<S: Services>(
     };
 
     if let Some(output) = output.as_ref() {
-        context.send_text(&title).await?;
+        context.send_text(TitleFormat::debug(title)).await?;
         let mut formatted_output = GrepFormat::new(
             output
                 .matches

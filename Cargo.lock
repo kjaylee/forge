@@ -1037,6 +1037,7 @@ dependencies = [
  "backon",
  "base64 0.22.1",
  "chrono",
+ "convert_case",
  "derive-getters",
  "derive_more",
  "derive_setters",
